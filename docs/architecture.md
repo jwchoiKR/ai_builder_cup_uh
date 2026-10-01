@@ -1,0 +1,185 @@
+# Agent architecture
+
+**In one sentence:** there is no main or orchestrator agent. The backend code orchestrates: an event-driven pipeline, one runtime per broadcast session. It calls six single-purpose LLM agents, each once per input. Each agent returns one JSON object checked against a schema.
+
+| | |
+|---|---|
+| **Orchestration** | Backend code (FastAPI, one `SessionRuntime` per session). Every step order, retry, route and publish decision is code. |
+| **Agents** | 6 single-call agents: one request, one validated JSON reply, a fixed deadline. Agents have no tools, no memory between calls and no loops, and they never call each other. |
+| **Between agents** | Code passes outputs on. Examples: triage output → grouping and routing → composer input; judge output → alerts, prompter, switch. |
+| **Guards** | Deterministic checks before and after the agents: prefilter, reflex, `verify_answer`, the correction check, the switch state machine, the publish decision. |
+
+## 1. System overview
+
+```mermaid
+flowchart LR
+  subgraph IN["Inputs"]
+    MIC["Host microphone"]
+    CMT["Viewer comments"]
+    PDF["Product sheet PDFs"]
+  end
+  subgraph BE["Backend code: the orchestrator (one runtime per session)"]
+    STT["Speech-to-Text (chirp_3 streaming)"]
+    UP["Utterance pipeline"]
+    CP["Comment pipeline"]
+    SP["Setup pipeline"]
+    SUMP["Summary pipeline"]
+    BUS[("Event bus (stored events)")]
+  end
+  subgraph AG["LLM agents: one call each, JSON out"]
+    J["Utterance Judge"]
+    F["Fact Checker"]
+    T["Comment Triage"]
+    C["Answer Composer"]
+    B["Brief Agent"]
+    S["Broadcast Summary"]
+  end
+  DATA[("Product sheets, passages, claim rules, promos")]
+  subgraph OUT["Screens (live updates over SSE)"]
+    H["Host"]
+    O["Operator"]
+    V["Viewer"]
+  end
+  MIC --> STT --> UP
+  CMT --> CP
+  PDF --> SP
+  UP <--> J
+  UP <--> F
+  CP <--> T
+  CP <--> C
+  SP <--> B
+  SUMP <--> S
+  DATA -.-> UP
+  DATA -.-> CP
+  DATA -.-> SP
+  UP --> BUS
+  CP --> BUS
+  SP --> BUS
+  SUMP --> BUS
+  BUS --> H
+  BUS --> O
+  BUS --> V
+  classDef agent fill:#F2C46D,stroke:#8A5A00,color:#1D1400
+  class J,F,T,C,B,S agent
+```
+
+## 2. Comment path (viewer question → answer)
+
+```mermaid
+flowchart TD
+  A["Viewer comment"] --> P{"Prefilter: reaction, spam, link, phone number"}
+  P -- "reaction or hidden" --> X["Shown or hidden, no AI call"]
+  P -- "text to analyse" --> TC{"Triage cache hit?"}
+  TC -- "yes" --> G
+  TC -- "no" --> T["Comment Triage (LLM, 2.5 s)"]
+  T --> G["Product attribution and grouping: same question, same group"]
+  G --> CMP{"Answerable from the product sheet?"}
+  CMP -- "no (e.g. shipping)" --> OP["Operator: Needs review"]
+  CMP -- "yes" --> AC{"Answer cache hit?"}
+  AC -- "yes" --> VF
+  AC -- "no" --> CO["Answer Composer (LLM, 12 s, sheet passages)"]
+  CO --> VF{"verify_answer: citations, numbers, unapproved claims"}
+  VF -- "not verified" --> OP
+  VF -- "verified" --> R{"Route by question type"}
+  R -- "AUTO (e.g. price)" --> AUTO["AI answer posted to viewers"]
+  R -- "HOST (e.g. skin type)" --> HOST["Host top-3 card with suggested answer"]
+  R -- "OPERATOR (sensitive, e.g. pregnancy)" --> OPD["Operator: draft to approve"]
+  classDef agent fill:#F2C46D,stroke:#8A5A00,color:#1D1400
+  class T,CO agent
+```
+
+## 3. Utterance path (host speech → alerts, prompter, switch)
+
+```mermaid
+flowchart TD
+  M["Host speaks"] --> STT["Speech-to-Text: final transcript about 1 s after speech end"]
+  STT --> MG{"Previous final unfinished (no . ? !) and at most 3.5 s ago?"}
+  MG -- "yes" --> JT["Use the joined text"]
+  MG -- "no" --> OT["Use this final"]
+  JT --> RF["Reflex: banned-phrase scan, instant provisional alert"]
+  OT --> RF
+  RF --> J["Utterance Judge (LLM, 2.5 s)"]
+  RF --> F["Fact Checker (LLM, 3 s, sheet passages)"]
+  J --> AL["Compliance alert: red overlay on host"]
+  J --> CR{"Correction? approved wording or explicit retraction required"}
+  CR -- "yes" --> OK["Green 'Corrected'"]
+  J --> PR["Prompter: mark points said"]
+  J --> SW["Product switch: named transition, then a product fact, then 5 s countdown"]
+  J --> PUB["Host answered an open question: post the reply"]
+  F --> FN["Fact note: stated value vs sheet value"]
+  J -. "judge failed or timed out" .-> FB["Fallback: un-negated HIGH reflex hit becomes an unverified alert"]
+  classDef agent fill:#F2C46D,stroke:#8A5A00,color:#1D1400
+  class J,F agent
+```
+
+The Utterance Judge and the Fact Checker run **in parallel** for each final. With `JUDGE_MODE=single`, one combined call does both jobs; the default is `split`.
+
+## 4. One sentence, end to end
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Host
+  participant STT as Speech-to-Text
+  participant BE as Backend (code)
+  participant J as Utterance Judge (LLM)
+  participant F as Fact Checker (LLM)
+  participant UI as Host and Operator screens
+  Host->>STT: "your wrinkles will disappear overnight"
+  STT->>BE: final transcript (about 1 s)
+  BE->>BE: reflex scan, provisional alert
+  par compliance
+    BE->>J: utterance + recent lines + open alerts + open questions
+    J-->>BE: violation: ageing claim, HIGH
+  and facts
+    BE->>F: utterance + product sheet passages
+    F-->>BE: no wrong facts
+  end
+  BE->>UI: red overlay "Say this instead" (target 5 s p95 after speech end)
+  Host->>STT: "Let me correct that. It helps keep skin hydrated for up to 24 hours..."
+  STT->>BE: final transcript
+  BE->>J: utterance + open alerts
+  J-->>BE: corrects the alert
+  BE->>BE: correction check: approved wording heard
+  BE->>UI: green "Corrected"
+```
+
+## 5. Before and after the broadcast
+
+```mermaid
+flowchart LR
+  subgraph PRE["Before the broadcast (/setup)"]
+    U["PDF upload"] --> IX["Check, read, match product, split, index"]
+    IX --> BA["Brief Agent (LLM, 60 s)"]
+    BA --> ED["Operator reviews and edits glossary and point drafts"]
+    ED --> CF["Confirm glossary"]
+    CF --> HINT["STT phrase hints and prompter points for the next session"]
+  end
+  subgraph POST["After the broadcast (/summary)"]
+    END["End broadcast"] --> ST["Statistics computed by code"]
+    ST --> BS["Broadcast Summary (LLM, 30 s)"]
+    BS --> CK["Recap sentences checked against the numbers"]
+    CK --> PG["Summary page and PDF report"]
+  end
+  classDef agent fill:#F2C46D,stroke:#8A5A00,color:#1D1400
+  class BA,BS agent
+```
+
+## The six agents
+
+| Agent | Runs | Input | Output | Model, deadline | If it fails |
+|---|---|---|---|---|---|
+| Comment Triage | each comment (cache first) | comment, product on air, open question groups | kind, intent, product, canonical question, group to join | gemini-3.5-flash-lite (MINIMAL), 2.5 s | question goes to operator review |
+| Answer Composer | each new question group (cache first) | canonical question, product sheet passages, set offers, active promo | answer, citations, grounded, needs_human | gemini-3.8-flash (LOW), 12 s | group goes to operator review |
+| Utterance Judge | each final transcript | utterance (joined if split), recent lines, open alerts, open questions, prompter points, switch state | violations (negated / quoted), corrections, answered question, points said, switch signal | gemini-3.5-flash-lite (MINIMAL), 2.5 s | reflex decides: un-negated HIGH hit becomes an unverified alert |
+| Fact Checker | each final transcript, in parallel with the judge | utterance, retrieved sheet passages, active promo | claims: supported / contradicted with the sheet value | gemini-3.5-flash-lite (MINIMAL), 3 s | no fact note for that sentence |
+| Brief Agent | /setup, per product | product sheet text | glossary terms, prompter point drafts | gemini-3.8-flash (MEDIUM), 60 s | error shown, previous result kept |
+| Broadcast Summary | after "End broadcast" | statistics computed by code | headline, highlights, watch-outs, follow-ups | gemini-3.8-flash (MEDIUM), 30 s | statistics shown without a recap |
+
+**What agents never do:**
+- call each other or any tool;
+- post to viewers by themselves;
+- decide numbers shown on screens;
+- change state directly.
+
+Every effect goes through code that checks it first. Settings are in `.env.example`, and the decisions behind them are in `docs/DECISIONS.md`.
