@@ -10,11 +10,11 @@
    "quote": "List price: S$48.00"
   },
   {
-   "passage_id": "DL-CR-01#frequently-asked-questions#how-much-is-it",
-   "quote": "Set with Deep Hydration Ampoule S$62.00."
+   "passage_id": "DL-CR-01#key-facts#live-set-price",
+   "quote": "Live set price: S$62.00 for Hydra Barrier Cream 50 mL + Deep Hydration Ampoule 30 mL"
   }
  ],
  "grounded": true,
  "needs_human": false,
- "reason": "Prices from key facts and FAQ."
+ "reason": "Prices from key facts."
 }

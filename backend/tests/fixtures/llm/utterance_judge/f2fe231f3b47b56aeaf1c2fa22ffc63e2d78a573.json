@@ -1,0 +1,34 @@
+{
+ "compliance": {
+  "violations": [
+   {
+    "span": "regenerates your skin cells",
+    "rule_id": "ASEAN-DP5-PHYSIOLOGICAL",
+    "severity": "HIGH",
+    "is_negated": false,
+    "is_quoted": false,
+    "say_instead": "Delivers instant hydration."
+   }
+  ]
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "answer": {
+  "utterance_type": "product_talk",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Claims the product regenerates skin cells, which violates physiological modification rules."
+}

@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "you can use it under makeup, put sunscreen on after the cream and then your makeup",
+   "field": "usage",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "Yes you can use it under makeup, put sunscreen on after the cream and then your makeup",
+   "verdict": "supported",
+   "correct_value": "Yes. Apply sunscreen after the cream, then makeup.",
+   "passage_id": "DL-CR-01#frequently-asked-questions#can-i-use-it-under-makeup",
+   "quote": "Yes. Apply sunscreen after the cream, then makeup."
+  }
+ ],
+ "reason": "The host's statement about using the product under makeup and applying sunscreen afterwards is supported by the source."
+}

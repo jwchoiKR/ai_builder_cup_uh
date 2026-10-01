@@ -13,5 +13,5 @@
  },
  "canonical_question": "How much is it?",
  "group_candidate_id": null,
- "reason": "Asks the price of the current product on air."
+ "reason": "Asks the price of the current context product."
 }

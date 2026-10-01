@@ -198,7 +198,7 @@ D-041: `POST /comments` requires `VIEWER_INPUT_ENABLED` and returns 403 otherwis
 
 D-042: **Re-triage on a stale view.** Triage runs concurrently, so a paraphrase can be classified before the group of a near-simultaneous question exists. If grouping then finds no match but a compatible open group exists that the triage call did not see, triage runs once more with the current open groups. "Did not see" means the group was created while triage ran, or the output came from the triage cache. The LLM still decides; code only asks again. Reason: the live recording of B2 split the makeup questions into three groups; with re-triage the group has the expected 4 askers (§8.8 requires near-simultaneous paraphrases to join one group).
 
-D-043: A `set_price` question with no resolved product is attributed to the on-air product (basis `context`). Reason: the model reasonably marks set questions as "both products" (`unknown`), which made them "unresolved". Both product sheets list the same set price, and S11 expects the set price question to be auto-answered with S$55.80.
+D-043: A `set_price` or `routine_order` question with no resolved product is attributed to the on-air product (basis `context`). Reason: the model reasonably marks these questions as "both products" (`unknown`), which made them "unresolved". Both product sheets carry the answer: the same set price, and "apply the ampoule first". S11 expects the time-sale set price question to be auto-answered with S$55.80. `routine_order` was added in P2 after a comment-eval run classified C26 as `routine_order` with both products named.
 
 D-044: A 504 `DEADLINE_EXCEEDED` from Vertex AI is treated as a timeout and not retried. Reason: the server enforces the deadline we send (`X-Server-Timeout`, VERIFIED §3.1), so it is a timeout (§7.1 "never retry on timeout").
 
@@ -215,3 +215,58 @@ D-046: Comment eval scoring:
 - Product attribution (§8.8 step 6) runs before routing, as in the pipeline.
 
 Reason: §14.3 targets count over all 35 cases, but only 28 carry an intent label.
+
+## P2 Utterance path (2026-10-01)
+
+D-047: The provider does not set `HttpOptions.timeout`, so no `X-Server-Timeout` header is sent. The agent deadline is enforced by `asyncio.wait_for` alone, and cancelling it closes the HTTP request (VERIFIED §3.3). Reason: with the header, Vertex AI returned `504 DEADLINE_EXCEEDED` after about 1.4 s on a 2.5 s deadline for several judge calls. Without it, every call succeeded (VERIFIED §3.4).
+
+D-048: A `contradicted` fact claim that cites a passage of the section "Approved on-air claims" is downgraded to `not_in_sources`. This is an extra check on top of §7.4. Reason: the fact checker sometimes "corrected" compliance sentences with the "Claims not approved" passage (U03, U05, U06). That is the judge's job, and the note would have been a wrong amber correction ("a wrong correction is worse than no correction", fact_checker.md).
+
+D-049: `active_alerts_json` for the judge leaves out the provisional alerts of the transcript being judged. Reason: these alerts come from this very sentence and have not been shown to the host. Listing them invites the judge to "correct" them with the sentence that caused them. Earlier transcripts' alerts are always resolved by then, because steps 1–4 run one transcript at a time.
+
+D-050: The per-session utterance order is kept with two chains of tasks instead of a queue and a worker:
+- a "main" chain for steps 1–4;
+- a "side" chain for steps 5–6.
+
+Each task awaits the previous task of its chain, so the semantics of §8.2 are the same. Reason: no long-lived worker task; the manual test scheduler can wait for all work.
+
+D-051: Event details:
+- `judge.failed` is `{transcript_id, status, alert_ids}`.
+- The second cue emits `segment.switch_counting` (cue 2/2) and then `segment.switch_pending`.
+- A cancelled count (counting → idle) emits nothing.
+- `segment.switch_cancelled` is `{reason}` with reason `speech`, `compliance_alert`, `operator` or `host`.
+- `segment.missing_points` carries the missing ids and texts.
+- `metrics.updated` is emitted every 5 ticks (5 s) while live.
+
+Reason: §11.3 names the events; payloads follow what the screens show (§12.3.9, §12.4.4, §12.4.9).
+
+D-052: Compliance alerts:
+- There is at most one alert per (transcript, rule).
+- A violation repeated while an alert of the same rule is active creates a new active alert (reflex skips the provisional step for that rule).
+- Fact alerts use the id prefix `fx_`; only one per (product, field) is active.
+
+Reason: §8.2 step 2 ("not already covered"), §8.4.2 ("1 of N"), §8.5 dedupe.
+
+D-053: Publish decision: when condition 1 holds but only 4 (HIGH alert / violation) or 5 (contradicted fact) fails, nothing happens and the group stays on the host. Reason: §8.6 defines the "host answered on air · not posted" path only for failures of 2, 3 or 6. A host answer that carries a violation or a wrong fact must not be marked as answered.
+
+D-054: Switch:
+- While any HIGH alert is active, each judge output counts as a cancel, so counting resets and a pending switch is cancelled (§8.4.7).
+- The cue window expiry is checked when the next judge output arrives; a cue after the window starts a new count.
+- The operator may switch to any other run-sheet product.
+- `POST /segments/cancel {by}` serves both the operator "Cancel switch" and the host Esc key.
+
+Reason: §8.7.2 lists Esc and "Cancel switch" without an endpoint; expiry only matters at the next cue.
+
+D-055: Undo moves groups back. A group goes back to the reopened product when one of its member comments was attributed by `context` to the undone product during the undone segment. Reason: the §8.7.2 Undo rule.
+
+D-056: API additions:
+- `/api/catalog` also returns rules (title, source_ref), passage labels, notice templates, intents and the policy PDF link.
+- `GET /api/files/policy` serves the Appendix III PDF.
+- `GET /alerts/{aid}/notice-template` prefills "Post notice".
+- Demo tools add `POST /transcripts {text, scene}` (scene = mock scenario tag), `GET /api/demo/script` (parsed host script) and `POST /demo/simulate-overtime`.
+
+Reason: §12.4.2, §12.4.3 and §12.6 need these, and v1 has no other way to read them.
+
+D-057: `logic/summary_stats.py` (pure statistics, §8.14) is implemented in P2, because the P2 "done when" requires every §14.1 test, including summary stats. The recap agent and the summary page follow in P4.
+
+D-058: Model outputs vary between runs: temperature cannot be pinned on these models (D-008). The eval targets met in each run, as recorded in `docs/eval/`. One comment-eval run had route 32/35 because C26 was classified `routine_order`; D-043 was extended for that. Fixtures are recorded from single runs and replayed deterministically.

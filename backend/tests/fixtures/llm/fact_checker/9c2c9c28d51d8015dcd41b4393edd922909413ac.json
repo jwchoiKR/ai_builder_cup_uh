@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "thirty-two forty",
+   "field": "promo",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "S$32.40",
+   "verdict": "supported",
+   "correct_value": "S$32.40",
+   "passage_id": null,
+   "quote": null
+  }
+ ],
+ "reason": "The stated time sale price of S$32.40 matches the active promotion price for the cream."
+}

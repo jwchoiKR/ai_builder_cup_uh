@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "It helps reduce the look of fine dryness lines.",
+   "field": "other",
+   "product_id": "ampoule_deep_hydration",
+   "stated_value": "helps reduce the look of fine dryness lines",
+   "verdict": "supported",
+   "correct_value": "Helps reduce the look of fine dryness lines.",
+   "passage_id": "DL-AM-01#approved-on-air-claims#approved",
+   "quote": "Helps reduce the look of fine dryness lines."
+  }
+ ],
+ "reason": "The claim is supported by the approved on-air claims passage."
+}

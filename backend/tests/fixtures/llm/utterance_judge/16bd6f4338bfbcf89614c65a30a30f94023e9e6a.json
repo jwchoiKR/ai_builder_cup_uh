@@ -1,0 +1,34 @@
+{
+ "compliance": {
+  "violations": [
+   {
+    "span": "whitens your skin",
+    "rule_id": "BRAND-WHITENING",
+    "severity": "MEDIUM",
+    "is_negated": false,
+    "is_quoted": false,
+    "say_instead": "Helps skin look more radiant and even-toned with continued use."
+   }
+  ]
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "answer": {
+  "utterance_type": "product_talk",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Makes a prohibited skin whitening claim."
+}

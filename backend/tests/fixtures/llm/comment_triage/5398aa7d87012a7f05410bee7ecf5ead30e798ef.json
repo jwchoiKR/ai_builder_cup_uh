@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "Does it reduce wrinkles?",
+ "canonical_question": "Will it reduce wrinkles?",
  "group_candidate_id": null,
- "reason": "Asks if the product can remove wrinkles."
+ "reason": "Asks about wrinkle reduction for the current product."
 }

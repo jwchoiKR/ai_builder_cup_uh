@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "four percent niacinamide",
+   "field": "ingredient_amount",
+   "product_id": "ampoule_deep_hydration",
+   "stated_value": "4% niacinamide",
+   "verdict": "supported",
+   "correct_value": null,
+   "passage_id": "DL-AM-01#key-ingredients#niacinamide",
+   "quote": "Niacinamide: 4%"
+  }
+ ],
+ "reason": "The niacinamide percentage for the Deep Hydration Ampoule is supported by the source passages."
+}

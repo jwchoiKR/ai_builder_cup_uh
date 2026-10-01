@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from ..context import AppContext, get_ctx
 from ..pipelines import comments as ops
+from ..pipelines import utterances as utt
 from ..pipelines.runtime import SessionRuntime
 
 router = APIRouter(prefix="/sessions/{session_id}")
@@ -89,6 +90,90 @@ async def start_promo(promo_id: str, rt: SessionRuntime = Depends(runtime)) -> d
 async def stop_promo(promo_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
     await rt.stop_promo(promo_id)
     await ops.operator_action(rt, "promo_stop", promo_id=promo_id)
+    return OK
+
+
+@router.post("/messages/{message_id}/cancel")
+async def cancel_message(message_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
+    await utt.cancel_message(rt, message_id)
+    return OK
+
+
+@router.post("/alerts/{alert_id}/dismiss")
+async def dismiss_alert(alert_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
+    await utt.dismiss_alert(rt, alert_id)
+    return OK
+
+
+@router.post("/alerts/{alert_id}/cue")
+async def alert_cue(alert_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
+    return (await utt.correction_cue(rt, alert_id)).model_dump()
+
+
+@router.post("/alerts/{alert_id}/resend")
+async def resend(alert_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
+    await utt.resend_fact(rt, rt.utterances, alert_id)
+    return OK
+
+
+@router.get("/alerts/{alert_id}/notice-template")
+async def notice_template(alert_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
+    a = await utt._alert_or_404(rt, alert_id)
+    return {"text": utt.notice_template(rt, a)}
+
+
+class AlertNoticeBody(BaseModel):
+    text: str = Field(min_length=1, max_length=400)
+
+
+@router.post("/alerts/{alert_id}/notice")
+async def alert_notice(alert_id: str, body: AlertNoticeBody, rt: SessionRuntime = Depends(runtime)) -> dict:
+    return (await utt.post_notice(rt, alert_id, body.text)).model_dump()
+
+
+@router.post("/alerts/{alert_id}/rendered")
+async def rendered(alert_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
+    await utt.render_ack(rt, alert_id)
+    return OK
+
+
+class CueBody(BaseModel):
+    text: str | None = Field(default=None, max_length=200)
+    preset_id: str | None = None
+
+
+@router.post("/cues")
+async def send_cue(body: CueBody, rt: SessionRuntime = Depends(runtime)) -> dict:
+    return (await utt.send_cue(rt, body.text, body.preset_id)).model_dump()
+
+
+@router.delete("/cues/{cue_id}")
+async def clear_cue(cue_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
+    await utt.clear_cue(rt, cue_id)
+    return OK
+
+
+class SwitchBody(BaseModel):
+    product_id: str
+
+
+@router.post("/segments/switch")
+async def switch(body: SwitchBody, rt: SessionRuntime = Depends(runtime)) -> dict:
+    return (await utt.operator_switch(rt, body.product_id)).model_dump()
+
+
+@router.post("/segments/undo")
+async def undo(rt: SessionRuntime = Depends(runtime)) -> dict:
+    return (await utt.undo_switch(rt)).model_dump()
+
+
+class CancelBody(BaseModel):
+    by: Literal["operator", "host"] = "operator"
+
+
+@router.post("/segments/cancel")
+async def cancel_switch(body: CancelBody | None = None, rt: SessionRuntime = Depends(runtime)) -> dict:
+    await utt.cancel_switch(rt, (body or CancelBody()).by)
     return OK
 
 

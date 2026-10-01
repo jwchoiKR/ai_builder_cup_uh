@@ -1,0 +1,25 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "answer": {
+  "utterance_type": "transition",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": true,
+   "is_quote": false,
+   "target_product_id": "ampoule_deep_hydration",
+   "confidence": "high"
+  }
+ },
+ "reason": "Explicit transition to the next product on the run sheet, the Deep Hydration Ampoule."
+}

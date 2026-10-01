@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "What is the set price?",
+ "canonical_question": "What is the bundle or set price?",
  "group_candidate_id": null,
- "reason": "Asks for the bundle or set price during the sale."
+ "reason": "Asks for the set price of the current product."
 }

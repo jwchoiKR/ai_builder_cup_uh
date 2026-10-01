@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "regenerates your skin cells from the inside",
+   "field": "other",
+   "product_id": "ampoule_deep_hydration",
+   "stated_value": "Regenerates skin cells",
+   "verdict": "contradicted",
+   "correct_value": "Claims not approved: Removes wrinkles or reverses skin ageing. Whitens skin, or permanently changes skin colour. Treats acne, acne scars, pigmentation disorders or any skin disease. Repairs, heals or regenerates skin cells.",
+   "passage_id": "DL-AM-01#approved-on-air-claims#not-approved",
+   "quote": "Repairs, heals or regenerates skin cells."
+  }
+ ],
+ "reason": "Regenerating skin cells is explicitly listed as a claim not approved."
+}

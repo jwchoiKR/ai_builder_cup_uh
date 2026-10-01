@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "Can it be used for children with eczema?",
+ "canonical_question": "Can it be used by children with eczema?",
  "group_candidate_id": null,
- "reason": "Asks if a child with eczema can use the product."
+ "reason": "Asks if the product is safe for a son with eczema."
 }

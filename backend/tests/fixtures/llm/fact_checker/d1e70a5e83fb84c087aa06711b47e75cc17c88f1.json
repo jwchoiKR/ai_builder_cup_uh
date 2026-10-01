@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "removes your old acne scars",
+   "field": "other",
+   "product_id": "ampoule_deep_hydration",
+   "stated_value": "removes acne scars",
+   "verdict": "contradicted",
+   "correct_value": "Treats acne, acne scars, pigmentation disorders or any skin disease.",
+   "passage_id": "DL-AM-01#approved-on-air-claims#not-approved",
+   "quote": "Treats acne, acne scars, pigmentation disorders or any skin disease."
+  }
+ ],
+ "reason": "The claim regarding removing acne scars is explicitly listed as not approved in the product sheet."
+}

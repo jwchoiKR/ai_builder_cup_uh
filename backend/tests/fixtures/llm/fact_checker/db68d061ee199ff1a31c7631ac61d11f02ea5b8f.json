@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "fragrance free",
+   "field": "fragrance",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "fragrance free",
+   "verdict": "supported",
+   "correct_value": "No added fragrance and no essential oils",
+   "passage_id": "DL-CR-01#key-facts#free-from",
+   "quote": "Free from: Added fragrance, essential oils, ethanol (denatured alcohol), mineral oil"
+  }
+ ],
+ "reason": "The claim that the cream is fragrance-free is supported by the product sheet."
+}

@@ -1,0 +1,34 @@
+{
+ "compliance": {
+  "violations": [
+   {
+    "span": "lasts forever",
+    "rule_id": "ASEAN-2E-PERMANENT",
+    "severity": "HIGH",
+    "is_negated": false,
+    "is_quoted": false,
+    "say_instead": "Helps keep skin hydrated for up to 24 hours.*"
+   }
+  ]
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "answer": {
+  "utterance_type": "product_talk",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Claims permanent results by stating the product lasts forever."
+}

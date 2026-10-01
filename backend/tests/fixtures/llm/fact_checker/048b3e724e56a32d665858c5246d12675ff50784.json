@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "ten percent niacinamide",
+   "field": "ingredient_amount",
+   "product_id": "ampoule_deep_hydration",
+   "stated_value": "10% niacinamide",
+   "verdict": "contradicted",
+   "correct_value": "4% niacinamide",
+   "passage_id": "DL-AM-01#key-ingredients#niacinamide",
+   "quote": "Niacinamide: 4%"
+  }
+ ],
+ "reason": "Niacinamide amount differs from the sheet."
+}

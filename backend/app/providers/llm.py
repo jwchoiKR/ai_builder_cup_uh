@@ -155,7 +155,7 @@ class RecordingBackend:
             data = req.fixture_encode(data)
         path = self.mock.fixture_path(req.agent, req.mock_primary_text, req.mock_scenario)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
         self.recorded.append(path)
         return reply
 
@@ -174,7 +174,9 @@ def vertex_config(req: LLMRequest, timeout_ms: int, schema: dict):
 
     - response_json_schema (not response_schema): keeps `dict` fields and our exact JSON Schema;
     - no temperature: ignored by the configured models, Google advises the default (D-008);
-    - per-request HttpOptions.timeout (ms) also sends X-Server-Timeout; SDK retries stay off.
+    - no HttpOptions.timeout: it also sends X-Server-Timeout, with which Vertex answered 504
+      DEADLINE_EXCEEDED after ~1.4 s for a 2.5 s deadline (D-047). The deadline is enforced by
+      asyncio.wait_for, whose cancellation closes the request (VERIFIED item 3). SDK retries stay off.
     """
     from google.genai import types
 
@@ -184,7 +186,6 @@ def vertex_config(req: LLMRequest, timeout_ms: int, schema: dict):
         response_json_schema=schema,
         thinking_config=types.ThinkingConfig(thinking_level=req.thinking_level),
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-        http_options=types.HttpOptions(timeout=max(1, timeout_ms)),
     )
 
 
@@ -299,8 +300,10 @@ class LLMClient:
             except ValidationError as e:
                 status, error = "invalid", _short_validation_error(e)
                 logged_output = {"raw": raw.text[:4000]}
-        except (TimeoutError, LLMTimeout):
+        except TimeoutError:
             status, error = "timeout", f"deadline {req.deadline_ms} ms"
+        except LLMTimeout as e:
+            status, error = "timeout", f"{e} (deadline {req.deadline_ms} ms)"
         except LLMError as e:
             status, error = "error", str(e)[:500]
         except Exception as e:  # noqa: BLE001 - fail safe: never raise into a pipeline (§3.2)

@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "whitens your skin in two weeks",
+   "field": "other",
+   "product_id": "ampoule_deep_hydration",
+   "stated_value": "2 weeks",
+   "verdict": "contradicted",
+   "correct_value": "4 weeks",
+   "passage_id": "DL-AM-01#in-house-test-results#participants-who-said-skin-looked-more-radiant-after-4-weeks",
+   "quote": "Participants who said skin looked more radiant after 4 weeks"
+  }
+ ],
+ "reason": "The test results and timeline specified in the sources refer to 4 weeks, not two weeks."
+}

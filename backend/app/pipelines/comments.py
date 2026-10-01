@@ -240,7 +240,9 @@ async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: An
             citations=answer.citations, idempotency_key=f"ai_answer:{g.group_id}",
         )
         g.status, g.published_message_id = "auto_answered", msg.message_id
-        rt.counters["instant_answers" if instant else "composed_answers"] += len(g.member_comment_ids)
+        kind = "instant" if instant else "composed"
+        rt.counters[f"{kind}_answers"] += len(g.member_comment_ids)
+        await _record_reply_latency(rt, kind, g.member_comment_ids)
     elif g.route == "HOST":
         g.status = "ready"
     else:
@@ -275,6 +277,16 @@ async def reply_again_locked(rt: "SessionRuntime", g: QuestionGroup, new_comment
         return  # a pending host answer: the new member waits for it
     if msg.kind == "ai_answer":
         rt.counters["instant_answers"] += len(fresh)
+        await _record_reply_latency(rt, "instant", fresh)
+
+
+async def _record_reply_latency(rt: "SessionRuntime", kind: str, comment_ids: list[str]) -> None:
+    """§8.16: time from comment to reply, split into instant and composed."""
+    now = rt.now()
+    for cid in comment_ids:
+        c = await rt.get_comment(cid)
+        if c is not None:
+            rt.reply_latencies[kind].append(now - c.received_at)
 
 
 async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scenario: str) -> None:

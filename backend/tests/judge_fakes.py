@@ -1,0 +1,130 @@
+"""Scripted LLM backend and output builders for utterance-path tests (no Vertex, no fixtures)."""
+from __future__ import annotations
+
+import asyncio
+import json
+
+from app.models.agent_io import FactCheckOutput, JudgeSingleOutput, UtteranceJudgeOutput
+from app.models.session import Event
+from app.providers.llm import LLMError, RawReply
+
+from .helpers import live_runtime, make_ctx
+
+CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
+PRICE_PASSAGE = "DL-CR-01#key-facts#live-broadcast-price"
+PRICE_QUOTE = "Live broadcast price: S$36.00"
+
+
+def violation(rule_id: str, span: str = "the claim", *, negated: bool = False, quoted: bool = False,
+              severity: str = "HIGH", say: str = "Say this instead.") -> dict:
+    return {"span": span, "rule_id": rule_id, "severity": severity, "is_negated": negated, "is_quoted": quoted,
+            "say_instead": say}
+
+
+def judge_output(*, violations=(), corrects=(), utterance_type="product_talk", matched=None, is_answer=False,
+                 consistent=False, covered=(), cues=(), transition=False, quote=False, target=None,
+                 confidence="low", reason="scripted") -> dict:
+    return UtteranceJudgeOutput.model_validate({
+        "compliance": {"violations": list(violations)},
+        "correction": {"corrects_alert_ids": list(corrects)},
+        "answer": {"utterance_type": utterance_type, "matched_group_id": matched, "is_answer": is_answer,
+                   "consistent_with_suggested": consistent},
+        "prompter": {"covered_point_ids": list(covered), "covered_cue_ids": list(cues),
+                     "switch": {"is_transition": transition, "is_quote": quote, "target_product_id": target,
+                                "confidence": confidence}},
+        "reason": reason,
+    }).model_dump(mode="json")
+
+
+def claim(field: str, verdict: str, *, product_id: str = CREAM, stated: str = "x", correct: str | None = None,
+          passage_id: str | None = None, quote: str | None = None, span: str = "span") -> dict:
+    return {"span": span, "field": field, "product_id": product_id, "stated_value": stated, "verdict": verdict,
+            "correct_value": correct, "passage_id": passage_id, "quote": quote}
+
+
+def price_contradiction(stated: str = "S$32") -> dict:
+    return claim("price", "contradicted", stated=stated, correct="S$36.00", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE)
+
+
+class ScriptedBackend:
+    """Returns scripted outputs keyed by (agent, primary text); otherwise the agent's rule-based
+    fallback (triage, composer), so comments still flow."""
+
+    name = "scripted"
+
+    def __init__(self) -> None:
+        self.outputs: dict[tuple[str, str], dict] = {}
+        self.delays: dict[tuple[str, str], float] = {}
+        self.errors: set[tuple[str, str]] = set()
+        self.calls: list[tuple[str, str]] = []
+
+    def judge(self, text: str, **kw) -> None:
+        self.outputs[("utterance_judge", text)] = judge_output(**kw)
+
+    def single(self, text: str, *, claims=(), **kw) -> None:
+        data = judge_output(**kw) | {"facts": {"claims": list(claims), "reason": "scripted"}}
+        self.outputs[("judge_single", text)] = JudgeSingleOutput.model_validate(data).model_dump(mode="json")
+
+    def facts(self, text: str, *claims: dict, delay: float = 0.0) -> None:
+        self.outputs[("fact_checker", text)] = FactCheckOutput.model_validate(
+            {"claims": list(claims), "reason": "scripted"}).model_dump(mode="json")
+        if delay:
+            self.delays[("fact_checker", text)] = delay
+
+    def fail(self, agent: str, text: str) -> None:
+        self.errors.add((agent, text))
+
+    async def generate(self, req, timeout_ms):
+        key = (req.agent, req.mock_primary_text)
+        self.calls.append(key)
+        if key in self.delays:
+            await asyncio.sleep(self.delays[key])
+        if key in self.errors:
+            raise LLMError("scripted failure")
+        if key in self.outputs:
+            return RawReply(json.dumps(self.outputs[key]), model_version="scripted")
+        if req.agent in ("utterance_judge", "judge_single"):
+            # Unscripted sentences: a neutral verdict (no reflex-derived violations).
+            data = judge_output()
+            if req.agent == "judge_single":
+                data["facts"] = {"claims": [], "reason": "scripted"}
+            return RawReply(json.dumps(data), model_version="scripted")
+        if req.mock_fallback is not None:
+            out = req.mock_fallback(req)
+            if out is not None:
+                return RawReply(json.dumps(out), model_version="fallback")
+        raise LLMError("no script")
+
+    async def warm_up(self, model, timeout_ms):
+        return None
+
+    async def aclose(self):
+        return None
+
+
+async def make_env(**settings):
+    backend = ScriptedBackend()
+    ctx = make_ctx(backend=backend, **settings)
+    rt = await live_runtime(ctx)
+    return rt, backend
+
+
+async def close_env(rt) -> None:
+    rt.ctx.runtimes.shutdown()
+    rt.ctx.scheduler.shutdown()
+
+
+async def speak(rt, text: str, *, wait: bool = True, scene: str = "default"):
+    t = await rt.inject_transcript(text, scenario=scene)
+    if wait:
+        await rt.ctx.scheduler.idle()
+    return t
+
+
+async def events(rt, type_: str | None = None) -> list[Event]:
+    evs = await rt.ctx.store.query(rt.path("events"), Event, order_by="seq")
+    return [e for e in evs if type_ is None or e.type == type_]
+
+
+async def advance(rt, ms: int) -> None:
+    await rt.ctx.scheduler.advance(ms)

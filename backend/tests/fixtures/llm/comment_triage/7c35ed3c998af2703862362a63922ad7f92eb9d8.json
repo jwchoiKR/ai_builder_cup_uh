@@ -13,5 +13,5 @@
  },
  "canonical_question": "Where is it manufactured?",
  "group_candidate_id": null,
- "reason": "Asks about the country of origin for the current product."
+ "reason": "Asks where the current product is made."
 }

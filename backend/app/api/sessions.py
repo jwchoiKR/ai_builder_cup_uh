@@ -44,7 +44,7 @@ async def session_state(session_id: str, role: Role = "viewer", ctx: AppContext 
 
 @router.get("/sessions/{session_id}/metrics")
 async def session_metrics(session_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
-    return (await ctx.runtimes.get(session_id)).metrics()
+    return await (await ctx.runtimes.get(session_id)).compute_metrics()
 
 
 async def require_session(session_id: str, ctx: AppContext) -> Session:

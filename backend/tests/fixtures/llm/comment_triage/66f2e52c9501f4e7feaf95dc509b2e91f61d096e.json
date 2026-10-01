@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "When does the time sale end?",
+ "canonical_question": "When does the promotional sale end?",
  "group_candidate_id": null,
- "reason": "Asks about the duration of a promotional sale."
+ "reason": "Asks about the duration of the promotion."
 }

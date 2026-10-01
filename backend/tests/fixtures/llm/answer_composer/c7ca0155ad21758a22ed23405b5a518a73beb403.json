@@ -1,5 +1,5 @@
 {
- "answer": "Yes. The gel-cream texture is lightweight and absorbs quickly, so use a smaller amount on oily areas.",
+ "answer": "Yes, it is suitable for oily skin. The gel-cream texture is lightweight and absorbs quickly, and you can use a smaller amount on oily areas.",
  "citations": [
   {
    "passage_id": "DL-CR-01#frequently-asked-questions#is-it-suitable-for-oily-skin",
@@ -8,5 +8,5 @@
  ],
  "grounded": true,
  "needs_human": false,
- "reason": "Answer directly stated in FAQ."
+ "reason": "Answered directly from the FAQ section on oily skin."
 }

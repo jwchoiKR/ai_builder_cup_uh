@@ -1,5 +1,5 @@
 {
- "answer": "With the time sale, it is S$32.40 for the Hydra Barrier Cream right now.",
+ "answer": "With the time sale, it's S$32.40 for the Hydra Barrier Cream right now.",
  "citations": [
   {
    "passage_id": "PROMO#promo_time_sale_10",
@@ -8,5 +8,5 @@
  ],
  "grounded": true,
  "needs_human": false,
- "reason": "Active promo price stated."
+ "reason": "Active promo price."
 }

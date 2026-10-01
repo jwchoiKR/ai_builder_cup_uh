@@ -1,0 +1,12 @@
+{
+ "answer": "The Deep Hydration Ampoule contains 4% niacinamide.",
+ "citations": [
+  {
+   "passage_id": "DL-AM-01#frequently-asked-questions#how-much-niacinamide-does-it-contain",
+   "quote": "4%."
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Answered directly from the FAQ."
+}

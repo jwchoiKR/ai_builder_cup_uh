@@ -13,5 +13,5 @@
  },
  "canonical_question": "What is the volume or size?",
  "group_candidate_id": null,
- "reason": "Asks about the volume or size of the current product."
+ "reason": "Asks for the product volume or size."
 }

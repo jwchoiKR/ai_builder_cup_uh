@@ -8,10 +8,10 @@
   "skin_type": null,
   "life_stage": null,
   "condition": null,
-  "combined_with": "makeup",
+  "combined_with": null,
   "time_of_day": null
  },
  "canonical_question": "Can I use it under makeup?",
  "group_candidate_id": "@group:can i use it under makeup",
- "reason": "Asks about makeup compatibility (foundation) for the current product."
+ "reason": "Asks if the cream pills under foundation, matching makeup compatibility."
 }

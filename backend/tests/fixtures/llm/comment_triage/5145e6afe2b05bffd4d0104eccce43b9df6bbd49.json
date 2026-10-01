@@ -13,5 +13,5 @@
  },
  "canonical_question": "",
  "group_candidate_id": null,
- "reason": "Contains a URL and appears to be spam."
+ "reason": "Contains an external advertising link."
 }

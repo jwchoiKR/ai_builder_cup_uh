@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "How much niacinamide does it contain?",
+ "canonical_question": "What is the concentration of niacinamide in it?",
  "group_candidate_id": null,
- "reason": "Asks about the concentration of niacinamide in the ampoule."
+ "reason": "Asks for the percentage or amount of niacinamide, which fits niacinamide serum."
 }

@@ -1,0 +1,617 @@
+"""Utterance pipeline (DEV_SPEC §8.2) and host-side operator actions (alerts, cues, switch, undo).
+
+Steps 1-4 of each final transcript run in an ordered chain (one transcript at a time). Steps 5-6
+(fact corrections, publish decision, metrics) run in a second ordered chain, so a slow fact check
+never delays the next transcript's compliance check.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+from typing import TYPE_CHECKING
+
+from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
+from ..agents.utterance_judge import JudgeInput, UtteranceJudge, say_instead_fallback
+from ..logic import alerts as alert_logic
+from ..logic import facts as fact_logic
+from ..logic import publish as publish_logic
+from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view
+from ..logic.segments import classify_switch, step_switch
+from ..models.agent_io import FactCheckOutput, UtteranceJudgeOutput
+from ..models.session import Alert, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
+from ..providers.llm import AgentResult
+from .runtime import ActionError
+
+if TYPE_CHECKING:
+    from .runtime import SessionRuntime
+
+log = logging.getLogger(__name__)
+
+
+class UtterancePipeline:
+    def __init__(self, rt: "SessionRuntime") -> None:
+        self.rt = rt
+        ctx = rt.ctx
+        self.single = rt.settings.JUDGE_MODE == "single"
+        self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, ctx.reflex, single=self.single)
+        self.facts = FactChecker(ctx.llm, ctx.prompts["fact_checker"], rt.catalog)
+        self._main_tail: asyncio.Task | None = None
+        self._side_tail: asyncio.Task | None = None
+
+    # ---- intake --------------------------------------------------------------------------------
+
+    async def submit(self, text: str, *, source: str, speech_end_at: int | None = None,
+                     speech_start_at: int | None = None, scenario: str = "default") -> Transcript:
+        rt = self.rt
+        text = text.strip()
+        if not text:
+            raise ActionError(400, "empty_transcript", "transcript text is empty")
+        s = await rt.load_session()
+        if s.status != "live":
+            raise ActionError(409, "invalid_state", "transcripts are accepted only while live")
+        seg = await rt.current_segment()
+        now = rt.now()
+        t = Transcript(transcript_id=rt.new_id("tr_"), text=text, is_final=True, speech_start_at=speech_start_at,
+                       speech_end_at=speech_end_at or now, received_at=now, source=source,
+                       segment_id=seg.segment_id if seg else "")
+        prev = self._main_tail
+        self._main_tail = rt.spawn(self._main(prev, t, scenario), name=f"utterance:{t.transcript_id}")
+        return t
+
+    async def drain(self) -> None:
+        for task in (self._main_tail, self._side_tail):
+            if task is not None:
+                await asyncio.gather(task, return_exceptions=True)
+
+    # ---- steps 1-4 -----------------------------------------------------------------------------
+
+    async def _main(self, prev: asyncio.Task | None, t: Transcript, scenario: str) -> None:
+        if prev is not None:
+            await asyncio.gather(prev, return_exceptions=True)
+        rt = self.rt
+        # 1. store, emit
+        await rt.ctx.store.put(rt.path("transcripts"), t.transcript_id, t)
+        await rt.emit("transcript.final", t)
+        # 2. reflex -> provisional alerts
+        hits = rt.ctx.reflex.scan(t.text)
+        async with rt.lock:
+            seg = await rt.current_segment()
+            on_air = seg.product_id if seg else rt.catalog.order[0]
+            alerts = await rt.alerts()
+            provisional = alert_logic.provisional_from_reflex(hits, t, on_air, alerts, rt.new_id, rt.now())
+            for a in provisional:
+                await rt.save_alert(a)
+                await rt.emit("alert.created", a)
+            judge_input, offered = await self._judge_input_locked(t, on_air, scenario)
+        # 3. judge and fact checker in parallel (single mode: retrieval first, then one call)
+        facts_task: asyncio.Task | None = None
+        if self.single:
+            judge_input.passages = await self._fact_passages(t.text, on_air, judge_input.switch)
+        else:
+            facts_task = rt.spawn(self._run_facts(t, on_air, judge_input, scenario), name=f"facts:{t.transcript_id}")
+        res = await self.judge.run(judge_input, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS)
+        # 4. compliance, corrections, prompter and cues, switch
+        async with rt.lock:
+            await self._apply_judge_locked(t, on_air, res, hits)
+        prev_side = self._side_tail
+        self._side_tail = rt.spawn(self._side(prev_side, t, res, facts_task, offered),
+                                   name=f"utterance-side:{t.transcript_id}")
+
+    async def _judge_input_locked(self, t: Transcript, on_air: str, scenario: str) -> tuple[JudgeInput, set[str]]:
+        rt = self.rt
+        s = await rt.load_session()
+        alerts = [a for a in await rt.alerts() if a.transcript_id != t.transcript_id]
+        finals = await rt.ctx.store.query(rt.path("transcripts"), Transcript, order_by="received_at")
+        previous = [x.text for x in finals if x.transcript_id != t.transcript_id][-2:]
+        questions = await self._open_questions_locked(s, on_air)
+        promo = rt.promo(s.active_promo_id)
+        inp = JudgeInput(utterance=t.text, on_air=on_air, active_alerts=alerts, open_questions=questions,
+                         cue=s.cue, previous=previous, session_id=rt.sid, scenario=scenario,
+                         switch=s.switch, promo=promo)
+        return inp, {g.group_id for g, _ in questions}
+
+    async def _open_questions_locked(self, s, on_air: str) -> list[tuple[QuestionGroup, str | None]]:
+        """§7.3: groups on the host screen first, then the best HOST/AUTO candidates of the product."""
+        rt = self.rt
+        limit = rt.settings.JUDGE_MAX_OPEN_QUESTIONS
+        groups = {g.group_id: g for g in await rt.groups()}
+        chosen = [groups[sl.group_id] for sl in s.host_slots if sl.group_id in groups]
+        rest = [g for g in groups.values()
+                if g.group_id not in {c.group_id for c in chosen} and g.product_id == on_air
+                and g.route in ("HOST", "AUTO") and g.status in ("ready", "auto_answered")
+                and g.host_verbal_answer_transcript_id is None]
+        rest.sort(key=lambda g: g.score, reverse=True)
+        out = []
+        for g in (chosen + rest)[:limit]:
+            answer = await rt.get_answer(g.answer_id)
+            out.append((g, answer.text if answer is not None and answer.verified else None))
+        return out
+
+    async def _fact_passages(self, text: str, on_air: str, switch: SwitchState):
+        rt = self.rt
+        return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
+                                          switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
+
+    async def _run_facts(self, t: Transcript, on_air: str, judge_input: JudgeInput, scenario: str) -> AgentResult:
+        passages = await self._fact_passages(t.text, on_air, judge_input.switch)
+        return await self.facts.run(
+            FactInput(utterance=t.text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
+                      passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario),
+            deadline_ms=self.rt.settings.FACT_TIMEOUT_MS,
+        )
+
+    async def _apply_judge_locked(self, t: Transcript, on_air: str, res: AgentResult, hits) -> None:
+        rt = self.rt
+        now = rt.now()
+        alerts = await rt.alerts()
+        provisional = [a for a in alerts if a.transcript_id == t.transcript_id and a.status == "provisional"]
+        high_before = alert_logic.high_alert_active(alerts)
+        judge: UtteranceJudgeOutput | None = res.output if res.status == "ok" else None
+        if judge is None:
+            # §8.4.3 judge failed: fail toward warning
+            changed = alert_logic.apply_judge_failure(provisional, hits, say_instead_fallback(rt.catalog, on_air), now)
+            for a in changed:
+                await self._save_alert_change_locked(a)
+            await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
+                                           "alert_ids": [a.alert_id for a in changed if a.status == "active"]})
+            await self._high_alert_switch_reset_locked(high_before)
+            return
+        # §8.4.1 compliance
+        changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.ctx.pack.rules_by_id,
+                                                              rt.new_id, now)
+        for a in created:
+            await rt.save_alert(a)
+            await rt.emit("alert.created", a)
+            self._schedule_escalation(a)
+        for a in changed:
+            await self._save_alert_change_locked(a)
+        # §8.4.5 corrections
+        if judge.correction.corrects_alert_ids:
+            for a in alert_logic.apply_corrections(await rt.alerts(), judge.correction.corrects_alert_ids, t, now):
+                rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
+                await rt.save_alert(a)
+                await rt.emit("alert.updated", a)
+        # §8.7.1 prompter points and cues
+        s = await rt.load_session()
+        seg = await rt.current_segment()
+        if seg is not None and judge.prompter.covered_point_ids:
+            added, pre = apply_coverage(judge.prompter.covered_point_ids, seg, s, rt.catalog)
+            if added:
+                await rt.save_segment(seg)
+                await rt.emit("prompter.updated", prompter_view(rt.catalog, seg))
+            if pre:
+                await rt.save_session(s)
+        if s.cue is not None and s.cue.status == "active" and s.cue.cue_id in judge.prompter.covered_cue_ids:
+            s.cue.status, s.cue.done_by_transcript_id = "done", t.transcript_id
+            await rt.save_session(s)
+            await rt.emit("cue.updated", s.cue)
+        # §8.7.2 switch; §8.4.7 while a HIGH alert is active, counting resets and a pending switch cancels
+        high_now = alert_logic.high_alert_active(await rt.alerts())
+        if seg is not None:
+            await self._switch_locked(judge, t, seg, high_became_active=high_now)
+
+    async def _save_alert_change_locked(self, a: Alert) -> None:
+        await self.rt.save_alert(a)
+        await self.rt.emit("alert.updated", a)
+        if a.status == "active":
+            self._schedule_escalation(a)
+
+    async def _high_alert_switch_reset_locked(self, high_before: bool) -> None:
+        rt = self.rt
+        if alert_logic.high_alert_active(await rt.alerts()) and not high_before:
+            s = await rt.load_session()
+            if s.switch.status != "idle":
+                was_pending = s.switch.status == "pending"
+                s.switch = SwitchState(last_commit=s.switch.last_commit)
+                await rt.save_session(s)
+                rt.ctx.scheduler.cancel(rt.key("switch-commit"))
+                if was_pending:
+                    await rt.emit("segment.switch_cancelled", {"reason": "compliance_alert"})
+
+    def _schedule_escalation(self, a: Alert) -> None:
+        """§8.4.4: a HIGH alert still active after COMPLIANCE_ESCALATE_SEC is escalated. No auto-expiry."""
+        if a.kind != "compliance" or a.severity != "HIGH" or a.status != "active" or a.shown_at is None:
+            return
+        rt = self.rt
+
+        async def escalate() -> None:
+            async with rt.lock:
+                cur = await rt.get_alert(a.alert_id)
+                if cur is not None and cur.status == "active" and cur.escalated_at is None:
+                    cur.escalated_at = rt.now()
+                    await rt.save_alert(cur)
+                    await rt.emit("alert.escalated", cur)
+
+        rt.ctx.scheduler.call_at(rt.key(f"escalate:{a.alert_id}"),
+                                 a.shown_at + rt.settings.COMPLIANCE_ESCALATE_SEC * 1000, escalate)
+
+    async def _switch_locked(self, judge: UtteranceJudgeOutput, t: Transcript, seg: Segment, *, high_became_active: bool) -> None:
+        rt = self.rt
+        s = await rt.load_session()
+        on_air = seg.product_id
+        nxt = rt.catalog.next_product(on_air)
+        kind = classify_switch(
+            judge, s.switch, on_air=on_air, next_product=nxt,
+            on_air_points={p.point_id for p in points_of(rt.catalog, on_air)},
+            next_points={p.point_id for p in points_of(rt.catalog, nxt)} if nxt else set(),
+            high_alert_became_active=high_became_active,
+        )
+        st = rt.settings
+        new_state, event = step_switch(s.switch, kind, transcript_id=t.transcript_id, next_product=nxt, now=rt.now(),
+                                       cues_needed=st.SWITCH_CONSECUTIVE_CUES, window_sec=st.SWITCH_CUE_WINDOW_SEC,
+                                       cancel_window_sec=st.SWITCH_CANCEL_WINDOW_SEC)
+        if new_state == s.switch:
+            return
+        s.switch = new_state
+        await rt.save_session(s)
+        if event == "counting":
+            await rt.emit("segment.switch_counting", {"target_product_id": new_state.target_product_id,
+                                                      "cue_count": new_state.cue_count, "transcript_id": t.transcript_id})
+        elif event == "pending":
+            await rt.emit("segment.switch_counting", {"target_product_id": new_state.target_product_id,
+                                                      "cue_count": new_state.cue_count, "transcript_id": t.transcript_id})
+            await rt.emit("segment.switch_pending", {"target_product_id": new_state.target_product_id,
+                                                     "commit_at": new_state.commit_at})
+            rt.ctx.scheduler.call_at(rt.key("switch-commit"), new_state.commit_at, self._commit_timer)
+        elif event == "cancelled":
+            rt.ctx.scheduler.cancel(rt.key("switch-commit"))
+            await rt.emit("segment.switch_cancelled", {"reason": "speech", "transcript_id": t.transcript_id})
+
+    async def _commit_timer(self) -> None:
+        rt = self.rt
+        async with rt.lock:
+            s = await rt.load_session()
+            if s.status != "live" or s.switch.status != "pending" or s.switch.target_product_id is None:
+                return
+            await commit_switch_locked(rt, s.switch.target_product_id, "auto_speech")
+
+    # ---- steps 5-6 -----------------------------------------------------------------------------
+
+    async def _side(self, prev: asyncio.Task | None, t: Transcript, res: AgentResult,
+                    facts_task: asyncio.Task | None, offered: set[str]) -> None:
+        if prev is not None:
+            await asyncio.gather(prev, return_exceptions=True)
+        rt = self.rt
+        judge: UtteranceJudgeOutput | None = res.output if res.status == "ok" else None
+        facts: FactCheckOutput | None = None
+        if self.single:
+            facts = judge.facts if judge is not None else None
+        elif facts_task is not None:
+            fres = await asyncio.gather(facts_task, return_exceptions=True)
+            fr = fres[0]
+            facts = fr.output if isinstance(fr, AgentResult) and fr.status == "ok" else None
+        async with rt.lock:
+            if facts is not None:
+                await self._apply_facts_locked(t, facts)
+            if judge is not None:
+                await self._publish_locked(t, judge, facts, offered)
+
+    async def _apply_facts_locked(self, t: Transcript, facts: FactCheckOutput) -> None:
+        rt = self.rt
+        created, reshown, corrected = fact_logic.apply_fact_check(facts.claims, await rt.alerts(), t, rt.new_id, rt.now())
+        for a in created:
+            await rt.save_alert(a)
+            await rt.emit("alert.created", a)
+            self.schedule_fact_hide(a)
+        for a in reshown:
+            await rt.save_alert(a)
+            await rt.emit("alert.updated", a)
+            self.schedule_fact_hide(a)
+        for a in corrected:
+            rt.ctx.scheduler.cancel(rt.key(f"facthide:{a.alert_id}"))
+            await rt.save_alert(a)
+            await rt.emit("alert.updated", a)
+
+    def schedule_fact_hide(self, a: Alert) -> None:
+        """§8.5: the host stops showing an uncorrected note after FACT_NOTE_HOST_MAX_SEC."""
+        rt = self.rt
+
+        async def hide() -> None:
+            async with rt.lock:
+                cur = await rt.get_alert(a.alert_id)
+                if cur is not None and cur.status == "active" and cur.host_hidden_at is None:
+                    cur.host_hidden_at = rt.now()
+                    await rt.save_alert(cur)
+                    await rt.emit("alert.updated", cur)
+
+        rt.ctx.scheduler.call_later(rt.key(f"facthide:{a.alert_id}"), rt.settings.FACT_NOTE_HOST_MAX_SEC * 1000, hide)
+
+    async def _publish_locked(self, t: Transcript, judge: UtteranceJudgeOutput, facts: FactCheckOutput | None,
+                              offered: set[str]) -> None:
+        rt = self.rt
+        gid = judge.answer.matched_group_id
+        group = await rt.get_group(gid) if gid else None
+        answer = await rt.get_answer(group.answer_id) if group is not None else None
+        decision = publish_logic.decide(judge, offered, group, answer,
+                                        high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts)
+        if decision.action == "none" or group is None:
+            return
+        if decision.action == "post":
+            await post_host_answer_locked(rt, group, answer)
+        elif decision.action == "confirm_ai":
+            group.host_confirmed = True
+        else:
+            group.host_verbal_answer_transcript_id = t.transcript_id
+        group.version += 1
+        await rt.save_group(group)
+        await rt.emit("group.updated", group)
+        await rt.recompute_host_queue_locked()
+
+
+# ---- host answer publishing (§8.6) ---------------------------------------------------------------
+
+
+async def post_host_answer_locked(rt: "SessionRuntime", group: QuestionGroup, answer) -> Message:
+    msg = await rt.publish_message_locked(
+        kind="host_answer", text=answer.text, group=group, comment_ids=list(group.member_comment_ids),
+        citations=answer.citations, idempotency_key=f"host_answer:{group.group_id}",
+        pending_until=rt.now() + rt.settings.PUBLISH_CANCEL_WINDOW_MS,
+    )
+    if msg.state == "pending":
+        async def publish() -> None:
+            async with rt.lock:
+                await finish_pending_locked(rt, msg.message_id)
+
+        rt.ctx.scheduler.call_at(rt.key(f"publish:{msg.message_id}"), msg.publish_at, publish)
+    return msg
+
+
+async def finish_pending_locked(rt: "SessionRuntime", message_id: str) -> None:
+    m = await rt.get_message(message_id)
+    if m is None or m.state != "pending":
+        return
+    now = rt.now()
+    m.state, m.published_at = "published", now
+    await rt.save_message(m)
+    await rt.emit("message.published", m)
+    if m.group_id:
+        g = await rt.get_group(m.group_id)
+        if g is not None:
+            g.status, g.published_message_id = "answered", m.message_id
+            g.version += 1
+            await rt.save_group(g)
+            await rt.emit("group.updated", g)
+            for cid in m.reply_to_comment_ids:
+                c = await rt.get_comment(cid)
+                if c is not None:
+                    rt.reply_latencies["host"].append(now - c.received_at)
+    await rt.recompute_host_queue_locked()
+
+
+async def cancel_message(rt: "SessionRuntime", message_id: str) -> None:
+    async with rt.lock:
+        m = await rt.get_message(message_id)
+        if m is None:
+            raise ActionError(404, "message_not_found", f"message {message_id} not found")
+        if m.state != "pending":
+            raise ActionError(409, "invalid_state", "only a pending post can be cancelled")
+        m.state = "cancelled"
+        await rt.save_message(m)
+        rt.ctx.scheduler.cancel(rt.key(f"publish:{message_id}"))
+        await rt.emit("message.cancelled", m)
+        await rt.emit("operator.action", {"actor": "operator", "action": "cancel_post", "message_id": message_id,
+                                          "at": rt.now()})
+
+
+# ---- segments: commit, operator switch, undo, cancel (§8.7.2) ------------------------------------
+
+
+async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -> Segment:
+    s = await rt.load_session()
+    old = await rt.current_segment()
+    now = rt.now()
+    rt.ctx.scheduler.cancel(rt.key("switch-commit"))
+    if old is not None:
+        old.ended_at = now
+        await rt.save_segment(old)
+    item = rt.catalog.runsheet_item(target)
+    new = Segment(segment_id=rt.new_id("seg_"), product_id=target, order=item.order, started_at=now,
+                  start_reason=reason, planned_duration_sec=item.planned_duration_sec,
+                  covered_point_ids=list(s.pre_covered.pop(target, [])))
+    await rt.save_segment(new)
+    s.current_segment_id = new.segment_id
+    s.switch = SwitchState(last_commit={"closed_segment_id": old.segment_id if old else None,
+                                        "opened_segment_id": new.segment_id, "at": now})
+    await rt.save_session(s)
+    await rt.emit("segment.started", new)
+    if old is not None:
+        missing = missing_required(rt.catalog, old)
+        if missing:
+            texts = {p.point_id: p.text for p in points_of(rt.catalog, old.product_id)}
+            await rt.emit("segment.missing_points", {"segment_id": old.segment_id, "product_id": old.product_id,
+                                                     "missing_point_ids": missing,
+                                                     "missing_texts": [texts[p] for p in missing]})
+    await rt.after_segment_started_locked(new)
+    nxt = rt.catalog.next_product(target)
+    if nxt is not None and nxt not in rt.prefetched:
+        rt.spawn(rt.prefetch(nxt), name="prefetch")
+    return new
+
+
+async def operator_switch(rt: "SessionRuntime", product_id: str) -> Segment:
+    async with rt.lock:
+        s = await rt.load_session()
+        if s.status != "live":
+            raise ActionError(409, "invalid_state", "switch only while live")
+        seg = await rt.current_segment()
+        if product_id not in rt.catalog.order or (seg is not None and seg.product_id == product_id):
+            raise ActionError(409, "invalid_product", "choose another run-sheet product")
+        new = await commit_switch_locked(rt, product_id, "operator")
+        await rt.emit("operator.action", {"actor": "operator", "action": "switch", "product_id": product_id, "at": rt.now()})
+        return new
+
+
+async def cancel_switch(rt: "SessionRuntime", by: str) -> None:
+    async with rt.lock:
+        s = await rt.load_session()
+        if s.switch.status != "pending":
+            raise ActionError(409, "no_pending_switch", "no switch is pending")
+        s.switch = SwitchState(last_commit=s.switch.last_commit)
+        await rt.save_session(s)
+        rt.ctx.scheduler.cancel(rt.key("switch-commit"))
+        await rt.emit("segment.switch_cancelled", {"reason": by})
+
+
+async def undo_switch(rt: "SessionRuntime") -> Segment:
+    from ..models.session import CommentAnalysis
+
+    async with rt.lock:
+        s = await rt.load_session()
+        lc = s.switch.last_commit
+        now = rt.now()
+        if not lc or lc.get("closed_segment_id") is None or now - lc["at"] > rt.settings.UNDO_SWITCH_WINDOW_SEC * 1000:
+            raise ActionError(409, "undo_window_over", "There is no switch to undo.")
+        closed = await rt.get_segment(lc["closed_segment_id"])
+        opened = await rt.get_segment(lc["opened_segment_id"])
+        if closed is None or opened is None:
+            raise ActionError(409, "undo_window_over", "There is no switch to undo.")
+        closed.ended_at = None
+        await rt.save_segment(closed)
+        await rt.ctx.store.delete(rt.path("segments"), opened.segment_id)
+        if opened.covered_point_ids:
+            pre = s.pre_covered.setdefault(opened.product_id, [])
+            pre.extend(p for p in opened.covered_point_ids if p not in pre)
+        s.current_segment_id, s.switch = closed.segment_id, SwitchState()
+        await rt.save_session(s)
+        await rt.emit("segment.undone", {"segment_id": opened.segment_id})
+        await rt.emit("segment.started", closed)
+        await rt.emit("prompter.updated", prompter_view(rt.catalog, closed))
+        # Groups whose product came from context during the undone segment move back (§8.7.2).
+        moved = set()
+        for a in await rt.ctx.store.query(rt.path("analyses"), CommentAnalysis):
+            if a.product_basis != "context" or a.product_id != opened.product_id:
+                continue
+            c = await rt.get_comment(a.comment_id)
+            if c is None or c.received_at < opened.started_at or c.group_id is None or c.group_id in moved:
+                continue
+            g = await rt.get_group(c.group_id)
+            if g is not None and g.product_id == opened.product_id:
+                g.product_id = closed.product_id
+                g.version += 1
+                await rt.save_group(g)
+                await rt.emit("group.updated", g)
+                moved.add(g.group_id)
+        await rt.recompute_host_queue_locked()
+        await rt.emit("operator.action", {"actor": "operator", "action": "undo_switch", "at": now})
+        return closed
+
+
+# ---- cues and alert actions (§8.13) ----------------------------------------------------------------
+
+
+async def set_cue_locked(rt: "SessionRuntime", text: str, preset_id: str | None) -> HostCue:
+    s = await rt.load_session()
+    if s.cue is not None and s.cue.status == "active":
+        s.cue.status = "cleared"
+        await rt.emit("cue.updated", s.cue)
+    cue = HostCue(cue_id=rt.new_id("cue_"), text=text, preset_id=preset_id, created_at=rt.now(), status="active")
+    s.cue = cue
+    await rt.save_session(s)
+    await rt.emit("cue.updated", cue)
+    return cue
+
+
+async def send_cue(rt: "SessionRuntime", text: str | None, preset_id: str | None) -> HostCue:
+    async with rt.lock:
+        if preset_id:
+            preset = next((p for p in rt.ctx.pack.notices.host_cue_presets if p.cue_id == preset_id), None)
+            if preset is None:
+                raise ActionError(404, "unknown_preset", f"cue preset {preset_id} not found")
+            seg = await rt.current_segment()
+            missing = []
+            if seg is not None:
+                texts = {p.point_id: p.text for p in points_of(rt.catalog, seg.product_id)}
+                missing = [texts[p] for p in missing_required(rt.catalog, seg)]
+            text = preset.text.replace("{missing_points}", "; ".join(missing) or "all required points are covered")
+        if not text or not text.strip():
+            raise ActionError(400, "empty_cue", "cue text is empty")
+        cue = await set_cue_locked(rt, text.strip(), preset_id)
+        await rt.emit("operator.action", {"actor": "operator", "action": "cue", "cue_id": cue.cue_id, "at": rt.now()})
+        return cue
+
+
+async def clear_cue(rt: "SessionRuntime", cue_id: str) -> None:
+    async with rt.lock:
+        s = await rt.load_session()
+        if s.cue is None or s.cue.cue_id != cue_id:
+            raise ActionError(404, "cue_not_found", f"cue {cue_id} is not the current cue")
+        s.cue.status = "cleared"
+        await rt.save_session(s)
+        await rt.emit("cue.updated", s.cue)
+
+
+async def _alert_or_404(rt: "SessionRuntime", aid: str) -> Alert:
+    a = await rt.get_alert(aid)
+    if a is None:
+        raise ActionError(404, "alert_not_found", f"alert {aid} not found")
+    return a
+
+
+async def dismiss_alert(rt: "SessionRuntime", aid: str) -> None:
+    async with rt.lock:
+        a = await _alert_or_404(rt, aid)
+        if not alert_logic.dismiss(a, rt.now()):
+            raise ActionError(409, "invalid_state", f"alert is {a.status}")
+        rt.ctx.scheduler.cancel(rt.key(f"escalate:{aid}"))
+        rt.ctx.scheduler.cancel(rt.key(f"facthide:{aid}"))
+        await rt.save_alert(a)
+        await rt.emit("alert.updated", a)
+        await rt.emit("operator.action", {"actor": "operator", "action": "dismiss_alert", "alert_id": aid, "at": rt.now()})
+
+
+async def correction_cue(rt: "SessionRuntime", aid: str) -> HostCue:
+    async with rt.lock:
+        a = await _alert_or_404(rt, aid)
+        text = f"Correct now: say '{a.say_instead}'" if a.kind == "compliance" else f"Say: {a.correct_value}"
+        cue = await set_cue_locked(rt, text, None)
+        await rt.emit("operator.action", {"actor": "operator", "action": "alert_cue", "alert_id": aid, "at": rt.now()})
+        return cue
+
+
+async def resend_fact(rt: "SessionRuntime", pipeline: UtterancePipeline, aid: str) -> None:
+    async with rt.lock:
+        a = await _alert_or_404(rt, aid)
+        if a.kind != "fact" or a.status != "active":
+            raise ActionError(409, "invalid_state", "only an active fact note can be resent")
+        a.host_hidden_at, a.shown_at = None, rt.now()
+        await rt.save_alert(a)
+        await rt.emit("alert.updated", a)
+        pipeline.schedule_fact_hide(a)
+        await rt.emit("operator.action", {"actor": "operator", "action": "resend", "alert_id": aid, "at": rt.now()})
+
+
+async def post_notice(rt: "SessionRuntime", aid: str, text: str) -> Message:
+    async with rt.lock:
+        a = await _alert_or_404(rt, aid)
+        if not text.strip():
+            raise ActionError(400, "empty_notice", "notice text is empty")
+        msg = await rt.publish_message_locked(kind="correction_notice", text=text.strip(), group=None, comment_ids=[],
+                                              citations=[], idempotency_key=f"correction_notice:{aid}:{rt.now()}")
+        await rt.emit("operator.action", {"actor": "operator", "action": "notice", "alert_id": aid,
+                                          "message_id": msg.message_id, "at": rt.now()})
+        return msg
+
+
+async def render_ack(rt: "SessionRuntime", aid: str) -> None:
+    async with rt.lock:
+        a = await _alert_or_404(rt, aid)
+        if a.host_rendered_at is None and a.shown_at is not None:
+            a.host_rendered_at = rt.now()
+            await rt.save_alert(a)
+            await rt.emit("alert.updated", a)
+
+
+def notice_template(rt: "SessionRuntime", a: Alert) -> str:
+    """Prefilled 'Post notice' text from templates/notices.json (§8.5, §8.13)."""
+    notices = rt.ctx.pack.notices
+    name = rt.catalog.get_product(a.product_id).name
+    if a.kind == "compliance":
+        t = next(n for n in notices.correction_notices if n.template_id == "compliance_correction")
+        return t.text.replace("{product_name}", name)
+    if a.field in ("price", "set_price", "promo"):
+        t = next(n for n in notices.correction_notices if n.template_id == "fact_correction_price")
+        return t.text.replace("{product_name}", name).replace("{correct_value}", a.correct_value or "")
+    t = next(n for n in notices.correction_notices if n.template_id == "fact_correction_generic")
+    label = notices.field_labels.get(a.field or "", a.field or "")
+    return (t.text.replace("{product_name}", name).replace("{field_label}", label)
+            .replace("{correct_value}", a.correct_value or ""))

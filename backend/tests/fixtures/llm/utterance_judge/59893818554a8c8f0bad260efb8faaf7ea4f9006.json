@@ -1,0 +1,25 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "answer": {
+  "utterance_type": "question_readout",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": true,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Host reads out a viewer question regarding oily skin and defers the answer."
+}

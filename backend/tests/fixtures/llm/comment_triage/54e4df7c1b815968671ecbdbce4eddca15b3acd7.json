@@ -13,5 +13,5 @@
  },
  "canonical_question": "Do you accept PayNow?",
  "group_candidate_id": null,
- "reason": "Asks a general question about accepted payment methods."
+ "reason": "Asks about accepted payment methods."
 }

@@ -7,7 +7,9 @@ AI co-pilot for live-commerce broadcasts: host screen, operator control room and
 
 **Status:**
 - **P0 (foundations):** done.
-- **P1 (comment path):** done: prefilter, triage, grouping, routing, BM25 retrieval, composer with verification, caches, auto answers, host queue, operator actions, feed engine. Comment eval results are in `docs/eval/`.
+- **P1 (comment path):** done: prefilter, triage, grouping, routing, BM25 retrieval, composer with verification, caches, auto answers, host queue, operator actions, feed engine.
+- **P2 (utterance path):** done: transcript injection, reflex, utterance judge (split and single), fact checker, compliance and fact alerts with escalation, host-answer publishing, prompter coverage, product switch with undo, cues, metrics.
+- Eval reports (comments, utterances) are in `docs/eval/`.
 
 ## Layout
 | Path | What |
@@ -50,9 +52,11 @@ uv run pytest -q
 - Tests never read `.env` and always use mock providers.
 - Recorded model outputs live in `backend/tests/fixtures/llm/`. To refresh them against Vertex AI:
   ```sh
-  uv run python scripts/run_eval.py comments --record   # eval cases; writes docs/eval/<date>-comments.md
-  uv run python scripts/record_demo_fixtures.py         # the demo script (scene ids as scenario tags)
+  uv run python scripts/run_eval.py comments --record                 # writes docs/eval/<date>-comments.md
+  uv run python scripts/run_eval.py utterances --mode split --runs 30 # latency over 30 runs; --mode single for one-call mode
+  uv run python scripts/record_demo_fixtures.py                       # the demo script (scene ids as scenario tags)
   ```
+- With demo tools on, a host line can be injected as a final transcript: `POST /api/sessions/{id}/transcripts {"text": "...", "scene": "S07"}`.
 
 ## Recording the demo (DEV_SPEC §13.3)
 - Reset the demo before each take.

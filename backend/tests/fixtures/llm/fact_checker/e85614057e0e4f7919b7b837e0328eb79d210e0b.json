@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "just use a smaller amount on oily areas",
+   "field": "usage",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "use a smaller amount on oily areas",
+   "verdict": "supported",
+   "correct_value": "Use a smaller amount on oily areas.",
+   "passage_id": "DL-CR-01#frequently-asked-questions#is-it-suitable-for-oily-skin",
+   "quote": "Use a smaller amount on oily areas."
+  }
+ ],
+ "reason": "The host's statement about using a smaller amount on oily skin is supported by the FAQ source."
+}

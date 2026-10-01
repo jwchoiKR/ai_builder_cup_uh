@@ -136,7 +136,14 @@ Sources:
   2. It raised `TimeoutError` after 494 ms.
   3. 200 ms later, the httpx pool had **0 connections and 0 requests in flight**, and no extra asyncio tasks remained.
   4. The same client then answered the next call normally (843 ms).
-- **Conclusion:** cancelling the coroutine closes the HTTP request; nothing dangles. Our `LLMClient` also passes the remaining deadline as `HttpOptions.timeout`, so the server is told when to stop (`X-Server-Timeout`).
+- **Conclusion:** cancelling the coroutine closes the HTTP request; nothing dangles.
+
+### 3.4 `X-Server-Timeout` causes early 504s (found in P2, 2026-10-01) [live]
+- **What happened:** with `HttpOptions.timeout=2500`, the SDK sends `X-Server-Timeout: 3`. Vertex then answered `504 DEADLINE_EXCEEDED` after only **1.2–1.6 s**, on 3 of 9 judge calls in a probe and 2 of 39 in the first utterance eval.
+- **Same calls without the header:** 9/9 succeeded in 1.2–1.7 s.
+- **Later run:** the 39-case utterance eval had 0 timeouts.
+- **Decision D-047:** we do not set `HttpOptions.timeout`. The agent deadline is enforced only by `asyncio.wait_for`, whose cancellation closes the request (3.3).
+- **504 handling:** a 504 `DEADLINE_EXCEEDED` is treated as a timeout and never retried (D-044).
 
 ## 4. Speech-to-Text V2, model `chirp_3` (for P4)
 

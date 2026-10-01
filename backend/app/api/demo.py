@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from ..context import AppContext, get_ctx
 from ..logic.catalog import DEFAULT_RUNSHEET_ID
 from ..models.session import Session
+from ..pipelines.demo_script import load_host_script
 from ..pipelines.runtime import create_session, latest_session
 from .errors import ApiError
 
@@ -45,6 +46,29 @@ async def feed_burst(session_id: str, burst_id: str, ctx: AppContext = Depends(d
     result = await rt.feed.fire(burst_id)
     await rt.emit("operator.action", {"actor": "operator", "action": "burst", **result, "at": rt.now()})
     return {**result, "feed": rt.feed.state()}
+
+
+class TranscriptBody(BaseModel):
+    text: str
+    scene: str | None = None  # host-script scene id, used as the mock scenario tag (§7.1)
+
+
+@router.post("/sessions/{session_id}/transcripts", status_code=201)
+async def inject_transcript(session_id: str, body: TranscriptBody, ctx: AppContext = Depends(demo_tools)) -> dict:
+    rt = await ctx.runtimes.get(session_id)
+    t = await rt.inject_transcript(body.text, scenario=body.scene or "default")
+    return t.model_dump()
+
+
+@router.post("/sessions/{session_id}/demo/simulate-overtime")
+async def simulate_overtime(session_id: str, ctx: AppContext = Depends(demo_tools)) -> dict:
+    rt = await ctx.runtimes.get(session_id)
+    return (await rt.simulate_overtime()).model_dump()
+
+
+@router.get("/demo/script")
+async def demo_script(ctx: AppContext = Depends(get_ctx)) -> dict:
+    return {"steps": [s.as_dict() for s in load_host_script(str(ctx.settings.data_path))]}
 
 
 @router.get("/demo/current")

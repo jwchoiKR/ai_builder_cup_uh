@@ -1,5 +1,5 @@
 {
- "answer": "With the time sale, the Cream + Ampoule set is S$55.80 right now (regular live price is S$62.00).",
+ "answer": "The time-sale price for the Hydra Barrier Cream + Deep Hydration Ampoule set is S$55.80 right now (regular live set price is S$62.00).",
  "citations": [
   {
    "passage_id": "PROMO#promo_time_sale_10",
@@ -12,5 +12,5 @@
  ],
  "grounded": true,
  "needs_human": false,
- "reason": "Set promo price stated first, followed by live price."
+ "reason": "Set prices given with active promo first."
 }

@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "sixty-two dollars",
+   "field": "set_price",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "S$62",
+   "verdict": "supported",
+   "correct_value": "S$62.00",
+   "passage_id": "DL-CR-01#key-facts#live-set-price",
+   "quote": "Live set price: S$62.00 for Hydra Barrier Cream 50 mL + Deep Hydration Ampoule 30 mL"
+  }
+ ],
+ "reason": "The set price of S$62.00 matches the official product facts."
+}

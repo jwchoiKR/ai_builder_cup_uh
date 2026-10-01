@@ -1,0 +1,12 @@
+{
+ "answer": "Yes, you can. Apply your vitamin C product first, wait until it is absorbed, then apply the ampoule.",
+ "citations": [
+  {
+   "passage_id": "DL-AM-01#frequently-asked-questions#can-i-use-it-with-vitamin-c",
+   "quote": "Yes. Apply the vitamin C product first, wait until it is absorbed, then apply the ampoule."
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Answered directly from the FAQ section on using with vitamin C."
+}

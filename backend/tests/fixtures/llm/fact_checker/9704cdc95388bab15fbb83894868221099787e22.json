@@ -1,0 +1,15 @@
+{
+ "claims": [
+  {
+   "span": "it helps skin look more radiant with continued use",
+   "field": "test_result",
+   "product_id": "ampoule_deep_hydration",
+   "stated_value": "helps skin look more radiant with continued use",
+   "verdict": "supported",
+   "correct_value": "Helps skin look more radiant and even-toned with continued use.",
+   "passage_id": "DL-AM-01#approved-on-air-claims#approved",
+   "quote": "Helps skin look more radiant and even-toned with continued use."
+  }
+ ],
+ "reason": "The claim regarding helping skin look more radiant with continued use is supported by the approved claims passage."
+}

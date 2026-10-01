@@ -1,0 +1,12 @@
+{
+ "answer": "Yes, you can use it morning and night. In the morning, follow with moisturiser and sunscreen.",
+ "citations": [
+  {
+   "passage_id": "DL-AM-01#frequently-asked-questions#can-i-use-it-in-the-morning",
+   "quote": "Yes. Use it morning and night. In the morning, follow with moisturiser and sunscreen."
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Answered directly in the FAQ passage."
+}

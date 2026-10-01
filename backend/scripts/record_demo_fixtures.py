@@ -68,10 +68,13 @@ async def run(until: str | None, report: Path | None) -> int:
             await inject(step.text, scenario=step.scene)
             await settle(ctx, 6)
         elif step.action == "end":
+            state = await rt.snapshot("operator")
             await rt.end()
+            continue
         await settle(ctx)
     await settle(ctx, 2)
-    state = await rt.snapshot("operator")
+    if (await rt.load_session()).status == "live":
+        state = await rt.snapshot("operator")
     print(f"\nrecorded {len(backend.recorded)} fixtures")
     for g in state["groups"]:
         ans = state["answers"].get(g["answer_id"] or "", {})
@@ -79,7 +82,19 @@ async def run(until: str | None, report: Path | None) -> int:
               f"{g['intent']}: {g['canonical_question']} -> {ans.get('text', '')[:90]!r} "
               f"{'' if ans.get('verified', True) else ans.get('verify_errors')}")
     for m in state["messages"]:
-        print(f"  msg {m['kind']} -> {m['reply_to_author_names']}: {m['text'][:90]}")
+        print(f"  msg {m['state']} {m['kind']} -> {m['reply_to_author_names']}: {m['text'][:90]}")
+    print("\nalerts:")
+    for a in state.get("alerts", []):
+        lat = (a["shown_at"] - next((t["speech_end_at"] for t in state.get("transcripts", [])
+                                     if t["transcript_id"] == a["transcript_id"]), a["shown_at"])) if a["shown_at"] else None
+        print(f"  {a['kind']:10} {a['status']:10} {a.get('rule_id') or a.get('field')} span={a.get('span')!r} "
+              f"{a.get('stated_value') or ''}->{a.get('correct_value') or ''} unverified={a['unverified']} "
+              f"shown_after={lat} ms corrected_by={a.get('corrected_text')!r}")
+    print("\nsegments:")
+    for seg in state["segments"]:
+        print(f"  {seg['product_id']} {seg['start_reason']} covered={seg['covered_point_ids']} ended={seg['ended_at']}")
+    print("pre_covered:", state["session"]["pre_covered"], "switch:", state["session"]["switch"]["status"])
+    print("host slots:", [s["group_id"] for s in state["host_slots"]])
     if report:
         report.write_text(json.dumps(state, indent=1, ensure_ascii=False), encoding="utf-8")
     ctx.runtimes.shutdown()

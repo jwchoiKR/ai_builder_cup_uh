@@ -22,8 +22,11 @@ from ..logic.grouping import is_open
 from ..logic.ranking import score
 from ..logic.segments import open_segment
 from ..models.data import Intent, Passage, Promo
+from ..logic.prompter import prompter_view
 from ..models.session import (
     ActivePromo,
+    AgentCall,
+    Alert,
     Answer,
     Comment,
     CommentAnalysis,
@@ -31,6 +34,7 @@ from ..models.session import (
     QuestionGroup,
     Segment,
     Session,
+    Transcript,
 )
 from ..store.base import SESSIONS, sub
 
@@ -76,6 +80,12 @@ class SessionRuntime:
         self.triage = CommentTriage(ctx.llm, ctx.prompts["comment_triage"], self.catalog, ctx.settings)
         self.composer = AnswerComposer(ctx.llm, ctx.prompts["answer_composer"], self.catalog)
         self.feed = FeedEngine(self)
+        from .utterances import UtterancePipeline
+
+        self.utterances = UtterancePipeline(self)
+        self.reply_latencies: defaultdict[str, list[int]] = defaultdict(list)
+        self.overtime_emitted: set[str] = set()
+        self._ticks = 0
         self.closed = False
 
     # ---- basics --------------------------------------------------------------------------------
@@ -148,6 +158,25 @@ class SessionRuntime:
     async def save_analysis(self, a: CommentAnalysis) -> None:
         await self.ctx.store.put(self.path("analyses"), a.analysis_id, a)
 
+    async def alerts(self) -> list[Alert]:
+        return await self.ctx.store.query(self.path("alerts"), Alert, order_by="created_at")
+
+    async def get_alert(self, aid: str) -> Alert | None:
+        return await self.ctx.store.get(self.path("alerts"), aid, Alert)
+
+    async def save_alert(self, a: Alert) -> None:
+        await self.ctx.store.put(self.path("alerts"), a.alert_id, a)
+
+    async def get_segment(self, sid: str) -> Segment | None:
+        return await self.ctx.store.get(self.path("segments"), sid, Segment)
+
+    async def save_segment(self, seg: Segment) -> None:
+        await self.ctx.store.put(self.path("segments"), seg.segment_id, seg)
+
+    async def inject_transcript(self, text: str, *, scenario: str = "default") -> Transcript:
+        """§10.4: a final transcript from the Demo Console (source=injected, speech end = now)."""
+        return await self.utterances.submit(text, source="injected", scenario=scenario)
+
     def promo(self, promo_id: str | None) -> Promo | None:
         return None if promo_id is None else self.ctx.pack.promos_by_id.get(promo_id)
 
@@ -198,7 +227,8 @@ class SessionRuntime:
         return s
 
     async def after_segment_started_locked(self, seg: Segment) -> None:
-        """Hook for work that follows every segment start (prompter, feed bursts armed for it)."""
+        """Work that follows every segment start: prompter, host slots, feed bursts armed for it."""
+        await self.emit("prompter.updated", prompter_view(self.catalog, seg))
         await self.recompute_host_queue_locked()
         self.feed.on_segment_started(seg)
 
@@ -240,6 +270,7 @@ class SessionRuntime:
 
     async def tick_locked(self, s: Session) -> None:
         now = self.now()
+        self._ticks += 1
         for g in await self.groups():
             if is_open(g) and g.host_slot != "on_host" and now - g.last_at >= self.settings.GROUP_TTL_SEC * 1000:
                 g.status, g.closed_reason = "closed", "ttl"
@@ -247,6 +278,26 @@ class SessionRuntime:
                 await self.save_group(g)
                 await self.emit("group.updated", g)
         await self.recompute_host_queue_locked()
+        seg = await self.current_segment()
+        if seg is not None and seg.segment_id not in self.overtime_emitted:
+            over_ms = now - seg.started_at - seg.planned_duration_sec * 1000
+            if over_ms > 0:  # §8.1.5: once per segment; operator badge only
+                self.overtime_emitted.add(seg.segment_id)
+                await self.emit("segment.overtime", {"segment_id": seg.segment_id, "product_id": seg.product_id,
+                                                     "overtime_sec": over_ms // 1000})
+        if self._ticks % 5 == 0:
+            await self.emit("metrics.updated", await self.compute_metrics())
+
+    async def simulate_overtime(self) -> Segment:
+        """Demo tool: move the on-air segment start back by its planned duration."""
+        async with self.lock:
+            seg = await self.current_segment()
+            if seg is None:
+                raise ActionError(409, "invalid_state", "no segment on air")
+            seg.started_at -= seg.planned_duration_sec * 1000
+            await self.save_segment(seg)
+            await self.emit("segment.started", seg)
+            return seg
 
     def shutdown(self) -> None:
         self.closed = True
@@ -407,14 +458,21 @@ class SessionRuntime:
 
     # ---- snapshot (§11.1 /state) ---------------------------------------------------------------
 
-    def metrics(self) -> dict[str, Any]:
-        instant, composed = self.counters["instant_answers"], self.counters["composed_answers"]
-        return {
-            "instant_answers": instant,
-            "composed_answers": composed,
-            "triage_cache_hits": self.triage_cache.hits,
-            "triage_cache_misses": self.triage_cache.misses,
-        }
+    async def compute_metrics(self) -> dict[str, Any]:
+        from ..logic.metrics import compute_metrics
+
+        store = self.ctx.store
+        return compute_metrics(
+            alerts=await self.alerts(),
+            transcripts=await store.query(self.path("transcripts"), Transcript),
+            agent_calls=await store.query(self.path("agent_calls"), AgentCall),
+            messages=await store.query(self.path("messages"), Message),
+            comments=await store.query(self.path("comments"), Comment),
+            counters=dict(self.counters),
+            reply_latencies={k: list(v) for k, v in self.reply_latencies.items()},
+            triage_hits=self.triage_cache.hits,
+            triage_misses=self.triage_cache.misses,
+        )
 
     async def snapshot(self, role: str) -> dict[str, Any]:
         last_seq = await self.ctx.bus.last_seq(self.sid)  # read first: later events replay idempotently
@@ -437,13 +495,19 @@ class SessionRuntime:
             "host_slots": [sl.model_dump() for sl in s.host_slots],
             "comments": [c.model_dump(mode="json") for c in shown],
             "messages": [m.model_dump(mode="json") for m in await store.query(self.path("messages"), Message, order_by="created_at")],
-            "metrics": self.metrics(),
+            "alerts": [a.model_dump(mode="json") for a in await self.alerts()],
+            "prompter": prompter_view(self.catalog, await self.current_segment()),
+            "metrics": await self.compute_metrics(),
             "feed": self.feed.state(),
         }
         if role == "operator":
             ids = {c.comment_id for c in shown}
             out["analyses"] = {a.comment_id: a.model_dump(mode="json")
                                for a in await store.query(self.path("analyses"), CommentAnalysis) if a.comment_id in ids}
+            finals = await store.query(self.path("transcripts"), Transcript, order_by="received_at")
+            out["transcripts"] = [t.model_dump(mode="json") for t in finals[-20:]]
+            calls = await store.query(self.path("agent_calls"), AgentCall, order_by="started_at")
+            out["agent_calls"] = [c.model_dump(mode="json") for c in calls[-50:]]
         return out
 
 

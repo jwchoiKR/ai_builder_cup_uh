@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "Is it suitable for teens?",
+ "canonical_question": "Is it suitable for teenagers?",
  "group_candidate_id": null,
- "reason": "Asks about age suitability for teens regarding the current product."
+ "reason": "Asks about age suitability for teens, context product is the cream."
 }

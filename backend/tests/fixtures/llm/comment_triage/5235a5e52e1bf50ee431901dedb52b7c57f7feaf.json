@@ -13,5 +13,5 @@
  },
  "canonical_question": "Is it suitable for dry skin?",
  "group_candidate_id": null,
- "reason": "Asks if the current product is suitable for dry skin."
+ "reason": "Asks if the product is suitable for dry skin using context."
 }

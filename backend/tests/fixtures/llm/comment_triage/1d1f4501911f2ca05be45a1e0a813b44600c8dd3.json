@@ -3,7 +3,7 @@
  "hide_category": null,
  "product_id": null,
  "product_basis": "unknown",
- "intent": "product_comparison",
+ "intent": "routine_order",
  "condition_slots": {
   "skin_type": null,
   "life_stage": null,
@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "Should I buy the cream or the ampoule first?",
+ "canonical_question": "Which product should I use first, the cream or the ampoule?",
  "group_candidate_id": null,
- "reason": "Asks for a comparison on which product to buy first."
+ "reason": "Asks about the routine order between the cream and ampoule."
 }

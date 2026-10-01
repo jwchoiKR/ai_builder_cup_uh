@@ -1,0 +1,25 @@
+{
+ "claims": [
+  {
+   "span": "thirty-two people",
+   "field": "test_result",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "32 participants",
+   "verdict": "supported",
+   "correct_value": "32 participants",
+   "passage_id": "DL-CR-01#in-house-test-results#irritation-reactions-in-48-hour-patch-test",
+   "quote": "0 of 32 participants"
+  },
+  {
+   "span": "nobody reported a reaction",
+   "field": "test_result",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "0 reactions",
+   "verdict": "supported",
+   "correct_value": "0 of 32 participants",
+   "passage_id": "DL-CR-01#in-house-test-results#irritation-reactions-in-48-hour-patch-test",
+   "quote": "0 of 32 participants"
+  }
+ ],
+ "reason": "The patch test participant count and lack of reaction are supported by the product sheet."
+}

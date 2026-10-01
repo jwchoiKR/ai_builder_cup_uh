@@ -1,0 +1,29 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": [
+   "@alert:your wrinkles will disappear overnight"
+  ]
+ },
+ "answer": {
+  "utterance_type": "correction",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [
+   "cr-p3"
+  ],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Host explicitly corrects the previous violation with an approved hydration claim, matching prompter point cr-p3."
+}

@@ -193,10 +193,193 @@ async def eval_comments(record: bool) -> tuple[str, bool]:
     return "\n".join(lines) + "\n", passed
 
 
+# ---- utterances ------------------------------------------------------------------------------------
+
+COMPLIANCE_CASES = [f"U{i:02d}" for i in range(1, 13)]
+CLEAN_CASES = [f"U{i:02d}" for i in range(13, 19)]
+FACT_CONTRADICTED = ["U19", "U21", "U23", "U27"]
+FACT_NOT_CONTRADICTED = ["U20", "U22", "U24", "U26"]
+
+
+def _norm_value(v: str | None) -> str:
+    return " ".join((v or "").lower().replace("ml", " ml").split())
+
+
+def _same_value(got: str | None, want: str) -> bool:
+    from app.logic.verify import number_set
+
+    return _norm_value(got) == _norm_value(want) or (
+        number_set(got or "") == number_set(want) and set(_norm_value(want).split()) - set(number_set(want))
+        <= set(_norm_value(got).split()) | {"s$"})
+
+
+async def eval_utterances(mode: str, record: bool, runs: int) -> tuple[str, bool]:
+    from app.agents.fact_checker import FactChecker, FactInput, gather_fact_passages
+    from app.agents.utterance_judge import JudgeInput, UtteranceJudge
+    from app.logic.reflex import Reflex
+    from app.models.session import Alert, SwitchState
+    from app.providers.retriever import LocalRetriever
+
+    settings = get_settings()
+    pack = DataPack.load(settings.data_path)
+    catalog = Catalog(pack)
+    prompts = load_prompts(settings.prompts_path, BUILDERS)
+    client, backend = make_client(record)
+    judge = UtteranceJudge(client, prompts, catalog, Reflex(pack.rules), single=mode == "single")
+    facts = FactChecker(client, prompts["fact_checker"], catalog)
+    retriever = LocalRetriever(pack.passages)
+    prefetched: dict = {}
+    await client.warm_up()
+    now = SystemClock().now_ms()
+    cases = load_cases("utterance_cases.jsonl")
+    sem = asyncio.Semaphore(4)
+
+    async def one(case: dict, run_no: int) -> dict:
+        ctx = case.get("context") or {}
+        on_air = case["current_product_id"]
+        sw = ctx.get("switch_state") or {}
+        switch = SwitchState(status=sw.get("status", "idle"), target_product_id=sw.get("target_product_id"),
+                             cue_count=sw.get("cue_count", 0))
+        promo = pack.promos_by_id.get(ctx.get("active_promo_id") or "")
+        alerts = [Alert(alert_id=a["alert_id"], kind="compliance", status="active", transcript_id="tr_prev",
+                        product_id=on_air, rule_id=a["rule_id"], severity=pack.rules_by_id[a["rule_id"]].severity,
+                        span=a["span"], created_at=now, shown_at=now) for a in ctx.get("active_alerts", [])]
+        questions = [(_group({**q, "intent": "skin_type_suitability"}, now), q.get("suggested_answer"))
+                     for q in ctx.get("open_questions", [])]
+        previous = ctx.get("recent_transcript", [])
+        scenario = case["case_id"] if run_no == 0 else f"{case['case_id']}#run{run_no}"
+        async with sem:
+            passages = await gather_fact_passages(retriever, catalog, prefetched, utterance=case["utterance"],
+                                                  on_air=on_air, switch=switch,
+                                                  search_timeout_ms=settings.FACT_SEARCH_TIMEOUT_MS)
+            jin = JudgeInput(utterance=case["utterance"], on_air=on_air, active_alerts=alerts, open_questions=questions,
+                             previous=previous, scenario=scenario if run_no == 0 else "eval",
+                             switch=switch, promo=promo, passages=passages)
+            if mode == "single":
+                j = await judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS)
+                f = None
+            else:
+                j, f = await asyncio.gather(
+                    judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS),
+                    facts.run(FactInput(utterance=case["utterance"], on_air=on_air, switch=switch, promo=promo,
+                                        passages=passages, previous=previous,
+                                        scenario=scenario if run_no == 0 else "eval"),
+                              deadline_ms=settings.FACT_TIMEOUT_MS))
+        return {"case": case, "judge": j, "facts": f, "run": run_no}
+
+    all_results = []
+    for r in range(runs):
+        all_results += await asyncio.gather(*(one(c, r) for c in cases))
+    first = [x for x in all_results if x["run"] == 0]
+    judge_lat = [x["judge"].latency_ms for x in all_results if x["judge"].status == "ok"]
+    fact_lat = [x["facts"].latency_ms for x in all_results if x["facts"] and x["facts"].status == "ok"]
+    statuses: dict[str, int] = {}
+    for x in all_results:
+        statuses[f"judge:{x['judge'].status}"] = statuses.get(f"judge:{x['judge'].status}", 0) + 1
+        if x["facts"]:
+            statuses[f"facts:{x['facts'].status}"] = statuses.get(f"facts:{x['facts'].status}", 0) + 1
+
+    checks: dict[str, list[tuple[str, bool, str]]] = {k: [] for k in ("compliance", "facts", "answers", "switch", "correction", "prompter")}
+    rows = []
+    for x in first:
+        case, j = x["case"], x["judge"]
+        cid, exp = case["case_id"], case["expected"]
+        jo = j.output
+        fo = (jo.facts if (jo is not None and mode == "single") else (x["facts"].output if x["facts"] else None))
+        active = [v for v in (jo.compliance.violations if jo else []) if not v.is_negated and not v.is_quoted]
+        claims = fo.claims if fo else []
+        contradicted = [c for c in claims if c.verdict == "contradicted"]
+        note = []
+        if cid in COMPLIANCE_CASES:
+            ok = any(v.rule_id == exp["rule_id"] and v.severity == pack.rules_by_id[exp["rule_id"]].severity for v in active)
+            checks["compliance"].append((cid, ok, ",".join(v.rule_id for v in active) or "none"))
+        if cid in CLEAN_CASES:
+            ok = jo is not None and not active
+            checks["compliance"].append((cid, ok, ",".join(v.rule_id for v in active) or "no active alert"))
+        if cid in FACT_CONTRADICTED:
+            ok = any(c.field == exp["field"] and _same_value(c.correct_value, exp["correct_value"]) for c in contradicted)
+            checks["facts"].append((cid, ok, "; ".join(f"{c.field}:{c.stated_value}->{c.correct_value}" for c in contradicted) or "none"))
+        if cid in FACT_NOT_CONTRADICTED:
+            ok = fo is not None and not contradicted
+            checks["facts"].append((cid, ok, "; ".join(f"{c.field}:{c.verdict}" for c in claims) or "no claims"))
+        if cid == "U25":
+            checks["facts"].append((cid, fo is not None and not claims, f"{len(claims)} claims"))
+        if cid == "U39":
+            ok = any(c.field == "price" and c.verdict == "supported" for c in claims)
+            checks["correction"].append((cid, ok, "; ".join(f"{c.field}:{c.verdict}" for c in claims) or "no claims"))
+        if jo is not None:
+            a, sw, pr = jo.answer, jo.prompter.switch, jo.prompter
+            if cid in ("U28", "U31"):
+                ok = a.is_answer and a.consistent_with_suggested and a.matched_group_id == exp["matched_group"]
+                checks["answers"].append((cid, ok, f"is_answer={a.is_answer} group={a.matched_group_id} consistent={a.consistent_with_suggested}"))
+            if cid in ("U29", "U30"):
+                checks["answers"].append((cid, not a.is_answer, f"is_answer={a.is_answer} group={a.matched_group_id}"))
+            if cid == "U35":
+                ok = sw.is_transition and sw.target_product_id == "ampoule_deep_hydration" and sw.confidence == "high"
+                checks["switch"].append((cid, ok, f"{sw.is_transition} {sw.target_product_id} {sw.confidence}"))
+            if cid == "U34":
+                checks["switch"].append((cid, not sw.is_transition or sw.is_quote, f"transition={sw.is_transition} quote={sw.is_quote}"))
+            if cid == "U36":
+                ok = "am-p2" in pr.covered_point_ids and not (sw.is_transition and sw.target_product_id == "cream_hydra_barrier")
+                checks["switch"].append((cid, ok, f"covered={pr.covered_point_ids} transition={sw.is_transition}"))
+            if cid == "U37":
+                ok = sw.is_transition and sw.target_product_id == "cream_hydra_barrier"
+                checks["switch"].append((cid, ok, f"{sw.is_transition} {sw.target_product_id}"))
+            if cid == "U38":
+                ok = "al_u01" in jo.correction.corrects_alert_ids
+                checks["correction"].append((cid, ok, f"corrects={jo.correction.corrects_alert_ids} covered={pr.covered_point_ids}"))
+            if "covered_points" in exp:
+                ok = set(exp["covered_points"]) <= set(pr.covered_point_ids)
+                checks["prompter"].append((cid, ok, f"covered={pr.covered_point_ids}"))
+            note.append(f"{jo.answer.utterance_type}; viol={[f'{v.rule_id}{"(neg)" if v.is_negated else ""}{"(quote)" if v.is_quoted else ""}' for v in jo.compliance.violations]}")
+        rows.append(f"| {cid} | {case['utterance']} | {j.status} {j.latency_ms} ms | "
+                    f"{(x['facts'].status + ' ' + str(x['facts'].latency_ms) + ' ms') if x['facts'] else '-'} | "
+                    f"{'; '.join(note)} | {'; '.join(f'{c.field}:{c.verdict}:{c.correct_value}' for c in claims)} |")
+
+    def passed(group: str) -> bool:
+        return all(ok for _, ok, _ in checks[group])
+
+    p95 = pct(judge_lat, 0.95)
+    targets = {
+        "Compliance: U01-U12 active violation with expected rule (U08-U10 MEDIUM); U13-U18 no active alert": passed("compliance"),
+        "Facts: U19, U21, U23, U27 contradicted with expected value; U20, U22, U24, U26 not; U25 no claims": passed("facts"),
+        "Answers: U28, U31 answer + consistent; U29, U30 not an answer": passed("answers"),
+        "Switch: U35 high transition to ampoule; U34 no transition; U36 covers am-p2; U37 back to cream": passed("switch"),
+        "Correction: U38 corrects al_u01; U39 supported price claim": passed("correction"),
+        f"Latency: judge p95 {p95:.0f} ms <= JUDGE_TIMEOUT_MS {settings.JUDGE_TIMEOUT_MS} ({runs} run(s))": p95 <= settings.JUDGE_TIMEOUT_MS,
+    }
+    lines = [
+        f"# Utterance eval · {mode} · {dt.date.today().isoformat()}",
+        "",
+        f"Judge `{judge.prompt_version}` and " + ("(facts in the same call)" if mode == "single" else f"fact checker `{facts.prompt_version}`")
+        + f" on `{client.fast.model}` thinking `{client.fast.thinking_level}` · {len(cases)} cases × {runs} run(s) · "
+        f"judge deadline {settings.JUDGE_TIMEOUT_MS} ms, facts {settings.FACT_TIMEOUT_MS} ms.",
+        "",
+        "## Targets (DEV_SPEC §14.3)",
+        *[f"- [{'x' if ok else ' '}] {name}" for name, ok in targets.items()],
+        "",
+        "## Latency",
+        f"- judge: {latency_line(judge_lat)}",
+        f"- fact checker: {latency_line(fact_lat)}" if mode == "split" else "- fact checker: in the judge call",
+        f"- statuses: {statuses}",
+        "",
+        "## Checks",
+    ]
+    for group, items in checks.items():
+        ok_n = sum(ok for _, ok, _ in items)
+        lines.append(f"- **{group}** {ok_n}/{len(items)}: " + "; ".join(
+            f"{cid} {'✓' if ok else '✗ ' + detail}" for cid, ok, detail in items))
+    lines += ["", "## Cases (run 1)", "| Case | Utterance | Judge | Facts | Judge output | Claims |", "|---|---|---|---|---|---|", *rows]
+    if record:
+        lines += ["", f"Recorded {len(backend.recorded)} fixtures."]
+    await client.aclose()
+    return "\n".join(lines) + "\n", all(targets.values())
+
+
 def write_report(mode: str, text: str) -> Path:
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
     path = EVAL_DIR / f"{dt.date.today().isoformat()}-{mode}.md"
-    path.write_text(text, encoding="utf-8")
+    path.write_text(text, encoding="utf-8", newline="\n")
     return path
 
 
@@ -206,17 +389,17 @@ async def main() -> int:
     ap.add_argument("--mode", choices=["split", "single"], default="split")
     ap.add_argument("--record", action="store_true")
     ap.add_argument("--runs", type=int, default=1)
+    ap.add_argument("--no-report", action="store_true", help="do not write docs/eval (e.g. fixture-only runs)")
     args = ap.parse_args()
     if args.suite == "comments":
         text, passed = await eval_comments(args.record)
-        path = write_report("comments", text)
+        mode = "comments"
     else:
-        from eval_utterances import eval_utterances  # noqa: PLC0415 - phase P2
-
         text, passed = await eval_utterances(args.mode, args.record, args.runs)
-        path = write_report(args.mode, text)
+        mode = args.mode
     print(text)
-    print(f"report: {path}")
+    if not args.no_report:
+        print(f"report: {write_report(mode, text)}")
     return 0 if passed else 1
 
 

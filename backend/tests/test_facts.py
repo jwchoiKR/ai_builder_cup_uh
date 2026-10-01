@@ -1,0 +1,190 @@
+"""Fact correction notes (DEV_SPEC §8.5, §7.4 post-validation, §14.1 facts)."""
+from __future__ import annotations
+
+import pytest
+
+from app.logic import facts as fact_logic
+from app.models.agent_io import FactClaim
+from app.models.session import Alert, Transcript
+from app.pipelines import utterances as utt
+from app.pipelines.runtime import ActionError
+
+from .judge_fakes import (
+    AMPOULE,
+    CREAM,
+    PRICE_PASSAGE,
+    PRICE_QUOTE,
+    advance,
+    claim,
+    close_env,
+    events,
+    make_env,
+    price_contradiction,
+    speak,
+)
+
+WRONG = "And today the live price is only thirty-two dollars."
+WRONGER = "Actually it's thirty dollars live."
+RIGHT = "Sorry, my mistake, the live price is thirty-six dollars."
+
+
+@pytest.fixture
+async def env():
+    rt, llm = await make_env()
+    yield rt, llm
+    await close_env(rt)
+
+
+async def fact_alerts(rt) -> list[Alert]:
+    return [a for a in await rt.alerts() if a.kind == "fact"]
+
+
+async def test_contradiction_creates_active_note(env):
+    rt, llm = env
+    llm.facts(WRONG, price_contradiction("S$32"))
+    t = await speak(rt, WRONG)
+    [a] = await fact_alerts(rt)
+    assert a.alert_id.startswith("fx_") and a.status == "active" and a.transcript_id == t.transcript_id
+    assert (a.field, a.stated_value, a.correct_value) == ("price", "S$32", "S$36.00")
+    assert (a.passage_id, a.quote, a.product_id) == (PRICE_PASSAGE, PRICE_QUOTE, CREAM)
+    assert a.shown_at is not None and a.host_hidden_at is None
+    [created] = [e for e in await events(rt, "alert.created") if e.payload["kind"] == "fact"]
+    assert created.payload["alert_id"] == a.alert_id
+
+
+@pytest.mark.parametrize("bad", [
+    claim("price", "contradicted", stated="S$32", correct="S$40.00", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE),
+    claim("price", "contradicted", stated="S$32", correct="S$36.00", passage_id=PRICE_PASSAGE, quote="Live price: S$36.00"),
+    claim("price", "contradicted", stated="S$32", correct="S$36.00", passage_id="NOPE", quote=PRICE_QUOTE),
+    claim("price", "contradicted", stated="S$32", correct="S$36.00", passage_id=None, quote=None),  # no promo active
+    claim("other", "contradicted", stated="treats acne", correct="Claims not approved: Treats acne",
+          passage_id="DL-CR-01#approved-on-air-claims#not-approved", quote="Claims not approved:"),
+    claim("price", "contradicted", product_id="nope", stated="S$32", correct="S$36.00", passage_id=PRICE_PASSAGE,
+          quote=PRICE_QUOTE),
+])
+async def test_unbacked_contradiction_is_downgraded(env, bad):
+    rt, llm = env
+    llm.facts(WRONG, bad)
+    await speak(rt, WRONG)
+    assert await fact_alerts(rt) == []
+
+
+async def test_promo_price_contradiction_without_passage(env):
+    rt, llm = env
+    await rt.start_promo("promo_time_sale_10")
+    text = "With the time sale it's thirty dollars now."
+    llm.facts(text, claim("promo", "contradicted", stated="S$30", correct="S$32.40"))
+    await speak(rt, text)
+    [a] = await fact_alerts(rt)
+    assert a.correct_value == "S$32.40" and a.passage_id is None
+
+
+async def test_same_product_and_field_is_reshown_not_duplicated(env):
+    rt, llm = env
+    llm.facts(WRONG, price_contradiction("S$32"))
+    llm.facts(WRONGER, price_contradiction("S$30"))
+    await speak(rt, WRONG)
+    first = (await fact_alerts(rt))[0]
+    await advance(rt, 3000)
+    t2 = await speak(rt, WRONGER)
+    [a] = await fact_alerts(rt)
+    assert a.alert_id == first.alert_id and a.stated_value == "S$30" and a.shown_at == first.shown_at + 3000
+    assert a.transcript_id == t2.transcript_id
+    assert any(e.payload["alert_id"] == a.alert_id for e in await events(rt, "alert.updated"))
+
+
+async def test_other_product_gets_its_own_note(env):
+    rt, llm = env
+    text = "The ampoule has ten percent niacinamide and the cream is thirty-two dollars."
+    llm.facts(text, price_contradiction("S$32"),
+              claim("ingredient_amount", "contradicted", product_id=AMPOULE, stated="10% niacinamide",
+                    correct="4% niacinamide", passage_id="DL-AM-01#key-ingredients#niacinamide", quote="Niacinamide: 4%"))
+    await speak(rt, text)
+    notes = await fact_alerts(rt)
+    assert {(a.product_id, a.field) for a in notes} == {(CREAM, "price"), (AMPOULE, "ingredient_amount")}
+
+
+async def test_supported_claim_corrects_the_note(env):
+    rt, llm = env
+    llm.facts(WRONG, price_contradiction())
+    llm.facts(RIGHT, claim("price", "supported", stated="S$36"))
+    await speak(rt, WRONG)
+    await advance(rt, 4000)
+    t = await speak(rt, RIGHT)
+    [a] = await fact_alerts(rt)
+    assert a.status == "corrected" and a.resolved_at == a.shown_at + 4000
+    assert a.corrected_by_transcript_id == t.transcript_id and a.corrected_text == RIGHT
+    await advance(rt, 60_000)
+    assert (await fact_alerts(rt))[0].host_hidden_at is None  # no hide after correction
+
+
+async def test_supported_other_field_does_not_correct(env):
+    rt, llm = env
+    llm.facts(WRONG, price_contradiction())
+    llm.facts("It's 50 mL.", claim("volume", "supported", stated="50 mL"))
+    await speak(rt, WRONG)
+    await speak(rt, "It's 50 mL.")
+    assert (await fact_alerts(rt))[0].status == "active"
+
+
+async def test_host_hide_after_max_seconds_and_resend(env):
+    rt, llm = env
+    llm.facts(WRONG, price_contradiction())
+    await speak(rt, WRONG)
+    [a] = await fact_alerts(rt)
+    await advance(rt, 44_999)
+    assert (await fact_alerts(rt))[0].host_hidden_at is None
+    await advance(rt, 1)
+    a = (await fact_alerts(rt))[0]
+    assert a.status == "active" and a.host_hidden_at == a.shown_at + 45_000  # operator keeps it
+    await utt.resend_fact(rt, rt.utterances, a.alert_id)
+    resent = (await fact_alerts(rt))[0]
+    assert resent.host_hidden_at is None and resent.status == "active"
+    await advance(rt, 44_000)
+    assert (await fact_alerts(rt))[0].host_hidden_at is None  # timer restarted
+    await advance(rt, 1_000)
+    assert (await fact_alerts(rt))[0].host_hidden_at is not None
+
+
+async def test_resend_only_active_fact_notes(env):
+    rt, llm = env
+    llm.facts(WRONG, price_contradiction())
+    llm.facts(RIGHT, claim("price", "supported"))
+    await speak(rt, WRONG)
+    await speak(rt, RIGHT)
+    [a] = await fact_alerts(rt)
+    with pytest.raises(ActionError) as e:
+        await utt.resend_fact(rt, rt.utterances, a.alert_id)
+    assert e.value.status == 409
+
+
+async def test_fact_cue_and_notice_template(env):
+    rt, llm = env
+    llm.facts(WRONG, price_contradiction())
+    await speak(rt, WRONG)
+    [a] = await fact_alerts(rt)
+    cue = await utt.correction_cue(rt, a.alert_id)
+    assert cue.text == "Say: S$36.00" and (await rt.load_session()).cue.cue_id == cue.cue_id
+    assert utt.notice_template(rt, a) == "Correction: the current price of Hydra Barrier Cream is S$36.00."
+    msg = await utt.post_notice(rt, a.alert_id, utt.notice_template(rt, a))
+    assert msg.kind == "correction_notice" and msg.state == "published"
+
+
+# ---- pure function ------------------------------------------------------------------------------
+
+
+def test_apply_fact_check_pure(ids):
+    t = Transcript(transcript_id="tr_1", text="x", is_final=True, speech_end_at=0, received_at=0, source="injected",
+                   segment_id="seg_1")
+    new_id = lambda p: ids.new(p, "s")  # noqa: E731
+    c = FactClaim.model_validate(price_contradiction("S$32"))
+    created, reshown, corrected = fact_logic.apply_fact_check([c], [], t, new_id, now=100)
+    assert len(created) == 1 and not reshown and not corrected
+    alerts = created
+    c2 = FactClaim.model_validate(price_contradiction("S$31"))
+    created, reshown, corrected = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200)
+    assert not created and reshown[0].stated_value == "S$31" and reshown[0].shown_at == 200
+    sup = FactClaim.model_validate(claim("price", "supported"))
+    created, reshown, corrected = fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300)
+    assert corrected and corrected[0].status == "corrected" and corrected[0].resolved_at == 300
+    assert fact_logic.PURCHASE_FIELDS >= {"price", "volume", "ingredient_amount"}

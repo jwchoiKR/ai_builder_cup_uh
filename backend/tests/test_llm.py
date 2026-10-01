@@ -191,7 +191,7 @@ def test_vertex_config_uses_verified_fields():
     assert cfg.thinking_config.thinking_level.value == "MINIMAL"
     assert cfg.temperature is None  # D-008
     assert cfg.automatic_function_calling.disable is True
-    assert cfg.http_options.timeout == 2500 and cfg.http_options.retry_options is None
+    assert cfg.http_options is None  # no X-Server-Timeout (D-047); asyncio.wait_for enforces the deadline
     assert cfg.system_instruction == "sys"
     assert set(schema["$defs"]["ConditionSlots"]["required"]) == {
         "skin_type", "life_stage", "condition", "combined_with", "time_of_day",

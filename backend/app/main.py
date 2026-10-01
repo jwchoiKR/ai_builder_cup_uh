@@ -7,13 +7,17 @@ from __future__ import annotations
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .api import demo, events_sse, operator, sessions, viewer
 from .api.errors import install_error_handlers
 from .clock import Clock
-from .config import Settings, get_settings
+from .config import REPO_DIR, Settings, get_settings
 from .context import AppContext, build_context, get_ctx
 from .logic.catalog import Catalog
 from .providers.llm import LLMBackend
@@ -69,12 +73,27 @@ async def catalog(ctx: AppContext = Depends(get_ctx)) -> dict:
         "currency_symbol": pack.products.currency_symbol,
         "products": products,
         "set_offers": [
-            {**s.model_dump(mode="json"), "live_price_display": cat.money(s.live_price)}
+            {**s.model_dump(mode="json"), "live_price_display": cat.money(s.live_price),
+             "promo_prices_display": {p.promo_id: cat.money(p.promo_prices[s.set_id])
+                                      for p in pack.promos.promos if s.set_id in p.promo_prices}}
             for s in pack.products.set_offers
         ],
         "promos": promos,
         "runsheets": [rs.model_dump(mode="json") for rs in pack.runsheets.values()],
+        "rules": [{"rule_id": r.rule_id, "title": r.title, "severity": r.severity, "source_ref": r.source_ref,
+                   "source_id": r.source_id} for r in pack.rules.rules],
+        "policy_pdf_url": "/api/files/policy",
+        "intents": [i.model_dump(mode="json") for i in pack.intents.intents],
+        "passages": {p.passage_id: {"product_id": p.product_id, "doc": p.doc, "section": p.section, "text": p.text}
+                     for p in pack.passages},
+        "notices": pack.notices.model_dump(mode="json"),
     }
+
+
+@meta.get("/files/policy")
+async def policy_pdf(ctx: AppContext = Depends(get_ctx)) -> FileResponse:
+    src = next(s for s in ctx.pack.rules.sources if s.source_id == "ASEAN_APPENDIX_III")
+    return FileResponse(ctx.settings.data_path / "policy" / Path(src.file).name, media_type="application/pdf")
 
 
 def create_app(
@@ -105,4 +124,22 @@ def create_app(
     install_error_handlers(app)
     for router in (meta, sessions.router, events_sse.router, viewer.router, operator.router, demo.router):
         app.include_router(router, prefix="/api")
+    _mount_frontend(app)
     return app
+
+
+def _mount_frontend(app: FastAPI) -> None:
+    """Serve the built frontend (frontend/dist) with SPA fallback, if it exists (§4.2)."""
+    dist = REPO_DIR / "frontend" / "dist"
+    if not (dist / "index.html").is_file():
+        return
+    app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def spa(path: str) -> FileResponse:
+        if path.startswith("api/"):
+            raise StarletteHTTPException(404, "Not Found")
+        candidate = (dist / path).resolve()
+        if path and candidate.is_file() and dist.resolve() in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(dist / "index.html")

@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "How long will one bottle last?",
+ "canonical_question": "How long does a bottle last?",
  "group_candidate_id": null,
- "reason": "Asks about how long the product volume will last using the context product."
+ "reason": "Asks about product volume and usage duration for the current product."
 }

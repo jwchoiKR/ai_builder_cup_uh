@@ -1,0 +1,34 @@
+{
+ "compliance": {
+  "violations": [
+   {
+    "span": "cures eczema",
+    "rule_id": "ASEAN-2D-DISEASE",
+    "severity": "HIGH",
+    "is_negated": true,
+    "is_quoted": true,
+    "say_instead": "Helps relieve the feeling of dryness."
+   }
+  ]
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "answer": {
+  "utterance_type": "answer",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Host quotes a viewer mentioning eczema cure and denies the disease claim."
+}

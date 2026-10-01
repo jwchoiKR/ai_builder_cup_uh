@@ -8,7 +8,9 @@ from ..models.data import Intent
 from .catalog import Catalog
 
 Basis = Literal["explicit", "context", "content", "unknown", "operator"]
-SET_INTENTS = frozenset({"set_price"})
+# Questions about the products together: the answer is on each product sheet (set price, which goes
+# first), so "both products" falls back to the on-air product instead of "unresolved" (D-043).
+SET_INTENTS = frozenset({"set_price", "routine_order"})
 
 
 def attribute_product(
@@ -31,6 +33,5 @@ def attribute_product(
     if triage.product_basis == "context" and context_product_id is not None:
         return context_product_id, "context"
     if intent is not None and intent.intent in SET_INTENTS and context_product_id is not None:
-        # The set price is on both product sheets; "both products" is not unresolved (D-043).
         return context_product_id, "context"
     return None, "unknown"
