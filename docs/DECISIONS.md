@@ -124,3 +124,94 @@ D-024: Tooling:
 Reason: keeps the verified HTTP behaviour.
 
 D-025: Modules of later phases (retriever, STT, agents, pipelines, remaining API routes, frontend) are created in their phase. `store/firestore.py` exists as a stub that raises `NotImplementedError` until P6. Reason: §0.1, one phase at a time; the layout fills in phase by phase.
+
+## P1 Comment path (2026-10-01)
+
+D-026: All delayed work goes through a keyed `Scheduler` (`app/scheduler.py`): escalation, publish windows, promo end, feed offsets and ticks. `AsyncScheduler` runs in real time. In tests, `ManualScheduler` with `ManualClock` fires timers only in `advance()`. A timer is removed from the registry before it runs, so cancelling never interrupts a half-applied change. Reason: §14.1 timer behaviour (5 s escalation, 2 s publish window, 20 s dwell, 10 s coalescing) must be testable deterministically.
+
+D-027: Two modules are added to `pipelines/`:
+- `runtime.py` (`SessionRuntime`, `Runtimes`, session creation);
+- `demo_script.py` (host script parser).
+
+One `asyncio.Lock` per session guards every state change, not only grouping. LLM calls never run while it is held: their results are applied afterwards under the lock, from fresh reads. Reason: timers, operator actions and both pipelines change the same documents. One lock is the simplest race-free rule.
+
+D-028: Document additions:
+- `Session.host_slots` (ordered `HostSlot{group_id, pinned, on_host_since}`) and `Session.active_promos` (all running promos). `active_promo_id` remains the price-changing one.
+- `QuestionGroup.recalled_at`.
+
+Reason: §8.11 needs an ordered slot list; §8.10 allows non-price promos in parallel; §8.13 recall blocks re-adding for 60 s.
+
+D-029: Host slot order:
+- Pinned groups come first, in pin order.
+- Auto items keep their place; a newcomer takes the place of the item it replaces.
+- On a score tie, the current holder stays.
+
+Reason: "Questions stay in place while you speak" (§12.3.4).
+
+D-030: The prefilter runs at intake before `comment.created` is emitted, so the event already carries `visibility`. `comment.hidden` follows for hidden comments. It is a pure function taking well under 1 ms, so the 300 ms target still holds. Reason: text hidden by the prefilter (links, phone numbers) never reaches host or viewer screens.
+
+D-031: `logic/profanity.txt` is a short hand-written list of common English swear words plus a few Singlish vulgarities (knn, cb, lan jiao, pukimak). It is not taken from a third-party list. It deliberately excludes mild insults ("stupid", "annoying"), which the LLM classifies as `harassment`. Reason: required by §8.8.
+
+D-032: Prefilter details:
+- Emails and phone numbers are checked before links, so `jane@example.com` is `personal_info` and not `link`.
+- Phone pattern: optional `+65`, first digit 6/8/9, eight digits, optional single spaces or hyphens between digits.
+- Reaction-list matching lowercases and strips everything except letters, digits, spaces and `+`.
+
+Reason: C19, C20 and B3 expect `personal_info`; "So pretty! 💜" must match "so pretty".
+
+D-033: Analysis ids use the prefix `an_`. The `comment.analyzed` payload is `{comment, analysis}`. Reason: §6.2 lists no prefix for analyses; the operator desk needs both objects.
+
+D-034: SSE and `/state` take `role=operator|host|viewer` (default `viewer`). For host and viewer:
+- `agent.call` and `transcript.interim` are dropped;
+- hidden comments are reduced to `{comment_id, visibility}`;
+- analyses are removed.
+
+Reason: §12 screens see different data. Without login (§2.2), this keeps personal data and debug output off the public screens.
+
+D-035: Grouping rules:
+- A group is open while its status is not `closed` or `rejected`.
+- Joining does not merge slot values into the group.
+- A new member of an already answered group gets the same reply text: added to the last reply within `REPLY_COALESCE_SEC`, otherwise a new reply. This applies to AI, host and brand answers, and makes no LLM call.
+
+Reason: §8.9.1 and §8.9.3 cover joining and AUTO repeats; using the same rule for every answered group means no question is silently dropped.
+
+D-036: The composer runs for every composable group, including OPERATOR-routed ones, so the operator gets a verified draft (S09). The outcomes:
+- With `AUTO_ANSWER_ENABLED=false`, an AUTO group with a verified answer goes to `needs_review`.
+- A composer timeout, error or invalid output sends the group to OPERATOR with `no_verified_answer`.
+
+Reason: §7.6, §8.9.2 and the §7.2 failure column.
+
+D-037: The feed endpoints (`/feed/*`) require `DEMO_TOOLS_ENABLED`. The `bursts` flag of `/feed/start` is accepted but unused; bursts are fired one by one. Rate limits apply to every comment source. Reason: the feed simulates viewers and is a demo tool; §11.1 does not define the `bursts` flag.
+
+D-038: `promo_passage()` text:
+- Label: "Time sale price (extra {pct}% off the live price)" for `time_sale` promos, otherwise the promo title.
+- Then each product or set catalog name with its precomputed price, two decimals.
+- So the set appears as "Hydra Barrier Cream + Deep Hydration Ampoule set" (catalog name), not "Cream + Ampoule set".
+
+Reason: §8.10 says to build the text from `promo_prices` and catalog names.
+
+D-039: Unhiding a comment re-runs triage; if triage says `hide` again, the operator's decision wins and the comment is treated as a reaction. Triage `hide` with no category becomes `spam`. Reason: §8.13 "Visible again; re-run triage". The operator is the human in control (§1.2).
+
+D-040: Answers are counted per asker. An asker is `instant_answers` when answered from an existing verified answer (group or key cache), and `composed_answers` when they waited for a composer call. Reason: §8.16 defines both "for an asker".
+
+D-041: `POST /comments` requires `VIEWER_INPUT_ENABLED` and returns 403 otherwise. The feed posts in process. Reason: §11.1 and §12.5. The recorded demo keeps chat read-only.
+
+D-042: **Re-triage on a stale view.** Triage runs concurrently, so a paraphrase can be classified before the group of a near-simultaneous question exists. If grouping then finds no match but a compatible open group exists that the triage call did not see, triage runs once more with the current open groups. "Did not see" means the group was created while triage ran, or the output came from the triage cache. The LLM still decides; code only asks again. Reason: the live recording of B2 split the makeup questions into three groups; with re-triage the group has the expected 4 askers (§8.8 requires near-simultaneous paraphrases to join one group).
+
+D-043: A `set_price` question with no resolved product is attributed to the on-air product (basis `context`). Reason: the model reasonably marks set questions as "both products" (`unknown`), which made them "unresolved". Both product sheets list the same set price, and S11 expects the set price question to be auto-answered with S$55.80.
+
+D-044: A 504 `DEADLINE_EXCEEDED` from Vertex AI is treated as a timeout and not retried. Reason: the server enforces the deadline we send (`X-Server-Timeout`, VERIFIED §3.1), so it is a timeout (§7.1 "never retry on timeout").
+
+D-045: **The local `.env` sets `LLM_QUALITY_THINKING=LOW`; the code default stays `MEDIUM` (§5).** Measured on 2026-10-01 with `gemini-3.8-flash`:
+- At MEDIUM, the composer took 5.1–14.1 s with 484–1,823 thinking tokens on price questions. These carry 16–17 passages: search results plus Key facts.
+- Twice it hit the 12 s `COMPOSER_TIMEOUT_MS`, which left the first price group without an answer.
+- At LOW, the same questions took 2.3–3.4 s with equivalent cited answers (one 24.5 s outlier, which happened without any thinking, so it is service tail latency).
+
+Reason: the ≤15 s first-answer target (§3.7) and the 12 s deadline. Revisit with the latency report in P5.
+
+D-046: Comment eval scoring:
+- Cases without an expected intent count as intent-correct when the kind is correct.
+- Expected route = the labelled route, or the routing table applied to the labelled intent and product (the attributed product when none is labelled).
+- Product attribution (§8.8 step 6) runs before routing, as in the pipeline.
+
+Reason: §14.3 targets count over all 35 cases, but only 28 carry an intent label.

@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "age_suitability",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": "teen",
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "Is it suitable for teens?",
+ "group_candidate_id": null,
+ "reason": "Asks about age suitability for teens regarding the current product."
+}

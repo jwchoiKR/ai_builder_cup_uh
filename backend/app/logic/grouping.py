@@ -1,0 +1,63 @@
+"""Grouping of same-meaning questions (DEV_SPEC §8.9.1)."""
+from __future__ import annotations
+
+import re
+from collections.abc import Iterable
+
+from ..models.session import QuestionGroup
+
+CLOSED_STATUSES = frozenset({"closed", "rejected"})
+
+
+def is_open(g: QuestionGroup) -> bool:
+    return g.status not in CLOSED_STATUSES
+
+
+def slots_compatible(a: dict[str, str | None], b: dict[str, str | None]) -> bool:
+    """Compatible when no slot key has two different non-null values."""
+    return all(a.get(k) is None or b.get(k) is None or a[k] == b[k] for k in set(a) | set(b))
+
+
+def normalise_question(q: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s%$]", " ", q.lower())).strip()
+
+
+def find_group(
+    groups: Iterable[QuestionGroup],
+    *,
+    product_id: str | None,
+    intent: str,
+    slots: dict[str, str | None],
+    canonical_question: str,
+    candidate_id: str | None,
+) -> QuestionGroup | None:
+    def fits(g: QuestionGroup) -> bool:
+        return (is_open(g) and g.product_id == product_id and g.intent == intent
+                and slots_compatible(g.condition_slots, slots))
+
+    open_groups = [g for g in groups if fits(g)]
+    if candidate_id is not None:
+        for g in open_groups:
+            if g.group_id == candidate_id:
+                return g
+    norm = normalise_question(canonical_question)
+    for g in sorted(open_groups, key=lambda g: g.last_at, reverse=True):
+        if normalise_question(g.canonical_question) == norm:
+            return g
+    return None
+
+
+def join_group(g: QuestionGroup, comment_id: str, author_id: str, now: int) -> bool:
+    """Add a member. Returns True when the author is a new unique asker."""
+    if comment_id not in g.member_comment_ids:
+        g.member_comment_ids.append(comment_id)
+    new_author = author_id not in g.unique_author_ids
+    if new_author:
+        g.unique_author_ids.append(author_id)
+    g.last_at = max(g.last_at, now)
+    g.version += 1
+    return new_author
+
+
+def ttl_expired(g: QuestionGroup, now: int, ttl_sec: int) -> bool:
+    return is_open(g) and g.host_slot != "on_host" and now - g.last_at >= ttl_sec * 1000

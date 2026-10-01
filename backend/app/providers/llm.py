@@ -58,6 +58,10 @@ class LLMRequest(Generic[T]):
     mock_primary_text: str = ""
     mock_scenario: str = "default"
     mock_fallback: Callable[["LLMRequest"], dict | None] | None = None
+    # §14.2 symbolic ids: encode replaces runtime ids before a fixture is saved, decode resolves
+    # them against the current input lists when a fixture is replayed.
+    fixture_encode: Callable[[dict], dict] | None = None
+    fixture_decode: Callable[[dict], dict] | None = None
     preview: str | None = None  # human-readable input for the audit log
 
 
@@ -115,7 +119,10 @@ class MockBackend:
         for scenario in dict.fromkeys((req.mock_scenario, "default")):
             path = self.fixture_path(req.agent, req.mock_primary_text, scenario)
             if path.is_file():
-                return RawReply(path.read_text(encoding="utf-8"), model_version=f"mock:{scenario}")
+                text = path.read_text(encoding="utf-8")
+                if req.fixture_decode is not None:
+                    text = json.dumps(req.fixture_decode(json.loads(text)))
+                return RawReply(text, model_version=f"mock:{scenario}")
         if req.mock_fallback is not None:
             out = req.mock_fallback(req)
             if out is not None:
@@ -127,6 +134,36 @@ class MockBackend:
 
     async def aclose(self) -> None:
         return None
+
+
+class RecordingBackend:
+    """Wraps a real backend and stores every valid reply as a mock fixture (§14.2)."""
+
+    def __init__(self, inner: LLMBackend, fixtures_dir: Path = MOCK_FIXTURES_DIR) -> None:
+        self.inner = inner
+        self.name = f"{inner.name}+record"
+        self.mock = MockBackend(fixtures_dir)
+        self.recorded: list[Path] = []
+
+    async def generate(self, req: LLMRequest, timeout_ms: int) -> RawReply:
+        reply = await self.inner.generate(req, timeout_ms)
+        try:
+            data = req.output_model.model_validate_json(reply.text).model_dump(mode="json")
+        except ValidationError:
+            return reply  # invalid replies are not recorded
+        if req.fixture_encode is not None:
+            data = req.fixture_encode(data)
+        path = self.mock.fixture_path(req.agent, req.mock_primary_text, req.mock_scenario)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+        self.recorded.append(path)
+        return reply
+
+    async def warm_up(self, model: str, timeout_ms: int) -> None:
+        await self.inner.warm_up(model, timeout_ms)
+
+    async def aclose(self) -> None:
+        await self.inner.aclose()
 
 
 # ---- Vertex AI -------------------------------------------------------------------------------------
@@ -176,6 +213,9 @@ class VertexBackend:
                 model=req.model, contents=req.user_message, config=config
             )
         except errors.ServerError as e:
+            if e.code == 504 or e.status == "DEADLINE_EXCEEDED":
+                # The server enforced our own deadline (X-Server-Timeout): a timeout, never retried.
+                raise LLMTimeout(f"{e.code} {e.status}") from e
             raise LLMServerError(f"{e.code} {e.status}: {e.message}") from e
         except errors.APIError as e:
             raise LLMError(f"{e.code} {e.status}: {e.message}") from e
@@ -307,7 +347,7 @@ class LLMClient:
                 self.warmup_status[model] = f"ok {round((time.perf_counter() - t0) * 1000)} ms"
             except Exception as e:  # noqa: BLE001
                 self.warmup_status[model] = f"failed: {type(e).__name__}: {str(e)[:200]}"
-                log.warning("warm-up of %s failed: %s", model, e)
+                log.warning("warm-up of %s failed: %s %s", model, type(e).__name__, e)
 
         for m in models:
             self.warmup_status.setdefault(m, "pending")

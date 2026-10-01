@@ -101,8 +101,28 @@ def format_sse(ev: Event) -> str:
     return f"id: {ev.seq}\nevent: {ev.type}\ndata: {data}\n\n"
 
 
+OPERATOR_ONLY_EVENTS = frozenset({"agent.call", "transcript.interim"})
+
+
+def for_role(ev: Event, role: str) -> Event | None:
+    """Host and viewer streams never carry hidden comment text or debug events."""
+    if role == "operator":
+        return ev
+    if ev.type in OPERATOR_ONLY_EVENTS:
+        return None
+    p = ev.payload
+    if ev.type.startswith("comment."):
+        comment = p.get("comment", p)
+        if comment.get("visibility") == "hidden":
+            redacted = {"comment_id": comment.get("comment_id"), "visibility": "hidden"}
+            return ev.model_copy(update={"payload": {"comment": redacted} if "comment" in p else redacted})
+        if "analysis" in p:
+            return ev.model_copy(update={"payload": {"comment": comment}})
+    return ev
+
+
 async def sse_stream(
-    bus: EventBus, session_id: str, after_seq: int, *, heartbeat_sec: float = HEARTBEAT_SEC
+    bus: EventBus, session_id: str, after_seq: int, *, heartbeat_sec: float = HEARTBEAT_SEC, role: str = "operator"
 ) -> AsyncIterator[str]:
     """Replay persisted events after `after_seq`, then stream live ones, with heartbeats."""
     # Subscribe before replaying so nothing emitted during the replay is lost; duplicates
@@ -112,8 +132,9 @@ async def sse_stream(
         yield "retry: 1000\n\n"
         last = after_seq
         for ev in await bus.events_after(session_id, after_seq):
-            yield format_sse(ev)
             last = ev.seq
+            if (out := for_role(ev, role)) is not None:
+                yield format_sse(out)
         while not s.dropped:
             try:
                 ev = await asyncio.wait_for(s.queue.get(), timeout=heartbeat_sec)
@@ -122,8 +143,9 @@ async def sse_stream(
                 continue
             if ev.seq <= last:
                 continue
-            yield format_sse(ev)
             last = ev.seq
+            if (out := for_role(ev, role)) is not None:
+                yield format_sse(out)
         # Fell behind: end the stream; the browser reconnects with Last-Event-ID and replays.
     finally:
         bus.unsubscribe(s)

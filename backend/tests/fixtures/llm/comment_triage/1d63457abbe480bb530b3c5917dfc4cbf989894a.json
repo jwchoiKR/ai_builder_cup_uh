@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "pregnancy_breastfeeding",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": "pregnant",
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "Can I use it while pregnant?",
+ "group_candidate_id": null,
+ "reason": "Asks about safety during pregnancy for the current product."
+}

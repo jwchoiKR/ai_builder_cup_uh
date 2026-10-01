@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "ampoule_deep_hydration",
+ "product_basis": "context",
+ "intent": "volume",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": null,
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "How long will one bottle last?",
+ "group_candidate_id": null,
+ "reason": "Asks about how long the product volume will last using the context product."
+}

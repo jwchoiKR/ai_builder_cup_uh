@@ -1,7 +1,8 @@
 """Application context: one instance per process, built at startup (fails fast on bad data)."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from fastapi import Request
 
@@ -11,11 +12,17 @@ from .clock import Clock, SystemClock
 from .config import Settings
 from .ids import Ids
 from .logic.catalog import DataPack
+from .logic.reflex import Reflex
 from .models.session import AgentCall
 from .providers.llm import LLMBackend, LLMClient, make_backend
 from .providers.prompts import PromptTemplate, load_prompts
+from .providers.retriever import LocalRetriever, Retriever
+from .scheduler import AsyncScheduler, ManualScheduler
 from .store import make_store
 from .store.base import AGENT_CALLS_GLOBAL, Store, sub
+
+if TYPE_CHECKING:
+    from .pipelines.runtime import Runtimes
 
 
 class StoreAudit:
@@ -43,12 +50,22 @@ class AppContext:
     store: Store
     bus: EventBus
     llm: LLMClient
+    scheduler: AsyncScheduler | ManualScheduler
+    retriever: Retriever
+    reflex: Reflex
+    runtimes: "Runtimes" = field(init=False)
     sse_heartbeat_sec: float = HEARTBEAT_SEC
 
 
 def build_context(
-    settings: Settings, *, clock: Clock | None = None, llm_backend: LLMBackend | None = None
+    settings: Settings,
+    *,
+    clock: Clock | None = None,
+    llm_backend: LLMBackend | None = None,
+    scheduler: AsyncScheduler | ManualScheduler | None = None,
 ) -> AppContext:
+    from .pipelines.runtime import Runtimes
+
     clock = clock or SystemClock()
     ids = Ids(clock, deterministic=settings.LLM_PROVIDER == "mock")
     pack = DataPack.load(settings.data_path)
@@ -56,7 +73,15 @@ def build_context(
     store = make_store(settings)
     bus = EventBus(store, clock)
     llm = LLMClient(llm_backend or make_backend(settings), settings, clock, ids, StoreAudit(store, bus))
-    return AppContext(settings, clock, ids, pack, prompts, store, bus, llm)
+    if settings.RETRIEVER != "local":
+        raise NotImplementedError("RETRIEVER=vertex_search is implemented in phase P6; use RETRIEVER=local")
+    ctx = AppContext(
+        settings=settings, clock=clock, ids=ids, pack=pack, prompts=prompts, store=store, bus=bus, llm=llm,
+        scheduler=scheduler or AsyncScheduler(clock), retriever=LocalRetriever(pack.passages),
+        reflex=Reflex(pack.rules),
+    )
+    ctx.runtimes = Runtimes(ctx)
+    return ctx
 
 
 def get_ctx(request: Request) -> AppContext:

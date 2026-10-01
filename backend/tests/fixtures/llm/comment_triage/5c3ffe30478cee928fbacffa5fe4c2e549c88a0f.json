@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "medical_condition",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": "child",
+  "condition": "eczema",
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "Can children with eczema use it?",
+ "group_candidate_id": null,
+ "reason": "Asks if a child with eczema can use the cream."
+}

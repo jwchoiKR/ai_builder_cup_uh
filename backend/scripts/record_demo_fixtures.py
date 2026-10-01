@@ -1,0 +1,96 @@
+"""Record mock fixtures for the demo (DEV_SPEC §14.2).
+
+Plays data/demo/host_script.md in real time against Vertex AI, in process: injected host lines
+(STT injection), scripted bursts (no background chatter), the time sale and B5. Every agent output
+is stored under tests/fixtures/llm/<agent>/ with the scene id as scenario tag.
+
+    uv run python scripts/record_demo_fixtures.py [--until S11] [--report out.json]
+"""
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.config import get_settings  # noqa: E402
+from app.context import build_context  # noqa: E402
+from app.pipelines.demo_script import load_host_script  # noqa: E402
+from app.pipelines.runtime import create_session  # noqa: E402
+from app.providers.llm import RecordingBackend, VertexBackend  # noqa: E402
+
+BURST_TAIL_MS = 1500
+
+
+async def settle(ctx, extra_s: float = 0.0) -> None:
+    if extra_s:
+        await asyncio.sleep(extra_s)
+    for _ in range(120):
+        await ctx.scheduler.idle()
+        if not [k for k in ctx.scheduler._timers if ":feed:" in k]:
+            return
+        await asyncio.sleep(0.5)
+
+
+async def run(until: str | None, report: Path | None) -> int:
+    settings = get_settings()
+    inner = VertexBackend(settings.GCP_PROJECT, settings.LLM_LOCATION)
+    backend = RecordingBackend(inner)
+    ctx = build_context(settings, llm_backend=backend)
+    await ctx.llm.warm_up()
+    session = await create_session(ctx, "daon_skincare_demo")
+    rt = await ctx.runtimes.get(session.session_id)
+    steps = load_host_script(str(settings.data_path))
+    for step in steps:
+        if until and step.scene > until:
+            break
+        print(f"[{step.scene}] {step.who}: {step.action} {step.arg or ''} {step.text[:70] if step.action == 'host_line' else ''}")
+        if step.action == "start":
+            await rt.start()
+            await asyncio.sleep(3)
+        elif step.action == "burst":
+            await rt.feed.fire(step.arg)
+            burst = rt.feed.script["bursts"][rt.feed.resolve(step.arg)]
+            await settle(ctx, max(c["offset_ms"] for c in burst["comments"]) / 1000 + BURST_TAIL_MS / 1000)
+        elif step.action == "arm_burst":
+            await rt.feed.fire(step.arg)
+        elif step.action == "promo_start":
+            await rt.start_promo(step.arg)
+            await asyncio.sleep(1)
+        elif step.action == "host_line":
+            inject = getattr(rt, "inject_transcript", None)
+            if inject is None:
+                print("   (utterance pipeline not available yet: skipped)")
+                continue
+            await inject(step.text, scenario=step.scene)
+            await settle(ctx, 6)
+        elif step.action == "end":
+            await rt.end()
+        await settle(ctx)
+    await settle(ctx, 2)
+    state = await rt.snapshot("operator")
+    print(f"\nrecorded {len(backend.recorded)} fixtures")
+    for g in state["groups"]:
+        ans = state["answers"].get(g["answer_id"] or "", {})
+        print(f"- {g['status']:13} {g['route']:8} {len(g['unique_author_ids'])} asker(s) {g['product_id']} "
+              f"{g['intent']}: {g['canonical_question']} -> {ans.get('text', '')[:90]!r} "
+              f"{'' if ans.get('verified', True) else ans.get('verify_errors')}")
+    for m in state["messages"]:
+        print(f"  msg {m['kind']} -> {m['reply_to_author_names']}: {m['text'][:90]}")
+    if report:
+        report.write_text(json.dumps(state, indent=1, ensure_ascii=False), encoding="utf-8")
+    ctx.runtimes.shutdown()
+    ctx.scheduler.shutdown()
+    await ctx.llm.aclose()
+    return 0
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--until", help="last scene to play, e.g. S11")
+    ap.add_argument("--report", type=Path)
+    a = ap.parse_args()
+    sys.exit(asyncio.run(run(a.until, a.report)))

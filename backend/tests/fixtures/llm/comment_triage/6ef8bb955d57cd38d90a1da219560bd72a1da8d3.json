@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "makeup_compatibility",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": null,
+  "condition": null,
+  "combined_with": "makeup",
+  "time_of_day": null
+ },
+ "canonical_question": "Can I use it under makeup?",
+ "group_candidate_id": "@group:can i use it under makeup",
+ "reason": "Asks if makeup can be applied after using the current cream."
+}

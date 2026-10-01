@@ -5,7 +5,9 @@ AI co-pilot for live-commerce broadcasts: host screen, operator control room and
 - **Specification:** `../DEV_SPEC.md` (in the delivered pack).
 - **Records:** decisions in `docs/DECISIONS.md`, platform facts checked against official docs in `docs/VERIFIED.md`.
 
-**Status:** phase P0 (foundations) is done: config, data pack loaders, memory store, event bus with SSE, prompt loader, LLM provider (Vertex AI + mock), `/api/health`. The comment path (P1) is next.
+**Status:**
+- **P0 (foundations):** done.
+- **P1 (comment path):** done: prefilter, triage, grouping, routing, BM25 retrieval, composer with verification, caches, auto answers, host queue, operator actions, feed engine. Comment eval results are in `docs/eval/`.
 
 ## Layout
 | Path | What |
@@ -45,7 +47,12 @@ Requirements:
 cd backend
 uv run pytest -q
 ```
-Tests never read `.env` and always use mock providers.
+- Tests never read `.env` and always use mock providers.
+- Recorded model outputs live in `backend/tests/fixtures/llm/`. To refresh them against Vertex AI:
+  ```sh
+  uv run python scripts/run_eval.py comments --record   # eval cases; writes docs/eval/<date>-comments.md
+  uv run python scripts/record_demo_fixtures.py         # the demo script (scene ids as scenario tags)
+  ```
 
 ## Recording the demo (DEV_SPEC §13.3)
 - Reset the demo before each take.

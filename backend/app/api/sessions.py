@@ -1,16 +1,21 @@
-"""Session endpoints (DEV_SPEC §8.1, §11.1). P0: create. Start/end and /state come with P1/P2."""
+"""Session endpoints (DEV_SPEC §8.1, §11.1)."""
 from __future__ import annotations
+
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
-from ..logic.catalog import DEFAULT_RUNSHEET_ID, DataPackError
+from ..logic.catalog import DEFAULT_RUNSHEET_ID
 from ..models.session import Session
+from ..pipelines.runtime import create_session as _create
 from ..store.base import SESSIONS
 from .errors import ApiError
 
 router = APIRouter()
+
+Role = Literal["operator", "host", "viewer"]
 
 
 class CreateSessionBody(BaseModel):
@@ -19,22 +24,27 @@ class CreateSessionBody(BaseModel):
 
 @router.post("/sessions", status_code=201)
 async def create_session(body: CreateSessionBody | None = None, ctx: AppContext = Depends(get_ctx)) -> Session:
-    body = body or CreateSessionBody()
-    try:
-        runsheet = ctx.pack.runsheet(body.runsheet_id)
-    except DataPackError as e:
-        raise ApiError(404, "unknown_runsheet", str(e)) from None
-    session_id = ctx.ids.new("ses_")
-    session = Session(
-        session_id=session_id,
-        runsheet_id=runsheet.runsheet_id,
-        title=runsheet.title,
-        status="ready",
-        settings_snapshot=ctx.settings.snapshot(),
-        created_at=ctx.clock.now_ms(),
-    )
-    await ctx.store.put(SESSIONS, session_id, session)
-    return session
+    return await _create(ctx, (body or CreateSessionBody()).runsheet_id)
+
+
+@router.post("/sessions/{session_id}/start")
+async def start_session(session_id: str, ctx: AppContext = Depends(get_ctx)) -> Session:
+    return await (await ctx.runtimes.get(session_id)).start()
+
+
+@router.post("/sessions/{session_id}/end")
+async def end_session(session_id: str, ctx: AppContext = Depends(get_ctx)) -> Session:
+    return await (await ctx.runtimes.get(session_id)).end()
+
+
+@router.get("/sessions/{session_id}/state")
+async def session_state(session_id: str, role: Role = "viewer", ctx: AppContext = Depends(get_ctx)) -> dict:
+    return await (await ctx.runtimes.get(session_id)).snapshot(role)
+
+
+@router.get("/sessions/{session_id}/metrics")
+async def session_metrics(session_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
+    return (await ctx.runtimes.get(session_id)).metrics()
 
 
 async def require_session(session_id: str, ctx: AppContext) -> Session:

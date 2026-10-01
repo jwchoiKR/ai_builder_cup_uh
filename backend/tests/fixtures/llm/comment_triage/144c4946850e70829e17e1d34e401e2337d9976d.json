@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "ampoule_deep_hydration",
+ "product_basis": "explicit",
+ "intent": "pregnancy_breastfeeding",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": "breastfeeding",
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "Is it safe to use while breastfeeding?",
+ "group_candidate_id": null,
+ "reason": "Asks if the ampoule is safe during breastfeeding."
+}

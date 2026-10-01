@@ -1,0 +1,12 @@
+{
+ "answer": "It has no added fragrance and no essential oils, though a faint natural scent from the raw materials may be noticeable.",
+ "citations": [
+  {
+   "passage_id": "DL-CR-01#frequently-asked-questions#does-it-have-fragrance",
+   "quote": "No added fragrance and no essential oils. A faint natural scent from the raw materials may be noticeable."
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Directly answered from FAQ section."
+}

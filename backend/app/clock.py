@@ -26,3 +26,6 @@ class ManualClock:
     def advance(self, ms: int) -> int:
         self._now += ms
         return self._now
+
+    def set(self, ms: int) -> None:
+        self._now = ms

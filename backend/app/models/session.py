@@ -25,6 +25,18 @@ class HostCue(BaseModel):  # in session doc (one active)
     done_by_transcript_id: str | None = None
 
 
+class ActivePromo(BaseModel):  # in session doc (§8.10)
+    promo_id: str
+    started_at: int
+    ends_at: int
+
+
+class HostSlot(BaseModel):  # in session doc, ordered (§8.11)
+    group_id: str
+    pinned: bool = False
+    on_host_since: int
+
+
 class Session(BaseModel):  # [sessions/{session_id}]
     session_id: str
     runsheet_id: str
@@ -43,6 +55,8 @@ class Session(BaseModel):  # [sessions/{session_id}]
     pre_covered: dict[str, list[str]] = {}  # product_id -> point ids covered before it went on air
     switch: SwitchState = Field(default_factory=SwitchState)
     cue: HostCue | None = None
+    host_slots: list[HostSlot] = []
+    active_promos: list[ActivePromo] = []  # all running promos; active_promo_id is the price-changing one
     created_at: int
 
 
@@ -143,6 +157,7 @@ class QuestionGroup(BaseModel):  # [sessions/{sid}/groups/{group_id}]
     host_slot: Literal["none", "on_host"] = "none"
     on_host_since: int | None = None
     pinned_by_operator_at: int | None = None
+    recalled_at: int | None = None  # operator recall; not re-added for 60 s (§8.13)
     host_verbal_answer_transcript_id: str | None = None  # host answered but nothing was posted
     host_confirmed: bool = False  # host answered an already AI-answered group
     published_message_id: str | None = None  # last reply message (for coalescing)

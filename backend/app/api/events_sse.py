@@ -1,6 +1,8 @@
 """SSE stream of session events (DEV_SPEC §11.2)."""
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Header
 from fastapi.responses import StreamingResponse
 
@@ -15,6 +17,7 @@ router = APIRouter()
 async def session_events(
     session_id: str,
     after_seq: int = 0,
+    role: Literal["operator", "host", "viewer"] = "viewer",
     last_event_id: str | None = Header(default=None),
     ctx: AppContext = Depends(get_ctx),
 ) -> StreamingResponse:
@@ -22,7 +25,7 @@ async def session_events(
     # On reconnect the browser sends Last-Event-ID; it wins over the query parameter.
     start = int(last_event_id) if last_event_id and last_event_id.strip().isdigit() else after_seq
     return StreamingResponse(
-        sse_stream(ctx.bus, session_id, max(0, start), heartbeat_sec=ctx.sse_heartbeat_sec),
+        sse_stream(ctx.bus, session_id, max(0, start), heartbeat_sec=ctx.sse_heartbeat_sec, role=role),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

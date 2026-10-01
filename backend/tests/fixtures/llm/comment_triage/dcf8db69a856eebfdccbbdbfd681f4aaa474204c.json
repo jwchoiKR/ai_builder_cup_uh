@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "fragrance",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": null,
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "Does it contain fragrance?",
+ "group_candidate_id": null,
+ "reason": "Asks whether the current product contains fragrance."
+}

@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, Depends, FastAPI
 
-from .api import events_sse, sessions
+from .api import demo, events_sse, operator, sessions, viewer
 from .api.errors import install_error_handlers
 from .clock import Clock
 from .config import Settings, get_settings
@@ -78,12 +78,16 @@ async def catalog(ctx: AppContext = Depends(get_ctx)) -> dict:
 
 
 def create_app(
-    settings: Settings | None = None, *, clock: Clock | None = None, llm_backend: LLMBackend | None = None
+    settings: Settings | None = None,
+    *,
+    clock: Clock | None = None,
+    llm_backend: LLMBackend | None = None,
+    scheduler=None,
 ) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # Built eagerly: a broken data pack or prompt file stops the app at startup.
-    ctx = build_context(settings, clock=clock, llm_backend=llm_backend)
+    ctx = build_context(settings, clock=clock, llm_backend=llm_backend, scheduler=scheduler)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -92,11 +96,13 @@ def create_app(
             yield
         finally:
             warmup.cancel()
+            ctx.runtimes.shutdown()
+            ctx.scheduler.shutdown()
             await ctx.llm.aclose()
 
     app = FastAPI(title="LIVE / Studio", version="0.1.0", lifespan=lifespan)
     app.state.ctx = ctx
     install_error_handlers(app)
-    for router in (meta, sessions.router, events_sse.router):
+    for router in (meta, sessions.router, events_sse.router, viewer.router, operator.router, demo.router):
         app.include_router(router, prefix="/api")
     return app

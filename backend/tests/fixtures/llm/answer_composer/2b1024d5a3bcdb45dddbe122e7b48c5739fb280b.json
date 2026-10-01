@@ -1,0 +1,12 @@
+{
+ "answer": "Yes, it is suitable for all skin types and is recommended for dry, combination and sensitive skin.",
+ "citations": [
+  {
+   "passage_id": "DL-CR-01#key-facts#skin-types",
+   "quote": "Skin types: All skin types. Recommended for dry, combination and sensitive skin"
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Answered directly from key facts."
+}

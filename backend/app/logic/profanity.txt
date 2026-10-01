@@ -1,0 +1,30 @@
+# Swear words hidden by the prefilter (DEV_SPEC §8.8). One word or phrase per line, matched on word
+# boundaries, case-insensitive. Mild insults ("stupid", "annoying") are NOT listed: the LLM judges
+# them as harassment. Source: hand-written for this demo (docs/DECISIONS.md D-031).
+fuck
+fucks
+fucked
+fucking
+fucker
+motherfucker
+shit
+shitty
+bullshit
+bitch
+bitches
+bastard
+asshole
+arsehole
+dickhead
+cunt
+wanker
+twat
+slut
+whore
+knn
+kan ni na
+cb
+chee bye
+lan jiao
+lanjiao
+pukimak

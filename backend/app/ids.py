@@ -6,7 +6,7 @@ from collections import defaultdict
 
 from .clock import Clock
 
-PREFIXES = ("ses_", "seg_", "tr_", "cm_", "grp_", "ans_", "msg_", "al_", "fx_", "cue_", "ev_", "call_")
+PREFIXES = ("ses_", "seg_", "tr_", "cm_", "grp_", "ans_", "msg_", "al_", "fx_", "cue_", "ev_", "call_", "an_")
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 

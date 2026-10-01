@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "set_price",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": null,
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "What is the set price?",
+ "group_candidate_id": null,
+ "reason": "Asks for the bundle or set price during the sale."
+}

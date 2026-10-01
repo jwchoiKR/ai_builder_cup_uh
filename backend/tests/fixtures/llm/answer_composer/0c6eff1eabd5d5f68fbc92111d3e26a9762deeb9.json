@@ -1,0 +1,16 @@
+{
+ "answer": "With the time sale, the Cream + Ampoule set is S$55.80 right now (regular live price is S$62.00).",
+ "citations": [
+  {
+   "passage_id": "PROMO#promo_time_sale_10",
+   "quote": "Hydra Barrier Cream + Deep Hydration Ampoule set S$55.80"
+  },
+  {
+   "passage_id": "DL-CR-01#key-facts#live-set-price",
+   "quote": "Live set price: S$62.00 for Hydra Barrier Cream 50 mL + Deep Hydration Ampoule 30 mL"
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Set promo price stated first, followed by live price."
+}

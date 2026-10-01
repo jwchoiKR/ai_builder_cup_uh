@@ -20,8 +20,14 @@ def _body(code: str, message: str) -> dict:
 
 
 def install_error_handlers(app: FastAPI) -> None:
+    from ..pipelines.runtime import ActionError
+
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, exc: ApiError) -> JSONResponse:
+        return JSONResponse(_body(exc.code, exc.message), status_code=exc.status)
+
+    @app.exception_handler(ActionError)
+    async def _action_error(_: Request, exc: ActionError) -> JSONResponse:
         return JSONResponse(_body(exc.code, exc.message), status_code=exc.status)
 
     @app.exception_handler(StarletteHTTPException)

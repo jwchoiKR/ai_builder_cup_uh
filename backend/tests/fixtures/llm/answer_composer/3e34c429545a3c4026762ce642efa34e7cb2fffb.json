@@ -1,0 +1,12 @@
+{
+ "answer": "The product has not been specifically tested on pregnant or breastfeeding women, so please consult your doctor before use.",
+ "citations": [
+  {
+   "passage_id": "DL-CR-01#frequently-asked-questions#can-i-use-it-while-pregnant-or-breastfeeding",
+   "quote": "The product has not been specifically tested on pregnant or breastfeeding women. Please consult your doctor before use."
+  }
+ ],
+ "grounded": true,
+ "needs_human": true,
+ "reason": "Sensitive topic (pregnancy); restated sheet guidance directly."
+}

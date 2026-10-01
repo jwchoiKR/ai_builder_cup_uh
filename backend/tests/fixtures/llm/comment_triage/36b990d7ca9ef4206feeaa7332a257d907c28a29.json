@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "origin",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": null,
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "Is it tested on animals?",
+ "group_candidate_id": null,
+ "reason": "Asks if the product is tested on animals."
+}

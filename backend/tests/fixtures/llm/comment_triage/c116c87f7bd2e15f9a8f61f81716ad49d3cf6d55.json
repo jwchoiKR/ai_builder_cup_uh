@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "ampoule_deep_hydration",
+ "product_basis": "context",
+ "intent": "how_to_use",
+ "condition_slots": {
+  "skin_type": null,
+  "life_stage": null,
+  "condition": null,
+  "combined_with": "vitamin_c",
+  "time_of_day": null
+ },
+ "canonical_question": "Can I use it with vitamin C?",
+ "group_candidate_id": null,
+ "reason": "Asks if the product can be combined with vitamin C."
+}

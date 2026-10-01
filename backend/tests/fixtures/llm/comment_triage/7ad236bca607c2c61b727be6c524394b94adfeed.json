@@ -1,0 +1,17 @@
+{
+ "kind": "question",
+ "hide_category": null,
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
+ "intent": "skin_type_suitability",
+ "condition_slots": {
+  "skin_type": "oily",
+  "life_stage": null,
+  "condition": null,
+  "combined_with": null,
+  "time_of_day": null
+ },
+ "canonical_question": "Is it suitable for oily skin?",
+ "group_candidate_id": "@group:is it suitable for oily skin",
+ "reason": "Asks if the product causes grease for oily skin."
+}
