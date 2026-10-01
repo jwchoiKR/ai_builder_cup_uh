@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     LLM_CONTEXT_CACHE: bool = False
     JUDGE_MODE: Literal["split", "single"] = "split"
     JUDGE_TIMEOUT_MS: int = 2500
+    UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
     FACT_TIMEOUT_MS: int = 3000
     FACT_SEARCH_TIMEOUT_MS: int = 600
     TRIAGE_TIMEOUT_MS: int = 2500

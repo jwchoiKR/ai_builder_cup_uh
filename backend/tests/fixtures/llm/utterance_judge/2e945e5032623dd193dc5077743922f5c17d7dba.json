@@ -30,5 +30,5 @@
    "confidence": "low"
   }
  },
- "reason": "Host denies an acne-treatment claim, which is listed as a violation with is_negated set to true."
+ "reason": "Host explicitly denies that the product treats acne, flagged as a negated violation."
 }

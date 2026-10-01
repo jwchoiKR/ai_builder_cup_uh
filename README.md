@@ -29,7 +29,7 @@ Requirements:
 - Google Cloud credentials for Vertex AI and Speech-to-Text: `gcloud auth application-default login`
 - Microsoft Edge or Chrome for the browser tests
 
-1. Copy `.env.example` to `.env` and set `GCP_PROJECT`. Every key is described in DEV_SPEC §5, plus `COMPOSER_THINKING` (D-067).
+1. Copy `.env.example` to `.env` and set `GCP_PROJECT`. Every key is described in DEV_SPEC §5, plus `COMPOSER_THINKING` (D-067) and `UTTERANCE_MERGE_WINDOW_MS` (D-088).
 2. Install the backend:
    ```sh
    cd backend
@@ -117,7 +117,7 @@ node e2e/rehearsal-voice.mjs script 2     # the full host script twice
 - Fire bursts B1–B4 at their scenes, and press **Arm B5 Switch boundary** before the ampoule introduction in S12.
 - **Record S03–S08 in one continuous take**, so the latency chips are credible.
 - **Keep the operator metrics chips visible for S07** ("Alert in X.Xs" measures speech end → host render).
-- Pause briefly after each sentence. The speech recogniser finalises at pauses, and a sentence split into two finals is fine.
+- Pause briefly after each sentence. The speech recogniser finalises at pauses. A sentence split into two finals is judged as one (D-088), as long as the second part follows within 3.5 s.
 
 **Ending:** press **End broadcast** (S14). Then open the summary from the operator header or the Demo Console (Open summary). The AI recap appears when the summary agent finishes.
 

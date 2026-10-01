@@ -79,6 +79,9 @@ export interface Transcript {
   received_at: number;
   source: "mic" | "injected";
   segment_id: string;
+  /** D-088: judged together with this previous unfinished final */
+  merged_from_transcript_id?: string | null;
+  judged_text?: string | null;
 }
 
 export type AlertStatus = "provisional" | "active" | "corrected" | "dismissed" | "cleared";

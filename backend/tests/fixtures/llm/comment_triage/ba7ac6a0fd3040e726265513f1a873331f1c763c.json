@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "What is the concentration of niacinamide in it?",
+ "canonical_question": "What is the concentration of the active ingredient?",
  "group_candidate_id": null,
- "reason": "Asks about the amount of niacinamide in the ampoule."
+ "reason": "Asks about the amount of niacinamide in the current product."
 }

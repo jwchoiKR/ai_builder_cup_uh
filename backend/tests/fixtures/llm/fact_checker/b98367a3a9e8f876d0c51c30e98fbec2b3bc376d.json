@@ -6,10 +6,10 @@
    "product_id": "cream_hydra_barrier",
    "stated_value": "S$36",
    "verdict": "supported",
-   "correct_value": "S$36.00",
+   "correct_value": null,
    "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
    "quote": "Live broadcast price: S$36.00"
   }
  ],
- "reason": "The stated live broadcast price of thirty-six dollars matches the product sheet."
+ "reason": "The stated live price of thirty-six dollars matches the live broadcast price in the product sheet."
 }

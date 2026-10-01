@@ -144,6 +144,16 @@ describe("event semantics", () => {
     expect(s.session?.switch.status).toBe("idle");
   });
 
+  it("a merged judgment moves its fragment's cue chip or withdraws it (D-088)", () => {
+    let s = reduceEvent(base(), ev(11, "segment.switch_counting", { target_product_id: AMPOULE, cue_count: 1, transcript_id: "tr_5" }));
+    s = reduceEvent(s, ev(12, "segment.switch_counting", { target_product_id: AMPOULE, cue_count: 1, transcript_id: "tr_6", replaces_transcript_id: "tr_5" }));
+    expect(s.switchChips).toEqual({ tr_6: 1 });
+    expect(s.session?.switch.cue_count).toBe(1);
+    s = reduceEvent(s, ev(13, "segment.switch_cancelled", { reason: "merged", withdrawn_transcript_id: "tr_6" }));
+    expect(s.switchChips).toEqual({});
+    expect(s.session?.switch.status).toBe("idle");
+  });
+
   it("hidden comments are removed for the viewer (redacted payload)", () => {
     let s = reduceEvent(base(), ev(11, "comment.created", comment({ comment_id: "cm_x" })));
     expect(s.comments.cm_x).toBeDefined();

@@ -1,15 +1,25 @@
 {
  "claims": [
   {
-   "span": "lightweight gel-cream, so it absorbs really quickly",
+   "span": "lightweight gel-cream",
    "field": "texture",
    "product_id": "cream_hydra_barrier",
-   "stated_value": "lightweight gel-cream, absorbs quickly",
+   "stated_value": "lightweight gel-cream",
    "verdict": "supported",
-   "correct_value": "Gel-cream, absorbs quickly, non-sticky finish",
+   "correct_value": "Gel-cream",
+   "passage_id": "DL-CR-01#key-facts#texture",
+   "quote": "Texture: Gel-cream, absorbs quickly, non-sticky finish"
+  },
+  {
+   "span": "absorbs really quickly",
+   "field": "texture",
+   "product_id": "cream_hydra_barrier",
+   "stated_value": "absorbs really quickly",
+   "verdict": "supported",
+   "correct_value": "absorbs quickly",
    "passage_id": "DL-CR-01#key-facts#texture",
    "quote": "Texture: Gel-cream, absorbs quickly, non-sticky finish"
   }
  ],
- "reason": "The host correctly describes the texture of the Hydra Barrier Cream."
+ "reason": "The host describes the texture and absorption speed of the cream, which are both supported by the product facts."
 }

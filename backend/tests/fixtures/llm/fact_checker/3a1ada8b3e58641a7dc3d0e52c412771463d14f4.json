@@ -6,20 +6,20 @@
    "product_id": "ampoule_deep_hydration",
    "stated_value": "watery gel",
    "verdict": "supported",
-   "correct_value": "Watery gel",
+   "correct_value": null,
    "passage_id": "DL-AM-01#key-facts#texture",
    "quote": "Texture: Watery gel, absorbs quickly"
   },
   {
-   "span": "two to three drops after toner",
+   "span": "just two to three drops after toner",
    "field": "usage",
    "product_id": "ampoule_deep_hydration",
    "stated_value": "two to three drops after toner",
    "verdict": "supported",
-   "correct_value": "Apply two to three drops to the face and pat gently until absorbed.",
+   "correct_value": null,
    "passage_id": "DL-AM-01#how-to-use#steps",
    "quote": "1. Use morning and night after cleansing and toner. 2. Apply two to three drops to the face and pat gently until absorbed."
   }
  ],
- "reason": "The host describes the texture and usage steps for the Deep Hydration Ampoule, which match the source passages."
+ "reason": "The texture and usage instructions for the Deep Hydration Ampoule are supported by the product sources."
 }

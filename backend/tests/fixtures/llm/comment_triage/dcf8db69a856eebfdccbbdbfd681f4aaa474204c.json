@@ -13,5 +13,5 @@
  },
  "canonical_question": "Does it contain fragrance?",
  "group_candidate_id": null,
- "reason": "Asks whether the product contains fragrance, using the current context product."
+ "reason": "Asks whether the context product has fragrance."
 }

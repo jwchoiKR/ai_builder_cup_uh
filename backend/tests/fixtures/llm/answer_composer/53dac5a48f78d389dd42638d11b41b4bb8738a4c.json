@@ -1,0 +1,20 @@
+{
+ "answer": "The formula includes 4% niacinamide and 2% sodium hyaluronate across 5 molecular weights, along with 50% centella asiatica leaf water.",
+ "citations": [
+  {
+   "passage_id": "DL-AM-01#key-ingredients#niacinamide",
+   "quote": "Niacinamide: 4%."
+  },
+  {
+   "passage_id": "DL-AM-01#key-ingredients#sodium-hyaluronate-5-molecular-weights",
+   "quote": "Sodium Hyaluronate (5 molecular weights): 2%."
+  },
+  {
+   "passage_id": "DL-AM-01#key-ingredients#centella-asiatica-leaf-water",
+   "quote": "Centella Asiatica Leaf Water: 50% (formula base)."
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Lists key active ingredients and their concentrations from the key ingredients section."
+}

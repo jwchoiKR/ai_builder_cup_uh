@@ -61,6 +61,30 @@ def step_switch(
     return s, "counting"
 
 
+def replace_cue(state: SwitchState, old_id: str, new_id: str) -> SwitchState:
+    """D-088: a merged judgment confirms the cue its first fragment already counted. Same cue,
+    new transcript id, no new count."""
+    s = state.model_copy(deep=True)
+    s.cue_transcript_ids = [new_id if x == old_id else x for x in s.cue_transcript_ids]
+    return s
+
+
+def withdraw_cue(state: SwitchState, transcript_id: str) -> tuple[SwitchState, SwitchEvent]:
+    """D-088: a merged judgment replaces its first fragment's cue and is not a cue itself, so the
+    fragment's cue no longer counts. Returns ("cancelled" when a pending switch or the whole count
+    is withdrawn, else "counting")."""
+    if transcript_id not in state.cue_transcript_ids:
+        return state, None
+    s = state.model_copy(deep=True)
+    s.cue_transcript_ids.remove(transcript_id)
+    s.cue_count = max(0, s.cue_count - 1)
+    if s.cue_count == 0:
+        return SwitchState(last_commit=s.last_commit), "cancelled"
+    was_pending = s.status == "pending"
+    s.status, s.commit_at = "counting", None
+    return s, "cancelled" if was_pending else "counting"
+
+
 def segment_at(segments: Sequence[Segment], t: int) -> Segment | None:
     """The segment whose [started_at, ended_at) contains t; None before the first segment; the last
     segment after the session ended."""

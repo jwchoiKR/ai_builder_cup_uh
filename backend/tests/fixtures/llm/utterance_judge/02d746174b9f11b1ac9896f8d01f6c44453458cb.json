@@ -7,7 +7,7 @@
     "severity": "HIGH",
     "is_negated": false,
     "is_quoted": false,
-    "say_instead": "Helps keep skin hydrated for up to 24 hours.*"
+    "say_instead": "Helps keep skin hydrated for up to 24 hours."
    }
   ]
  },
@@ -30,5 +30,5 @@
    "confidence": "low"
   }
  },
- "reason": "Claims wrinkles disappear overnight, violating skin ageing regulations."
+ "reason": "Host claims wrinkles will disappear overnight, violating the skin ageing rule."
 }

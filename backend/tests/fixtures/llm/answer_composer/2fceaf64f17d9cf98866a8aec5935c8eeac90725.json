@@ -1,5 +1,5 @@
 {
- "answer": "The set with the Hydra Barrier Cream is S$62.00 during this live.",
+ "answer": "The set with Hydra Barrier Cream is S$62.00 during the live broadcast.",
  "citations": [
   {
    "passage_id": "DL-AM-01#key-facts#live-set-price",
@@ -8,5 +8,5 @@
  ],
  "grounded": true,
  "needs_human": false,
- "reason": "Set price stated in key facts."
+ "reason": "Set price provided in key facts."
 }

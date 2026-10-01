@@ -1,4 +1,4 @@
 {
  "claims": [],
- "reason": "The utterance contains exaggerated advertising claims ('wrinkles will disappear overnight') that are opinions and marketing hyperbole rather than concrete product facts covered by the product sheet."
+ "reason": "The utterance contains exaggerated promotional claims about wrinkles disappearing overnight, which are opinions or marketing hyperbole not covered by concrete verifiable facts in the source passages."
 }

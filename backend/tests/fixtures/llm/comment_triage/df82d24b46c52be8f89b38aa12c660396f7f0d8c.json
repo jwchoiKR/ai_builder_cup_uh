@@ -11,7 +11,7 @@
   "combined_with": "makeup",
   "time_of_day": null
  },
- "canonical_question": "Can I use it under makeup?",
- "group_candidate_id": "@group:can i use it under makeup",
- "reason": "Asks about makeup compatibility for the context product."
+ "canonical_question": "Can it be used under makeup?",
+ "group_candidate_id": "@group:can it be used under makeup",
+ "reason": "Asks if the context cream pills under foundation/makeup."
 }

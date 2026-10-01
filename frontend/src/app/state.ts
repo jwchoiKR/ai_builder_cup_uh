@@ -230,7 +230,11 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       return { ...state, overtime: { ...state.overtime, [p.segment_id]: p as OvertimeInfo } };
 
     case "segment.switch_counting": {
-      const chips = p.transcript_id ? { ...state.switchChips, [p.transcript_id]: p.cue_count } : state.switchChips;
+      // D-088: a merged judgment moves (replaces_) or withdraws (withdrawn_) its fragment's cue chip.
+      const chips = { ...state.switchChips };
+      if (p.replaces_transcript_id) delete chips[p.replaces_transcript_id];
+      if (p.withdrawn_transcript_id) delete chips[p.withdrawn_transcript_id];
+      if (p.transcript_id) chips[p.transcript_id] = p.cue_count;
       return withSession({ ...state, switchChips: chips }, (s) => ({
         ...s,
         switch: {
@@ -248,8 +252,16 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
         switch: { ...s.switch, status: "pending", target_product_id: p.target_product_id, commit_at: p.commit_at },
       }));
 
-    case "segment.switch_cancelled":
-      return withSession(state, (s) => ({ ...s, switch: { ...IDLE_SWITCH, last_commit: s.switch.last_commit } }));
+    case "segment.switch_cancelled": {
+      let chips = state.switchChips;
+      if (p.withdrawn_transcript_id) {
+        chips = { ...chips };
+        delete chips[p.withdrawn_transcript_id];
+      }
+      return withSession({ ...state, switchChips: chips }, (s) => ({
+        ...s, switch: { ...IDLE_SWITCH, last_commit: s.switch.last_commit },
+      }));
+    }
 
     case "segment.missing_points": {
       if (state.missingPoints.some((m) => m.segment_id === p.segment_id)) return state;

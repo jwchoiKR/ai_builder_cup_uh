@@ -3,11 +3,20 @@
 Steps 1-4 of each final transcript run in an ordered chain (one transcript at a time). Steps 5-6
 (fact corrections, publish decision, metrics) run in a second ordered chain, so a slow fact check
 never delays the next transcript's compliance check.
+
+Split sentences (D-088): speech-to-text can end a final in mid-sentence ("…it does not" / "treat
+acne."). When the previous final arrived within UTTERANCE_MERGE_WINDOW_MS and does not end with
+. ? or !, the new final is judged together with it: reflex, judge and fact checker get the joined
+text. Nothing waits; the previous final was already judged on its own, and the merged judgment
+replaces that judgment for switch cues and host-answer linking. Alerts raised by the fragments are
+never resolved by the merged judgment, and their rules get no second alert. Prompter coverage only
+adds (covered points are never removed, §6).
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
@@ -16,7 +25,7 @@ from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
 from ..logic import publish as publish_logic
 from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view
-from ..logic.segments import classify_switch, step_switch
+from ..logic.segments import classify_switch, replace_cue, step_switch, withdraw_cue
 from ..models.agent_io import FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
@@ -26,6 +35,31 @@ if TYPE_CHECKING:
     from .runtime import SessionRuntime
 
 log = logging.getLogger(__name__)
+
+SENTENCE_END = (".", "?", "!")
+MAX_MERGED_FINALS = 3  # a merged judgment covers at most this many finals
+_KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever needed)
+
+
+def ends_sentence(text: str) -> bool:
+    """True when a final ends with . ? or ! (closing quotes and brackets ignored)."""
+    return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
+
+
+@dataclass
+class Merge:
+    """The previous final(s) a new final is judged with (D-088)."""
+    prev: Transcript
+    chain: list[str]  # transcript ids already inside `text`, oldest first
+    text: str  # joined text that reflex, judge and fact checker read
+
+
+@dataclass
+class Judged:
+    """What one transcript's judgment covered and changed, so a merged judgment can replace it."""
+    chain: list[str]  # transcript ids whose words were judged, ending with this one
+    text: str
+    publish: tuple[str, str] | None = None  # (group_id, action) applied by this judgment
 
 
 class UtterancePipeline:
@@ -37,6 +71,8 @@ class UtterancePipeline:
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_checker"], rt.catalog)
         self._main_tail: asyncio.Task | None = None
         self._side_tail: asyncio.Task | None = None
+        self._last: Transcript | None = None  # previous final in the main chain
+        self._judged: dict[str, Judged] = {}
 
     # ---- intake --------------------------------------------------------------------------------
 
@@ -65,15 +101,39 @@ class UtterancePipeline:
 
     # ---- steps 1-4 -----------------------------------------------------------------------------
 
+    def _merge_for(self, t: Transcript) -> Merge | None:
+        """D-088: join with the previous final if it arrived within the window and is unfinished."""
+        prev = self._last
+        window = self.rt.settings.UTTERANCE_MERGE_WINDOW_MS
+        if prev is None or window <= 0 or t.received_at - prev.received_at > window or ends_sentence(prev.text):
+            return None
+        judged = self._judged.get(prev.transcript_id)
+        chain = judged.chain if judged else [prev.transcript_id]
+        if len(chain) >= MAX_MERGED_FINALS:
+            return None
+        base = judged.text if judged else prev.text
+        return Merge(prev=prev, chain=list(chain), text=f"{base} {t.text}")
+
+    def _remember(self, t: Transcript, merge: Merge | None, text: str) -> None:
+        self._last = t
+        self._judged[t.transcript_id] = Judged(chain=[*(merge.chain if merge else []), t.transcript_id], text=text)
+        for old in list(self._judged)[:-_KEEP_JUDGED]:
+            del self._judged[old]
+
     async def _main(self, prev: asyncio.Task | None, t: Transcript, scenario: str) -> None:
         if prev is not None:
             await asyncio.gather(prev, return_exceptions=True)
         rt = self.rt
+        merge = self._merge_for(t)
+        text = merge.text if merge else t.text
+        if merge:
+            t.merged_from_transcript_id, t.judged_text = merge.prev.transcript_id, text
+        self._remember(t, merge, text)
         # 1. store, emit
         await rt.ctx.store.put(rt.path("transcripts"), t.transcript_id, t)
         await rt.emit("transcript.final", t)
         # 2. reflex -> provisional alerts
-        hits = rt.ctx.reflex.scan(t.text)
+        hits = rt.ctx.reflex.scan(text)
         async with rt.lock:
             seg = await rt.current_segment()
             on_air = seg.product_id if seg else rt.catalog.order[0]
@@ -82,30 +142,32 @@ class UtterancePipeline:
             for a in provisional:
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
-            judge_input, offered = await self._judge_input_locked(t, on_air, scenario)
+            judge_input, offered = await self._judge_input_locked(t, text, merge, on_air, scenario)
         # 3. judge and fact checker in parallel (single mode: retrieval first, then one call)
         facts_task: asyncio.Task | None = None
         if self.single:
-            judge_input.passages = await self._fact_passages(t.text, on_air, judge_input.switch)
+            judge_input.passages = await self._fact_passages(text, on_air, judge_input.switch)
         else:
-            facts_task = rt.spawn(self._run_facts(t, on_air, judge_input, scenario), name=f"facts:{t.transcript_id}")
+            facts_task = rt.spawn(self._run_facts(text, on_air, judge_input, scenario), name=f"facts:{t.transcript_id}")
         res = await self.judge.run(judge_input, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS)
         # 4. compliance, corrections, prompter and cues, switch
         async with rt.lock:
-            await self._apply_judge_locked(t, on_air, res, hits)
+            await self._apply_judge_locked(t, on_air, res, hits, merge)
         prev_side = self._side_tail
-        self._side_tail = rt.spawn(self._side(prev_side, t, res, facts_task, offered),
+        self._side_tail = rt.spawn(self._side(prev_side, t, res, facts_task, offered, merge),
                                    name=f"utterance-side:{t.transcript_id}")
 
-    async def _judge_input_locked(self, t: Transcript, on_air: str, scenario: str) -> tuple[JudgeInput, set[str]]:
+    async def _judge_input_locked(self, t: Transcript, text: str, merge: Merge | None, on_air: str,
+                                  scenario: str) -> tuple[JudgeInput, set[str]]:
         rt = self.rt
         s = await rt.load_session()
         alerts = [a for a in await rt.alerts() if a.transcript_id != t.transcript_id]
         finals = await rt.ctx.store.query(rt.path("transcripts"), Transcript, order_by="received_at")
-        previous = [x.text for x in finals if x.transcript_id != t.transcript_id][-2:]
+        inside = {t.transcript_id, *(merge.chain if merge else [])}  # already in the utterance text
+        previous = [x.text for x in finals if x.transcript_id not in inside][-2:]
         questions = await self._open_questions_locked(s, on_air)
         promo = rt.promo(s.active_promo_id)
-        inp = JudgeInput(utterance=t.text, on_air=on_air, active_alerts=alerts, open_questions=questions,
+        inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
                          cue=s.cue, previous=previous, points_by_product=rt.points or None, session_id=rt.sid, scenario=scenario,
                          switch=s.switch, promo=promo)
         return inp, {g.group_id for g, _ in questions}
@@ -133,19 +195,22 @@ class UtterancePipeline:
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
 
-    async def _run_facts(self, t: Transcript, on_air: str, judge_input: JudgeInput, scenario: str) -> AgentResult:
-        passages = await self._fact_passages(t.text, on_air, judge_input.switch)
+    async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str) -> AgentResult:
+        passages = await self._fact_passages(text, on_air, judge_input.switch)
         return await self.facts.run(
-            FactInput(utterance=t.text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
+            FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
                       passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario),
             deadline_ms=self.rt.settings.FACT_TIMEOUT_MS,
         )
 
-    async def _apply_judge_locked(self, t: Transcript, on_air: str, res: AgentResult, hits) -> None:
+    async def _apply_judge_locked(self, t: Transcript, on_air: str, res: AgentResult, hits,
+                                  merge: Merge | None = None) -> None:
         rt = self.rt
         now = rt.now()
         alerts = await rt.alerts()
         provisional = [a for a in alerts if a.transcript_id == t.transcript_id and a.status == "provisional"]
+        # D-088: alerts raised by the fragments inside a merged utterance are never resolved by it
+        protected = set(merge.chain) if merge else set()
         high_before = alert_logic.high_alert_active(alerts)
         judge: UtteranceJudgeOutput | None = res.output if res.status == "ok" else None
         if judge is None:
@@ -157,9 +222,12 @@ class UtterancePipeline:
                                            "alert_ids": [a.alert_id for a in changed if a.status == "active"]})
             await self._high_alert_switch_reset_locked(high_before)
             return
-        # §8.4.1 compliance
+        # §8.4.1 compliance. D-088 dedupe: a rule already active from a fragment inside this merged
+        # utterance is the same spoken claim, so no second alert. Separate sentences keep §8.4.2.
+        active_rules = {a.rule_id for a in alerts
+                        if a.kind == "compliance" and a.status == "active" and a.transcript_id in protected}
         changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.ctx.pack.rules_by_id,
-                                                              rt.new_id, now)
+                                                              rt.new_id, now, active_rule_ids=active_rules)
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
@@ -168,7 +236,8 @@ class UtterancePipeline:
             await self._save_alert_change_locked(a)
         # §8.4.5 corrections
         if judge.correction.corrects_alert_ids:
-            for a in alert_logic.apply_corrections(await rt.alerts(), judge.correction.corrects_alert_ids, t, now):
+            correctable = [a for a in await rt.alerts() if a.transcript_id not in protected]
+            for a in alert_logic.apply_corrections(correctable, judge.correction.corrects_alert_ids, t, now):
                 rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
                 await rt.save_alert(a)
                 await rt.emit("alert.updated", a)
@@ -189,7 +258,8 @@ class UtterancePipeline:
         # §8.7.2 switch; §8.4.7 while a HIGH alert is active, counting resets and a pending switch cancels
         high_now = alert_logic.high_alert_active(await rt.alerts())
         if seg is not None:
-            await self._switch_locked(judge, t, seg, high_became_active=high_now)
+            await self._switch_locked(judge, t, seg, high_became_active=high_now,
+                                      replaces=merge.prev.transcript_id if merge else None)
 
     async def _save_alert_change_locked(self, a: Alert) -> None:
         await self.rt.save_alert(a)
@@ -226,7 +296,8 @@ class UtterancePipeline:
         rt.ctx.scheduler.call_at(rt.key(f"escalate:{a.alert_id}"),
                                  a.shown_at + rt.settings.COMPLIANCE_ESCALATE_SEC * 1000, escalate)
 
-    async def _switch_locked(self, judge: UtteranceJudgeOutput, t: Transcript, seg: Segment, *, high_became_active: bool) -> None:
+    async def _switch_locked(self, judge: UtteranceJudgeOutput, t: Transcript, seg: Segment, *, high_became_active: bool,
+                             replaces: str | None = None) -> None:
         rt = self.rt
         s = await rt.load_session()
         on_air = seg.product_id
@@ -237,6 +308,28 @@ class UtterancePipeline:
             next_points={p.point_id for p in points_of(rt.catalog, nxt, rt.points)} if nxt else set(),
             high_alert_became_active=high_became_active,
         )
+        if replaces is not None and replaces in s.switch.cue_transcript_ids and kind != "cancel":
+            # D-088: the merged judgment replaces the fragment's cue. Never count the same cue twice.
+            if kind == "cue":
+                s.switch = replace_cue(s.switch, replaces, t.transcript_id)
+                await rt.save_session(s)
+                await rt.emit("segment.switch_counting", {
+                    "target_product_id": s.switch.target_product_id, "cue_count": s.switch.cue_count,
+                    "transcript_id": t.transcript_id, "replaces_transcript_id": replaces})
+                return
+            new_state, event = withdraw_cue(s.switch, replaces)
+            was_pending = s.switch.status == "pending"
+            s.switch = new_state
+            await rt.save_session(s)
+            if was_pending:
+                rt.ctx.scheduler.cancel(rt.key("switch-commit"))
+            if event == "cancelled":
+                await rt.emit("segment.switch_cancelled", {"reason": "merged", "withdrawn_transcript_id": replaces})
+            if new_state.status == "counting":
+                await rt.emit("segment.switch_counting", {
+                    "target_product_id": new_state.target_product_id, "cue_count": new_state.cue_count,
+                    "transcript_id": None, "withdrawn_transcript_id": replaces})
+            return
         st = rt.settings
         new_state, event = step_switch(s.switch, kind, transcript_id=t.transcript_id, next_product=nxt, now=rt.now(),
                                        cues_needed=st.SWITCH_CONSECUTIVE_CUES, window_sec=st.SWITCH_CUE_WINDOW_SEC,
@@ -269,7 +362,7 @@ class UtterancePipeline:
     # ---- steps 5-6 -----------------------------------------------------------------------------
 
     async def _side(self, prev: asyncio.Task | None, t: Transcript, res: AgentResult,
-                    facts_task: asyncio.Task | None, offered: set[str]) -> None:
+                    facts_task: asyncio.Task | None, offered: set[str], merge: Merge | None = None) -> None:
         if prev is not None:
             await asyncio.gather(prev, return_exceptions=True)
         rt = self.rt
@@ -283,13 +376,14 @@ class UtterancePipeline:
             facts = fr.output if isinstance(fr, AgentResult) and fr.status == "ok" else None
         async with rt.lock:
             if facts is not None:
-                await self._apply_facts_locked(t, facts)
+                await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
             if judge is not None:
-                await self._publish_locked(t, judge, facts, offered)
+                await self._publish_locked(t, judge, facts, offered, merge)
 
-    async def _apply_facts_locked(self, t: Transcript, facts: FactCheckOutput) -> None:
+    async def _apply_facts_locked(self, t: Transcript, facts: FactCheckOutput, protected: set[str]) -> None:
         rt = self.rt
-        created, reshown, corrected = fact_logic.apply_fact_check(facts.claims, await rt.alerts(), t, rt.new_id, rt.now())
+        created, reshown, corrected = fact_logic.apply_fact_check(facts.claims, await rt.alerts(), t, rt.new_id, rt.now(),
+                                                                  protected=protected)
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
@@ -318,13 +412,26 @@ class UtterancePipeline:
         rt.ctx.scheduler.call_later(rt.key(f"facthide:{a.alert_id}"), rt.settings.FACT_NOTE_HOST_MAX_SEC * 1000, hide)
 
     async def _publish_locked(self, t: Transcript, judge: UtteranceJudgeOutput, facts: FactCheckOutput | None,
-                              offered: set[str]) -> None:
+                              offered: set[str], merge: Merge | None = None) -> None:
         rt = self.rt
         gid = judge.answer.matched_group_id
         group = await rt.get_group(gid) if gid else None
         answer = await rt.get_answer(group.answer_id) if group is not None else None
         decision = publish_logic.decide(judge, offered, group, answer,
                                         high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts)
+        mine = self._judged.get(t.transcript_id)
+        before = self._judged.get(merge.prev.transcript_id) if merge else None
+        if before is not None and before.publish is not None:
+            # D-088: the merged judgment replaces the fragment's host-answer link. Never publish twice.
+            if decision.group_id == before.publish[0] and decision.action == before.publish[1]:
+                await self._relink_locked(before.publish, merge.prev, t)
+                if mine is not None:
+                    mine.publish = before.publish
+                return
+            undone = await self._unlink_locked(before.publish, merge.prev)
+            if not undone and before.publish[1] == "post" and decision.group_id == before.publish[0]:
+                return  # the fragment's reply is already published: nothing more for this group
+            before.publish = None
         if decision.action == "none" or group is None:
             return
         if decision.action == "post":
@@ -337,6 +444,54 @@ class UtterancePipeline:
         await rt.save_group(group)
         await rt.emit("group.updated", group)
         await rt.recompute_host_queue_locked()
+        if mine is not None:
+            mine.publish = (group.group_id, decision.action)
+
+    async def _relink_locked(self, link: tuple[str, str], old: Transcript, new: Transcript) -> None:
+        """Same group, same action: keep the fragment's effect (no second post), credit the merged final."""
+        gid, action = link
+        if action != "verbal_not_posted":
+            return
+        g = await self.rt.get_group(gid)
+        if g is not None and g.host_verbal_answer_transcript_id == old.transcript_id:
+            g.host_verbal_answer_transcript_id = new.transcript_id
+            g.version += 1
+            await self.rt.save_group(g)
+            await self.rt.emit("group.updated", g)
+
+    async def _unlink_locked(self, link: tuple[str, str], old: Transcript) -> bool:
+        """Undo the fragment's host-answer link that the merged judgment does not repeat. A post still
+        in its cancel window is cancelled; a published reply cannot be taken back and stays.
+        Returns whether anything was undone."""
+        rt = self.rt
+        gid, action = link
+        g = await rt.get_group(gid)
+        if g is None:
+            return False
+        if action == "post":
+            pending = [m for m in await rt.ctx.store.query(rt.path("messages"), Message,
+                                                           where=[("idempotency_key", "==", f"host_answer:{gid}")])
+                       if m.state == "pending"]
+            for m in pending:
+                m.state = "cancelled"
+                await rt.save_message(m)
+                rt.ctx.scheduler.cancel(rt.key(f"publish:{m.message_id}"))
+                await rt.emit("message.cancelled", m)
+            if not pending:
+                return False
+        elif action == "confirm_ai":
+            if not g.host_confirmed:
+                return False
+            g.host_confirmed = False
+        else:
+            if g.host_verbal_answer_transcript_id != old.transcript_id:
+                return False
+            g.host_verbal_answer_transcript_id = None
+        g.version += 1
+        await rt.save_group(g)
+        await rt.emit("group.updated", g)
+        await rt.recompute_host_queue_locked()
+        return True
 
 
 # ---- host answer publishing (§8.6) ---------------------------------------------------------------

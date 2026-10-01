@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "Can I use it while pregnant?",
- "group_candidate_id": "@group:can i use it while pregnant",
- "reason": "Asks if the product is safe to use during pregnancy."
+ "canonical_question": "Can it be used during pregnancy?",
+ "group_candidate_id": "@group:can it be used during pregnancy",
+ "reason": "Asks if the current product is safe to use during pregnancy."
 }

@@ -23,5 +23,5 @@
    "confidence": "low"
   }
  },
- "reason": "Host discusses patch testing results matching point cr-p4 without making any policy violations."
+ "reason": "Host covers the patch test point safely and accurately."
 }

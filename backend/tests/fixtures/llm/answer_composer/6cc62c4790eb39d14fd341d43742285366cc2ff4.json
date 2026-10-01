@@ -1,9 +1,9 @@
 {
- "answer": "With our time sale right now, the Hydra Barrier Cream is S$32.40.",
+ "answer": "With the time sale it's S$32.40 for the Hydra Barrier Cream right now. The set with the ampoule is S$55.80.",
  "citations": [
   {
    "passage_id": "PROMO#promo_time_sale_10",
-   "quote": "Hydra Barrier Cream S$32.40"
+   "quote": "Time sale price (extra 10% off the live price): Hydra Barrier Cream S$32.40; Deep Hydration Ampoule S$28.80; Hydra Barrier Cream + Deep Hydration Ampoule set S$55.80."
   }
  ],
  "grounded": true,

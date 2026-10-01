@@ -3,10 +3,10 @@
  "citations": [
   {
    "passage_id": "DL-CR-01#key-facts#skin-types",
-   "quote": "All skin types. Recommended for dry, combination and sensitive skin"
+   "quote": "Skin types: All skin types. Recommended for dry, combination and sensitive skin"
   }
  ],
  "grounded": true,
  "needs_human": false,
- "reason": "Answered directly in key facts."
+ "reason": "Answered directly from key facts."
 }

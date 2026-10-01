@@ -133,7 +133,13 @@ The short finals and what followed them:
 - **Judge timeout path:** with a judge timeout on such a fragment, §8.4.3 "fail toward warning" would raise an unverified HIGH alert even if the judge would have cleared it. Reflex sees no negation inside "Treat acne." alone.
 - **Quoted lines (U14):** handled correctly when split.
 
-## 4. Proposed fix (not implemented)
+## 4. Proposed fix
+**Status:** option B was implemented as D-088, with the reviewer's rules.
+- **Merge trigger:** a merge happens only when the previous final does not end with `.`, `?` or `!`, instead of the looser test below.
+- **Dedupe:** a rule already active from the merged fragments gets no second alert.
+- **Not re-measured yet:** the acceptance check at the end of this section was not re-run with real STT. The human microphone rehearsal is next.
+
+The proposal as written before implementation:
 | Option | Change | Latency cost on the S07 alert | What it fixes here | Risks |
 |---|---|---|---|---|
 | **A. Hold and join** | Hold a final that looks incomplete (under 4 words, no terminal punctuation, or ending in a negation or quote cue) until the next final or N ms; judge the joined text. | 0 when S07 arrives as one complete final. The hold must be N ≈ 2.5–3 s to catch continuations (1 s would have joined none), and a claim-bearing fragment with no continuation waits the full N: U02 "cures eczema" (no period) would go from 2.2 s to about 4.7–5.2 s, at or over the 5 s p95 budget. | S08 at 1000 ms; duplicate alerts | Delays real alerts. Punctuation is an unreliable signal. Ordering gets harder in the transcript chain. |

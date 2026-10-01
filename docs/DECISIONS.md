@@ -399,6 +399,7 @@ D-085 (data pack change, approved by the reviewer; supersedes the label part of 
 D-086: The recording-day backup is the fixture set of one clean Vertex run of the host script.
 - **Clean check:** `record_demo_fixtures.py` now checks the whole run. It exits 1 with "RUN NOT CLEAN" if any agent call is not `ok` or the summary recap is not ready, because a failed call leaves no fixture and the mock replay would then mix runs.
 - **Runs on 2026-10-01:** the first run was discarded (one composer call hit the 12 s deadline). The second run was clean: 85 calls (comment triage 39, composer 15, judge 15, fact checker 15, summary 1).
+- **Refreshed after D-088:** one run was discarded (a comment triage call took 2.8 s against the 2.5 s deadline). The next was clean: 84 calls (comment triage 38, composer 15, judge 15, fact checker 15, summary 1). It is the current backup, with 11 stale composer outputs removed. The script's host lines all end with `.`, `?` or `!`, so injected lines are never merged.
 - **Stale fixtures removed:** fixtures the clean run did not write were removed, except the eval-case fixtures (scenario = case id) and the S01 Brief Agent fixtures. That was 10 composer outputs and 1 summary from earlier runs; the backend tests and the E2E suite pass without them.
 - **Replay check:** `tests/test_demo_script_api.py` (S02–S14 through the API, each scene's Expected state), `tests/test_bursts_api.py` (B1–B4), the full backend suite (299) and Playwright `npm run e2e` (S02–S14 on `/studio`, plus S01) pass on these fixtures. The scene screenshots were re-captured from them.
 
@@ -406,3 +407,28 @@ D-087: `verify_answer` and the composer are unchanged after the verify-failure r
 - The review covered 150 eval calls and two full demo runs. Every rejection was the model's own empty, ungrounded answer to a question the sheet does not answer: eczema in children, wrinkles, teenagers, how long a bottle lasts, animal testing.
 - No correct answer was rejected by a verify rule, so there was nothing of that kind to fix.
 - `eval_composer.py --calls` writes every call (answer, citations, verify errors, passage ids) to JSON for this kind of review.
+
+D-088: Split sentences are judged together (proposal B of `docs/eval/stt-fragments.md`, with the reviewer's rules).
+- **When:** a final is merged with the previous final when the previous one arrived at most `UTTERANCE_MERGE_WINDOW_MS` (3500, new setting; 0 turns it off) earlier, measured on `received_at`, and does not end with `.`, `?` or `!` (closing quotes and brackets ignored).
+  - A merged judgment covers at most 3 finals; a longer run starts a new judgment.
+  - Nothing waits: every final is still processed as soon as it arrives.
+- **What reads the joined text:** reflex, `UtteranceJudge` and `FactChecker` get "previous text + new text".
+  - The judge's RECENT_TRANSCRIPT leaves out the fragments already inside the utterance.
+  - The stored transcript keeps its own text and gains `merged_from_transcript_id` and `judged_text`. The operator transcript row shows "joined with previous".
+- **The merged judgment replaces the fragment's judgment:**
+  - **Switch cues:** if the fragment counted a cue and the merged judgment is a cue too, the cue keeps its count and moves to the merged final (`replaces_transcript_id` on `segment.switch_counting`), so the same cue never counts twice. If the merged judgment is not a cue, the fragment's cue is withdrawn: the count drops, and a pending switch is cancelled with reason `merged`. A cancel works as before.
+  - **Host-answer linking:** with the same group and action, the fragment's effect is kept (no second post; a verbal link moves to the merged final). Otherwise the fragment's link is undone first: a post still in its cancel window is cancelled, and "confirmed" or "verbal" flags are cleared. Then the merged decision applies. A reply that is already published cannot be taken back, and no second reply is posted for that group.
+  - **Prompter coverage only adds.** §6 says `covered_point_ids` is "monotonic, never removed", so a point covered by the fragment stays covered even if the merged judgment does not repeat it. This is a deliberate exception to "replaces". The operator cue's "done" state also stays.
+- **Alerts:** a merged judgment never resolves an alert raised by its own fragments. Their compliance alerts ignore its `corrects_alert_ids`, and their fact notes are neither re-shown nor corrected by a "supported" reading. Only an operator dismiss or a host correction in a later utterance clears them. A rule already active from those fragments gets no second alert.
+  - A violation repeated in a separate sentence still creates a new alert, as §8.4.1 and §8.4.2 ("1 of N") require.
+- **Judge failure on a merged final:** §8.4.3 uses the reflex result on the joined text, so "…it does not" / "treat acne." is negated and cleared, not raised as unverified.
+- **Not fixed by this:**
+  - A claim in the first fragment is judged on its own before its continuation arrives. If the continuation negates or quotes it, the alert stays until the operator dismisses it (rule 4).
+  - Speech-to-text mishearings such as "can't" → "can" (stt-fragments.md).
+- **Tests:** `tests/test_utterance_merge.py`:
+  - S08 split after "does not" → no active alert, also when the judge fails;
+  - S07 split mid-claim → exactly one alert;
+  - S12 split → `cue_count` rises once, and a cue the merged judgment does not repeat is withdrawn;
+  - price split → one fact note;
+  - fragment alerts not resolved by the merged judgment;
+  - a split host answer posted once, or its pending post cancelled when the merged judgment disagrees.

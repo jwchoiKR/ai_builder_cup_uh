@@ -1,8 +1,8 @@
 {
  "kind": "question",
  "hide_category": null,
- "product_id": null,
- "product_basis": "unknown",
+ "product_id": "cream_hydra_barrier",
+ "product_basis": "context",
  "intent": "set_price",
  "condition_slots": {
   "skin_type": null,
@@ -13,5 +13,5 @@
  },
  "canonical_question": "How much is the set?",
  "group_candidate_id": null,
- "reason": "Asks for the price of a bundled set involving both products."
+ "reason": "Asks for the price of the product set including the ampoule."
 }

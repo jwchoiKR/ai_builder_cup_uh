@@ -14,12 +14,12 @@
    "span": "nobody reported a reaction",
    "field": "test_result",
    "product_id": "cream_hydra_barrier",
-   "stated_value": "0 reactions",
+   "stated_value": "0 irritation reactions",
    "verdict": "supported",
-   "correct_value": "0 reactions",
+   "correct_value": "0 irritation reactions",
    "passage_id": "DL-CR-01#in-house-test-results#irritation-reactions-in-48-hour-patch-test",
-   "quote": "0 of 32 participants"
+   "quote": "Irritation reactions in 48-hour patch test: 0 of 32 participants."
   }
  ],
- "reason": "Host correctly states the participant count and test results from the 48-hour patch test."
+ "reason": "The participant count and patch test results are fully supported by the product sheet."
 }

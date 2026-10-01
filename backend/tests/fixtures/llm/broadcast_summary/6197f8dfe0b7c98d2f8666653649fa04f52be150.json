@@ -1,21 +1,18 @@
 {
- "headline": "DAON LAB skincare session concluded in 158 seconds with 41 comments analyzed and both fact alerts corrected.",
+ "headline": "The 152-second session generated 41 comments and 34 questions across two products, with all compliance and fact alerts corrected.",
  "highlights": [
-  "All 3 required points were covered for Hydra Barrier Cream during its 133 seconds of presentation.",
-  "Fact alerts regarding price and ingredient amount were corrected in 5715 ms and 19615 ms respectively.",
-  "A HIGH severity compliance alert for claim 'your wrinkles will disappear overnight' was corrected in 6279 ms.",
-  "AI generated 9 answers and the host provided 1 answer across 41 analyzed comments."
+  "All 3 required points were covered for Hydra Barrier Cream during its 126 seconds of broadcast.",
+  "The high-severity compliance alert for the skin ageing claim was corrected in 5783 milliseconds.",
+  "Fact alerts for price and ingredient amount were both successfully corrected."
  ],
  "watch_outs": [
-  "Deep Hydration Ampoule ran for only 25 seconds against a planned 600 seconds, missing 2 of 3 required points.",
-  "Hydra Barrier Cream ran for 133 seconds against a planned 900 seconds.",
-  "4 question groups for Hydra Barrier Cream, 3 for Deep Hydration Ampoule, and 1 general shipping question remain unanswered.",
-  "One HIGH severity compliance alert was triggered under rule ASEAN-3-SKIN-AGEING."
+  "Deep Hydration Ampoule broadcast for 26 seconds against a planned 600 seconds and missed 2 required points.",
+  "The ingredient amount correction took 20816 milliseconds to resolve after stating 10% niacinamide instead of 4% niacinamide.",
+  "A total of 7 product question groups and 1 shipping question group remain unanswered."
  ],
  "follow_ups": [
-  "Reply to the unanswered shipping question 'Do you ship to Malaysia?'.",
-  "Review and answer Hydra Barrier Cream questions regarding pregnancy use, children with eczema, makeup use, and dry skin.",
-  "Review and answer Deep Hydration Ampoule questions regarding skin stinging, vitamin C compatibility, and morning use.",
-  "Ensure missed points on instant hydration (+45%) and mild tingling/patch test are covered in future Deep Hydration Ampoule sessions."
+  "Answer the 4 unanswered question groups for Hydra Barrier Cream concerning makeup use, dry skin, pregnancy, and eczema.",
+  "Answer the 3 unanswered question groups for Deep Hydration Ampoule regarding stinging, vitamin C compatibility, and morning use.",
+  "Reply to the 1 unanswered shipping question asking 'Do you ship to Malaysia?'."
  ]
 }

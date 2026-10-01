@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": "morning"
  },
- "canonical_question": "Can I use it in the morning?",
+ "canonical_question": "Can it be used in the morning?",
  "group_candidate_id": null,
  "reason": "Asks if the ampoule can be used in the morning."
 }

@@ -6,7 +6,7 @@ the pipeline stores them and emits events.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 
 from ..models.agent_io import UtteranceJudgeOutput
 from ..models.data import Rule
@@ -41,9 +41,13 @@ def provisional_from_reflex(
 
 def apply_judge_compliance(
     judge: UtteranceJudgeOutput, t: Transcript, product_id: str, provisional: Sequence[Alert],
-    rules: dict[str, Rule], new_id: NewId, now: int,
+    rules: dict[str, Rule], new_id: NewId, now: int, active_rule_ids: Collection[str] = (),
 ) -> tuple[list[Alert], list[Alert]]:
-    """§8.4.1. Returns (changed, created)."""
+    """§8.4.1. Returns (changed, created).
+
+    D-088 dedupe: `active_rule_ids` are rules already active from the fragments of a merged
+    utterance. Their violations create no second alert; the active one stays until it is corrected
+    or dismissed."""
     changed: list[Alert] = []
     created: list[Alert] = []
     pending = {a.rule_id: a for a in provisional if a.status == "provisional" and a.transcript_id == t.transcript_id}
@@ -58,6 +62,8 @@ def apply_judge_compliance(
                 changed.append(a)
             continue
         handled.add(v.rule_id)
+        if v.rule_id in active_rule_ids:
+            continue  # already active: no duplicate (a provisional of this rule is cleared below)
         severity = rules[v.rule_id].severity
         a = pending.get(v.rule_id)
         if a is not None:

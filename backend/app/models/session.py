@@ -82,6 +82,9 @@ class Transcript(BaseModel):  # [sessions/{sid}/transcripts/{transcript_id}]
     received_at: int
     source: Literal["mic", "injected"]
     segment_id: str
+    # D-088: set when this final was judged together with the previous unfinished final(s)
+    merged_from_transcript_id: str | None = None
+    judged_text: str | None = None
 
 
 class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]

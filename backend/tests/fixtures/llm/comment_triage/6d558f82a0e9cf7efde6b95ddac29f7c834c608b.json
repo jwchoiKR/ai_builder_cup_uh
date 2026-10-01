@@ -13,5 +13,5 @@
  },
  "canonical_question": "How much is it?",
  "group_candidate_id": null,
- "reason": "Asks for the price of the ampoule."
+ "reason": "Asks for the price of the explicitly named ampoule."
 }

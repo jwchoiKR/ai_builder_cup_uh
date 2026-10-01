@@ -316,8 +316,11 @@ export function transcriptChips(state: ClientState, catalog: Catalog | null, t: 
       chips.push({ tone: "fact", text: `${fieldLabel(catalog, a.field)}` });
     }
   }
+  // D-088: a final joined with the previous unfinished one was judged on the joined text.
+  const judged = t.judged_text ?? t.text;
+  if (t.merged_from_transcript_id) chips.push({ tone: "accent", text: "joined with previous" });
   const call = state.agentCalls.find(
-    (c) => (c.agent === "utterance_judge" || c.agent === "judge_single") && c.status === "ok" && c.input_preview === t.text.slice(0, 300),
+    (c) => (c.agent === "utterance_judge" || c.agent === "judge_single") && c.status === "ok" && c.input_preview === judged.slice(0, 300),
   );
   const out = (call?.output ?? null) as JudgeOutputLike | null;
   if (out?.answer?.is_answer && out.answer.matched_group_id) {

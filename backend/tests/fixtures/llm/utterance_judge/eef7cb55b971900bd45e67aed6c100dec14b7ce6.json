@@ -12,9 +12,7 @@
   "consistent_with_suggested": false
  },
  "prompter": {
-  "covered_point_ids": [
-   "cr-p6"
-  ],
+  "covered_point_ids": [],
   "covered_cue_ids": [],
   "switch": {
    "is_transition": false,
@@ -23,5 +21,5 @@
    "confidence": "low"
   }
  },
- "reason": "Host discusses live pricing matching prompter point for the cream."
+ "reason": "Discusses live price of thirty-two dollars, but thirty-two dollars is the ampoule price, not the cream price."
 }

@@ -6,10 +6,10 @@
    "product_id": "ampoule_deep_hydration",
    "stated_value": "4% niacinamide",
    "verdict": "supported",
-   "correct_value": "4%",
+   "correct_value": "4% niacinamide",
    "passage_id": "DL-AM-01#key-ingredients#niacinamide",
    "quote": "Niacinamide: 4%"
   }
  ],
- "reason": "The host corrected themselves to state 4% niacinamide, which is supported by the product sheet."
+ "reason": "The host correctly states the niacinamide percentage as 4%."
 }
