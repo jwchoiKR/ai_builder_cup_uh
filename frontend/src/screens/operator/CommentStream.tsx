@@ -6,7 +6,7 @@ import { hiddenComments, productById, relativeTime } from "../../app/selectors";
 import type { Comment } from "../../app/types";
 import { Button, Chip, VirtualList } from "../../components";
 import { useAction, useOperator } from "./context";
-import { sentenceCase } from "./model";
+import { SET_INTENT, sentenceCase, setOfferFor } from "./model";
 import styles from "./operator.module.css";
 
 const KIND_LABEL: Record<Comment["kind"], string> = {
@@ -56,7 +56,12 @@ function CommentRow({ comment: c }: { comment: Comment }) {
   const { sid, state, catalog, now, focusGroup } = useOperator();
   const act = useAction();
   const analysis = state.analyses[c.comment_id];
-  const product = productById(catalog, analysis?.product_id ?? state.groups[c.group_id ?? ""]?.product_id);
+  const group = state.groups[c.group_id ?? ""];
+  const product = productById(catalog, analysis?.product_id ?? group?.product_id);
+  const intent = group?.intent ?? (analysis?.output as { intent?: string } | undefined)?.intent;
+  // A set-price question is about the set: show the products.json set name, not one product.
+  const setName = intent === SET_INTENT ? setOfferFor(catalog, product?.product_id)?.name : undefined;
+  const productChip = setName ?? (product ? product.short_name.replace(/^the /, "") : null);
   return (
     <div className={styles.commentRow} data-testid={`op-comment-${c.comment_id}`}>
       <div className={styles.commentLine}>
@@ -75,7 +80,7 @@ function CommentRow({ comment: c }: { comment: Comment }) {
         ) : (
           <>
             <Chip>{KIND_LABEL[c.kind]}</Chip>
-            {product && <Chip tone="accent">{product.short_name.replace(/^the /, "")}</Chip>}
+            {productChip && <Chip tone="accent">{productChip}</Chip>}
             {c.kind === "question" && c.group_id && (
               <button type="button" className={styles.linkish} onClick={() => focusGroup(c.group_id)}>
                 Open question

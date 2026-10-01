@@ -40,7 +40,21 @@ export function intentInfo(catalog: Catalog | null, intent: string) {
   return catalog?.intents?.find((i) => i.intent === intent) ?? null;
 }
 
+export const SET_INTENT = "set_price";
+
+/** The set offer for a set-price question: the set containing the product, else the first set. */
+export function setOfferFor(catalog: Catalog | null, productId: string | null | undefined) {
+  const sets = catalog?.set_offers ?? [];
+  return sets.find((s) => productId && s.product_ids.includes(productId)) ?? sets[0] ?? null;
+}
+
+/** Product label of a group; a set-price question is about the set, so it shows the set name
+ * from products.json verbatim. */
 export function productLabel(catalog: Catalog | null, g: QuestionGroup): string {
+  if (g.intent === SET_INTENT) {
+    const set = setOfferFor(catalog, g.product_id);
+    if (set) return set.name;
+  }
   if (g.product_id) return productById(catalog, g.product_id)?.name ?? g.product_id;
   const scope = intentInfo(catalog, g.intent)?.product_scope;
   return scope === "multi" ? "Both products" : scope === "none" ? "General" : "No product";
@@ -149,16 +163,7 @@ export function groupActions(g: QuestionGroup, answer: Answer | null, pending: M
   return actions;
 }
 
-export function deskTabCounts(groups: QuestionGroup[]) {
-  return {
-    all: groups.length,
-    needs_review: groups.filter((g) => g.status === "needs_review").length,
-    on_host: groups.filter((g) => g.host_slot === "on_host").length,
-    ready: groups.filter((g) => g.status === "ready").length,
-    answered: groups.filter((g) => g.status === "answered" || g.status === "auto_answered").length,
-    closed: groups.filter((g) => g.status === "closed" || g.status === "rejected").length,
-  };
-}
+export { deskTabCounts } from "../../app/selectors";
 
 // ---- alerts ----------------------------------------------------------------------------------------
 

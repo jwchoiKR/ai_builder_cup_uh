@@ -1,6 +1,6 @@
 // Viewer chat model (§12.5): comments in time order with replies under the question they answer.
-// A reply to several askers renders once, under the first visible asker, with "@Name" mentions of the
-// others; the other askers' comments show a compact "answered above" line.
+// A reply to several askers (a coalesced reply) renders once, under the first visible asker; each
+// later asker's comment shows a compact "Also answered: @Name" line instead.
 import { chatItems } from "../../app/selectors";
 import type { ClientState } from "../../app/state";
 import type { Comment, Message, MessageKind } from "../../app/types";
@@ -9,13 +9,26 @@ export const CORRECTION_PIN_MS = 60_000;
 
 export interface ReplyView {
   message: Message;
-  /** other askers this reply also answers ("@Name"), excluding the comment it sits under */
-  mentions: string[];
+}
+
+export interface AlsoAnswered {
+  kind: MessageKind;
+  messageId: string;
 }
 
 export type ViewerChatRow =
-  | { kind: "comment"; key: string; at: number; comment: Comment; replies: ReplyView[]; answeredAbove: MessageKind | null }
+  | { kind: "comment"; key: string; at: number; comment: Comment; replies: ReplyView[]; alsoAnswered: AlsoAnswered | null }
   | { kind: "message"; key: string; at: number; message: Message };
+
+export const PROMO_PREFIX = "PROMO#";
+
+/** "Source: …" labels of a reply: the product sheet, the active promotion (a `PROMO#` citation),
+ * or both when it cites both. */
+export function sourceLabels(m: Message): string[] {
+  const promo = m.citations.some((c) => c.passage_id.startsWith(PROMO_PREFIX));
+  const sheet = m.citations.some((c) => !c.passage_id.startsWith(PROMO_PREFIX));
+  return [sheet && "Source: product sheet", promo && "Source: active promotion"].filter(Boolean) as string[];
+}
 
 const publishedAt = (m: Message) => m.published_at ?? m.created_at;
 
@@ -40,16 +53,14 @@ export function viewerChat(state: ClientState, now: number): ViewerChatRow[] {
     }
     const own = new Set(item.replies.map((r) => r.message_id));
     const elsewhere = (answering.get(item.comment.comment_id) ?? []).filter((m) => !own.has(m.message_id));
+    const latest = elsewhere[elsewhere.length - 1];
     rows.push({
       kind: "comment",
       key: item.comment.comment_id,
       at: item.at,
       comment: item.comment,
-      replies: item.replies.map((m) => ({
-        message: m,
-        mentions: m.reply_to_author_names.filter((n) => n !== item.comment.author_name),
-      })),
-      answeredAbove: elsewhere.length ? elsewhere[elsewhere.length - 1].kind : null,
+      replies: item.replies.map((m) => ({ message: m })),
+      alsoAnswered: latest ? { kind: latest.kind, messageId: latest.message_id } : null,
     });
   }
   return rows;

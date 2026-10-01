@@ -45,6 +45,20 @@
 | full-operator-S09-desk.png | S09 | Operator control room at 1920×1080: question desk, run of show, live transcript with agent chips. |
 | full-viewer-S11-time-sale.png | S11 | Viewer phone page with the time-sale pop-up. |
 
-**Not in these shots:**
-- S01 (Setup with Brief Agent) and S14 (summary page) belong to phase P4.
-- The microphone (S02 "Start mic") is also P4. In these shots, host lines are injected.
+**Updates after review:**
+- The UI fixes of the screenshot review (D-072–D-078) are in all scene shots above, re-captured on 2026-10-01. Visible fixes:
+  - the red frame on the HIGH overlay;
+  - desk counts that match the tabs;
+  - set label for set-price groups;
+  - "Source: active promotion";
+  - "Also answered: @Name".
+
+**Real models (P4/P5):** backend with Vertex AI and Speech-to-Text; host lines spoken with a synthetic voice (`docs/rehearsal.md`).
+
+| File | Scene | What it shows |
+|---|---|---|
+| S01-setup-documents.png | S01 | Both shipped PDFs listed as "Indexed locally". |
+| S01-setup-brief.png | S01 | Brief Agent results for both products: glossary tables and prompter point drafts. |
+| S01-setup-confirmed.png | S01 | "Confirmed · version 1" after Confirm glossary. |
+| S14-summary.png | S14 | Summary of a full voice rehearsal. Per-product cards, unanswered questions, compliance and fact logs with correction times, promotions, agent latency, AI recap built only from the numbers shown. |
+| vertex-operator-metrics.png | S07 | Operator during a Vertex run, after S07: "Alert in 2.8s", "Judge p50 1.6s" (measured values), live transcript with agent chips. |

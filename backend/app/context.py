@@ -17,6 +17,7 @@ from .models.session import AgentCall
 from .providers.llm import LLMBackend, LLMClient, make_backend
 from .providers.prompts import PromptTemplate, load_prompts
 from .providers.retriever import LocalRetriever, Retriever
+from .providers.stt import make_stt
 from .scheduler import AsyncScheduler, ManualScheduler
 from .store import make_store
 from .store.base import AGENT_CALLS_GLOBAL, Store, sub
@@ -54,6 +55,7 @@ class AppContext:
     retriever: Retriever
     reflex: Reflex
     runtimes: "Runtimes" = field(init=False)
+    stt: object | None = None  # GoogleV2Stt, or None when STT_PROVIDER=mock
     sse_heartbeat_sec: float = HEARTBEAT_SEC
 
 
@@ -79,6 +81,7 @@ def build_context(
         settings=settings, clock=clock, ids=ids, pack=pack, prompts=prompts, store=store, bus=bus, llm=llm,
         scheduler=scheduler or AsyncScheduler(clock), retriever=LocalRetriever(pack.passages),
         reflex=Reflex(pack.rules),
+        stt=make_stt(settings, clock),
     )
     ctx.runtimes = Runtimes(ctx)
     return ctx

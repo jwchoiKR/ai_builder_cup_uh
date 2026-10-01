@@ -70,7 +70,7 @@ def _group(g: dict, now: int) -> QuestionGroup:
 # ---- comments ------------------------------------------------------------------------------------
 
 
-async def eval_comments(record: bool) -> tuple[str, bool]:
+async def eval_comments(record: bool, runs: int = 1) -> tuple[str, bool]:
     settings = get_settings()
     pack = DataPack.load(settings.data_path)
     catalog = Catalog(pack)
@@ -80,10 +80,6 @@ async def eval_comments(record: bool) -> tuple[str, bool]:
     await client.warm_up()
     now = SystemClock().now_ms()
 
-    rows, latencies = [], []
-    totals = {"kind": 0, "intent": 0, "route": 0, "hide": [0, 0], "group": [0, 0], "product": [0, 0], "slots": [0, 0]}
-    c22_followed = None
-
     async def one(case: dict) -> tuple[dict, object]:
         ctx = case.get("context") or {}
         groups = [_group(g, now) for g in ctx.get("open_groups", [])]
@@ -92,16 +88,31 @@ async def eval_comments(record: bool) -> tuple[str, bool]:
                                deadline_ms=settings.TRIAGE_TIMEOUT_MS)
         return case, res
 
-    results = []
-    for i in range(0, len(cases := load_cases("comment_cases.jsonl")), 6):  # modest concurrency
-        results += await asyncio.gather(*(one(c) for c in cases[i:i + 6]))
+    cases = load_cases("comment_cases.jsonl")
+    scored = []
+    for run_no in range(runs):
+        results = []
+        for i in range(0, len(cases), 6):  # modest concurrency
+            results += await asyncio.gather(*(one(c) for c in cases[i:i + 6]))
+        scored.append(_score_comment_run(results, pack, catalog))
+    await client.aclose()
+    if runs == 1:
+        text, passed = _comment_report(scored[0], client, triage, record, backend)
+        return text, passed
+    return _comment_multi_report(scored, client, triage)
 
+
+def _score_comment_run(results, pack, catalog) -> dict:
+    rows, latencies, failed = [], [], []
+    totals = {"kind": 0, "intent": 0, "route": 0, "hide": [0, 0], "group": [0, 0], "product": [0, 0], "slots": [0, 0]}
+    c22_followed = None
     for case, res in results:
         exp = case["expected"]
         out = res.output
         latencies.append(res.latency_ms)
         if out is None:
             rows.append(f"| {case['case_id']} | {case['comment']} | **{res.status}** {res.error or ''} | | | | ✗ |")
+            failed.append((case["case_id"], f"{res.status}"))
             continue
         intent = pack.intents_by_name.get(out.intent or "other", pack.intents_by_name["other"])
         pid, basis = (attribute_product(case["comment"], out, case["current_product_id"], catalog, intent)
@@ -155,9 +166,10 @@ async def eval_comments(record: bool) -> tuple[str, bool]:
             c22_followed = not (out.kind == "question" and route == "OPERATOR")
             notes.append("not followed" if not c22_followed else "**FOLLOWED**")
         mark = "✓" if (kind_ok and intent_ok and route_ok) else "✗"
+        if mark == "✗":
+            failed.append((case["case_id"], f"{out.kind}/{out.intent}/{route}"))
         rows.append(f"| {case['case_id']} | {case['comment']} | {out.kind} | {out.intent} | {pid} ({basis}) | "
                     f"{route} | {mark} {'; '.join(notes)} | {res.latency_ms} |")
-
     n = len(results)
     targets = {
         f"kind correct on all {n}": totals["kind"] == n,
@@ -166,6 +178,11 @@ async def eval_comments(record: bool) -> tuple[str, bool]:
         "all hide cases have kind=hide": totals["hide"][0] == totals["hide"][1],
         "C22 not followed (no message posted)": c22_followed is False,
     }
+    return {"n": n, "totals": totals, "rows": rows, "latencies": latencies, "failed": failed, "targets": targets}
+
+
+def _comment_report(run: dict, client, triage, record: bool, backend) -> tuple[str, bool]:
+    n, totals, targets, latencies, rows = run["n"], run["totals"], run["targets"], run["latencies"], run["rows"]
     passed = all(targets.values())
     lines = [
         f"# Comment eval · {dt.date.today().isoformat()}",
@@ -189,8 +206,54 @@ async def eval_comments(record: bool) -> tuple[str, bool]:
     ]
     if record:
         lines += ["", f"Recorded {len(backend.recorded)} fixtures."]
-    await client.aclose()
     return "\n".join(lines) + "\n", passed
+
+
+def _comment_multi_report(runs: list[dict], client, triage) -> tuple[str, bool]:
+    """Min and mean per field over several runs (model outputs vary between runs, D-058)."""
+    n = runs[0]["n"]
+
+    def field(get) -> tuple[list[float], str]:
+        vals = [get(r) for r in runs]
+        return vals, f"{min(vals):g} | {statistics.mean(vals):.2f} | {max(vals):g}"
+
+    fields = [
+        (f"kind (of {n})", lambda r: r["totals"]["kind"]),
+        (f"intent (of {n})", lambda r: r["totals"]["intent"]),
+        (f"route (of {n})", lambda r: r["totals"]["route"]),
+        (f"hide (of {runs[0]['totals']['hide'][1]})", lambda r: r["totals"]["hide"][0]),
+        (f"product (of {runs[0]['totals']['product'][1]})", lambda r: r["totals"]["product"][0]),
+        (f"slots (of {runs[0]['totals']['slots'][1]})", lambda r: r["totals"]["slots"][0]),
+        (f"group candidate (of {runs[0]['totals']['group'][1]})", lambda r: r["totals"]["group"][0]),
+        ("latency p50 ms", lambda r: statistics.median(r["latencies"])),
+        ("latency p95 ms", lambda r: pct(r["latencies"], 0.95)),
+    ]
+    all_pass = [all(r["targets"].values()) for r in runs]
+    failures: dict[str, list[str]] = {}
+    for i, r in enumerate(runs, 1):
+        for cid, what in r["failed"]:
+            failures.setdefault(cid, []).append(f"run {i}: {what}")
+    lines = [
+        f"# Comment eval · {len(runs)} runs · {dt.date.today().isoformat()}",
+        "",
+        f"Model `{client.fast.model}` thinking `{client.fast.thinking_level}` · prompt `{triage.prompt_version}` · "
+        f"{n} cases × {len(runs)} runs. Same scoring as the single-run report (D-046).",
+        "",
+        "## Per field",
+        "| Field | min | mean | max |",
+        "|---|---|---|---|",
+        *[f"| {name} | {field(get)[1]} |" for name, get in fields],
+        "",
+        f"## Targets met per run: {', '.join('yes' if ok else 'NO' for ok in all_pass)}",
+        *[f"- run {i}: " + ", ".join(f"{k} {'✓' if v else '✗'}" for k, v in r["targets"].items())
+          for i, r in enumerate(runs, 1)],
+        "",
+        "## Cases that failed in any run",
+        "| Case | Failures (kind/intent/route) |",
+        "|---|---|",
+        *[f"| {cid} | {'; '.join(v)} |" for cid, v in sorted(failures.items())],
+    ]
+    return "\n".join(lines) + "\n", all(all_pass)
 
 
 # ---- utterances ------------------------------------------------------------------------------------
@@ -392,8 +455,8 @@ async def main() -> int:
     ap.add_argument("--no-report", action="store_true", help="do not write docs/eval (e.g. fixture-only runs)")
     args = ap.parse_args()
     if args.suite == "comments":
-        text, passed = await eval_comments(args.record)
-        mode = "comments"
+        text, passed = await eval_comments(args.record, args.runs)
+        mode = "comments" if args.runs == 1 else f"comments-{args.runs}runs"
     else:
         text, passed = await eval_utterances(args.mode, args.record, args.runs)
         mode = args.mode

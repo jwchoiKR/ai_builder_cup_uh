@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("Viewer chat", () => {
-  it("renders a reply once under the first asker with @mentions; other askers show 'answered above'", () => {
+  it("renders a coalesced reply once under the first asker; later askers show 'Also answered: @Name'", () => {
     const state = stateWith({
       comments: [raj, priya, lee],
       messages: [
@@ -53,14 +53,50 @@ describe("Viewer chat", () => {
     const reply = within(first).getByTestId("viewer-reply-msg_1");
     expect(reply).toHaveAttribute("data-kind", "host_answer");
     expect(within(reply).getByText("Host answer")).toBeInTheDocument();
-    expect(within(reply).getByText("@Priya")).toBeInTheDocument();
-    expect(within(screen.getByTestId("viewer-comment-cm_2")).getByText("↳ answered above")).toBeInTheDocument();
+    expect(within(screen.getByTestId("viewer-comment-cm_2")).getByTestId("viewer-also-answered-cm_2")).toHaveTextContent(
+      "↳ Also answered: @Priya",
+    );
     expect(within(screen.getByTestId("viewer-comment-cm_2")).queryByTestId("viewer-reply-msg_1")).toBeNull();
+    expect(within(first).queryByText(/Also answered/)).toBeNull();
     const ai = within(screen.getByTestId("viewer-comment-cm_3")).getByTestId("viewer-reply-msg_2");
     expect(ai).toHaveAttribute("data-kind", "ai_answer");
     expect(within(ai).getByText("AI answer")).toBeInTheDocument();
     fireEvent.click(within(ai).getByText("Source: product sheet"));
     expect(screen.getByRole("dialog", { name: "Source" })).toHaveTextContent("Live broadcast price: S$36.00");
+  });
+
+  it("an AI answer citing the active promotion says 'Source: active promotion' (item 5)", () => {
+    const state = stateWith({
+      comments: [lee],
+      messages: [
+        message({ message_id: "msg_p", kind: "ai_answer", text: "With the time sale it's S$32.40 right now.", group_id: "grp_2",
+                  reply_to_comment_ids: ["cm_3"], reply_to_author_names: ["Lee"], published_at: T0 + 5000,
+                  citations: [{ passage_id: "PROMO#promo_time_sale_10", quote: "Hydra Barrier Cream S$32.40", section: "Active promotion" }] }),
+      ],
+    });
+    render(view(state));
+    const reply = screen.getByTestId("viewer-reply-msg_p");
+    expect(within(reply).getAllByTestId("viewer-source").map((b) => b.textContent)).toEqual(["Source: active promotion"]);
+    expect(within(reply).queryByText("Source: product sheet")).toBeNull();
+    fireEvent.click(within(reply).getByText("Source: active promotion"));
+    expect(screen.getByRole("dialog", { name: "Source" })).toHaveTextContent("Hydra Barrier Cream S$32.40");
+  });
+
+  it("an AI answer citing a sheet passage and the promotion shows both sources (item 5)", () => {
+    const state = stateWith({
+      comments: [lee],
+      messages: [
+        message({ message_id: "msg_b", kind: "ai_answer", text: "S$32.40 now; the set is S$55.80.", group_id: "grp_2",
+                  reply_to_comment_ids: ["cm_3"], reply_to_author_names: ["Lee"], published_at: T0 + 5000,
+                  citations: [
+                    { passage_id: "PROMO#promo_time_sale_10", quote: "Hydra Barrier Cream S$32.40", section: "Active promotion" },
+                    { passage_id: "DL-CR-01#key-facts#live-set-price", quote: "Live set price: S$62.00", section: "Key facts" },
+                  ] }),
+      ],
+    });
+    render(view(state));
+    const labels = within(screen.getByTestId("viewer-reply-msg_b")).getAllByTestId("viewer-source").map((b) => b.textContent);
+    expect(labels).toEqual(["Source: product sheet", "Source: active promotion"]);
   });
 
   it("labels brand answers DAON LAB", () => {

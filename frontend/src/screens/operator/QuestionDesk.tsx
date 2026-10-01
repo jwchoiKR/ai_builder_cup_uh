@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, FileText, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api, type AnswerOrigin } from "../../app/api";
-import { draftAnswer, groupStatusLabel, pendingMessages, questionDesk, relativeTime, type DeskTab } from "../../app/selectors";
+import { deskTabOf, draftAnswer, groupStatusLabel, pendingMessages, questionDesk, relativeTime, type DeskTab } from "../../app/selectors";
 import type { QuestionGroup } from "../../app/types";
 import { Button, Chip } from "../../components";
 import { useAction, useOperator } from "./context";
@@ -14,7 +14,6 @@ import {
   groupActions,
   intentInfo,
   intentLabel,
-  isOpenGroup,
   isStale,
   productLabel,
   setting,
@@ -23,11 +22,14 @@ import {
 } from "./model";
 import styles from "./operator.module.css";
 
-const TABS: { key: DeskTab; label: string }[] = [
+// §12.4.7 tabs. "Composing" is added only while a group is composing, so every group always has
+// exactly one tab and the tab counts add up to All.
+const TABS: { key: DeskTab; label: string; onlyWhenUsed?: boolean }[] = [
   { key: "all", label: "All" },
   { key: "needs_review", label: "Needs review" },
   { key: "on_host", label: "On host" },
   { key: "ready", label: "Ready" },
+  { key: "composing", label: "Composing", onlyWhenUsed: true },
   { key: "answered", label: "Answered" },
   { key: "closed", label: "Closed" },
 ];
@@ -40,6 +42,7 @@ export function QuestionDesk() {
   const counts = deskTabCounts(all);
   const groups = questionDesk(state, tab);
   const topN = setting(state, "HOST_TOP_N");
+  const tabs = TABS.filter((t) => !t.onlyWhenUsed || counts[t.key] > 0 || tab === t.key);
 
   useEffect(() => {
     if (!focusedGroup) return;
@@ -52,7 +55,7 @@ export function QuestionDesk() {
       <div className={styles.blockHeader}>
         <div>
           <h2 className={styles.blockTitle}>
-            Question desk <span className="tabular">{all.filter(isOpenGroup).length}</span>
+            Question desk <span className="tabular" data-testid="op-desk-count">{counts.all}</span>
           </h2>
           <p className={styles.muted}>Grouped by intent, ready for your next move.</p>
         </div>
@@ -61,11 +64,12 @@ export function QuestionDesk() {
         </span>
       </div>
       <div className={styles.tabs} role="tablist">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
             role="tab"
+            data-testid={`op-desk-tab-${t.key}`}
             aria-selected={tab === t.key}
             className={[styles.tab, tab === t.key && styles.tabActive].filter(Boolean).join(" ")}
             onClick={() => setTab(t.key)}
@@ -102,7 +106,13 @@ function GroupRow({ group: g, expanded, onToggle }: { group: QuestionGroup; expa
     if (focusedGroup === g.group_id) ref.current?.scrollIntoView?.({ block: "nearest" });
   }, [focusedGroup, g.group_id]);
   return (
-    <li ref={ref} className={[styles.groupRow, expanded && styles.groupExpanded].filter(Boolean).join(" ")} data-testid={`op-group-${g.group_id}`} data-status={g.status}>
+    <li
+      ref={ref}
+      className={[styles.groupRow, expanded && styles.groupExpanded].filter(Boolean).join(" ")}
+      data-testid={`op-group-${g.group_id}`}
+      data-status={g.status}
+      data-tab={deskTabOf(g)}
+    >
       <button type="button" className={styles.groupHead} onClick={onToggle} aria-expanded={expanded}>
         {expanded ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
         <span className={styles.groupMain}>

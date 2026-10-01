@@ -226,6 +226,29 @@ Pages, all fetched 2026-10-01:
 - phrase hints effect and boost
 - 4-minute restart without lost audio
 
+### 4.10 Live results (P4, 2026-10-01) [live]
+**Setup:** synthesized en-US speech (Windows SAPI, 16 kHz mono LINEAR16) streamed at real-time pace to `us-speech.googleapis.com`, recognizer `projects/separk-cloocus/locations/us/recognizers/_`, `chirp_3`, `en-US`, automatic punctuation.
+
+- **Interim results:** with `interim_results=True`, chirp_3 returned **no interim results**, only finals. The operator's interim transcript line therefore stays empty with chirp_3.
+- **`result_end_offset`:** filled on every final. `providers/stt.py` maps it to the arrival time of the audio at that offset to get `speech_end_at`.
+- **Endpointing:**
+
+  | Setting | Final after the sentence | End offset |
+  |---|---|---|
+  | `ENDPOINTING_SENSITIVITY_STANDARD` | 6.2 s | 5.08 s |
+  | `ENDPOINTING_SENSITIVITY_SHORT` | 5.7 s | 4.64 s |
+
+  Both on the same 10 s clip. **SHORT is used.** Side effect: longer sentences arrive as two or three finals.
+- **Speech end → final:** 0.78–1.40 s (10 sentences); p50 0.88 s, p95 1.04–1.69 s in two full-script runs.
+- **Adaptation:** inline phrase sets are accepted together with chirp_3, with no error.
+  - "DAON LAB" was recognised as "DAON web" once without hints (STANDARD), and correctly with hints.
+  - `boost` was not tested and is not sent.
+- **Restart, tested live with the limits scaled down** (hard 20 s, soft 12 s; three sentences over about 45 s; 2 restarts):
+  - **First version:** restarted at the hard limit only and re-sent all audio since the last final. Every sentence was recognised once, but finals right after a restart came 3.7–4.2 s after speech end, against 1.0 s before.
+  - **Current version (D-071):** restarts at the first final after the soft limit, and re-sends at most the last 5 s of unfinalized audio. Finals after a restart now come 0.9–1.9 s after speech end.
+  - **Speech end accuracy:** `speech_end_at` is within 0.1–0.4 s of the real end of the audio.
+  - **Remaining risk:** a restart at the hard limit can split a sentence ("This one has" / "10% niacinamide"). With the real limits (soft 180 s, hard 240 s) the soft restart has a 60 s window to find a pause.
+
 ## 5. Vertex AI Search (Agent Search) (for P6)
 
 ### 5.1 Data store and metadata

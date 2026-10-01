@@ -1,6 +1,7 @@
 // Live chat (§12.3.8): visible comments and replies in time order, newest at the bottom; replies sit
 // under the question they answer. Hidden comments never reach the host store.
 import { CornerDownRight, Mic, Pin, Sparkles, Store } from "lucide-react";
+import { useMemo } from "react";
 
 import type { ChatItem } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
@@ -34,7 +35,20 @@ function ReplyBadge({ kind }: { kind: Message["kind"] }) {
   );
 }
 
-function Row({ item, offset }: { item: ChatItem; offset: number }) {
+/** Comments answered by a coalesced reply that sits under an earlier asker: the reply renders once,
+ * under the first asker; every later asker gets a compact "Also answered: @Name" line. */
+export function alsoAnsweredIds(items: ChatItem[]): Set<string> {
+  const out = new Set<string>();
+  for (const it of items) {
+    if (it.kind !== "comment") continue;
+    for (const m of it.replies) {
+      for (const cid of m.reply_to_comment_ids) if (cid !== it.comment.comment_id) out.add(cid);
+    }
+  }
+  return out;
+}
+
+function Row({ item, offset, alsoAnswered }: { item: ChatItem; offset: number; alsoAnswered: boolean }) {
   if (item.kind === "message") {
     const m = item.message;
     return (
@@ -73,6 +87,12 @@ function Row({ item, offset }: { item: ChatItem; offset: number }) {
           <span>{m.text}</span>
         </div>
       ))}
+      {alsoAnswered && item.replies.length === 0 && (
+        <div className={cx(styles.reply, styles.alsoAnswered)} data-testid={`host-also-answered-${c.comment_id}`}>
+          <CornerDownRight className={styles.replyArrow} aria-hidden size="1em" />
+          <span>Also answered: @{c.author_name}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -89,6 +109,7 @@ export function Chat({
   serverOffsetMs: number;
 }) {
   const ok = connection === "connected";
+  const also = useMemo(() => alsoAnsweredIds(items), [items]);
   return (
     <section className={styles.card} data-testid="host-chat" aria-label="Live chat">
       <header className={styles.cardHeader}>
@@ -110,7 +131,9 @@ export function Chat({
         stickToBottom
         rowHeight={52}
         getKey={(it) => (it.kind === "comment" ? it.comment.comment_id : it.message.message_id)}
-        renderItem={(it) => <Row item={it} offset={serverOffsetMs} />}
+        renderItem={(it) => (
+          <Row item={it} offset={serverOffsetMs} alsoAnswered={it.kind === "comment" && also.has(it.comment.comment_id)} />
+        )}
       />
     </section>
   );

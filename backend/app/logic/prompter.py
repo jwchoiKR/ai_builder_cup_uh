@@ -14,13 +14,14 @@ def points_of(catalog: Catalog, product_id: str, overrides: dict[str, list[Promp
 
 def apply_coverage(
     covered_ids: Sequence[str], segment: Segment, session: Session, catalog: Catalog,
+    overrides: dict[str, list[PrompterPoint]] | None = None,
 ) -> tuple[list[str], dict[str, list[str]]]:
     """Add covered points: on-air product -> segment; next product -> session.pre_covered.
     Returns (newly covered on air, newly pre-covered by product)."""
     on_air = segment.product_id
     nxt = catalog.next_product(on_air)
-    on_air_ids = {p.point_id for p in points_of(catalog, on_air)}
-    next_ids = {p.point_id for p in points_of(catalog, nxt)} if nxt else set()
+    on_air_ids = {p.point_id for p in points_of(catalog, on_air, overrides)}
+    next_ids = {p.point_id for p in points_of(catalog, nxt, overrides)} if nxt else set()
     added_on_air: list[str] = []
     added_next: dict[str, list[str]] = {}
     for pid in covered_ids:
@@ -43,7 +44,8 @@ def missing_required(catalog: Catalog, segment: Segment) -> list[str]:
     return [p for p in required_ids(catalog, segment.product_id) if p not in segment.covered_point_ids]
 
 
-def prompter_view(catalog: Catalog, segment: Segment | None) -> dict:
+def prompter_view(catalog: Catalog, segment: Segment | None,
+                  overrides: dict[str, list[PrompterPoint]] | None = None) -> dict:
     """Payload of `prompter.updated` and the /state `prompter` block."""
     if segment is None:
         return {"product_id": None, "segment_id": None, "next_product_id": catalog.next_product(None), "points": [],
@@ -55,7 +57,7 @@ def prompter_view(catalog: Catalog, segment: Segment | None) -> dict:
         "segment_id": segment.segment_id,
         "next_product_id": catalog.next_product(segment.product_id),
         "points": [{"point_id": p.point_id, "text": p.text, "required": p.point_id in required,
-                    "covered": p.point_id in covered} for p in points_of(catalog, segment.product_id)],
+                    "covered": p.point_id in covered} for p in points_of(catalog, segment.product_id, overrides)],
         "covered_point_ids": covered,
         "required_total": len(required),
         "required_covered": sum(1 for p in required if p in covered),

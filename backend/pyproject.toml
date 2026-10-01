@@ -11,6 +11,8 @@ dependencies = [
     "google-genai>=2.26",
     "httpx>=0.28",
     "rank-bm25>=0.2.2",
+    "pypdf>=5.0",
+    "google-cloud-speech>=2.37",
 ]
 
 [dependency-groups]

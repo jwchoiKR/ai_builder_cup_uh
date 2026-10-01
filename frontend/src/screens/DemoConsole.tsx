@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { api } from "../app/api";
 import { navigate, withSession } from "../app/nav";
+import { useMic } from "../app/mic";
 import { onAirSegment } from "../app/selectors";
-import { useDemoScript, useSession } from "../app/store";
+import { useDemoScript, useHealth, useSession } from "../app/store";
 import type { FeedState } from "../app/types";
 import { Button, Chip, Eyebrow } from "../components";
 import styles from "./console.module.css";
@@ -39,6 +40,8 @@ export function DemoConsole({
   const [error, setError] = useState<string | null>(null);
   const [injected, setInjected] = useState<Set<number>>(new Set());
   const [freeText, setFreeText] = useState("");
+  const mic = useMic();
+  const health = useHealth();
 
   useEffect(() => setFeed(state.feed), [state.feed]);
   useEffect(() => setInjected(new Set()), [sessionId]);
@@ -175,12 +178,21 @@ export function DemoConsole({
           <div className={styles.section}>
             <Eyebrow>Mic</Eyebrow>
             <div className={styles.buttons}>
-              <Button size="sm" disabled title="Microphone capture arrives in phase P4">
+              <Button
+                size="sm"
+                disabled={!sessionId || !health?.providers || health.providers.stt === "mock" || mic.state === "listening"}
+                title={health?.providers?.stt === "mock" ? "Speech-to-text is off (STT_PROVIDER=mock)" : undefined}
+                onClick={() => sessionId && mic.start(sessionId)}
+              >
                 Start
               </Button>
-              <Button size="sm" disabled title="Microphone capture arrives in phase P4">
+              <Button size="sm" disabled={mic.state === "off"} onClick={() => mic.stop()}>
                 Stop
               </Button>
+              <span className={styles.micState} data-testid="console-mic">
+                {mic.state === "listening" ? "Listening" : mic.state === "connecting" ? "Connecting…" : mic.state === "error" ? (mic.message ?? "Error") : "Off"}
+                {mic.lastFinal ? ` · "${mic.lastFinal}"` : ""}
+              </span>
             </div>
             <Eyebrow>Tools</Eyebrow>
             <div className={styles.buttons}>

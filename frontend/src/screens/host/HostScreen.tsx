@@ -5,6 +5,7 @@ import { Menu, Timer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { api } from "../../app/api";
+import { useMic, type MicSnapshot, type MicState } from "../../app/mic";
 import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
@@ -47,16 +48,23 @@ function isTyping(target: EventTarget | null): boolean {
   return Boolean(t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable));
 }
 
+const MIC_LABEL: Record<MicState, string> = {
+  off: "Microphone off",
+  connecting: "Microphone connecting",
+  listening: "Microphone listening",
+  error: "Microphone error",
+};
+
 function TopBar({
   state,
   catalog,
   now,
-  micOn,
+  mic,
 }: {
   state: ClientState;
   catalog: Catalog | null;
   now: number;
-  micOn: boolean;
+  mic: Pick<MicSnapshot, "state" | "level" | "message">;
 }) {
   const s = state.session;
   const { now: onAir, next } = hostProducts(state, catalog);
@@ -105,9 +113,27 @@ function TopBar({
           <Countdown until={p.endsAt} serverOffsetMs={state.serverOffsetMs} />
         </span>
       ))}
-      <span className={styles.mic} aria-label={micOn ? "Microphone on" : "Microphone off"}>
+      <span
+        className={styles.mic}
+        aria-label={MIC_LABEL[mic.state]}
+        title={mic.message ?? MIC_LABEL[mic.state]}
+        data-testid="host-mic"
+        data-state={mic.state}
+      >
         mic
-        <span className={cx(styles.micDot, micOn && styles.micOn)} />
+        {mic.state === "listening" && (
+          <span className={styles.micLevel} aria-hidden>
+            <span style={{ transform: `scaleX(${Math.max(0.04, mic.level)})` }} />
+          </span>
+        )}
+        <span
+          className={cx(
+            styles.micDot,
+            mic.state === "listening" && styles.micOn,
+            mic.state === "error" && styles.micError,
+            mic.state === "connecting" && styles.micConnecting,
+          )}
+        />
       </span>
     </header>
   );
@@ -134,7 +160,8 @@ export function HostView({
   const scale = useHostScale(rootRef);
   const clientNow = useNow(250);
   const now = clientNow + state.serverOffsetMs;
-  const [micOn, setMicOn] = useState(false);
+  const mic = useMic();
+  const sessionId = state.session?.session_id ?? null;
 
   const sw = state.session?.switch;
   const pendingSwitch = sw?.status === "pending" && sw.commit_at ? sw : null;
@@ -143,12 +170,12 @@ export function HostView({
     const on = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Escape" && pendingSwitch) actions.cancelSwitch();
-      else if (e.key === "m" || e.key === "M") setMicOn((m) => !m);
+      else if ((e.key === "m" || e.key === "M") && sessionId) mic.toggle(sessionId);
       else if ((e.key === "t" || e.key === "T") && !embedded) onToggleTheme?.();
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, [actions, embedded, onToggleTheme, pendingSwitch]);
+  }, [actions, embedded, onToggleTheme, pendingSwitch, sessionId, mic]);
 
   const { now: product } = hostProducts(state, catalog);
   const prompter = hostPrompterView(state, catalog, product);
@@ -170,7 +197,7 @@ export function HostView({
       data-screen="host"
       style={{ "--hs": scale } as CSSProperties}
     >
-      <TopBar state={state} catalog={catalog} now={now} micOn={micOn} />
+      <TopBar state={state} catalog={catalog} now={now} mic={mic} />
       <div className={styles.content}>
         {cue && <CueStrip cue={cue} />}
         <div className={cx(styles.banners, bannersOpen && styles.bannersOpen)}>

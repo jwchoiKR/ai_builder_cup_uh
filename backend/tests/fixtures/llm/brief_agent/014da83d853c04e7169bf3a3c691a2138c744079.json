@@ -1,0 +1,206 @@
+{
+ "product_id": "cream_hydra_barrier",
+ "glossary": [
+  {
+   "term": "DAON LAB",
+   "kind": "brand",
+   "spoken_forms": [
+    "day-on lab",
+    "daon lab"
+   ],
+   "source_section": "Product overview"
+  },
+  {
+   "term": "Hydra Barrier Cream",
+   "kind": "product",
+   "spoken_forms": [
+    "hydra barrier cream",
+    "barrier cream"
+   ],
+   "source_section": "Product overview"
+  },
+  {
+   "term": "Deep Hydration Ampoule",
+   "kind": "product",
+   "spoken_forms": [
+    "deep hydration ampoule"
+   ],
+   "source_section": "Key facts"
+  },
+  {
+   "term": "Panthenol",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "pan-the-nol",
+    "panthenol"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "Squalane",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "skwa-layn",
+    "squalane"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "Ceramide NP",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "ceramide n p",
+    "ceramide en pee"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "Sodium Hyaluronate",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "sodium hy-a-lu-ron-ate"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "Allantoin",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "al-an-to-in",
+    "allantoin"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "corneometer",
+   "kind": "technical",
+   "spoken_forms": [
+    "cor-nee-om-e-ter",
+    "corneometer"
+   ],
+   "source_section": "In-house test results"
+  },
+  {
+   "term": "patch test",
+   "kind": "technical",
+   "spoken_forms": [
+    "patch test"
+   ],
+   "source_section": "In-house test results"
+  },
+  {
+   "term": "airless pump tube",
+   "kind": "technical",
+   "spoken_forms": [
+    "airless pump tube"
+   ],
+   "source_section": "Key facts"
+  },
+  {
+   "term": "5% Panthenol",
+   "kind": "value",
+   "spoken_forms": [
+    "five percent panthenol"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "3% Squalane",
+   "kind": "value",
+   "spoken_forms": [
+    "three percent squalane"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "1% Ceramide NP",
+   "kind": "value",
+   "spoken_forms": [
+    "one percent ceramide n p"
+   ],
+   "source_section": "Key ingredients"
+  },
+  {
+   "term": "50 mL",
+   "kind": "value",
+   "spoken_forms": [
+    "fifty mils",
+    "fifty millilitres"
+   ],
+   "source_section": "Key facts"
+  },
+  {
+   "term": "S$36.00",
+   "kind": "value",
+   "spoken_forms": [
+    "thirty-six dollars",
+    "thirty-six singapore dollars"
+   ],
+   "source_section": "Key facts"
+  },
+  {
+   "term": "S$48.00",
+   "kind": "value",
+   "spoken_forms": [
+    "forty-eight dollars",
+    "forty-eight singapore dollars"
+   ],
+   "source_section": "Key facts"
+  },
+  {
+   "term": "S$62.00",
+   "kind": "value",
+   "spoken_forms": [
+    "sixty-two dollars",
+    "sixty-two singapore dollars"
+   ],
+   "source_section": "Key facts"
+  },
+  {
+   "term": "+38%",
+   "kind": "value",
+   "spoken_forms": [
+    "plus thirty-eight percent",
+    "thirty-eight percent increase"
+   ],
+   "source_section": "In-house test results"
+  },
+  {
+   "term": "+21%",
+   "kind": "value",
+   "spoken_forms": [
+    "plus twenty-one percent",
+    "twenty-one percent increase"
+   ],
+   "source_section": "In-house test results"
+  }
+ ],
+ "prompter_points": [
+  {
+   "text": "5% panthenol, 3% squalane, and 1% ceramide NP.",
+   "required": true,
+   "source_section": "Key ingredients"
+  },
+  {
+   "text": "Helps keep skin hydrated for up to 24 hours (in our in-house test).",
+   "required": true,
+   "source_section": "Approved on-air claims"
+  },
+  {
+   "text": "If pregnant or breastfeeding, consult a doctor before use.",
+   "required": true,
+   "source_section": "Cautions"
+  },
+  {
+   "text": "Live broadcast price S$36 (25% off list price S$48).",
+   "required": false,
+   "source_section": "Key facts"
+  },
+  {
+   "text": "Lightweight gel-cream texture that absorbs quickly.",
+   "required": false,
+   "source_section": "Approved on-air claims"
+  }
+ ],
+ "reason": "Extracted strictly from the provided product document, adhering to character limits, approved claims, and required field rules."
+}

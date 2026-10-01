@@ -21,7 +21,7 @@ from ..logic.catalog import Catalog
 from ..logic.grouping import is_open
 from ..logic.ranking import score
 from ..logic.segments import open_segment
-from ..models.data import Intent, Passage, Promo
+from ..models.data import Intent, Passage, Promo, PrompterPoint
 from ..logic.prompter import prompter_view
 from ..models.session import (
     ActivePromo,
@@ -74,6 +74,8 @@ class SessionRuntime:
         self.answer_cache = AnswerCache()
         self.composing: dict[str, asyncio.Future] = {}
         self.prefetched: dict[str, list[Passage]] = {}
+        self._doc_version = ctx.retriever.doc_version()
+        self.points = {pid: [PrompterPoint.model_validate(p) for p in pts] for pid, pts in session.prompter_points.items()}
         self.counters: defaultdict[str, int] = defaultdict(int)
         self._rate_session: deque[int] = deque()
         self._rate_author: defaultdict[str, deque[int]] = defaultdict(deque)
@@ -205,6 +207,13 @@ class SessionRuntime:
 
     # ---- lifecycle (§8.1) ----------------------------------------------------------------------
 
+    def sync_doc_version(self) -> None:
+        """A /setup upload rebuilt the index: drop prefetched passages so they are fetched again (§8.12.3)."""
+        v = self.ctx.retriever.doc_version()
+        if v != self._doc_version:
+            self._doc_version = v
+            self.prefetched.clear()
+
     async def prefetch(self, product_id: str | None) -> None:
         if product_id is not None:
             self.prefetched[product_id] = await self.ctx.retriever.prefetch(product_id)
@@ -234,7 +243,7 @@ class SessionRuntime:
 
     async def after_segment_started_locked(self, seg: Segment) -> None:
         """Work that follows every segment start: prompter, host slots, feed bursts armed for it."""
-        await self.emit("prompter.updated", prompter_view(self.catalog, seg))
+        await self.emit("prompter.updated", prompter_view(self.catalog, seg, self.points))
         await self.recompute_host_queue_locked()
         self.feed.on_segment_started(seg)
 
@@ -257,6 +266,13 @@ class SessionRuntime:
             await self.save_session(s)
             self.ctx.scheduler.cancel_prefix(f"{self.sid}:")
             await self.emit("session.ended", s)
+        # §8.1.4: summary stats, then the recap in the background; `summary.ready` follows.
+        try:
+            from .summary import run_summary
+        except ModuleNotFoundError:
+            run_summary = None
+        if run_summary is not None:
+            self.spawn(run_summary(self), name=f"summary:{self.sid}")
         return s
 
     async def _tick(self) -> None:
@@ -502,7 +518,7 @@ class SessionRuntime:
             "comments": [c.model_dump(mode="json") for c in shown],
             "messages": [m.model_dump(mode="json") for m in await store.query(self.path("messages"), Message, order_by="created_at")],
             "alerts": [a.model_dump(mode="json") for a in await self.alerts()],
-            "prompter": prompter_view(self.catalog, await self.current_segment()),
+            "prompter": prompter_view(self.catalog, await self.current_segment(), self.points),
             "metrics": await self.compute_metrics(),
             "feed": self.feed.state(),
         }
@@ -525,10 +541,18 @@ async def create_session(ctx: "AppContext", runsheet_id: str) -> Session:
         runsheet = ctx.pack.runsheet(runsheet_id)
     except DataPackError as e:
         raise ActionError(404, "unknown_runsheet", str(e)) from None
+    glossary_version, points = 0, {}
+    try:  # confirmed Setup state (§8.15, §12.7), frozen for this session
+        from .setup import current_glossary, prompter_overrides
+
+        glossary_version = (await current_glossary(ctx))["version"]
+        points = {pid: [p.model_dump() for p in pts] for pid, pts in (await prompter_overrides(ctx)).items()}
+    except ImportError:
+        pass
     session = Session(
         session_id=ctx.ids.new("ses_"), runsheet_id=runsheet.runsheet_id, title=runsheet.title, status="ready",
         settings_snapshot=ctx.settings.snapshot(), doc_version=ctx.retriever.doc_version(),
-        created_at=ctx.clock.now_ms(),
+        glossary_version=glossary_version, prompter_points=points, created_at=ctx.clock.now_ms(),
     )
     await ctx.store.put(SESSIONS, session.session_id, session)
     return session

@@ -1,0 +1,208 @@
+{
+ "product_id": "ampoule_deep_hydration",
+ "glossary": [
+  {
+   "term": "DAON LAB",
+   "kind": "brand",
+   "spoken_forms": [
+    "day-on lab",
+    "daon lab"
+   ],
+   "source_section": "1. Product overview"
+  },
+  {
+   "term": "Deep Hydration Ampoule",
+   "kind": "product",
+   "spoken_forms": [
+    "deep hydration ampoule",
+    "the ampoule"
+   ],
+   "source_section": "1. Product overview"
+  },
+  {
+   "term": "Hydra Barrier Cream",
+   "kind": "product",
+   "spoken_forms": [
+    "hydra barrier cream",
+    "barrier cream"
+   ],
+   "source_section": "2. Key facts"
+  },
+  {
+   "term": "niacinamide",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "nia-sin-a-mide",
+    "niacinamide"
+   ],
+   "source_section": "1. Product overview"
+  },
+  {
+   "term": "hyaluronic acid",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "hyaluronic acid",
+    "hi-ah-lu-ron-ic acid"
+   ],
+   "source_section": "1. Product overview"
+  },
+  {
+   "term": "Centella Asiatica Leaf Water",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "centella asiatica leaf water",
+    "centella water"
+   ],
+   "source_section": "3. Key ingredients"
+  },
+  {
+   "term": "Sodium Hyaluronate",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "sodium hyaluronate"
+   ],
+   "source_section": "3. Key ingredients"
+  },
+  {
+   "term": "Beta-Glucan",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "beta glucan"
+   ],
+   "source_section": "3. Key ingredients"
+  },
+  {
+   "term": "Panthenol",
+   "kind": "ingredient",
+   "spoken_forms": [
+    "panthenol",
+    "pan-the-nol"
+   ],
+   "source_section": "3. Key ingredients"
+  },
+  {
+   "term": "corneometer",
+   "kind": "technical",
+   "spoken_forms": [
+    "corneometer",
+    "cor-neo-meter"
+   ],
+   "source_section": "5. In-house test results"
+  },
+  {
+   "term": "patch test",
+   "kind": "technical",
+   "spoken_forms": [
+    "patch test"
+   ],
+   "source_section": "5. In-house test results"
+  },
+  {
+   "term": "4% niacinamide",
+   "kind": "value",
+   "spoken_forms": [
+    "four percent niacinamide"
+   ],
+   "source_section": "1. Product overview"
+  },
+  {
+   "term": "30 mL",
+   "kind": "value",
+   "spoken_forms": [
+    "thirty milliliters",
+    "thirty mils"
+   ],
+   "source_section": "2. Key facts"
+  },
+  {
+   "term": "50 mL",
+   "kind": "value",
+   "spoken_forms": [
+    "fifty milliliters",
+    "fifty mils"
+   ],
+   "source_section": "2. Key facts"
+  },
+  {
+   "term": "S$42.00",
+   "kind": "value",
+   "spoken_forms": [
+    "forty-two Singapore dollars",
+    "forty-two dollars"
+   ],
+   "source_section": "2. Key facts"
+  },
+  {
+   "term": "S$32.00",
+   "kind": "value",
+   "spoken_forms": [
+    "thirty-two Singapore dollars",
+    "thirty-two dollars"
+   ],
+   "source_section": "2. Key facts"
+  },
+  {
+   "term": "S$62.00",
+   "kind": "value",
+   "spoken_forms": [
+    "sixty-two Singapore dollars",
+    "sixty-two dollars"
+   ],
+   "source_section": "2. Key facts"
+  },
+  {
+   "term": "50% Centella Asiatica Leaf Water",
+   "kind": "value",
+   "spoken_forms": [
+    "fifty percent centella asiatica leaf water"
+   ],
+   "source_section": "3. Key ingredients"
+  },
+  {
+   "term": "+45%",
+   "kind": "value",
+   "spoken_forms": [
+    "plus forty-five percent",
+    "forty-five percent increase"
+   ],
+   "source_section": "5. In-house test results"
+  },
+  {
+   "term": "pH 5.5 to 6.0",
+   "kind": "value",
+   "spoken_forms": [
+    "p h five point five to six point zero",
+    "p h five point five to six"
+   ],
+   "source_section": "2. Key facts"
+  }
+ ],
+ "prompter_points": [
+  {
+   "text": "Formulated with 4% niacinamide and 50% centella asiatica leaf water.",
+   "required": true,
+   "source_section": "3. Key ingredients"
+  },
+  {
+   "text": "+45% skin hydration immediately after one use in our in-house test.",
+   "required": true,
+   "source_section": "5. In-house test results"
+  },
+  {
+   "text": "Sensitive skin: mild tingling may occur. Consult doctor if pregnant.",
+   "required": true,
+   "source_section": "6. Cautions"
+  },
+  {
+   "text": "Live broadcast price: S$32.00 (about 24% off list price S$42.00).",
+   "required": false,
+   "source_section": "2. Key facts"
+  },
+  {
+   "text": "Helps skin look more radiant and even-toned with continued use.",
+   "required": false,
+   "source_section": "7. Approved on-air claims"
+  }
+ ],
+ "reason": "Extracted 20 unique technical, value, product, and ingredient terms from the provided sheet, accompanied by 5 compliant prompter cues meeting length and required flag restrictions."
+}

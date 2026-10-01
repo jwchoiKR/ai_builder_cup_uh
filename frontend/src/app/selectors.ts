@@ -316,70 +316,79 @@ export function hostSlots(state: ClientState): HostSlotView[] {
     }));
 }
 
-export type DeskTab = "all" | "needs_review" | "on_host" | "ready" | "answered" | "closed";
+export type DeskTab = "all" | "needs_review" | "on_host" | "ready" | "composing" | "answered" | "closed";
+export type DeskStatusTab = Exclude<DeskTab, "all">;
+
+export interface DeskStatus {
+  label: string; // the row chip
+  tab: DeskStatusTab; // the one tab the group is counted and listed under
+}
+
+const DONE_STATUSES = ["answered", "rejected", "closed"];
+
+/** The single source of a group's desk status: its row chip and its tab always agree, every group
+ * is in exactly one tab, and the tab counts add up to All. */
+export function deskStatus(g: QuestionGroup): DeskStatus {
+  const done = DONE_STATUSES.includes(g.status);
+  if (g.host_verbal_answer_transcript_id && !done) return { label: "Host answered on air · not posted", tab: "needs_review" };
+  if (g.status === "needs_review" && g.route_reason === "unresolved_product") return { label: "Assign a product", tab: "needs_review" };
+  if (g.host_slot === "on_host" && !done) return { label: "On host", tab: "on_host" };
+  switch (g.status) {
+    case "needs_review":
+      return { label: "Needs review", tab: "needs_review" };
+    case "ready":
+      return { label: "Ready", tab: "ready" };
+    case "new":
+    case "composing":
+      return { label: "Composing…", tab: "composing" };
+    case "auto_answered":
+      return { label: "AI answered", tab: "answered" };
+    case "answered":
+      return { label: "Answered", tab: "answered" };
+    case "rejected":
+      return { label: "Rejected", tab: "closed" };
+    default:
+      return { label: "Closed", tab: "closed" };
+  }
+}
+
+export function deskTabOf(g: QuestionGroup): DeskStatusTab {
+  return deskStatus(g).tab;
+}
+
+/** Counts per tab; `all` equals the sum of the other tabs. */
+export function deskTabCounts(groups: QuestionGroup[]): Record<DeskTab, number> {
+  const counts: Record<DeskTab, number> = { all: groups.length, needs_review: 0, on_host: 0, ready: 0, composing: 0, answered: 0, closed: 0 };
+  for (const g of groups) counts[deskTabOf(g)] += 1;
+  return counts;
+}
 
 /** Status bucket (§12.4.7): Needs review, On host, Ready, Composing, AI answered, Answered, Rejected/Closed. */
 export function deskBucket(g: QuestionGroup): number {
-  if (g.status === "needs_review") return 0;
-  if (g.host_slot === "on_host" && !["answered", "rejected", "closed"].includes(g.status)) return 1;
-  switch (g.status) {
+  const s = deskStatus(g);
+  switch (s.tab) {
+    case "needs_review":
+      return 0;
+    case "on_host":
+      return 1;
     case "ready":
       return 2;
-    case "new":
     case "composing":
       return 3;
-    case "auto_answered":
-      return 4;
     case "answered":
-      return 5;
+      return s.label === "AI answered" ? 4 : 5;
     default:
       return 6;
   }
 }
 
 export function groupStatusLabel(g: QuestionGroup): string {
-  if (g.host_verbal_answer_transcript_id && !["answered", "rejected", "closed"].includes(g.status)) {
-    return "Host answered on air · not posted";
-  }
-  if (g.status === "needs_review" && g.route_reason === "unresolved_product") return "Assign a product";
-  if (g.host_slot === "on_host" && !["answered", "rejected", "closed"].includes(g.status)) return "On host";
-  switch (g.status) {
-    case "needs_review":
-      return "Needs review";
-    case "ready":
-      return "Ready";
-    case "new":
-    case "composing":
-      return "Composing…";
-    case "auto_answered":
-      return "AI answered";
-    case "answered":
-      return "Answered";
-    case "rejected":
-      return "Rejected";
-    default:
-      return "Closed";
-  }
+  return deskStatus(g).label;
 }
 
 export function questionDesk(state: ClientState, tab: DeskTab = "all"): QuestionGroup[] {
   const all = Object.values(state.groups);
-  const filtered = all.filter((g) => {
-    switch (tab) {
-      case "needs_review":
-        return g.status === "needs_review";
-      case "on_host":
-        return g.host_slot === "on_host";
-      case "ready":
-        return g.status === "ready";
-      case "answered":
-        return g.status === "answered" || g.status === "auto_answered";
-      case "closed":
-        return g.status === "closed" || g.status === "rejected";
-      default:
-        return true;
-    }
-  });
+  const filtered = tab === "all" ? all : all.filter((g) => deskTabOf(g) === tab);
   return filtered.sort((a, b) => deskBucket(a) - deskBucket(b) || b.score - a.score || a.first_at - b.first_at);
 }
 

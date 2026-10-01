@@ -328,3 +328,15 @@ describe("chat and switch", () => {
     expect(screen.getByTestId("host-cue")).toHaveTextContent("Mention the patch test results.");
   });
 });
+
+describe("host chat: coalesced replies", () => {
+  it("later askers get 'Also answered' (consistent with the viewer)", async () => {
+    const { alsoAnsweredIds } = await import("./Chat");
+    const m = message({ message_id: "msg_c", reply_to_comment_ids: ["cm_a", "cm_b"], reply_to_author_names: ["Lee", "Daniel"] });
+    const items = [
+      { kind: "comment" as const, at: 1, comment: comment({ comment_id: "cm_a", author_name: "Lee" }), replies: [m] },
+      { kind: "comment" as const, at: 2, comment: comment({ comment_id: "cm_b", author_name: "Daniel" }), replies: [] },
+    ];
+    expect([...alsoAnsweredIds(items)]).toEqual(["cm_b"]);
+  });
+});

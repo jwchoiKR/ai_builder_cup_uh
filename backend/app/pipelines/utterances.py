@@ -106,7 +106,7 @@ class UtterancePipeline:
         questions = await self._open_questions_locked(s, on_air)
         promo = rt.promo(s.active_promo_id)
         inp = JudgeInput(utterance=t.text, on_air=on_air, active_alerts=alerts, open_questions=questions,
-                         cue=s.cue, previous=previous, session_id=rt.sid, scenario=scenario,
+                         cue=s.cue, previous=previous, points_by_product=rt.points or None, session_id=rt.sid, scenario=scenario,
                          switch=s.switch, promo=promo)
         return inp, {g.group_id for g, _ in questions}
 
@@ -129,6 +129,7 @@ class UtterancePipeline:
 
     async def _fact_passages(self, text: str, on_air: str, switch: SwitchState):
         rt = self.rt
+        rt.sync_doc_version()
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
 
@@ -175,10 +176,10 @@ class UtterancePipeline:
         s = await rt.load_session()
         seg = await rt.current_segment()
         if seg is not None and judge.prompter.covered_point_ids:
-            added, pre = apply_coverage(judge.prompter.covered_point_ids, seg, s, rt.catalog)
+            added, pre = apply_coverage(judge.prompter.covered_point_ids, seg, s, rt.catalog, rt.points)
             if added:
                 await rt.save_segment(seg)
-                await rt.emit("prompter.updated", prompter_view(rt.catalog, seg))
+                await rt.emit("prompter.updated", prompter_view(rt.catalog, seg, rt.points))
             if pre:
                 await rt.save_session(s)
         if s.cue is not None and s.cue.status == "active" and s.cue.cue_id in judge.prompter.covered_cue_ids:
@@ -232,8 +233,8 @@ class UtterancePipeline:
         nxt = rt.catalog.next_product(on_air)
         kind = classify_switch(
             judge, s.switch, on_air=on_air, next_product=nxt,
-            on_air_points={p.point_id for p in points_of(rt.catalog, on_air)},
-            next_points={p.point_id for p in points_of(rt.catalog, nxt)} if nxt else set(),
+            on_air_points={p.point_id for p in points_of(rt.catalog, on_air, rt.points)},
+            next_points={p.point_id for p in points_of(rt.catalog, nxt, rt.points)} if nxt else set(),
             high_alert_became_active=high_became_active,
         )
         st = rt.settings
@@ -417,7 +418,7 @@ async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -
     if old is not None:
         missing = missing_required(rt.catalog, old)
         if missing:
-            texts = {p.point_id: p.text for p in points_of(rt.catalog, old.product_id)}
+            texts = {p.point_id: p.text for p in points_of(rt.catalog, old.product_id, rt.points)}
             await rt.emit("segment.missing_points", {"segment_id": old.segment_id, "product_id": old.product_id,
                                                      "missing_point_ids": missing,
                                                      "missing_texts": [texts[p] for p in missing]})
@@ -475,7 +476,7 @@ async def undo_switch(rt: "SessionRuntime") -> Segment:
         await rt.save_session(s)
         await rt.emit("segment.undone", {"segment_id": opened.segment_id})
         await rt.emit("segment.started", closed)
-        await rt.emit("prompter.updated", prompter_view(rt.catalog, closed))
+        await rt.emit("prompter.updated", prompter_view(rt.catalog, closed, rt.points))
         # Groups whose product came from context during the undone segment move back (§8.7.2).
         moved = set()
         for a in await rt.ctx.store.query(rt.path("analyses"), CommentAnalysis):
@@ -520,7 +521,7 @@ async def send_cue(rt: "SessionRuntime", text: str | None, preset_id: str | None
             seg = await rt.current_segment()
             missing = []
             if seg is not None:
-                texts = {p.point_id: p.text for p in points_of(rt.catalog, seg.product_id)}
+                texts = {p.point_id: p.text for p in points_of(rt.catalog, seg.product_id, rt.points)}
                 missing = [texts[p] for p in missing_required(rt.catalog, seg)]
             text = preset.text.replace("{missing_points}", "; ".join(missing) or "all required points are covered")
         if not text or not text.strip():

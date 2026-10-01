@@ -96,3 +96,13 @@
   color: var(--text-2);
   font-size: var(--fs-12);
 }
+
+.micState {
+  align-self: center;
+  font-size: var(--fs-12, 12px);
+  color: var(--text-2);
+  max-width: 28ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

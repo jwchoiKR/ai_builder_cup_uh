@@ -109,6 +109,19 @@ describe("alert cards", () => {
     });
     expect(metricChips({}).alert).toBe("Alert in –");
   });
+  it("metric chips show – when nothing is measured, never 0.0s (item 7)", () => {
+    expect(metricChips({})).toEqual({ alert: "Alert in –", judge: "Judge p50 –", instant: "Instant answers –" });
+    expect(metricChips({ header: { alert_in_s: null, judge_p50_s: Number.NaN, instant_answers: 0, answers_total: 0 } })).toEqual({
+      alert: "Alert in –",
+      judge: "Judge p50 –",
+      instant: "Instant answers –",
+    });
+    expect(metricChips({ header: { alert_in_s: 0.04, judge_p50_s: 1.37, instant_answers: 0, answers_total: 3 } })).toEqual({
+      alert: "Alert in 0.0s",
+      judge: "Judge p50 1.4s",
+      instant: "Instant answers 0/3",
+    });
+  });
   it("transcript chips: rule, answered question, covered points, switch cue", () => {
     const st = {
       ...reduceSnapshot(
@@ -239,6 +252,65 @@ describe("Operator screen", () => {
     expect(within(desk).queryByTestId("op-group-g_review")).not.toBeInTheDocument();
     fireEvent.click(within(desk).getByRole("tab", { name: /Closed/ }));
     expect(within(desk).getByTestId("op-group-g_closed")).toBeInTheDocument();
+  });
+
+  it("header count equals the All tab; every group is in exactly one tab, matching its chip; tabs sum to All (items 2, 3)", async () => {
+    const groups = [
+      group({ group_id: "g_review", status: "needs_review", intent: "pregnancy_breastfeeding", canonical_question: "Q review" }),
+      group({ group_id: "g_assign", status: "needs_review", route_reason: "unresolved_product", product_id: null, canonical_question: "Q assign" }),
+      group({ group_id: "g_verbal", status: "ready", host_verbal_answer_transcript_id: "tr_9", canonical_question: "Q verbal" }),
+      group({ group_id: "g_onhost", status: "ready", host_slot: "on_host", canonical_question: "Q on host" }),
+      group({ group_id: "g_ready", status: "ready", canonical_question: "Q ready" }),
+      group({ group_id: "g_comp", status: "composing", canonical_question: "Q composing" }),
+      group({ group_id: "g_ai", status: "auto_answered", route: "AUTO", intent: "price", canonical_question: "Q ai" }),
+      group({ group_id: "g_ans", status: "answered", canonical_question: "Q answered" }),
+      group({ group_id: "g_rej", status: "rejected", canonical_question: "Q rejected" }),
+      group({ group_id: "g_closed", status: "closed", intent: "price", canonical_question: "Q closed" }),
+    ];
+    snap = snapshot({ groups });
+    render(<Operator sessionId="ses_op_counts" />);
+    const desk = await screen.findByTestId("op-question-desk");
+    await within(desk).findByTestId("op-group-g_review");
+    const tabCount = (key: string) => Number(within(within(desk).getByTestId(`op-desk-tab-${key}`)).getByText(/^\d+$/).textContent);
+    const all = tabCount("all");
+    expect(all).toBe(groups.length);
+    expect(Number(within(desk).getByTestId("op-desk-count").textContent)).toBe(all);
+    const statusTabs = ["needs_review", "on_host", "ready", "composing", "answered", "closed"];
+    expect(statusTabs.reduce((n, k) => n + tabCount(k), 0)).toBe(all);
+    // Chip -> tab: each row is listed under exactly the tab its chip belongs to.
+    const chipTab: Record<string, string> = {
+      "Needs review": "needs_review", "Assign a product": "needs_review", "Host answered on air · not posted": "needs_review",
+      "On host": "on_host", Ready: "ready", "Composing…": "composing", "AI answered": "answered", Answered: "answered",
+      Rejected: "closed", Closed: "closed",
+    };
+    const seen = new Map<string, number>();
+    for (const key of statusTabs) {
+      fireEvent.click(within(desk).getByTestId(`op-desk-tab-${key}`));
+      const rows = within(desk).queryAllByTestId(/^op-group-/);
+      expect(rows.length).toBe(tabCount(key));
+      for (const row of rows) {
+        const chip = Object.keys(chipTab).find((label) => within(row).queryByText(label, { exact: true }));
+        expect(chip, row.getAttribute("data-testid") ?? "").toBeDefined();
+        expect(chipTab[chip!]).toBe(key);
+        expect(row).toHaveAttribute("data-tab", key);
+        seen.set(row.getAttribute("data-testid")!, (seen.get(row.getAttribute("data-testid")!) ?? 0) + 1);
+      }
+    }
+    expect([...seen.values()].every((n) => n === 1)).toBe(true);
+    expect(seen.size).toBe(groups.length);
+  });
+
+  it("set-price groups show the set name from products.json as product label (item 4)", async () => {
+    snap = snapshot({
+      groups: [group({ group_id: "g_set", intent: "set_price", status: "auto_answered", route: "AUTO", canonical_question: "How much is the set?", member_comment_ids: ["cm_s"] })],
+      comments: [comment({ comment_id: "cm_s", group_id: "g_set", kind: "question", text: "how much is the set?" })],
+    });
+    render(<Operator sessionId="ses_op_set" />);
+    const row = await screen.findByTestId("op-group-g_set");
+    expect(within(row).getByText(catalog.set_offers[0].name)).toBeInTheDocument();
+    expect(within(row).queryByText("Hydra Barrier Cream")).toBeNull();
+    const stream = screen.getByTestId("op-comment-cm_s");
+    expect(within(stream).getByText(catalog.set_offers[0].name)).toBeInTheDocument();
   });
 
   it("disables Approve for an unverified draft in the expanded row", async () => {

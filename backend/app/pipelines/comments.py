@@ -325,6 +325,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     intent = rt.intent(g.intent)
     promo = await rt.active_price_promo()
     product_id = g.product_id if intent.product_scope == "single" else None
+    rt.sync_doc_version()
     passages = await gather_passages(
         rt.ctx.retriever, rt.catalog, rt.prefetched, product_id=product_id, intent=g.intent,
         canonical_question=g.canonical_question, promo=promo, top_k=rt.settings.COMPOSER_TOP_K,

@@ -1,7 +1,61 @@
-import type { ScreenProps } from "../app/nav";
-import { ScreenPlaceholder } from "./Placeholder";
+// Post-broadcast summary (DEV_SPEC §12.8): numbers computed by the backend (§8.14) and the AI recap (§7.8).
+import { useCallback, useEffect, useState } from "react";
 
-/** Post-broadcast summary (§12.8, phase P4). Placeholder. */
-export function Summary(props: ScreenProps) {
-  return <ScreenPlaceholder screen="summary" role="operator" title="Broadcast summary" props={props} />;
+import { api } from "../app/api";
+import { navigate, withSession, type ScreenProps } from "../app/nav";
+import { useTheme } from "../app/theme";
+import { exportSummaryJson } from "./summary/exportJson";
+import { SummaryView } from "./summary/SummaryView";
+import type { SummaryData } from "./summary/types";
+import styles from "./summary/summary.module.css";
+
+const POLL_COMPUTING_MS = 2000;
+const POLL_LIVE_MS = 5000;
+
+export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps) {
+  const [ownTheme, toggle] = useTheme("summary");
+  const theme = forcedTheme ?? ownTheme;
+  const [data, setData] = useState<SummaryData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      setData((await api.summary(sessionId)) as unknown as SummaryData);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  // Poll while the recap is being written (and every few seconds while still live).
+  useEffect(() => {
+    if (!data || (data.status !== "computing" && data.status !== "not_ended")) return;
+    const id = window.setTimeout(() => void load(), data.status === "computing" ? POLL_COMPUTING_MS : POLL_LIVE_MS);
+    return () => window.clearTimeout(id);
+  }, [data, load]);
+
+  if (!data) {
+    return (
+      <div className={styles.root} data-theme={theme}>
+        <p className={styles.muted}>{error ? `Summary unavailable: ${error}` : "Loading the summary…"}</p>
+      </div>
+    );
+  }
+  return (
+    <SummaryView
+      data={data}
+      theme={theme}
+      embedded={embedded}
+      onToggleTheme={forcedTheme ? undefined : toggle}
+      onExport={() => exportSummaryJson(data)}
+      onBack={() => navigate(withSession("/", sessionId))}
+    />
+  );
 }
+
+export default Summary;

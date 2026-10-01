@@ -34,9 +34,12 @@ class LocalRetriever:
     name = "local"
 
     def __init__(self, passages: Sequence[Passage], doc_version: int = 0) -> None:
+        self._doc_version = doc_version
+        self._build(passages)
+
+    def _build(self, passages: Sequence[Passage]) -> None:
         self._passages = list(passages)
         self._by_id = {p.passage_id: p for p in self._passages}
-        self._doc_version = doc_version
         self._index: dict[str | None, tuple[list[Passage], BM25Okapi]] = {}
         groups: dict[str | None, list[Passage]] = {None: self._passages}
         for p in self._passages:
@@ -44,6 +47,17 @@ class LocalRetriever:
         for key, ps in groups.items():
             # Filter by product before scoring: one index per product.
             self._index[key] = (ps, BM25Okapi([tokenize(p.text) for p in ps]))
+
+    def replace_product(self, product_id: str, passages: Sequence[Passage]) -> int:
+        """Swap one product's passages (a rebuilt sheet from /setup) and bump doc_version (§12.7).
+        The shipped passages.jsonl on disk is never modified."""
+        others = [p for p in self._passages if p.product_id != product_id]
+        self._build(others + [p for p in passages if p.product_id == product_id])
+        self._doc_version += 1
+        return self._doc_version
+
+    def passages_of(self, product_id: str) -> list[Passage]:
+        return [p for p in self._passages if p.product_id == product_id]
 
     async def search(self, query: str, *, product_filter: str | None, top_k: int, timeout_ms: int) -> list[Passage]:
         if product_filter not in self._index:

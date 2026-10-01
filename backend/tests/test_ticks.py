@@ -43,6 +43,12 @@ async def test_tick_stops_after_end(tmp_path):
     ctx = make_ctx(tmp_path)
     rt = await live_runtime(ctx)
     await rt.end()
-    n = len(await rt.ctx.bus.events_after(rt.sid, 0))
+
+    tick_types = {"metrics.updated", "segment.overtime", "hostqueue.updated", "group.updated"}
+
+    async def non_summary() -> int:  # the summary pipeline (and its agent call) runs after end
+        return len([e for e in await rt.ctx.bus.events_after(rt.sid, 0) if e.type in tick_types])
+
+    n = await non_summary()
     await ctx.scheduler.advance(30_000)
-    assert len(await rt.ctx.bus.events_after(rt.sid, 0)) == n
+    assert await non_summary() == n

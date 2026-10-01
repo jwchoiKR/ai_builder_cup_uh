@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     LLM_FAST_THINKING: ThinkingLevel = "MINIMAL"
     LLM_QUALITY_MODEL: str = "gemini-3.8-flash"
     LLM_QUALITY_THINKING: ThinkingLevel = "MEDIUM"
+    COMPOSER_THINKING: ThinkingLevel = "LOW"  # per-agent override for AnswerComposer (D-067)
     LLM_RETRY_ON_5XX: int = 1
     LLM_CONTEXT_CACHE: bool = False
     JUDGE_MODE: Literal["split", "single"] = "split"

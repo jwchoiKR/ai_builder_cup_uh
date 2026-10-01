@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api import demo, events_sse, operator, sessions, viewer
+from .api import audio_ws, demo, events_sse, operator, sessions, viewer
 from .api.errors import install_error_handlers
 from .clock import Clock
 from .config import REPO_DIR, Settings, get_settings
@@ -43,6 +43,7 @@ async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
             "location": s.LLM_LOCATION,
             "fast": {"id": ctx.llm.fast.model, "thinking": ctx.llm.fast.thinking_level},
             "quality": {"id": ctx.llm.quality.model, "thinking": ctx.llm.quality.thinking_level},
+            "composer": {"id": ctx.llm.composer.model, "thinking": ctx.llm.composer.thinking_level},
             "warmup": ctx.llm.warmup_status,
         },
         "judge_mode": s.JUDGE_MODE,
@@ -122,10 +123,25 @@ def create_app(
     app = FastAPI(title="LIVE / Studio", version="0.1.0", lifespan=lifespan)
     app.state.ctx = ctx
     install_error_handlers(app)
-    for router in (meta, sessions.router, events_sse.router, viewer.router, operator.router, demo.router):
+    for router in (meta, sessions.router, events_sse.router, viewer.router, operator.router, demo.router,
+                   audio_ws.router, *_optional_routers()):
         app.include_router(router, prefix="/api")
     _mount_frontend(app)
     return app
+
+
+def _optional_routers() -> list[APIRouter]:
+    """Setup and summary routers (phase P4) are included when their modules exist."""
+    import importlib
+
+    out = []
+    for name in ("setup", "summary"):
+        try:
+            out.append(importlib.import_module(f"app.api.{name}").router)
+        except ModuleNotFoundError as e:
+            if e.name != f"app.api.{name}":
+                raise
+    return out
 
 
 def _mount_frontend(app: FastAPI) -> None:

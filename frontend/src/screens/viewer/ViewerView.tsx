@@ -16,7 +16,7 @@ import { useServerNow } from "../../app/store";
 import type { ThemeName } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
 import { Countdown, RelativeTime, ThemeToggle, windowRange } from "../../components";
-import { chatSignature, isPinnedCorrection, viewerChat, type ViewerChatRow } from "./chat";
+import { chatSignature, isPinnedCorrection, sourceLabels, viewerChat, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
 import { useCamera } from "./useCamera";
 import styles from "./viewer.module.css";
@@ -292,16 +292,18 @@ function ChatList({
               </div>
               <p className={styles.text}>{row.comment.text}</p>
               {row.replies.map((r) => (
-                <Reply key={r.message.message_id} message={r.message} mentions={r.mentions} brand={brand} onSource={onSource} />
+                <Reply key={r.message.message_id} message={r.message} brand={brand} onSource={onSource} />
               ))}
-              {row.answeredAbove && row.replies.length === 0 && (
-                <p className={styles.answeredAbove}>↳ answered above</p>
+              {row.alsoAnswered && row.replies.length === 0 && (
+                <p className={styles.answeredAbove} data-testid={`viewer-also-answered-${row.comment.comment_id}`}>
+                  ↳ Also answered: @{row.comment.author_name}
+                </p>
               )}
             </div>
           </div>
         ) : (
           <div key={row.key} className={styles.systemRow}>
-            <Reply message={row.message} mentions={[]} brand={brand} onSource={onSource} />
+            <Reply message={row.message} brand={brand} onSource={onSource} />
           </div>
         ),
       )}
@@ -312,12 +314,10 @@ function ChatList({
 
 function Reply({
   message,
-  mentions,
   brand,
   onSource,
 }: {
   message: Message;
-  mentions: string[];
   brand: string;
   onSource: (m: Message) => void;
 }) {
@@ -329,12 +329,12 @@ function Reply({
       <div className={styles.replyBody}>
         <Badge kind={message.kind} brand={brand} />
         <p className={styles.text}>{message.text}</p>
-        {mentions.length > 0 && <span className={styles.mentions}>{mentions.map((n) => `@${n}`).join(", ")}</span>}
-        {message.kind === "ai_answer" && message.citations.length > 0 && (
-          <button type="button" className={styles.source} onClick={() => onSource(message)}>
-            Source: product sheet
-          </button>
-        )}
+        {message.kind === "ai_answer" &&
+          sourceLabels(message).map((label) => (
+            <button key={label} type="button" className={styles.source} onClick={() => onSource(message)} data-testid="viewer-source">
+              {label}
+            </button>
+          ))}
       </div>
     </div>
   );
@@ -352,7 +352,7 @@ function SourceSheet({ message, catalog, onClose }: { message: Message; catalog:
     <div className={styles.sheetScrim} onClick={onClose} role="presentation">
       <div className={styles.sheet} role="dialog" aria-label="Source" onClick={(e) => e.stopPropagation()}>
         <div className={styles.sheetHead}>
-          <span className={styles.sheetTitle}>Source: product sheet</span>
+          <span className={styles.sheetTitle}>{sourceLabels(message).join(" · ") || "Source"}</span>
           <button type="button" className={styles.sheetClose} onClick={onClose} aria-label="Close">
             <X size={16} aria-hidden />
           </button>

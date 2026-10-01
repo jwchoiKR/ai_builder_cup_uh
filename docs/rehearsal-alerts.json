@@ -1,0 +1,162 @@
+[
+ {
+  "sid": "ses_01M3VJ3RSPGDSA4RK3P9GENEZH",
+  "rows": [
+   {
+    "line": "Use it every night and your wrinkles will disappear overnight.",
+    "final": "Use it every night and your wrinkles will disappear overnight.",
+    "rule": "ASEAN-3-SKIN-AGEING",
+    "severity": "HIGH",
+    "stt_ms": 1403,
+    "server_ms": 2866,
+    "render_ms": 2890
+   },
+   {
+    "line": "This cream literally cures eczema.",
+    "final": "This cream literally cures eczema.",
+    "rule": "ASEAN-2D-DISEASE",
+    "severity": "HIGH",
+    "stt_ms": 1002,
+    "server_ms": 2474,
+    "render_ms": 2486
+   },
+   {
+    "line": "The ampoule treats acne, so you'll never break out again.",
+    "final": "The ampoule treats acne, so you'll never break out again.",
+    "rule": "ASEAN-3-SKIN-ACNE",
+    "severity": "HIGH",
+    "stt_ms": 889,
+    "server_ms": 2626,
+    "render_ms": 2639
+   },
+   {
+    "line": "Once you use it, the results are permanent.",
+    "final": "Once you use it, the results are permanent.",
+    "rule": "ASEAN-2E-PERMANENT",
+    "severity": "HIGH",
+    "stt_ms": 866,
+    "server_ms": 2596,
+    "render_ms": 2608
+   },
+   {
+    "line": "It regenerates your skin cells from the inside.",
+    "final": "It regenerates your skin cells from the inside.",
+    "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+    "severity": "HIGH",
+    "stt_ms": 798,
+    "server_ms": 2368,
+    "render_ms": 2375
+   },
+   {
+    "line": "It even removes your old acne scars.",
+    "final": "It even removes your old acne scars.",
+    "rule": "ASEAN-3-SKIN-SCARS",
+    "severity": "HIGH",
+    "stt_ms": 780,
+    "server_ms": 3267,
+    "render_ms": 3286
+   },
+   {
+    "line": "It's totally safe for pregnant women, don't worry.",
+    "final": "It's totally safe for pregnant women, don't worry.",
+    "rule": "ASEAN-2D-VULNERABLE",
+    "severity": "HIGH",
+    "stt_ms": 934,
+    "server_ms": 2800,
+    "render_ms": 2813
+   },
+   {
+    "line": "You'll look ten years younger after one bottle.",
+    "final": "You'll look 10 years younger after one bottle.",
+    "rule": "ASEAN-3-SKIN-AGEING",
+    "severity": "HIGH",
+    "stt_ms": 877,
+    "server_ms": 2772,
+    "render_ms": 2786
+   },
+   {
+    "line": "It kills the bacteria on your skin.",
+    "final": "It kills the bacteria on your skin.",
+    "rule": "ASEAN-3-SKIN-ANTIMICROBIAL",
+    "severity": "HIGH",
+    "stt_ms": 891,
+    "server_ms": 2671,
+    "render_ms": 2685
+   },
+   {
+    "line": "It's a hundred ml tube, so it lasts forever.",
+    "final": "It's a 100 ml tube, so it lasts forever.",
+    "rule": "ASEAN-2E-PERMANENT",
+    "severity": "HIGH",
+    "stt_ms": 865,
+    "server_ms": 2816,
+    "render_ms": 2828
+   }
+  ],
+  "metrics": {
+   "alert": {
+    "last_server_ms": 2816,
+    "last_render_ms": 2828,
+    "server_p50_ms": 2671,
+    "server_p95_ms": 3267,
+    "render_p50_ms": 2685,
+    "render_p95_ms": 3286,
+    "count": 10
+   },
+   "correction": {
+    "p50_ms": null,
+    "p95_ms": null,
+    "count": 0
+   },
+   "agents": {
+    "fact_checker": {
+     "p50_ms": 1365,
+     "p95_ms": 1657,
+     "max_ms": 1657,
+     "ok": 10,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    },
+    "utterance_judge": {
+     "p50_ms": 1735,
+     "p95_ms": 1946,
+     "max_ms": 1946,
+     "ok": 9,
+     "timeout": 1,
+     "error": 0,
+     "invalid": 0
+    }
+   },
+   "answers": {
+    "instant": 0,
+    "composed": 0,
+    "median_reply_ms": {
+     "instant": null,
+     "composed": null
+    }
+   },
+   "triage_cache": {
+    "hits": 0,
+    "misses": 0
+   },
+   "messages_by_kind": {},
+   "stt_final_latency_ms": {
+    "p50_ms": 877,
+    "p95_ms": 1403,
+    "count": 10
+   },
+   "header": {
+    "alert_in_s": 2.8,
+    "judge_p50_s": 1.7,
+    "instant_answers": 0,
+    "answers_total": 0
+   },
+   "comments": 0,
+   "instant_answers": 0,
+   "composed_answers": 0,
+   "triage_cache_hits": 0,
+   "triage_cache_misses": 0
+  }
+ }
+]

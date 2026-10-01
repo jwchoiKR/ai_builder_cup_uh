@@ -279,7 +279,8 @@ class LLMClient:
         self._ids = ids
         self._audit = audit
         self.fast = ModelSpec(settings.LLM_FAST_MODEL, settings.LLM_FAST_THINKING)
-        self.quality = ModelSpec(settings.LLM_QUALITY_MODEL, settings.LLM_QUALITY_THINKING)
+        self.quality = ModelSpec(settings.LLM_QUALITY_MODEL, settings.LLM_QUALITY_THINKING)  # Brief, Summary
+        self.composer = ModelSpec(settings.LLM_QUALITY_MODEL, settings.COMPOSER_THINKING)
         self.warmup_status: dict[str, str] = {}
 
     async def call(self, req: LLMRequest[T]) -> AgentResult[T]:

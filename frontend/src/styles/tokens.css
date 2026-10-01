@@ -20,6 +20,7 @@
   --risk-bg: #fbedea;
   --risk-border: #e4aaa1;
   --risk-text: #8d3a2f;
+  --risk-strong: #c4483b; /* HIGH overlay frame: 4.2:1 on --risk-bg */
   --ok-bg: #eaf4ec;
   --ok-border: #a9cfb5;
   --ok-text: #2f5b3e;
@@ -45,6 +46,7 @@
   --risk-bg: #2f1f22;
   --risk-border: #7e3b3e;
   --risk-text: #f3c7c2;
+  --risk-strong: #e5484d; /* HIGH overlay frame: 4.0:1 on --risk-bg */
   --ok-bg: #223a2c;
   --ok-border: #4e7f60;
   --ok-text: #bfe6cc;

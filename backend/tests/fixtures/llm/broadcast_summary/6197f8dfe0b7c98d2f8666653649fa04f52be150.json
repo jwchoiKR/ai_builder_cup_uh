@@ -1,0 +1,19 @@
+{
+ "headline": "The 203-second DAON LAB skincare session generated 41 comments and 34 questions across two products.",
+ "highlights": [
+  "All 3 required points were covered for Hydra Barrier Cream during its 166-second presentation.",
+  "Both factual alerts and the high-severity compliance alert were corrected within 8000 ms.",
+  "The AI assistant successfully provided answers to 9 question groups."
+ ],
+ "watch_outs": [
+  "Deep Hydration Ampoule ran for only 37 seconds against 600 planned seconds and missed 2 required points.",
+  "A high-severity compliance alert occurred when the host stated your wrinkles will disappear overnight.",
+  "A total of 7 question groups remained unanswered at the end of the broadcast."
+ ],
+ "follow_ups": [
+  "Reply to the 3 unanswered questions for Hydra Barrier Cream regarding makeup application, dry skin, and children with eczema.",
+  "Reply to the 3 unanswered questions for Deep Hydration Ampoule concerning skin stinging, vitamin C compatibility, and morning use.",
+  "Respond to the 1 unanswered general shipping inquiry asking Do you ship to Malaysia?.",
+  "Ensure future broadcasts cover the 2 missing points on instant hydration and patch testing for Deep Hydration Ampoule."
+ ]
+}

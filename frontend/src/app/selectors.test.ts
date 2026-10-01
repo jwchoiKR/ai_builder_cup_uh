@@ -211,3 +211,32 @@ describe("time helpers", () => {
     expect(cueStrip(s, T0 + 3100)).toBeNull();
   });
 });
+
+describe("desk status: one tab per group, chip and tab agree", () => {
+  it("maps every status to exactly one tab and counts add up to All", async () => {
+    const { deskStatus, deskTabCounts } = await import("./selectors");
+    const gs = [
+      group({ group_id: "a", status: "needs_review" }),
+      group({ group_id: "b", status: "ready", host_slot: "on_host" }),
+      group({ group_id: "c", status: "ready" }),
+      group({ group_id: "d", status: "composing" }),
+      group({ group_id: "e", status: "auto_answered" }),
+      group({ group_id: "f", status: "answered", host_slot: "on_host" }),
+      group({ group_id: "g", status: "rejected" }),
+      group({ group_id: "h", status: "ready", host_verbal_answer_transcript_id: "tr_1" }),
+    ];
+    expect(gs.map((g) => [deskStatus(g).label, deskStatus(g).tab])).toEqual([
+      ["Needs review", "needs_review"],
+      ["On host", "on_host"],
+      ["Ready", "ready"],
+      ["Composing…", "composing"],
+      ["AI answered", "answered"],
+      ["Answered", "answered"],
+      ["Rejected", "closed"],
+      ["Host answered on air · not posted", "needs_review"],
+    ]);
+    const c = deskTabCounts(gs);
+    expect(c.all).toBe(8);
+    expect(c.needs_review + c.on_host + c.ready + c.composing + c.answered + c.closed).toBe(c.all);
+  });
+});

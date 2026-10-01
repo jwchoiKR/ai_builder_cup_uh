@@ -16,9 +16,10 @@ Filter = tuple[str, Op, Any]
 
 SESSIONS = "sessions"
 AGENT_CALLS_GLOBAL = "agent_calls"  # calls made outside a session (e.g. Brief Agent on /setup)
+SETUP = "setup"  # pre-broadcast state: glossary versions, brief results, prompter overrides (§8.15, §12.7)
 SUBCOLLECTIONS = (
     "segments", "transcripts", "alerts", "comments", "analyses", "groups",
-    "answers", "messages", "agent_calls", "events",
+    "answers", "messages", "agent_calls", "events", "summary",
 )
 
 

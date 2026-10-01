@@ -155,6 +155,27 @@
 .micOn {
   background: var(--accent);
 }
+.micError {
+  background: var(--live);
+}
+.micConnecting {
+  background: var(--fact-border);
+}
+.micLevel {
+  display: inline-block;
+  width: calc(36px * var(--hs));
+  height: calc(4px * var(--hs));
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.micLevel > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transition: transform 100ms linear;
+}
 
 /* ---- content area -------------------------------------------------------------------------------- */
 
@@ -873,6 +894,14 @@
 .replyArrow {
   color: var(--text-3);
 }
+/* "Also answered: @Name" under later askers of a coalesced reply: compact and muted. */
+.alsoAnswered {
+  margin-top: calc(2px * var(--hs));
+  padding: 0 calc(10px * var(--hs));
+  background: transparent;
+  color: var(--text-2);
+  font-size: calc(14px * var(--hs));
+}
 .badge {
   display: inline-flex;
   align-items: center;
@@ -922,7 +951,9 @@
   padding: calc(36px * var(--hs)) calc(80px * var(--hs));
   background: var(--risk-bg);
   color: var(--risk-text);
-  border-top: calc(6px * var(--hs)) solid var(--risk-border);
+  /* Solid red frame around the whole overlay area below the top bar: 6-8 px at any scale. */
+  box-sizing: border-box;
+  border: clamp(6px, calc(8px * var(--hs)), 8px) solid var(--risk-strong);
   animation: fadeIn var(--motion-overlay) linear;
 }
 .overlayInner {

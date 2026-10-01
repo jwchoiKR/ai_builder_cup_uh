@@ -15,6 +15,14 @@ from ..providers.retriever import Retriever
 from . import inputs
 
 KEY_FACT_INTENTS = frozenset({"price", "set_price", "promo", "volume"})
+# D-068: intents whose answer sits in a fixed section that BM25 may miss ("Where is it manufactured?"
+# vs "Made in: ..."; "Does it sting?" vs "tingling"). Added on top of §7.6, never instead of it.
+SECTION_INTENTS: dict[str, tuple[str, ...]] = {
+    "origin": ("Key facts",), "packaging": ("Key facts",), "shelf_life": ("Key facts",),
+    "texture": ("Key facts",), "fragrance": ("Key facts",), "ingredient_amount": ("Key ingredients",),
+    "ingredients": ("Key ingredients",), "allergy_sensitivity": ("Cautions",),
+    "pregnancy_breastfeeding": ("Cautions",), "medical_condition": ("Cautions",), "age_suitability": ("Cautions",),
+}
 
 
 @dataclass
@@ -54,10 +62,11 @@ async def gather_passages(
         query = f"{catalog.get_product(pid).name} {canonical_question}"
         for p in await retriever.search(query, product_filter=pid, top_k=top_k, timeout_ms=timeout_ms):
             out.setdefault(p.passage_id, p)
-        if intent in KEY_FACT_INTENTS:
-            key_facts = [p for p in prefetched.get(pid) or await retriever.prefetch(pid) if p.section == "Key facts"]
-            for p in key_facts:
-                out.setdefault(p.passage_id, p)
+        sections = (("Key facts",) if intent in KEY_FACT_INTENTS else ()) + SECTION_INTENTS.get(intent, ())
+        if sections:
+            for p in prefetched.get(pid) or await retriever.prefetch(pid):
+                if p.section in sections:
+                    out.setdefault(p.passage_id, p)
     active = price_promo(promo)
     if active is not None:
         pp = promo_passage(active, catalog)
@@ -72,7 +81,7 @@ class AnswerComposer:
         self.llm = llm
         self.prompt = prompt
         self.prompt_version = prompt.version
-        self.model = llm.quality.model
+        self.model = llm.composer.model
         self.catalog = catalog
 
     async def run(self, inp: ComposeInput, *, deadline_ms: int) -> AgentResult[ComposerOutput]:
@@ -86,7 +95,7 @@ class AnswerComposer:
         })
         primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo)
         return await self.llm.call(LLMRequest(
-            agent=self.name, model=self.llm.quality.model, thinking_level=self.llm.quality.thinking_level,
+            agent=self.name, model=self.llm.composer.model, thinking_level=self.llm.composer.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
             user_message=user, output_model=ComposerOutput, deadline_ms=deadline_ms,
             session_id=inp.session_id, mock_primary_text=primary, mock_scenario=inp.scenario,

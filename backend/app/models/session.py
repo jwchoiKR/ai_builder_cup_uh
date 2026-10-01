@@ -57,6 +57,8 @@ class Session(BaseModel):  # [sessions/{session_id}]
     cue: HostCue | None = None
     host_slots: list[HostSlot] = []
     active_promos: list[ActivePromo] = []  # all running promos; active_promo_id is the price-changing one
+    # Prompter points confirmed on /setup, frozen at session creation (§12.7): product_id -> points
+    prompter_points: dict[str, list[dict]] = {}
     created_at: int
 
 

@@ -10,16 +10,25 @@ import { useAction, useOperator } from "./context";
 import { ConfirmDialog } from "./Dialogs";
 import styles from "./operator.module.css";
 
-export function metricChips(metrics: Record<string, unknown> & { header?: { alert_in_s: number | null; judge_p50_s: number | null; instant_answers: number; answers_total: number } }) {
-  const h = metrics.header;
-  const instant = h?.instant_answers ?? (metrics.instant_answers as number | undefined) ?? 0;
-  const total = h?.answers_total ?? instant + ((metrics.composed_answers as number | undefined) ?? 0);
-  const alertIn = h?.alert_in_s;
-  const judge = h?.judge_p50_s;
+const NO_VALUE = "–";
+
+/** A measured value, or null when there is none (missing, null, NaN, not a number). */
+function measured(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** Header chips (§8.16). Anything not measured yet shows "–", never "0.0s". */
+export function metricChips(metrics: Record<string, unknown> & { header?: { alert_in_s?: number | null; judge_p50_s?: number | null; instant_answers?: number; answers_total?: number } }) {
+  const h = metrics?.header;
+  const alertIn = measured(h?.alert_in_s);
+  const judge = measured(h?.judge_p50_s);
+  const instant = measured(h?.instant_answers ?? metrics?.instant_answers);
+  const composed = measured(metrics?.composed_answers);
+  const total = measured(h?.answers_total) ?? (instant !== null ? instant + (composed ?? 0) : null);
   return {
-    alert: `Alert in ${alertIn === null || alertIn === undefined ? "–" : `${alertIn.toFixed(1)}s`}`,
-    judge: `Judge p50 ${judge === null || judge === undefined ? "–" : `${judge.toFixed(1)}s`}`,
-    instant: `Instant answers ${instant}/${total}`,
+    alert: `Alert in ${alertIn === null ? NO_VALUE : `${alertIn.toFixed(1)}s`}`,
+    judge: `Judge p50 ${judge === null ? NO_VALUE : `${judge.toFixed(1)}s`}`,
+    instant: `Instant answers ${instant === null || !total ? NO_VALUE : `${instant}/${total}`}`,
   };
 }
 
