@@ -1,0 +1,192 @@
+{
+  "policy_id": "sg_asean_cosmetic_claims_v1",
+  "market": "SG",
+  "category": "cosmetics",
+  "sources": [
+    {
+      "source_id": "ASEAN_APPENDIX_III",
+      "title": "ASEAN Cosmetic Documents, Appendix III - ASEAN Cosmetic Claims Guideline (version date 4 September 2007)",
+      "file": "data/policy/asean_cosmetic_claims_guideline_appendix_iii_2007.pdf",
+      "publisher_url": "https://www.hsa.gov.sg/docs/default-source/hprg-cosmetics/appendix-iii-asean-cosmetic-claims-guidelines.pdf?sfvrsn=ee71c947_0",
+      "note": "The guideline states that its examples are not exhaustive and that it is not the final authority."
+    },
+    {
+      "source_id": "PRODUCT_SHEET",
+      "title": "DAON LAB product sheets, section 7 'Claims not approved for this product' (fictional brand policy)",
+      "file": "data/products/*.pdf",
+      "note": "Brand policy for the demo. Not a regulation."
+    }
+  ],
+  "severity_display": {
+    "HIGH": "fullscreen",
+    "MEDIUM": "prompter_banner"
+  },
+  "softening_guidance": {
+    "source_ref": "Appendix III, Section 3 (final note on modifiers)",
+    "text": "Claims can be softened, i.e. made less functional and more cosmetic in nature, by the use of modifiers.",
+    "examples_from_source": [
+      "Helps to remove oil from skin",
+      "Reduces the shine of oily skin",
+      "Suitable for oily skin types",
+      "Makes your skin feel less oily"
+    ]
+  },
+  "rules": [
+    {
+      "rule_id": "ASEAN-2D-DISEASE",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 2.d (Product presentation of cosmetics)",
+      "title": "Presented as treating or preventing disease",
+      "description": "A cosmetic must not be presented as treating or preventing disease in human beings. This covers spoken claims made in the broadcast.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It cures eczema.", "This treats dermatitis.", "It heals your skin infection.", "It prevents skin disease."],
+      "say_instead_hint": "Describe a cosmetic feel or look, e.g. 'It helps relieve the feeling of dryness.'",
+      "reflex_phrases": ["cure", "cures", "cured", "heals", "eczema", "dermatitis", "psoriasis", "rosacea", "skin disease", "infection"]
+    },
+    {
+      "rule_id": "ASEAN-2E-PERMANENT",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 2.e (Physiological effects of cosmetics)",
+      "title": "Permanent results or results without continued use",
+      "description": "Cosmetic effects are typically not permanent and require regular use to be maintained. Claims of permanent results are not cosmetic.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["The results are permanent.", "Use it once and your skin is fixed for good.", "The effect lasts forever."],
+      "say_instead_hint": "Add continued use, e.g. 'With regular use, it helps keep skin hydrated.'",
+      "reflex_phrases": ["permanent", "permanently", "for good", "lasts forever", "never come back", "once and for all"]
+    },
+    {
+      "rule_id": "ASEAN-DP5-PHYSIOLOGICAL",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Decision process step 5 (Non-cosmetic function)",
+      "title": "Restores, corrects or modifies physiological function",
+      "description": "A product that permanently restores, corrects or modifies physiological function by a pharmacological, immunological or metabolic action is not a cosmetic.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It regenerates your skin cells.", "It rebuilds your collagen.", "It repairs your skin at the cellular level."],
+      "say_instead_hint": "Describe how skin looks or feels, e.g. 'It helps skin look smoother and feel hydrated.'",
+      "reflex_phrases": ["regenerate", "regenerates", "cell renewal", "rebuilds collagen", "cellular level", "repairs damaged skin"]
+    },
+    {
+      "rule_id": "ASEAN-3-SKIN-AGEING",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 3, Skin products",
+      "title": "Prevents, reduces or reverses physiological changes of ageing",
+      "description": "Listed as unacceptable for skin products: 'Prevents, reduces or reverses the physiological changes and degeneration conditions brought about by aging'.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["Your wrinkles will disappear overnight.", "It removes wrinkles.", "It reverses ageing."],
+      "say_instead_hint": "Use an approved look/feel claim, e.g. 'It helps reduce the look of fine dryness lines.' (ampoule) or 'It helps keep skin hydrated.' (cream)",
+      "reflex_phrases": ["wrinkles disappear", "wrinkles will disappear", "remove wrinkles", "removes wrinkles", "erase wrinkles", "no more wrinkles", "reverse aging", "reverse ageing", "reverses aging", "reverses ageing", "stops aging", "stops ageing", "years younger"]
+    },
+    {
+      "rule_id": "ASEAN-3-SKIN-SCARS",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 3, Skin products",
+      "title": "Removes scars",
+      "description": "Listed as unacceptable for skin products: 'Removes scars'.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It removes acne scars.", "Your scars will fade away completely."],
+      "say_instead_hint": "Avoid scar claims. Talk about hydration or how skin looks overall.",
+      "reflex_phrases": ["scar", "scars"]
+    },
+    {
+      "rule_id": "ASEAN-3-SKIN-ACNE",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 3, Skin products",
+      "title": "Prevents, heals, treats or stops acne",
+      "description": "Listed as unacceptable for skin products: 'Prevents, heals, treats or stops acne'.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It treats acne.", "It stops breakouts.", "No more pimples with this."],
+      "say_instead_hint": "Avoid acne claims. Say who it suits, e.g. 'It has a lightweight texture that suits oily skin.'",
+      "reflex_phrases": ["treats acne", "treat acne", "stops acne", "prevents acne", "heals acne", "stops breakouts", "no more pimples", "acne-free"]
+    },
+    {
+      "rule_id": "ASEAN-3-SKIN-BODY",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 3, Skin products",
+      "title": "Cellulite, slimming, swelling or fat claims",
+      "description": "Listed as unacceptable for skin products: treatment of cellulite, lose centimetres, reduces/controls swelling/oedema, removes/burns fat.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It burns fat.", "It reduces swelling.", "You will lose centimetres."],
+      "say_instead_hint": "Avoid body-shape claims.",
+      "reflex_phrases": ["cellulite", "burns fat", "burn fat", "lose centimetres", "lose centimeters", "reduces swelling", "slimming"]
+    },
+    {
+      "rule_id": "ASEAN-3-SKIN-NUMBING",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 3, Skin products",
+      "title": "Numbing effect",
+      "description": "Listed as unacceptable for skin products: 'Numbing effect'.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It numbs the skin.", "It has a numbing effect."],
+      "say_instead_hint": "Describe sensory feel only, e.g. 'It feels cool and light on the skin.'",
+      "reflex_phrases": ["numbing", "numbs"]
+    },
+    {
+      "rule_id": "ASEAN-3-SKIN-ANTIMICROBIAL",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 3, Skin products",
+      "title": "Fungicidal or virucidal action",
+      "description": "Listed as unacceptable for skin products: 'Fungicidal action', 'Virucidal action'.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It kills fungus.", "It kills viruses on your skin."],
+      "say_instead_hint": "Avoid antimicrobial claims.",
+      "reflex_phrases": ["fungicidal", "virucidal", "kills fungus", "kills viruses", "kills bacteria", "antiviral", "antifungal"]
+    },
+    {
+      "rule_id": "ASEAN-2D-VULNERABLE",
+      "source_id": "ASEAN_APPENDIX_III",
+      "source_ref": "Appendix III, Section 2.d.vi (particular target of the marketing)",
+      "title": "Targets groups with, or vulnerable to, specific conditions",
+      "description": "Product presentation includes marketing aimed at population groups with, or particularly vulnerable to, specific diseases or adverse conditions. The product sheets also state the products were not specifically tested on pregnant or breastfeeding women.",
+      "severity": "HIGH",
+      "unacceptable_examples": ["It is safe for pregnant women.", "Perfect for people with eczema.", "Safe for babies."],
+      "say_instead_hint": "Refer to the doctor, e.g. 'If you are pregnant or breastfeeding, please check with your doctor first.'",
+      "reflex_phrases": ["safe for pregnant", "safe during pregnancy", "safe while pregnant", "safe for babies", "safe for breastfeeding"]
+    },
+    {
+      "rule_id": "BRAND-SUPERLATIVE",
+      "source_id": "PRODUCT_SHEET",
+      "source_ref": "Product sheet, section 7, Claims not approved",
+      "title": "Comparative or superlative claims",
+      "description": "Brand policy forbids comparative or superlative claims such as 'the best moisturiser in Singapore'.",
+      "severity": "MEDIUM",
+      "unacceptable_examples": ["This is the best moisturiser in Singapore.", "It is stronger than any other ampoule."],
+      "say_instead_hint": "Describe this product's own approved benefit instead, e.g. 'It helps keep skin hydrated for up to 24 hours in our in-house test.'",
+      "reflex_phrases": ["the best", "best in singapore", "number one", "no. 1", "better than any", "stronger than any"]
+    },
+    {
+      "rule_id": "BRAND-ABSOLUTE-SAFETY",
+      "source_id": "PRODUCT_SHEET",
+      "source_ref": "Product sheet, section 7, Claims not approved",
+      "title": "Absolute safety claims",
+      "description": "Brand policy forbids 'completely safe for everyone' and similar absolute safety claims.",
+      "severity": "MEDIUM",
+      "unacceptable_examples": ["It is 100% safe for everyone.", "There are zero side effects."],
+      "say_instead_hint": "Use the approved patch-test claim with its qualifier: 'Patch tested with no irritation reactions in our in-house test.'",
+      "reflex_phrases": ["100% safe", "completely safe", "totally safe", "no side effects", "zero side effects"]
+    },
+    {
+      "rule_id": "BRAND-MEDICINE-LIKE",
+      "source_id": "PRODUCT_SHEET",
+      "source_ref": "Product sheet, section 7, Claims not approved",
+      "title": "Compared to a medicine or prescription product",
+      "description": "Brand policy forbids saying the product works like a medicine or prescription product.",
+      "severity": "MEDIUM",
+      "unacceptable_examples": ["It works like a prescription cream.", "It's basically medicine for your skin."],
+      "say_instead_hint": "Use an approved claim.",
+      "reflex_phrases": ["like a medicine", "like medicine", "prescription", "medical grade", "clinically proven to cure"]
+    },
+    {
+      "rule_id": "BRAND-WHITENING",
+      "source_id": "PRODUCT_SHEET",
+      "source_ref": "Product sheet (Deep Hydration Ampoule), section 7, Claims not approved",
+      "title": "Whitening or permanent colour change",
+      "description": "Brand policy forbids whitening claims and claims of permanently changing skin colour.",
+      "severity": "MEDIUM",
+      "unacceptable_examples": ["It whitens your skin.", "Your skin tone will change permanently."],
+      "say_instead_hint": "Use: 'Helps skin look more radiant and even-toned with continued use.'",
+      "reflex_phrases": ["whiten", "whitens", "whitening", "bleach"]
+    }
+  ],
+  "negation_cues": ["not", "no", "never", "doesn't", "does not", "don't", "do not", "won't", "will not", "isn't", "is not", "can't", "cannot", "can not"],
+  "quote_cues": ["someone asked", "someone is asking", "asks", "asked", "question from", "says", "is asking", "wants to know"]
+}

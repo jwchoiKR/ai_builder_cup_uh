@@ -1,0 +1,102 @@
+"""FastAPI app. Run: `uv run uvicorn app.main:create_app --factory` from backend/.
+
+The static frontend build is mounted here in phase P3.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import APIRouter, Depends, FastAPI
+
+from .api import events_sse, sessions
+from .api.errors import install_error_handlers
+from .clock import Clock
+from .config import Settings, get_settings
+from .context import AppContext, build_context, get_ctx
+from .logic.catalog import Catalog
+from .providers.llm import LLMBackend
+
+log = logging.getLogger(__name__)
+
+meta = APIRouter()
+
+
+@meta.get("/health")
+async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
+    s = ctx.settings
+    return {
+        "status": "ok",
+        "app_env": s.APP_ENV,
+        "providers": {
+            "llm": ctx.llm.backend.name,
+            "stt": s.STT_PROVIDER,
+            "store": ctx.store.name,
+            "retriever": s.RETRIEVER,
+        },
+        "models": {
+            "location": s.LLM_LOCATION,
+            "fast": {"id": ctx.llm.fast.model, "thinking": ctx.llm.fast.thinking_level},
+            "quality": {"id": ctx.llm.quality.model, "thinking": ctx.llm.quality.thinking_level},
+            "warmup": ctx.llm.warmup_status,
+        },
+        "judge_mode": s.JUDGE_MODE,
+        "prompts": {name: t.version for name, t in ctx.prompts.items()},
+        "demo_tools_enabled": s.DEMO_TOOLS_ENABLED,
+        "viewer_input_enabled": s.VIEWER_INPUT_ENABLED,
+    }
+
+
+@meta.get("/catalog")
+async def catalog(ctx: AppContext = Depends(get_ctx)) -> dict:
+    pack = ctx.pack
+    cat = Catalog(pack)
+    products = []
+    for p in pack.products.products:
+        d = p.model_dump(mode="json")
+        d["list_price_display"] = cat.money(p.list_price)
+        d["live_price_display"] = cat.money(p.live_price)
+        products.append(d)
+    promos = []
+    for promo in pack.promos.promos:
+        d = promo.model_dump(mode="json")
+        d["promo_prices_display"] = {k: cat.money(v) for k, v in promo.promo_prices.items()}
+        promos.append(d)
+    return {
+        "brand": pack.products.brand,
+        "currency": pack.products.currency,
+        "currency_symbol": pack.products.currency_symbol,
+        "products": products,
+        "set_offers": [
+            {**s.model_dump(mode="json"), "live_price_display": cat.money(s.live_price)}
+            for s in pack.products.set_offers
+        ],
+        "promos": promos,
+        "runsheets": [rs.model_dump(mode="json") for rs in pack.runsheets.values()],
+    }
+
+
+def create_app(
+    settings: Settings | None = None, *, clock: Clock | None = None, llm_backend: LLMBackend | None = None
+) -> FastAPI:
+    settings = settings or get_settings()
+    logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # Built eagerly: a broken data pack or prompt file stops the app at startup.
+    ctx = build_context(settings, clock=clock, llm_backend=llm_backend)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        warmup = asyncio.create_task(ctx.llm.warm_up())
+        try:
+            yield
+        finally:
+            warmup.cancel()
+            await ctx.llm.aclose()
+
+    app = FastAPI(title="LIVE / Studio", version="0.1.0", lifespan=lifespan)
+    app.state.ctx = ctx
+    install_error_handlers(app)
+    for router in (meta, sessions.router, events_sse.router):
+        app.include_router(router, prefix="/api")
+    return app

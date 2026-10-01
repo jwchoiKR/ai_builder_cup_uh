@@ -1,0 +1,279 @@
+{
+  "version": "intents_v1",
+  "note": "Route and purchase_impact are decided by code from this table, never by the LLM. Weights are initial values to tune in rehearsal.",
+  "routes": {
+    "AUTO": "Answer immediately with a verified AI answer (if grounded and verified). Becomes a host candidate when unique askers >= HOST_REPEAT_THRESHOLD.",
+    "HOST": "Show to the host (top 3) with a suggested answer. Posted when the host answers by voice, or when the operator approves.",
+    "OPERATOR": "Send to the operator approval queue. Never shown to the host unless the operator pushes it."
+  },
+  "intents": [
+    {
+      "intent": "price",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 3,
+      "product_scope": "single"
+    },
+    {
+      "intent": "set_price",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 3,
+      "product_scope": "single"
+    },
+    {
+      "intent": "promo",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 3,
+      "product_scope": "single"
+    },
+    {
+      "intent": "volume",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "ingredients",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "ingredient_amount",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "fragrance",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "texture",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "shelf_life",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 0,
+      "product_scope": "single"
+    },
+    {
+      "intent": "origin",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 0,
+      "product_scope": "single"
+    },
+    {
+      "intent": "packaging",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 0,
+      "product_scope": "single"
+    },
+    {
+      "intent": "skin_type_suitability",
+      "group": "product",
+      "route": "HOST",
+      "sensitive": false,
+      "purchase_impact": 2,
+      "product_scope": "single"
+    },
+    {
+      "intent": "how_to_use",
+      "group": "product",
+      "route": "HOST",
+      "sensitive": false,
+      "purchase_impact": 2,
+      "product_scope": "single"
+    },
+    {
+      "intent": "routine_order",
+      "group": "product",
+      "route": "HOST",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "makeup_compatibility",
+      "group": "product",
+      "route": "HOST",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "results_expectation",
+      "group": "product",
+      "route": "HOST",
+      "sensitive": false,
+      "purchase_impact": 2,
+      "product_scope": "single"
+    },
+    {
+      "intent": "product_comparison",
+      "group": "product",
+      "route": "HOST",
+      "sensitive": false,
+      "purchase_impact": 2,
+      "product_scope": "multi"
+    },
+    {
+      "intent": "pregnancy_breastfeeding",
+      "group": "product",
+      "route": "OPERATOR",
+      "sensitive": true,
+      "purchase_impact": 2,
+      "product_scope": "single"
+    },
+    {
+      "intent": "medical_condition",
+      "group": "product",
+      "route": "OPERATOR",
+      "sensitive": true,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "allergy_sensitivity",
+      "group": "product",
+      "route": "OPERATOR",
+      "sensitive": true,
+      "purchase_impact": 2,
+      "product_scope": "single"
+    },
+    {
+      "intent": "age_suitability",
+      "group": "product",
+      "route": "OPERATOR",
+      "sensitive": true,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "efficacy_claim",
+      "group": "product",
+      "route": "OPERATOR",
+      "sensitive": true,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "shipping",
+      "group": "general",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 2,
+      "product_scope": "none"
+    },
+    {
+      "intent": "returns",
+      "group": "general",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "none"
+    },
+    {
+      "intent": "payment",
+      "group": "general",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 2,
+      "product_scope": "none"
+    },
+    {
+      "intent": "order_status",
+      "group": "general",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 0,
+      "product_scope": "none"
+    },
+    {
+      "intent": "event_giveaway",
+      "group": "general",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 0,
+      "product_scope": "none"
+    },
+    {
+      "intent": "other",
+      "group": "general",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 0,
+      "product_scope": "none"
+    }
+  ],
+  "condition_slots": {
+    "skin_type": [
+      "dry",
+      "oily",
+      "combination",
+      "sensitive",
+      "normal",
+      "acne_prone"
+    ],
+    "life_stage": [
+      "pregnant",
+      "breastfeeding",
+      "teen",
+      "child"
+    ],
+    "condition": [
+      "eczema",
+      "dermatitis",
+      "rosacea",
+      "acne",
+      "allergy",
+      "other"
+    ],
+    "combined_with": [
+      "vitamin_c",
+      "retinol",
+      "aha_bha",
+      "sunscreen",
+      "makeup",
+      "other"
+    ],
+    "time_of_day": [
+      "morning",
+      "night"
+    ]
+  },
+  "ranking_weights": {
+    "W_VIEWERS": 2.0,
+    "W_PURCHASE_IMPACT": 1.5,
+    "CURRENT_PRODUCT_BONUS": 3.0,
+    "WAIT_TIEBREAK_PER_MIN": 0.1,
+    "WAIT_TIEBREAK_MAX_MIN": 5
+  },
+  "product_scope_note": "single: needs one resolved product; multi: may be about both products (product_id may be null, composer uses passages of all products); none: general question, product_id is always null."
+}

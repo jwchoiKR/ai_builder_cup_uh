@@ -1,0 +1,45 @@
+{
+  "promos": [
+    {
+      "promo_id": "promo_time_sale_10",
+      "kind": "time_sale",
+      "title": "Time sale: extra 10% off",
+      "duration_sec": 600,
+      "applies_to": ["cream_hydra_barrier", "ampoule_deep_hydration", "set_cream_ampoule"],
+      "discount_pct_off_live_price": 10,
+      "promo_prices": {
+        "cream_hydra_barrier": 32.40,
+        "ampoule_deep_hydration": 28.80,
+        "set_cream_ampoule": 55.80
+      },
+      "viewer_text": "TIME SALE · Extra 10% off for the next 10 minutes",
+      "host_text": "TIME SALE",
+      "changes_prices": true
+    },
+    {
+      "promo_id": "promo_gift_pouch",
+      "kind": "gift",
+      "title": "Free travel pouch over S$60",
+      "duration_sec": 900,
+      "applies_to": [],
+      "viewer_text": "Free DAON LAB travel pouch with orders over S$60",
+      "host_text": "GIFT OVER S$60",
+      "changes_prices": false
+    },
+    {
+      "promo_id": "promo_set_reminder",
+      "kind": "notice",
+      "title": "Set offer reminder",
+      "duration_sec": 300,
+      "applies_to": ["set_cream_ampoule"],
+      "viewer_text": "Cream + Ampoule set: S$62 during this live",
+      "host_text": "SET S$62",
+      "changes_prices": false
+    }
+  ],
+  "rules": {
+    "max_active_price_promos": 1,
+    "promo_prices_are_final": true,
+    "note": "Promo prices are precomputed (10% off live price, rounded to 2 decimals). Agents must quote promo_prices verbatim and never compute prices themselves."
+  }
+}

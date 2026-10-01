@@ -1,0 +1,198 @@
+{
+  "brand": "DAON LAB",
+  "currency": "SGD",
+  "currency_symbol": "S$",
+  "set_offers": [
+    {
+      "set_id": "set_cream_ampoule",
+      "name": "Hydra Barrier Cream + Deep Hydration Ampoule set",
+      "product_ids": [
+        "cream_hydra_barrier",
+        "ampoule_deep_hydration"
+      ],
+      "live_price": 62.0
+    }
+  ],
+  "products": [
+    {
+      "product_id": "cream_hydra_barrier",
+      "code": "DL-CR-01",
+      "name": "Hydra Barrier Cream",
+      "short_name": "the cream",
+      "eyebrow": "THE EVERYDAY ESSENTIAL",
+      "tagline": "Lightweight gel-cream moisturiser for daily hydration",
+      "doc": "DAON_LAB_Hydra_Barrier_Cream.pdf",
+      "volume": "50 mL",
+      "list_price": 48.0,
+      "live_price": 36.0,
+      "hero_badge": "24H HYDRATION*",
+      "aliases": [
+        "hydra barrier cream",
+        "barrier cream",
+        "hydra cream",
+        "the cream",
+        "this cream",
+        "gel cream",
+        "gel-cream",
+        "moisturiser",
+        "moisturizer",
+        "cream"
+      ],
+      "key_facts": {
+        "volume": "50 mL",
+        "list_price": "S$48.00",
+        "live_price": "S$36.00",
+        "set_price": "S$62.00",
+        "panthenol": "5%",
+        "squalane": "3%",
+        "ceramide_np": "1%",
+        "sodium_hyaluronate": "1%",
+        "allantoin": "0.2%",
+        "ph": "5.5",
+        "pao_months": "12",
+        "shelf_life_unopened_months": "30",
+        "made_in": "Republic of Korea",
+        "texture": "gel-cream",
+        "fragrance": "no added fragrance"
+      },
+      "prompter_points": [
+        {
+          "point_id": "cr-p1",
+          "text": "Lightweight gel-cream. Absorbs quickly.",
+          "required": false
+        },
+        {
+          "point_id": "cr-p2",
+          "text": "Ceramide NP 1%, panthenol 5%, squalane 3%.",
+          "required": true
+        },
+        {
+          "point_id": "cr-p3",
+          "text": "Helps keep skin hydrated for up to 24 hours (in-house test).",
+          "required": true
+        },
+        {
+          "point_id": "cr-p4",
+          "text": "Patch tested: 0 of 32 reported reactions (in-house test).",
+          "required": true
+        },
+        {
+          "point_id": "cr-p5",
+          "text": "No added fragrance or essential oils.",
+          "required": false
+        },
+        {
+          "point_id": "cr-p6",
+          "text": "Live price S$36 (list S$48). Set with the ampoule S$62.",
+          "required": false
+        }
+      ],
+      "approved_claims": [
+        "Helps keep skin hydrated for up to 24 hours.*",
+        "Helps support the skin's moisture barrier.",
+        "Helps relieve the feeling of dryness.",
+        "Suitable for sensitive skin. Patch tested with no irritation reactions in our in-house test.*",
+        "Lightweight gel-cream texture that absorbs quickly.",
+        "No added fragrance and no essential oils."
+      ],
+      "not_approved_claims": [
+        "Repairs, heals or cures damaged skin.",
+        "Treats eczema, dermatitis, acne or any skin disease.",
+        "Removes wrinkles or reverses skin ageing.",
+        "Permanent results, or results without continued use.",
+        "Completely safe for everyone, or safe during pregnancy.",
+        "Works like a medicine or a prescription product.",
+        "Comparative or superlative claims, such as \"the best moisturiser in Singapore\"."
+      ]
+    },
+    {
+      "product_id": "ampoule_deep_hydration",
+      "code": "DL-AM-01",
+      "name": "Deep Hydration Ampoule",
+      "short_name": "the ampoule",
+      "eyebrow": "NEXT IN YOUR ROUTINE",
+      "tagline": "Watery-gel ampoule with niacinamide and hyaluronic acid",
+      "doc": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "volume": "30 mL",
+      "list_price": 42.0,
+      "live_price": 32.0,
+      "hero_badge": "4% NIACINAMIDE",
+      "aliases": [
+        "deep hydration ampoule",
+        "hydration ampoule",
+        "the ampoule",
+        "this ampoule",
+        "ampoule",
+        "serum",
+        "the serum",
+        "niacinamide serum"
+      ],
+      "key_facts": {
+        "volume": "30 mL",
+        "list_price": "S$42.00",
+        "live_price": "S$32.00",
+        "set_price": "S$62.00",
+        "niacinamide": "4%",
+        "sodium_hyaluronate": "2%",
+        "centella_asiatica_leaf_water": "50%",
+        "beta_glucan": "1%",
+        "panthenol": "1%",
+        "ph": "5.5 to 6.0",
+        "pao_months": "12",
+        "shelf_life_unopened_months": "30",
+        "made_in": "Republic of Korea",
+        "texture": "watery gel",
+        "fragrance": "no added fragrance"
+      },
+      "prompter_points": [
+        {
+          "point_id": "am-p1",
+          "text": "4% niacinamide, clearly stated.",
+          "required": true
+        },
+        {
+          "point_id": "am-p2",
+          "text": "Watery gel. Two to three drops after toner.",
+          "required": false
+        },
+        {
+          "point_id": "am-p3",
+          "text": "Instant hydration: +45% right after one use (in-house test).",
+          "required": true
+        },
+        {
+          "point_id": "am-p4",
+          "text": "Helps skin look more radiant and even-toned with continued use.",
+          "required": false
+        },
+        {
+          "point_id": "am-p5",
+          "text": "Sensitive skin may feel mild, temporary tingling. Patch test first.",
+          "required": true
+        },
+        {
+          "point_id": "am-p6",
+          "text": "Live price S$32 (list S$42). Set with the cream S$62.",
+          "required": false
+        }
+      ],
+      "approved_claims": [
+        "Delivers instant hydration.",
+        "Helps skin look more radiant and even-toned with continued use.",
+        "Helps reduce the look of fine dryness lines.",
+        "Helps soothe the feeling of dryness.",
+        "26 of 30 participants said their skin looked more radiant after 4 weeks.*",
+        "No added fragrance and no essential oils."
+      ],
+      "not_approved_claims": [
+        "Removes wrinkles or reverses skin ageing.",
+        "Whitens skin, or permanently changes skin colour.",
+        "Treats acne, acne scars, pigmentation disorders or any skin disease.",
+        "Repairs, heals or regenerates skin cells.",
+        "Permanent results, or results without continued use.",
+        "Completely safe for everyone, or safe during pregnancy.",
+        "Comparative or superlative claims, such as \"stronger than any other ampoule\"."
+      ]
+    }
+  ]
+}

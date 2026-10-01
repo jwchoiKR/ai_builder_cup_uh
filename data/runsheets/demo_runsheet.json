@@ -1,0 +1,23 @@
+{
+  "runsheet_id": "daon_skincare_demo",
+  "title": "DAON LAB · Skincare session",
+  "brand": "DAON LAB",
+  "language": "en",
+  "market": "SG",
+  "items": [
+    {
+      "order": 1,
+      "product_id": "cream_hydra_barrier",
+      "planned_duration_sec": 900,
+      "required_point_ids": ["cr-p2", "cr-p3", "cr-p4"]
+    },
+    {
+      "order": 2,
+      "product_id": "ampoule_deep_hydration",
+      "planned_duration_sec": 600,
+      "required_point_ids": ["am-p1", "am-p3", "am-p5"]
+    }
+  ],
+  "promo_ids": ["promo_time_sale_10", "promo_gift_pouch", "promo_set_reminder"],
+  "notes": "Fictional demo run-sheet. In v1 this file is loaded at session creation. A PD editor UI is out of scope for v1."
+}

@@ -1,0 +1,53 @@
+{
+  "status": "DRAFT - needs brand/legal approval before real use. Approved for the fictional demo.",
+  "correction_notices": [
+    {
+      "template_id": "compliance_correction",
+      "use_when": "A compliance alert (HIGH) was raised and the operator chooses 'Post notice'.",
+      "text": "Correction from DAON LAB: {product_name} is a cosmetic product. Its effects are cosmetic, not permanent, and it does not treat or cure any skin condition.",
+      "placeholders": ["product_name"]
+    },
+    {
+      "template_id": "fact_correction_price",
+      "use_when": "Fact correction on field price, set_price or promo.",
+      "text": "Correction: the current price of {product_name} is {correct_value}.",
+      "placeholders": ["product_name", "correct_value"]
+    },
+    {
+      "template_id": "fact_correction_generic",
+      "use_when": "Fact correction on any other purchase-relevant field (volume, ingredient amount).",
+      "text": "Correction: {product_name} {field_label} is {correct_value}.",
+      "placeholders": ["product_name", "field_label", "correct_value"]
+    }
+  ],
+  "field_labels": {
+    "price": "price",
+    "set_price": "set price",
+    "promo": "promotion",
+    "volume": "volume",
+    "ingredient_amount": "ingredient amount"
+  },
+  "operator_quick_replies": [
+    {
+      "reply_id": "shipping_sg",
+      "intent": "shipping",
+      "text": "We ship within Singapore. Delivery details are shown at checkout."
+    },
+    {
+      "reply_id": "returns",
+      "intent": "returns",
+      "text": "Unopened items can be returned. Please see the returns policy on the product page."
+    },
+    {
+      "reply_id": "doctor_check",
+      "intent": "pregnancy_breastfeeding",
+      "text": "{product_name} has not been specifically tested on pregnant or breastfeeding women. Please check with your doctor before use."
+    }
+  ],
+  "host_cue_presets": [
+    {"cue_id": "preset_missing_points", "label": "Missing points", "text": "Please cover: {missing_points}"},
+    {"cue_id": "preset_time_sale", "label": "Time sale", "text": "Time sale is live. Mention the extra 10% off."},
+    {"cue_id": "preset_wrap_up", "label": "Wrap up", "text": "Please wrap up this product."},
+    {"cue_id": "preset_patch_test", "label": "Patch test", "text": "Mention the patch test results."}
+  ]
+}
