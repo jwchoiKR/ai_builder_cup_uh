@@ -56,7 +56,7 @@ describe("top bar", () => {
     expect(screen.getByTestId("host-now")).toHaveTextContent("Hydra Barrier Cream");
     expect(screen.getByTestId("host-next")).toHaveTextContent("Deep Hydration Ampoule");
     // the first product's prompter page is readable before the start
-    expect(screen.getByTestId("host-point-cr-p1")).toHaveAttribute("data-state", "focus");
+    expect(screen.getByTestId("host-point-cr-p1")).toHaveAttribute("data-state", "todo");
   });
 
   it("shows LIVE and End of run sheet on the last product", () => {
@@ -68,17 +68,19 @@ describe("top bar", () => {
 });
 
 describe("prompter", () => {
-  it("renders said, focus and todo points with required labels", () => {
+  it("renders a plain list of said and unsaid points with required labels, no next-point cue (D-091)", () => {
     render(view({ segments: [segment({ covered_point_ids: ["cr-p1"] })] }));
     expect(screen.getByTestId("host-point-cr-p1")).toHaveAttribute("data-state", "said");
-    expect(screen.getByTestId("host-point-cr-p2")).toHaveAttribute("data-state", "focus");
+    expect(screen.getByTestId("host-point-cr-p2")).toHaveAttribute("data-state", "todo");
     expect(screen.getByTestId("host-point-cr-p3")).toHaveAttribute("data-state", "todo");
+    expect(screen.getByTestId("host-point-cr-p2")).not.toHaveAttribute("aria-current");
     expect(screen.getAllByText("REQUIRED POINT")).toHaveLength(2);
     expect(screen.getByTestId("host-required-count")).toHaveTextContent("0 / 2 required points");
     expect(screen.getByText("YOUR PROMPTER")).toBeInTheDocument();
     expect(screen.getByText("LIVE PRICE")).toBeInTheDocument();
     expect(screen.getByText("S$36.00")).toBeInTheDocument();
-    expect(screen.getByText("Keep it natural.")).toBeInTheDocument();
+    expect(screen.queryByText("Keep it natural.")).toBeNull();
+    expect(screen.queryByText(/Focus on your next point/)).toBeNull();
   });
 
   it("counts covered required points and drops the label", () => {

@@ -332,5 +332,5 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   await expect(log).toContainText("Prevents, reduces or reverses physiological changes of ageing");
   await expect(log).toContainText("Let me correct that.");
   await expect(summary.getByTestId("summary-facts")).toContainText("niacinamide");
-  await expect(summary.getByTestId("summary-recap")).toContainText("AI-written recap based on the numbers above", { timeout: 30_000 });
+  await expect(summary.getByTestId("summary-recap")).toContainText("AI-written recap based on the numbers below", { timeout: 30_000 });
 });

@@ -121,6 +121,51 @@ async def test_window_expiry_restarts_counting(env):
     assert await events(rt, "segment.switch_pending") == []
 
 
+# ---- D-090: name the next product, then confirm with its information ----------------------------
+
+
+async def test_arm_needs_the_next_product_name_heard(env):
+    rt, llm = env
+    unnamed = "Okay, let's move on to our next product."
+    llm.judge(unnamed, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
+    await speak(rt, unnamed)
+    assert (await rt.load_session()).switch.status == "idle"
+    named = "Okay, let's move on to the ampoule."
+    llm.judge(named, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
+    await speak(rt, named)
+    assert (await rt.load_session()).switch.status == "counting"
+
+
+async def test_a_second_bare_transition_does_not_confirm(env):
+    rt, llm = env
+    script_switch(llm)
+    await speak(rt, INTRO)
+    await speak(rt, INTRO2)
+    s = await rt.load_session()
+    assert (s.switch.status, s.switch.cue_count) == ("counting", 1)
+    await speak(rt, CONT)
+    assert (await rt.load_session()).switch.status == "pending"
+
+
+async def test_an_answer_with_next_product_information_does_not_confirm(env):
+    rt, llm = env
+    script_switch(llm)
+    await speak(rt, INTRO)
+    answer = "Yes, it has four percent niacinamide."
+    llm.judge(answer, utterance_type="answer", covered=["am-p1"])
+    await speak(rt, answer)
+    assert (await rt.load_session()).switch.cue_count == 1
+
+
+async def test_information_after_the_window_does_not_arm(env):
+    rt, llm = env
+    script_switch(llm)
+    await speak(rt, INTRO)
+    await advance(rt, 31_000)
+    await speak(rt, CONT)
+    assert (await rt.load_session()).switch.status == "idle"
+
+
 async def test_counting_reset_by_going_back(env):
     rt, llm = env
     script_switch(llm)

@@ -198,3 +198,55 @@
     overflow-x: auto;
   }
 }
+
+/* D-096: compliance and fact logs in one box */
+.logTitle {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.factValues {
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* D-097: the PDF report ("Export PDF" opens the print dialog; the page renders in the light theme) */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  .root {
+    min-height: 0;
+    padding: 0;
+    gap: 12px;
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .actions {
+    display: none;
+  }
+  .card,
+  .total {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+  .table {
+    font-size: 9.5pt;
+  }
+  .table tr {
+    break-inside: avoid;
+  }
+  .table thead {
+    display: table-header-group; /* repeat column headers on each page */
+  }
+  .products,
+  .twoCol {
+    grid-template-columns: 1fr 1fr;
+  }
+}

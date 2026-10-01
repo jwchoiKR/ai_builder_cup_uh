@@ -42,6 +42,8 @@ export interface GlossaryState {
   terms: GlossaryTerm[];
   confirmed_at: number | null;
   confirmed_products: string[];
+  /** confirmed terms per product, as the operator left them (D-094) */
+  terms_by_product?: Record<string, GlossaryTerm[]>;
   prompter_points?: Record<string, PrompterPoint[]>;
 }
 
@@ -66,7 +68,30 @@ export interface UploadResult {
   doc_version?: number;
 }
 
-async function upload(file: Blob, name: string): Promise<UploadResult> {
+export type UploadStageStatus = "pending" | "running" | "done" | "failed" | "skipped";
+
+export interface UploadStage {
+  stage_id: string;
+  label: string;
+  status: UploadStageStatus;
+  detail: string | null;
+  started_at: number | null;
+  ended_at: number | null;
+}
+
+/** D-093: an upload runs in the background; the page polls its stages. */
+export interface UploadJob {
+  job_id: string;
+  name: string;
+  status: "running" | "done" | "failed";
+  stages: UploadStage[];
+  result: UploadResult | null;
+  error: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+async function upload(file: Blob, name: string): Promise<UploadJob> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/setup/documents?filename=${encodeURIComponent(name)}`, {
@@ -77,11 +102,12 @@ async function upload(file: Blob, name: string): Promise<UploadResult> {
   } catch (e) {
     throw new ApiError(0, "network_error", e instanceof Error ? e.message : "Network error");
   }
-  const data = (await res.json().catch(() => null)) as (UploadResult & { error?: { code?: string; message?: string } }) | null;
+  const data: unknown = await res.json().catch(() => null);
   if (!res.ok) {
-    throw new ApiError(res.status, data?.error?.code ?? "http_error", data?.error?.message ?? `HTTP ${res.status}`);
+    const err = (data as { error?: { code?: string; message?: string } } | null)?.error;
+    throw new ApiError(res.status, err?.code ?? "http_error", err?.message ?? `HTTP ${res.status}`);
   }
-  return data as UploadResult;
+  return data as UploadJob;
 }
 
 async function getBrief(productId: string): Promise<BriefRecord | null> {
@@ -96,6 +122,7 @@ async function getBrief(productId: string): Promise<BriefRecord | null> {
 export const setupApi = {
   documents: () => request<{ documents: SetupDocument[]; doc_version: number }>("GET", "/setup/documents"),
   upload,
+  uploadJob: (jobId: string) => request<UploadJob>("GET", `/setup/documents/jobs/${encodeURIComponent(jobId)}`),
   runBrief: (productId: string) => request<BriefRecord>("POST", "/setup/brief/run", { product_id: productId }),
   getBrief,
   confirmAll: (products: Record<string, ConfirmProduct>) =>

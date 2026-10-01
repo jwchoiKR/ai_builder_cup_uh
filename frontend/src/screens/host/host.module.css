@@ -423,11 +423,17 @@
   grid-template-columns: 58fr 42fr;
   gap: calc(20px * var(--hs));
 }
+/* D-095: left = prompter (top half) + audience questions (bottom half); right = live chat only */
+.left {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: calc(20px * var(--hs));
+}
 .right {
   min-height: 0;
   display: grid;
-  grid-template-rows: 1.3fr 1fr;
-  gap: calc(20px * var(--hs));
+  grid-template-rows: 1fr;
 }
 .card {
   position: relative;
@@ -473,7 +479,7 @@
   align-items: center;
   justify-content: space-between;
   gap: calc(12px * var(--hs));
-  padding: calc(12px * var(--hs)) calc(24px * var(--hs));
+  padding: calc(8px * var(--hs)) calc(24px * var(--hs));
   border-top: 1px solid var(--border);
   font-size: calc(15px * var(--hs));
   color: var(--text-2);
@@ -521,7 +527,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: calc(20px * var(--hs));
-  padding: calc(18px * var(--hs)) calc(24px * var(--hs));
+  padding: calc(12px * var(--hs)) calc(24px * var(--hs));
   border-bottom: 1px solid var(--border);
 }
 .productEyebrow {
@@ -531,7 +537,7 @@
   color: var(--accent);
 }
 .productName {
-  font-size: calc(36px * var(--hs));
+  font-size: calc(30px * var(--hs));
   font-weight: var(--fw-semibold);
   line-height: 1.15;
 }
@@ -561,7 +567,7 @@
   text-decoration: line-through;
 }
 .priceBig {
-  font-size: calc(40px * var(--hs));
+  font-size: calc(34px * var(--hs));
   font-weight: var(--fw-semibold);
 }
 
@@ -571,19 +577,18 @@
   overflow: auto;
   list-style: none;
   margin: 0;
-  padding: calc(10px * var(--hs)) calc(12px * var(--hs));
-  scroll-behavior: smooth;
+  padding: calc(6px * var(--hs)) calc(12px * var(--hs));
 }
 .point {
   position: relative;
   display: grid;
-  grid-template-columns: calc(44px * var(--hs)) 1fr;
-  column-gap: calc(12px * var(--hs));
+  grid-template-columns: calc(32px * var(--hs)) 1fr;
+  column-gap: calc(10px * var(--hs));
   align-items: start;
-  padding: calc(12px * var(--hs)) calc(14px * var(--hs));
+  padding: calc(6px * var(--hs)) calc(12px * var(--hs));
   border-radius: var(--radius-control);
-  font-size: clamp(calc(28px * var(--hs)), 2.6cqi, calc(44px * var(--hs)));
-  line-height: 1.22;
+  font-size: calc(26px * var(--hs)); /* D-095: the whole list fits in the top half, no scrolling */
+  line-height: 1.25;
   transition: background var(--motion) var(--ease), color var(--motion) var(--ease);
 }
 .pointIcon {
@@ -607,25 +612,10 @@
 .said .pointIcon {
   color: var(--text-3);
 }
-.focus {
-  background: var(--surface-2);
-}
-.focus::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: calc(10px * var(--hs));
-  bottom: calc(10px * var(--hs));
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-.focus .pointIcon {
-  color: var(--accent);
-}
 .required {
-  grid-column: 2;
-  margin-top: calc(4px * var(--hs));
+  display: inline-block;
+  margin-left: calc(10px * var(--hs));
+  vertical-align: 0.2em;
   font-size: calc(13px * var(--hs));
   font-weight: var(--fw-semibold);
   letter-spacing: var(--eyebrow-tracking);
@@ -660,7 +650,7 @@
   flex-direction: column;
 }
 .question {
-  padding: calc(14px * var(--hs)) calc(24px * var(--hs));
+  padding: calc(10px * var(--hs)) calc(24px * var(--hs));
   border-bottom: 1px solid var(--border);
   animation: fadeIn var(--motion) var(--ease);
 }
@@ -709,8 +699,8 @@
   color: var(--fact-text);
 }
 .qText {
-  margin-top: calc(6px * var(--hs));
-  font-size: calc(26px * var(--hs));
+  margin-top: calc(4px * var(--hs));
+  font-size: calc(22px * var(--hs));
   font-weight: var(--fw-semibold);
   line-height: 1.2;
 }
@@ -718,7 +708,7 @@
   font-size: calc(22px * var(--hs));
 }
 .suggest {
-  margin-top: calc(10px * var(--hs));
+  margin-top: calc(6px * var(--hs));
   padding: calc(4px * var(--hs)) 0 calc(4px * var(--hs)) calc(14px * var(--hs));
   border-left: 3px solid var(--accent);
 }
@@ -736,16 +726,16 @@
   height: calc(15px * var(--hs));
 }
 .suggestText {
-  margin-top: calc(4px * var(--hs));
-  font-size: calc(20px * var(--hs));
+  margin-top: calc(2px * var(--hs));
+  font-size: calc(19px * var(--hs));
   line-height: 1.3;
 }
 .sourceChip {
   display: inline-flex;
   align-items: center;
   gap: calc(6px * var(--hs));
-  margin-top: calc(8px * var(--hs));
-  height: calc(26px * var(--hs));
+  margin-top: calc(6px * var(--hs));
+  height: calc(24px * var(--hs));
   padding: 0 calc(10px * var(--hs));
   border-radius: var(--radius-chip);
   border: 1px solid var(--border);

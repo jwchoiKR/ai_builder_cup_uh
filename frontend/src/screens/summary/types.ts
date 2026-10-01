@@ -50,6 +50,12 @@ export interface FactRow {
   correct_value: string | null;
   corrected: boolean;
   time_to_correction_ms: number | null;
+  // D-096: the compliance log's columns (absent in summaries stored before it)
+  span?: string | null;
+  shown_at?: number | null;
+  speech_end_to_shown_ms?: number | null;
+  shown_to_corrected_ms?: number | "dismissed" | "uncorrected";
+  corrected_text?: string | null;
 }
 
 export interface PromoRow {

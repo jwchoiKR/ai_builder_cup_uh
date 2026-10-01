@@ -24,6 +24,8 @@ export interface SummaryViewProps {
   theme: ThemeName;
   onToggleTheme?: () => void;
   onExport: () => void;
+  /** D-097: PDF report through the print dialog */
+  onExportPdf?: () => void;
   onBack: () => void;
   embedded?: boolean;
 }
@@ -109,7 +111,7 @@ function RecapBlock({ recap, status, error }: { recap: Recap | null; status: Sum
     <section className={`${styles.card} ${styles.recap}`} data-testid="summary-recap">
       <header className={styles.recapHead}>
         <Eyebrow>AI recap</Eyebrow>
-        <span className={styles.muted}>AI-written recap based on the numbers above</span>
+        <span className={styles.muted}>AI-written recap based on the numbers below</span>
       </header>
       {recap ? (
         <>
@@ -143,14 +145,14 @@ function RecapBlock({ recap, status, error }: { recap: Recap | null; status: Sum
         <p className={styles.muted}>The recap is written when the broadcast ends.</p>
       ) : (
         <p className={styles.muted} title={error ?? undefined}>
-          Recap unavailable. The numbers above are complete.
+          Recap unavailable. The numbers below are complete.
         </p>
       )}
     </section>
   );
 }
 
-export function SummaryView({ data, theme, onToggleTheme, onExport, onBack, embedded }: SummaryViewProps) {
+export function SummaryView({ data, theme, onToggleTheme, onExport, onExportPdf, onBack, embedded }: SummaryViewProps) {
   const s = data.stats;
   const start = s.started_at;
   return (
@@ -165,6 +167,15 @@ export function SummaryView({ data, theme, onToggleTheme, onExport, onBack, embe
           </p>
         </div>
         <div className={styles.actions}>
+          {onExportPdf && (
+            <Button
+              onClick={onExportPdf}
+              disabled={data.status === "computing"}
+              title={data.status === "computing" ? "Waiting for the AI recap" : "Save the report as a PDF"}
+            >
+              Export PDF
+            </Button>
+          )}
           <Button onClick={onExport}>Export JSON</Button>
           <Button variant="primary" onClick={onBack}>
             Back to hub
@@ -172,6 +183,9 @@ export function SummaryView({ data, theme, onToggleTheme, onExport, onBack, embe
           {!embedded && onToggleTheme && <ThemeToggle theme={theme} onToggle={onToggleTheme} />}
         </div>
       </header>
+
+      {/* D-092: the executive summary comes first; most readers stop here */}
+      <RecapBlock recap={data.recap} status={data.status} error={data.error} />
 
       <section className={styles.totals} aria-label="Totals">
         {(
@@ -201,8 +215,10 @@ export function SummaryView({ data, theme, onToggleTheme, onExport, onBack, embe
         </section>
       </div>
 
-      <section className={styles.card}>
-        <h3 className={styles.cardTitle}>Compliance log</h3>
+      {/* D-096: one box for both logs, same columns, each with its own heading */}
+      <section className={styles.card} data-testid="summary-logs">
+        <h3 className={styles.cardTitle}>Compliance and fact log</h3>
+        <h4 className={styles.logTitle}>Compliance log</h4>
         {s.compliance_alerts.length ? (
           <table className={styles.table} data-testid="summary-compliance">
             <thead>
@@ -240,36 +256,53 @@ export function SummaryView({ data, theme, onToggleTheme, onExport, onBack, embe
         ) : (
           <p className={styles.muted}>No compliance alerts.</p>
         )}
+
+        <h4 className={styles.logTitle}>Fact log</h4>
+        {s.fact_alerts.length ? (
+          <table className={styles.table} data-testid="summary-facts">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>You said</th>
+                <th>Field</th>
+                <th>Alert latency</th>
+                <th>Corrected in</th>
+                <th>Correction</th>
+                <th>Unverified</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.fact_alerts.map((f) => (
+                <tr key={f.alert_id}>
+                  <td className="tabular">{f.shown_at != null ? formatOffset(f.shown_at, start) : "–"}</td>
+                  <td>{f.span ? `“${f.span}”` : "–"}</td>
+                  <td>
+                    {fieldLabel(f.field)}
+                    <span className={styles.factValues}>
+                      {" "}
+                      {f.stated_value ?? "–"} → {f.correct_value ?? "–"}
+                    </span>
+                  </td>
+                  <td className="tabular">{formatMsAsSeconds(f.speech_end_to_shown_ms ?? null)}</td>
+                  <td className="tabular">
+                    {f.shown_to_corrected_ms !== undefined
+                      ? correctedIn(f.shown_to_corrected_ms)
+                      : f.corrected
+                        ? formatMsAsSeconds(f.time_to_correction_ms)
+                        : "Not corrected"}
+                  </td>
+                  <td>{f.corrected_text ?? "–"}</td>
+                  <td>–</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className={styles.muted}>No fact corrections.</p>
+        )}
       </section>
 
       <div className={styles.twoCol}>
-        <section className={styles.card}>
-          <h3 className={styles.cardTitle}>Fact log</h3>
-          {s.fact_alerts.length ? (
-            <table className={styles.table} data-testid="summary-facts">
-              <thead>
-                <tr>
-                  <th>Field</th>
-                  <th>Stated</th>
-                  <th>Correct</th>
-                  <th>Corrected in</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.fact_alerts.map((f) => (
-                  <tr key={f.alert_id}>
-                    <td>{fieldLabel(f.field)}</td>
-                    <td>{f.stated_value ?? "–"}</td>
-                    <td>{f.correct_value ?? "–"}</td>
-                    <td className="tabular">{f.corrected ? formatMsAsSeconds(f.time_to_correction_ms) : "Not corrected"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className={styles.muted}>No fact corrections.</p>
-          )}
-        </section>
         <section className={styles.card}>
           <h3 className={styles.cardTitle}>Promotions</h3>
           {s.promos.length ? (
@@ -297,7 +330,6 @@ export function SummaryView({ data, theme, onToggleTheme, onExport, onBack, embe
             <p className={styles.muted}>No promotions ran.</p>
           )}
         </section>
-      </div>
 
       <section className={styles.card}>
         <h3 className={styles.cardTitle}>Agent latency</h3>
@@ -325,8 +357,7 @@ export function SummaryView({ data, theme, onToggleTheme, onExport, onBack, embe
           Triage cache: {s.cache.triage_hits} hits, {s.cache.triage_misses} misses.
         </p>
       </section>
-
-      <RecapBlock recap={data.recap} status={data.status} error={data.error} />
+      </div>
     </div>
   );
 }

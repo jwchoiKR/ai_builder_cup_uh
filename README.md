@@ -62,8 +62,8 @@ Requirements:
   - **D**: Demo Console. **R**: recording mode (hides labels and console).
 - `/host`: keys **Esc** (cancel switch), **M** (microphone), **T** (theme).
 - `/operator`, `/viewer`.
-- `/setup`: documents, Brief Agent, glossary.
-- `/summary`: post-broadcast summary.
+- `/setup`: documents (an upload shows each processing stage, D-093), Brief Agent, glossary (terms can be edited or added before confirming, D-094).
+- `/summary`: post-broadcast summary, AI recap first; **Export PDF** saves it as a report through the print dialog (D-097).
 
 **Session selection:** add `?session=<id>` to any page. The default is the latest demo session.
 
@@ -118,6 +118,8 @@ node e2e/rehearsal-voice.mjs script 2     # the full host script twice
 - **Record S03–S08 in one continuous take**, so the latency chips are credible.
 - **Keep the operator metrics chips visible for S07** ("Alert in X.Xs" measures speech end → host render).
 - Pause briefly after each sentence. The speech recogniser finalises at pauses. A sentence split into two finals is judged as one (D-088), as long as the second part follows within 3.5 s.
+- **Correcting a red alert:** say the approved wording shown under "Say this instead", or take the claim back explicitly ("your wrinkles won't disappear overnight"). "I'm sorry" alone does not clear it (D-089).
+- **Moving to the next product:** first a transition that names it ("Now let me show you our Deep Hydration Ampoule"), then, in a later sentence, one of its facts ("It has four percent niacinamide"). Then a 5 s countdown runs, which Esc cancels (D-090).
 
 **Ending:** press **End broadcast** (S14). Then open the summary from the operator header or the Demo Console (Open summary). The AI recap appears when the summary agent finishes.
 

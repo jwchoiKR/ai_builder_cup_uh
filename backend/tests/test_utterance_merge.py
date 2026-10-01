@@ -13,7 +13,7 @@ S08_A, S08_B = "Just to be clear, it does not", "treat acne. It's a moisturiser.
 S08 = f"{S08_A} {S08_B}"
 S07_A, S07_B = "Use it every night and your wrinkles", "will disappear overnight."
 S07 = f"{S07_A} {S07_B}"
-S12_A, S12_B = "Now let me show you our next product", "the Deep Hydration Ampoule."
+S12_A, S12_B = "Now let me show you our ampoule,", "the Deep Hydration Ampoule."
 S12 = f"{S12_A} {S12_B}"
 PRICE_A, PRICE_B = "And today the live price is only thirty-two", "dollars."
 PRICE = f"{PRICE_A} {PRICE_B}"
@@ -149,10 +149,11 @@ async def test_s12_split_counts_the_switch_cue_once(env):
     counting = [e.payload for e in await events(rt, "segment.switch_counting")]
     assert [p["cue_count"] for p in counting] == [1, 1]
     assert counting[1]["replaces_transcript_id"] == a.transcript_id
-    # the next separate cue is the second one
+    # the next separate utterance with ampoule information confirms (D-090)
     await advance(rt, 5000)
-    llm.judge("Here it is, the ampoule.", **cue)
-    await speak(rt, "Here it is, the ampoule.")
+    info = "It's a watery gel, just two to three drops after toner."
+    llm.judge(info, covered=["am-p2"])
+    await speak(rt, info)
     sw = (await rt.load_session()).switch
     assert (sw.status, sw.cue_count) == ("pending", 2)
 

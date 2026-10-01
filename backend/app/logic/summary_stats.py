@@ -120,10 +120,18 @@ def compute_summary_stats(
     facts = []
     for a in sorted((a for a in alerts if a.kind == "fact"), key=lambda a: a.created_at):
         corrected = a.status == "corrected"
+        t = by_transcript.get(a.transcript_id)
+        shown = a.shown_at if a.shown_at is not None else a.created_at
+        # D-096: the same columns as the compliance log (time, what was said, latency, outcome, correction)
+        outcome = ((a.resolved_at - shown) if corrected and a.resolved_at is not None
+                   else "dismissed" if a.status == "dismissed" else "uncorrected")
         facts.append({
             "alert_id": a.alert_id, "field": a.field, "stated_value": a.stated_value, "correct_value": a.correct_value,
             "corrected": corrected,
             "time_to_correction_ms": (a.resolved_at - a.shown_at) if corrected and a.resolved_at and a.shown_at else None,
+            "span": a.span, "shown_at": shown,
+            "speech_end_to_shown_ms": (shown - t.speech_end_at) if t else None,
+            "shown_to_corrected_ms": outcome, "corrected_text": a.corrected_text,
         })
 
     # ---- promos ---------------------------------------------------------------------------------

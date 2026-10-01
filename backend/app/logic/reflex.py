@@ -71,3 +71,8 @@ class Reflex:
     def first_hit(self, text: str) -> ReflexHit | None:
         hits = self.scan(text)
         return hits[0] if hits else None
+
+    def has_negation(self, text: str) -> bool:
+        """Any negation cue of the policy anywhere in the text."""
+        norm = normalise(text)
+        return any(n.search(norm) for n in self._negations)

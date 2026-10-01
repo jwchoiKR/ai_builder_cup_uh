@@ -217,10 +217,14 @@ export function HostView({
             )}
           </div>
         </div>
+        {/* D-095: live chat is what the host watches most, so it has the whole right column; the
+            prompter and the audience questions share the left one. */}
         <div className={styles.main}>
-          <Prompter view={prompter} product={prompter.product ?? product} price={price} checking={checking} />
-          <div className={styles.right}>
+          <div className={styles.left}>
+            <Prompter view={prompter} product={prompter.product ?? product} price={price} checking={checking} />
             <Questions slots={hostSlots(state)} catalog={catalog} />
+          </div>
+          <div className={styles.right}>
             <Chat
               items={chatItems(state)}
               pinnedNotice={state.session?.pinned_notice ?? null}

@@ -46,6 +46,10 @@
 | full-viewer-S11-time-sale.png | S11 | Viewer phone page with the time-sale pop-up. |
 
 **Updates after review:**
+- **Third re-capture (2026-10-01, after the mic rehearsal):** all scene shots above show the new host layout and prompter.
+  - Live chat fills the right column; the prompter and the audience questions share the left one (D-095).
+  - The prompter is a plain information list with no "next point" (D-091).
+  - The S01 and S14 shots below predate the editable glossary, the upload stages, the recap-first summary and the combined log box (D-092–D-094, D-096).
 - **Second re-capture (2026-10-01):** all scene shots above were re-captured after D-085 and D-086.
   - Fixtures are from the clean Vertex run of the host script that is kept as the recording-day backup (D-086), so the answer wording differs slightly from earlier shots.
   - Set-price groups show the products.json `short_name` "Cream + Ampoule set".

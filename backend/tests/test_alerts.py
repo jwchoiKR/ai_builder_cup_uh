@@ -175,7 +175,7 @@ async def test_corrected_before_five_seconds_is_not_escalated(env):
     await speak(rt, BACTERIA)
     a = await only_alert(rt)
     await advance(rt, 2000)
-    fix = "Let me correct that."
+    fix = "Let me correct that. It helps relieve the feeling of dryness."  # D-089: says the approved claim
     llm.judge(fix, corrects=[a.alert_id], utterance_type="correction")
     await speak(rt, fix)
     await advance(rt, 10_000)

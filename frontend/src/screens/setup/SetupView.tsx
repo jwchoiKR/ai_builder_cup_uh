@@ -4,13 +4,38 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ThemeName } from "../../app/theme";
 import type { PrompterPoint, Product } from "../../app/types";
 import { Button, Chip, Eyebrow, Panel, ThemeToggle } from "../../components";
-import type { BriefRecord, ConfirmProduct, GlossaryState, PointChoice, SetupClient, SetupDocument } from "./setupApi";
+import { GlossaryTable, type TermRow } from "./GlossaryTable";
+import type {
+  BriefRecord,
+  ConfirmProduct,
+  GlossaryState,
+  GlossaryTerm,
+  PointChoice,
+  SetupClient,
+  SetupDocument,
+  UploadJob,
+} from "./setupApi";
 import styles from "./setup.module.css";
+import { UploadStages } from "./UploadStages";
 
 type Choice = "" | "add" | `replace:${string}`;
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const time = (ms: number) => new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const POLL_MS = 300;
+
+const toRows = (terms: GlossaryTerm[]): TermRow[] => terms.map((t) => ({ ...t, spoken_forms: [...t.spoken_forms], include: true }));
+
+/** D-094: rows start from the confirmed terms when the confirmation is newer than the Brief Agent
+ * run (so edits survive a reload), else from the Brief Agent draft. */
+function initialRows(brief: BriefRecord | null | undefined, glossary: GlossaryState | null, productId: string): TermRow[] | null {
+  const draft = brief?.output?.glossary;
+  if (!draft) return null;
+  const confirmed = glossary?.terms_by_product?.[productId];
+  if (confirmed && glossary?.confirmed_at != null && brief!.ran_at <= glossary.confirmed_at) return toRows(confirmed);
+  return toRows(draft);
+}
 
 export interface SetupViewProps {
   products: Product[];
@@ -24,16 +49,25 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
   const [docs, setDocs] = useState<SetupDocument[]>([]);
   const [docMessage, setDocMessage] = useState<{ tone: "ok" | "risk"; text: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [job, setJob] = useState<UploadJob | null>(null);
   const [glossary, setGlossary] = useState<GlossaryState | null>(null);
+  const [glossaryLoaded, setGlossaryLoaded] = useState(false);
   const [briefs, setBriefs] = useState<Record<string, BriefRecord | null>>({});
   const [running, setRunning] = useState<Record<string, boolean>>({});
   const [briefErrors, setBriefErrors] = useState<Record<string, string | null>>({});
-  const [include, setInclude] = useState<Record<string, Record<string, boolean>>>({});
+  const [rows, setRows] = useState<Record<string, TermRow[]>>({});
   const [choices, setChoices] = useState<Record<string, Record<number, Choice>>>({});
   const [confirming, setConfirming] = useState(false);
   const [confirmed, setConfirmed] = useState<number | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
 
   const loadDocs = useCallback(async () => {
     try {
@@ -45,7 +79,16 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
 
   useEffect(() => {
     void loadDocs();
-    client.glossary().then(setGlossary, () => setGlossary(null));
+    client.glossary().then(
+      (g) => {
+        setGlossary(g);
+        setGlossaryLoaded(true);
+      },
+      () => {
+        setGlossary(null);
+        setGlossaryLoaded(true);
+      },
+    );
   }, [client, loadDocs]);
 
   const productIds = useMemo(() => products.map((p) => p.product_id).join(","), [products]);
@@ -59,12 +102,34 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, productIds]);
 
+  // Rows for products whose Brief Agent result or confirmed glossary arrived (never over edits).
+  useEffect(() => {
+    if (!glossaryLoaded) return; // the confirmed terms decide where the rows start
+    setRows((prev) => {
+      let next = prev;
+      for (const p of products) {
+        if (next[p.product_id]) continue;
+        const init = initialRows(briefs[p.product_id], glossary, p.product_id);
+        if (init) next = { ...next, [p.product_id]: init };
+      }
+      return next;
+    });
+  }, [products, briefs, glossary, glossaryLoaded]);
+
   const onUpload = async (file: File) => {
     setUploading(true);
     setDocMessage(null);
     try {
-      const res = await client.upload(file, file.name);
-      setDocMessage({ tone: "ok", text: res.status === "already_indexed" ? "Already indexed" : res.message });
+      let current = await client.upload(file, file.name);
+      setJob(current);
+      while (current.status === "running" && alive.current) {
+        await sleep(POLL_MS);
+        current = await client.uploadJob(current.job_id);
+        if (alive.current) setJob(current);
+      }
+      if (current.status === "failed") setDocMessage({ tone: "risk", text: current.error ?? "Upload failed" });
+      else if (current.result)
+        setDocMessage({ tone: "ok", text: current.result.status === "already_indexed" ? "Already indexed" : current.result.message });
       await loadDocs();
     } catch (e) {
       setDocMessage({ tone: "risk", text: errorText(e) });
@@ -80,7 +145,7 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
     try {
       const record = await client.runBrief(productId);
       setBriefs((b) => ({ ...b, [productId]: record }));
-      setInclude((i) => ({ ...i, [productId]: {} }));
+      setRows((r) => ({ ...r, [productId]: toRows(record.output?.glossary ?? []) })); // a new run replaces edits
       setChoices((c) => ({ ...c, [productId]: {} }));
     } catch (e) {
       setBriefErrors((errs) => ({ ...errs, [productId]: errorText(e) })); // the previous result stays
@@ -91,10 +156,7 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
 
   const currentPoints = (p: Product): PrompterPoint[] => glossary?.prompter_points?.[p.product_id] ?? p.prompter_points;
   const reviewed = products.filter((p) => briefs[p.product_id]?.output);
-  const selectedTerms = reviewed.reduce(
-    (n, p) => n + (briefs[p.product_id]?.output?.glossary ?? []).filter((t) => include[p.product_id]?.[t.term] ?? true).length,
-    0,
-  );
+  const selectedTerms = reviewed.reduce((n, p) => n + (rows[p.product_id] ?? []).filter((t) => t.include).length, 0);
 
   const confirm = async () => {
     const payload: Record<string, ConfirmProduct> = {};
@@ -108,7 +170,13 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
           picks.push({ text: d.text, action: "replace", point_id: c.slice("replace:".length), source_section: d.source_section });
       });
       payload[p.product_id] = {
-        glossary: out.glossary.map((t) => ({ ...t, include: include[p.product_id]?.[t.term] ?? true })),
+        glossary: (rows[p.product_id] ?? toRows(out.glossary)).map(({ term, kind, spoken_forms, source_section, include }) => ({
+          term,
+          kind,
+          spoken_forms,
+          source_section,
+          include,
+        })),
         prompter_points: picks,
       };
     }
@@ -199,6 +267,7 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
               )}
             </tbody>
           </table>
+          {job && <UploadStages job={job} />}
           {docMessage && (
             <p className={docMessage.tone === "ok" ? styles.okText : styles.errorText} role="status">
               {docMessage.text}
@@ -241,45 +310,11 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
                       Ran at {time(record!.ran_at)} · {out.glossary.length} terms · {out.prompter_points.length} point drafts
                     </p>
                     <h3 className={styles.subTitle}>Glossary</h3>
-                    <table className={styles.table} data-testid={`setup-glossary-${p.product_id}`}>
-                      <thead>
-                        <tr>
-                          <th>Include</th>
-                          <th>Term</th>
-                          <th>Kind</th>
-                          <th>Spoken forms</th>
-                          <th>Source section</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {out.glossary.map((t) => {
-                          const on = include[p.product_id]?.[t.term] ?? true;
-                          return (
-                            <tr key={t.term} className={on ? undefined : styles.excluded}>
-                              <td>
-                                <input
-                                  type="checkbox"
-                                  checked={on}
-                                  aria-label={`Include ${t.term}`}
-                                  onChange={(e) =>
-                                    setInclude((all) => ({
-                                      ...all,
-                                      [p.product_id]: { ...all[p.product_id], [t.term]: e.target.checked },
-                                    }))
-                                  }
-                                />
-                              </td>
-                              <td className={styles.term}>{t.term}</td>
-                              <td>
-                                <Chip>{t.kind}</Chip>
-                              </td>
-                              <td className={styles.muted}>{t.spoken_forms.join(", ")}</td>
-                              <td className={styles.muted}>{t.source_section}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <GlossaryTable
+                      productId={p.product_id}
+                      rows={rows[p.product_id] ?? []}
+                      onChange={(next) => setRows((all) => ({ ...all, [p.product_id]: next }))}
+                    />
 
                     <h3 className={styles.subTitle}>Prompter points</h3>
                     <div className={styles.points}>

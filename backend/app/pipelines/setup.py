@@ -9,6 +9,7 @@ All setup state lives in the top-level SETUP store collection:
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import re
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_POINT_CHARS = 90
+MAX_TERM_CHARS = 100  # also the STT phrase hint limit (providers/stt.py)
 
 # ---- sheet parsing: PDF text -> passages (§9.2) ----------------------------------------------------
 
@@ -351,10 +353,139 @@ async def list_documents(ctx: "AppContext") -> dict[str, Any]:
     return {"documents": docs, "doc_version": ctx.retriever.doc_version()}
 
 
-async def upload_document(ctx: "AppContext", filename: str, data: bytes) -> dict[str, Any]:
+class UploadStage(BaseModel):
+    stage_id: str
+    label: str
+    status: Literal["pending", "running", "done", "failed", "skipped"] = "pending"
+    detail: str | None = None
+    started_at: int | None = None
+    ended_at: int | None = None
+
+
+class UploadJob(BaseModel):  # [SETUP/upload_job:<job_id>]
+    job_id: str
+    name: str
+    status: Literal["running", "done", "failed"] = "running"
+    stages: list[UploadStage]
+    result: dict | None = None
+    error: str | None = None
+    created_at: int
+    updated_at: int
+
+
+def upload_stages(ctx: "AppContext") -> list[UploadStage]:
+    """The stages an upload really goes through in this mode (D-093). Locally the sheet is parsed and
+    the product's BM25 index rebuilt; in cloud mode it would go to Cloud Storage and Vertex AI Search
+    (manual in v1, shown as skipped)."""
+    plan = [("receive", "Upload received"), ("check", "Check the file"), ("read", "Read the PDF text"),
+            ("match", "Match the product code"), ("split", "Split into sheet passages")]
+    if ctx.settings.APP_ENV == "cloud":
+        plan += [("gcs", "Store in Cloud Storage"), ("import", "Import to Vertex AI Search")]
+    else:
+        plan += [("index", "Rebuild the local index")]
+    plan += [("ready", "Ready for the Brief Agent")]
+    return [UploadStage(stage_id=i, label=label) for i, label in plan]
+
+
+class UploadProgress:
+    """Stage updates of one upload job, stored so the page can poll them."""
+
+    def __init__(self, ctx: "AppContext", job: UploadJob) -> None:
+        self.ctx, self.job = ctx, job
+
+    def _stage(self, stage_id: str) -> UploadStage | None:
+        return next((s for s in self.job.stages if s.stage_id == stage_id), None)
+
+    async def _save(self) -> None:
+        self.job.updated_at = _now(self.ctx)
+        await self.ctx.store.put(SETUP, f"upload_job:{self.job.job_id}", self.job)
+
+    async def start(self, stage_id: str) -> None:
+        s = self._stage(stage_id)
+        if s is not None:
+            s.status, s.started_at = "running", _now(self.ctx)
+            await self._save()
+
+    async def done(self, stage_id: str, detail: str | None = None, *, status: str = "done") -> None:
+        s = self._stage(stage_id)
+        if s is not None:
+            s.status, s.detail, s.ended_at = status, detail, _now(self.ctx)
+            s.started_at = s.started_at or s.ended_at
+            await self._save()
+
+    async def skip_rest(self, detail: str) -> None:
+        for s in self.job.stages:
+            if s.status == "pending":
+                s.status, s.detail = "skipped", detail
+        await self._save()
+
+    async def fail(self, message: str) -> None:
+        running = next((s for s in self.job.stages if s.status == "running"), None)
+        if running is not None:
+            running.status, running.detail, running.ended_at = "failed", message, _now(self.ctx)
+        self.job.status, self.job.error = "failed", message
+        await self._save()
+
+    async def finish(self, result: dict[str, Any]) -> None:
+        self.job.status, self.job.result = "done", result
+        await self._save()
+
+
+class _NoProgress(UploadProgress):
+    def __init__(self) -> None:  # noqa: D107 - no job, no store writes
+        pass
+
+    async def start(self, stage_id: str) -> None: ...
+
+    async def done(self, stage_id: str, detail: str | None = None, *, status: str = "done") -> None: ...
+
+    async def skip_rest(self, detail: str) -> None: ...
+
+    async def fail(self, message: str) -> None: ...
+
+    async def finish(self, result: dict[str, Any]) -> None: ...
+
+
+_UPLOAD_TASKS: set = set()
+
+
+async def start_upload(ctx: "AppContext", filename: str, data: bytes) -> UploadJob:
+    """Start an upload in the background and return its job; the page polls `get_upload_job`."""
+    now = _now(ctx)
+    job = UploadJob(job_id=f"up_{hashlib.sha256(f'{now}:{filename}:{len(data)}'.encode()).hexdigest()[:12]}",
+                    name=Path(filename or "upload.pdf").name, stages=upload_stages(ctx), created_at=now, updated_at=now)
+    progress = UploadProgress(ctx, job)
+    await progress.done("receive", f"{len(data) / 1024:,.0f} KB")
+
+    async def run() -> None:
+        try:
+            await progress.finish(await upload_document(ctx, filename, data, progress))
+        except ActionError as e:
+            await progress.fail(e.message)
+        except Exception as e:  # noqa: BLE001 - shown on the page, never raised into the loop
+            await progress.fail(f"Upload failed: {e}")
+
+    task = asyncio.create_task(run(), name=f"upload:{job.job_id}")
+    _UPLOAD_TASKS.add(task)
+    task.add_done_callback(_UPLOAD_TASKS.discard)
+    return job
+
+
+async def get_upload_job(ctx: "AppContext", job_id: str) -> UploadJob:
+    job = await ctx.store.get(SETUP, f"upload_job:{job_id}", UploadJob)
+    if job is None:
+        raise ActionError(404, "upload_job_not_found", f"upload job {job_id} not found")
+    return job
+
+
+async def upload_document(ctx: "AppContext", filename: str, data: bytes,
+                          progress: UploadProgress | None = None) -> dict[str, Any]:
     """§12.7: a shipped PDF (same SHA-256) is already indexed; any other sheet is saved and its
-    product's local index is rebuilt (doc_version + 1). The shipped passages.jsonl never changes."""
+    product's local index is rebuilt (doc_version + 1). The shipped passages.jsonl never changes.
+    `progress` reports each stage (D-093)."""
+    p = progress or _NoProgress()
     name = Path(filename or "upload.pdf").name
+    await p.start("check")
     if not name.lower().endswith(".pdf") or not data.startswith(b"%PDF"):
         raise ActionError(400, "not_a_pdf", "Upload a PDF product sheet.")
     if len(data) > MAX_UPLOAD_BYTES:
@@ -362,25 +493,40 @@ async def upload_document(ctx: "AppContext", filename: str, data: bytes) -> dict
     sha = hashlib.sha256(data).hexdigest()
     for path in (ctx.settings.data_path / "products").glob("*.pdf"):
         if _info(path)[0] == sha:
+            await p.done("check", f"Same file as {path.name}")
+            await p.skip_rest("Already indexed")
             return {"status": "already_indexed", "message": "Already indexed", "name": path.name}
     uploads = await _get(ctx, "uploads", UploadsDoc)
     if any(u.sha256 == sha for u in uploads.uploads):
+        await p.done("check", "Uploaded before")
+        await p.skip_rest("Already indexed")
         return {"status": "already_indexed", "message": "Already indexed", "name": name}
+    await p.done("check", "PDF, new file")
+    await p.start("read")
     try:
-        text, pages = pdf_text(data)
+        text, pages = await asyncio.to_thread(pdf_text, data)
     except Exception as e:  # noqa: BLE001
         raise ActionError(422, "unreadable_pdf", f"The PDF could not be read: {e}") from None
+    await p.done("read", f"{pages} page{'s' if pages != 1 else ''}")
+    await p.start("match")
     code = product_code(text)
-    product = next((p for p in _catalog(ctx).products if p.code == code), None)
+    product = next((x for x in _catalog(ctx).products if x.code == code), None)
     if product is None:
         raise ActionError(422, "unknown_product_code", f"No product with code {code or '(none found)'}.")
+    await p.done("match", f"{product.code} · {product.name}")
+    await p.start("split")
     passages = parse_sheet_text(text, doc=name, product_id=product.product_id, code=product.code)
     if not passages:
         raise ActionError(422, "no_sections", "No product sheet sections were found in the PDF.")
+    await p.done("split", f"{len(passages)} passages")
     if ctx.settings.APP_ENV == "cloud":
+        await p.done("gcs", f"Manual in v1: upload to gs://{ctx.settings.GCS_BUCKET}/products/", status="skipped")
+        await p.done("import", "Manual in v1: run the Vertex AI Search import", status="skipped")
+        await p.done("ready", "After the manual import")
         return {"status": "manual_import", "message": (
             f"Upload {name} to gs://{ctx.settings.GCS_BUCKET}/products/ and run the Vertex AI Search import "
             "(cloud import is manual in v1)."), "product_id": product.product_id}
+    await p.start("index")
     folder = _uploads_dir(ctx)
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / name
@@ -393,6 +539,8 @@ async def upload_document(ctx: "AppContext", filename: str, data: bytes) -> dict
         product_id=product.product_id, name=name, sha256=sha, path=str(path), pages=pages, passages=len(passages),
         doc_version=doc_version, uploaded_at=_now(ctx))]
     await ctx.store.put(SETUP, "uploads", uploads)
+    await p.done("index", f"{product.name}: {len(passages)} passages, document version {doc_version}")
+    await p.done("ready", "The Brief Agent reads this sheet")
     return {"status": "indexed", "message": f"Indexed locally · {len(passages)} passages", "name": name,
             "product_id": product.product_id, "passages": len(passages), "doc_version": doc_version}
 
@@ -473,7 +621,8 @@ async def current_glossary(ctx: "AppContext") -> dict[str, Any]:
             seen.add(t.term.lower())
             terms.append(t)
     return {"version": doc.version, "terms": [t.model_dump() for t in terms], "confirmed_at": doc.confirmed_at,
-            "confirmed_products": sorted(doc.terms_by_product)}
+            "confirmed_products": sorted(doc.terms_by_product),
+            "terms_by_product": {pid: [t.model_dump() for t in ts] for pid, ts in doc.terms_by_product.items()}}
 
 
 async def prompter_overrides(ctx: "AppContext") -> dict[str, list[PrompterPoint]]:
@@ -507,6 +656,29 @@ def _apply_points(ctx: "AppContext", product_id: str, base: list[PrompterPoint],
     return points
 
 
+def _clean_terms(product_id: str, choices: list[TermChoice]) -> list[GlossaryTerm]:
+    """Included terms as the operator left them (D-094: terms may be edited or added on the page).
+    Whitespace is collapsed, empty or repeated spoken forms are dropped, a term must be unique."""
+    out: list[GlossaryTerm] = []
+    seen: set[str] = set()
+    for t in choices:
+        if not t.include:
+            continue
+        term = " ".join(t.term.split())
+        if not term or len(term) > MAX_TERM_CHARS:
+            raise ActionError(400, "invalid_term", f"A glossary term must have 1 to {MAX_TERM_CHARS} characters.")
+        if term.lower() in seen:
+            raise ActionError(409, "duplicate_term", f"'{term}' is listed twice for {product_id}.")
+        seen.add(term.lower())
+        forms: list[str] = []
+        for f in t.spoken_forms:
+            f = " ".join(f.split())
+            if f and len(f) <= MAX_TERM_CHARS and f.lower() not in {x.lower() for x in forms}:
+                forms.append(f)
+        out.append(GlossaryTerm(term=term, kind=t.kind, spoken_forms=forms, source_section=t.source_section))
+    return out
+
+
 async def confirm(ctx: "AppContext", products: dict[str, ConfirmBody]) -> dict[str, Any]:
     """One confirmation = glossary version + 1, whatever number of products it covers."""
     if not products:
@@ -518,7 +690,7 @@ async def confirm(ctx: "AppContext", products: dict[str, ConfirmBody]) -> dict[s
         doc = await txn.get(SETUP, "glossary", GlossaryDoc) or GlossaryDoc()
         overrides = await txn.get(SETUP, "overrides", OverridesDoc) or OverridesDoc()
         for pid, body in products.items():
-            doc.terms_by_product[pid] = [GlossaryTerm(**t.model_dump(exclude={"include"})) for t in body.glossary if t.include]
+            doc.terms_by_product[pid] = _clean_terms(pid, body.glossary)
             if body.prompter_points:
                 overrides.points[pid] = _apply_points(ctx, pid, base_points[pid], body.prompter_points)
         doc.version += 1

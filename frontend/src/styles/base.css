@@ -72,3 +72,13 @@ a {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* D-097: printing (summary PDF) shows the whole page, not one viewport */
+@media print {
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+  }
+}

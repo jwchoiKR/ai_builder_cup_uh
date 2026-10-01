@@ -16,14 +16,20 @@ async def documents(ctx: AppContext = Depends(get_ctx)) -> dict:
     return await svc.list_documents(ctx)
 
 
-@router.post("/documents")
+@router.post("/documents", status_code=202)
 async def upload(request: Request, filename: str = "upload.pdf", ctx: AppContext = Depends(get_ctx)) -> dict:
     """Upload a product sheet as the raw request body (Content-Type: application/pdf); the
-    file name is a query parameter. (python-multipart is not a dependency.)"""
+    file name is a query parameter. (python-multipart is not a dependency.) Returns an upload job
+    whose stages the page polls (D-093); the job's `result` is the former response body."""
     data = await request.body()
     if not data:
         raise ApiError(400, "empty_upload", "The request body must be the PDF file.")
-    return await svc.upload_document(ctx, filename, data)
+    return (await svc.start_upload(ctx, filename, data)).model_dump()
+
+
+@router.get("/documents/jobs/{job_id}")
+async def upload_job(job_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
+    return (await svc.get_upload_job(ctx, job_id)).model_dump()
 
 
 class BriefRunBody(BaseModel):

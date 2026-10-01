@@ -254,3 +254,131 @@
   justify-content: space-between;
   gap: var(--space-4);
 }
+
+/* ---- upload progress (D-093) ---- */
+.upload {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-2);
+}
+
+.uploadHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.progressTrack {
+  height: 6px;
+  margin: var(--space-2) 0 var(--space-3);
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.progressFill,
+.progressFailed {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 200ms ease-out;
+}
+
+.progressFailed {
+  background: var(--risk-text);
+}
+
+.stageList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-14);
+}
+
+.stage {
+  display: grid;
+  grid-template-columns: 20px minmax(180px, auto) 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-2);
+}
+
+.stage[data-state="running"],
+.stage[data-state="done"] {
+  color: var(--text);
+}
+
+.stage[data-state="failed"] {
+  color: var(--risk-text);
+}
+
+.stageIcon {
+  display: grid;
+  place-items: center;
+}
+
+.stageIcon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.stage[data-state="done"] .stageIcon {
+  color: var(--ok-text);
+}
+
+.stageLabel {
+  font-weight: var(--fw-semibold);
+}
+
+.stageDetail {
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progressFill,
+  .progressFailed {
+    transition: none;
+  }
+}
+
+/* ---- glossary editing (D-094) ---- */
+.input {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  font-size: var(--fs-14);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: var(--space-1) var(--space-2);
+}
+
+.editRow td {
+  background: var(--surface-2);
+}
+
+.rowActions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.rowActions > * + * {
+  margin-left: var(--space-1);
+}
+
+.termChip {
+  margin-left: var(--space-2);
+  vertical-align: 1px;
+}
+
+.addTerm {
+  margin-top: var(--space-2);
+}

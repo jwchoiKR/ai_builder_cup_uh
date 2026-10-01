@@ -2,6 +2,7 @@
 prompter overrides, and the /api/setup routes."""
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import shutil
@@ -151,6 +152,26 @@ async def test_confirm_bumps_version_once_per_confirmation(ctx):
         await svc.confirm(ctx, {})
 
 
+async def test_edited_and_added_terms_are_confirmed_as_edited(ctx):
+    """D-094: the operator may change a term, its kind and spoken forms, or add a term."""
+    edited = svc.ConfirmBody(glossary=[
+        svc.TermChoice(term="  Hydra   Barrier Cream ", kind="product",
+                       spoken_forms=["hydra barrier cream", " Hydra Barrier Cream ", "", "hydra cream"]),
+        svc.TermChoice(term="DAON LAB cream", kind="product", spoken_forms=["dawn lab cream"], source_section="Added on /setup"),
+    ])
+    g = await svc.confirm(ctx, {CREAM: edited})
+    [hydra, added] = g["terms_by_product"][CREAM]
+    assert hydra == {"term": "Hydra Barrier Cream", "kind": "product", "spoken_forms": ["hydra barrier cream", "hydra cream"],
+                     "source_section": ""}
+    assert added["term"] == "DAON LAB cream" and added["source_section"] == "Added on /setup"
+    for bad, code in ((svc.TermChoice(term="   ", kind="value"), "invalid_term"),
+                      (svc.TermChoice(term="hydra barrier CREAM", kind="product"), "duplicate_term")):
+        with pytest.raises(ActionError) as e:
+            await svc.confirm(ctx, {CREAM: svc.ConfirmBody(glossary=[edited.glossary[0], bad])})
+        assert e.value.code == code
+    assert (await svc.current_glossary(ctx))["version"] == 1  # a rejected confirmation changes nothing
+
+
 async def test_prompter_overrides_replace_and_add(ctx):
     body = svc.ConfirmBody(prompter_points=[
         svc.PointChoice(action="replace", point_id="cr-p2", text="Ceramide NP 1%, panthenol 5% and squalane 3%."),
@@ -195,6 +216,40 @@ async def client(ctx):
         yield c
 
 
+async def finished_job(client, job_id: str) -> dict:
+    for _ in range(200):
+        job = (await client.get(f"/setup/documents/jobs/{job_id}")).json()
+        if job["status"] != "running":
+            return job
+        await asyncio.sleep(0.02)
+    raise AssertionError("upload job did not finish")
+
+
+async def test_upload_job_reports_each_stage(client, data_dir):
+    """D-093: a new sheet goes through every local stage, each with a short detail."""
+    up = await client.post("/setup/documents", params={"filename": "cream_v2.pdf"}, content=modified_pdf(data_dir / "products" / CREAM_PDF),
+                           headers={"Content-Type": "application/pdf"})
+    assert up.status_code == 202
+    first = up.json()
+    assert [s["stage_id"] for s in first["stages"]] == ["receive", "check", "read", "match", "split", "index", "ready"]
+    assert first["stages"][0]["status"] == "done"
+    job = await finished_job(client, first["job_id"])
+    assert job["status"] == "done" and job["result"]["status"] == "indexed"
+    assert all(s["status"] == "done" for s in job["stages"])
+    details = {s["stage_id"]: s["detail"] for s in job["stages"]}
+    assert details["match"] == "DL-CR-01 · Hydra Barrier Cream" and details["split"].endswith("passages")
+
+
+async def test_upload_job_marks_the_failing_stage(client):
+    up = await client.post("/setup/documents", params={"filename": "notes.pdf"}, content=b"hello",
+                           headers={"Content-Type": "application/pdf"})
+    job = await finished_job(client, up.json()["job_id"])
+    assert job["status"] == "failed" and job["error"] == "Upload a PDF product sheet."
+    by_id = {s["stage_id"]: s["status"] for s in job["stages"]}
+    assert by_id["check"] == "failed" and by_id["read"] == "pending"
+    assert (await client.get("/setup/documents/jobs/nope")).status_code == 404
+
+
 async def test_api_happy_path(client, data_dir):
     docs = (await client.get("/setup/documents")).json()
     assert len(docs["documents"]) == 2 and docs["doc_version"] == 0
@@ -212,7 +267,9 @@ async def test_api_happy_path(client, data_dir):
     up = await client.post("/setup/documents", params={"filename": "same.pdf"},
                            content=(data_dir / "products" / CREAM_PDF).read_bytes(),
                            headers={"Content-Type": "application/pdf"})
-    assert up.json()["message"] == "Already indexed"
+    assert up.status_code == 202
+    job = await finished_job(client, up.json()["job_id"])
+    assert job["status"] == "done" and job["result"]["message"] == "Already indexed"
     bad = await client.post("/setup/brief/run", json={"product_id": "nope"})
     assert bad.status_code == 404 and bad.json()["error"]["code"] == "unknown_product"
     empty = await client.post("/setup/documents", content=b"")

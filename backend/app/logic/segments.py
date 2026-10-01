@@ -6,6 +6,7 @@ from typing import Literal
 
 from ..models.agent_io import UtteranceJudgeOutput
 from ..models.session import Segment, SwitchState
+from .reflex import normalise
 
 CueKind = Literal["cue", "cancel", "neutral"]
 SwitchEvent = Literal["counting", "pending", "cancelled", "reset", None]
@@ -14,7 +15,14 @@ SwitchEvent = Literal["counting", "pending", "cancelled", "reset", None]
 def classify_switch(
     judge: UtteranceJudgeOutput, state: SwitchState, *, on_air: str, next_product: str | None,
     on_air_points: Collection[str], next_points: Collection[str], high_alert_became_active: bool,
+    next_named: bool = True,
 ) -> CueKind:
+    """D-090: two steps instead of any two cues.
+    - Arm (idle): a transition to the next product, not a quote or an answer, confidence medium or
+      high, and the next product's name actually heard (`next_named`).
+    - Confirm (counting): a later utterance that states the next product's information (covers at
+      least one of its points), not a quote or an answer. A second bare transition does not confirm.
+    `state` must already have an expired counting window reset (see `expire`)."""
     sw = judge.prompter.switch
     covered = judge.prompter.covered_point_ids
     if high_alert_became_active:
@@ -25,12 +33,28 @@ def classify_switch(
         return "cancel"
     if next_product is None:
         return "neutral"  # no automatic switch after the last product
-    if (sw.is_transition and not sw.is_quote and sw.target_product_id == next_product
-            and sw.confidence in ("medium", "high") and judge.answer.utterance_type != "answer"):
+    talk = not sw.is_quote and judge.answer.utterance_type != "answer"
+    if state.status == "idle":
+        if (talk and next_named and sw.is_transition and sw.target_product_id == next_product
+                and sw.confidence in ("medium", "high")):
+            return "cue"
+        return "neutral"
+    if state.status == "counting" and talk and any(p in next_points for p in covered):
         return "cue"
-    if state.status == "counting" and not sw.is_quote and any(p in next_points for p in covered):
-        return "cue"  # continuation about the new product
     return "neutral"
+
+
+def expire(state: SwitchState, now: int, window_sec: int) -> SwitchState:
+    """A counting state whose window is over is idle again (nothing shown on the host)."""
+    if state.status == "counting" and state.first_cue_at is not None and now - state.first_cue_at > window_sec * 1000:
+        return SwitchState(last_commit=state.last_commit)
+    return state
+
+
+def names_product(text: str, names: Collection[str]) -> bool:
+    """True when one of the product's names is heard as whole words (case and punctuation ignored)."""
+    norm = f" {normalise(text)} "
+    return any(f" {normalise(n)} " in norm for n in names if normalise(n))
 
 
 def step_switch(
@@ -38,9 +62,7 @@ def step_switch(
     cues_needed: int, window_sec: int, cancel_window_sec: int,
 ) -> tuple[SwitchState, SwitchEvent]:
     """Apply one judge result to the switch state. Returns the new state and the event to emit."""
-    s = state.model_copy(deep=True)
-    if s.status == "counting" and s.first_cue_at is not None and now - s.first_cue_at > window_sec * 1000:
-        s = SwitchState(last_commit=s.last_commit)  # window expired: back to idle, nothing on the host
+    s = expire(state, now, window_sec).model_copy(deep=True)  # window over: back to idle, nothing on the host
     if kind == "cancel":
         if s.status == "pending":
             return SwitchState(last_commit=s.last_commit), "cancelled"

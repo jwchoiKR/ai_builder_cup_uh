@@ -179,12 +179,13 @@ export function priceView(state: ClientState, catalog: Catalog | null, product: 
 
 // ---- prompter --------------------------------------------------------------------------------------
 
+// D-091: the prompter is the product's information for reference, not a script read in order, so it
+// has no "next point".
 export interface PrompterPointRow {
   point_id: string;
   text: string;
   required: boolean;
   covered: boolean;
-  focus: boolean;
 }
 
 export interface PrompterViewModel {
@@ -192,13 +193,12 @@ export interface PrompterViewModel {
   points: PrompterPointRow[];
   requiredTotal: number;
   requiredCovered: number;
-  focusPointId: string | null;
 }
 
 export function prompterView(state: ClientState, catalog: Catalog | null): PrompterViewModel {
   const seg = onAirSegment(state);
   const product = productById(catalog, seg?.product_id ?? state.prompter?.product_id);
-  if (!product) return { product: null, points: [], requiredTotal: 0, requiredCovered: 0, focusPointId: null };
+  if (!product) return { product: null, points: [], requiredTotal: 0, requiredCovered: 0 };
   const rs = runsheetOf(state, catalog);
   const item = rs?.items.find((i) => i.product_id === product.product_id);
   const required = new Set(item?.required_point_ids ?? []);
@@ -207,15 +207,13 @@ export function prompterView(state: ClientState, catalog: Catalog | null): Promp
   const base = fromServer?.points?.length
     ? fromServer.points.map((p) => ({ point_id: p.point_id, text: p.text, required: p.required }))
     : product.prompter_points.map((p) => ({ point_id: p.point_id, text: p.text, required: required.has(p.point_id) }));
-  const focus = base.find((p) => !covered.has(p.point_id))?.point_id ?? null;
-  const points = base.map((p) => ({ ...p, covered: covered.has(p.point_id), focus: p.point_id === focus }));
+  const points = base.map((p) => ({ ...p, covered: covered.has(p.point_id) }));
   const req = points.filter((p) => p.required);
   return {
     product,
     points,
     requiredTotal: req.length,
     requiredCovered: req.filter((p) => p.covered).length,
-    focusPointId: focus,
   };
 }
 

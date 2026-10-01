@@ -146,6 +146,9 @@ def test_summary_numbers(catalog):
     assert (fx1["field"], fx1["stated_value"], fx1["correct_value"], fx1["corrected"], fx1["time_to_correction_ms"]) == (
         "price", "S$32", "S$36.00", True, 12000)
     assert fx2["corrected"] is False and fx2["time_to_correction_ms"] is None
+    # D-096: the compliance log's columns
+    assert (fx1["shown_at"], fx1["shown_to_corrected_ms"]) == (T0 + 201_000, 12000)
+    assert fx2["shown_to_corrected_ms"] == "uncorrected" and fx2["speech_end_to_shown_ms"] == 600_500
 
     sale, gift = s["promos"]
     assert sale == {"promo_id": "promo_time_sale_10", "title": "Time sale: extra 10% off", "started_at": T0 + 600_000,

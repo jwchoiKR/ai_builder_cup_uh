@@ -31,19 +31,17 @@ export function hostPrompterView(state: ClientState, catalog: Catalog | null, pr
   if (v.product || !product) return v;
   const item = runsheetOf(state, catalog)?.items.find((i) => i.product_id === product.product_id);
   const required = new Set(item?.required_point_ids ?? []);
-  const points = product.prompter_points.map((p, i) => ({
+  const points = product.prompter_points.map((p) => ({
     point_id: p.point_id,
     text: p.text,
     required: required.has(p.point_id),
     covered: false,
-    focus: i === 0,
   }));
   return {
     product,
     points,
     requiredTotal: points.filter((p) => p.required).length,
     requiredCovered: 0,
-    focusPointId: points[0]?.point_id ?? null,
   };
 }
 

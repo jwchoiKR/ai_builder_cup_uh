@@ -5,6 +5,7 @@ import { api } from "../app/api";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useTheme } from "../app/theme";
 import { exportSummaryJson } from "./summary/exportJson";
+import { printSummary } from "./summary/exportPdf";
 import { SummaryView } from "./summary/SummaryView";
 import type { SummaryData } from "./summary/types";
 import styles from "./summary/summary.module.css";
@@ -17,6 +18,17 @@ export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps
   const theme = forcedTheme ?? ownTheme;
   const [data, setData] = useState<SummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
+
+  // D-097: render the light theme, then open the print dialog ("Save as PDF").
+  useEffect(() => {
+    if (!printing || !data) return;
+    const id = window.setTimeout(() => {
+      printSummary(data);
+      setPrinting(false);
+    }, 50);
+    return () => window.clearTimeout(id);
+  }, [printing, data]);
 
   const load = useCallback(async () => {
     if (!sessionId) return;
@@ -49,10 +61,11 @@ export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps
   return (
     <SummaryView
       data={data}
-      theme={theme}
+      theme={printing ? "light" : theme}
       embedded={embedded}
       onToggleTheme={forcedTheme ? undefined : toggle}
       onExport={() => exportSummaryJson(data)}
+      onExportPdf={() => setPrinting(true)}
       onBack={() => navigate(withSession("/", sessionId))}
     />
   );

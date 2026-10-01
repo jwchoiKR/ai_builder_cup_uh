@@ -23,9 +23,10 @@ from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, say_instead_fallback
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
+from ..logic.corrections import check_correction
 from ..logic import publish as publish_logic
 from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view
-from ..logic.segments import classify_switch, replace_cue, step_switch, withdraw_cue
+from ..logic.segments import classify_switch, expire, names_product, replace_cue, step_switch, withdraw_cue
 from ..models.agent_io import FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
@@ -234,10 +235,12 @@ class UtterancePipeline:
             self._schedule_escalation(a)
         for a in changed:
             await self._save_alert_change_locked(a)
-        # §8.4.5 corrections
+        # §8.4.5 corrections; D-089: an apology alone does not correct a compliance alert
         if judge.correction.corrects_alert_ids:
             correctable = [a for a in await rt.alerts() if a.transcript_id not in protected]
-            for a in alert_logic.apply_corrections(correctable, judge.correction.corrects_alert_ids, t, now):
+            accepted = self._substantive_corrections(correctable, judge.correction.corrects_alert_ids,
+                                                     merge.text if merge else t.text)
+            for a in alert_logic.apply_corrections(correctable, accepted, t, now):
                 rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
                 await rt.save_alert(a)
                 await rt.emit("alert.updated", a)
@@ -259,7 +262,22 @@ class UtterancePipeline:
         high_now = alert_logic.high_alert_active(await rt.alerts())
         if seg is not None:
             await self._switch_locked(judge, t, seg, high_became_active=high_now,
-                                      replaces=merge.prev.transcript_id if merge else None)
+                                      replaces=merge.prev.transcript_id if merge else None,
+                                      text=merge.text if merge else t.text)
+
+    def _substantive_corrections(self, alerts: list[Alert], listed: list[str], text: str) -> list[str]:
+        """The listed compliance alerts that the utterance really corrects (D-089)."""
+        rt = self.rt
+        accepted: list[str] = []
+        for a in alerts:
+            if a.alert_id not in listed or a.kind != "compliance":
+                continue
+            check = check_correction(text, a, rt.catalog.get_product(a.product_id).approved_claims, rt.ctx.reflex)
+            if check.ok:
+                accepted.append(a.alert_id)
+            else:
+                log.info("correction of %s not accepted (%s): %r", a.alert_id, check.reason, text)
+        return accepted
 
     async def _save_alert_change_locked(self, a: Alert) -> None:
         await self.rt.save_alert(a)
@@ -296,19 +314,30 @@ class UtterancePipeline:
         rt.ctx.scheduler.call_at(rt.key(f"escalate:{a.alert_id}"),
                                  a.shown_at + rt.settings.COMPLIANCE_ESCALATE_SEC * 1000, escalate)
 
+    def _product_names(self, product_id: str) -> list[str]:
+        """Names that count as naming a product (D-090): full name and short name ("ampoule")."""
+        p = self.rt.catalog.get_product(product_id)
+        return [p.name, p.short_name.removeprefix("the ").strip()]
+
     async def _switch_locked(self, judge: UtteranceJudgeOutput, t: Transcript, seg: Segment, *, high_became_active: bool,
-                             replaces: str | None = None) -> None:
+                             replaces: str | None = None, text: str | None = None) -> None:
         rt = self.rt
+        text = text if text is not None else t.text
         s = await rt.load_session()
+        st = rt.settings
         on_air = seg.product_id
         nxt = rt.catalog.next_product(on_air)
+        replacing = replaces is not None and replaces in s.switch.cue_transcript_ids
+        # A merged judgment is classified as if its fragment's cue had not been counted (D-088).
+        base = withdraw_cue(s.switch, replaces)[0] if replacing else s.switch
         kind = classify_switch(
-            judge, s.switch, on_air=on_air, next_product=nxt,
+            judge, expire(base, rt.now(), st.SWITCH_CUE_WINDOW_SEC), on_air=on_air, next_product=nxt,
             on_air_points={p.point_id for p in points_of(rt.catalog, on_air, rt.points)},
             next_points={p.point_id for p in points_of(rt.catalog, nxt, rt.points)} if nxt else set(),
             high_alert_became_active=high_became_active,
+            next_named=bool(nxt) and names_product(text, self._product_names(nxt)),
         )
-        if replaces is not None and replaces in s.switch.cue_transcript_ids and kind != "cancel":
+        if replacing and kind != "cancel":
             # D-088: the merged judgment replaces the fragment's cue. Never count the same cue twice.
             if kind == "cue":
                 s.switch = replace_cue(s.switch, replaces, t.transcript_id)

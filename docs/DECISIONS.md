@@ -432,3 +432,49 @@ D-088: Split sentences are judged together (proposal B of `docs/eval/stt-fragmen
   - price split → one fact note;
   - fragment alerts not resolved by the merged judgment;
   - a split host answer posted once, or its pending post cancelled when the merged judgment disagrees.
+
+## Mic rehearsal feedback (2026-10-01)
+
+D-089: An apology alone no longer corrects a compliance alert.
+- **Why:** in the first human rehearsal, the judge marked "Oh, I'm sorry." and "Let me correct that." as corrections.
+- **Check:** `logic/corrections.py` now checks every compliance alert the judge lists in `corrects_alert_ids`. The correction counts only when the utterance:
+  1. says an approved statement instead (the alert's `say_instead` or one of the product's approved claims): at least 60% of its content words heard, with spoken numbers, plural and tense forms and small speech-to-text slips tolerated; or
+  2. retracts the claim: a policy negation cue plus at least half of the flagged span's content words ("your wrinkles won't disappear overnight").
+- **Otherwise:** the alert stays active and escalates as usual, and the rejection is logged.
+- **Unchanged:** the S07 script correction passes, and §8.4.5 (all alerts of the corrected sentence) still applies to accepted corrections.
+
+D-090: Automatic product switch in two steps, replacing §8.7.2's "any two cues".
+- **Step 1, arm:** a transition to the next product (not a quote or an answer, confidence medium or high) whose text names the product. The name check is a whole-word match of the full name or the short name ("ampoule").
+- **Step 2, confirm:** a later utterance, within `SWITCH_CUE_WINDOW_SEC`, that states the next product's information (covers at least one of its prompter points). Quotes and answers to viewer questions do not count.
+- **No longer switches:** a second bare transition, a name heard in passing, or information without a prior named transition.
+- **Unchanged:** the 5 s countdown, Esc and Cancel, and the 60 s undo.
+- **Merges (D-088):** a merged judgment is classified as if its fragment's cue had not been counted.
+
+D-091: The host prompter is reference information, not a script read in order. It has no "next point": no arrow, no highlighted row, no auto-scroll, and no "Focus on your next point / Keep it natural" footer. It is a plain list: points already said keep a check and turn grey, and required points keep their tag (§12.3.3 changed).
+
+D-092: The summary page starts with the AI recap (executive summary), above the totals and logs. Its label says "based on the numbers below" (§12.8 put it last, "above").
+
+D-093: A PDF upload on /setup runs as a job, and the page shows its stages.
+- **API:** `POST /setup/documents` returns 202 and the job; `GET /setup/documents/jobs/{id}` is polled every 300 ms.
+- **Stages are the ones that really run in this mode:**
+  - upload received → check (type, size, duplicate) → read the PDF text (pages) → match the product code → split into passages;
+  - then locally "rebuild the local index", or in cloud mode "Store in Cloud Storage" and "Import to Vertex AI Search", which are shown as skipped because the import is manual in v1;
+  - then ready.
+- **Display:** each stage shows a status, a short detail and its time; a progress bar shows the share of finished stages. A failure marks its stage and shows the error.
+- **Not yet built:** real Cloud Storage and Vertex AI Search stages come with P6 and fit the same job model (its long-running import is what the polling is for).
+
+D-094: Glossary terms can be edited on /setup before confirming.
+- **Editing:** term, kind and spoken forms (comma separated); a new term can be added ("Added on /setup").
+- **Confirm:** only "Confirm glossary" saves. It collapses whitespace, drops empty or repeated spoken forms, and rejects an empty, overlong (more than 100 characters) or duplicate term.
+- **Reload:** `GET /setup/glossary` returns `terms_by_product`. When the confirmation is newer than the Brief Agent run, the table starts from the confirmed (edited) terms, so a reload or a second confirmation does not silently drop edits.
+
+D-095: Host screen layout (§12.3 changed).
+- **Columns:** live chat, what hosts watch most, fills the right column; the prompter (top half) and the audience questions (bottom half) share the left one.
+- **Sizes:** prompter points went from 28–44 px to 26 px, with tighter spacing and an inline "required" tag, and the question cards were tightened. A product's full point list and three questions fit without scrolling at 1920×1080.
+
+D-096: The summary's compliance log and fact log are in one box under their own headings, with the same columns.
+- **Columns:** time, what was said, rule or field, alert latency, corrected in, correction, unverified.
+- **Fact field:** shows "stated → correct", and unverified is always "–".
+- **Data:** fact rows gained `span`, `shown_at`, `speech_end_to_shown_ms`, `shown_to_corrected_ms` and `corrected_text`; the old fields stay.
+
+D-097: "Export PDF" on the summary prints the page as a report: A4, light theme while printing, buttons hidden, cards and rows not split, table headers repeated. It opens the browser's print dialog ("Save as PDF"), and the document title "<session> - broadcast summary <date>" becomes the file name. A PDF library was not added. It is disabled while the recap is being written. "Export JSON" stays for data use.

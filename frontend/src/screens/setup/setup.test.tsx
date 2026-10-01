@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it, vi } from "vitest";
 
 import type { Product } from "../../app/types";
-import type { BriefRecord, GlossaryState, SetupClient } from "./setupApi";
+import type { BriefRecord, GlossaryState, SetupClient, UploadJob, UploadStage } from "./setupApi";
 import { SetupView } from "./SetupView";
 
 const cream = {
@@ -37,6 +37,41 @@ const record: BriefRecord = {
 
 const version0: GlossaryState = { version: 0, terms: [], confirmed_at: null, confirmed_products: [] };
 
+const STAGES: [string, string][] = [
+  ["receive", "Upload received"],
+  ["check", "Check the file"],
+  ["read", "Read the PDF text"],
+  ["match", "Match the product code"],
+  ["split", "Split into sheet passages"],
+  ["index", "Rebuild the local index"],
+  ["ready", "Ready for the Brief Agent"],
+];
+
+function job(status: UploadJob["status"], states: UploadStage["status"][], result: UploadJob["result"] = null, error: string | null = null): UploadJob {
+  return {
+    job_id: "up_1",
+    name: "cream_v2.pdf",
+    status,
+    stages: STAGES.map(([stage_id, label], i) => ({
+      stage_id,
+      label,
+      status: states[i] ?? "pending",
+      detail: states[i] === "done" ? `${label} detail` : null,
+      started_at: 0,
+      ended_at: states[i] === "done" ? 100 : null,
+    })),
+    result,
+    error,
+    created_at: 0,
+    updated_at: 0,
+  };
+}
+
+const alreadyIndexed = job("done", ["done", "done", "skipped", "skipped", "skipped", "skipped", "skipped"], {
+  status: "already_indexed",
+  message: "Already indexed",
+});
+
 function client(over: Partial<SetupClient> = {}): SetupClient {
   return {
     documents: vi.fn().mockResolvedValue({
@@ -45,7 +80,8 @@ function client(over: Partial<SetupClient> = {}): SetupClient {
       ],
       doc_version: 0,
     }),
-    upload: vi.fn().mockResolvedValue({ status: "already_indexed", message: "Already indexed" }),
+    upload: vi.fn().mockResolvedValue(alreadyIndexed),
+    uploadJob: vi.fn().mockResolvedValue(alreadyIndexed),
     runBrief: vi.fn().mockResolvedValue(record),
     getBrief: vi.fn().mockResolvedValue(null),
     confirmAll: vi.fn().mockResolvedValue({ ...version0, version: 1, confirmed_products: ["cream_hydra_barrier"] }),
@@ -115,5 +151,81 @@ describe("Setup page", () => {
     fireEvent.change(screen.getByTestId("setup-file-input"), { target: { files: [file] } });
     await waitFor(() => expect(c.upload).toHaveBeenCalledWith(file, "same.pdf"));
     expect(await screen.findByRole("status")).toHaveTextContent("Already indexed");
+  });
+
+  it("shows each upload stage as the backend reports it (D-093)", async () => {
+    const indexed = { status: "indexed" as const, message: "Indexed locally · 38 passages" };
+    const c = client({
+      upload: vi.fn().mockResolvedValue(job("running", ["done", "running"])),
+      uploadJob: vi
+        .fn()
+        .mockResolvedValueOnce(job("running", ["done", "done", "done", "running"]))
+        .mockResolvedValueOnce(job("done", ["done", "done", "done", "done", "done", "done", "done"], indexed)),
+    });
+    renderView(c);
+    await screen.findByTestId("setup-documents");
+    const file = new File(["%PDF-1.4"], "cream_v2.pdf", { type: "application/pdf" });
+    fireEvent.change(screen.getByTestId("setup-file-input"), { target: { files: [file] } });
+    const progress = await screen.findByTestId("setup-upload-progress");
+    expect(within(progress).getByText("Check the file")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("setup-stage-match")).toHaveAttribute("data-state", "running"));
+    await waitFor(() => expect(progress).toHaveAttribute("data-status", "done"), { timeout: 3000 });
+    expect(screen.getByTestId("setup-stage-index")).toHaveAttribute("data-state", "done");
+    expect(within(progress).getByRole("progressbar")).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.getByText("Indexed locally · 38 passages")).toBeInTheDocument();
+  });
+
+  it("marks the failing upload stage and shows the error", async () => {
+    const failed = job("failed", ["done", "failed"], null, "Upload a PDF product sheet.");
+    const c = client({ upload: vi.fn().mockResolvedValue(failed) });
+    renderView(c);
+    await screen.findByTestId("setup-documents");
+    fireEvent.change(screen.getByTestId("setup-file-input"), { target: { files: [new File(["x"], "x.pdf")] } });
+    expect(await screen.findByText("Upload a PDF product sheet.")).toBeInTheDocument();
+    expect(screen.getByTestId("setup-stage-check")).toHaveAttribute("data-state", "failed");
+  });
+
+  it("edits and adds glossary terms before confirming (D-094)", async () => {
+    const c = client({ getBrief: vi.fn().mockResolvedValue(record) });
+    renderView(c);
+    await screen.findByTestId("setup-glossary-cream_hydra_barrier");
+    fireEvent.click(screen.getByRole("button", { name: "Edit Squalane" }));
+    fireEvent.change(screen.getByLabelText("Spoken forms"), { target: { value: "squa-lane, squalene,  squa-lane " } });
+    fireEvent.click(screen.getByRole("button", { name: "Save term" }));
+    expect(screen.getByText("Edited")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Add term" }));
+    fireEvent.change(screen.getByLabelText("Term"), { target: { value: "daon lab" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save term" }));
+    expect(screen.getByRole("alert")).toHaveTextContent('"daon lab" is already in the list.');
+    fireEvent.change(screen.getByLabelText("Term"), { target: { value: "Hydra Barrier" } });
+    fireEvent.change(screen.getByLabelText("Kind"), { target: { value: "product" } });
+    fireEvent.change(screen.getByLabelText("Spoken forms"), { target: { value: "hydra barrier" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save term" }));
+    expect(screen.getByText("Added")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm glossary" }));
+    await screen.findByTestId("setup-confirmed");
+    const sent = (c.confirmAll as ReturnType<typeof vi.fn>).mock.calls[0][0].cream_hydra_barrier.glossary;
+    expect(sent).toEqual([
+      { ...record.output!.glossary[0], include: true },
+      { term: "Squalane", kind: "ingredient", spoken_forms: ["squa-lane", "squalene"], source_section: "Key ingredients", include: true },
+      { term: "Hydra Barrier", kind: "product", spoken_forms: ["hydra barrier"], source_section: "Added on /setup", include: true },
+    ]);
+  });
+
+  it("starts from the confirmed terms when they are newer than the Brief Agent run", async () => {
+    const confirmed: GlossaryState = {
+      ...version0,
+      version: 2,
+      confirmed_at: record.ran_at + 60_000,
+      confirmed_products: ["cream_hydra_barrier"],
+      terms_by_product: {
+        cream_hydra_barrier: [{ term: "Squalane", kind: "ingredient", spoken_forms: ["squalene"], source_section: "Key ingredients" }],
+      },
+    };
+    renderView(client({ getBrief: vi.fn().mockResolvedValue(record), glossary: vi.fn().mockResolvedValue(confirmed) }));
+    const table = await screen.findByTestId("setup-glossary-cream_hydra_barrier");
+    await waitFor(() => expect(within(table).getByText("squalene")).toBeInTheDocument());
+    expect(within(table).queryByText("DAON LAB")).toBeNull();
   });
 });

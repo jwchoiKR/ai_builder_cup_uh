@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { exportSummaryJson } from "./exportJson";
+import { printSummary } from "./exportPdf";
 import { formatDuration, formatMsAsSeconds } from "./format";
 import { SummaryView } from "./SummaryView";
 import type { SummaryData } from "./types";
@@ -108,16 +109,24 @@ describe("SummaryView", () => {
     expect(within(log).getByText("1.6 s")).toBeInTheDocument(); // alert latency
     expect(within(log).getByText("8.0 s")).toBeInTheDocument(); // corrected in
     expect(within(log).getByText("1:10")).toBeInTheDocument(); // time from start
-    expect(within(screen.getByTestId("summary-facts")).getByText("S$36.00")).toBeInTheDocument();
+    expect(screen.getByTestId("summary-facts")).toHaveTextContent("S$36.00");
+    // D-096: both logs in one box, with the same columns
+    const logs = screen.getByTestId("summary-logs");
+    expect(within(logs).getByTestId("summary-compliance")).toBeInTheDocument();
+    expect(within(logs).getByTestId("summary-facts")).toBeInTheDocument();
+    const headers = (id: string) => [...screen.getByTestId(id).querySelectorAll("th")].map((th) => th.textContent);
+    expect(headers("summary-facts")).toEqual([...headers("summary-compliance").slice(0, 2), "Field", ...headers("summary-compliance").slice(3)]);
     expect(within(screen.getByTestId("summary-promos")).getByText("Running at end")).toBeInTheDocument();
     expect(within(screen.getByTestId("summary-agents")).getByText("Utterance judge")).toBeInTheDocument();
     expect(screen.getByText("Do you ship to Malaysia?")).toBeInTheDocument();
   });
 
-  it("labels the AI recap and shows its parts", () => {
+  it("shows the AI recap first, labelled, with its parts (D-092)", () => {
     renderView(data());
     const recap = screen.getByTestId("summary-recap");
-    expect(within(recap).getByText("AI-written recap based on the numbers above")).toBeInTheDocument();
+    const sections = screen.getByTestId("summary").querySelectorAll("section");
+    expect(sections[0]).toBe(recap); // executive summary before the totals and logs
+    expect(within(recap).getByText("AI-written recap based on the numbers below")).toBeInTheDocument();
     expect(within(recap).getByText("The 203-second session handled 41 comments.")).toBeInTheDocument();
     expect(within(recap).getByText("Watch-outs")).toBeInTheDocument();
   });
@@ -131,12 +140,36 @@ describe("SummaryView", () => {
 
   it("calls export and back", () => {
     const onExport = vi.fn();
+    const onExportPdf = vi.fn();
     const onBack = vi.fn();
-    renderView(data(), { onExport, onBack });
+    renderView(data(), { onExport, onExportPdf, onBack });
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
     fireEvent.click(screen.getByRole("button", { name: "Export JSON" }));
     fireEvent.click(screen.getByRole("button", { name: "Back to hub" }));
+    expect(onExportPdf).toHaveBeenCalledOnce();
     expect(onExport).toHaveBeenCalledOnce();
     expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it("waits for the recap before the PDF report (D-097)", () => {
+    renderView(data({ status: "computing", recap: null }), { onExportPdf: vi.fn() });
+    expect(screen.getByRole("button", { name: "Export PDF" })).toBeDisabled();
+  });
+
+  it("prints the report with its title as the file name and restores the page title", () => {
+    const listeners: Record<string, () => void> = {};
+    const win = {
+      document: { title: "LIVE / Studio" },
+      print: vi.fn(),
+      addEventListener: (type: string, fn: () => void) => (listeners[type] = fn),
+      removeEventListener: vi.fn(),
+    } as unknown as Window;
+    const title = printSummary(data(), win);
+    expect(win.print).toHaveBeenCalledOnce();
+    expect(win.document.title).toBe(title);
+    expect(title).toMatch(/broadcast summary/);
+    listeners.afterprint();
+    expect(win.document.title).toBe("LIVE / Studio");
   });
 });
 

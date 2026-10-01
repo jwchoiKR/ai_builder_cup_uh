@@ -48,14 +48,15 @@ describe("products and segments", () => {
 });
 
 describe("prompter", () => {
-  it("marks covered points and focuses the first uncovered one", () => {
+  it("marks covered points; there is no next point (D-091)", () => {
     const s = reduceSnapshot(snapshot({ segments: [segment({ covered_point_ids: ["cr-p1"] })] }), "host");
     const v = prompterView(s, catalog);
-    expect(v.points.map((p) => [p.point_id, p.covered, p.focus, p.required])).toEqual([
-      ["cr-p1", true, false, false],
-      ["cr-p2", false, true, true],
-      ["cr-p3", false, false, true],
+    expect(v.points.map((p) => [p.point_id, p.covered, p.required])).toEqual([
+      ["cr-p1", true, false],
+      ["cr-p2", false, true],
+      ["cr-p3", false, true],
     ]);
+    expect(v.points[0]).not.toHaveProperty("focus");
     expect([v.requiredCovered, v.requiredTotal]).toEqual([0, 2]);
   });
 });

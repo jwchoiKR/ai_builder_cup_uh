@@ -1,7 +1,6 @@
-// Prompter card (§12.3.3): one page per product; said points turn light grey, the first unsaid point
-// is the focus row and stays in view.
-import { ArrowRight, Check, CircleDot, ListChecks } from "lucide-react";
-import { useEffect, useRef } from "react";
+// Prompter card (§12.3.3, D-091): the on-air product's information for the host to refer to, as a
+// plain list in no particular order. Points already said get a check and turn light grey.
+import { Check, CircleDot, ListChecks } from "lucide-react";
 
 import type { PriceView, PrompterViewModel } from "../../app/selectors";
 import type { Product } from "../../app/types";
@@ -20,12 +19,6 @@ export function Prompter({
   price: PriceView | null;
   checking: boolean;
 }) {
-  const focusRef = useRef<HTMLLIElement | null>(null);
-
-  useEffect(() => {
-    focusRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
-  }, [view.focusPointId]);
-
   return (
     <section className={styles.card} data-testid="host-prompter" aria-label="Your prompter">
       {checking && (
@@ -61,34 +54,27 @@ export function Prompter({
         </div>
       )}
       {view.points.length ? (
-        <ol className={styles.points}>
-          {view.points.map((p) => {
-            const state = p.covered ? "said" : p.focus ? "focus" : "todo";
-            return (
-              <li
-                key={p.point_id}
-                ref={p.focus ? focusRef : undefined}
-                className={cx(styles.point, p.covered && styles.said, p.focus && styles.focus)}
-                data-testid={`host-point-${p.point_id}`}
-                data-state={state}
-                aria-current={p.focus ? "step" : undefined}
-              >
-                <span className={styles.pointIcon} aria-label={p.covered ? "Said" : undefined}>
-                  {p.covered ? <Check /> : p.focus ? <ArrowRight /> : <span className={styles.bullet} />}
-                </span>
-                <span>{p.text}</span>
+        <ul className={styles.points}>
+          {view.points.map((p) => (
+            <li
+              key={p.point_id}
+              className={cx(styles.point, p.covered && styles.said)}
+              data-testid={`host-point-${p.point_id}`}
+              data-state={p.covered ? "said" : "todo"}
+            >
+              <span className={styles.pointIcon} aria-label={p.covered ? "Said" : undefined}>
+                {p.covered ? <Check /> : <span className={styles.bullet} />}
+              </span>
+              <span>
+                {p.text}
                 {p.required && !p.covered && <span className={styles.required}>REQUIRED POINT</span>}
-              </li>
-            );
-          })}
-        </ol>
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : (
         <p className={styles.emptyPrompter}>No prompter points.</p>
       )}
-      <footer className={styles.cardFooter}>
-        <span>• Focus on your next point</span>
-        <span>Keep it natural.</span>
-      </footer>
     </section>
   );
 }
