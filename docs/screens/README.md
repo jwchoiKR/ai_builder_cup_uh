@@ -46,7 +46,10 @@
 | full-viewer-S11-time-sale.png | S11 | Viewer phone page with the time-sale pop-up. |
 
 **Updates after review:**
-- The UI fixes of the screenshot review (D-072–D-078) are in all scene shots above, re-captured on 2026-10-01. Visible fixes:
+- **Second re-capture (2026-10-01):** all scene shots above were re-captured after D-085 and D-086.
+  - Fixtures are from the clean Vertex run of the host script that is kept as the recording-day backup (D-086), so the answer wording differs slightly from earlier shots.
+  - Set-price groups show the products.json `short_name` "Cream + Ampoule set".
+- The UI fixes of the screenshot review (D-072–D-078) are in all scene shots above. Visible fixes:
   - the red frame on the HIGH overlay;
   - desk counts that match the tabs;
   - set label for set-price groups;

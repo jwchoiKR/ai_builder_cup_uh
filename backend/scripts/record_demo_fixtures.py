@@ -4,12 +4,17 @@ Plays data/demo/host_script.md in real time against Vertex AI, in process: injec
 (STT injection), scripted bursts (no background chatter), the time sale and B5. Every agent output
 is stored under tests/fixtures/llm/<agent>/ with the scene id as scenario tag.
 
+The run is clean only if every agent call returned ok (no timeout, no invalid output) and the
+summary recap is ready; otherwise the exit code is 1 and the run must be repeated, because a
+failed call leaves no fixture and the mock replay would differ from the run.
+
     uv run python scripts/record_demo_fixtures.py [--until S11] [--report out.json]
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
+import collections
 import json
 import sys
 from pathlib import Path
@@ -18,6 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import get_settings  # noqa: E402
 from app.context import build_context  # noqa: E402
+from app.models.session import AgentCall  # noqa: E402
+from app.pipelines.summary import _load as load_summary  # noqa: E402
 from app.pipelines.demo_script import load_host_script  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.providers.llm import RecordingBackend, VertexBackend  # noqa: E402
@@ -73,9 +80,28 @@ async def run(until: str | None, report: Path | None) -> int:
             continue
         await settle(ctx)
     await settle(ctx, 2)
-    if (await rt.load_session()).status == "live":
+    ended = (await rt.load_session()).status != "live"
+    if not ended:
         state = await rt.snapshot("operator")
+    summary_status = None
+    if ended:  # the recap runs in the background after end()
+        for _ in range(120):
+            doc = await load_summary(rt)
+            summary_status = doc.status if doc else None
+            if summary_status not in (None, "computing"):
+                break
+            await asyncio.sleep(0.5)
+    calls = await ctx.store.query(rt.path("agent_calls"), AgentCall, order_by="started_at")
+    failed = [c for c in calls if c.status != "ok"]
     print(f"\nrecorded {len(backend.recorded)} fixtures")
+    counts = collections.Counter(f"{c.agent} {c.status}" for c in calls)
+    print("agent calls:", ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
+    for c in failed:
+        print(f"  FAILED {c.agent} {c.status} {c.error or ''} ({c.latency_ms} ms)")
+    if ended:
+        print("summary:", summary_status)
+    clean = not failed and (not ended or summary_status == "ready")
+    print("RUN CLEAN" if clean else "RUN NOT CLEAN: repeat the recording")
     for g in state["groups"]:
         ans = state["answers"].get(g["answer_id"] or "", {})
         print(f"- {g['status']:13} {g['route']:8} {len(g['unique_author_ids'])} asker(s) {g['product_id']} "
@@ -96,11 +122,12 @@ async def run(until: str | None, report: Path | None) -> int:
     print("pre_covered:", state["session"]["pre_covered"], "switch:", state["session"]["switch"]["status"])
     print("host slots:", [s["group_id"] for s in state["host_slots"]])
     if report:
+        state["agent_calls"] = [c.model_dump(mode="json") for c in calls]
         report.write_text(json.dumps(state, indent=1, ensure_ascii=False), encoding="utf-8")
     ctx.runtimes.shutdown()
     ctx.scheduler.shutdown()
     await ctx.llm.aclose()
-    return 0
+    return 0 if clean else 1
 
 
 if __name__ == "__main__":

@@ -357,6 +357,8 @@ export interface Product {
 export interface SetOffer {
   set_id: string;
   name: string;
+  /** screen label, e.g. "Cream + Ampoule set" (D-085) */
+  short_name?: string | null;
   product_ids: string[];
   live_price: number;
   live_price_display: string;

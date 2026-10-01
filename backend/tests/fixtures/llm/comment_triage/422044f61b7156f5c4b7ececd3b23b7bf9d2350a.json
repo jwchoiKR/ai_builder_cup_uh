@@ -13,5 +13,5 @@
  },
  "canonical_question": "Does it sting or tingle on the skin?",
  "group_candidate_id": null,
- "reason": "Names the ampoule and asks if it causes a stinging sensation."
+ "reason": "Explicitly names the ampoule and asks about stinging sensitivity."
 }

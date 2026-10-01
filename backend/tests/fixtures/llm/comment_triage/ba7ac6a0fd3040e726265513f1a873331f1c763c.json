@@ -2,7 +2,7 @@
  "kind": "question",
  "hide_category": null,
  "product_id": "ampoule_deep_hydration",
- "product_basis": "content",
+ "product_basis": "context",
  "intent": "ingredient_amount",
  "condition_slots": {
   "skin_type": null,
@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "How much niacinamide is in it?",
+ "canonical_question": "What is the concentration of niacinamide in it?",
  "group_candidate_id": null,
- "reason": "Asks for the percentage or amount of niacinamide, which fits the ampoule."
+ "reason": "Asks about the amount of niacinamide in the ampoule."
 }

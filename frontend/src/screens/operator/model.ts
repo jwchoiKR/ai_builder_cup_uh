@@ -1,7 +1,7 @@
 // Pure helpers for the operator control room (DEV_SPEC §12.4). No React here, so they are unit-tested.
 import { formatMmSs, onAirSegment, productById } from "../../app/selectors";
 import type { ClientState } from "../../app/state";
-import type { Alert, Answer, Catalog, Message, QuestionGroup, Transcript } from "../../app/types";
+import type { Alert, Answer, Catalog, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
 
 // ---- settings (values of §5 snapshotted on the session) -------------------------------------------
 
@@ -48,12 +48,16 @@ export function setOfferFor(catalog: Catalog | null, productId: string | null | 
   return sets.find((s) => productId && s.product_ids.includes(productId)) ?? sets[0] ?? null;
 }
 
-/** Product label of a group; a set-price question is about the set, so it shows the set name
- * from products.json verbatim. */
+/** Screen label of a set: its products.json short_name, else its full name (D-085). */
+export function setLabel(set: SetOffer): string {
+  return set.short_name || set.name;
+}
+
+/** Product label of a group; a set-price question is about the set, so it shows the set label. */
 export function productLabel(catalog: Catalog | null, g: QuestionGroup): string {
   if (g.intent === SET_INTENT) {
     const set = setOfferFor(catalog, g.product_id);
-    if (set) return set.name;
+    if (set) return setLabel(set);
   }
   if (g.product_id) return productById(catalog, g.product_id)?.name ?? g.product_id;
   const scope = intentInfo(catalog, g.intent)?.product_scope;

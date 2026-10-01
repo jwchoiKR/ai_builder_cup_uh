@@ -11,7 +11,7 @@
   "combined_with": null,
   "time_of_day": null
  },
- "canonical_question": "How much is the bundle set?",
+ "canonical_question": "How much is the set?",
  "group_candidate_id": null,
- "reason": "Asks for the price of a bundle set containing both products."
+ "reason": "Asks for the price of a bundled set involving both products."
 }

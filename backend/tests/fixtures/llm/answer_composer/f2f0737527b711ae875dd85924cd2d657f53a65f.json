@@ -1,7 +1,12 @@
 {
- "answer": "",
- "citations": [],
- "grounded": false,
- "needs_human": true,
- "reason": "The source passages do not mention whether the product stings or tingles on the skin."
+ "answer": "Sensitive skin may feel a mild, temporary tingling. Stop using and consult a dermatologist if redness, swelling or itching continues.",
+ "citations": [
+  {
+   "passage_id": "DL-AM-01#cautions#sensitive-skin-may-feel-a-mild-temporar",
+   "quote": "Sensitive skin may feel a mild, temporary tingling. Stop using and consult a dermatologist if redness, swelling or itching continues."
+  }
+ ],
+ "grounded": true,
+ "needs_human": false,
+ "reason": "Answered directly from the cautions section regarding tingling."
 }

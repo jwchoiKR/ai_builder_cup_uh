@@ -36,6 +36,7 @@ class Product(BaseModel):
 class SetOffer(BaseModel):
     set_id: str
     name: str
+    short_name: str | None = None  # screen label (D-085); the full name stays in promo passages
     product_ids: list[str]
     live_price: float
 

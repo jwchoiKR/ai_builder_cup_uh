@@ -206,7 +206,10 @@ export const catalog: Catalog = {
     },
   ],
   set_offers: [
-    { set_id: "set_cream_ampoule", name: "Set", product_ids: [CREAM, AMPOULE], live_price: 62, live_price_display: "S$62.00" },
+    {
+      set_id: "set_cream_ampoule", name: "Hydra Barrier Cream + Deep Hydration Ampoule set", short_name: "Cream + Ampoule set",
+      product_ids: [CREAM, AMPOULE], live_price: 62, live_price_display: "S$62.00",
+    },
   ],
   promos: [
     {

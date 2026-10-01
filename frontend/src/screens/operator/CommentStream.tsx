@@ -6,7 +6,7 @@ import { hiddenComments, productById, relativeTime } from "../../app/selectors";
 import type { Comment } from "../../app/types";
 import { Button, Chip, VirtualList } from "../../components";
 import { useAction, useOperator } from "./context";
-import { SET_INTENT, sentenceCase, setOfferFor } from "./model";
+import { SET_INTENT, sentenceCase, setLabel, setOfferFor } from "./model";
 import styles from "./operator.module.css";
 
 const KIND_LABEL: Record<Comment["kind"], string> = {
@@ -59,8 +59,9 @@ function CommentRow({ comment: c }: { comment: Comment }) {
   const group = state.groups[c.group_id ?? ""];
   const product = productById(catalog, analysis?.product_id ?? group?.product_id);
   const intent = group?.intent ?? (analysis?.output as { intent?: string } | undefined)?.intent;
-  // A set-price question is about the set: show the products.json set name, not one product.
-  const setName = intent === SET_INTENT ? setOfferFor(catalog, product?.product_id)?.name : undefined;
+  // A set-price question is about the set: show the set label, not one product.
+  const set = intent === SET_INTENT ? setOfferFor(catalog, product?.product_id) : null;
+  const setName = set ? setLabel(set) : undefined;
   const productChip = setName ?? (product ? product.short_name.replace(/^the /, "") : null);
   return (
     <div className={styles.commentRow} data-testid={`op-comment-${c.comment_id}`}>

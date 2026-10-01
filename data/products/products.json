@@ -6,6 +6,7 @@
     {
       "set_id": "set_cream_ampoule",
       "name": "Hydra Barrier Cream + Deep Hydration Ampoule set",
+      "short_name": "Cream + Ampoule set",
       "product_ids": [
         "cream_hydra_barrier",
         "ampoule_deep_hydration"

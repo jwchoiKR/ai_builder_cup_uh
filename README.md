@@ -17,7 +17,7 @@ AI co-pilot for live-commerce broadcasts: host screen, operator control room and
 ## Layout
 | Path | What |
 |---|---|
-| `data/`, `prompts/` | Data pack and prompt drafts, copied unchanged. Product facts only come from `data/products/`. |
+| `data/`, `prompts/` | Data pack and prompt drafts, copied unchanged except the set's `short_name` in `products.json` (D-085). Product facts only come from `data/products/`. |
 | `backend/` | Python 3.12, FastAPI, single process. `app/` is the service, `scripts/` the tools, `tests/` pytest. |
 | `frontend/` | React 18 + TypeScript + Vite. `src/app` store, API, SSE and mic; `src/screens` all screens; `e2e/` Playwright test, scene capture, voice rehearsal. |
 | `docs/` | `DECISIONS.md`, `VERIFIED.md`, `eval/`, `rehearsal.md`, `screens/`. |
@@ -125,3 +125,9 @@ node e2e/rehearsal-voice.mjs script 2     # the full host script twice
 - A wrong alert can be dismissed by the operator ("Dismiss false alert").
 - A wrong switch can be undone within 60 s ("Undo switch").
 - Every action is logged in the event stream.
+
+**Backup if Vertex AI or Speech-to-Text is unavailable on recording day:**
+- Start the app with `LLM_PROVIDER=mock STT_PROVIDER=mock`.
+- The agents then replay one complete, clean Vertex AI run of the host script (`record_demo_fixtures.py`, every agent call ok), so S02–S14 show real model outputs.
+- Host lines are injected from the Demo Console instead of spoken. The latency chips then show near-zero mock latencies, so do not use this mode for the S03–S08 latency take.
+- To refresh the backup, run `uv run python scripts/record_demo_fixtures.py` until it prints `RUN CLEAN`, then `uv run pytest tests/test_demo_script_api.py` and `npm run e2e`.

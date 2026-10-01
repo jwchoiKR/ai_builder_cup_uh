@@ -39,6 +39,7 @@ def test_catalog(client):
     sale = next(p for p in body["promos"] if p["promo_id"] == "promo_time_sale_10")
     assert sale["promo_prices_display"]["set_cream_ampoule"] == "S$55.80"
     assert body["set_offers"][0]["live_price_display"] == "S$62.00"
+    assert body["set_offers"][0]["short_name"] == "Cream + Ampoule set"  # D-085
 
 
 def test_create_session(client):

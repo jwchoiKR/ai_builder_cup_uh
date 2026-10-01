@@ -10,7 +10,10 @@ are deduplicated.
 Each question runs 3 times per mode, modes interleaved, concurrency 4, deadline 30 s (latency is
 measured, not cut). Passages and verify_answer exactly as in pipelines/comments.py::_run_composer.
 
-    uv run python scripts/eval_composer.py [--runs 3] [--out ../docs/eval/composer-thinking.md]
+    uv run python scripts/eval_composer.py [--runs 3] [--modes LOW MEDIUM] [--out ../docs/eval/composer-thinking.md]
+                                           [--calls ../docs/eval/composer-calls.json]
+
+--calls writes every call (question, mode, status, answer, citations, verify errors, passage ids) as JSON.
 """
 from __future__ import annotations
 
@@ -146,8 +149,11 @@ def fmt_pct(n: int, d: int) -> str:
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=3)
+    ap.add_argument("--modes", nargs="+", choices=MODES, default=list(MODES))
     ap.add_argument("--out", type=Path, default=REPO_DIR / "docs" / "eval" / "composer-thinking.md")
+    ap.add_argument("--calls", type=Path, default=None)
     args = ap.parse_args()
+    modes = tuple(args.modes)
 
     settings = get_settings()
     pack = DataPack.load(settings.data_path)
@@ -163,7 +169,7 @@ async def main() -> int:
     backend = VertexBackend(settings.GCP_PROJECT, settings.LLM_LOCATION)
     clock = SystemClock()
     composers = {}
-    for mode in MODES:
+    for mode in modes:
         client = LLMClient(backend, settings.model_copy(update={"COMPOSER_THINKING": mode}), clock,
                            Ids(clock, deterministic=False))
         composers[mode] = AnswerComposer(client, prompts["answer_composer"], catalog)
@@ -181,7 +187,7 @@ async def main() -> int:
     jobs: list[Run] = []
     for r in range(args.runs):
         for i, q in enumerate(questions):
-            order = MODES if (r + i) % 2 == 0 else tuple(reversed(MODES))
+            order = modes if (r + i) % 2 == 0 else tuple(reversed(modes))
             jobs.extend(Run(q, m) for m in order)
 
     queue: asyncio.Queue[Run] = asyncio.Queue()
@@ -217,6 +223,26 @@ async def main() -> int:
 
     await asyncio.gather(*(worker() for _ in range(CONCURRENCY)))
     await backend.aclose()
+
+    if args.calls:
+        index = {id(q): n for n, q in enumerate(questions, 1)}
+        calls = []
+        for j in jobs:
+            q, res = j.question, j.result
+            out = res.output if res else None
+            calls.append({
+                "q": index[id(q)], "canonical": q.canonical, "product_id": q.product_id, "intent": q.intent,
+                "promo_id": q.promo_id, "sources": q.sources, "mode": j.mode,
+                "status": res.status if res else "none", "latency_ms": res.latency_ms if res else None,
+                "answer": out.model_dump(mode="json") if out is not None else None,
+                "verified": j.verified, "errors": j.errors,
+                "passages": [p.passage_id for p in passages_of[q.key]],
+            })
+        args.calls.parent.mkdir(parents=True, exist_ok=True)
+        args.calls.write_text(json.dumps(calls, ensure_ascii=False, indent=1) + "\n", encoding="utf-8", newline="\n")
+        print(f"calls: {args.calls}")
+    if len(modes) < len(MODES):
+        return 0  # the report compares both modes
 
     # ---- aggregate -------------------------------------------------------------------------------
     agg_rows = []

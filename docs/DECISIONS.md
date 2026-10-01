@@ -389,3 +389,20 @@ D-082: Rehearsals used synthetic voice. §14.5 asks for a real microphone and a 
 D-083: The E2E suite uses `@playwright/test` with the installed Edge (`channel: "msedge"`, D-063) against a backend with mock providers and recorded fixtures, so it is deterministic. Its base URL is `E2E_BASE`, and `E2E_START=1` starts the backend itself. Vitest is limited to `src/` (`vitest run --dir src`), so it does not collect the Playwright specs.
 
 D-084: Known gap in the speed budget: "cached auto answer ≤ 1 s" (§3.7) is met only when the triage cache hits. Triage must run before the answer cache can be used, and it takes p50 about 1.3 s on `gemini-3.5-flash-lite` (MINIMAL). Measured comment → instant reply: median 1.3–2.0 s. See `docs/eval/latency.md`.
+## After P5 review (2026-10-01)
+
+D-085 (data pack change, approved by the reviewer; supersedes the label part of D-075): `data/products/products.json` set `set_cream_ampoule` gains `"short_name": "Cream + Ampoule set"`. This is the only change to the shipped data pack.
+- **Model:** `SetOffer.short_name` is optional (`str | None`), so a pack without it still loads, and `/api/catalog` returns it.
+- **Labels:** the operator desk product label and the comment-stream chip of `set_price` groups show `short_name`, falling back to `name` (`setLabel()` in `screens/operator/model.ts`).
+- **Unchanged:** the full `name` stays in the promo passage text (`promo_passage`) and the agents' `set_offers_json` input, so recorded fixture quotes and prompts are unaffected. The viewer price card keeps its generic "Set S$…" line.
+
+D-086: The recording-day backup is the fixture set of one clean Vertex run of the host script.
+- **Clean check:** `record_demo_fixtures.py` now checks the whole run. It exits 1 with "RUN NOT CLEAN" if any agent call is not `ok` or the summary recap is not ready, because a failed call leaves no fixture and the mock replay would then mix runs.
+- **Runs on 2026-10-01:** the first run was discarded (one composer call hit the 12 s deadline). The second run was clean: 85 calls (comment triage 39, composer 15, judge 15, fact checker 15, summary 1).
+- **Stale fixtures removed:** fixtures the clean run did not write were removed, except the eval-case fixtures (scenario = case id) and the S01 Brief Agent fixtures. That was 10 composer outputs and 1 summary from earlier runs; the backend tests and the E2E suite pass without them.
+- **Replay check:** `tests/test_demo_script_api.py` (S02–S14 through the API, each scene's Expected state), `tests/test_bursts_api.py` (B1–B4), the full backend suite (299) and Playwright `npm run e2e` (S02–S14 on `/studio`, plus S01) pass on these fixtures. The scene screenshots were re-captured from them.
+
+D-087: `verify_answer` and the composer are unchanged after the verify-failure review (`docs/eval/composer-verify-failures.md`).
+- The review covered 150 eval calls and two full demo runs. Every rejection was the model's own empty, ungrounded answer to a question the sheet does not answer: eczema in children, wrinkles, teenagers, how long a bottle lasts, animal testing.
+- No correct answer was rejected by a verify rule, so there was nothing of that kind to fix.
+- `eval_composer.py --calls` writes every call (answer, citations, verify errors, passage ids) to JSON for this kind of review.

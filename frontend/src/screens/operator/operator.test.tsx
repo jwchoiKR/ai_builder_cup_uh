@@ -12,6 +12,7 @@ import {
   correctedLine,
   groupActions,
   isStale,
+  setLabel,
   sourceLabel,
   stackAlerts,
   systemCards,
@@ -300,17 +301,24 @@ describe("Operator screen", () => {
     expect(seen.size).toBe(groups.length);
   });
 
-  it("set-price groups show the set name from products.json as product label (item 4)", async () => {
+  it("set-price groups show the set short_name from products.json as product label (item 4, D-085)", async () => {
     snap = snapshot({
       groups: [group({ group_id: "g_set", intent: "set_price", status: "auto_answered", route: "AUTO", canonical_question: "How much is the set?", member_comment_ids: ["cm_s"] })],
       comments: [comment({ comment_id: "cm_s", group_id: "g_set", kind: "question", text: "how much is the set?" })],
     });
     render(<Operator sessionId="ses_op_set" />);
     const row = await screen.findByTestId("op-group-g_set");
-    expect(within(row).getByText(catalog.set_offers[0].name)).toBeInTheDocument();
+    expect(within(row).getByText("Cream + Ampoule set")).toBeInTheDocument();
     expect(within(row).queryByText("Hydra Barrier Cream")).toBeNull();
+    expect(within(row).queryByText(catalog.set_offers[0].name)).toBeNull();
     const stream = screen.getByTestId("op-comment-cm_s");
-    expect(within(stream).getByText(catalog.set_offers[0].name)).toBeInTheDocument();
+    expect(within(stream).getByText("Cream + Ampoule set")).toBeInTheDocument();
+  });
+
+  it("a set without short_name falls back to its full name", () => {
+    const { short_name: _, ...set } = catalog.set_offers[0];
+    expect(setLabel(set)).toBe("Hydra Barrier Cream + Deep Hydration Ampoule set");
+    expect(setLabel(catalog.set_offers[0])).toBe("Cream + Ampoule set");
   });
 
   it("disables Approve for an unverified draft in the expanded row", async () => {

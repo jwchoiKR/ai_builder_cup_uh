@@ -15,7 +15,7 @@ Model `gemini-3.8-flash` on Vertex AI (`global`), prompt `answer_composer_v1`, `
 - **Passages and checks:** same as the pipeline: `gather_passages` with BM25 and prefetch, plus the promo passage; `verify_answer` (§8.9.4).
 - **Rates:** over all runs, so a non-ok call counts as not verified and not grounded. Latency is over ok calls.
 
-## Run history (both runs, same questions and method)
+## Run history (same questions and method)
 
 ### Run A: before D-068
 `gather_passages` added Key facts only for price/set_price/promo/volume. Vertex was otherwise idle.
@@ -32,8 +32,16 @@ Fixed sections were added for origin, packaging, shelf life, texture, fragrance 
 - **Effect:** the latency tails and the 30 s timeouts in run B reflect that shared load, not the thinking level.
 - **Detail:** the aggregate and per-question tables below are from run B.
 
+### Run C: after D-068, with the per-call log
+Same questions and method, run with `--calls ../docs/eval/composer-calls.json`, which logs every call (answer, citations, verify errors, passage ids). The failures are classified in `docs/eval/composer-verify-failures.md`.
+
+| Mode | verify_answer pass | grounded | needs_human | statuses | p50 | p95 | max | ≤ 12 s | ≤ 15 s | thinking tokens (mean) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| LOW | 60/75 (80%) | 60/75 (80%) | 16/75 (21%) | ok 75 | 2.3 s | 6.0 s | 9.3 s | 75/75 (100%) | 75/75 (100%) | 0 |
+| MEDIUM | 59/75 (79%) | 59/75 (79%) | 21/75 (28%) | ok 74, timeout 1 | 5.5 s | 12.1 s | 16.3 s | 69/75 (92%) | 73/75 (97%) | 602 |
+
 ### Conclusion
-- **Quality:** equal within noise in both runs. D-068 raised verification for both levels:
+- **Quality:** equal within noise in all three runs. D-068 raised verification for both levels:
   - "Does it sting?" now passes 3/3 in both modes;
   - "Where is it manufactured?" passes 3/3 on MEDIUM and 2/3 on LOW (LOW's one miss was a timeout, not a wrong answer).
 - **Speed:** LOW is about 2.5× faster at the median in both runs, and in the unloaded run every call finished within the 12 s deadline.

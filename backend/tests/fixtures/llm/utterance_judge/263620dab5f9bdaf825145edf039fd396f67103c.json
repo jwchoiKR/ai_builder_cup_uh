@@ -23,5 +23,5 @@
    "confidence": "low"
   }
  },
- "reason": "The host mentions the patch test results matching prompter point cr-p4 without making any violations."
+ "reason": "Host discusses patch testing results matching point cr-p4 without making any policy violations."
 }

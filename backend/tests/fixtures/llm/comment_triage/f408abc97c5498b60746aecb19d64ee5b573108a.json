@@ -13,5 +13,5 @@
  },
  "canonical_question": "Does it contain fragrance?",
  "group_candidate_id": "@group:does it contain fragrance",
- "reason": "Asks if the cream contains fragrance."
+ "reason": "Asks if the cream contains fragrance, matching an open group."
 }

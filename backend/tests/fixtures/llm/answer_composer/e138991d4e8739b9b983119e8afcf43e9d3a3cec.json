@@ -1,20 +1,12 @@
 {
- "answer": "The Hydra Barrier Cream is S$36.00 during this live (list price S$48.00). The set with the ampoule is S$62.00.",
+ "answer": "The Hydra Barrier Cream is S$36.00 during this live (list price S$48.00). The set with the Deep Hydration Ampoule is S$62.00.",
  "citations": [
   {
-   "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
-   "quote": "Live broadcast price: S$36.00"
-  },
-  {
-   "passage_id": "DL-CR-01#key-facts#list-price",
-   "quote": "List price: S$48.00"
-  },
-  {
-   "passage_id": "DL-CR-01#key-facts#live-set-price",
-   "quote": "Live set price: S$62.00 for Hydra Barrier Cream 50 mL + Deep Hydration Ampoule 30 mL"
+   "passage_id": "DL-CR-01#frequently-asked-questions#how-much-is-it",
+   "quote": "List price S$48.00. Live broadcast price S$36.00. Set with Deep Hydration Ampoule S$62.00."
   }
  ],
  "grounded": true,
  "needs_human": false,
- "reason": "Prices from key facts."
+ "reason": "Live broadcast price and set price provided from FAQ."
 }
