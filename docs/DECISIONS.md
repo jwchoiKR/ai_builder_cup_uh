@@ -307,3 +307,85 @@ D-066: Known P3 limits, left for P5 polish:
 3. The host's green "Corrected" bar is triggered client-side when an alert turns corrected. A host page opened after a correction does not show it.
 4. Host chat auto-scroll follows new rows only, not a reply added to an existing row.
 5. The microphone controls are placeholders until P4.
+## Review changes before P4 (2026-10-01)
+
+D-067: **New config key `COMPOSER_THINKING`** (default `LOW`) sets the thinking level of the AnswerComposer only. `LLM_QUALITY_THINKING` stays `MEDIUM` for the Brief Agent and the Broadcast Summary. The key is in `config.py` and `.env.example`, and in `/api/health`. This replaces D-045, so the local `.env` is back to `LLM_QUALITY_THINKING=MEDIUM`. Reason: `docs/eval/composer-thinking.md` (25 questions × 3 runs per mode):
+- LOW matched MEDIUM's verified-answer rate (72% vs 71% in run A; 77% vs 80% in run B, within noise);
+- LOW was about 2.5× faster (p50 2.0 s vs 5.3 s);
+- in the unloaded run, LOW was always within the 12 s deadline.
+
+D-068: The composer also adds fixed passage sections for intents whose answer BM25 can miss:
+- Key facts for origin, packaging, shelf life, texture and fragrance;
+- Key ingredients for ingredients and ingredient amount;
+- Cautions for allergy/sensitivity, pregnancy, medical condition and age.
+
+This is on top of the §7.6 Key facts rule, never instead of it. Reason: "Where is it manufactured?" (Key facts "Made in: …") and "Does it sting?" (Cautions "…tingling…") failed 0/3 for lack of the passage. After the change they pass 2–3/3. Verify rates: LOW 72% → 77%, MEDIUM 71% → 80%.
+
+## P4 Audio, setup, summary (2026-10-01)
+
+D-069: Speech-to-Text:
+- **Model and endpoint:** V2 `chirp_3` at `us-speech.googleapis.com`, with SHORT endpointing (about 0.5 s faster than STANDARD) and automatic punctuation.
+- **Phrase hints:** the confirmed glossary's terms and spoken forms, at most 500.
+- **`speech_end_at`:** the arrival time of the audio at the final result's end offset.
+- **Interim results:** chirp_3 returns none (VERIFIED §4.10), so `transcript.interim` (throttled to 300 ms) only appears with other models.
+- **WebSocket close codes:** with `STT_PROVIDER=mock` the audio WebSocket answers with an error status and closes with 4400. One microphone per session: a new connection closes the old one with 4409.
+
+D-070: Microphone capture:
+- An AudioWorklet (`public/pcm-worklet.js`) downsamples to 16 kHz mono with a box filter and sends 100 ms Int16 frames plus an RMS level.
+- One mic client per page (`app/mic.ts`) is shared by the host screen (key `M`, dot green/amber/red/grey with a level bar) and the Demo Console (Start/Stop, last final).
+- It reconnects with backoff (0.5 s to 5 s), except on 4400, 4404 and 4409.
+
+D-071: STT stream restart: a soft restart at the first final result after 180 s of audio, a hard restart at 240 s, and a bridge of at most the last 5 s of unfinalized audio. Reason: tested live with scaled limits, the first version (hard limit only, full bridge) delayed finals after a restart by 3.7–4.2 s; with the soft restart and the cap they arrive in 0.9–1.9 s (VERIFIED §4.10).
+
+D-072 (UI review 1): The host HIGH overlay has a solid frame on all four sides, `clamp(6px, 8px × scale, 8px)`, in the new token `--risk-strong` (dark `#E5484D`, light `#C4483B`). Contrast on `--risk-bg`:
+
+| Text | Dark | Light |
+|---|---|---|
+| `--risk-text` | 10.27 | 6.62 |
+| `--text` | 13.53 | 13.91 |
+| `--text-2` | 7.33 | 5.12 |
+| badge | 9.70 | 7.56 |
+| frame (non-text, needs 3:1) | 4.00 | 4.24 |
+
+All text meets AA.
+
+D-073 (UI review 2): The question desk header count is the All tab count.
+
+D-074 (UI review 3): One function, `deskStatus(group) → {label, tab}`, drives both the row chip and the tab, so every group is in exactly one tab and the tab counts sum to All.
+- "AI answered" and "Answered" → Answered.
+- "Host answered on air · not posted" and "Assign a product" → Needs review.
+- Rejected → Closed.
+- A "Composing" tab, not in §12.4.7, appears only while its count is above zero. Without it, composing groups would be in no tab and the counts would not sum.
+
+D-075 (UI review 4): `set_price` groups and their comments show the set name from products.json **verbatim**: "Hydra Barrier Cream + Deep Hydration Ampoule set" (the set containing the group's product, else the first set). The review asked for "Cream + Ampoule set (set name from products.json)". products.json has no such short name, and labels are never invented (§0.3), so the products.json name is used. A short label would need a `short_name` on the set in the data pack.
+
+D-076 (UI review 5): Viewer AI answers that cite a `PROMO#…` passage show "Source: active promotion". When a reply cites both a promo passage and a sheet passage, both sources are shown.
+
+D-077 (UI review 6): Coalesced replies:
+- The reply is shown once, under the first asker's comment.
+- Every later asker's comment shows a compact "↳ Also answered: @{name}", in the viewer and the host chat.
+- The "@Name" list under the reply was removed, because the per-asker lines replace it.
+
+D-078 (UI review 7): Operator metric chips show "–" when there is no measured value (missing, null, NaN, or 0 of 0 answers). Real values appear in a Vertex run: `docs/screens/vertex-operator-metrics.png` ("Alert in 2.8s", "Judge p50 1.6s"). With the mock provider, measured latencies are about 0 and show as "0.0s".
+
+D-079: Setup:
+- **Confirm route:** `POST /setup/glossary/confirm` confirms both products in one step, as one glossary version, so S01 shows "Confirmed · version 1". `POST /setup/brief/{pid}/confirm` is kept as well.
+- **Upload:** takes a raw `application/pdf` body with a `filename` query parameter, because `python-multipart` is not a dependency. Uploaded files go to `data/uploads/` (gitignored).
+- **Index rebuild:** a PDF is re-indexed for its product only. `LocalRetriever.replace_product()` swaps that product's passages and bumps `doc_version`; the shipped `passages.jsonl` is never modified.
+- **Parser:** handles the PDF's `\x7f` bullet glyph and wrapped table cells, and reproduces the shipped `passages.jsonl` exactly (76/76; `scripts/build_local_index.py --check`).
+
+D-080: Setup state is frozen per session. At session creation, `glossary_version` and the confirmed prompter points are copied into the session (`Session.prompter_points`). The runtime passes them to the judge input, prompter coverage, the prompter view, the switch logic and missing-point texts. Prefetched passages are dropped when `doc_version` changes. Reason: §12.7 says accepted changes "apply from the next session"; running sessions are not affected.
+
+D-081: Summary:
+- `end()` starts `pipelines.summary.run_summary` in the background, as §8.1.4 describes.
+- The pipeline stores `{status, stats, recap}` in `sessions/{sid}/summary/current` and emits `summary.ready`.
+- If the recap fails or times out, the page shows the statistics without a recap.
+- Recap sentences whose numbers are not in the statistics are dropped (§7.8).
+
+## P5 Hardening (2026-10-01)
+
+D-082: Rehearsals used synthetic voice. §14.5 asks for a real microphone and a human voice; no person could speak in this environment. The automated rehearsals (`frontend/e2e/rehearsal-voice.mjs`) stream Windows SAPI speech at real-time pace through the real audio WebSocket into real STT and real models, with a host page open in Edge. `docs/rehearsal.md` says this explicitly and lists the human rehearsal as still to do.
+
+D-083: The E2E suite uses `@playwright/test` with the installed Edge (`channel: "msedge"`, D-063) against a backend with mock providers and recorded fixtures, so it is deterministic. Its base URL is `E2E_BASE`, and `E2E_START=1` starts the backend itself. Vitest is limited to `src/` (`vitest run --dir src`), so it does not collect the Playwright specs.
+
+D-084: Known gap in the speed budget: "cached auto answer ≤ 1 s" (§3.7) is met only when the triage cache hits. Triage must run before the answer cache can be used, and it takes p50 about 1.3 s on `gemini-3.5-flash-lite` (MINIMAL). Measured comment → instant reply: median 1.3–2.0 s. See `docs/eval/latency.md`.

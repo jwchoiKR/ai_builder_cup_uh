@@ -1,0 +1,1177 @@
+[
+ {
+  "sid": "ses_01M3VJDCGTZAG2KK8508N92S0S",
+  "finals": [
+   "Hi everyone, welcome to DAON LAB live.",
+   "Today we start with our Hydra Barrier Cream.",
+   "It's a lightweight gel cream.",
+   "So it absorbs really quickly.",
+   "Inside you've got 1% Ceramide NP, 5% Panthenol and 3% Squalane.",
+   "Raj is asking if it's okay for oily skin.",
+   "Yes, it's a lightweight gel cream.",
+   "So, just use a smaller amount on oily areas.",
+   "And today the live price is only $32.",
+   "Sorry, my mistake.",
+   "The live price is $36.",
+   "Use it every night and your wrinkles will disappear overnight.",
+   "Let me correct that.",
+   "It helps keep your skin hydrated for up to 24 hours in our in-house test.",
+   "Just to be clear.",
+   "It does not treat acne.",
+   "It's a moisturizer.",
+   "We patch tested it on 32 people and nobody reported a reaction in our in-house test.",
+   "Someone is asking about the ampoule. We'll get to it in a minute.",
+   "Okay, now let me show you our Deep Hydration Ampoule.",
+   "It has 4% Niacinamide.",
+   "It's a watery gel.",
+   "Just 2 to 3 drops after toner.",
+   "This one has 10% Niacinamide.",
+   "Sorry, 4% Niacinamide."
+  ],
+  "log": [
+   {
+    "scene": "S01",
+    "action": "setup",
+    "text": null,
+    "ms": 0
+   },
+   {
+    "scene": "S02",
+    "action": "start",
+    "text": null,
+    "ms": 2053
+   },
+   {
+    "scene": "S02",
+    "action": "host_line",
+    "text": "Hi everyone, welcome to DAON LAB live! Today we start with our Hydra Barrier Cream.",
+    "ms": 13054
+   },
+   {
+    "scene": "S02",
+    "action": "host_line",
+    "text": "It's a lightweight gel-cream, so it absorbs really quickly.",
+    "ms": 9746
+   },
+   {
+    "scene": "S02",
+    "action": "host_line",
+    "text": "Inside you've got one percent ceramide NP, five percent panthenol and three percent squalane.",
+    "ms": 12629
+   },
+   {
+    "scene": "S03",
+    "action": "burst",
+    "text": "B1",
+    "ms": 14020
+   },
+   {
+    "scene": "S04",
+    "action": "burst",
+    "text": "B2",
+    "ms": 14025
+   },
+   {
+    "scene": "S05",
+    "action": "host_line",
+    "text": "Raj is asking if it's OK for oily skin. Yes, it's a lightweight gel-cream, so just use a smaller amount on oily areas.",
+    "ms": 14722
+   },
+   {
+    "scene": "S06",
+    "action": "host_line",
+    "text": "And today the live price is only thirty-two dollars.",
+    "ms": 9214
+   },
+   {
+    "scene": "S06",
+    "action": "host_line",
+    "text": "Sorry, my mistake, the live price is thirty-six dollars.",
+    "ms": 10503
+   },
+   {
+    "scene": "S07",
+    "action": "host_line",
+    "text": "Use it every night and your wrinkles will disappear overnight.",
+    "ms": 8565
+   },
+   {
+    "scene": "S07",
+    "action": "host_line",
+    "text": "Let me correct that. It helps keep your skin hydrated for up to twenty-four hours in our in-house test.",
+    "ms": 12948
+   },
+   {
+    "scene": "S08",
+    "action": "host_line",
+    "text": "Just to be clear, it does not treat acne. It's a moisturiser.",
+    "ms": 10805
+   },
+   {
+    "scene": "S09",
+    "action": "burst",
+    "text": "B3",
+    "ms": 14027
+   },
+   {
+    "scene": "S09",
+    "action": "edit_reply",
+    "text": null,
+    "ms": 0
+   },
+   {
+    "scene": "S10",
+    "action": "host_line",
+    "text": "We patch tested it on thirty-two people and nobody reported a reaction, in our in-house test.",
+    "ms": 12101
+   },
+   {
+    "scene": "S11",
+    "action": "promo_start",
+    "text": "promo_time_sale_10",
+    "ms": 1031
+   },
+   {
+    "scene": "S11",
+    "action": "burst",
+    "text": "B4",
+    "ms": 14026
+   },
+   {
+    "scene": "S12",
+    "action": "host_line",
+    "text": "Someone is asking about the ampoule, we'll get to it in a minute.",
+    "ms": 7704
+   },
+   {
+    "scene": "S12",
+    "action": "arm_burst",
+    "text": "B5",
+    "ms": 12
+   },
+   {
+    "scene": "S12",
+    "action": "host_line",
+    "text": "Okay, now let me show you our Deep Hydration Ampoule. It has four percent niacinamide.",
+    "ms": 9814
+   },
+   {
+    "scene": "S12",
+    "action": "host_line",
+    "text": "It's a watery gel, just two to three drops after toner.",
+    "ms": 7543
+   },
+   {
+    "scene": "S12",
+    "action": "auto",
+    "text": null,
+    "ms": 17003
+   },
+   {
+    "scene": "S13",
+    "action": "host_line",
+    "text": "This one has ten percent niacinamide.",
+    "ms": 8719
+   },
+   {
+    "scene": "S13",
+    "action": "host_line",
+    "text": "Sorry, four percent niacinamide.",
+    "ms": 8666
+   },
+   {
+    "scene": "S14",
+    "action": "end",
+    "text": null,
+    "ms": 63
+   }
+  ],
+  "metrics": {
+   "alert": {
+    "last_server_ms": 2833,
+    "last_render_ms": 2855,
+    "server_p50_ms": 2833,
+    "server_p95_ms": 2833,
+    "render_p50_ms": 2855,
+    "render_p95_ms": 2855,
+    "count": 1
+   },
+   "correction": {
+    "p50_ms": 7237,
+    "p95_ms": 7237,
+    "count": 1
+   },
+   "agents": {
+    "fact_checker": {
+     "p50_ms": 1321,
+     "p95_ms": 1695,
+     "max_ms": 2044,
+     "ok": 25,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    },
+    "utterance_judge": {
+     "p50_ms": 1524,
+     "p95_ms": 1826,
+     "max_ms": 1875,
+     "ok": 25,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    },
+    "comment_triage": {
+     "p50_ms": 1372,
+     "p95_ms": 1613,
+     "max_ms": 1681,
+     "ok": 37,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    },
+    "answer_composer": {
+     "p50_ms": 2050,
+     "p95_ms": 5459,
+     "max_ms": 5459,
+     "ok": 15,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    }
+   },
+   "answers": {
+    "instant": 5,
+    "composed": 9,
+    "median_reply_ms": {
+     "instant": 1337,
+     "composed": 3387
+    }
+   },
+   "triage_cache": {
+    "hits": 1,
+    "misses": 36
+   },
+   "messages_by_kind": {
+    "ai_answer": 9,
+    "host_answer": 1
+   },
+   "stt_final_latency_ms": {
+    "p50_ms": 884,
+    "p95_ms": 1036,
+    "count": 25
+   },
+   "header": {
+    "alert_in_s": 2.9,
+    "judge_p50_s": 1.5,
+    "instant_answers": 5,
+    "answers_total": 14
+   },
+   "comments": 41,
+   "instant_answers": 5,
+   "composed_answers": 9,
+   "triage_cache_hits": 1,
+   "triage_cache_misses": 36
+  },
+  "alerts": [
+   {
+    "alert_id": "fx_01M3VJG2T5JMCNDBPY4QV6C9ND",
+    "kind": "fact",
+    "status": "corrected",
+    "transcript_id": "tr_01M3VJG13FT0FMX0E46XZ4VEDP",
+    "product_id": "cream_hydra_barrier",
+    "rule_id": null,
+    "severity": null,
+    "span": "$32",
+    "say_instead": null,
+    "unverified": false,
+    "field": "price",
+    "stated_value": "S$32",
+    "correct_value": "S$36.00",
+    "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
+    "quote": "Live broadcast price: S$36.00",
+    "created_at": 1790852991813,
+    "provisional_at": null,
+    "shown_at": 1790852991813,
+    "host_rendered_at": null,
+    "escalated_at": null,
+    "resolved_at": 1790853001893,
+    "corrected_by_transcript_id": "tr_01M3VJGBB2EKESD93QDP0HMTXN",
+    "corrected_text": "The live price is $36.",
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   },
+   {
+    "alert_id": "al_01M3VJGKP9Y96ZQZK17RQNX06N",
+    "kind": "compliance",
+    "status": "corrected",
+    "transcript_id": "tr_01M3VJGKP8MG5DB40MASZ8WZ1D",
+    "product_id": "cream_hydra_barrier",
+    "rule_id": "ASEAN-3-SKIN-AGEING",
+    "severity": "HIGH",
+    "span": "your wrinkles will disappear overnight",
+    "say_instead": "Helps keep skin hydrated for up to 24 hours in our in-house test.",
+    "unverified": false,
+    "field": null,
+    "stated_value": null,
+    "correct_value": null,
+    "passage_id": null,
+    "quote": null,
+    "created_at": 1790853009097,
+    "provisional_at": 1790853009097,
+    "shown_at": 1790853010974,
+    "host_rendered_at": 1790853010996,
+    "escalated_at": 1790853015981,
+    "resolved_at": 1790853018211,
+    "corrected_by_transcript_id": "tr_01M3VJGV3JDRD776SV74Y8HGRN",
+    "corrected_text": "Let me correct that.",
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   },
+   {
+    "alert_id": "al_01M3VJH984ZX3EVHJJX3PKS3HH",
+    "kind": "compliance",
+    "status": "cleared",
+    "transcript_id": "tr_01M3VJH96ZM1FF9KASR4MJ486N",
+    "product_id": "cream_hydra_barrier",
+    "rule_id": "ASEAN-3-SKIN-ACNE",
+    "severity": "HIGH",
+    "span": "treat acne",
+    "say_instead": null,
+    "unverified": false,
+    "field": null,
+    "stated_value": null,
+    "correct_value": null,
+    "passage_id": null,
+    "quote": null,
+    "created_at": 1790853031172,
+    "provisional_at": 1790853031172,
+    "shown_at": null,
+    "host_rendered_at": null,
+    "escalated_at": null,
+    "resolved_at": null,
+    "corrected_by_transcript_id": null,
+    "corrected_text": null,
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   },
+   {
+    "alert_id": "fx_01M3VJM6B8TNZG6CBF5B1YRD76",
+    "kind": "fact",
+    "status": "corrected",
+    "transcript_id": "tr_01M3VJM4QAYT479EE3Z45Q6SPZ",
+    "product_id": "ampoule_deep_hydration",
+    "rule_id": null,
+    "severity": null,
+    "span": "10% Niacinamide",
+    "say_instead": null,
+    "unverified": false,
+    "field": "ingredient_amount",
+    "stated_value": "10%",
+    "correct_value": "4%",
+    "passage_id": "DL-AM-01#key-ingredients#niacinamide",
+    "quote": "Niacinamide: 4%",
+    "created_at": 1790853126504,
+    "provisional_at": null,
+    "shown_at": 1790853126504,
+    "host_rendered_at": null,
+    "escalated_at": null,
+    "resolved_at": 1790853135136,
+    "corrected_by_transcript_id": "tr_01M3VJMD6ER56PKGVWSCTQ39DX",
+    "corrected_text": "Sorry, 4% Niacinamide.",
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   }
+  ],
+  "transcripts": [
+   {
+    "transcript_id": "tr_01M3VJFJ8EBNZE1KJC6CBQ20EH",
+    "text": "Raj is asking if it's okay for oily skin.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790852973921,
+    "received_at": 1790852974862,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJFN3G7P3M28R6QFVFFBAC",
+    "text": "Yes, it's a lightweight gel cream.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790852976911,
+    "received_at": 1790852977776,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJFR2ZEJRKE3VS7YD6MAJ5",
+    "text": "So, just use a smaller amount on oily areas.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790852979963,
+    "received_at": 1790852980831,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJG13FT0FMX0E46XZ4VEDP",
+    "text": "And today the live price is only $32.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790852989162,
+    "received_at": 1790852990063,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJG8VWSTRNS3BXCZBC0NYY",
+    "text": "Sorry, my mistake.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790852997176,
+    "received_at": 1790852998012,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJGBB2EKESD93QDP0HMTXN",
+    "text": "The live price is $36.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790852999621,
+    "received_at": 1790853000546,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJGKP8MG5DB40MASZ8WZ1D",
+    "text": "Use it every night and your wrinkles will disappear overnight.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853008141,
+    "received_at": 1790853009096,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJGV3JDRD776SV74Y8HGRN",
+    "text": "Let me correct that.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853015882,
+    "received_at": 1790853016690,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJH0BYD9YEMN3H5ZWSFDQ6",
+    "text": "It helps keep your skin hydrated for up to 24 hours in our in-house test.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853021042,
+    "received_at": 1790853022078,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJH7EXSBH90B8413WYCRYN",
+    "text": "Just to be clear.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853028521,
+    "received_at": 1790853029341,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJH96ZM1FF9KASR4MJ486N",
+    "text": "It does not treat acne.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853030320,
+    "received_at": 1790853031135,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJHAXGDSEKVZ5CCTFZBC1X",
+    "text": "It's a moisturizer.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853032120,
+    "received_at": 1790853032880,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJJ4F8C62707DPSHPFH898",
+    "text": "We patch tested it on 32 people and nobody reported a reaction in our in-house test.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853058058,
+    "received_at": 1790853059048,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJJX1V9R4D2HV7ER93W2PZ",
+    "text": "Someone is asking about the ampoule. We'll get to it in a minute.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853083289,
+    "received_at": 1790853084219,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJK42NKG8T6MMBQ2J5X8DX",
+    "text": "Okay, now let me show you our Deep Hydration Ampoule.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853090520,
+    "received_at": 1790853091413,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJK6PH8AS85WJKPQEVG1AW",
+    "text": "It has 4% Niacinamide.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853093163,
+    "received_at": 1790853094097,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJKBHMKAK7JPJHP7PFZJ3B",
+    "text": "It's a watery gel.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853098206,
+    "received_at": 1790853099060,
+    "source": "mic",
+    "segment_id": "seg_01M3VJDDQ2VGER63M5Z6KBA2KS"
+   },
+   {
+    "transcript_id": "tr_01M3VJKE1DYMNJA77QENVZWD5Y",
+    "text": "Just 2 to 3 drops after toner.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853100690,
+    "received_at": 1790853101613,
+    "source": "mic",
+    "segment_id": "seg_01M3VJKD3ZRBQQWFP15VTNN3ER"
+   },
+   {
+    "transcript_id": "tr_01M3VJM4QAYT479EE3Z45Q6SPZ",
+    "text": "This one has 10% Niacinamide.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853123809,
+    "received_at": 1790853124842,
+    "source": "mic",
+    "segment_id": "seg_01M3VJKD3ZRBQQWFP15VTNN3ER"
+   },
+   {
+    "transcript_id": "tr_01M3VJMD6ER56PKGVWSCTQ39DX",
+    "text": "Sorry, 4% Niacinamide.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853132650,
+    "received_at": 1790853133518,
+    "source": "mic",
+    "segment_id": "seg_01M3VJKD3ZRBQQWFP15VTNN3ER"
+   }
+  ],
+  "groups": 16
+ },
+ {
+  "sid": "ses_01M3VJMMJ8ZE2R3Q65PXY280Q8",
+  "finals": [
+   "Hi everyone, welcome to DAON LAB live.",
+   "Today we start with our Hydra Barrier Cream.",
+   "It's a lightweight gel cream.",
+   "So, it absorbs really quickly.",
+   "Inside you've got 1% Ceramide NP, 5% Panthenol and 3% Squalane.",
+   "Raj is asking if it's okay for oily skin.",
+   "Yes, it's a lightweight gel cream.",
+   "So, just use a smaller amount on oily areas.",
+   "And today the live price is only $32.",
+   "Sorry, my mistake.",
+   "The life price is $36.",
+   "Use it every night and your wrinkles will disappear overnight.",
+   "Let me correct that.",
+   "It helps keep your skin hydrated for up to 24 hours in our in-house test.",
+   "Just to be clear.",
+   "Does not treat acne.",
+   "It's a moisturizer.",
+   "We patch tested it on 32 people and nobody reported a reaction.",
+   "In our in-house test.",
+   "Someone is asking about the ampoule. We'll get to it in a minute.",
+   "Okay, now let me show you our Deep Hydration Ampoule.",
+   "It has 4% Niacinamide.",
+   "It's a watery gel.",
+   "Just 2 to 3 drops after toner.",
+   "This one has 10% Niacinamide.",
+   "Sorry, 4% Niacinamide."
+  ],
+  "log": [
+   {
+    "scene": "S01",
+    "action": "setup",
+    "text": null,
+    "ms": 0
+   },
+   {
+    "scene": "S02",
+    "action": "start",
+    "text": null,
+    "ms": 2031
+   },
+   {
+    "scene": "S02",
+    "action": "host_line",
+    "text": "Hi everyone, welcome to DAON LAB live! Today we start with our Hydra Barrier Cream.",
+    "ms": 11671
+   },
+   {
+    "scene": "S02",
+    "action": "host_line",
+    "text": "It's a lightweight gel-cream, so it absorbs really quickly.",
+    "ms": 8861
+   },
+   {
+    "scene": "S02",
+    "action": "host_line",
+    "text": "Inside you've got one percent ceramide NP, five percent panthenol and three percent squalane.",
+    "ms": 11482
+   },
+   {
+    "scene": "S03",
+    "action": "burst",
+    "text": "B1",
+    "ms": 14013
+   },
+   {
+    "scene": "S04",
+    "action": "burst",
+    "text": "B2",
+    "ms": 14017
+   },
+   {
+    "scene": "S05",
+    "action": "host_line",
+    "text": "Raj is asking if it's OK for oily skin. Yes, it's a lightweight gel-cream, so just use a smaller amount on oily areas.",
+    "ms": 13878
+   },
+   {
+    "scene": "S06",
+    "action": "host_line",
+    "text": "And today the live price is only thirty-two dollars.",
+    "ms": 8263
+   },
+   {
+    "scene": "S06",
+    "action": "host_line",
+    "text": "Sorry, my mistake, the live price is thirty-six dollars.",
+    "ms": 9452
+   },
+   {
+    "scene": "S07",
+    "action": "host_line",
+    "text": "Use it every night and your wrinkles will disappear overnight.",
+    "ms": 8452
+   },
+   {
+    "scene": "S07",
+    "action": "host_line",
+    "text": "Let me correct that. It helps keep your skin hydrated for up to twenty-four hours in our in-house test.",
+    "ms": 17512
+   },
+   {
+    "scene": "S08",
+    "action": "host_line",
+    "text": "Just to be clear, it does not treat acne. It's a moisturiser.",
+    "ms": 9946
+   },
+   {
+    "scene": "S09",
+    "action": "burst",
+    "text": "B3",
+    "ms": 14017
+   },
+   {
+    "scene": "S09",
+    "action": "edit_reply",
+    "text": null,
+    "ms": 0
+   },
+   {
+    "scene": "S10",
+    "action": "host_line",
+    "text": "We patch tested it on thirty-two people and nobody reported a reaction, in our in-house test.",
+    "ms": 10857
+   },
+   {
+    "scene": "S11",
+    "action": "promo_start",
+    "text": "promo_time_sale_10",
+    "ms": 1018
+   },
+   {
+    "scene": "S11",
+    "action": "burst",
+    "text": "B4",
+    "ms": 14188
+   },
+   {
+    "scene": "S12",
+    "action": "host_line",
+    "text": "Someone is asking about the ampoule, we'll get to it in a minute.",
+    "ms": 10053
+   },
+   {
+    "scene": "S12",
+    "action": "arm_burst",
+    "text": "B5",
+    "ms": 2787
+   },
+   {
+    "scene": "S12",
+    "action": "host_line",
+    "text": "Okay, now let me show you our Deep Hydration Ampoule. It has four percent niacinamide.",
+    "ms": 9176
+   },
+   {
+    "scene": "S12",
+    "action": "host_line",
+    "text": "It's a watery gel, just two to three drops after toner.",
+    "ms": 6913
+   },
+   {
+    "scene": "S12",
+    "action": "auto",
+    "text": null,
+    "ms": 17003
+   },
+   {
+    "scene": "S13",
+    "action": "host_line",
+    "text": "This one has ten percent niacinamide.",
+    "ms": 7929
+   },
+   {
+    "scene": "S13",
+    "action": "host_line",
+    "text": "Sorry, four percent niacinamide.",
+    "ms": 7924
+   },
+   {
+    "scene": "S14",
+    "action": "end",
+    "text": null,
+    "ms": 59
+   }
+  ],
+  "metrics": {
+   "alert": {
+    "last_server_ms": 2753,
+    "last_render_ms": 2769,
+    "server_p50_ms": 2753,
+    "server_p95_ms": 2753,
+    "render_p50_ms": 2769,
+    "render_p95_ms": 2769,
+    "count": 1
+   },
+   "correction": {
+    "p50_ms": 6065,
+    "p95_ms": 6065,
+    "count": 1
+   },
+   "agents": {
+    "fact_checker": {
+     "p50_ms": 1314,
+     "p95_ms": 1482,
+     "max_ms": 1608,
+     "ok": 25,
+     "timeout": 1,
+     "error": 0,
+     "invalid": 0
+    },
+    "utterance_judge": {
+     "p50_ms": 1571,
+     "p95_ms": 1813,
+     "max_ms": 1853,
+     "ok": 25,
+     "timeout": 1,
+     "error": 0,
+     "invalid": 0
+    },
+    "comment_triage": {
+     "p50_ms": 1376,
+     "p95_ms": 1977,
+     "max_ms": 2221,
+     "ok": 36,
+     "timeout": 1,
+     "error": 0,
+     "invalid": 0
+    },
+    "answer_composer": {
+     "p50_ms": 2384,
+     "p95_ms": 8029,
+     "max_ms": 8029,
+     "ok": 14,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    }
+   },
+   "answers": {
+    "instant": 3,
+    "composed": 11,
+    "median_reply_ms": {
+     "instant": 1978,
+     "composed": 3446
+    }
+   },
+   "triage_cache": {
+    "hits": 1,
+    "misses": 36
+   },
+   "messages_by_kind": {
+    "ai_answer": 9,
+    "host_answer": 1
+   },
+   "stt_final_latency_ms": {
+    "p50_ms": 879,
+    "p95_ms": 1692,
+    "count": 26
+   },
+   "header": {
+    "alert_in_s": 2.8,
+    "judge_p50_s": 1.6,
+    "instant_answers": 3,
+    "answers_total": 14
+   },
+   "comments": 41,
+   "instant_answers": 3,
+   "composed_answers": 11,
+   "triage_cache_hits": 1,
+   "triage_cache_misses": 36
+  },
+  "alerts": [
+   {
+    "alert_id": "fx_01M3VJQ5035R3FBCY0JVRXD1VJ",
+    "kind": "fact",
+    "status": "corrected",
+    "transcript_id": "tr_01M3VJQ38VDH075DKKBFQCVBGY",
+    "product_id": "cream_hydra_barrier",
+    "rule_id": null,
+    "severity": null,
+    "span": "$32",
+    "say_instead": null,
+    "unverified": false,
+    "field": "price",
+    "stated_value": "S$32",
+    "correct_value": "S$36.00",
+    "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
+    "quote": "Live broadcast price: S$36.00",
+    "created_at": 1790853223427,
+    "provisional_at": null,
+    "shown_at": 1790853223427,
+    "host_rendered_at": null,
+    "escalated_at": null,
+    "resolved_at": 1790853232586,
+    "corrected_by_transcript_id": "tr_01M3VJQCFVDJKY9RKZCJE1XKMS",
+    "corrected_text": "The life price is $36.",
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   },
+   {
+    "alert_id": "al_01M3VJQMTK2AC6J96XW0C0AS5S",
+    "kind": "compliance",
+    "status": "corrected",
+    "transcript_id": "tr_01M3VJQMTGBZZG1XKCT50NDH0X",
+    "product_id": "cream_hydra_barrier",
+    "rule_id": "ASEAN-3-SKIN-AGEING",
+    "severity": "HIGH",
+    "span": "your wrinkles will disappear overnight",
+    "say_instead": "With regular use, it helps keep your skin hydrated for up to 24 hours in our in-house test.",
+    "unverified": false,
+    "field": null,
+    "stated_value": null,
+    "correct_value": null,
+    "passage_id": null,
+    "quote": null,
+    "created_at": 1790853239634,
+    "provisional_at": 1790853239634,
+    "shown_at": 1790853241411,
+    "host_rendered_at": 1790853241427,
+    "escalated_at": 1790853246413,
+    "resolved_at": 1790853247476,
+    "corrected_by_transcript_id": "tr_01M3VJQTYC461HPQPTDMXNTD14",
+    "corrected_text": "Let me correct that.",
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   },
+   {
+    "alert_id": "al_01M3VJRDWKKS32S1CVSQ5T40RQ",
+    "kind": "compliance",
+    "status": "cleared",
+    "transcript_id": "tr_01M3VJRDWDMD3WEKAGW1BF7JVC",
+    "product_id": "cream_hydra_barrier",
+    "rule_id": "ASEAN-3-SKIN-ACNE",
+    "severity": "HIGH",
+    "span": "treat acne",
+    "say_instead": null,
+    "unverified": false,
+    "field": null,
+    "stated_value": null,
+    "correct_value": null,
+    "passage_id": null,
+    "quote": null,
+    "created_at": 1790853265299,
+    "provisional_at": 1790853265299,
+    "shown_at": null,
+    "host_rendered_at": null,
+    "escalated_at": null,
+    "resolved_at": null,
+    "corrected_by_transcript_id": null,
+    "corrected_text": null,
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   },
+   {
+    "alert_id": "fx_01M3VJVCWJS6ABM9JB0W4P1W61",
+    "kind": "fact",
+    "status": "corrected",
+    "transcript_id": "tr_01M3VJVBA7612P6N6N280A54JB",
+    "product_id": "ampoule_deep_hydration",
+    "rule_id": null,
+    "severity": null,
+    "span": "10% Niacinamide",
+    "say_instead": null,
+    "unverified": false,
+    "field": "ingredient_amount",
+    "stated_value": "10% Niacinamide",
+    "correct_value": "4%",
+    "passage_id": "DL-AM-01#key-ingredients#niacinamide",
+    "quote": "Niacinamide: 4%",
+    "created_at": 1790853362578,
+    "provisional_at": null,
+    "shown_at": 1790853362578,
+    "host_rendered_at": null,
+    "escalated_at": null,
+    "resolved_at": 1790853370211,
+    "corrected_by_transcript_id": "tr_01M3VJVK0KE32NXSFYTK6XTXRF",
+    "corrected_text": "Sorry, 4% Niacinamide.",
+    "host_hidden_at": null,
+    "dismissed_reason": null
+   }
+  ],
+  "transcripts": [
+   {
+    "transcript_id": "tr_01M3VJPR35Y31M9VPXZA6Y55JN",
+    "text": "Yes, it's a lightweight gel cream.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853209354,
+    "received_at": 1790853210213,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJPV767YZ0X2M968KX7RRZ",
+    "text": "So, just use a smaller amount on oily areas.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853212506,
+    "received_at": 1790853213414,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJQ38VDH075DKKBFQCVBGY",
+    "text": "And today the live price is only $32.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853220774,
+    "received_at": 1790853221659,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJQA2C0CWN94GMGNJ45T06",
+    "text": "Sorry, my mistake.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853227791,
+    "received_at": 1790853228620,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJQCFVDJKY9RKZCJE1XKMS",
+    "text": "The life price is $36.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853230313,
+    "received_at": 1790853231099,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJQMTGBZZG1XKCT50NDH0X",
+    "text": "Use it every night and your wrinkles will disappear overnight.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853238658,
+    "received_at": 1790853239632,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJQTYC461HPQPTDMXNTD14",
+    "text": "Let me correct that.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853245168,
+    "received_at": 1790853245900,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJR07858CKD5PN4QP0H2YR",
+    "text": "It helps keep your skin hydrated for up to 24 hours in our in-house test.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853250318,
+    "received_at": 1790853251304,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJRC3SER16KC67AMVYMHS8",
+    "text": "Just to be clear.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853262613,
+    "received_at": 1790853263481,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJRDWDMD3WEKAGW1BF7JVC",
+    "text": "Does not treat acne.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853264414,
+    "received_at": 1790853265293,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJRFK8HWS10DDWNGW7N3MY",
+    "text": "It's a moisturizer.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853266177,
+    "received_at": 1790853267048,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJS678N8579FTWC60B65SA",
+    "text": "We patch tested it on 32 people and nobody reported a reaction.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853289190,
+    "received_at": 1790853290216,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJS7WVAM7BD65RX338G50H",
+    "text": "In our in-house test.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853291083,
+    "received_at": 1790853291931,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJT2FY05V9VEEHXB6Y98RY",
+    "text": "Someone is asking about the ampoule. We'll get to it in a minute.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853316226,
+    "received_at": 1790853319166,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJTDB4HGHB3F36WBRF63BY",
+    "text": "Okay, now let me show you our Deep Hydration Ampoule.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853328584,
+    "received_at": 1790853330276,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJTEN1NFH44GKBACG3BFF7",
+    "text": "It has 4% Niacinamide.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853330731,
+    "received_at": 1790853331617,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJTJEDQ9HK09HV0RB1KYKT",
+    "text": "It's a watery gel.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853334664,
+    "received_at": 1790853335501,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJTMW588QB9RSYDATQF7XD",
+    "text": "Just 2 to 3 drops after toner.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853337146,
+    "received_at": 1790853337989,
+    "source": "mic",
+    "segment_id": "seg_01M3VJMN12WRN62YF62E7W9X7P"
+   },
+   {
+    "transcript_id": "tr_01M3VJVBA7612P6N6N280A54JB",
+    "text": "This one has 10% Niacinamide.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853359750,
+    "received_at": 1790853360967,
+    "source": "mic",
+    "segment_id": "seg_01M3VJTN1E7EY9WM5HWP637C6N"
+   },
+   {
+    "transcript_id": "tr_01M3VJVK0KE32NXSFYTK6XTXRF",
+    "text": "Sorry, 4% Niacinamide.",
+    "is_final": true,
+    "speech_start_at": null,
+    "speech_end_at": 1790853367972,
+    "received_at": 1790853368851,
+    "source": "mic",
+    "segment_id": "seg_01M3VJTN1E7EY9WM5HWP637C6N"
+   }
+  ],
+  "groups": 16
+ }
+]
