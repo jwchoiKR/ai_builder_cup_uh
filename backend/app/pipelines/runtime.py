@@ -103,6 +103,12 @@ class SessionRuntime:
         return f"{self.sid}:{name}"
 
     async def emit(self, type_: str, payload: BaseModel | dict) -> None:
+        if type_ == "group.updated" and isinstance(payload, QuestionGroup) and payload.answer_id:
+            # The client gets the draft/suggested answer with its group, no refetch (D-059).
+            answer = await self.get_answer(payload.answer_id)
+            data = payload.model_dump(mode="json")
+            data["answer"] = answer.model_dump(mode="json") if answer else None
+            payload = data
         await self.ctx.bus.emit(self.sid, type_, payload)
 
     def spawn(self, coro, name: str | None = None) -> asyncio.Task:

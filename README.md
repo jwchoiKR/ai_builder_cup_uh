@@ -9,6 +9,7 @@ AI co-pilot for live-commerce broadcasts: host screen, operator control room and
 - **P0 (foundations):** done.
 - **P1 (comment path):** done: prefilter, triage, grouping, routing, BM25 retrieval, composer with verification, caches, auto answers, host queue, operator actions, feed engine.
 - **P2 (utterance path):** done: transcript injection, reflex, utterance judge (split and single), fact checker, compliance and fact alerts with escalation, host-answer publishing, prompter coverage, product switch with undo, cues, metrics.
+- **P3 (screens):** done: design tokens and themes, Host, Operator, Viewer, Studio with Demo Console, Hub. Scene screenshots are in `docs/screens/`.
 - Eval reports (comments, utterances) are in `docs/eval/`.
 
 ## Layout
@@ -16,7 +17,7 @@ AI co-pilot for live-commerce broadcasts: host screen, operator control room and
 |---|---|
 | `data/`, `prompts/` | Data pack and prompt drafts, copied unchanged. Product facts only come from `data/products/`. |
 | `backend/` | Python 3.12, FastAPI, single process. `app/` is the service, `scripts/` the tools, `tests/` pytest. |
-| `frontend/` | React + TypeScript + Vite (phase P3). |
+| `frontend/` | React 18 + TypeScript + Vite. `src/app` store and API, `src/screens` Host / Operator / Viewer / Studio / Hub, `e2e/` scene capture. |
 | `docs/` | `DECISIONS.md`, `VERIFIED.md`. |
 
 ## Run locally
@@ -43,6 +44,19 @@ Requirements:
    - `POST /api/sessions` creates a session.
    - `GET /api/sessions/{id}/events` is its event stream (SSE).
 5. Without Google Cloud, set `LLM_PROVIDER=mock` and `STT_PROVIDER=mock` in `.env`. Agents then answer from `backend/tests/fixtures/llm/`.
+
+## Frontend
+```sh
+cd frontend
+npm install
+npm run dev      # http://localhost:5173 (proxies /api to :8000; API_TARGET overrides)
+npm run build    # frontend/dist, then served by the backend at http://localhost:8000
+```
+- Screens:
+  - `/` Hub
+  - `/studio` all three screens + Demo Console (key D, recording mode key R, `?layout=all`)
+  - `/host`, `/operator`, `/viewer`; add `?session=<id>` to pick a session (default: the latest demo session).
+- `npm run capture` replays the demo script and writes `docs/screens/` (see its README).
 
 ## Tests
 ```sh

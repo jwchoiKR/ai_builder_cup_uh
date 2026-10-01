@@ -1,0 +1,100 @@
+/* Design tokens (DEV_SPEC §12.2). Every color in components MUST use one of these variables.
+   Themes are set per screen with data-theme="dark" | "light" on the screen root, so Studio panes
+   can each carry their own theme. */
+
+:root,
+[data-theme="light"] {
+  --bg: #f3f4f1;
+  --surface: #ffffff;
+  --surface-2: #f6f7f4;
+  --border: #e1e4de;
+  --text: #1c2420;
+  --text-2: #5b6861;
+  --text-3: #8a958f; /* said points: 3.1:1 on --surface (WCAG AA large/UI) */
+  --accent: #3d6b4f;
+  --accent-ink: #ffffff;
+  --live: #c4483b;
+  --fact-bg: #fbf4e3;
+  --fact-border: #e7ce92;
+  --fact-text: #7a5a1d;
+  --risk-bg: #fbedea;
+  --risk-border: #e4aaa1;
+  --risk-text: #8d3a2f;
+  --ok-bg: #eaf4ec;
+  --ok-border: #a9cfb5;
+  --ok-text: #2f5b3e;
+  --shadow: 0 1px 2px rgba(28, 36, 32, 0.06), 0 4px 16px rgba(28, 36, 32, 0.06);
+  --scrim: rgba(28, 36, 32, 0.32);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #1d2220;
+  --surface: #232927;
+  --surface-2: #2b322f;
+  --border: #39423e;
+  --text: #ecefec;
+  --text-2: #a9b4ae;
+  --text-3: #77837d; /* said points: 3.8:1 on --surface */
+  --accent: #a7d7b8;
+  --accent-ink: #10241a;
+  --live: #e57a6e;
+  --fact-bg: #3f3322;
+  --fact-border: #8c6b3a;
+  --fact-text: #f2d29a;
+  --risk-bg: #2f1f22;
+  --risk-border: #7e3b3e;
+  --risk-text: #f3c7c2;
+  --ok-bg: #223a2c;
+  --ok-border: #4e7f60;
+  --ok-text: #bfe6cc;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --scrim: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+:root {
+  /* Typography: Source Sans 3 400/600, scale 12/14/16/18/22/28/36/48 */
+  --font: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --fs-12: 12px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-18: 18px;
+  --fs-22: 22px;
+  --fs-28: 28px;
+  --fs-36: 36px;
+  --fs-48: 48px;
+  --fw-regular: 400;
+  --fw-semibold: 600;
+  --eyebrow-tracking: 0.12em;
+
+  /* Spacing on a 4 px grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radius: 12 px cards, 8 px controls, 999 px chips */
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-chip: 999px;
+
+  /* Motion: 150-200 ms ease-out; the compliance overlay fades in 120 ms only */
+  --motion-fast: 150ms;
+  --motion: 200ms;
+  --motion-overlay: 120ms;
+  --ease: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion: 0ms;
+    --motion-overlay: 0ms;
+  }
+}

@@ -1,0 +1,98 @@
+.drawer {
+  flex: none;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  max-height: 46vh;
+}
+
+.handle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  flex: none;
+}
+
+.content {
+  overflow: auto;
+  padding: var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.2fr) minmax(360px, 2.4fr) minmax(200px, 0.9fr);
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 30vh;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.line {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-control);
+  font-size: var(--fs-14);
+}
+.line:hover {
+  background: var(--surface-2);
+}
+.lineDone {
+  color: var(--text-3);
+}
+
+.inject {
+  display: flex;
+  gap: var(--space-2);
+}
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.error {
+  color: var(--risk-text);
+  font-size: var(--fs-12);
+}
+
+.muted {
+  color: var(--text-2);
+  font-size: var(--fs-12);
+}

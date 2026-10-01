@@ -65,15 +65,23 @@ class FeedEngine:
 
     # ---- background chatter ----------------------------------------------------------------------
 
+    def _notify(self) -> None:
+        """`feed.updated` for the Demo Console (D-059)."""
+        self.rt.spawn(self.rt.emit("feed.updated", self.state()), name="feed.updated")
+
     def start_pool(self) -> None:
         if self.pool_running:
             return
         self.pool_running = True
         self._schedule_next()
+        self._notify()
 
     def stop_pool(self) -> None:
+        was = self.pool_running
         self.pool_running = False
         self.rt.ctx.scheduler.cancel(self.rt.key("feed:pool"))
+        if was:
+            self._notify()
 
     def _schedule_next(self) -> None:
         pb = self.pool["playback"]
@@ -122,18 +130,24 @@ class FeedEngine:
             for seg in await self.rt.segments():
                 if seg.start_reason in ("auto_speech", "operator") and 0 <= now - seg.started_at < ARM_GRACE_MS:
                     self._schedule(key, seg.started_at)
+                    self._notify()
                     return {"burst_id": key, "status": "fired"}
             self.armed[key] = burst
+            self._notify()
             return {"burst_id": key, "status": "armed"}
         self._schedule(key, self.rt.now())
+        self._notify()
         return {"burst_id": key, "status": "fired"}
 
     def on_segment_started(self, seg: Segment) -> None:
         if seg.start_reason not in ("auto_speech", "operator"):
             return  # never on session start or on the reopen after an Undo
+        fired = bool(self.armed)
         for key in list(self.armed):
             del self.armed[key]
             self._schedule(key, seg.started_at)
+        if fired:
+            self._notify()
 
     def _schedule(self, key: str, anchor_ms: int) -> None:
         burst = self.script["bursts"][key]

@@ -35,16 +35,23 @@ class JudgeInput:
     passages: list[Passage] = field(default_factory=list)
 
 
+def spoken_claim(text: str) -> str:
+    """The '*' of an approved claim marks the in-house-test qualifier; the host must say the
+    qualifier, not read the asterisk (§8.4.3 rule, also applied to judge output, D-062)."""
+    claim = text.strip()
+    if "*" not in claim:
+        return claim
+    claim = claim.replace("*", "").rstrip()
+    if "in-house test" in claim.lower():
+        return claim
+    if claim.endswith("."):
+        claim = claim[:-1]
+    return claim + " in our in-house test."
+
+
 def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
-    """§8.4.3: the on-air product's first approved claim; a trailing '*' becomes the in-house-test
-    qualifier."""
-    claim = catalog.approved_claims(product_id)[0].strip()
-    if claim.endswith("*"):
-        claim = claim[:-1].rstrip()
-        if claim.endswith("."):
-            claim = claim[:-1]
-        claim += " in our in-house test."
-    return claim
+    """§8.4.3: the on-air product's first approved claim, with the in-house-test qualifier."""
+    return spoken_claim(catalog.approved_claims(product_id)[0])
 
 
 def post_validate(out: UtteranceJudgeOutput, catalog: Catalog, values: dict) -> UtteranceJudgeOutput:
@@ -54,6 +61,7 @@ def post_validate(out: UtteranceJudgeOutput, catalog: Catalog, values: dict) -> 
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules]
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
+        v.say_instead = spoken_claim(v.say_instead)
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
     o.correction.corrects_alert_ids = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a in alert_ids]
     group_ids = {q["group_id"] for q in values["open_questions_json"]}

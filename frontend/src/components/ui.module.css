@@ -1,0 +1,193 @@
+/* Shared UI parts. Every color is a token (§12.2). Radius: 12 cards, 8 controls, 999 chips. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease),
+    opacity var(--motion-fast) var(--ease);
+  white-space: nowrap;
+}
+.button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.primary:hover:not(:disabled) {
+  background: var(--accent);
+  opacity: 0.9;
+}
+.danger {
+  background: var(--risk-bg);
+  border-color: var(--risk-border);
+  color: var(--risk-text);
+}
+.danger:hover:not(:disabled) {
+  background: var(--risk-bg);
+  opacity: 0.9;
+}
+.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.sm {
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  font-size: var(--fs-12);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+}
+.iconButton:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-chip);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.chip_accent {
+  background: var(--surface);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chip_fact {
+  background: var(--fact-bg);
+  border-color: var(--fact-border);
+  color: var(--fact-text);
+}
+.chip_risk {
+  background: var(--risk-bg);
+  border-color: var(--risk-border);
+  color: var(--risk-text);
+}
+.chip_ok {
+  background: var(--ok-bg);
+  border-color: var(--ok-border);
+  color: var(--ok-text);
+}
+.chip_live {
+  background: var(--surface);
+  border-color: var(--live);
+  color: var(--live);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
+}
+.cardPadded {
+  padding: var(--space-4);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.panelBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-4);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex: none;
+}
+.dot_live {
+  background: var(--live);
+}
+.dot_ok {
+  background: var(--accent);
+}
+.dot_off {
+  background: var(--text-3);
+}
+.dot_error {
+  background: var(--risk-text);
+}
+.pulse {
+  animation: pulse 1.4s var(--ease) infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}
+
+.connection {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-12);
+  color: var(--text-2);
+}
+
+.virtualViewport {
+  overflow: auto;
+  min-height: 0;
+  height: 100%;
+}
