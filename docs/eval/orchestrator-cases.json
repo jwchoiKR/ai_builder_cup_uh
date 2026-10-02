@@ -1,0 +1,1914 @@
+{
+ "explicit claim": [
+  {
+   "case": "explicit claim",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-2D-DISEASE"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "This cream cures eczema.",
+     "ms": 1598,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-2D-DISEASE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "This cream cures eczema.",
+     "ms": 1229,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "explicit claim",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-2D-DISEASE"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "This cream cures eczema.",
+     "ms": 1436,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-2D-DISEASE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "This cream cures eczema.",
+     "ms": 1230,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "explicit claim",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-2D-DISEASE"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "This cream cures eczema.",
+     "ms": 1388,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-2D-DISEASE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "This cream cures eczema.",
+     "ms": 1337,
+     "claims": []
+    }
+   ]
+  }
+ ],
+ "claim without keywords": [
+  {
+   "case": "claim without keywords",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-3-SKIN-ACNE"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Your breakouts will be gone in a week.",
+     "ms": 1533,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-3-SKIN-ACNE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Your breakouts will be gone in a week.",
+     "ms": 1433,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "claim without keywords",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-3-SKIN-ACNE"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Your breakouts will be gone in a week.",
+     "ms": 1357,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-3-SKIN-ACNE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Your breakouts will be gone in a week.",
+     "ms": 1258,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "claim without keywords",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-3-SKIN-ACNE"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Your breakouts will be gone in a week.",
+     "ms": 1856,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-3-SKIN-ACNE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Your breakouts will be gone in a week.",
+     "ms": 1243,
+     "claims": []
+    }
+   ]
+  }
+ ],
+ "negated claim": [
+  {
+   "case": "negated claim",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It doesn't cure eczema, it's just a moisturiser.",
+     "ms": 1822,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-2D-DISEASE",
+       "negated"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It doesn't cure eczema, it's just a moisturiser.",
+     "ms": 1152,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "negated claim",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "facts",
+     "line": "It doesn't cure eczema, it's just a moisturiser.",
+     "ms": 1094,
+     "claims": []
+    },
+    {
+     "agent": "judge",
+     "line": "It doesn't cure eczema, it's just a moisturiser.",
+     "ms": 1780,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-2D-DISEASE",
+       "negated"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    }
+   ]
+  },
+  {
+   "case": "negated claim",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It doesn't cure eczema, it's just a moisturiser.",
+     "ms": 1685,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-2D-DISEASE",
+       "negated"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It doesn't cure eczema, it's just a moisturiser.",
+     "ms": 1152,
+     "claims": []
+    }
+   ]
+  }
+ ],
+ "question read out": [
+  {
+   "case": "question read out",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Jun is asking if it heals acne scars.",
+     "ms": 1493,
+     "type": "question_readout",
+     "violations": [
+      [
+       "ASEAN-3-SKIN-SCARS",
+       "quoted"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Jun is asking if it heals acne scars.",
+     "ms": 1283,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "question read out",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Jun is asking if it heals acne scars.",
+     "ms": 1486,
+     "type": "question_readout",
+     "violations": [
+      [
+       "ASEAN-3-SKIN-SCARS",
+       "quoted"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Jun is asking if it heals acne scars.",
+     "ms": 1086,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "question read out",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Jun is asking if it heals acne scars.",
+     "ms": 1380,
+     "type": "question_readout",
+     "violations": [
+      [
+       "ASEAN-3-SKIN-SCARS",
+       "quoted"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Jun is asking if it heals acne scars.",
+     "ms": 1167,
+     "claims": []
+    }
+   ]
+  }
+ ],
+ "off-topic risky word": [
+  {
+   "case": "off-topic risky word",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "facts",
+     "line": "My cat literally cured my bad mood today, haha.",
+     "ms": 1206,
+     "claims": []
+    },
+    {
+     "agent": "judge",
+     "line": "My cat literally cured my bad mood today, haha.",
+     "ms": 1478,
+     "type": "chit_chat",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    }
+   ]
+  },
+  {
+   "case": "off-topic risky word",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "My cat literally cured my bad mood today, haha.",
+     "ms": 1545,
+     "type": "chit_chat",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "My cat literally cured my bad mood today, haha.",
+     "ms": 1384,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "off-topic risky word",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "My cat literally cured my bad mood today, haha.",
+     "ms": 1254,
+     "type": "chit_chat",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "My cat literally cured my bad mood today, haha.",
+     "ms": 1019,
+     "claims": []
+    }
+   ]
+  }
+ ],
+ "superlative": [
+  {
+   "case": "superlative",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "BRAND-SUPERLATIVE"
+    ],
+    "severity": [
+     "MEDIUM"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Honestly, it's the best moisturiser in Singapore.",
+     "ms": 1478,
+     "type": "product_talk",
+     "violations": [
+      [
+       "BRAND-SUPERLATIVE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Honestly, it's the best moisturiser in Singapore.",
+     "ms": 1346,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "superlative",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "BRAND-SUPERLATIVE"
+    ],
+    "severity": [
+     "MEDIUM"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Honestly, it's the best moisturiser in Singapore.",
+     "ms": 1850,
+     "type": "product_talk",
+     "violations": [
+      [
+       "BRAND-SUPERLATIVE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Honestly, it's the best moisturiser in Singapore.",
+     "ms": 1292,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "superlative",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "BRAND-SUPERLATIVE"
+    ],
+    "severity": [
+     "MEDIUM"
+    ],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Honestly, it's the best moisturiser in Singapore.",
+     "ms": 1609,
+     "type": "product_talk",
+     "violations": [
+      [
+       "BRAND-SUPERLATIVE",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Honestly, it's the best moisturiser in Singapore.",
+     "ms": 1194,
+     "claims": []
+    }
+   ]
+  }
+ ],
+ "approved test result": [
+  {
+   "case": "approved test result",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "In our in-house test, twenty-nine of thirty-two people said their skin felt less dry after two weeks.",
+     "ms": 1473,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "In our in-house test, twenty-nine of thirty-two people said their skin felt less dry after two weeks.",
+     "ms": 1398,
+     "claims": [
+      [
+       "test_result",
+       "supported",
+       "29 of 32",
+       "29 of 32 (91%)"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "approved test result",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "In our in-house test, twenty-nine of thirty-two people said their skin felt less dry after two weeks.",
+     "ms": 1567,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "In our in-house test, twenty-nine of thirty-two people said their skin felt less dry after two weeks.",
+     "ms": 1653,
+     "claims": [
+      [
+       "test_result",
+       "supported",
+       "29 of 32 participants",
+       "29 of 32 (91%)"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "approved test result",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "In our in-house test, twenty-nine of thirty-two people said their skin felt less dry after two weeks.",
+     "ms": 1683,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "In our in-house test, twenty-nine of thirty-two people said their skin felt less dry after two weeks.",
+     "ms": 1475,
+     "claims": [
+      [
+       "test_result",
+       "supported",
+       "29 of 32",
+       "29 of 32 (91%)"
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "mixed-up ingredient amount": [
+  {
+   "case": "mixed-up ingredient amount",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [
+     "ingredient_amount"
+    ],
+    "covered": [
+     "cr-p2"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "The cream has five percent ceramide NP.",
+     "ms": 1410,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p2"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "The cream has five percent ceramide NP.",
+     "ms": 1386,
+     "claims": [
+      [
+       "ingredient_amount",
+       "contradicted",
+       "5% ceramide NP",
+       "1%"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "mixed-up ingredient amount",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [
+     "ingredient_amount"
+    ],
+    "covered": [
+     "cr-p2"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "The cream has five percent ceramide NP.",
+     "ms": 1360,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p2"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "The cream has five percent ceramide NP.",
+     "ms": 1360,
+     "claims": [
+      [
+       "ingredient_amount",
+       "contradicted",
+       "5% ceramide NP",
+       "1% Ceramide NP"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "mixed-up ingredient amount",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [
+     "ingredient_amount"
+    ],
+    "covered": [
+     "cr-p2"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "The cream has five percent ceramide NP.",
+     "ms": 1417,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p2"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "The cream has five percent ceramide NP.",
+     "ms": 1415,
+     "claims": [
+      [
+       "ingredient_amount",
+       "contradicted",
+       "5% ceramide NP",
+       "1%"
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "correct price": [
+  {
+   "case": "correct price",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p6"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "The live price today is thirty-six dollars.",
+     "ms": 1357,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p6"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "The live price today is thirty-six dollars.",
+     "ms": 1597,
+     "claims": [
+      [
+       "price",
+       "supported",
+       "S$36",
+       "S$36.00"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "correct price",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p6"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "The live price today is thirty-six dollars.",
+     "ms": 1617,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p6"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "The live price today is thirty-six dollars.",
+     "ms": 1610,
+     "claims": [
+      [
+       "price",
+       "supported",
+       "S$36",
+       "S$36.00"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "correct price",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p6"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "The live price today is thirty-six dollars.",
+     "ms": 1479,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p6"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "The live price today is thirty-six dollars.",
+     "ms": 1537,
+     "claims": [
+      [
+       "price",
+       "supported",
+       "S$36",
+       null
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "claim and wrong price together": [
+  {
+   "case": "claim and wrong price together",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-DP5-PHYSIOLOGICAL"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [
+     "price"
+    ],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It repairs damaged skin, and it's only thirty dollars today.",
+     "ms": 1417,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-DP5-PHYSIOLOGICAL",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It repairs damaged skin, and it's only thirty dollars today.",
+     "ms": 1631,
+     "claims": [
+      [
+       "other",
+       "contradicted",
+       "repairs damaged skin",
+       "Claims not approved: Repairs, heals or cures damaged skin."
+      ],
+      [
+       "price",
+       "contradicted",
+       "S$30",
+       "S$36.00"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "claim and wrong price together",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-DP5-PHYSIOLOGICAL"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [
+     "price"
+    ],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It repairs damaged skin, and it's only thirty dollars today.",
+     "ms": 1605,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-DP5-PHYSIOLOGICAL",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It repairs damaged skin, and it's only thirty dollars today.",
+     "ms": 1674,
+     "claims": [
+      [
+       "other",
+       "contradicted",
+       "repairs damaged skin",
+       "Claims not approved: Repairs, heals or cures damaged skin"
+      ],
+      [
+       "price",
+       "contradicted",
+       "S$30",
+       "S$36.00"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "claim and wrong price together",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true
+   },
+   "got": {
+    "rules": [
+     "ASEAN-DP5-PHYSIOLOGICAL"
+    ],
+    "severity": [
+     "HIGH"
+    ],
+    "facts": [
+     "price"
+    ],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It repairs damaged skin, and it's only thirty dollars today.",
+     "ms": 1550,
+     "type": "product_talk",
+     "violations": [
+      [
+       "ASEAN-DP5-PHYSIOLOGICAL",
+       "claim"
+      ]
+     ],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It repairs damaged skin, and it's only thirty dollars today.",
+     "ms": 1610,
+     "claims": [
+      [
+       "other",
+       "contradicted",
+       "repairs damaged skin",
+       "Not approved"
+      ],
+      [
+       "price",
+       "contradicted",
+       "S$30",
+       "S$36.00"
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "prompter point": [
+  {
+   "case": "prompter point",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "prompter": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p1"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It's a lightweight gel-cream, so it absorbs really quickly.",
+     "ms": 1515,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p1"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It's a lightweight gel-cream, so it absorbs really quickly.",
+     "ms": 1610,
+     "claims": [
+      [
+       "texture",
+       "supported",
+       "lightweight gel-cream",
+       "Gel-cream"
+      ],
+      [
+       "texture",
+       "supported",
+       "absorbs quickly",
+       "absorbs quickly"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "prompter point",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "prompter": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p1"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It's a lightweight gel-cream, so it absorbs really quickly.",
+     "ms": 1715,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p1"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It's a lightweight gel-cream, so it absorbs really quickly.",
+     "ms": 1706,
+     "claims": [
+      [
+       "texture",
+       "supported",
+       "lightweight gel-cream",
+       "Gel-cream"
+      ],
+      [
+       "texture",
+       "supported",
+       "absorbs quickly",
+       "absorbs quickly"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "prompter point",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "prompter": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p1"
+    ],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "It's a lightweight gel-cream, so it absorbs really quickly.",
+     "ms": 1603,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "cr-p1"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It's a lightweight gel-cream, so it absorbs really quickly.",
+     "ms": 1720,
+     "claims": [
+      [
+       "texture",
+       "supported",
+       "lightweight gel-cream",
+       "Gel-cream"
+      ],
+      [
+       "texture",
+       "supported",
+       "absorbs quickly",
+       "absorbs quickly"
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "answer to a question on screen": [
+  {
+   "case": "answer to a question on screen",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "answer": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p1"
+    ],
+    "posted": 1,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Raj is asking if it's OK for oily skin. Yes, it's lightweight, so just use a smaller amount on oily areas.",
+     "ms": 1397,
+     "type": "answer",
+     "violations": [],
+     "covered": [
+      "cr-p1"
+     ],
+     "answered": true,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Raj is asking if it's OK for oily skin. Yes, it's lightweight, so just use a smaller amount on oily areas.",
+     "ms": 1493,
+     "claims": [
+      [
+       "usage",
+       "supported",
+       "use a smaller amount on oily areas",
+       "Use a smaller amount on oily areas."
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "answer to a question on screen",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "answer": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p1"
+    ],
+    "posted": 1,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Raj is asking if it's OK for oily skin. Yes, it's lightweight, so just use a smaller amount on oily areas.",
+     "ms": 1785,
+     "type": "answer",
+     "violations": [],
+     "covered": [
+      "cr-p1"
+     ],
+     "answered": true,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Raj is asking if it's OK for oily skin. Yes, it's lightweight, so just use a smaller amount on oily areas.",
+     "ms": 1181,
+     "claims": [
+      [
+       "usage",
+       "supported",
+       "use a smaller amount on oily areas",
+       "Use a smaller amount on oily areas."
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "answer to a question on screen",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "answer": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [
+     "cr-p1"
+    ],
+    "posted": 1,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Raj is asking if it's OK for oily skin. Yes, it's lightweight, so just use a smaller amount on oily areas.",
+     "ms": 1535,
+     "type": "answer",
+     "violations": [],
+     "covered": [
+      "cr-p1"
+     ],
+     "answered": true,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "Raj is asking if it's OK for oily skin. Yes, it's lightweight, so just use a smaller amount on oily areas.",
+     "ms": 1270,
+     "claims": [
+      [
+       "usage",
+       "supported",
+       "use a smaller amount on oily areas",
+       "Use a smaller amount on oily areas."
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "next product mentioned in passing": [
+  {
+   "case": "next product mentioned in passing",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "switch": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "facts",
+     "line": "We'll get to the Deep Hydration Ampoule a bit later.",
+     "ms": 1071,
+     "claims": []
+    },
+    {
+     "agent": "judge",
+     "line": "We'll get to the Deep Hydration Ampoule a bit later.",
+     "ms": 1316,
+     "type": "question_readout",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    }
+   ]
+  },
+  {
+   "case": "next product mentioned in passing",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "switch": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "We'll get to the Deep Hydration Ampoule a bit later.",
+     "ms": 1507,
+     "type": "question_readout",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "We'll get to the Deep Hydration Ampoule a bit later.",
+     "ms": 1125,
+     "claims": []
+    }
+   ]
+  },
+  {
+   "case": "next product mentioned in passing",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "switch": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "cream_hydra_barrier"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "We'll get to the Deep Hydration Ampoule a bit later.",
+     "ms": 1648,
+     "type": "other",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "We'll get to the Deep Hydration Ampoule a bit later.",
+     "ms": 1358,
+     "claims": []
+    }
+   ]
+  }
+ ],
+ "product switch": [
+  {
+   "case": "product switch",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "switch": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "ampoule_deep_hydration"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Okay, now let me show you our Deep Hydration Ampoule.",
+     "ms": 1324,
+     "type": "transition",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": true
+    },
+    {
+     "agent": "facts",
+     "line": "Okay, now let me show you our Deep Hydration Ampoule.",
+     "ms": 1181,
+     "claims": []
+    },
+    {
+     "agent": "facts",
+     "line": "It has four percent niacinamide and helps skin look more radiant.",
+     "ms": 1495,
+     "claims": [
+      [
+       "ingredient_amount",
+       "supported",
+       "4% niacinamide",
+       "4%."
+      ],
+      [
+       "test_result",
+       "supported",
+       "radiant",
+       "Helps skin look more radiant and even-toned."
+      ]
+     ]
+    },
+    {
+     "agent": "judge",
+     "line": "It has four percent niacinamide and helps skin look more radiant.",
+     "ms": 1501,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "am-p1",
+      "am-p4"
+     ],
+     "answered": false,
+     "transition": false
+    }
+   ]
+  },
+  {
+   "case": "product switch",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "switch": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "ampoule_deep_hydration"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Okay, now let me show you our Deep Hydration Ampoule.",
+     "ms": 1525,
+     "type": "transition",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": true
+    },
+    {
+     "agent": "facts",
+     "line": "Okay, now let me show you our Deep Hydration Ampoule.",
+     "ms": 1132,
+     "claims": []
+    },
+    {
+     "agent": "judge",
+     "line": "It has four percent niacinamide and helps skin look more radiant.",
+     "ms": 1320,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "am-p1",
+      "am-p4"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It has four percent niacinamide and helps skin look more radiant.",
+     "ms": 1304,
+     "claims": [
+      [
+       "ingredient_amount",
+       "supported",
+       "4% niacinamide",
+       "4% niacinamide"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "case": "product switch",
+   "pass": true,
+   "checks": {
+    "compliance": true,
+    "facts": true,
+    "switch": true
+   },
+   "got": {
+    "rules": [],
+    "severity": [],
+    "facts": [],
+    "covered": [],
+    "posted": 0,
+    "on_air": "ampoule_deep_hydration"
+   },
+   "agents": [
+    {
+     "agent": "judge",
+     "line": "Okay, now let me show you our Deep Hydration Ampoule.",
+     "ms": 1435,
+     "type": "transition",
+     "violations": [],
+     "covered": [],
+     "answered": false,
+     "transition": true
+    },
+    {
+     "agent": "facts",
+     "line": "Okay, now let me show you our Deep Hydration Ampoule.",
+     "ms": 992,
+     "claims": []
+    },
+    {
+     "agent": "judge",
+     "line": "It has four percent niacinamide and helps skin look more radiant.",
+     "ms": 1558,
+     "type": "product_talk",
+     "violations": [],
+     "covered": [
+      "am-p1",
+      "am-p4"
+     ],
+     "answered": false,
+     "transition": false
+    },
+    {
+     "agent": "facts",
+     "line": "It has four percent niacinamide and helps skin look more radiant.",
+     "ms": 1180,
+     "claims": [
+      [
+       "ingredient_amount",
+       "supported",
+       "4% niacinamide",
+       "4%"
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+}
