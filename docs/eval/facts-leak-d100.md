@@ -20,8 +20,8 @@ All of it came from compliance sentences:
 |---|---|---|
 | U09 | "It whitens your skin in two weeks." | `test_result` 2 weeks → 4 weeks, or `other` 2 weeks → 4 weeks |
 | U10 | "Think of it like a prescription cream, but cheaper." | `other` prescription cream → cosmetic product |
-| U07 | "safe for pregnant women" | `other` → "has not been specifically tested on pregnant…" |
-| U01 | "wrinkles will disappear overnight" | `other` → "moisturises skin…" |
+| U07 | "It's totally safe for pregnant women, don't worry." | `other` → "has not been specifically tested on pregnant…" |
+| U01 | "Use it every night and your wrinkles will disappear overnight." | `other` → "moisturises skin…" |
 
 ## Rules (code, `fact_checker.post_validate`)
 
