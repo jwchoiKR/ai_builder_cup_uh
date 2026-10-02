@@ -19,28 +19,35 @@ flowchart LR
     PDF["Product sheet PDFs"]
   end
   subgraph BE["Backend code: the orchestrator (one runtime per session)"]
-    STT["Speech-to-Text (chirp_3 streaming)"]
+    STTC["Speech-to-Text client (audio WebSocket)"]
     UP["Utterance pipeline"]
     CP["Comment pipeline"]
     SP["Setup pipeline"]
     SUMP["Summary pipeline"]
-    BUS[("Event bus (stored events)")]
+    ACT["Operator and session API (REST)"]
+    STORE[("Setup store: glossary, prompter points")]
+    BUS[["Event bus: stored events, SSE"]]
   end
-  subgraph AG["LLM agents: one call each, JSON out"]
-    J["Utterance Judge"]
-    F["Fact Checker"]
-    T["Comment Triage"]
-    C["Answer Composer"]
-    B["Brief Agent"]
-    S["Broadcast Summary"]
+  subgraph GC["Google Cloud"]
+    GSTT["Speech-to-Text V2 (chirp_3)"]
+    subgraph AG["LLM agents on Vertex AI Gemini: one call each, JSON out"]
+      J["Utterance Judge"]
+      F["Fact Checker"]
+      T["Comment Triage"]
+      C["Answer Composer"]
+      B["Brief Agent"]
+      S["Broadcast Summary"]
+    end
   end
   DATA[("Product sheets, passages, claim rules, promos")]
-  subgraph OUT["Screens (live updates over SSE)"]
+  subgraph OUT["Screens"]
     H["Host"]
     O["Operator"]
     V["Viewer"]
   end
-  MIC --> STT --> UP
+  MIC -- "audio" --> STTC
+  STTC <--> GSTT
+  STTC --> UP
   CMT --> CP
   PDF --> SP
   UP <--> J
@@ -49,19 +56,30 @@ flowchart LR
   CP <--> C
   SP <--> B
   SUMP <--> S
+  SP --> STORE
+  STORE -. "prompter points: next session" .-> UP
+  STORE -. "glossary: next mic connection" .-> STTC
+  ACT -- "End broadcast" --> SUMP
   DATA -.-> UP
   DATA -.-> CP
   DATA -.-> SP
   UP --> BUS
   CP --> BUS
-  SP --> BUS
   SUMP --> BUS
-  BUS --> H
-  BUS --> O
-  BUS --> V
+  ACT --> BUS
+  BUS -- "SSE" --> H
+  BUS -- "SSE" --> O
+  BUS -- "SSE" --> V
+  O -- "approve, dismiss, push, switch, start/end" --> ACT
+  H -- "cancel switch (Esc)" --> ACT
   classDef agent fill:#F2C46D,stroke:#8A5A00,color:#1D1400
   class J,F,T,C,B,S agent
 ```
+
+**Notes on the overview:**
+- **Setup does not emit events.** It stores the confirmed glossary and prompter points. The glossary is used from the next mic connection as phrase hints, and the prompter points from the next session. `/setup` uses REST only.
+- **Actions come back over REST:** operator actions (`api/operator.py`, 22 routes) and session start/end (`api/sessions.py`). Mic audio arrives over a WebSocket (`api/audio_ws.py`).
+- **Google Cloud runs the speech recognition and the models.** The backend holds the code that calls them: audio relay, prompt building, schema validation, deadlines.
 
 ## 2. Comment path (viewer question → answer)
 
