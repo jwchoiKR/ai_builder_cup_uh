@@ -1,0 +1,19 @@
+{
+ "answer": {
+  "utterance_type": "product_talk",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Discusses live price, but S$32 is the ampoule price while current product is the cream S$36, so no point matched."
+}

@@ -8,7 +8,7 @@ AI co-pilot for live-commerce broadcasts: host screen, operator control room and
 **Status:**
 - **P0 (foundations):** done.
 - **P1 (comment path):** done: prefilter, triage, grouping, routing, BM25 retrieval, composer with verification, caches, auto answers, host queue, operator actions, feed engine.
-- **P2 (utterance path):** done: transcript injection, reflex, utterance judge (split and single), fact checker, compliance and fact alerts with escalation, host-answer publishing, prompter coverage, product switch with undo, cues, metrics.
+- **P2 (utterance path):** done: transcript injection, reflex, utterance judges (split3: compliance and context judges in parallel, D-099; split and single kept), fact checker, compliance and fact alerts with escalation, host-answer publishing, prompter coverage, product switch with undo, cues, metrics.
 - **P3 (screens):** done: design tokens and themes, Host, Operator, Viewer, Studio with Demo Console, Hub. Scene screenshots are in `docs/screens/`.
 - **P4 (audio, setup, summary):** done: microphone capture, audio WebSocket, Speech-to-Text V2 `chirp_3` streaming with restarts and phrase hints, `/setup` with the Brief Agent and glossary confirmation, summary statistics and AI recap on `/summary`.
 - **P5 (hardening):** done: Playwright end-to-end test, split vs single report, latency report, rehearsal report (`docs/eval/`, `docs/rehearsal.md`).

@@ -1,0 +1,9 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "reason": "The host states a safe, compliant statement about patch testing and in-house results matching approved claims."
+}

@@ -55,8 +55,8 @@ async def test_unfinished_previous_within_window_is_merged(env):
     a, b = await split(rt, S08_A, S08_B, gap_ms=3500)
     b = await stored(rt, b)
     assert b.merged_from_transcript_id == a.transcript_id and b.judged_text == S08 and b.text == S08_B
-    assert ("utterance_judge", S08) in llm.calls and ("fact_checker", S08) in llm.calls
-    assert ("utterance_judge", S08_B) not in llm.calls and ("fact_checker", S08_B) not in llm.calls
+    for agent in ("compliance_judge", "context_judge", "fact_checker"):
+        assert (agent, S08) in llm.calls and (agent, S08_B) not in llm.calls
     [ev] = [e for e in await events(rt, "transcript.final") if e.payload["transcript_id"] == b.transcript_id]
     assert ev.payload["judged_text"] == S08
 
@@ -72,7 +72,7 @@ async def test_not_merged(env, first, gap_ms):
     _, b = await split(rt, first, S08_B, gap_ms=gap_ms)
     b = await stored(rt, b)
     assert b.merged_from_transcript_id is None and b.judged_text is None
-    assert ("utterance_judge", S08_B) in llm.calls
+    assert ("compliance_judge", S08_B) in llm.calls and ("context_judge", S08_B) in llm.calls
 
 
 async def test_merge_off_and_chain_limit():
@@ -101,7 +101,8 @@ async def test_recent_transcript_excludes_the_merged_fragment(env):
         await speak(rt, "Hi everyone.")
         await advance(rt, 5000)
         await split(rt, S08_A, S08_B)
-        assert data_block(llm.messages[("utterance_judge", S08)], "RECENT_TRANSCRIPT") == '["Hi everyone."]'
+        for agent in ("compliance_judge", "context_judge"):
+            assert data_block(llm.messages[(agent, S08)], "RECENT_TRANSCRIPT") == '["Hi everyone."]'
     finally:
         await close_env(rt)
 

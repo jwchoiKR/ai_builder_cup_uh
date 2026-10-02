@@ -4,13 +4,17 @@ from __future__ import annotations
 import asyncio
 import json
 
-from app.models.agent_io import FactCheckOutput, JudgeSingleOutput, UtteranceJudgeOutput
+from app.models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, JudgeSingleOutput, UtteranceJudgeOutput
 from app.models.session import Event
 from app.providers.llm import LLMError, RawReply
 
 from .helpers import live_runtime, make_ctx
 
 CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
+# JUDGE_MODE=split3 (D-099): a script, delay or failure keyed "utterance_judge" covers both split judges.
+JUDGE = "utterance_judge"
+SPLIT_PARTS = {"compliance_judge": (ComplianceOutput, ("compliance", "correction")),
+               "context_judge": (ContextOutput, ("answer", "prompter"))}
 PRICE_PASSAGE = "DL-CR-01#key-facts#live-broadcast-price"
 PRICE_QUOTE = "Live broadcast price: S$36.00"
 
@@ -46,9 +50,16 @@ def price_contradiction(stated: str = "S$32") -> dict:
     return claim("price", "contradicted", stated=stated, correct="S$36.00", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE)
 
 
+def split_part(agent: str, data: dict) -> dict:
+    """The compliance_judge or context_judge part of a full judge output."""
+    model, keys = SPLIT_PARTS[agent]
+    return model.model_validate({k: data[k] for k in keys} | {"reason": data["reason"]}).model_dump(mode="json")
+
+
 class ScriptedBackend:
     """Returns scripted outputs keyed by (agent, primary text); otherwise the agent's rule-based
-    fallback (triage, composer), so comments still flow."""
+    fallback (triage, composer), so comments still flow. `judge(...)` scripts the UtteranceJudge;
+    in split3 the compliance and context judges each return their part of it."""
 
     name = "scripted"
 
@@ -74,15 +85,25 @@ class ScriptedBackend:
     def fail(self, agent: str, text: str) -> None:
         self.errors.add((agent, text))
 
+    def _alias(self, agent: str, text: str, table) -> tuple[str, str]:
+        key = (agent, text)
+        if agent in SPLIT_PARTS and key not in table:
+            return (JUDGE, text)
+        return key
+
     async def generate(self, req, timeout_ms):
         key = (req.agent, req.mock_primary_text)
         self.calls.append(key)
-        if key in self.delays:
-            await asyncio.sleep(self.delays[key])
-        if key in self.errors:
+        delay_key = self._alias(*key, self.delays)
+        if delay_key in self.delays:
+            await asyncio.sleep(self.delays[delay_key])
+        if self._alias(*key, self.errors) in self.errors:
             raise LLMError("scripted failure")
         if key in self.outputs:
             return RawReply(json.dumps(self.outputs[key]), model_version="scripted")
+        if req.agent in SPLIT_PARTS:
+            data = self.outputs.get((JUDGE, req.mock_primary_text)) or judge_output()
+            return RawReply(json.dumps(split_part(req.agent, data)), model_version="scripted")
         if req.agent in ("utterance_judge", "judge_single"):
             # Unscripted sentences: a neutral verdict (no reflex-derived violations).
             data = judge_output()

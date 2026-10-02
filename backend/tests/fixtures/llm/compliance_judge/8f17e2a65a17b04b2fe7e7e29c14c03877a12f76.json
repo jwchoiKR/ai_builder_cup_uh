@@ -1,0 +1,11 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": [
+   "@alert:your wrinkles will disappear overnight"
+  ]
+ },
+ "reason": "The host explicitly corrected the previous violation by providing an approved hydration claim."
+}

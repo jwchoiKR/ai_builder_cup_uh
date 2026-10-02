@@ -1,0 +1,9 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "reason": "The host mentions a percentage of an ingredient, which does not violate any rules."
+}

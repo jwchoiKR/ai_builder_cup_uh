@@ -1,8 +1,11 @@
 """UtteranceJudge agent (DEV_SPEC §7.3): compliance, correction, answer linking, prompter and switch
-in one call. `JUDGE_MODE=single` adds the fact check to the same call (judge_single.md)."""
+in one call (`JUDGE_MODE=split`). `JUDGE_MODE=single` adds the fact check to the same call
+(judge_single.md). The default `split3` cuts the same jobs into two calls (split_judges.py, D-099);
+the input values, checks and rule-based fallbacks here are shared with it."""
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
@@ -54,9 +57,9 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
     return spoken_claim(catalog.approved_claims(product_id)[0])
 
 
-def post_validate(out: UtteranceJudgeOutput, catalog: Catalog, values: dict) -> UtteranceJudgeOutput:
-    """Drop unknown rules and any id that was not in the input lists; severity comes from the rule."""
-    o = out.model_copy(deep=True)
+def validate_compliance(o, catalog: Catalog, values: dict):
+    """In place, on any output with `compliance` and `correction`: drop unknown rules and alert ids
+    that were not in the input; severity comes from the rule."""
     rules = catalog.pack.rules_by_id
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules]
     for v in o.compliance.violations:
@@ -64,6 +67,12 @@ def post_validate(out: UtteranceJudgeOutput, catalog: Catalog, values: dict) -> 
         v.say_instead = spoken_claim(v.say_instead)
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
     o.correction.corrects_alert_ids = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a in alert_ids]
+    return o
+
+
+def validate_context(o, catalog: Catalog, values: dict):
+    """In place, on any output with `answer` and `prompter`: drop group, point and cue ids that were
+    not in the input, and an unknown switch target."""
     group_ids = {q["group_id"] for q in values["open_questions_json"]}
     if o.answer.matched_group_id is not None and o.answer.matched_group_id not in group_ids:
         o.answer.matched_group_id = None
@@ -75,6 +84,71 @@ def post_validate(out: UtteranceJudgeOutput, catalog: Catalog, values: dict) -> 
     if not catalog.is_product(o.prompter.switch.target_product_id):
         o.prompter.switch.target_product_id = None
     return o
+
+
+def post_validate(out: UtteranceJudgeOutput, catalog: Catalog, values: dict) -> UtteranceJudgeOutput:
+    """Drop unknown rules and any id that was not in the input lists; severity comes from the rule."""
+    o = out.model_copy(deep=True)
+    return validate_context(validate_compliance(o, catalog, values), catalog, values)
+
+
+def build_judge_values(catalog: Catalog, inp: JudgeInput, single: bool = False) -> dict:
+    """Prompt values shared by the UtteranceJudge, judge_single and the split judges (D-099)."""
+    values = {
+        "current_product_json": inputs.current_product_json(catalog, inp.on_air),
+        "run_sheet_compact_json": inputs.run_sheet_compact_json(catalog, inp.on_air),
+        "approved_claims_of_current_product_json": inputs.approved_claims_of_current_product_json(catalog, inp.on_air),
+        "rules_compact_json": inputs.rules_compact_json(catalog),
+        "active_alerts_json": inputs.active_alerts_json(inp.active_alerts),
+        "open_questions_json": inputs.open_questions_json(inp.open_questions, len(inp.open_questions)),
+        "prompter_points_json": inputs.prompter_points_json(catalog, inp.on_air, inp.points_by_product),
+        "host_cues_json": inputs.host_cues_json(inp.cue),
+        "last_two_final_transcripts_json": inp.previous[-2:],
+        "utterance_text": inputs.utterance_text(inp.utterance),
+    }
+    if single:
+        values |= {
+            "switch_context_json": inputs.switch_context_json(catalog, inp.switch, inp.on_air),
+            "active_promo_json_or_null": inputs.active_promo_json_or_null(catalog, inp.promo),
+            "set_offers_json": inputs.set_offers_json(catalog, inp.promo),
+            "passages_json": inputs.passages_json(inp.passages),
+        }
+    return values
+
+
+def symbolic_ids(values: dict) -> tuple[Callable[[dict], dict], Callable[[dict], dict]]:
+    """Fixture encode/decode: group and alert ids are new in every session, so a recorded fixture
+    names a group by its question and an alert by its span."""
+    group_q = {q["group_id"]: normalise_question(q["canonical_question"]) for q in values["open_questions_json"]}
+    alert_span = {a["alert_id"]: normalise_question(a["span"] or "") for a in values["active_alerts_json"]}
+    q_group = {v: k for k, v in group_q.items()}
+    span_alert = {v: k for k, v in alert_span.items()}
+
+    def encode(data: dict) -> dict:
+        ans = data.get("answer") or {}
+        if ans.get("matched_group_id") in group_q:
+            ans["matched_group_id"] = GROUP_REF + group_q[ans["matched_group_id"]]
+        corr = data.get("correction") or {}
+        corr["corrects_alert_ids"] = [ALERT_REF + alert_span[a] if a in alert_span else a
+                                      for a in corr.get("corrects_alert_ids", [])]
+        return data
+
+    def decode(data: dict) -> dict:
+        ans = data.get("answer") or {}
+        ref = ans.get("matched_group_id")
+        if isinstance(ref, str) and ref.startswith(GROUP_REF):
+            ans["matched_group_id"] = q_group.get(ref[len(GROUP_REF):])
+        corr = data.get("correction") or {}
+        ids = []
+        for a in corr.get("corrects_alert_ids", []):
+            if isinstance(a, str) and a.startswith(ALERT_REF):
+                a = span_alert.get(a[len(ALERT_REF):])
+            if a:
+                ids.append(a)
+        corr["corrects_alert_ids"] = ids
+        return data
+
+    return encode, decode
 
 
 class UtteranceJudge:
@@ -91,58 +165,11 @@ class UtteranceJudge:
         self.reflex = reflex
 
     def build_values(self, inp: JudgeInput) -> dict:
-        values = {
-            "current_product_json": inputs.current_product_json(self.catalog, inp.on_air),
-            "run_sheet_compact_json": inputs.run_sheet_compact_json(self.catalog, inp.on_air),
-            "approved_claims_of_current_product_json": inputs.approved_claims_of_current_product_json(self.catalog, inp.on_air),
-            "rules_compact_json": inputs.rules_compact_json(self.catalog),
-            "active_alerts_json": inputs.active_alerts_json(inp.active_alerts),
-            "open_questions_json": inputs.open_questions_json(inp.open_questions, len(inp.open_questions)),
-            "prompter_points_json": inputs.prompter_points_json(self.catalog, inp.on_air, inp.points_by_product),
-            "host_cues_json": inputs.host_cues_json(inp.cue),
-            "last_two_final_transcripts_json": inp.previous[-2:],
-            "utterance_text": inputs.utterance_text(inp.utterance),
-        }
-        if self.single:
-            values |= {
-                "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
-                "active_promo_json_or_null": inputs.active_promo_json_or_null(self.catalog, inp.promo),
-                "set_offers_json": inputs.set_offers_json(self.catalog, inp.promo),
-                "passages_json": inputs.passages_json(inp.passages),
-            }
-        return values
+        return build_judge_values(self.catalog, inp, self.single)
 
     async def run(self, inp: JudgeInput, *, deadline_ms: int) -> AgentResult:
         values = self.build_values(inp)
-        group_q = {q["group_id"]: normalise_question(q["canonical_question"]) for q in values["open_questions_json"]}
-        alert_span = {a["alert_id"]: normalise_question(a["span"] or "") for a in values["active_alerts_json"]}
-        q_group = {v: k for k, v in group_q.items()}
-        span_alert = {v: k for k, v in alert_span.items()}
-
-        def encode(data: dict) -> dict:
-            ans = data.get("answer") or {}
-            if ans.get("matched_group_id") in group_q:
-                ans["matched_group_id"] = GROUP_REF + group_q[ans["matched_group_id"]]
-            corr = data.get("correction") or {}
-            corr["corrects_alert_ids"] = [ALERT_REF + alert_span[a] if a in alert_span else a
-                                          for a in corr.get("corrects_alert_ids", [])]
-            return data
-
-        def decode(data: dict) -> dict:
-            ans = data.get("answer") or {}
-            ref = ans.get("matched_group_id")
-            if isinstance(ref, str) and ref.startswith(GROUP_REF):
-                ans["matched_group_id"] = q_group.get(ref[len(GROUP_REF):])
-            corr = data.get("correction") or {}
-            ids = []
-            for a in corr.get("corrects_alert_ids", []):
-                if isinstance(a, str) and a.startswith(ALERT_REF):
-                    a = span_alert.get(a[len(ALERT_REF):])
-                if a:
-                    ids.append(a)
-            corr["corrects_alert_ids"] = ids
-            return data
-
+        encode, decode = symbolic_ids(values)
         output_model = JudgeSingleOutput if self.single else UtteranceJudgeOutput
         res = await self.llm.call(LLMRequest(
             agent="judge_single" if self.single else self.name, model=self.llm.fast.model,
@@ -166,7 +193,7 @@ class UtteranceJudge:
 _CORRECTION = re.compile(r"\b(correct that|my mistake|sorry|let me correct)\b", re.IGNORECASE)
 
 
-def rule_based_judge(inp: JudgeInput, values: dict, catalog: Catalog, reflex: Reflex, single: bool) -> dict:
+def rule_based_compliance(inp: JudgeInput, values: dict, catalog: Catalog, reflex: Reflex) -> dict:
     seen, violations = set(), []
     for h in reflex.scan(inp.utterance):
         if h.rule_id in seen:
@@ -175,6 +202,10 @@ def rule_based_judge(inp: JudgeInput, values: dict, catalog: Catalog, reflex: Re
         violations.append({"span": h.phrase, "rule_id": h.rule_id, "severity": h.severity, "is_negated": h.negated,
                            "is_quoted": h.quoted, "say_instead": say_instead_fallback(catalog, inp.on_air)})
     corrects = [a["alert_id"] for a in values["active_alerts_json"]] if _CORRECTION.search(inp.utterance) else []
+    return {"compliance": {"violations": violations}, "correction": {"corrects_alert_ids": corrects}, "reason": "rule-based"}
+
+
+def rule_based_context(inp: JudgeInput, catalog: Catalog) -> dict:
     nxt = catalog.next_product(inp.on_air)
     t = inp.utterance.lower()
     switch = {"is_transition": False, "is_quote": False, "target_product_id": None, "confidence": "low"}
@@ -182,14 +213,16 @@ def rule_based_judge(inp: JudgeInput, values: dict, catalog: Catalog, reflex: Re
         switch = {"is_transition": True, "is_quote": False, "target_product_id": nxt, "confidence": "high"}
     elif re.search(r"\bback to\b", t) and catalog.product_by_alias(t) == inp.on_air:
         switch = {"is_transition": True, "is_quote": False, "target_product_id": inp.on_air, "confidence": "high"}
-    out = {
-        "compliance": {"violations": violations},
-        "correction": {"corrects_alert_ids": corrects},
-        "answer": {"utterance_type": "correction" if corrects else "product_talk", "matched_group_id": None,
-                   "is_answer": False, "consistent_with_suggested": False},
+    return {
+        "answer": {"utterance_type": "correction" if _CORRECTION.search(inp.utterance) else "product_talk",
+                   "matched_group_id": None, "is_answer": False, "consistent_with_suggested": False},
         "prompter": {"covered_point_ids": [], "covered_cue_ids": [], "switch": switch},
         "reason": "rule-based",
     }
+
+
+def rule_based_judge(inp: JudgeInput, values: dict, catalog: Catalog, reflex: Reflex, single: bool) -> dict:
+    out = rule_based_compliance(inp, values, catalog, reflex) | rule_based_context(inp, catalog)
     if single:
         out["facts"] = {"claims": [], "reason": "rule-based"}
     return out

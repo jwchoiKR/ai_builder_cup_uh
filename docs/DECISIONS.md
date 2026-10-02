@@ -485,3 +485,29 @@ D-098: Saying the "Say this instead" wording corrects the alert, even when the j
 - **Cause 2:** the judge sees only the last two lines, and chatter had pushed the violation out of them.
 - **Fix:** ACTIVE_ALERTS now includes `say_instead`. Independently of the judge, an active compliance alert is corrected when an utterance says its replacement wording (at least 60% of the wording's content words, the same measure as D-089). This also works when the judge call fails.
 - **Unchanged:** apologies, other approved claims and partial phrases still need the judge to list the alert and pass the D-089 check. Alerts raised by the fragments of a merged utterance stay protected (D-088).
+
+D-099: Three agents read each host sentence in parallel (`JUDGE_MODE=split3`, the new default).
+- **Agents:**
+  - ComplianceJudge (`prompts/compliance_judge.md`): advertising-rule violations and corrections of active alerts;
+  - ContextJudge (`prompts/context_judge.md`): answer linking, prompter points and cues, product switch;
+  - FactChecker, unchanged.
+  The two judges are cut from `utterance_judge.md` with the same wording, read the same input values, and get the same checks. `test_prompts.py` fails if the job texts drift apart.
+- **Why:** measured on 39 eval cases × 20 runs (`docs/eval/agents-compare.md`):
+  - accuracy is the same as one UtteranceJudge;
+  - the compliance verdict, which drives the red alert, is ready about 0.3–0.4 s sooner: p50 1.20 s and p95 1.51 s, against 1.51–1.54 s and 1.83–1.93 s;
+  - compliance timeouts fall to 2.8%, against 3.5–6.5%.
+- **LLM router not adopted:** the alternative was an LLM router in front that picks the specialists. It was 0.5–0.8 s slower and used 3.13 calls per sentence, with no accuracy gain.
+- **Order:**
+  - each verdict is applied as soon as it arrives; the compliance verdict is applied first when both are in;
+  - a new HIGH alert still resets switch counting and cancels a pending switch (§8.4.7), even if the context verdict came first;
+  - the host-answer publish decision waits for both judges and the fact checker; if either judge failed, nothing is posted.
+- **Failure:**
+  - if the compliance judge fails, the Reflex fallback applies as before (§8.4.3, `judge.failed`);
+  - if the context judge fails, only the prompter and the switch miss that sentence. This is logged, and not shown to the operator.
+- **Cost:** three model calls per sentence instead of two (each judge prompt is shorter).
+- **Rollback:** `JUDGE_MODE=split` (one UtteranceJudge); `single` stays.
+- **Other changes:**
+  - the judge p50 header chip uses `compliance_judge`;
+  - the transcript chips read `context_judge`;
+  - demo fixtures: the new `compliance_judge` and `context_judge` fixtures were recorded on Vertex AI, and the `utterance_judge` fixtures stay for `split`. The other agents are unchanged, so their fixtures stay from the last clean run.
+  - None of the five recording runs on 2026-10-03 was clean. Each had one to three calls time out just past the deadline: comment triage, answer composer, fact checker, or context judge at 2.51 s. Compliance judge calls were 75/75 ok and context judge calls 72/75. The S12 "It's a watery gel…" context fixture is from the fourth run, the rest from the fifth. The demo replay test and the E2E suite pass.

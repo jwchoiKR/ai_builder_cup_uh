@@ -1,0 +1,18 @@
+{
+ "compliance": {
+  "violations": [
+   {
+    "span": "treat acne",
+    "rule_id": "ASEAN-3-SKIN-ACNE",
+    "severity": "HIGH",
+    "is_negated": true,
+    "is_quoted": false,
+    "say_instead": "Helps relieve the feeling of dryness."
+   }
+  ]
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "reason": "Host denies the product treats acne, which triggers a negated violation rule."
+}

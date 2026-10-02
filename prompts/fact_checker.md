@@ -1,7 +1,7 @@
 # Prompt: fact_checker (version fact_checker_v1)
 
-Used by: `FactChecker` agent, `JUDGE_MODE=split`. Model: `LLM_FAST_MODEL`, thinking MINIMAL.
-Called once per final host transcript, in parallel with `utterance_judge`.
+Used by: `FactChecker` agent, `JUDGE_MODE=split3` and `split`. Model: `LLM_FAST_MODEL`, thinking MINIMAL.
+Called once per final host transcript, in parallel with the judges (`compliance_judge` and `context_judge`, or `utterance_judge`).
 Input passages come from the retriever (prefetched key passages of the current product plus a live search on the utterance).
 Output must validate against `FactCheckOutput` (DEV_SPEC §7.4).
 

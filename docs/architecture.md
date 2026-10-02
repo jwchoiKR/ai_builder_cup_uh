@@ -31,7 +31,8 @@ flowchart LR
   subgraph GC["Google Cloud"]
     GSTT["Speech-to-Text V2 (chirp_3)"]
     subgraph AG["LLM agents on Vertex AI Gemini: one call each, JSON out"]
-      J["Utterance Judge"]
+      J["Compliance Judge"]
+      X["Context Judge"]
       F["Fact Checker"]
       T["Comment Triage"]
       C["Answer Composer"]
@@ -51,6 +52,7 @@ flowchart LR
   CMT --> CP
   PDF --> SP
   UP <--> J
+  UP <--> X
   UP <--> F
   CP <--> T
   CP <--> C
@@ -116,21 +118,22 @@ flowchart TD
   MG -- "no" --> OT["Use this final"]
   JT --> RF["Reflex: banned-phrase scan, instant provisional alert"]
   OT --> RF
-  RF --> J["Utterance Judge (LLM, 2.5 s)"]
+  RF --> CJ["Compliance Judge (LLM, 2.5 s)"]
+  RF --> XJ["Context Judge (LLM, 2.5 s)"]
   RF --> F["Fact Checker (LLM, 3 s, sheet passages)"]
-  J --> AL["Compliance alert: red overlay on host"]
-  J --> CR{"Correction? approved wording or explicit retraction required"}
+  CJ --> AL["Compliance alert: red overlay on host"]
+  CJ --> CR{"Correction? approved wording or explicit retraction required"}
   CR -- "yes" --> OK["Green 'Corrected'"]
-  J --> PR["Prompter: mark points said"]
-  J --> SW["Product switch: named transition, then a product fact, then 5 s countdown"]
-  J --> PUB["Host answered an open question: post the reply"]
+  XJ --> PR["Prompter: mark points said"]
+  XJ --> SW["Product switch: named transition, then a product fact, then 5 s countdown"]
+  XJ --> PUB["Host answered an open question: post the reply (needs all three verdicts)"]
   F --> FN["Fact note: stated value vs sheet value"]
-  J -. "judge failed or timed out" .-> FB["Fallback: un-negated HIGH reflex hit becomes an unverified alert"]
+  CJ -. "judge failed or timed out" .-> FB["Fallback: un-negated HIGH reflex hit becomes an unverified alert"]
   classDef agent fill:#F2C46D,stroke:#8A5A00,color:#1D1400
-  class J,F agent
+  class CJ,XJ,F agent
 ```
 
-The Utterance Judge and the Fact Checker run **in parallel** for each final. With `JUDGE_MODE=single`, one combined call does both jobs; the default is `split`.
+The Compliance Judge, the Context Judge and the Fact Checker run **in parallel** for each final (`JUDGE_MODE=split3`, D-099). Each verdict is applied the moment it arrives, so the red alert never waits for the prompter or the fact check. `JUDGE_MODE=split` puts both judges' jobs in one Utterance Judge (rollback); `single` adds the fact check to that call.
 
 ## 4. One sentence, end to end
 
@@ -140,15 +143,19 @@ sequenceDiagram
   participant Host
   participant STT as Speech-to-Text
   participant BE as Backend (code)
-  participant J as Utterance Judge (LLM)
+  participant J as Compliance Judge (LLM)
+  participant X as Context Judge (LLM)
   participant F as Fact Checker (LLM)
   participant UI as Host and Operator screens
   Host->>STT: "your wrinkles will disappear overnight"
   STT->>BE: final transcript (about 1 s)
   BE->>BE: reflex scan, provisional alert
   par compliance
-    BE->>J: utterance + recent lines + open alerts + open questions
+    BE->>J: utterance + recent lines + rules + open alerts
     J-->>BE: violation: ageing claim, HIGH
+  and context
+    BE->>X: utterance + recent lines + open questions + prompter points
+    X-->>BE: product talk, no point covered
   and facts
     BE->>F: utterance + product sheet passages
     F-->>BE: no wrong facts
@@ -183,14 +190,15 @@ flowchart LR
   class BA,BS agent
 ```
 
-## The six agents
+## The seven agents
 
 | Agent | Runs | Input | Output | Model, deadline | If it fails |
 |---|---|---|---|---|---|
 | Comment Triage | each comment (cache first) | comment, product on air, open question groups | kind, intent, product, canonical question, group to join | gemini-3.5-flash-lite (MINIMAL), 2.5 s | question goes to operator review |
 | Answer Composer | each new question group (cache first) | canonical question, product sheet passages, set offers, active promo | answer, citations, grounded, needs_human | gemini-3.8-flash (LOW), 12 s | group goes to operator review |
-| Utterance Judge | each final transcript | utterance (joined if split), recent lines, open alerts, open questions, prompter points, switch state | violations (negated / quoted), corrections, answered question, points said, switch signal | gemini-3.5-flash-lite (MINIMAL), 2.5 s | reflex decides: un-negated HIGH hit becomes an unverified alert |
-| Fact Checker | each final transcript, in parallel with the judge | utterance, retrieved sheet passages, active promo | claims: supported / contradicted with the sheet value | gemini-3.5-flash-lite (MINIMAL), 3 s | no fact note for that sentence |
+| Compliance Judge | each final transcript | utterance (joined if split), recent lines, claim rules, approved claims, open alerts with their "say this instead" | violations (negated / quoted), corrections | gemini-3.5-flash-lite (MINIMAL), 2.5 s | reflex decides: un-negated HIGH hit becomes an unverified alert |
+| Context Judge | each final transcript, in parallel | utterance (joined if split), recent lines, run sheet, open questions, prompter points, cues | answered question, points said, switch signal | gemini-3.5-flash-lite (MINIMAL), 2.5 s | prompter and switch skip that sentence; no host answer posted |
+| Fact Checker | each final transcript, in parallel with the judges | utterance, retrieved sheet passages, active promo | claims: supported / contradicted with the sheet value | gemini-3.5-flash-lite (MINIMAL), 3 s | no fact note for that sentence |
 | Brief Agent | /setup, per product | product sheet text | glossary terms, prompter point drafts | gemini-3.8-flash (MEDIUM), 60 s | error shown, previous result kept |
 | Broadcast Summary | after "End broadcast" | statistics computed by code | headline, highlights, watch-outs, follow-ups | gemini-3.8-flash (MEDIUM), 30 s | statistics shown without a recap |
 

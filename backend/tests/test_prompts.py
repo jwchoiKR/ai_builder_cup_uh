@@ -12,7 +12,9 @@ from app.agents.inputs import BUILDERS
 from app.models.agent_io import (
     BriefOutput,
     CommentTriageOutput,
+    ComplianceOutput,
     ComposerOutput,
+    ContextOutput,
     FactCheckOutput,
     JudgeSingleOutput,
     UtteranceJudgeOutput,
@@ -23,6 +25,8 @@ from app.providers.prompts import PROMPT_NAMES, PromptError, load_prompts, rende
 OUTPUT_MODELS: dict[str, type[BaseModel]] = {
     "utterance_judge": UtteranceJudgeOutput,
     "judge_single": JudgeSingleOutput,
+    "compliance_judge": ComplianceOutput,
+    "context_judge": ContextOutput,
     "fact_checker": FactCheckOutput,
     "comment_triage": CommentTriageOutput,
     "answer_composer": ComposerOutput,
@@ -53,6 +57,18 @@ def test_judge_single_is_built_from_both_files(prompts):
     assert [m for m in re.findall(r"^Example ([A-Z])$", js, re.M)] == list("ABCDEFGH")
 
 
+def test_split_judges_keep_the_utterance_judge_wording(prompts):
+    """D-099: the split judges are cut from utterance_judge.md; the job texts must not drift apart."""
+    uj = prompts["utterance_judge"].system_instruction
+    jobs = {"compliance_judge": ("Compliance", "Correction of active alerts"),
+            "context_judge": ("Answer linking", "Prompter tracking and product switch")}
+    for name, titles in jobs.items():
+        split = prompts[name].system_instruction
+        for title in titles:
+            body = re.search(rf"^### Job \d\. {title}\n(.*?)(?=^### |^## |\Z)", uj, re.S | re.M).group(1)
+            assert f". {title}\n{body}" in split, f"{name}: job '{title}' differs from utterance_judge.md"
+
+
 def _example_outputs(system: str) -> list[dict]:
     examples = system.split("## EXAMPLES", 1)[1]
     blocks = re.findall(r"```json\n(.*?)\n```", examples, re.S)
@@ -60,8 +76,8 @@ def _example_outputs(system: str) -> list[dict]:
     return [json.loads(b) for b in blocks + inline]
 
 
-EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "fact_checker": 4, "comment_triage": 6,
-                  "answer_composer": 5, "brief_agent": 1}
+EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 3, "context_judge": 4,
+                  "fact_checker": 4, "comment_triage": 6, "answer_composer": 5, "brief_agent": 1}
 
 
 @pytest.mark.parametrize("name", sorted(OUTPUT_MODELS))

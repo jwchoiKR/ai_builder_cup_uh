@@ -1,0 +1,9 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "reason": "The host mentions ingredient percentages without making any unapproved claims or violating guidelines."
+}

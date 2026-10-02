@@ -7,7 +7,8 @@ from typing import Any
 
 from ..models.session import AgentCall, Alert, Comment, Message, Transcript
 
-JUDGE_AGENTS = ("utterance_judge", "judge_single")
+# The judge whose latency decides the red alert path: compliance_judge in split3 (D-099).
+JUDGE_AGENTS = ("compliance_judge", "utterance_judge", "judge_single")
 
 
 def percentile(values: Sequence[int | float], q: float) -> int | None:

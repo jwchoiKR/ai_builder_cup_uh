@@ -41,6 +41,8 @@ export function correctedIn(v: number | "dismissed" | "uncorrected"): string {
 }
 
 const AGENT_LABELS: Record<string, string> = {
+  compliance_judge: "Compliance judge",
+  context_judge: "Context judge",
   utterance_judge: "Utterance judge",
   judge_single: "Judge (single)",
   fact_checker: "Fact checker",

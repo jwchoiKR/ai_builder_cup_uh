@@ -132,7 +132,12 @@ describe("alert cards", () => {
       ),
       agentCalls: [
         {
-          call_id: "c1", agent: "utterance_judge", model: "m", prompt_version: "v", started_at: T0, latency_ms: 900, status: "ok" as const,
+          call_id: "c0", agent: "compliance_judge", model: "m", prompt_version: "v", started_at: T0, latency_ms: 600, status: "ok" as const,
+          input_hash: "h", input_preview: "Yes it is.", error: null,
+          output: { compliance: { violations: [] }, correction: { corrects_alert_ids: [] } },
+        },
+        {
+          call_id: "c1", agent: "context_judge", model: "m", prompt_version: "v", started_at: T0, latency_ms: 900, status: "ok" as const,
           input_hash: "h", input_preview: "Yes it is.", error: null,
           output: { answer: { is_answer: true, matched_group_id: "grp_000001" }, prompter: { covered_point_ids: ["cr-p1"] } },
         },

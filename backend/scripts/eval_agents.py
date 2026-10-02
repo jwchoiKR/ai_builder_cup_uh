@@ -2,10 +2,12 @@
 agents' areas, latency and timeouts. Every run is scored (run_eval.py scores run 1 only).
 
 Structures:
-  split2 (production): UtteranceJudge (compliance, correction, answer, prompter, switch) + FactChecker.
-  split3 (experiment): ComplianceJudge (compliance, correction) + ContextJudge (answer, prompter,
-         switch) + FactChecker, all in parallel. Prompts in scripts/experiments/prompts/, cut from
-         prompts/utterance_judge.md with the same wording.
+  split3 (production, JUDGE_MODE=split3, D-099): ComplianceJudge (compliance, correction) + ContextJudge
+         (answer, prompter, switch) + FactChecker, all in parallel. The production agents and prompts.
+  split2 (JUDGE_MODE=split, rollback): UtteranceJudge (compliance, correction, answer, prompter,
+         switch) + FactChecker.
+  router3 (experiment): an LLM router (scripts/experiments/prompts/router.md) first, then only the
+         chosen specialists.
 
 Inputs are the 39 utterance eval cases (data/eval/utterance_cases.jsonl) built as run_eval.py does:
 text in as the final transcript, real models on Vertex AI. No orchestrator code runs. Judge outputs
@@ -35,13 +37,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import app.agents.fact_checker as fc_module  # noqa: E402
 from app.agents.fact_checker import FactChecker, FactInput, gather_fact_passages  # noqa: E402
 from app.agents.inputs import BUILDERS  # noqa: E402
+from app.agents.split_judges import ComplianceJudge, ContextJudge  # noqa: E402
 from app.agents.utterance_judge import JudgeInput, UtteranceJudge  # noqa: E402
 from app.agents.utterance_judge import post_validate as judge_post_validate  # noqa: E402
 from app.clock import SystemClock  # noqa: E402
 from app.config import REPO_DIR, get_settings  # noqa: E402
 from app.logic.catalog import Catalog, DataPack  # noqa: E402
 from app.logic.reflex import Reflex  # noqa: E402
-from app.models.agent_io import AnswerLink, Compliance, Correction, PrompterJudgement, UtteranceJudgeOutput  # noqa: E402
+from app.models.agent_io import ComplianceOutput, ContextOutput, UtteranceJudgeOutput  # noqa: E402
 from app.models.session import Alert, SwitchState  # noqa: E402
 from app.providers.llm import LLMRequest  # noqa: E402
 from app.providers.prompts import (  # noqa: E402
@@ -61,18 +64,6 @@ EVAL_DIR = REPO_DIR / "docs" / "eval"
 # Keep the fact checker's raw model answer: run() normally applies post_validate before returning.
 _fact_post_validate = fc_module.post_validate
 fc_module.post_validate = lambda out, *a, **k: out
-
-
-class ComplianceOutput(BaseModel):
-    compliance: Compliance
-    correction: Correction
-    reason: str
-
-
-class ContextOutput(BaseModel):
-    answer: AnswerLink
-    prompter: PrompterJudgement
-    reason: str
 
 
 class RouterOutput(BaseModel):
@@ -104,9 +95,11 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
     catalog = Catalog(pack)
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     client, _ = make_client(False)
-    judge = UtteranceJudge(client, prompts, catalog, Reflex(pack.rules))
+    reflex = Reflex(pack.rules)
+    judge = UtteranceJudge(client, prompts, catalog, reflex)
+    comp_judge, ctx_judge = ComplianceJudge(client, prompts, catalog, reflex), ContextJudge(client, prompts, catalog, reflex)
     facts = FactChecker(client, prompts["fact_checker"], catalog)
-    comp_t, ctx_t = (exp_template("compliance_judge"), exp_template("context_judge")) if structure != "split2" else (None, None)
+    comp_t, ctx_t = prompts["compliance_judge"], prompts["context_judge"]
     router_t = exp_template("router") if structure == "router3" else None
     retriever = LocalRetriever(pack.passages)
     prefetched: dict = {}
@@ -165,10 +158,14 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
                     if r.output is not None:  # on timeout or error every specialist runs
                         route = {"compliance": r.output.compliance, "facts": r.output.facts, "context": r.output.context}
                     row["route"] = route
+                if structure == "split3":  # the production agents
+                    comp_call = comp_judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS, values=values)
+                    ctx_call = ctx_judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS, values=values)
+                else:
+                    comp_call = call(comp_t, ComplianceOutput, values, utt, "compliance_judge") if route["compliance"] else skipped()
+                    ctx_call = call(ctx_t, ContextOutput, values, utt, "context_judge") if route["context"] else skipped()
                 c, x, f = await asyncio.gather(
-                    call(comp_t, ComplianceOutput, values, utt, "compliance_judge") if route["compliance"] else skipped(),
-                    call(ctx_t, ContextOutput, values, utt, "context_judge") if route["context"] else skipped(),
-                    facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS) if route["facts"] else skipped())
+                    comp_call, ctx_call, facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS) if route["facts"] else skipped())
                 if structure == "router3":
                     # a specialist that was not chosen "answers" nothing as soon as the router has decided
                     row |= {"comp_status": c.status if c else "ok", "comp_ms": router_ms + (c.latency_ms if c else 0),
@@ -331,8 +328,8 @@ def ordered(keys) -> list[str]:
 
 
 AGENTS = {
-    "split2": "UtteranceJudge + FactChecker in parallel (production)",
-    "split3": "ComplianceJudge + ContextJudge + FactChecker in parallel (experiment)",
+    "split2": "UtteranceJudge + FactChecker in parallel (JUDGE_MODE=split, rollback)",
+    "split3": "ComplianceJudge + ContextJudge + FactChecker in parallel (production, D-099)",
     "router3": "LLM router first, then only the chosen of ComplianceJudge / ContextJudge / FactChecker in parallel (experiment)",
 }
 
@@ -358,8 +355,8 @@ def write_report(structure: str, raw: list[dict], cases: list[dict], out: Path, 
         "",
         f"- **Agents:** {AGENTS[structure]}, on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
         f"- **Runs:** 39 eval cases × {runs} runs = {s['n']} case runs; every run scored. Timeouts are counted apart from wrong answers.",
-        "- **Script:** `backend/scripts/eval_agents.py`; experiment prompts in `backend/scripts/experiments/prompts/`. "
-        "Judge outputs get the production `post_validate`.",
+        "- **Script:** `backend/scripts/eval_agents.py`; production prompts in `prompts/`, the router prompt in "
+        "`backend/scripts/experiments/prompts/`. Judge outputs get the production `post_validate`.",
         "",
         "| Check | Correct / answered | Wrong | Timeout |",
         "|---|---|---|---|",
@@ -406,7 +403,7 @@ def write_compare(runs: list[tuple[str, list[dict]]], cases: list[dict], out: Pa
         "",
         "**Same conditions:**",
         f"- 39 eval cases × 20 runs on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
-        "- The same specialist prompts (the experiment judges are cut from the production prompt with the same wording).",
+        "- The same specialist prompts (compliance_judge and context_judge are cut from utterance_judge with the same wording).",
         "- At most 12 specialist calls in flight. Timeouts are counted apart from wrong answers.",
         "",
         "## Accuracy (correct / answered in time)",

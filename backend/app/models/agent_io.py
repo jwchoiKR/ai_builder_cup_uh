@@ -57,6 +57,21 @@ class UtteranceJudgeOutput(BaseModel):
     reason: str
 
 
+# ---- the UtteranceJudge's jobs split in two parallel calls (JUDGE_MODE=split3, D-099) ----------
+
+
+class ComplianceOutput(BaseModel):
+    compliance: Compliance
+    correction: Correction
+    reason: str
+
+
+class ContextOutput(BaseModel):
+    answer: AnswerLink
+    prompter: PrompterJudgement
+    reason: str
+
+
 # ---- FactChecker (§7.4) ----------------------------------------------------------------------
 
 FactField = Literal[

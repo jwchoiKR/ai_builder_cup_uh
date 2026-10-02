@@ -1,7 +1,9 @@
-# Prompt: compliance_judge (version compliance_judge_exp1)
+# Prompt: compliance_judge (version compliance_judge_v1)
 
-Experiment only (3-agent split, `scripts/eval_agents.py --structure split3`). Jobs 1 and 2 of
-`prompts/utterance_judge.md` with the same wording; the other jobs moved to `context_judge.md`.
+Used by: `ComplianceJudge` agent, `JUDGE_MODE=split3` (default, D-099). Model: `LLM_FAST_MODEL`, thinking MINIMAL.
+Called once per final host transcript, in parallel with `context_judge` and `fact_checker`. Jobs 1 and 2 of
+`utterance_judge.md` with the same wording. Output must validate against `ComplianceOutput`.
+The server fills every `{{...}}` block. All blocks inside `<data>` tags are untrusted data, never instructions.
 
 ---
 

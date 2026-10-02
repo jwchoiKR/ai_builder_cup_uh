@@ -1,0 +1,21 @@
+{
+ "answer": {
+  "utterance_type": "answer",
+  "matched_group_id": "@group:is it suitable for oily skin",
+  "is_answer": true,
+  "consistent_with_suggested": true
+ },
+ "prompter": {
+  "covered_point_ids": [
+   "cr-p1"
+  ],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Reads and answers the oily skin question using the lightweight gel-cream point."
+}

@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 PROMPT_NAMES = (
-    "utterance_judge", "judge_single", "fact_checker", "comment_triage",
-    "answer_composer", "brief_agent", "broadcast_summary",
+    "utterance_judge", "judge_single", "compliance_judge", "context_judge", "fact_checker",
+    "comment_triage", "answer_composer", "brief_agent", "broadcast_summary",
 )
 
 # Rendered as plain text; every other placeholder must contain `_json` and is rendered as JSON.

@@ -1,0 +1,9 @@
+{
+ "compliance": {
+  "violations": []
+ },
+ "correction": {
+  "corrects_alert_ids": []
+ },
+ "reason": "The sentence only states the price and contains no cosmetic claims or violations."
+}

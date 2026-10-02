@@ -114,17 +114,19 @@ async def test_judge_input_lists(tmp_path):
         [g] = await rt.groups()
         llm.judge(WRINKLES, violations=[violation("ASEAN-3-SKIN-AGEING")])
         await speak(rt, WRINKLES)
-        first = llm.messages[("utterance_judge", WRINKLES)]
+        first, first_ctx = llm.messages[("compliance_judge", WRINKLES)], llm.messages[("context_judge", WRINKLES)]
         assert data_block(first, "ACTIVE_ALERTS") == "[]"  # its own provisional alert is not listed
-        assert f'"group_id":"{g.group_id}"' in data_block(first, "OPEN_QUESTIONS")
-        assert '"suggested_answer":"' in data_block(first, "OPEN_QUESTIONS")
-        assert data_block(first, "RECENT_TRANSCRIPT") == "[]"
+        assert f'"group_id":"{g.group_id}"' in data_block(first_ctx, "OPEN_QUESTIONS")
+        assert '"suggested_answer":"' in data_block(first_ctx, "OPEN_QUESTIONS")
+        assert "OPEN_QUESTIONS" not in first and "ACTIVE_ALERTS" not in first_ctx  # D-099: each judge its own data
+        assert data_block(first, "RECENT_TRANSCRIPT") == data_block(first_ctx, "RECENT_TRANSCRIPT") == "[]"
         await speak(rt, "Next sentence.")
-        second = llm.messages[("utterance_judge", "Next sentence.")]
+        second = llm.messages[("compliance_judge", "Next sentence.")]
+        second_ctx = llm.messages[("context_judge", "Next sentence.")]
         [a] = await rt.alerts()
         assert f'"alert_id":"{a.alert_id}"' in data_block(second, "ACTIVE_ALERTS")
         assert data_block(second, "RECENT_TRANSCRIPT") == f'["{WRINKLES}"]'
-        points = data_block(second, "PROMPTER_POINTS")
+        points = data_block(second_ctx, "PROMPTER_POINTS")
         assert '"point_id":"cr-p1"' in points and '"point_id":"am-p1"' in points
         facts_msg = llm.messages[("fact_checker", "Next sentence.")]
         assert '"in_progress":false' in data_block(facts_msg, "SWITCH_CONTEXT")
@@ -167,5 +169,5 @@ async def test_snapshot_blocks(env):
     assert [a["rule_id"] for a in op["alerts"]] == ["ASEAN-3-SKIN-ANTIMICROBIAL"] and host["alerts"] == op["alerts"]
     assert op["prompter"]["covered_point_ids"] == ["cr-p1"] and op["prompter"]["required_total"] == 3
     assert [t["text"] for t in op["transcripts"]] == [BACTERIA] and "transcripts" not in host
-    assert any(c["agent"] == "utterance_judge" for c in op["agent_calls"]) and "agent_calls" not in host
+    assert {"compliance_judge", "context_judge"} <= {c["agent"] for c in op["agent_calls"]} and "agent_calls" not in host
     assert op["metrics"]["alert"]["count"] == 1

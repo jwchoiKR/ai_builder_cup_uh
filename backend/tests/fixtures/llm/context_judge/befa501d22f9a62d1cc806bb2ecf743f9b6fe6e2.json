@@ -1,0 +1,19 @@
+{
+ "answer": {
+  "utterance_type": "transition",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Opening chit-chat welcoming viewers and introducing the starting product on air."
+}
