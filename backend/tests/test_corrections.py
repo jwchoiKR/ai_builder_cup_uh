@@ -75,6 +75,57 @@ async def test_apology_alone_keeps_the_alert_active_and_escalates(env):
     assert len(await events(rt, "alert.escalated")) == 1
 
 
+ACNE = "It stops your acne."
+RELIEVE = "It helps relieve the feeling of dryness."
+
+
+async def test_saying_the_replacement_corrects_even_if_the_judge_misses_it(env):
+    """D-098, from the 2026-10-02 rehearsal: the host said the "Say this instead" wording a few lines
+    after the alert; the judge called it product talk and listed no correction."""
+    rt, llm = env
+    llm.judge(ACNE, violations=[violation("ASEAN-3-SKIN-ACNE", "stops your acne", say=RELIEVE)])
+    await speak(rt, ACNE)
+    [a] = [x for x in await rt.alerts() if x.status == "active"]
+    for line in ("Oh.", "Okay, one second."):
+        await advance(rt, 4000)
+        await speak(rt, line)
+    await advance(rt, 4000)
+    llm.judge(RELIEVE)  # no corrects_alert_ids
+    t = await speak(rt, RELIEVE)
+    a = await rt.get_alert(a.alert_id)
+    assert a.status == "corrected" and a.corrected_by_transcript_id == t.transcript_id
+
+
+async def test_replacement_wording_also_works_when_the_judge_fails(env):
+    rt, llm = env
+    llm.judge(ACNE, violations=[violation("ASEAN-3-SKIN-ACNE", "stops your acne", say=RELIEVE)])
+    await speak(rt, ACNE)
+    [a] = [x for x in await rt.alerts() if x.status == "active"]
+    await advance(rt, 4000)
+    llm.fail("utterance_judge", RELIEVE)
+    await speak(rt, RELIEVE)
+    assert (await rt.get_alert(a.alert_id)).status == "corrected"
+
+
+async def test_other_talk_does_not_correct_without_the_judge(env):
+    rt, llm = env
+    llm.judge(ACNE, violations=[violation("ASEAN-3-SKIN-ACNE", "stops your acne", say=RELIEVE)])
+    await speak(rt, ACNE)
+    [a] = [x for x in await rt.alerts() if x.status == "active"]
+    for line in ("Oh, I'm sorry.", "It is suitable for sensitive skin.", "Relieve it."):
+        await advance(rt, 4000)
+        await speak(rt, line)
+    assert (await rt.get_alert(a.alert_id)).status == "active"
+
+
+async def test_judge_input_lists_the_replacement_wording(env):
+    from app.agents.inputs import active_alerts_json
+
+    a = alert(say=RELIEVE)
+    assert active_alerts_json([a]) == [{"alert_id": "al_1", "span": SPAN, "rule_id": "ASEAN-3-SKIN-AGEING",
+                                        "say_instead": RELIEVE}]
+
+
 async def test_real_correction_clears_the_alert(env):
     rt, llm = env
     llm.judge(WRINKLES, violations=[violation("ASEAN-3-SKIN-AGEING", SPAN)])

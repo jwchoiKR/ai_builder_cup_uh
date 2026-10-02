@@ -478,3 +478,10 @@ D-096: The summary's compliance log and fact log are in one box under their own 
 - **Data:** fact rows gained `span`, `shown_at`, `speech_end_to_shown_ms`, `shown_to_corrected_ms` and `corrected_text`; the old fields stay.
 
 D-097: "Export PDF" on the summary prints the page as a report: A4, light theme while printing, buttons hidden, cards and rows not split, table headers repeated. It opens the browser's print dialog ("Save as PDF"), and the document title "<session> - broadcast summary <date>" becomes the file name. A PDF library was not added. It is disabled while the recap is being written. "Export JSON" stays for data use.
+
+D-098: Saying the "Say this instead" wording corrects the alert, even when the judge does not list it.
+- **Why:** in the 2026-10-02 rehearsal the host said the exact wording shown on screen ("It helps relieve the feeling of dryness."), a few lines after the alert. The judge called it product talk, so the alert stayed on.
+- **Cause 1:** the judge's ACTIVE_ALERTS input had no `say_instead`, so the judge could not tell that this was the shown wording.
+- **Cause 2:** the judge sees only the last two lines, and chatter had pushed the violation out of them.
+- **Fix:** ACTIVE_ALERTS now includes `say_instead`. Independently of the judge, an active compliance alert is corrected when an utterance says its replacement wording (at least 60% of the wording's content words, the same measure as D-089). This also works when the judge call fails.
+- **Unchanged:** apologies, other approved claims and partial phrases still need the judge to list the alert and pass the D-089 check. Alerts raised by the fragments of a merged utterance stay protected (D-088).

@@ -23,7 +23,7 @@ from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, say_instead_fallback
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
-from ..logic.corrections import check_correction
+from ..logic.corrections import check_correction, says_the_replacement
 from ..logic import publish as publish_logic
 from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view
 from ..logic.segments import classify_switch, expire, names_product, replace_cue, step_switch, withdraw_cue
@@ -221,6 +221,8 @@ class UtterancePipeline:
                 await self._save_alert_change_locked(a)
             await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
                                            "alert_ids": [a.alert_id for a in changed if a.status == "active"]})
+            # D-098: the replacement wording still corrects an alert without the judge
+            await self._apply_corrections_locked(t, merge.text if merge else t.text, [], protected, now)
             await self._high_alert_switch_reset_locked(high_before)
             return
         # §8.4.1 compliance. D-088 dedupe: a rule already active from a fragment inside this merged
@@ -236,14 +238,8 @@ class UtterancePipeline:
         for a in changed:
             await self._save_alert_change_locked(a)
         # §8.4.5 corrections; D-089: an apology alone does not correct a compliance alert
-        if judge.correction.corrects_alert_ids:
-            correctable = [a for a in await rt.alerts() if a.transcript_id not in protected]
-            accepted = self._substantive_corrections(correctable, judge.correction.corrects_alert_ids,
-                                                     merge.text if merge else t.text)
-            for a in alert_logic.apply_corrections(correctable, accepted, t, now):
-                rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
-                await rt.save_alert(a)
-                await rt.emit("alert.updated", a)
+        await self._apply_corrections_locked(t, merge.text if merge else t.text,
+                                             judge.correction.corrects_alert_ids, protected, now)
         # §8.7.1 prompter points and cues
         s = await rt.load_session()
         seg = await rt.current_segment()
@@ -264,6 +260,25 @@ class UtterancePipeline:
             await self._switch_locked(judge, t, seg, high_became_active=high_now,
                                       replaces=merge.prev.transcript_id if merge else None,
                                       text=merge.text if merge else t.text)
+
+    async def _apply_corrections_locked(self, t: Transcript, text: str, listed: list[str], protected: set[str],
+                                        now: int) -> None:
+        """Alerts the judge listed and the utterance really corrects (D-089), plus active alerts whose
+        "Say this instead" wording the host just said, even if the judge missed it (D-098)."""
+        rt = self.rt
+        correctable = [a for a in await rt.alerts() if a.transcript_id not in protected]
+        accepted = self._substantive_corrections(correctable, listed, text) if listed else []
+        for a in correctable:
+            if (a.kind == "compliance" and a.status == "active" and a.transcript_id != t.transcript_id
+                    and a.alert_id not in accepted and says_the_replacement(text, a)):
+                log.info("correction of %s by its replacement wording: %r", a.alert_id, text)
+                accepted.append(a.alert_id)
+        if not accepted:
+            return
+        for a in alert_logic.apply_corrections(correctable, accepted, t, now):
+            rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
+            await rt.save_alert(a)
+            await rt.emit("alert.updated", a)
 
     def _substantive_corrections(self, alerts: list[Alert], listed: list[str], text: str) -> list[str]:
         """The listed compliance alerts that the utterance really corrects (D-089)."""

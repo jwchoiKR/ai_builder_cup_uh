@@ -139,7 +139,9 @@ def condition_slots_json(slots: dict[str, Any]) -> dict[str, Any]:
 def active_alerts_json(alerts: Sequence[Alert]) -> list[dict]:
     live = [a for a in alerts if a.kind == "compliance" and a.status in ("active", "provisional")]
     live.sort(key=lambda a: a.created_at, reverse=True)
-    return [{"alert_id": a.alert_id, "span": a.span, "rule_id": a.rule_id} for a in live[:3]]
+    # D-098: say_instead is the wording shown to the host, so the judge can recognise it as a correction
+    return [{"alert_id": a.alert_id, "span": a.span, "rule_id": a.rule_id, "say_instead": a.say_instead}
+            for a in live[:3]]
 
 
 def open_questions_json(items: Sequence[tuple[QuestionGroup, str | None]], limit: int) -> list[dict]:

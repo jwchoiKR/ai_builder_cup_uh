@@ -85,6 +85,13 @@ def _claim_words(claim: str) -> list[str]:
     return content_words(_IN_HOUSE.sub(" ", claim.replace("*", " ")))
 
 
+def says_the_replacement(text: str, alert: Alert) -> bool:
+    """D-098: the host said the alert's "Say this instead" wording (the screen's own instruction).
+    This corrects the alert even when the judge did not list it."""
+    words = _claim_words(alert.say_instead or "")
+    return len(words) >= 2 and coverage(words, content_words(text)) >= CLAIM_MIN
+
+
 @dataclass(frozen=True)
 class CorrectionCheck:
     ok: bool
