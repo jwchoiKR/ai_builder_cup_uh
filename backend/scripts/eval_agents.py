@@ -75,6 +75,21 @@ class ContextOutput(BaseModel):
     reason: str
 
 
+class RouterOutput(BaseModel):
+    compliance: bool
+    facts: bool
+    context: bool
+    reason: str
+
+
+ROUTER_DEADLINE_MS = 1500  # experiment choice; on timeout or error every specialist runs
+NEEDS = {  # cases a specialist must see for the expected result
+    "compliance": set(VIOLATION) | {"U38"},
+    "facts": set(FACT_WRONG),
+}
+EMPTY_FACTS = {"claims": [], "reason": "not routed"}
+
+
 def exp_template(name: str):
     pf = _parse_file(EXP_PROMPTS / f"{name}.md")
     return _template(pf, _with_examples(_until_rule(pf.require("SYSTEM INSTRUCTION").lines), _examples_text(pf)))
@@ -91,7 +106,8 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
     client, _ = make_client(False)
     judge = UtteranceJudge(client, prompts, catalog, Reflex(pack.rules))
     facts = FactChecker(client, prompts["fact_checker"], catalog)
-    comp_t, ctx_t = (exp_template("compliance_judge"), exp_template("context_judge")) if structure == "split3" else (None, None)
+    comp_t, ctx_t = (exp_template("compliance_judge"), exp_template("context_judge")) if structure != "split2" else (None, None)
+    router_t = exp_template("router") if structure == "router3" else None
     retriever = LocalRetriever(pack.passages)
     prefetched: dict = {}
     print("warm-up:", await client.warm_up())
@@ -99,12 +115,16 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
     cases = load_cases("utterance_cases.jsonl")
     sem = asyncio.Semaphore(concurrency)
 
-    def call(template, output_model, values: dict, utterance: str, agent: str):
+    def call(template, output_model, values: dict, utterance: str, agent: str, deadline_ms: int | None = None):
         return client.call(LLMRequest(
             agent=agent, model=client.fast.model, thinking_level=client.fast.thinking_level,
             prompt_version=template.version, system_instruction=template.system_instruction,
             user_message=template.render(values), output_model=output_model,
-            deadline_ms=settings.JUDGE_TIMEOUT_MS, mock_primary_text=utterance, mock_scenario="eval", preview=utterance))
+            deadline_ms=deadline_ms or settings.JUDGE_TIMEOUT_MS, mock_primary_text=utterance, mock_scenario="eval",
+            preview=utterance))
+
+    async def skipped():
+        return None
 
     async def one(case: dict, run_no: int) -> dict:
         ctx = case.get("context") or {}
@@ -136,9 +156,28 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
                         "judge": j.output.model_dump(mode="json") if j.output else None}
             else:
                 values = judge.build_values(jin)
-                c, x, f = await asyncio.gather(call(comp_t, ComplianceOutput, values, utt, "compliance_judge"),
-                                               call(ctx_t, ContextOutput, values, utt, "context_judge"),
-                                               facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS))
+                route = {"compliance": True, "facts": True, "context": True}
+                router_ms = 0
+                if structure == "router3":
+                    r = await call(router_t, RouterOutput, values, utt, "router", ROUTER_DEADLINE_MS)
+                    router_ms = r.latency_ms
+                    row |= {"router_status": r.status, "router_ms": r.latency_ms}
+                    if r.output is not None:  # on timeout or error every specialist runs
+                        route = {"compliance": r.output.compliance, "facts": r.output.facts, "context": r.output.context}
+                    row["route"] = route
+                c, x, f = await asyncio.gather(
+                    call(comp_t, ComplianceOutput, values, utt, "compliance_judge") if route["compliance"] else skipped(),
+                    call(ctx_t, ContextOutput, values, utt, "context_judge") if route["context"] else skipped(),
+                    facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS) if route["facts"] else skipped())
+                if structure == "router3":
+                    # a specialist that was not chosen "answers" nothing as soon as the router has decided
+                    row |= {"comp_status": c.status if c else "ok", "comp_ms": router_ms + (c.latency_ms if c else 0),
+                            "ctx_status": x.status if x else "ok", "ctx_ms": router_ms + (x.latency_ms if x else 0)}
+                    if f is None:
+                        row |= {"facts_status": "ok", "facts_ms": router_ms, "facts_raw": EMPTY_FACTS,
+                                "facts_validated": EMPTY_FACTS}
+                c = c or type("Skipped", (), {"output": None, "status": "ok", "latency_ms": 0})()
+                x = x or type("Skipped", (), {"output": None, "status": "ok", "latency_ms": 0})()
                 merged = UtteranceJudgeOutput.model_validate({
                     "compliance": c.output.compliance.model_dump() if c.output else {"violations": []},
                     "correction": c.output.correction.model_dump() if c.output else {"corrects_alert_ids": []},
@@ -149,8 +188,16 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
                         "switch": {"is_transition": False, "is_quote": False, "target_product_id": None, "confidence": "low"}},
                     "reason": " | ".join(o.output.reason for o in (c, x) if o.output),
                 })
-                row |= {"comp_status": c.status, "comp_ms": c.latency_ms, "ctx_status": x.status, "ctx_ms": x.latency_ms,
-                        "judge": judge_post_validate(merged, catalog, values).model_dump(mode="json")}
+                if structure == "split3":
+                    row |= {"comp_status": c.status, "comp_ms": c.latency_ms, "ctx_status": x.status, "ctx_ms": x.latency_ms}
+                row["judge"] = judge_post_validate(merged, catalog, values).model_dump(mode="json")
+                if f is None:  # router3: facts not chosen
+                    return row
+                if structure == "router3":
+                    validated = _fact_post_validate(f.output, passages, catalog, promo) if f.output is not None else None
+                    return row | {"facts_status": f.status, "facts_ms": row["router_ms"] + f.latency_ms,
+                                  "facts_raw": f.output.model_dump(mode="json") if f.output else None,
+                                  "facts_validated": validated.model_dump(mode="json") if validated else None}
         validated = _fact_post_validate(f.output, passages, catalog, promo) if f.output is not None else None
         return row | {"facts_status": f.status, "facts_ms": f.latency_ms,
                       "facts_raw": f.output.model_dump(mode="json") if f.output else None,
@@ -248,8 +295,26 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
         for name, key in (("compliance part", "comp_status"), ("context part", "ctx_status"), ("fact checker", "facts_status")):
             if (_st(x, key) if key != "facts_status" else x["facts_status"]) != "ok":
                 timeouts[name] += 1
+    # routing (router3 only): calls per sentence, routes a needed specialist did not get
+    routing = None
+    if any("route" in x for x in raw):
+        context_needed = set(ANSWER_YES) | {"U35", "U36", "U37"} | {c["case_id"] for c in cases if "covered_points" in c["expected"]}
+        needs = NEEDS | {"context": context_needed}
+        missed = collections.Counter()
+        chosen = collections.Counter()
+        router_ms = [x["router_ms"] for x in raw if x.get("router_status") == "ok"]
+        for x in raw:
+            route = x.get("route") or {}
+            for spec, ids in needs.items():
+                if route.get(spec):
+                    chosen[spec] += 1
+                elif x["id"] in ids:
+                    missed[f"{spec}: {x['id']}"] += 1
+        calls = [1 + sum(bool(v) for v in (x.get("route") or {}).values()) for x in raw]
+        routing = {"router_ms": router_ms, "router_timeouts": sum(x.get("router_status") != "ok" for x in raw),
+                   "calls": sum(calls) / len(calls), "missed": missed, "chosen": chosen}
     return {"tally": tally, "misses": misses, "comp_ms": comp_ms, "ctx_ms": ctx_ms, "facts_ms": facts_ms,
-            "all_ms": all_ms, "timeouts": timeouts, "n": len(raw)}
+            "all_ms": all_ms, "timeouts": timeouts, "n": len(raw), "routing": routing}
 
 
 def acc(c: collections.Counter) -> str:
@@ -265,17 +330,36 @@ def ordered(keys) -> list[str]:
     return sorted(keys, key=lambda k: (not k.startswith("judge"), k not in COMP_KEYS, "leak" in k, k))
 
 
+AGENTS = {
+    "split2": "UtteranceJudge + FactChecker in parallel (production)",
+    "split3": "ComplianceJudge + ContextJudge + FactChecker in parallel (experiment)",
+    "router3": "LLM router first, then only the chosen of ComplianceJudge / ContextJudge / FactChecker in parallel (experiment)",
+}
+
+
+def routing_lines(s: dict) -> list[str]:
+    r = s["routing"]
+    if not r:
+        return []
+    missed = "; ".join(f"{k} ×{n}" for k, n in r["missed"].most_common()) or "none"
+    return [
+        f"- **Router:** {lat(r['router_ms'])}; timed out {r['router_timeouts']}/{s['n']} (then every specialist runs)",
+        f"- **Model calls per sentence:** {r['calls']:.2f} (router included)",
+        f"- **Specialist chosen:** " + ", ".join(f"{k} {r['chosen'][k]}/{s['n']}" for k in ("compliance", "context", "facts")),
+        f"- **Needed specialist not chosen (case × runs):** {missed}",
+    ]
+
+
 def write_report(structure: str, raw: list[dict], cases: list[dict], out: Path, settings) -> None:
     s = score(raw, cases)
     runs = max(x["run"] for x in raw) + 1
-    agents = ("UtteranceJudge + FactChecker" if structure == "split2"
-              else "ComplianceJudge + ContextJudge + FactChecker (experiment prompts in scripts/experiments/prompts/)")
     md = [
         f"# Utterance agents · {structure} · {dt.date.today().isoformat()}",
         "",
-        f"- **Agents:** {agents}, in parallel, on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
+        f"- **Agents:** {AGENTS[structure]}, on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
         f"- **Runs:** 39 eval cases × {runs} runs = {s['n']} case runs; every run scored. Timeouts are counted apart from wrong answers.",
-        "- **Script:** `backend/scripts/eval_agents.py`. No orchestrator code; judge outputs get the production `post_validate`.",
+        "- **Script:** `backend/scripts/eval_agents.py`; experiment prompts in `backend/scripts/experiments/prompts/`. "
+        "Judge outputs get the production `post_validate`.",
         "",
         "| Check | Correct / answered | Wrong | Timeout |",
         "|---|---|---|---|",
@@ -283,9 +367,10 @@ def write_report(structure: str, raw: list[dict], cases: list[dict], out: Path, 
         "",
         f"- **Compliance verdict ready (red alert path):** {lat(s['comp_ms'])}",
         f"- **Answer / prompter / switch verdict ready:** {lat(s['ctx_ms'])}",
-        f"- **Fact checker:** {lat(s['facts_ms'])}",
-        f"- **All agents done:** {lat(s['all_ms'])}",
+        f"- **Fact verdict ready:** {lat(s['facts_ms'])}",
+        f"- **All done:** {lat(s['all_ms'])}",
         f"- **Timeouts:** {dict(s['timeouts']) or 'none'} of {s['n']} each",
+        *routing_lines(s),
         "",
         "## Wrong answers (case: what came back × runs)",
     ]
@@ -297,49 +382,59 @@ def write_report(structure: str, raw: list[dict], cases: list[dict], out: Path, 
     print(f"report: {out}")
 
 
-def write_compare(a_raw: list[dict], b_raw: list[dict], cases: list[dict], out: Path, settings) -> None:
-    a, b = score(a_raw, cases), score(b_raw, cases)
-    keys = ordered(set(a["tally"]) | set(b["tally"]))
+def write_compare(runs: list[tuple[str, list[dict]]], cases: list[dict], out: Path, settings) -> None:
+    labels = [label for label, _ in runs]
+    scores = [score(raw, cases) for _, raw in runs]
+    keys = ordered(set().union(*(sc["tally"] for sc in scores)))
 
-    def to(s: dict, name: str) -> str:
-        return f"{s['timeouts'].get(name, 0)}/{s['n']} ({100 * s['timeouts'].get(name, 0) / s['n']:.1f}%)"
+    def to(sc: dict, name: str) -> str:
+        return f"{sc['timeouts'].get(name, 0)}/{sc['n']} ({100 * sc['timeouts'].get(name, 0) / sc['n']:.1f}%)"
 
+    def calls(sc: dict, label: str) -> str:
+        if sc["routing"]:
+            return f"{sc['routing']['calls']:.2f}"
+        return "2" if "2" in label.split()[0] else "3"
+
+    head = "| | " + " | ".join(labels) + " |"
+    sep = "|---|" + "---|" * len(labels)
     md = [
-        f"# 2 agents vs 3 agents (utterance path) · {dt.date.today().isoformat()}",
+        f"# Utterance agent structures compared · {dt.date.today().isoformat()}",
         "",
-        "**What is compared:**",
-        "- **2 agents (production):** one UtteranceJudge (compliance, correction, answer, prompter, switch) and the FactChecker.",
-        "- **3 agents (experiment):** a ComplianceJudge (compliance and correction), a ContextJudge (answer, prompter, switch) "
-        "and the same FactChecker.",
-        "- **Same conditions:** the two judges' prompts are cut from the production judge prompt with the same wording. "
-        "All agents run in parallel on "
-        f"`{settings.LLM_FAST_MODEL}`. Same 39 cases × {max(x['run'] for x in a_raw) + 1} runs, 12 model calls in flight "
-        "in both runs. Timeouts are counted apart from wrong answers.",
-        "- **Script:** `backend/scripts/eval_agents.py`.",
+        "**Structures:**",
+        *[f"- **{label}:** {AGENTS[raw[0].get('structure', 'router3' if 'route' in raw[0] else ('split3' if 'comp_ms' in raw[0] and raw[0].get('comp_ms') != raw[0].get('ctx_ms') else 'split2'))]}"
+          for label, raw in runs],
+        "",
+        "**Same conditions:**",
+        f"- 39 eval cases × 20 runs on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
+        "- The same specialist prompts (the experiment judges are cut from the production prompt with the same wording).",
+        "- At most 12 specialist calls in flight. Timeouts are counted apart from wrong answers.",
         "",
         "## Accuracy (correct / answered in time)",
-        "| Check | 2 agents | 3 agents |",
-        "|---|---|---|",
-        *[f"| {k} | {acc(a['tally'][k])} | {acc(b['tally'][k])} |" for k in keys],
+        "| Check | " + " | ".join(labels) + " |",
+        sep,
+        *[f"| {k} | " + " | ".join(acc(sc["tally"][k]) for sc in scores) + " |" for k in keys],
         "",
-        "## Speed",
-        "| | 2 agents | 3 agents |",
-        "|---|---|---|",
-        f"| Compliance verdict ready (red alert path) | {lat(a['comp_ms'])} | {lat(b['comp_ms'])} |",
-        f"| Answer / prompter / switch verdict ready | {lat(a['ctx_ms'])} | {lat(b['ctx_ms'])} |",
-        f"| Fact checker | {lat(a['facts_ms'])} | {lat(b['facts_ms'])} |",
-        f"| All agents done | {lat(a['all_ms'])} | {lat(b['all_ms'])} |",
-        f"| Compliance part timed out | {to(a, 'compliance part')} | {to(b, 'compliance part')} |",
-        f"| Answer/prompter/switch part timed out | {to(a, 'context part')} | {to(b, 'context part')} |",
-        f"| Fact checker timed out | {to(a, 'fact checker')} | {to(b, 'fact checker')} |",
-        "| Model calls per sentence | 2 | 3 |",
+        "## Speed and cost",
+        head,
+        sep,
+        "| Compliance verdict ready (red alert path) | " + " | ".join(lat(sc["comp_ms"]) for sc in scores) + " |",
+        "| Answer / prompter / switch verdict ready | " + " | ".join(lat(sc["ctx_ms"]) for sc in scores) + " |",
+        "| Fact verdict ready | " + " | ".join(lat(sc["facts_ms"]) for sc in scores) + " |",
+        "| All done | " + " | ".join(lat(sc["all_ms"]) for sc in scores) + " |",
+        "| Compliance part timed out | " + " | ".join(to(sc, "compliance part") for sc in scores) + " |",
+        "| Answer/prompter/switch part timed out | " + " | ".join(to(sc, "context part") for sc in scores) + " |",
+        "| Fact checker timed out | " + " | ".join(to(sc, "fact checker") for sc in scores) + " |",
+        "| Model calls per sentence | " + " | ".join(calls(sc, label) for sc, label in zip(scores, labels)) + " |",
         "",
-        "## Wrong answers",
     ]
-    for label, s in (("2 agents", a), ("3 agents", b)):
+    for label, sc in zip(labels, scores):
+        if sc["routing"]:
+            md += [f"## Routing ({label})", *routing_lines(sc), ""]
+    md.append("## Wrong answers")
+    for label, sc in zip(labels, scores):
         for k in keys:
-            if s["misses"][k]:
-                md.append(f"- **{label} · {k}:** " + "; ".join(f"{w[:120]} ×{n}" for w, n in s["misses"][k].most_common(5)))
+            if sc["misses"][k]:
+                md.append(f"- **{label} · {k}:** " + "; ".join(f"{w[:120]} ×{n}" for w, n in sc["misses"][k].most_common(5)))
     out.write_text("\n".join(md) + "\n", encoding="utf-8", newline="\n")
     print("\n".join(md[10:]))
     print(f"report: {out}")
@@ -347,26 +442,32 @@ def write_compare(a_raw: list[dict], b_raw: list[dict], cases: list[dict], out: 
 
 async def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--structure", choices=["split2", "split3"], default="split2")
+    ap.add_argument("--structure", choices=["split2", "split3", "router3"], default="split2")
     ap.add_argument("--runs", type=int, default=20)
-    ap.add_argument("--concurrency", type=int, default=None, help="cases at a time (default: 12 calls in flight)")
+    ap.add_argument("--concurrency", type=int, default=None, help="cases at a time (default: 12 specialist calls in flight)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--from-json", type=Path, default=None, help="re-score saved outputs without calling the models")
-    ap.add_argument("--compare", nargs=2, type=Path, default=None, metavar=("TWO_AGENTS_JSON", "THREE_AGENTS_JSON"))
+    ap.add_argument("--compare", nargs="+", default=None, metavar="LABEL=JSON",
+                    help="compare saved runs, e.g. '2 agents=docs/eval/agents-baseline.json'")
     args = ap.parse_args()
     settings = get_settings()
     cases = load_cases("utterance_cases.jsonl")
     if args.compare:
-        a, b = (json.loads(p.read_text(encoding="utf-8")) for p in args.compare)
-        write_compare(a, b, cases, args.out or EVAL_DIR / "agents-2vs3.md", settings)
+        runs = []
+        for item in args.compare:
+            label, path = item.split("=", 1)
+            runs.append((label, json.loads(Path(path).read_text(encoding="utf-8"))))
+        write_compare(runs, cases, args.out or EVAL_DIR / "agents-compare.md", settings)
         return 0
-    name = "agents-baseline" if args.structure == "split2" else "agents-split3"
+    name = {"split2": "agents-baseline", "split3": "agents-split3", "router3": "agents-router3"}[args.structure]
     out = args.out or EVAL_DIR / f"{name}.md"
     if args.from_json:
         raw = json.loads(args.from_json.read_text(encoding="utf-8"))
     else:
-        concurrency = args.concurrency or (6 if args.structure == "split2" else 4)  # 12 calls in flight either way
+        concurrency = args.concurrency or (6 if args.structure == "split2" else 4)  # 12 specialist calls in flight
         raw = await run(args.structure, args.runs, concurrency)
+        for x in raw:
+            x["structure"] = args.structure
         out.with_suffix(".json").write_text(json.dumps(raw, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     write_report(args.structure, raw, cases, out, settings)
     return 0
