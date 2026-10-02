@@ -183,7 +183,8 @@ class UtteranceJudge:
         if res.output is not None:
             validated = post_validate(res.output, self.catalog, values)
             if self.single:
-                validated.facts = fact_checker.post_validate(res.output.facts, inp.passages, self.catalog, inp.promo)
+                validated.facts = fact_checker.post_validate(res.output.facts, inp.passages, self.catalog, inp.promo,
+                                                             inp.utterance)
             res.output = validated
         return res
 

@@ -188,3 +188,37 @@ def test_apply_fact_check_pure(ids):
     created, reshown, corrected = fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300)
     assert corrected and corrected[0].status == "corrected" and corrected[0].resolved_at == 300
     assert fact_logic.PURCHASE_FIELDS >= {"price", "volume", "ingredient_amount"}
+
+
+# ---- D-100: no fact note on compliance wording ---------------------------------------------------
+
+TEST_PASSAGE = "DL-AM-01#in-house-test-results#participants-who-said-skin-looked-more-radiant-after-4-weeks"
+
+
+def verdicts(pack, catalog, text: str, *claims: dict) -> list[str]:
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    out = FactCheckOutput.model_validate({"claims": list(claims), "reason": "scripted"})
+    passages = [p for p in pack.passages if p.passage_id == TEST_PASSAGE]
+    return [c.verdict for c in post_validate(out, passages, catalog, None, text).claims]
+
+
+def weeks(field: str = "test_result") -> dict:
+    return claim(field, "contradicted", product_id=AMPOULE, stated="2 weeks", correct="4 weeks",
+                 passage_id=TEST_PASSAGE, quote="after 4 weeks")
+
+
+@pytest.mark.parametrize("text, verdict", [
+    ("It whitens your skin in two weeks.", "not_in_sources"),  # benefit timing: the compliance judge's job
+    ("In our test, skin looked more radiant after two weeks.", "contradicted"),
+    ("Eighty-seven percent saw more radiant skin in two weeks.", "contradicted"),
+    ("Twenty-six of thirty participants saw it in two weeks.", "contradicted"),
+])
+def test_test_result_is_checked_only_when_a_test_is_cited(pack, catalog, text, verdict):
+    assert verdicts(pack, catalog, text, weeks()) == [verdict]
+
+
+def test_other_field_never_gives_a_note(pack, catalog):
+    """"prescription cream" -> "cosmetic product" has no value to compare; the quote alone is not enough."""
+    assert verdicts(pack, catalog, "In our test it worked in two weeks.", weeks("other")) == ["not_in_sources"]

@@ -18,6 +18,8 @@ scored twice: raw, and after its own quote check (post_validate).
     uv run python scripts/eval_agents.py --structure split3 --runs 20      # docs/eval/agents-split3.md
     uv run python scripts/eval_agents.py --compare A.json B.json           # docs/eval/agents-2vs3.md
     uv run python scripts/eval_agents.py --from-json A.json                # re-score saved outputs
+    uv run python scripts/eval_agents.py --from-json A.json --revalidate --out B.md
+        # apply the current fact quote check to the saved raw fact outputs (same model answers)
 """
 from __future__ import annotations
 
@@ -44,7 +46,7 @@ from app.clock import SystemClock  # noqa: E402
 from app.config import REPO_DIR, get_settings  # noqa: E402
 from app.logic.catalog import Catalog, DataPack  # noqa: E402
 from app.logic.reflex import Reflex  # noqa: E402
-from app.models.agent_io import ComplianceOutput, ContextOutput, UtteranceJudgeOutput  # noqa: E402
+from app.models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput  # noqa: E402
 from app.models.session import Alert, SwitchState  # noqa: E402
 from app.providers.llm import LLMRequest  # noqa: E402
 from app.providers.prompts import (  # noqa: E402
@@ -89,6 +91,40 @@ def exp_template(name: str):
 # ---- running ---------------------------------------------------------------------------------------
 
 
+def case_switch_promo(case: dict, pack: DataPack) -> tuple[SwitchState, object]:
+    ctx = case.get("context") or {}
+    sw = ctx.get("switch_state") or {}
+    switch = SwitchState(status=sw.get("status", "idle"), target_product_id=sw.get("target_product_id"),
+                         cue_count=sw.get("cue_count", 0))
+    return switch, pack.promos_by_id.get(ctx.get("active_promo_id") or "")
+
+
+async def revalidate(raw: list[dict], cases: list[dict]) -> list[dict]:
+    """Re-apply the current fact quote check to saved raw fact outputs (no model calls)."""
+    settings = get_settings()
+    pack = DataPack.load(settings.data_path)
+    catalog = Catalog(pack)
+    retriever = LocalRetriever(pack.passages)
+    prefetched: dict = {}
+    by_id = {c["case_id"]: c for c in cases}
+    env: dict[str, tuple] = {}
+    for x in raw:
+        if x.get("facts_raw") is None or x.get("route", {}).get("facts") is False:
+            continue
+        case = by_id[x["id"]]
+        if x["id"] not in env:
+            switch, promo = case_switch_promo(case, pack)
+            passages = await gather_fact_passages(retriever, catalog, prefetched, utterance=case["utterance"],
+                                                  on_air=case["current_product_id"], switch=switch,
+                                                  search_timeout_ms=settings.FACT_SEARCH_TIMEOUT_MS)
+            env[x["id"]] = (passages, promo)
+        passages, promo = env[x["id"]]
+        out = _fact_post_validate(FactCheckOutput.model_validate(x["facts_raw"]), passages, catalog, promo,
+                                  case["utterance"])
+        x["facts_validated"] = out.model_dump(mode="json")
+    return raw
+
+
 async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
     settings = get_settings()
     pack = DataPack.load(settings.data_path)
@@ -122,10 +158,7 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
     async def one(case: dict, run_no: int) -> dict:
         ctx = case.get("context") or {}
         on_air = case["current_product_id"]
-        sw = ctx.get("switch_state") or {}
-        switch = SwitchState(status=sw.get("status", "idle"), target_product_id=sw.get("target_product_id"),
-                             cue_count=sw.get("cue_count", 0))
-        promo = pack.promos_by_id.get(ctx.get("active_promo_id") or "")
+        switch, promo = case_switch_promo(case, pack)
         alerts = [Alert(alert_id=a["alert_id"], kind="compliance", status="active", transcript_id="tr_prev",
                         product_id=on_air, rule_id=a["rule_id"], severity=pack.rules_by_id[a["rule_id"]].severity,
                         span=a["span"], say_instead=a.get("say_instead"), created_at=now, shown_at=now)
@@ -191,11 +224,11 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
                 if f is None:  # router3: facts not chosen
                     return row
                 if structure == "router3":
-                    validated = _fact_post_validate(f.output, passages, catalog, promo) if f.output is not None else None
+                    validated = _fact_post_validate(f.output, passages, catalog, promo, utt) if f.output is not None else None
                     return row | {"facts_status": f.status, "facts_ms": row["router_ms"] + f.latency_ms,
                                   "facts_raw": f.output.model_dump(mode="json") if f.output else None,
                                   "facts_validated": validated.model_dump(mode="json") if validated else None}
-        validated = _fact_post_validate(f.output, passages, catalog, promo) if f.output is not None else None
+        validated = _fact_post_validate(f.output, passages, catalog, promo, utt) if f.output is not None else None
         return row | {"facts_status": f.status, "facts_ms": f.latency_ms,
                       "facts_raw": f.output.model_dump(mode="json") if f.output else None,
                       "facts_validated": validated.model_dump(mode="json") if validated else None}
@@ -444,6 +477,8 @@ async def main() -> int:
     ap.add_argument("--concurrency", type=int, default=None, help="cases at a time (default: 12 specialist calls in flight)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--from-json", type=Path, default=None, help="re-score saved outputs without calling the models")
+    ap.add_argument("--revalidate", action="store_true",
+                    help="with --from-json: apply the current fact quote check to the saved raw fact outputs")
     ap.add_argument("--compare", nargs="+", default=None, metavar="LABEL=JSON",
                     help="compare saved runs, e.g. '2 agents=docs/eval/agents-baseline.json'")
     args = ap.parse_args()
@@ -460,6 +495,9 @@ async def main() -> int:
     out = args.out or EVAL_DIR / f"{name}.md"
     if args.from_json:
         raw = json.loads(args.from_json.read_text(encoding="utf-8"))
+        if args.revalidate:
+            raw = await revalidate(raw, cases)
+            out.with_suffix(".json").write_text(json.dumps(raw, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     else:
         concurrency = args.concurrency or (6 if args.structure == "split2" else 4)  # 12 specialist calls in flight
         raw = await run(args.structure, args.runs, concurrency)

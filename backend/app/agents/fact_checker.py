@@ -1,6 +1,7 @@
 """FactChecker agent (DEV_SPEC §7.4): checks product facts in one host sentence against the sheets."""
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -17,6 +18,10 @@ from . import inputs
 KEY_SECTIONS = ("Key facts", "Key ingredients")
 CLAIMS_SECTION = "Approved on-air claims"
 CAP, CAP_SWITCH = 24, 48
+# D-100: a test result is checked only when the host cites a test. A time or number inside a benefit
+# claim ("it whitens your skin in two weeks") is compliance wording, not a test result.
+TEST_CITED = re.compile(r"\b(?:tests?|tested|testing|study|studies|trials?|clinical(?:ly)?|participants?|"
+                        r"people|users|women|men|subjects|percent)\b|%", re.IGNORECASE)
 
 
 @dataclass
@@ -65,9 +70,13 @@ async def gather_fact_passages(
     return list(out.values())[: CAP_SWITCH if others else CAP]
 
 
-def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None) -> FactCheckOutput:
+def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
+                  utterance: str | None = None) -> FactCheckOutput:
     """A contradiction stands only when its correction is backed by a quoted passage, or by the
-    active promo price; otherwise it is downgraded to not_in_sources (§7.4)."""
+    active promo price; otherwise it is downgraded to not_in_sources (§7.4).
+
+    D-100: never on field `other` (no value to compare, e.g. "prescription cream" -> "cosmetic
+    product": that is the compliance judge's job), and on `test_result` only when the host cites a test."""
     o = out.model_copy(deep=True)
     by_id = {p.passage_id: p for p in passages}
     for c in o.claims:
@@ -75,6 +84,10 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             c.verdict = "not_in_sources"
             continue
         if c.verdict != "contradicted":
+            continue
+        if c.field == "other" or (c.field == "test_result" and utterance is not None
+                                  and not TEST_CITED.search(utterance)):
+            c.verdict = "not_in_sources"
             continue
         ok = False
         if c.passage_id is not None:
@@ -118,5 +131,5 @@ class FactChecker:
             mock_fallback=lambda _: {"claims": [], "reason": "rule-based: no fact check"}, preview=inp.utterance,
         ))
         if res.output is not None:
-            res.output = post_validate(res.output, inp.passages, self.catalog, inp.promo)
+            res.output = post_validate(res.output, inp.passages, self.catalog, inp.promo, inp.utterance)
         return res

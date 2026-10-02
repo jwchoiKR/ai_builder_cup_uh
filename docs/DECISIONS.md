@@ -515,3 +515,17 @@ D-099: Three agents read each host sentence in parallel (`JUDGE_MODE=split3`, th
   - the transcript chips read `context_judge`;
   - demo fixtures: the new `compliance_judge` and `context_judge` fixtures were recorded on Vertex AI, and the `utterance_judge` fixtures stay for `split`. The other agents are unchanged, so their fixtures stay from the last clean run.
   - None of the five recording runs on 2026-10-03 was clean. Each had one to three calls time out just past the deadline: comment triage, answer composer, fact checker, or context judge at 2.51 s. Compliance judge calls were 75/75 ok and context judge calls 72/75. The S12 "It's a watery gel…" context fixture is from the fourth run, the rest from the fifth. The demo replay test and the E2E suite pass.
+
+D-100: The fact checker no longer leaves fact notes on compliance wording.
+- **Problem:** 3–4% of non-fact sentences got a fact note, all of them compliance sentences:
+  - "It whitens your skin in two weeks." → `test_result` 2 weeks → 4 weeks;
+  - "prescription cream" → `other` → "cosmetic product".
+  These passed the quote check (D-048) because the quoted passage was a real test result or product description, not the claims section.
+- **Rules (code, `fact_checker.post_validate`):**
+  - a contradiction on field `other` is downgraded to `not_in_sources`, since it has no value to compare;
+  - a `test_result` contradiction stands only when the sentence cites a test (test, study, trial, clinical, participants, people, users, women, men, subjects, percent, %).
+  The prompt is unchanged.
+- **Measured** on the same saved model answers of three 780-run evaluations (`docs/eval/facts-leak-d100.md`, `eval_agents.py --revalidate`):
+  - leaks went from 20/579, 23/560 and 19/551 to 0;
+  - catching wrong facts and no note on right facts are unchanged.
+
