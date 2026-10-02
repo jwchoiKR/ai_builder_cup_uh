@@ -8,3 +8,12 @@ frontend/dist/
 data/uploads/
 frontend/test-results/
 frontend/playwright-report/
+
+# AI assistant (Claude Code) files
+.claude/
+**/.claude/
+CLAUDE.md
+CLAUDE.local.md
+**/CLAUDE.md
+**/CLAUDE.local.md
+.mcp.json
