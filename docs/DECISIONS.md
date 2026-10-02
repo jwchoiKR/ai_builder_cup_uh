@@ -496,6 +496,10 @@ D-099: Three agents read each host sentence in parallel (`JUDGE_MODE=split3`, th
   - accuracy is the same as one UtteranceJudge;
   - the compliance verdict, which drives the red alert, is ready about 0.3–0.4 s sooner: p50 1.20 s and p95 1.51 s, against 1.51–1.54 s and 1.83–1.93 s;
   - compliance timeouts fall to 2.8%, against 3.5–6.5%.
+- **Production check** (`docs/eval/agents-split3-prod.md`, the production agents, 780 case runs on 2026-10-03):
+  - every judge check is 100%;
+  - compliance verdict p50 1.14 s, p95 1.39 s; context verdict p50 1.33 s, p95 1.54 s;
+  - timeouts: compliance 1/780, context 3/780.
 - **LLM router not adopted:** the alternative was an LLM router in front that picks the specialists. It was 0.5–0.8 s slower and used 3.13 calls per sentence, with no accuracy gain.
 - **Order:**
   - each verdict is applied as soon as it arrives; the compliance verdict is applied first when both are in;
