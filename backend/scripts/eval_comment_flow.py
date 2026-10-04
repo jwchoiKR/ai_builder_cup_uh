@@ -328,6 +328,23 @@ def write_report(s: dict, cases: list[dict], out: Path, name: str) -> None:
     out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
+def refresh_gold(raw: list[dict], cases: list[dict]) -> list[dict]:
+    """Re-scoring saved outputs: take each comment's gold from the current case file (labels may have been
+    fixed since the run), matched by scenario and comment text in order."""
+    for r in raw:
+        case = next((c for c in cases if c["scenario_id"] == r["id"]), None)
+        if case is None:
+            continue
+        pool = collections.defaultdict(list)
+        for e in case["events"]:
+            if e.get("type") == "comment":
+                pool[e["text"]].append(e.get("gold", {}))
+        for c in r["comments"]:
+            if pool.get(c["text"]):
+                c["gold"] = pool[c["text"]].pop(0)
+    return raw
+
+
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=1)
@@ -338,7 +355,7 @@ async def main() -> int:
     args = ap.parse_args()
     cases = load_cases(args.cases)
     if args.from_json:
-        raw = json.loads(args.from_json.read_text(encoding="utf-8"))
+        raw = refresh_gold(json.loads(args.from_json.read_text(encoding="utf-8")), cases)
     else:
         settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local",
                             JUDGE_MODE="split3")
@@ -355,8 +372,14 @@ async def main() -> int:
         raw = []
         try:
             await ctx.llm.warm_up()
+            # a document change bumps the shared retriever's version, which changes every running scenario's
+            # answer keys: those scenarios run alone, after the others
+            alone = [c for c in cases if any(e.get("type") == "document_change" for e in c["events"])]
+            together = [c for c in cases if c not in alone]
             for run_no in range(args.runs):
-                raw += await asyncio.gather(*(one(c, run_no) for c in cases))
+                raw += await asyncio.gather(*(one(c, run_no) for c in together))
+                for c in alone:
+                    raw.append(await one(c, run_no))
         finally:
             ctx.runtimes.shutdown()
             ctx.scheduler.shutdown()
