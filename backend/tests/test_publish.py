@@ -107,8 +107,21 @@ def _verbal_cases() -> list[dict]:
     import json
     from pathlib import Path
 
-    path = Path(__file__).resolve().parents[2] / "data" / "eval" / "verbal_post_cases.jsonl"
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    root = Path(__file__).resolve().parents[2] / "data" / "eval"
+    return [json.loads(line) for name in ("verbal_post_cases.jsonl", "verbal_post_holdout.jsonl")
+            for line in (root / name).read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+@pytest.mark.parametrize("said, numbers", [
+    ("zero point two percent", {"0.2"}),
+    ("between five point five and six point zero", {"5.5", "6"}),
+    ("pH 5.5 to 6.0", {"5.5", "6"}),
+    ("fifty mils, thirty-six dollars", {"50", "36"}),
+])
+def test_spoken_numbers_include_spoken_decimals(said, numbers):
+    from app.logic.publish import spoken_numbers
+
+    assert spoken_numbers(said) == numbers
 
 
 @pytest.mark.parametrize("case", _verbal_cases(), ids=lambda c: c["case_id"])

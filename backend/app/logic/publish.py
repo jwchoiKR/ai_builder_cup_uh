@@ -27,11 +27,22 @@ class PublishDecision:
 
 
 def spoken_numbers(text: str) -> set[str]:
-    """Numbers as said or written: "fifty mils" -> {"50"}, "S$36.00" -> {"36"}, "4%" -> {"4"}.
+    """Numbers as said or written: "fifty mils" -> {"50"}, "S$36.00" -> {"36"}, "4%" -> {"4"},
+    "zero point two" -> {"0.2"}.
     A lone "one" is ignored ("after one use" is not a claimed number)."""
     tokens = [w for w in normalise(text).replace("$", " ").split() if w != "one"]
+    words = _numbers(tokens)
+    merged: list[str] = []  # D-116: spoken decimals, "five point five" -> "5.5"
+    i = 0
+    while i < len(words):
+        if i + 2 < len(words) and words[i + 1] == "point" and words[i].isdigit() and words[i + 2].isdigit():
+            merged.append(f"{words[i]}.{words[i + 2]}")
+            i += 3
+        else:
+            merged.append(words[i])
+            i += 1
     out = set()
-    for w in _numbers(tokens):
+    for w in merged:
         if re.fullmatch(r"\d+(\.\d+)?", w):
             out.add(w.rstrip("0").rstrip(".") if "." in w else w)
     return out

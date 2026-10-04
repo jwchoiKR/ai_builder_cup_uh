@@ -138,3 +138,17 @@ async def test_wrong_number_keeps_both_findings_on_one_sentence(env):
     [a] = await compliance_alerts(rt)
     assert a.transcript_id == t.transcript_id and a.rule_id == RULE
     assert a.say_instead == "In our in-house test, skin hydration went up 38% right after one application."
+
+
+@pytest.mark.parametrize("text", [
+    "The cream has five percent panthenol.",  # an ingredient amount
+    "The live price is thirty-six dollars.",  # a price
+    "It's a fifty mL jar.",  # a volume
+])
+async def test_ingredient_amounts_prices_and_volumes_never_get_the_test_qualifier(env, text):
+    """D-116 (holdout HV16): only in-house test or study results need the qualifier. A verdict whose
+    sentence matches none of the product's in-house results is dropped."""
+    rt, llm = env
+    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
+    await speak(rt, text)
+    assert await compliance_alerts(rt) == []

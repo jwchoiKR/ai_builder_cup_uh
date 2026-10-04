@@ -31,8 +31,8 @@ from app.models.session import Answer, QuestionGroup  # noqa: E402
 CASES = "verbal_post_cases.jsonl"
 
 
-def load_cases() -> list[dict]:
-    path = get_settings().data_path / "eval" / CASES
+def load_cases(name: str = CASES) -> list[dict]:
+    path = get_settings().data_path / "eval" / name
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
@@ -116,8 +116,9 @@ async def main() -> int:
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--out", type=Path, default=EVAL_DIR / "verbal-post.md")
     ap.add_argument("--from-json", type=Path, default=None, help="re-score saved outputs without calling the models")
+    ap.add_argument("--cases", default=CASES, help="case file in data/eval, e.g. verbal_post_holdout.jsonl")
     args = ap.parse_args()
-    cases = load_cases()
+    cases = load_cases(args.cases)
     if args.from_json:
         raw = json.loads(args.from_json.read_text(encoding="utf-8"))
     else:
