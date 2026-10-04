@@ -442,6 +442,9 @@ async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scena
         await rt.save_group(g)
         await rt.emit("group.updated", g)
         await rt.recompute_host_queue_locked()
+        if answer is not None and answer.verified:
+            # D-146: the host may already have answered it aloud while this draft was being written
+            rt.spawn(rt.utterances.recheck_early(group_id), name=f"early:{group_id}")
 
 
 async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario: str) -> Answer | None:

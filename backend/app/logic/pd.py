@@ -21,6 +21,12 @@ SHOUT_TEMPLATES = {
     "compliment": "Thank you {name}, so glad you like it!",
 }
 SILENCE_MS = 8_000  # STT gives finals only, so 8 s without a final counts as a pause
+# D-146 (sealed show replay: a beginner talks with 5-7 s gaps, so 7 host questions never got a card): a question
+# that waited this long on the host's list gets its card at the next natural break, without a pause
+CEILING_MS = 90_000
+URGENT_CEILING_MS = 30_000  # sensitive questions and questions with 3+ askers
+BREAK_MS = 2_000  # a natural break: right after a final
+DUE_GAP_MS = 20_000  # a due card still waits this long after the last question card
 PROMO_JUST_STARTED_MS = 30_000
 PROMO_ENDING_MS = 60_000
 
@@ -33,6 +39,8 @@ class Question:
     kind: str = "answer"  # answer | read (AI already answered, many asked) | clarify (product unclear)
     askers: int = 1
     pushed: bool = False  # team show: the operator pushed it; it skips the time gap
+    waiting_ms: int = 0  # D-146: time on the host's waiting list
+    urgent: bool = False  # D-146: sensitive, or HOST_REPEAT_THRESHOLD+ askers: a shorter ceiling
 
 
 @dataclass(frozen=True)
@@ -121,11 +129,14 @@ def candidates(st: PdState) -> list[Candidate]:
     # operator push skips the gap (still at a pause); the host's pull takes the top one at once.
     gap_ok = st.last_question_card_at is None or st.now - st.last_question_card_at >= Q_GAP_MS
     waiting = [q for q in st.questions if q.group_id not in st.dismissed_refs]  # the host skipped these
+    at_break = st.last_final_at is not None and st.now - st.last_final_at <= BREAK_MS
+    due_gap_ok = st.last_question_card_at is None or st.now - st.last_question_card_at >= DUE_GAP_MS
     for i, q in enumerate(waiting):
         pulled = st.pull and i == 0
-        if not (pulled or (st.pause and (gap_ok or q.pushed))):
+        due = q.waiting_ms >= (URGENT_CEILING_MS if q.urgent else CEILING_MS) and due_gap_ok and (at_break or st.pause)
+        if not (pulled or due or (st.pause and (gap_ok or q.pushed))):
             continue
-        prio = 0 if (pulled or q.pushed) else 3
+        prio = 0 if (pulled or q.pushed) else (1 if q.urgent else 2) if due else 3
         if q.kind == "clarify":
             say = f"Which product do you mean: {' or '.join(st.product_names)}?"
             cand = Candidate(f"question:{q.group_id}", "clarify_product", say, q.question, q.group_id, prio, q.askers)

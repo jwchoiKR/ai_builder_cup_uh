@@ -222,3 +222,22 @@ def test_not_approved_claims_of_the_sheet_never_count_as_approved(catalog, pack)
     assert not _is_approved_wording("the best moisturiser in Singapore", cream, lex, passages)
     assert not _is_approved_wording("removes wrinkles or reverses skin ageing", cream, lex, passages)
     assert _is_approved_wording("suitable for all skin types", cream, lex, passages)
+
+
+async def test_a_lead_in_final_naming_our_test_qualifies_the_next_one(env):
+    """D-146 (sealed show replay): "In our in-house test," came as its own final before the number."""
+    rt, llm = env
+    await speak(rt, "In our in-house test.")  # a full stop: not merged (D-088), the lead-in rule applies
+    text = "skin hydration went up thirty-eight percent right after one application."
+    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
+    await speak(rt, text)
+    assert await compliance_alerts(rt) == []
+
+
+async def test_a_lead_in_with_its_own_number_does_not_qualify_the_next_line(env):
+    rt, llm = env
+    await speak(rt, "In our in-house test 29 of 32 people loved it.")
+    text = "And hydration goes up 38% right after you put it on."
+    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
+    await speak(rt, text)
+    assert len(await compliance_alerts(rt)) == 1

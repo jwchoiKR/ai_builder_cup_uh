@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
@@ -62,6 +62,20 @@ _KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever
 def ends_sentence(text: str) -> bool:
     """True when a final ends with . ? or ! (closing quotes and brackets ignored)."""
     return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
+
+
+EARLY_ANSWER_MS = 30_000  # D-146: a draft verified later than this after the spoken answer is not posted
+
+
+@dataclass
+class EarlyAnswer:
+    """D-146: a spoken answer given before its question's draft existed."""
+    transcript: Transcript
+    judge: UtteranceJudgeOutput
+    facts: FactCheckOutput | None
+    inp: "JudgeInput"
+    utterance: str
+    at: int
 
 
 HEALTH_STREAK = 2  # D-137: failures of one judge that turn the health dot amber ...
@@ -111,6 +125,9 @@ class UtterancePipeline:
         self._segments: dict[str, str] = {}
         self._last: Transcript | None = None  # previous final in the main chain
         self._judged: dict[str, Judged] = {}
+        self._inputs: dict[str, JudgeInput] = {}  # D-146: kept with the judged prefix, for a later recheck
+        # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
+        self._early: dict[str, EarlyAnswer] = {}
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
         key = (t.transcript_id, kind)
@@ -212,6 +229,7 @@ class UtterancePipeline:
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
             judge_input, offered = await self._judge_input_locked(t, text, merge, on_air, scenario)
+            self._inputs[t.transcript_id] = judge_input
         # Only preparation waits for the previous final.
         ready = asyncio.Future()
         previous_context = self._context_tail
@@ -247,6 +265,7 @@ class UtterancePipeline:
             if self._sequence[tid] < cutoff:
                 self._judged.pop(tid, None)
                 self._prepared.pop(tid, None)
+                self._inputs.pop(tid, None)
 
     async def _infer(self, t, on_air, inp, hits, merge, scenario, ready):
         rt = self.rt
@@ -711,6 +730,11 @@ class UtterancePipeline:
             before.publish = None
         if decision.action == "none" or group is None:
             return
+        if (decision.action == "verbal_not_posted" and offered.get(group.group_id) is None
+                and group.status in ("new", "composing") and t.transcript_id in self._inputs):
+            # D-146: the host answered before the draft existed; check again once it is verified
+            self._early[group.group_id] = EarlyAnswer(t, judge, facts, self._inputs[t.transcript_id],
+                                                      merge.text if merge else t.text, rt.now())
         if decision.action == "post":
             await post_host_answer_locked(rt, group, answer)
         elif decision.action == "confirm_ai":
@@ -723,6 +747,42 @@ class UtterancePipeline:
         await rt.recompute_host_queue_locked()
         if mine is not None:
             mine.publish = (group.group_id, decision.action)
+
+    async def recheck_early(self, group_id: str) -> None:
+        """D-146 (sealed show replay): the host answered a question aloud while its draft was being written.
+        Once the draft is verified, ask the context judge again with that draft and post it when the same
+        rules as a normal spoken answer allow it (D-110, D-112: consistent, verified, no alert, not stale)."""
+        rt = self.rt
+        early = self._early.pop(group_id, None)
+        if early is None or rt.now() - early.at > EARLY_ANSWER_MS:
+            return
+        async with rt.lock:
+            g = await rt.get_group(group_id)
+            answer = await rt.get_answer(g.answer_id) if g is not None else None
+            if g is None or answer is None or not answer.verified or g.published_message_id is not None:
+                return
+        inp = replace(early.inp, open_questions=[(g, answer.text)], on_screen_group_id=group_id)
+        agent = self.context if self.split3 else self.judge
+        res = await agent.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS)
+        if res.status != "ok" or res.output is None:
+            return
+        judge = early.judge.model_copy(update={"answer": res.output.answer})
+        async with rt.lock:
+            g = await rt.get_group(group_id)
+            if g is None or g.answer_id != answer.answer_id:
+                return
+            decision = publish_logic.decide(
+                judge, {group_id: answer}, g, answer,
+                high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=early.facts,
+                lex=rt.catalog.lexicon, utterance=early.utterance, current_key=await answer_key(rt, g))
+            log.info("early spoken answer for %s: %s (%s)", group_id, decision.action, decision.reason)
+            if decision.action != "post":
+                return
+            await post_host_answer_locked(rt, g, answer)
+            g.version += 1
+            await rt.save_group(g)
+            await rt.emit("group.updated", g)
+            await rt.recompute_host_queue_locked()
 
     async def _relink_locked(self, link: tuple[str, str], old: Transcript, new: Transcript) -> None:
         """Same group, same action: keep the fragment's effect (no second post), credit the merged final."""
