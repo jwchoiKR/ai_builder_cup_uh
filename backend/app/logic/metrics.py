@@ -108,6 +108,7 @@ def compute_metrics(
                                 "composed": _median(reply_latencies.get("composed", []))},
         },
         "triage_cache": {"hits": triage_hits, "misses": triage_misses},
+        "armor": {"blocked": counters.get("armor_blocked", 0), "unscreened": counters.get("armor_unscreened", 0)},
         "messages_by_kind": by_kind,
         "stt_final_latency_ms": {"p50_ms": percentile(stt, 0.5), "p95_ms": percentile(stt, 0.95), "count": len(stt)},
         "header": {

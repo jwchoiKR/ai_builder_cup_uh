@@ -157,6 +157,7 @@ export interface Comment {
   kind: "pending" | "reaction" | "question" | "hide";
   analysis_id: string | null;
   group_id: string | null;
+  armor?: "blocked" | "unscreened" | null; // D-125 Model Armor verdict; unscreened: never answered
 }
 
 export interface CommentAnalysis {

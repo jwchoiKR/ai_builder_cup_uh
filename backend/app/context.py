@@ -14,6 +14,7 @@ from .ids import Ids
 from .logic.catalog import DataPack
 from .logic.reflex import Reflex
 from .models.session import AgentCall
+from .providers.armor import make_armor
 from .providers.llm import LLMBackend, LLMClient, make_backend
 from .providers.prompts import PromptTemplate, load_prompts
 from .providers.retriever import LocalRetriever, Retriever
@@ -56,6 +57,7 @@ class AppContext:
     reflex: Reflex
     runtimes: "Runtimes" = field(init=False)
     stt: object | None = None  # GoogleV2Stt, or None when STT_PROVIDER=mock
+    armor: object | None = None  # D-125: Model Armor screening of comments (NoArmor when off)
     sse_heartbeat_sec: float = HEARTBEAT_SEC
 
 
@@ -82,6 +84,7 @@ def build_context(
         scheduler=scheduler or AsyncScheduler(clock), retriever=LocalRetriever(pack.passages),
         reflex=Reflex(pack.rules),
         stt=make_stt(settings, clock),
+        armor=make_armor(settings),
     )
     ctx.runtimes = Runtimes(ctx)
     return ctx

@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     FACT_TIMEOUT_MS: int = 3000
     FACT_SEARCH_TIMEOUT_MS: int = 600
     TRIAGE_TIMEOUT_MS: int = 2500
+    MODEL_ARMOR_ENABLED: bool = False  # D-125: screen comments before triage (needs a template)
+    MODEL_ARMOR_LOCATION: str = "us-central1"
+    MODEL_ARMOR_TEMPLATE: str = "live-studio-comments"
+    MODEL_ARMOR_TIMEOUT_MS: int = 500  # slower or failing: the comment stays unscreened
     TRIAGE_CONCURRENCY: int = 8  # triage calls in flight; comments arriving beyond this are batched
     TRIAGE_MAX_BATCH: int = 10  # start value, tune with burst tests (PLANNING 5.1.2)
     TRIAGE_BATCH_TIMEOUT_MS: int = 5000  # one call for up to TRIAGE_MAX_BATCH comments; start value
