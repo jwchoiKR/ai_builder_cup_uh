@@ -2,7 +2,7 @@
 
 For every utterance eval case (data/eval/utterance_cases.jsonl) this runs exactly what the
 orchestrator runs before the judge, and what it falls back to when the judge fails (§8.4.3):
-  1. Reflex scan (keyword phrases of claim_rules.json, negation and quote cues);
+  1. Reflex scan (keyword phrases of the language pack, negation and quote cues);
   2. provisional alerts (`provisional_from_reflex`), then `apply_judge_failure`:
      a HIGH hit that is neither negated nor quoted becomes an alert; everything else is cleared.
 
@@ -86,7 +86,7 @@ def main() -> int:
         f"# Code guardrail alone (Reflex, before the LLM) · {dt.date.today().isoformat()}",
         "",
         "**What runs:** for every utterance eval case, what the orchestrator does before the judge, and what it falls back to "
-        "when the judge fails (§8.4.3). The Reflex keyword scan (claim_rules.json phrases, negation and quote cues) creates "
+        "when the judge fails (§8.4.3). The Reflex keyword scan (language pack phrases, negation and quote cues) creates "
         "provisional alerts; `apply_judge_failure` shows a HIGH hit that is neither negated nor quoted, and clears the rest. "
         "No model is called. Script: `backend/scripts/eval_guardrails.py`.",
         "",

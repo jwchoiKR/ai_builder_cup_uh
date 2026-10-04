@@ -62,9 +62,11 @@ class Settings(BaseSettings):
     DRAFT_VERIFY_TIMEOUT_MS: int = 2500  # D-126: LLM check after verify_answer; slower or failing: unverified
     BRIEF_TIMEOUT_MS: int = 60000
     SUMMARY_TIMEOUT_MS: int = 30000
+    MARKET: str = "SG"  # D-129: data/markets/<code>.json (law)
+    BROADCAST_LANGUAGE: str = "en"  # D-129: data/lang/<code>.json (wording); must be offered by MARKET
     STT_LOCATION: str = "us"
     STT_MODEL: str = "chirp_3"
-    STT_LANGUAGE: str = "en-US"
+    STT_LANGUAGE: str = ""  # empty: the market pack's code for BROADCAST_LANGUAGE (D-129)
     STT_PHRASE_HINTS_ENABLED: bool = True
     VERTEX_SEARCH_LOCATION: str = "global"
     VERTEX_SEARCH_DATA_STORE_ID: str = ""
