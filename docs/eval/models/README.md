@@ -14,3 +14,19 @@ Result: keep gemini-3.5-flash-lite. It is the fastest and the only one that caug
 The larger models missed packaging ("jar") and shelf-life facts (H078) and set price (H046), and are 0.4-0.9 s slower at p95 on the 3 s path.
 gemini-3.7-flash and gemini-3.8-flash do not accept MINIMAL thinking; they were not tested on the 3 s path.
 Not tested yet: the answer composer (gemini-3.8-flash LOW) against alternatives.
+
+## Thinking levels with the models fixed (10/5, user direction: flash-lite = 3.5, flash = 3.8)
+
+Holdout labels: H052, H053, H059 and H064 now expect BRAND-TEST-QUALIFIER (test results said without "in our in-house test", D-105); reports re-scored from the saved runs (`*-relabeled.md`).
+
+| setting | violations caught | false compliance alerts (of 183) | fact notes on non-fact lines (of 216) | wrong facts caught | compliance p95 | all judges p95 |
+|---|---|---|---|---|---|---|
+| flash-lite MINIMAL (current) | 87/87 | 3 | 0 | 42/42 | 1357 ms | 1750 ms |
+| flash-lite LOW | 87/87 | **0** | 2 | 42/42 | 1354 ms | 1767 ms |
+| flash-lite MEDIUM | timeouts on the 3 s path (many calls cut at the deadline) | | | | 2353 ms | 2933 ms |
+
+Adversarial tune set (80 x 3): MINIMAL and LOW both 100% detection, 0 wrong HIGH, 0% false alerts; MEDIUM 43.7% (timeouts).
+Triage (35 x 3): LOW intent 34.0 / route 33.0 vs MINIMAL 32.7 / 32.3, same p95 (1444 vs 1466 ms).
+Composer (gemini-3.8-flash): LOW vs MEDIUM, verify pass 74% vs 72%, p50 2.5 s vs 5.9 s: keep LOW (`composer-38flash-thinking.md`).
+
+Recommendation: compliance judge LOW (0 false alerts, same speed), fact checker MINIMAL (no stray notes), triage LOW, composer LOW. This needs a per-agent thinking setting.
