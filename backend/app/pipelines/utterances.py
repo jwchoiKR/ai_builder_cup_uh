@@ -64,7 +64,8 @@ def ends_sentence(text: str) -> bool:
     return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
 
 
-HEALTH_STREAK = 2  # D-137: failed finals in a row before the health dot turns amber
+HEALTH_STREAK = 2  # D-137: failures of one judge that turn the health dot amber ...
+HEALTH_WINDOW_MS = 60_000  # D-144: ... within this window (LT055: two timeouts 58 s apart)
 
 
 @dataclass
@@ -93,8 +94,9 @@ class UtterancePipeline:
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_checker"], rt.catalog)
-        # D-137 (feature B2): judges that failed (timeout, error, invalid) on the last HEALTH_STREAK finals
-        self._fail_streak: dict[str, int] = {}
+        # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
+        self._failures: dict[str, list[int]] = {}
+        self._amber: set[str] = set()
         self.degraded: list[str] = []
         self._main_tail: asyncio.Task | None = None
         self._side_tail: asyncio.Task | None = None
@@ -270,9 +272,11 @@ class UtterancePipeline:
                 done, waiting = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
                 for task in sorted(done, key=lambda task: (task is not comp_task, task is not facts_task)):
                     res = _result(task)
+                    late = task is facts_task and res.latency_ms > rt.settings.FACT_TIMEOUT_MS
                     await self._note_health(
                         "fact_checker" if task is facts_task else "context_judge" if task is ctx_task
-                        else "compliance_judge" if self.split3 else "utterance_judge", res.status)
+                        else "compliance_judge" if self.split3 else "utterance_judge",
+                        "timeout" if late else res.status)
                     output = res.output if res.status == "ok" else None
                     if task is comp_task:
                         comp = output
@@ -308,10 +312,17 @@ class UtterancePipeline:
                 ready.set_result(None)
 
     async def _note_health(self, agent: str, status: str) -> None:
-        """D-137: "silence must not look like safety". A judge that failed on HEALTH_STREAK finals in a row
-        turns the host's health dot amber; its next answer turns it back."""
-        self._fail_streak[agent] = 0 if status == "ok" else self._fail_streak.get(agent, 0) + 1
-        degraded = sorted(a for a, n in self._fail_streak.items() if n >= HEALTH_STREAK)
+        """D-137: "silence must not look like safety". A judge that failed HEALTH_STREAK times within
+        HEALTH_WINDOW_MS (D-144: not only on finals in a row) turns the host's health dot amber; its next
+        answer on time turns it back."""
+        now = self.rt.now()
+        if status == "ok":
+            self._amber.discard(agent)  # an on-time answer clears the dot; the failure times stay for the window
+        else:
+            self._failures[agent] = [t for t in self._failures.get(agent, []) if now - t < HEALTH_WINDOW_MS] + [now]
+            if len(self._failures[agent]) >= HEALTH_STREAK:
+                self._amber.add(agent)
+        degraded = sorted(self._amber)
         if degraded != self.degraded:
             self.degraded = degraded
             async with self.rt.lock:
@@ -370,7 +381,7 @@ class UtterancePipeline:
         return await self.facts.run(
             FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
                       passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario),
-            deadline_ms=self.rt.settings.FACT_TIMEOUT_MS,
+            deadline_ms=self.rt.settings.FACT_LATE_MS,  # D-144: on time is FACT_TIMEOUT_MS
         )
 
     async def _apply_compliance_locked(self, t: Transcript, on_air: str, res: AgentResult, hits,
