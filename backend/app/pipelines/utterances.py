@@ -734,17 +734,36 @@ async def post_host_answer_locked(rt: "SessionRuntime", group: QuestionGroup, an
         pending_until=rt.now() + rt.settings.PUBLISH_CANCEL_WINDOW_MS,
     )
     if msg.state == "pending":
+        # D-117 B4: bound to the answer and the promo/document state of now
+        expect = (answer.answer_id, await answer_key(rt, group))
+
         async def publish() -> None:
             async with rt.lock:
-                await finish_pending_locked(rt, msg.message_id)
+                await finish_pending_locked(rt, msg.message_id, expect)
 
         rt.ctx.scheduler.call_at(rt.key(f"publish:{msg.message_id}"), msg.publish_at, publish)
     return msg
 
 
-async def finish_pending_locked(rt: "SessionRuntime", message_id: str) -> None:
+async def _still_valid(rt: "SessionRuntime", group_id: str | None, expect: tuple[str, str] | None) -> bool:
+    if expect is None or group_id is None:
+        return True
+    g = await rt.get_group(group_id)
+    return (g is not None and g.status not in ("closed", "rejected", "answered") and g.answer_id == expect[0]
+            and await answer_key(rt, g) == expect[1])
+
+
+async def finish_pending_locked(rt: "SessionRuntime", message_id: str,
+                                expect: tuple[str, str] | None = None) -> None:
     m = await rt.get_message(message_id)
     if m is None or m.state != "pending":
+        return
+    if not await _still_valid(rt, m.group_id, expect):
+        # the question was closed or its answer, promo or document changed in the cancel window
+        m.state = "cancelled"
+        await rt.save_message(m)
+        await rt.emit("message.cancelled", m)
+        log.info("pending host answer %s dropped: its question changed", message_id)
         return
     now = rt.now()
     m.state, m.published_at = "published", now
