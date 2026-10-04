@@ -102,6 +102,9 @@ def active_promo_json_or_null(catalog: Catalog, promo: Promo | None) -> dict | N
         "title": promo.title,
         "promo_prices": dict(promo.promo_prices),
         "promo_prices_display": {k: catalog.money(v) for k, v in promo.promo_prices.items()},
+        # D-148: the terms the host may say, checkable like any fact
+        "discount_pct_off_live_price": promo.discount_pct_off_live_price,
+        "duration_min": round(promo.duration_sec / 60),
     }
 
 

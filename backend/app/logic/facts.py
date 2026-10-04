@@ -20,10 +20,15 @@ def subject_key(product_id: str, field: str | None, passage_id: str | None) -> t
     return product_id, field, passage_id
 
 
+def _price_kind(field: str | None) -> str | None:
+    return "price" if field in ("price", "promo") else field
+
+
 def _corrected_note(c: FactClaim, notes: Sequence[Alert], lex: Lexicon) -> Alert | None:
     """The active note a supported claim corrects: the same passage, or without a passage the note
     whose right value the host now states (or the only note of that field when no number is said)."""
-    same = [a for a in notes if (a.product_id, a.field) == (c.product_id, c.field)]
+    # D-148: during a time sale a stale price note (field price) is corrected by the sale price (field promo)
+    same = [a for a in notes if a.product_id == c.product_id and _price_kind(a.field) == _price_kind(c.field)]
     if c.passage_id is not None:
         return next((a for a in same if a.passage_id == c.passage_id), None)
     said = lex.spoken_numbers(c.stated_value or "")

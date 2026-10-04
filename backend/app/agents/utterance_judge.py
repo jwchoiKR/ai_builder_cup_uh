@@ -127,6 +127,13 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     qualified = catalog.lexicon.is_qualified(text) or lead_in
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
                                and not (v.rule_id == qualifier.RULE_ID and qualified)]
+    # D-148 (sealed show replay): STT made "Acne, um, no no," its own final and the judge flagged the word
+    # "acne" (HIGH) before the host went on "we cannot say it treats acne". A final that is nothing but the
+    # flagged word and fillers is a topic, not a claim.
+    lex = catalog.lexicon
+    said = [w for w in lex.content_words(text) if w not in lex.fillers]
+    o.compliance.violations = [v for v in o.compliance.violations
+                               if not (len(said) == 1 and lex.content_words(v.span) == said)]
     kept = []
     on_air_id = (values.get("current_product_json") or {}).get("product_id")
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None

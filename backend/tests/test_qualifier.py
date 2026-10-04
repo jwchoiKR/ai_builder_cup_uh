@@ -241,3 +241,14 @@ async def test_a_lead_in_with_its_own_number_does_not_qualify_the_next_line(env)
     llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
     await speak(rt, text)
     assert len(await compliance_alerts(rt)) == 1
+
+
+@pytest.mark.parametrize("text, alerts", [
+    ("Acne, um, no no,", 0),  # D-148: a topic word and fillers is not a claim
+    ("It cures acne.", 1),  # a short real claim still alerts
+])
+async def test_a_topic_word_alone_is_not_a_claim(env, text, alerts):
+    rt, llm = env
+    llm.judge(text, violations=[violation("ASEAN-3-SKIN-ACNE", "acne" if alerts == 0 else "cures acne")])
+    await speak(rt, text)
+    assert len(await compliance_alerts(rt)) == alerts

@@ -59,7 +59,10 @@ async function replay(page, show, assistant) {
   const at = (ts) => t0 + ts * 1000;
 
   // state history: first time each group was on the host list, on a card, answered; all transcripts and alerts
-  const seen = { onList: {}, onCard: {}, cardKind: {}, posted: {}, transcripts: {}, alerts: {}, groups: {}, messages: {}, answers: {} };
+  const seen = { onList: {}, onCard: {}, cardKind: {}, posted: {}, transcripts: {}, alerts: {}, groups: {}, messages: {}, answers: {},
+    promoStarts: {} };
+  const catalog = await api("GET", "/catalog");
+  const priceChanging = new Set((catalog.promos ?? []).filter((p) => p.changes_prices).map((p) => p.promo_id));
   let polling = true;
   const poll = (async () => {
     while (polling) {
@@ -79,6 +82,9 @@ async function replay(page, show, assistant) {
         }
         for (const m of st.messages ?? []) {
           if (m.group_id && m.state === "published") seen.posted[m.group_id] ??= now;
+        }
+        for (const ap of st.session?.active_promos ?? []) {
+          if (priceChanging.has(ap.promo_id)) seen.promoStarts[ap.promo_id] ??= ap.started_at;
         }
       } catch (e) {
         console.log(`poll: ${e.message}`);
@@ -123,7 +129,7 @@ async function replay(page, show, assistant) {
   const finals = mic.finals.slice();
   mic.close();
   await api("POST", `/sessions/${sid}/end`).catch(() => undefined);
-  return { sid, assistant, t0, spoken, comments, finals, seen };
+  return { sid, assistant, t0, spoken, comments, finals, seen, promoStarts: Object.values(seen.promoStarts) };
 }
 
 /** The spoken line each final belongs to: the most overlapping line that had started before it. */
@@ -197,7 +203,8 @@ function score(show, run) {
   });
   // (e) wrong or stale posts: an AI post for a question the script marks unanswerable; a post made after a
   // promo started with an answer written before it, for a price question
-  const promoAt = show.events.filter((e) => e.type === "promo_start").map((e) => run.t0 + e.t_s * 1000);
+  // price promotions only (a gift-pouch promo changes no price), at the server's own start time
+  const promoAt = run.promoStarts;
   const wrong = [], stale = [];
   for (const m of Object.values(run.seen.messages)) {
     if (m.kind !== "ai_answer" || m.state !== "published") continue;

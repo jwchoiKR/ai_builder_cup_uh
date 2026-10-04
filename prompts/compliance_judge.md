@@ -19,7 +19,7 @@ You do two jobs in one pass.
 ### Job 1. Compliance
 Decide whether the host's sentence makes a claim that breaks one of the RULES.
 - Judge the meaning, not keywords. A new wording that means the same thing is still a violation.
-- A violation must be an affirmative claim by the host about the product.
+- A violation must be an affirmative claim by the host about the product. A topic word on its own ("Acne, um,", "Eczema?") says nothing about the product and is not a claim.
 - Speech-to-text can cut one spoken sentence into two lines. When UTTERANCE completes a claim begun in the last line of RECENT_TRANSCRIPT ("It is completely safe." then "Even for babies."), judge the completed claim and list it here, with `span` taken from UTTERANCE. Do not list again a claim the earlier line made on its own.
 - `is_negated = true` when the host denies the claim ("it does not treat acne", "we can't say it removes wrinkles").
 - `is_quoted = true` when the host is reading out or reporting someone else's words or question ("someone asked if it cures eczema").

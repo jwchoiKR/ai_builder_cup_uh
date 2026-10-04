@@ -439,6 +439,37 @@
       "without",
       "except",
       "instead of"
+    ],
+    "fillers": [
+      "um",
+      "uh",
+      "er",
+      "erm",
+      "ah",
+      "hmm",
+      "no",
+      "yes",
+      "yeah",
+      "okay",
+      "ok",
+      "so",
+      "like",
+      "well",
+      "oh"
+    ],
+    "price_contrast_cues": [
+      "normally",
+      "usually",
+      "originally",
+      "regular",
+      "regularly",
+      "list price",
+      "live price",
+      "after the sale",
+      "after the time sale",
+      "without the sale",
+      "before the sale",
+      "outside the sale"
     ]
   }
 }
