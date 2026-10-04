@@ -173,7 +173,8 @@ function GroupPreview({ group: g }: { group: QuestionGroup }) {
         : act.run(() => api.pushToHost(sid, g.group_id));
   return (
     <div className={styles.groupPreview} data-testid={`op-preview-${g.group_id}`}>
-      <span className={[styles.previewText, !answer?.text && styles.muted].filter(Boolean).join(" ")}>{text}</span>
+      {/* the whole reply is readable before it can be posted (review of D-127 shots) */}
+      <span className={[styles.previewText, !answer?.text && styles.muted, next && next.key !== "push" && styles.previewFull].filter(Boolean).join(" ")}>{text}</span>
       {next && (
         <Button size="sm" variant={next.key === "approve" ? "primary" : "secondary"} disabled={act.busy} onClick={() => void run()}>
           {t(next.label)}

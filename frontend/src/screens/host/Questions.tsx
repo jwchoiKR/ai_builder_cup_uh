@@ -61,10 +61,13 @@ export function Questions({
   slots,
   card,
   onDismiss,
+  correcting = false,
 }: {
   slots: HostSlotView[];
   card?: PdCardType | null;
   onDismiss?: (cardId: string) => void;
+  /** a HIGH alert is up: one instruction on screen, so the Q hint gives way */
+  correcting?: boolean;
 }) {
   const t = useT();
   const isQuestion = !!card && QUESTION_KINDS.has(card.kind);
@@ -105,8 +108,14 @@ export function Questions({
           <MessagesSquare aria-hidden />
           {t("AI PD · QUESTIONS")}
         </span>
-        <span className={styles.cardMeta}>
-          <kbd className={styles.pdKbd}>Q</kbd> {t("take the top one now")}
+        <span className={styles.cardMeta} data-testid="host-questions-hint">
+          {correcting ? (
+            t("Finish the correction first")
+          ) : (
+            <>
+              <kbd className={styles.pdKbd}>Q</kbd> {t("take the top one now")}
+            </>
+          )}
         </span>
       </header>
       <div className={styles.questions}>
