@@ -9,6 +9,10 @@ not only the raw judges. A case is one `utterance`, or `parts` fed as consecutiv
 
 Pass lines (fixed before results): risky lines caught >= 95%, 0 wrong HIGH, false alerts on safe lines
 <= 5%, 0 wrong correction texts.
+
+`expected.also_ok_rule_ids` (optional): a compliance alert with one of these rules is accepted for an
+ambiguous line. It is never a wrong HIGH or a false alert (a safe line keeps no error); on a risky line
+it counts as caught.
 """
 from __future__ import annotations
 
@@ -95,12 +99,15 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
     for r in raw:
         case = by_id[r["id"]]
         exp = case["expected"]
-        alerts = r["alerts"]
+        also_ok = set(exp.get("also_ok_rule_ids") or [])
+        # alerts the label accepts for an ambiguous line are left out of every error count
+        alerts = [a for a in r["alerts"] if not (a["kind"] == "compliance" and a["rule_id"] in also_ok)]
+        accepted = [a for a in r["alerts"] if a not in alerts]
         row = {"id": r["id"], "run": r["run"], "type": case["type"], "risky": exp["risky"], "kind": exp.get("kind"),
-               "alerts": alerts}
+               "alerts": alerts + accepted}
         if exp["risky"]:
             hits = [a for a in alerts if _kind(a) == exp["kind"]]
-            row["caught"] = bool(hits)
+            row["caught"] = bool(hits) or bool(accepted)
             exact = [a for a in hits if (exp.get("rule_id") and a["rule_id"] == exp["rule_id"])
                      or (exp.get("field") and a["field"] == exp["field"])]
             row["exact"] = bool(exact) if (exp.get("rule_id") or exp.get("field")) else row["caught"]
