@@ -248,3 +248,9 @@ async def test_merged_judgment_replaces_the_fragment_answer_link(env):
     assert g.host_verbal_answer_transcript_id == b.transcript_id and g.published_message_id is None
     await advance(rt, 3000)
     assert not await events(rt, "message.published")
+
+
+async def test_a_long_new_sentence_is_still_judged_alone(env):
+    rt, _ = env
+    t1, t2 = await split(rt, "It absorbs really fast.", "And now let me show you the texture on my hand.")
+    assert (await stored(rt, t2)).merged_from_transcript_id is None
