@@ -60,6 +60,8 @@ export interface Session {
   runsheet_id: string;
   title: string;
   status: "ready" | "live" | "ended";
+  /** D-111: solo = the host runs the show alone; team = an operator is in the control room */
+  show_mode?: "solo" | "team";
   started_at: number | null;
   ended_at: number | null;
   current_segment_id: string | null;

@@ -79,8 +79,11 @@ export const api = {
     post(`${s(sid)}/transcripts`, scene ? { text, scene } : { text }),
 
   // sessions
-  createSession: (runsheetId?: string) =>
-    post<Session>("/sessions", runsheetId ? { runsheet_id: runsheetId } : {}),
+  createSession: (runsheetId?: string, showMode?: "solo" | "team") =>
+    post<Session>("/sessions", {
+      ...(runsheetId ? { runsheet_id: runsheetId } : {}),
+      ...(showMode ? { show_mode: showMode } : {}),
+    }),
   start: (sid: string) => post<Session>(`${s(sid)}/start`),
   end: (sid: string) => post<Session>(`${s(sid)}/end`),
   state: (sid: string, role: Role) => get<StateSnapshot>(`${s(sid)}/state?role=${role}`),

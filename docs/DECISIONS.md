@@ -617,3 +617,13 @@ D-110: A host's spoken answer is auto-posted only when it clearly matches the ve
   - "Host confirmed the AI answer" stays a mark only and still follows the judge's consistency.
 - **Prompt:** the answer-linking rule in `utterance_judge.md` and `context_judge.md` now says that a question back, a quote or a hypothetical is not an answer, and that consistency means the same direction and numbers, with no added claim, caveat, condition, restriction or uncertainty.
 - **Eval:** `scripts/eval_verbal_post.py` on `data/eval/verbal_post_cases.jsonl` (40 cases, 20 near-misses) runs the production agents and the real decision, and reports false posts (target 0) and missed posts separately. Unit tests check that the code layer never blocks an expected post and always blocks the wrong-number, hedge and retraction cases.
+
+D-109: Settings gear with theme and screen language (user, 10/5).
+- The light/dark toggle on the host and operator screens is replaced by a gear (`SettingsButton`): theme (light, dark, system) and screen language (English, 한국어). The language is one choice per browser (`ls.lang`, storage errors ignored) shared by the host and operator screens, and later setup and summary. The viewer screen stays English (it stands in for the platform chat). In the Studio panes the Studio controls the theme, so the gear is hidden there.
+- Labels only: headers, buttons, badges, status lines, empty states, tooltips, intent and field labels. What the host says on air (say-instead lines, suggested answers, product facts, promo text), comments, quick replies, cue presets, rule titles and policy references stay in the broadcast language. English strings are the keys (`src/app/i18n.ts`); Korean is in `i18n.ko.ts` and `i18n.ko.operator.ts` (about 290 entries, to be reviewed by the user). "Dismiss" is "닫기" on both screens.
+- Card text written by the backend (for example the AI PD card's detail line) is still English.
+- **Tests:** `src/app/i18n.test.ts`; Korean rendering and the gear in `host.test.tsx`; a Korean header in `operator.test.tsx`.
+
+D-111: Show mode, solo or team, chosen when a session is created (default solo).
+- Stored on the session (`show_mode`); `POST /sessions {"show_mode": "team"}`; a demo reset keeps the mode. The Demo Console shows the current mode and picks the mode of the next "New demo session".
+- Used by the unresolved-question list (team: the operator follows up; solo: the list stays for after the show, and a no-evidence question reaches the host only when 3+ viewers ask it).
