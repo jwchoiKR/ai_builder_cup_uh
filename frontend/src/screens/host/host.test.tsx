@@ -664,3 +664,12 @@ describe("host settings: reading size and microphone (D-119)", () => {
     }
   });
 });
+
+describe("preview market (D-150)", () => {
+  it("labels a preview market on the host top bar", () => {
+    const { rerender } = render(view());
+    expect(screen.queryByTestId("host-preview")).toBeNull();
+    rerender(view({ market: { market: "MY", name: "Malaysia", lang: "en", tier: "preview" } }));
+    expect(screen.getByTestId("host-preview")).toHaveTextContent("PREVIEW · Malaysia");
+  });
+});

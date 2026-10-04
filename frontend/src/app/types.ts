@@ -145,6 +145,14 @@ export interface Alert {
   dismissed_reason: string | null;
 }
 
+/** D-150: the session's market and broadcast language; "preview" until a sealed eval passes. */
+export interface SessionMarket {
+  market: string;
+  name: string;
+  lang: string;
+  tier: "live" | "preview";
+}
+
 export interface Comment {
   comment_id: string;
   author_id: string;
@@ -353,6 +361,7 @@ export interface StateSnapshot {
   metrics: Metrics;
   feed?: FeedState;
   judge_health?: { degraded: string[] }; // D-137
+  market?: SessionMarket; // D-150
   // P2 (planned): missing keys are treated as empty
   alerts?: Alert[];
   prompter?: PrompterSnapshot | null;

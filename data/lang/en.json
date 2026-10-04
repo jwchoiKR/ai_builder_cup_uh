@@ -230,6 +230,94 @@
       ],
       "say_instead_hint": "Say the same result with 'in our in-house test'.",
       "reflex_phrases": []
+    },
+    "halal_uncertified": {
+      "unacceptable_examples": [
+        "It's halal, so everyone can use it.",
+        "No alcohol inside, so it's halal for sure."
+      ],
+      "say_instead_hint": "Say only what the product sheet states, e.g. 'It contains no ethanol.'",
+      "reflex_phrases": [
+        "it's halal",
+        "it is halal",
+        "halal certified",
+        "100% halal"
+      ]
+    },
+    "authority_approval": {
+      "unacceptable_examples": [
+        "This cream is KKM approved.",
+        "The ministry has approved this product."
+      ],
+      "say_instead_hint": "Describe the product's own approved benefit instead; never claim a government approval.",
+      "reflex_phrases": [
+        "kkm approved",
+        "moh approved",
+        "npra approved",
+        "approved by the ministry",
+        "government approved"
+      ]
+    },
+    "comparative": {
+      "unacceptable_examples": [
+        "It's way better than that other famous brand.",
+        "Other brands are useless compared to this."
+      ],
+      "say_instead_hint": "Describe this product's own approved benefit, without other brands.",
+      "reflex_phrases": [
+        "better than other brands",
+        "other brands are useless",
+        "unlike other brands"
+      ]
+    },
+    "professional_endorsement": {
+      "unacceptable_examples": [
+        "Dermatologists recommend this to all their patients.",
+        "Doctors use this themselves."
+      ],
+      "say_instead_hint": "Say what the product sheet states; do not speak for doctors.",
+      "reflex_phrases": [
+        "doctors recommend",
+        "dermatologists recommend",
+        "doctor recommended",
+        "dermatologist recommended",
+        "recommended by doctors"
+      ]
+    },
+    "unsupported_evidence": {
+      "unacceptable_examples": [
+        "It's clinically proven to work.",
+        "Look at this before and after!"
+      ],
+      "say_instead_hint": "Quote the approved in-house result with its qualifier, e.g. 'In our in-house test, ...'",
+      "reflex_phrases": [
+        "clinically proven",
+        "scientifically proven"
+      ]
+    },
+    "testimonial": {
+      "unacceptable_examples": [
+        "My friend's skin cleared in a week, so yours will too.",
+        "Everyone who buys it gets the same results as me."
+      ],
+      "say_instead_hint": "Say results vary, and use the approved claims.",
+      "reflex_phrases": []
+    },
+    "gmp_promotion": {
+      "unacceptable_examples": [
+        "It's GMP certified, so it works better than others."
+      ],
+      "say_instead_hint": "Describe the product's own approved benefit instead.",
+      "reflex_phrases": [
+        "gmp certified"
+      ]
+    },
+    "religious_claim": {
+      "unacceptable_examples": [
+        "This product is blessed, so it works wonders."
+      ],
+      "say_instead_hint": "Describe the product's own approved benefit instead.",
+      "reflex_phrases": []
     }
   },
   "negation_cues": [

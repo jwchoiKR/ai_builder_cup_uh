@@ -71,6 +71,11 @@ class SessionRuntime:
         # D-142: the session's (market, language) pack; never ctx.pack inside a session
         self.pack, self.reflex = ctx.pack_for(session.market, session.lang)
         self.catalog = Catalog(self.pack, session.runsheet_id)
+        # D-150: a market or language below "live" (no sealed eval yet) is a preview: host cards only, nothing
+        # is posted by itself, and the screens say so
+        lang_tier = next(x.tier for x in self.pack.market.languages if x.lang == self.pack.lang)
+        self.tier = "live" if self.pack.market.tier == "live" and lang_tier == "live" else "preview"
+        self.live = self.tier == "live"
         self.assistant = session.assistant  # D-139
         self.lock = asyncio.Lock()
         self.triage_cache = TriageCache()
@@ -558,6 +563,8 @@ class SessionRuntime:
             "metrics": await self.compute_metrics(),
             "feed": self.feed.state(),
             "judge_health": {"degraded": list(self.utterances.degraded)},  # D-137
+            "market": {"market": self.pack.market.market, "name": self.pack.market.name, "lang": self.pack.lang,
+                       "tier": self.tier},  # D-150
         }
         if role == "operator":
             ids = {c.comment_id for c in shown}

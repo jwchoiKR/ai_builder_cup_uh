@@ -738,6 +738,8 @@ class UtterancePipeline:
             # D-146: the host answered before the draft existed; check again once it is verified
             self._early[group.group_id] = EarlyAnswer(t, judge, facts, self._inputs[t.transcript_id],
                                                       merge.text if merge else t.text, rt.now())
+        if decision.action == "post" and not rt.live:
+            decision = publish_logic.PublishDecision("verbal_not_posted", group.group_id, "preview: never auto-posted")
         if decision.action == "post":
             await post_host_answer_locked(rt, group, answer)
         elif decision.action == "confirm_ai":
@@ -779,7 +781,7 @@ class UtterancePipeline:
                 high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=early.facts,
                 lex=rt.catalog.lexicon, utterance=early.utterance, current_key=await answer_key(rt, g))
             log.info("early spoken answer for %s: %s (%s)", group_id, decision.action, decision.reason)
-            if decision.action != "post":
+            if decision.action != "post" or not rt.live:  # D-150: a preview market posts nothing by itself
                 return
             await post_host_answer_locked(rt, g, answer)
             g.version += 1

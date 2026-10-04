@@ -3,6 +3,7 @@
 // an upsert by id, because events after /state's last_seq may already be in the snapshot.
 import type {
   AgentCall,
+  SessionMarket,
   Alert,
   Answer,
   Comment,
@@ -78,6 +79,8 @@ export interface ClientState {
   judgeFailures: JudgeFailure[];
   /** D-137: judges that failed on the last finals in a row (empty: healthy) */
   judgeDegraded: string[];
+  /** D-150: market and language of the session (null before the snapshot) */
+  market: SessionMarket | null;
   summaryReady: boolean;
   /** an event referenced data the client does not have yet (e.g. a new answer): refetch /state */
   needsResync: boolean;
@@ -117,6 +120,7 @@ export function emptyState(role: Role): ClientState {
     metrics: {},
     feed: null,
     judgeDegraded: [],
+    market: null,
     agentCalls: [],
     actions: [],
     switchChips: {},
@@ -160,6 +164,7 @@ export function reduceSnapshot(snap: StateSnapshot, role: Role, clientNow: numbe
     metrics: snap.metrics ?? {},
     feed: snap.feed ?? null,
     judgeDegraded: snap.judge_health?.degraded ?? [],
+    market: snap.market ?? null,
     agentCalls: [...(snap.agent_calls ?? [])].reverse().slice(0, MAX_LOG),
   };
 }

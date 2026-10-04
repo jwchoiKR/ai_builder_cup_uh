@@ -108,6 +108,12 @@ function TopBar({
           </>
         )}
       </span>
+      {state.market?.tier === "preview" && (
+        // D-150: no sealed eval yet for this market or language: host cards only, nothing auto-posted
+        <span className={styles.previewTag} data-testid="host-preview" title={t("Preview: nothing is posted automatically")}>
+          {t("PREVIEW")} · {state.market.name}
+        </span>
+      )}
       <div className={styles.nowNext}>
         <span className={styles.nnLabel}>{t("NOW")}</span>
         <span className={styles.nowName} data-testid="host-now">
