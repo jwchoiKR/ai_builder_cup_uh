@@ -38,7 +38,8 @@ class Settings(BaseSettings):
     LLM_QUALITY_THINKING: ThinkingLevel = "MEDIUM"
     COMPOSER_THINKING: ThinkingLevel = "LOW"  # per-agent override for AnswerComposer (D-067)
     LLM_RETRY_ON_5XX: int = 1
-    LLM_CONTEXT_CACHE: bool = False
+    LLM_CONTEXT_CACHE: bool = False  # enable by default only after real-model measurement
+    LLM_CONTEXT_CACHE_TTL_SEC: int = 3600  # request session duration overrides this fallback
     JUDGE_MODE: Literal["split3", "split", "single"] = "split3"  # D-099; split = one UtteranceJudge (rollback)
     JUDGE_TIMEOUT_MS: int = 2500
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off

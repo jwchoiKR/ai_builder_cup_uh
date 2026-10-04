@@ -19,6 +19,9 @@ from ..providers.prompts import PromptTemplate
 from . import fact_checker, inputs
 
 GROUP_REF, ALERT_REF = "@group:", "@alert:"
+STATIC_JUDGE_KEYS = frozenset({"current_product_json", "run_sheet_compact_json",
+                             "approved_claims_of_current_product_json", "rules_compact_json",
+                             "prompter_points_json", "passages_json"})
 
 
 @dataclass
@@ -171,10 +174,12 @@ class UtteranceJudge:
         values = self.build_values(inp)
         encode, decode = symbolic_ids(values)
         output_model = JudgeSingleOutput if self.single else UtteranceJudgeOutput
+        user, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
         res = await self.llm.call(LLMRequest(
             agent="judge_single" if self.single else self.name, model=self.llm.fast.model,
             thinking_level=self.llm.fast.thinking_level, prompt_version=self.prompt_version,
-            system_instruction=self.prompt.system_instruction, user_message=self.prompt.render(values),
+            system_instruction=self.prompt.system_instruction, user_message=user,
+            cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             output_model=output_model, deadline_ms=deadline_ms, session_id=inp.session_id,
             mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: rule_based_judge(inp, values, self.catalog, self.reflex, self.single),

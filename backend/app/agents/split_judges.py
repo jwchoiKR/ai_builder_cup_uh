@@ -15,7 +15,7 @@ from ..models.agent_io import ComplianceOutput, ContextOutput
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
 from .utterance_judge import (
-    JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
+    STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
     validate_context,
 )
 
@@ -41,10 +41,12 @@ class _SplitJudge:
     async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None) -> AgentResult:
         values = values if values is not None else build_judge_values(self.catalog, inp)
         encode, decode = symbolic_ids(values)
+        user, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
-            user_message=self.prompt.render(values), output_model=self.output_model, deadline_ms=deadline_ms,
+            user_message=user, output_model=self.output_model, deadline_ms=deadline_ms,
+            cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             session_id=inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: self.fallback(inp, values),
             fixture_encode=encode, fixture_decode=decode, preview=inp.utterance,
