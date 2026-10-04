@@ -68,7 +68,9 @@ class SessionRuntime:
         self.ctx = ctx
         self.sid = session.session_id
         self.settings = ctx.settings
-        self.catalog = Catalog(ctx.pack, session.runsheet_id)
+        # D-142: the session's (market, language) pack; never ctx.pack inside a session
+        self.pack, self.reflex = ctx.pack_for(session.market, session.lang)
+        self.catalog = Catalog(self.pack, session.runsheet_id)
         self.assistant = session.assistant  # D-139
         self.lock = asyncio.Lock()
         self.triage_cache = TriageCache()
@@ -130,7 +132,7 @@ class SessionRuntime:
         return self.ctx.scheduler.spawn(coro, name=name)
 
     def intent(self, name: str | None) -> Intent:
-        return self.ctx.pack.intents_by_name.get(name or "other") or self.ctx.pack.intents_by_name["other"]
+        return self.pack.intents_by_name.get(name or "other") or self.pack.intents_by_name["other"]
 
     # ---- documents -----------------------------------------------------------------------------
 
@@ -199,7 +201,7 @@ class SessionRuntime:
         return await self.utterances.submit(text, source="injected", scenario=scenario)
 
     def promo(self, promo_id: str | None) -> Promo | None:
-        return None if promo_id is None else self.ctx.pack.promos_by_id.get(promo_id)
+        return None if promo_id is None else self.pack.promos_by_id.get(promo_id)
 
     async def active_price_promo(self) -> Promo | None:
         return self.promo((await self.load_session()).active_promo_id)
@@ -363,7 +365,7 @@ class SessionRuntime:
                               repeat_threshold=st.HOST_REPEAT_THRESHOLD)
 
     def score_of(self, g: QuestionGroup, on_air: str | None, now: int) -> float:
-        return score(g, self.intent(g.intent), self.ctx.pack.intents.ranking_weights, on_air, now)
+        return score(g, self.intent(g.intent), self.pack.intents.ranking_weights, on_air, now)
 
     async def recompute_host_queue_locked(self, *, push: str | None = None, recall: str | None = None) -> None:
         s = await self.load_session()
@@ -568,12 +570,19 @@ class SessionRuntime:
         return out
 
 
-async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "solo", assistant: bool = True) -> Session:
+async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "solo", assistant: bool = True,
+                         market: str | None = None, lang: str | None = None) -> Session:
     """§8.1.1: a new session in status `ready`."""
     from ..logic.catalog import DataPackError
 
+    market = (market or ctx.settings.MARKET).upper()
+    lang = lang or ctx.settings.BROADCAST_LANGUAGE
     try:
-        runsheet = ctx.pack.runsheet(runsheet_id)
+        pack, _ = ctx.pack_for(market, lang)  # D-142: fails when the market does not offer the language
+    except (DataPackError, FileNotFoundError) as e:
+        raise ActionError(400, "unknown_market_language", f"{market}/{lang}: {e}") from None
+    try:
+        runsheet = pack.runsheet(runsheet_id)
     except DataPackError as e:
         raise ActionError(404, "unknown_runsheet", str(e)) from None
     glossary_version, points = 0, {}
@@ -586,7 +595,7 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
         pass
     session = Session(
         session_id=ctx.ids.new("ses_"), runsheet_id=runsheet.runsheet_id, title=runsheet.title, status="ready",
-        show_mode=show_mode, assistant=assistant,
+        show_mode=show_mode, assistant=assistant, market=market, lang=lang,
         settings_snapshot=ctx.settings.snapshot(), doc_version=ctx.retriever.doc_version(),
         glossary_version=glossary_version, prompter_points=points, created_at=ctx.clock.now_ms(),
     )

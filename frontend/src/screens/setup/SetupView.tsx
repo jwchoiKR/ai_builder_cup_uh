@@ -13,6 +13,7 @@ import type {
   PointChoice,
   SetupClient,
   SetupDocument,
+  SetupMarket,
   UploadJob,
 } from "./setupApi";
 import styles from "./setup.module.css";
@@ -52,6 +53,7 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
   const [job, setJob] = useState<UploadJob | null>(null);
   const [glossary, setGlossary] = useState<GlossaryState | null>(null);
   const [glossaryLoaded, setGlossaryLoaded] = useState(false);
+  const [market, setMarket] = useState<SetupMarket | null>(null);
   const [briefs, setBriefs] = useState<Record<string, BriefRecord | null>>({});
   const [running, setRunning] = useState<Record<string, boolean>>({});
   const [briefErrors, setBriefErrors] = useState<Record<string, string | null>>({});
@@ -79,6 +81,8 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
 
   useEffect(() => {
     void loadDocs();
+    // D-142: the market and broadcast language new sessions get (read-only while only one pair exists)
+    client.market?.().then(setMarket, () => setMarket(null));
     client.glossary().then(
       (g) => {
         setGlossary(g);
@@ -205,6 +209,11 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
           <span className={styles.subtitle}>{brand} · Product documents, Brief Agent and glossary</span>
         </div>
         <div className={styles.headerActions}>
+          {market && (
+            <Chip tone="neutral" data-testid="setup-market" title={`Rules: ${market.regulator} · speech: ${market.stt_language}`}>
+              {market.name} · {market.lang_name}
+            </Chip>
+          )}
           <Chip tone={glossary?.version ? "ok" : "neutral"} data-testid="setup-glossary-version">
             {glossary
               ? glossary.version

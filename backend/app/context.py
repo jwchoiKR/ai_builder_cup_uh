@@ -59,6 +59,19 @@ class AppContext:
     stt: object | None = None  # GoogleV2Stt, or None when STT_PROVIDER=mock
     armor: object | None = None  # D-125: Model Armor screening of comments (NoArmor when off)
     sse_heartbeat_sec: float = HEARTBEAT_SEC
+    _packs: dict = field(default_factory=dict, init=False, repr=False)
+
+    def pack_for(self, market: str, lang: str) -> tuple[DataPack, Reflex]:
+        """D-142: the data pack and reflex of one (market, language), loaded once. The settings' pair is
+        `pack`/`reflex`; others load from the same data folder (DataPackError when not offered)."""
+        key = (market.upper(), lang)
+        if key not in self._packs:
+            if key == (self.pack.market.market, self.pack.lang):
+                self._packs[key] = (self.pack, self.reflex)
+            else:
+                pack = DataPack.load(self.settings.data_path, market, lang)
+                self._packs[key] = (pack, Reflex(pack.rules, pack.lexicon))
+        return self._packs[key]
 
 
 def build_context(
@@ -73,8 +86,6 @@ def build_context(
     clock = clock or SystemClock()
     ids = Ids(clock, deterministic=settings.LLM_PROVIDER == "mock")
     pack = DataPack.load(settings.data_path, settings.MARKET, settings.BROADCAST_LANGUAGE)
-    if not settings.STT_LANGUAGE:
-        settings = settings.model_copy(update={"STT_LANGUAGE": pack.stt_language})
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     store = make_store(settings)
     bus = EventBus(store, clock)

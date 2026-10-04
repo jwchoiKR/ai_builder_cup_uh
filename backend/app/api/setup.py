@@ -11,6 +11,16 @@ from .errors import ApiError
 router = APIRouter(prefix="/setup")
 
 
+@router.get("/market")
+async def market(ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-142: the (market, language) new sessions get, shown read-only while only one pair exists."""
+    m = ctx.pack.market
+    lang = next(x for x in m.languages if x.lang == ctx.pack.lang)
+    return {"market": m.market, "name": m.name, "regulator": m.regulator, "lang": ctx.pack.lang,
+            "lang_name": ctx.pack.lang_pack.name, "stt_language": lang.stt_language, "tier": lang.tier,
+            "offered": [x.lang for x in m.languages]}
+
+
 @router.get("/documents")
 async def documents(ctx: AppContext = Depends(get_ctx)) -> dict:
     return await svc.list_documents(ctx)

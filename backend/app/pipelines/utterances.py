@@ -89,9 +89,9 @@ class UtterancePipeline:
         ctx = rt.ctx
         self.single = rt.settings.JUDGE_MODE == "single"
         self.split3 = rt.settings.JUDGE_MODE == "split3"
-        self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, ctx.reflex, single=self.single)
-        self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, ctx.reflex)
-        self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, ctx.reflex)
+        self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex, single=self.single)
+        self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
+        self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_checker"], rt.catalog)
         # D-137 (feature B2): judges that failed (timeout, error, invalid) on the last HEALTH_STREAK finals
         self._fail_streak: dict[str, int] = {}
@@ -125,7 +125,7 @@ class UtterancePipeline:
                     or later.segment_id != t.segment_id or (merge and t.transcript_id in merge.chain)):
                 continue
             # D-117 B2: no judge decision here, so only the alert's own replacement or a retraction counts
-            check = check_correction(text, a, [], self.rt.ctx.reflex)
+            check = check_correction(text, a, [], self.rt.reflex)
             if check.ok:
                 alert_logic.apply_corrections([a], [a.alert_id], later, now)
                 return
@@ -200,7 +200,7 @@ class UtterancePipeline:
         if not rt.assistant:
             return  # D-139: no reflex chip, no judge, no prompter coverage
         # 2. reflex -> provisional alerts
-        hits = rt.ctx.reflex.scan(text)
+        hits = rt.reflex.scan(text)
         async with rt.lock:
             seg = await rt.get_segment(t.segment_id) if t.segment_id else await rt.current_segment()
             on_air = seg.product_id if seg else rt.catalog.order[0]
@@ -424,7 +424,7 @@ class UtterancePipeline:
             judge.compliance.violations = [
                 v for v in judge.compliance.violations
                 if not (v.rule_id == qualifier.RULE_ID and qualifier.is_repeat(v.say_instead or None, alerts, on_air))]
-            changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.ctx.pack.rules_by_id,
+            changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.pack.rules_by_id,
                                                                   rt.new_id, now, active_rule_ids=active_rules)
             for a in created:
                 self._reconcile_late_alert(a, t, now)
@@ -479,7 +479,7 @@ class UtterancePipeline:
         for a in correctable:
             if (a.kind == "compliance" and a.status == "active" and a.transcript_id != t.transcript_id
                     and self._segments.get(a.transcript_id) == t.segment_id
-                    and a.alert_id not in accepted and says_the_replacement(text, a, rt.ctx.reflex)):
+                    and a.alert_id not in accepted and says_the_replacement(text, a, rt.reflex)):
                 log.info("correction of %s by its replacement wording: %r", a.alert_id, text)
                 accepted.append(a.alert_id)
         if not accepted:
@@ -496,7 +496,7 @@ class UtterancePipeline:
         for a in alerts:
             if a.alert_id not in listed or a.kind != "compliance":
                 continue
-            check = check_correction(text, a, rt.catalog.get_product(a.product_id).approved_claims, rt.ctx.reflex)
+            check = check_correction(text, a, rt.catalog.get_product(a.product_id).approved_claims, rt.reflex)
             if check.ok:
                 accepted.append(a.alert_id)
             else:
@@ -957,7 +957,7 @@ async def set_cue_locked(rt: "SessionRuntime", text: str, preset_id: str | None)
 async def send_cue(rt: "SessionRuntime", text: str | None, preset_id: str | None) -> HostCue:
     async with rt.lock:
         if preset_id:
-            preset = next((p for p in rt.ctx.pack.notices.host_cue_presets if p.cue_id == preset_id), None)
+            preset = next((p for p in rt.pack.notices.host_cue_presets if p.cue_id == preset_id), None)
             if preset is None:
                 raise ActionError(404, "unknown_preset", f"cue preset {preset_id} not found")
             seg = await rt.current_segment()
@@ -1046,7 +1046,7 @@ async def render_ack(rt: "SessionRuntime", aid: str) -> None:
 
 def notice_template(rt: "SessionRuntime", a: Alert) -> str:
     """Prefilled 'Post notice' text from templates/notices.json (§8.5, §8.13)."""
-    notices = rt.ctx.pack.notices
+    notices = rt.pack.notices
     sets = {o.set_id: o.name for o in rt.catalog.set_offers}  # a set price note names the set
     name = sets.get(a.product_id) or rt.catalog.get_product(a.product_id).name
     if a.kind == "compliance":

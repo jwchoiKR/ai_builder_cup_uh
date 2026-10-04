@@ -468,7 +468,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
         c for p in rt.catalog.products for c in p.not_approved_claims]
     ok, errors = verify_answer(out, passages, product_id, multi=product_id is None,
-                               reflex=rt.ctx.reflex, not_approved_claims=not_approved)
+                               reflex=rt.reflex, not_approved_claims=not_approved)
     if ok:
         ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario)
     by_id = {p.passage_id: p for p in passages}
@@ -598,9 +598,9 @@ async def write_answer(rt: "SessionRuntime", gid: str, text: str, origin: str, c
         raise ActionError(400, "empty_answer", "reply text is empty")
     if origin not in ("operator_edit", "operator_written"):
         raise ActionError(400, "invalid_origin", "origin must be operator_edit or operator_written")
-    hit = rt.ctx.reflex.first_hit(text)
+    hit = rt.reflex.first_hit(text)
     if hit is not None and not confirm:
-        rule = rt.ctx.pack.rules_by_id[hit.rule_id]
+        rule = rt.pack.rules_by_id[hit.rule_id]
         raise ActionError(409, "restricted_phrase",
                           f"This reply contains a restricted phrase: '{hit.phrase}' ({rule.title}).")
     async with rt.lock:
