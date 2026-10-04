@@ -678,3 +678,9 @@ D-118: The next final continuing the same claim adds no second card (voice rehea
 - **Why:** "The ampoule treats acne." / "So you will never break out again." came back as two finals and raised ASEAN-3-SKIN-ACNE twice: two red cards ("1 of 2"), and a correction of the first claim did not clear the second card because its span was different.
 - **Now:** when the previous final (in transcript order, same segment, inside `UTTERANCE_MERGE_WINDOW_MS`) already has an active or provisional alert of a rule, the next final's verdict for that rule adds no new alert. Separate sentences further apart keep §8.4.2 (a repeat is a new alert), and a repeat after a correction still alerts (D-108). In-memory check only; the 3 s alert path is unchanged.
 - **Tests:** `test_alerts.py` (adjacent continuation: one card; repeat 5 s later: second card).
+
+D-119: Settings gear on the host screen: reading size and microphone input (user, 10/5; nothing else is added).
+- **Reading size** 100 / 125 / 150% multiplies the host screen's scale (`--hs`); stored per browser (`ls.host.size`). The prompter box still fits by shrinking or growing (D-107).
+- **Microphone input:** a list of the audio inputs (labels appear after the browser has granted access once) and "System default"; stored per browser (`ls.mic.device`). A running microphone switches to the chosen input at once.
+- Both can be set before the show and changed during it; storage errors are ignored. No thresholds, timers or pacing in Settings.
+- **Tests:** `host.test.tsx` (scale × 1.5 remembered; device list and choice).

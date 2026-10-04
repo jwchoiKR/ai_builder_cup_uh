@@ -568,3 +568,37 @@ describe("chat folding (D-115)", () => {
     expect(alsoAnsweredNames(items as never).get("cm_a")).toEqual(["Ben", "Cy"]);
   });
 });
+
+describe("host settings: reading size and microphone (D-119)", () => {
+  it("reading size scales the host screen and is remembered", async () => {
+    const { setReadingSize } = await import("../../app/prefs");
+    try {
+      const { container } = render(view({}));
+      const root = container.querySelector('[data-screen="host"]') as HTMLElement;
+      const base = Number(root.style.getPropertyValue("--hs"));
+      act(() => setReadingSize(1.5));
+      expect(Number(root.style.getPropertyValue("--hs"))).toBeCloseTo(base * 1.5);
+      expect(window.localStorage.getItem("ls.host.size")).toBe("1.5");
+    } finally {
+      act(() => setReadingSize(1));
+    }
+  });
+
+  it("the gear lists microphones and remembers the choice", async () => {
+    const devices = [{ kind: "audioinput", deviceId: "mic-usb", label: "USB mic" }];
+    vi.stubGlobal("navigator", { ...navigator, mediaDevices: { enumerateDevices: async () => devices } });
+    const { getMicDevice, setMicDevice } = await import("../../app/prefs");
+    try {
+      render(<HostView state={{ ...reduceSnapshot(snapshot(), "host", now()), serverOffsetMs: 0 }} catalog={cat}
+        connection="connected" theme="dark" themePref="system" onSetTheme={vi.fn()} actions={actions()} />);
+      fireEvent.click(screen.getByTestId("settings-button"));
+      const select = screen.getByTestId("settings-mic") as HTMLSelectElement;
+      await screen.findByText("USB mic");
+      fireEvent.change(select, { target: { value: "mic-usb" } });
+      expect(getMicDevice()).toBe("mic-usb");
+    } finally {
+      act(() => setMicDevice(null));
+      vi.unstubAllGlobals();
+    }
+  });
+});

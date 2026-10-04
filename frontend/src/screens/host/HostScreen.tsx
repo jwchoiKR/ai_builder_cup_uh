@@ -24,6 +24,7 @@ import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
 import { useCatalog, useNow, useSession } from "../../app/store";
 import { useT } from "../../app/i18n";
+import { useReadingSize } from "../../app/prefs";
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { Catalog } from "../../app/types";
 import { Countdown, Elapsed, SettingsButton } from "../../components";
@@ -174,7 +175,8 @@ export function HostView({
 }) {
   const t = useT();
   const rootRef = useRef<HTMLDivElement>(null);
-  const scale = useHostScale(rootRef);
+  const readingSize = useReadingSize(); // D-119: 100 / 125 / 150% from the Settings gear
+  const scale = useHostScale(rootRef) * readingSize;
   const clientNow = useNow(250);
   const now = clientNow + state.serverOffsetMs;
   const mic = useMic();
@@ -245,7 +247,7 @@ export function HostView({
         catalog={catalog}
         now={now}
         mic={mic}
-        settings={embedded ? null : <SettingsButton themePref={themePref} onTheme={onSetTheme} />}
+        settings={embedded ? null : <SettingsButton themePref={themePref} onTheme={onSetTheme} host />}
       />
       <div className={styles.content}>
         <div className={styles.main}>

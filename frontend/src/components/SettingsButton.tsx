@@ -1,9 +1,12 @@
-// Settings gear (D-109): theme and UI language. Replaces the light/dark toggle on the host and
+// Settings gear (D-109, D-119): theme and UI language; on the host screen also reading size and the
+// microphone input. Replaces the light/dark toggle on the host and
 // operator screens. The language applies to every screen of this browser; on-air text never changes.
 import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { LANGS, setLang, useLang, useT } from "../app/i18n";
+import { mic } from "../app/mic";
+import { listMicDevices, READING_SIZES, setReadingSize, useMicDevice, useReadingSize } from "../app/prefs";
 import type { ThemePref } from "../app/theme";
 import styles from "./ui.module.css";
 
@@ -13,8 +16,23 @@ const THEMES: { value: ThemePref; label: string }[] = [
   { value: "system", label: "System" },
 ];
 
-export function SettingsButton({ themePref, onTheme }: { themePref?: ThemePref; onTheme?: (t: ThemePref) => void }) {
+export function SettingsButton({
+  themePref,
+  onTheme,
+  host = false,
+}: {
+  themePref?: ThemePref;
+  onTheme?: (t: ThemePref) => void;
+  /** D-119: the host screen also offers reading size and the microphone input */
+  host?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const size = useReadingSize();
+  const device = useMicDevice();
+  const [devices, setDevices] = useState<{ deviceId: string; label: string }[]>([]);
+  useEffect(() => {
+    if (open && host) void listMicDevices().then(setDevices);
+  }, [open, host]);
   const root = useRef<HTMLDivElement>(null);
   const lang = useLang();
   const t = useT();
@@ -59,6 +77,36 @@ export function SettingsButton({ themePref, onTheme }: { themePref?: ThemePref; 
                   {t(o.label)}
                 </label>
               ))}
+            </fieldset>
+          )}
+          {host && (
+            <fieldset className={styles.settingsGroup}>
+              <legend>{t("Reading size")}</legend>
+              {READING_SIZES.map((v) => (
+                <label key={v}>
+                  <input type="radio" name="settings-size" checked={size === v} onChange={() => setReadingSize(v)} />
+                  {Math.round(v * 100)}%
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {host && (
+            <fieldset className={styles.settingsGroup}>
+              <legend>{t("Microphone")}</legend>
+              <select
+                className={styles.settingsSelect}
+                aria-label={t("Microphone")}
+                value={device ?? ""}
+                onChange={(e) => void mic.useDevice(e.target.value || null)}
+                data-testid="settings-mic"
+              >
+                <option value="">{t("System default")}</option>
+                {devices.map((d) => (
+                  <option key={d.deviceId} value={d.deviceId}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
             </fieldset>
           )}
           <fieldset className={styles.settingsGroup}>

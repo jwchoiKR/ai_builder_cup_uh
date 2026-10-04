@@ -11,6 +11,9 @@ export const KO_HOST: Record<string, string> = {
   Dark: "다크",
   System: "시스템 설정",
   "Screen language": "화면 언어",
+  "Reading size": "글자 크기",
+  Microphone: "마이크",
+  "System default": "시스템 기본",
   "Labels only. What you say on air is not translated.": "화면 글자만 바뀝니다. 방송에서 말할 문장은 번역하지 않습니다.",
   // top bar
   LIVE: "LIVE",
