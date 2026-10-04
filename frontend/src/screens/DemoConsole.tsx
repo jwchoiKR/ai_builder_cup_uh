@@ -1,6 +1,6 @@
 // Demo Console (§12.6): session controls, feed and bursts, host-line injection, mic, tools.
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from "react";
 
 import { api } from "../app/api";
 import { navigate, withSession } from "../app/nav";
@@ -17,6 +17,29 @@ export const BURST_BUTTONS: { id: string; label: string }[] = [
   { id: "B3", label: "B3 Sensitive & spam" },
   { id: "B4", label: "B4 Time sale questions" },
 ];
+
+// The open console's height, remembered per browser. Storage may throw (private mode): fall back.
+const HEIGHT_KEY = "ls.console.height";
+const MIN_HEIGHT = 120;
+const maxHeight = () => Math.round(window.innerHeight * 0.85);
+const clampHeight = (h: number) => Math.max(MIN_HEIGHT, Math.min(maxHeight(), Math.round(h)));
+
+export function readConsoleHeight(): number | null {
+  try {
+    const v = Number(window.localStorage.getItem(HEIGHT_KEY));
+    return v > 0 ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeConsoleHeight(h: number): void {
+  try {
+    window.localStorage.setItem(HEIGHT_KEY, String(h));
+  } catch {
+    // not remembered; the console still resizes
+  }
+}
 
 const isArmed = (feed: FeedState | null, id: string) =>
   Boolean(feed?.armed.some((k) => k === id || k.startsWith(`${id}_`)));
@@ -42,6 +65,32 @@ export function DemoConsole({
   const [freeText, setFreeText] = useState("");
   const mic = useMic();
   const health = useHealth();
+  const drawer = useRef<HTMLElement>(null);
+  const [height, setHeight] = useState<number | null>(() => readConsoleHeight());
+  const resizeTo = (h: number) => {
+    const next = clampHeight(h);
+    setHeight(next);
+    writeConsoleHeight(next);
+  };
+  const startResize = (e: PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = drawer.current?.getBoundingClientRect().height ?? 300;
+    const move = (ev: globalThis.PointerEvent) => setHeight(clampHeight(startH + startY - ev.clientY));
+    const up = (ev: globalThis.PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      resizeTo(startH + startY - ev.clientY);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+  const resizeByKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = e.key === "ArrowUp" ? 24 : e.key === "ArrowDown" ? -24 : 0;
+    if (!step) return;
+    e.preventDefault();
+    resizeTo((height ?? drawer.current?.getBoundingClientRect().height ?? 300) + step);
+  };
 
   useEffect(() => setFeed(state.feed), [state.feed]);
   useEffect(() => setInjected(new Set()), [sessionId]);
@@ -75,7 +124,25 @@ export function DemoConsole({
   const b5Armed = isArmed(feed, "B5");
 
   return (
-    <section className={styles.drawer} aria-label="Demo console">
+    <section
+      ref={drawer}
+      className={styles.drawer}
+      aria-label="Demo console"
+      style={open && height ? { height, maxHeight: "none" } : undefined}
+    >
+      {open && (
+        <div
+          className={styles.grip}
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label="Resize demo console"
+          aria-valuenow={height ?? undefined}
+          tabIndex={0}
+          onPointerDown={startResize}
+          onKeyDown={resizeByKey}
+          data-testid="console-grip"
+        />
+      )}
       <button type="button" className={styles.handle} onClick={onToggle} aria-expanded={open}>
         {open ? <ChevronDown size={16} aria-hidden /> : <ChevronUp size={16} aria-hidden />}
         Demo console

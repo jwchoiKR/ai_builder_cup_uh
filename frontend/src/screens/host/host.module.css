@@ -246,23 +246,6 @@
 }
 
 /* banner row: expands smoothly instead of pushing the layout in one jump (§12.10) */
-.banners {
-  flex: none;
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows var(--motion) var(--ease);
-}
-.bannersOpen {
-  grid-template-rows: 1fr;
-}
-.bannersInner {
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  gap: calc(10px * var(--hs));
-}
-
 .banner {
   display: flex;
   align-items: center;
@@ -292,33 +275,7 @@
   flex-direction: column;
   gap: calc(4px * var(--hs));
 }
-.bannerTitleRow {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: calc(18px * var(--hs));
-}
-.bannerTitle {
-  font-size: calc(18px * var(--hs));
-  font-weight: var(--fw-semibold);
-}
-.bannerSub {
-  font-size: calc(15px * var(--hs));
-  opacity: 0.9;
-}
-.bannerAside {
-  flex: none;
-  font-size: calc(14px * var(--hs));
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--eyebrow-tracking);
-}
 
-/* 12.3.5 fact note (amber) */
-.fact {
-  background: var(--fact-bg);
-  border-color: var(--fact-border);
-  color: var(--fact-text);
-}
 .factValues {
   display: inline-flex;
   align-items: baseline;
@@ -334,10 +291,6 @@
 .factRight {
   font-weight: var(--fw-semibold);
   color: var(--text);
-}
-.factArrow {
-  width: calc(26px * var(--hs));
-  height: calc(26px * var(--hs));
 }
 
 /* 12.3.9 switch banner (green) */
@@ -412,8 +365,16 @@
   grid-template-rows: 1fr 1fr;
   gap: calc(20px * var(--hs));
 }
-.leftWithPd {
-  grid-template-rows: auto 1fr 1fr;
+/* D-107: the cue, the switch banner and the AI PD card come and go here, above the questions,
+   so the prompter box above never moves */
+.leftBottom {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(12px * var(--hs));
+}
+.leftBottom > :last-child {
+  flex: 1 1 0;
 }
 .right {
   min-height: 0;
@@ -518,22 +479,19 @@
 .prompterBox {
   flex: 1;
   min-height: 0;
+  padding: calc(14px * var(--hs)) calc(24px * var(--hs)) calc(16px * var(--hs));
+  overflow: hidden; /* useFit shrinks the content, or grows the card: never clipped */
+}
+.fit {
   display: flex;
   flex-direction: column;
   gap: calc(12px * var(--hs));
-  padding: calc(14px * var(--hs)) calc(24px * var(--hs)) calc(16px * var(--hs));
-  overflow: hidden;
 }
 .facts {
   flex: 1;
-  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1.5fr);
   gap: calc(28px * var(--hs));
-}
-.facts > div {
-  min-height: 0;
-  overflow: hidden;
 }
 .factsLabel {
   margin: 0 0 calc(8px * var(--hs));
@@ -602,6 +560,33 @@
   font-size: calc(22px * var(--hs));
   font-weight: var(--fw-semibold);
 }
+/* D-107: from 80% of the planned time, the unsaid lead point is emphasised once (no repeat pulses) */
+.leadLate {
+  border-radius: var(--radius-control);
+  background: var(--fact-bg);
+  box-shadow: 0 0 0 calc(4px * var(--hs)) var(--fact-bg);
+  animation: leadLateOnce 1.2s var(--ease) 1;
+}
+@keyframes leadLateOnce {
+  0%,
+  40% {
+    box-shadow: 0 0 0 calc(4px * var(--hs)) var(--fact-bg), 0 0 0 calc(7px * var(--hs)) var(--fact-border);
+  }
+  100% {
+    box-shadow: 0 0 0 calc(4px * var(--hs)) var(--fact-bg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .leadLate {
+    animation: none;
+  }
+}
+.pointsStatus {
+  margin-bottom: calc(6px * var(--hs));
+  font-size: calc(15px * var(--hs));
+  font-weight: var(--fw-semibold);
+  color: var(--text-2);
+}
 .pointIcon {
   display: grid;
   place-items: center;
@@ -635,6 +620,7 @@
 }
 .guards {
   flex: none;
+  margin-top: auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
   gap: calc(24px * var(--hs));
@@ -986,11 +972,9 @@
 /* the alerts take the product box: one fills it, several stack in it */
 .prompterAlerts {
   flex: 1;
-  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: calc(10px * var(--hs));
-  overflow: auto;
 }
 .prompterAlerts > * {
   flex: 1 1 auto;
@@ -1009,6 +993,11 @@
   background: var(--risk-bg);
   border-color: var(--risk-strong);
   color: var(--risk-text);
+}
+.alertFact {
+  background: var(--fact-bg);
+  border-color: var(--fact-border);
+  color: var(--fact-text);
 }
 .alertMedium {
   background: var(--fact-bg);

@@ -7,6 +7,21 @@
   max-height: 46vh;
 }
 
+/* drag to resize the open console (height remembered per browser) */
+.grip {
+  flex: none;
+  height: 8px;
+  cursor: ns-resize;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  touch-action: none;
+}
+.grip:hover,
+.grip:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
 .handle {
   display: flex;
   align-items: center;
@@ -24,6 +39,7 @@
 }
 
 .content {
+  flex: 1;
   overflow: auto;
   padding: var(--space-4);
   display: grid;

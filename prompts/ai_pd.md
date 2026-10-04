@@ -17,11 +17,12 @@ line to say. Pick the single most useful card for THIS moment, or "none".
 
 Priorities, in order:
 1. A promo that just started or is about to end: viewers act on it now.
-2. A required talking point that is still missing when more than half of the product's planned time
-   has passed. Hosts forget these and cannot go back after the switch.
+2. Near the end of the planned time, when required points are still missing: the switch or wrap-up
+   card that names them ("Before switching: ..."). Hosts cannot go back after the switch.
 3. A viewer question in the host queue: answering it keeps viewers and converts them.
 4. Moving to the next product (or wrapping up) when the required points are done and time is nearly up.
-5. During a pause (`silent` is true), any point that is not covered yet, so the host never goes quiet.
+
+The prompter already shows the host's next talking point, so there is no card for talking points.
 
 Rules
 - Choose "none" when the host is in the middle of a topic that a card would interrupt and nothing is
@@ -53,10 +54,10 @@ Pick one card id or "none".
 ## EXAMPLES (few-shot, include all of them in the prompt)
 
 Example A
-SHOW_STATE: {"product":"Demo Balm","elapsed_s":420,"planned_s":600,"silent":false,"recent_lines":["It melts right into the skin."]}
-CANDIDATES: [{"id":"point:db-p3","kind":"cover_point","say":"Dermatologist tested on 40 people."},{"id":"question:g_kids","kind":"answer_question","say":"Yes, from age three, a thin layer."}]
+SHOW_STATE: {"product":"Demo Balm","elapsed_s":520,"planned_s":600,"silent":false,"recent_lines":["It melts right into the skin."]}
+CANDIDATES: [{"id":"switch:dm:db-p3","kind":"switch_product","say":"Before switching: Dermatologist tested on 40 people, then introduce Demo Mist."},{"id":"question:g_kids","kind":"answer_question","say":"Yes, from age three, a thin layer."}]
 ```json
-{"choice":"point:db-p3","reason":"Required point missing past half the planned time."}
+{"choice":"switch:dm:db-p3","reason":"Time nearly up; a required point is still missing."}
 ```
 
 Example B
@@ -68,7 +69,7 @@ CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 30 
 
 Example C
 SHOW_STATE: {"product":"Demo Balm","elapsed_s":200,"planned_s":600,"silent":false,"recent_lines":["Now the texture, see how it spreads", "and it is not sticky at all"]}
-CANDIDATES: [{"id":"point:db-p5","kind":"cover_point","say":"No added fragrance."}]
+CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 30 mL jar."}]
 ```json
 {"choice":"none","reason":"Host is mid-topic; nothing urgent."}
 ```

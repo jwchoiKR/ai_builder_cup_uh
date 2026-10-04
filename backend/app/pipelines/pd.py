@@ -184,6 +184,11 @@ class PdDirector:
             old = s.pd_card
             if old is not None and old.status == "active":
                 if old.ref_id == chosen.ref_id:
+                    if old.say != chosen.say:  # same card, fewer points left (D-107): refresh its text
+                        s = await rt.load_session()
+                        s.pd_card = old.model_copy(update={"say": chosen.say, "detail": chosen.detail})
+                        await rt.save_session(s)
+                        await rt.emit("pd.card", s.pd_card)
                     return
                 if st.now < old.hold_until and not self.is_done(old, st):
                     return

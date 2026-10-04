@@ -63,6 +63,33 @@ describe("screens", () => {
     expect(screen.getAllByText("Viewer").length).toBeGreaterThan(0);
   });
 
+  it("the open demo console resizes by keyboard, remembers its height, and survives a throwing storage", async () => {
+    window.localStorage.removeItem("ls.console.height");
+    const { unmount } = render(<Studio sessionId="ses_000001" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
+    const grip = await screen.findByTestId("console-grip");
+    fireEvent.keyDown(grip, { key: "ArrowUp" });
+    const saved = Number(window.localStorage.getItem("ls.console.height"));
+    expect(saved).toBeGreaterThanOrEqual(120);
+    expect(grip.parentElement).toHaveStyle({ height: `${saved}px` });
+    // collapsing leaves only the thin bar
+    fireEvent.click(screen.getByRole("button", { name: /Demo console/ }));
+    expect(screen.queryByTestId("console-grip")).toBeNull();
+    unmount();
+
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    render(<Studio sessionId="ses_000001" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
+    fireEvent.keyDown(await screen.findByTestId("console-grip"), { key: "ArrowDown" });
+    expect(screen.getByTestId("console-grip")).toBeInTheDocument();
+    vi.restoreAllMocks();
+  });
+
   it("Hub links every screen", async () => {
     render(<Hub sessionId="ses_000001" />);
     for (const name of ["Studio", "Host screen", "Operator", "Viewer", "Setup", "Summary"]) {

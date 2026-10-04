@@ -89,6 +89,18 @@ describe("prompter", () => {
     expect(screen.getAllByText("REQUIRED")).toHaveLength(1);
   });
 
+  it("D-107: status line with points and time left; the lead point is emphasised once from 80% of the time", () => {
+    const at = (share: number) => view({ segments: [segment({ started_at: now() - 900_000 * share, covered_point_ids: ["cr-p2"] })] });
+    const { rerender } = render(at(0.5));
+    expect(screen.getByTestId("host-points-status")).toHaveTextContent(/^1 required point left · 7:(29|30)$/);
+    expect(screen.getByTestId("host-point-cr-p3")).not.toHaveAttribute("data-late");
+    rerender(at(0.85));
+    expect(screen.getByTestId("host-point-cr-p3")).toHaveAttribute("data-late", "true");
+    expect(screen.getByTestId("host-point-cr-p3").className).toMatch(/leadLate/);
+    rerender(at(1.1));
+    expect(screen.getByTestId("host-points-status")).toHaveTextContent(/^1 required point left · \+1:(29|30) over$/);
+  });
+
   it("D-106: price, ingredient numbers, cautions and wording to avoid; said ingredients turn grey", () => {
     const { rerender } = render(view({}));
     expect(screen.getByTestId("host-ing-panthenol")).toHaveTextContent("5%Panthenol");
@@ -131,19 +143,36 @@ describe("fact note", () => {
     quote: "Live broadcast price: S$36.00",
   });
 
-  it("shows wrong -> right with source, and never strikes through the wrong value", () => {
+  it("takes the prompter box: heard small, right value biggest, source; never struck through (D-107)", () => {
     render(view({ alerts: [fx] }));
-    const note = screen.getByTestId("host-fact-note");
-    expect(note).toHaveTextContent("Price correction");
+    const note = within(screen.getByTestId("host-prompter")).getByTestId("host-fact-note");
+    expect(screen.queryByTestId("host-point-cr-p1")).toBeNull(); // the product info gives way
+    expect(note).toHaveTextContent("PRICE CORRECTION");
+    expect(note).toHaveTextContent("Say this instead.");
     expect(note).toHaveTextContent("Live broadcast price · Source: product sheet, Key facts");
-    expect(note).toHaveTextContent("SAY THE UPDATED PRICE");
     const wrong = screen.getByTestId("host-fact-wrong");
-    expect(wrong).toHaveTextContent("✕ S$32");
+    expect(wrong).toHaveTextContent("Heard: ✕ S$32");
     expect(screen.getByTestId("host-fact-right")).toHaveTextContent("○ S$36.00");
     expect(wrong.closest("s, del, strike")).toBeNull();
     expect(wrong.querySelector("s, del, strike")).toBeNull();
     expect(wrong.style.textDecoration).not.toContain("line-through");
     expect(wrong.className).not.toMatch(/strike/i);
+  });
+
+  it("a corrected fact shows the green Corrected in the box (D-107)", () => {
+    const { rerender } = render(view({ alerts: [fx] }));
+    rerender(view({ alerts: [{ ...fx, status: "corrected", resolved_at: now() }] }));
+    expect(screen.queryByTestId("host-fact-note")).toBeNull();
+    expect(within(screen.getByTestId("host-prompter")).getByTestId("host-corrected")).toHaveTextContent("Corrected");
+  });
+
+  it("stacks HIGH, then fact notes, then MEDIUM in the box (D-107)", () => {
+    const high = alert({ alert_id: "al_000010", span: "erases wrinkles" });
+    const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best" });
+    render(view({ alerts: [medium, fx, high] }));
+    const box = screen.getByTestId("host-prompter-alerts");
+    expect([...box.children].map((c) => c.getAttribute("data-testid"))).toEqual([
+      "host-compliance-overlay", "host-fact-note", "host-medium-banner"]);
   });
 
   it("is hidden after host_hidden_at and when corrected", () => {
@@ -414,6 +443,12 @@ describe("AI PD card", () => {
 
     fireEvent.click(screen.getByTestId("host-pd-dismiss"));
     expect(acts.dismissPd).toHaveBeenCalledTimes(2);
+  });
+
+  it("sits below the prompter, so the prompter box never moves (D-107)", () => {
+    render(view({ session: session({ pd_card: pdCard({ status: "active" }) }) }));
+    expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
+    expect(screen.getByTestId("host-prompter").previousElementSibling).toBeNull();
   });
 
   it("hidden while HIGH compliance overlay is active, returns after", () => {

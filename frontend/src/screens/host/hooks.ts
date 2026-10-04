@@ -83,8 +83,8 @@ export function usePresence<T>(items: T[], keyOf: (item: T) => string, ms = 200)
   return [...present, ...exiting];
 }
 
-/** The green "Corrected" bar: shown for `toastMs` when this client saw a compliance alert go from
- * active to corrected. A dismiss closes the overlay without it (§12.3.7). */
+/** The green "Corrected" bar: shown for `toastMs` when this client saw a compliance alert or a fact
+ * note go from active to corrected. A dismiss closes the alert without it (§12.3.7). */
 export function useCorrectedToast(alerts: Record<string, Alert>, toastMs: number): Alert | null {
   const seen = useRef<Map<string, Alert["status"]>>(new Map());
   const [toast, setToast] = useState<{ alert: Alert; until: number } | null>(null);
@@ -92,7 +92,7 @@ export function useCorrectedToast(alerts: Record<string, Alert>, toastMs: number
   useEffect(() => {
     let fresh: Alert | null = null;
     for (const a of Object.values(alerts)) {
-      if (a.kind !== "compliance") continue;
+      // D-107: a corrected fact note confirms in green too, in the same box
       const before = seen.current.get(a.alert_id);
       if (before === "active" && a.status === "corrected") fresh = a;
       seen.current.set(a.alert_id, a.status);
