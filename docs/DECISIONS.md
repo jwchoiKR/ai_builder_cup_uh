@@ -656,3 +656,9 @@ D-115: Host screen fixes after the GPT/Gemini review of 62cff40 (user approved).
 - **Red alert:** unchanged.
 - **Fewer repeated badges:** no "REQUIRED" on every point (the counter, the status line and the checkmarks carry it); in the host chat, later askers of one coalesced reply fold into one note under the first asker ("Also answered: @A, @B").
 - **Tests:** `host.test.tsx` (compact Corrected with points visible, switch in the status line, no REQUIRED tags, chat folding).
+
+D-116: Verbal-post fixes from the hidden set (41814a3: public 3/78 missed, hidden 11/66 missed, 0 false posts; bar is 100%).
+- **Spoken decimals:** "zero point two percent", "five point five" now normalise to 0.2 and 5.5 before the number check (`publish.spoken_numbers`). Caused HV06, HV13 and HV22 (9 misses).
+- **No test qualifier on ingredient amounts, prices, volumes or pH:** in 2 of 3 runs the compliance judge raised `BRAND-TEST-QUALIFIER` (MEDIUM, on air) on "The cream has five percent panthenol." The rule text now says that only results of a test or study need the qualifier. Code guard: a qualifier verdict whose sentence matches none of the product's in-house results (`qualified_results`, by numbers or words) is dropped. Not chosen: gating on the fact checker's field label, because the fact checker runs in parallel and often finishes after the alert is already shown. This also replaces D-105's "no match: generic line".
+- **Implicit answers (V45):** both judge prompts say that giving the facts or advice of a suggested answer answers it, even without "yes" or naming the question.
+- **Scorer:** `--cases <file>` runs any case file in `data/eval` (e.g. `verbal_post_holdout.jsonl`). Unit tests now run the code checks on the public and hidden cases.

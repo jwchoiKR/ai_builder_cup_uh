@@ -70,14 +70,19 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     # D-105: a sentence that names our own test never breaks the test-qualifier rule
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
                                and not (v.rule_id == qualifier.RULE_ID and qualifier.is_qualified(text))]
+    kept = []
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
         if v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
             r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air])
-            v.say_instead = r.say if r else ""  # empty: the host card says to add the qualifier
+            if r is None:
+                continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
+            v.say_instead = r.say
         else:
             v.say_instead = spoken_claim(v.say_instead)
+        kept.append(v)
+    o.compliance.violations = kept
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
     o.correction.corrects_alert_ids = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a in alert_ids]
     return o
