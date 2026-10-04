@@ -114,6 +114,14 @@
   gap: var(--space-2);
   cursor: pointer;
 }
+.settingsSelect {
+  max-width: 260px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+}
 .settingsNote {
   margin: var(--space-1) 0 0;
   font-size: var(--fs-12, 12px);

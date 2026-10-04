@@ -3,6 +3,8 @@
 // Demo Console show the same state. Reconnects automatically while the user wants it on.
 import { useSyncExternalStore } from "react";
 
+import { getMicDevice, setMicDevice } from "./prefs";
+
 export type MicState = "off" | "connecting" | "listening" | "error";
 
 export interface MicSnapshot {
@@ -45,8 +47,14 @@ class MicClient {
     this.retries = 0;
     this.set({ sessionId, state: "connecting", message: null });
     try {
+      const device = getMicDevice(); // D-119: the input chosen in Settings, else the system default
       this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          channelCount: 1,
+          ...(device ? { deviceId: { exact: device } } : {}),
+        },
       });
       this.ctx = new AudioContext();
       await this.ctx.audioWorklet.addModule("/pcm-worklet.js");
@@ -127,6 +135,16 @@ class MicClient {
   toggle(sessionId: string) {
     if (this.wanted) void this.stop();
     else void this.start(sessionId);
+  }
+
+  /** D-119: a new input was chosen in Settings; a running microphone switches to it. */
+  async useDevice(id: string | null) {
+    setMicDevice(id);
+    const sid = this.snap.sessionId;
+    if (this.wanted && sid) {
+      await this.stop();
+      await this.start(sid);
+    }
   }
 }
 
