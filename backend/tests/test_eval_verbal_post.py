@@ -31,8 +31,9 @@ def test_a_judge_that_matches_the_labels_has_no_false_posts(tmp_path):
 
 
 def test_code_checks_catch_numbers_hedges_and_retractions_even_from_a_lenient_judge():
-    def yes(c):
-        return judge_output(utterance_type="answer", matched=c["shown_group_id"], is_answer=True, consistent=True)
+    def yes(c):  # links the right question (D-112: any open question), says yes to everything else
+        target = c["expected"].get("matched_group") or c["shown_group_id"]
+        return judge_output(utterance_type="answer", matched=target, is_answer=True, consistent=True)
     s = score(rows(yes), load_cases())
     caught_by_code = {"wrong_number", "hedge", "retracted"}
     assert not [x for x in s["false_posts"] if x["category"] in caught_by_code]

@@ -31,6 +31,7 @@ class JudgeInput:
     on_air: str
     active_alerts: list[Alert] = field(default_factory=list)
     open_questions: list[tuple[QuestionGroup, str | None]] = field(default_factory=list)
+    on_screen_group_id: str | None = None  # D-112: the question card the host sees now
     cue: HostCue | None = None
     previous: list[str] = field(default_factory=list)
     points_by_product: dict[str, list[PrompterPoint]] | None = None
@@ -112,7 +113,8 @@ def build_judge_values(catalog: Catalog, inp: JudgeInput, single: bool = False) 
         "approved_claims_of_current_product_json": inputs.approved_claims_of_current_product_json(catalog, inp.on_air),
         "rules_compact_json": inputs.rules_compact_json(catalog),
         "active_alerts_json": inputs.active_alerts_json(inp.active_alerts),
-        "open_questions_json": inputs.open_questions_json(inp.open_questions, len(inp.open_questions)),
+        "open_questions_json": inputs.open_questions_json(inp.open_questions, len(inp.open_questions),
+                                                          inp.on_screen_group_id),
         "prompter_points_json": inputs.prompter_points_json(catalog, inp.on_air, inp.points_by_product),
         "host_cues_json": inputs.host_cues_json(inp.cue),
         "last_two_final_transcripts_json": inp.previous[-2:],
