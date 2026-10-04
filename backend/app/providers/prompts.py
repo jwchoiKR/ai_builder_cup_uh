@@ -19,7 +19,7 @@ from typing import Any
 
 PROMPT_NAMES = (
     "utterance_judge", "judge_single", "compliance_judge", "context_judge", "fact_checker",
-    "comment_triage", "answer_composer", "brief_agent", "broadcast_summary",
+    "comment_triage", "comment_triage_batch", "answer_composer", "brief_agent", "broadcast_summary",
 )
 
 # Rendered as plain text; every other placeholder must contain `_json` and is rendered as JSON.
@@ -277,6 +277,11 @@ def load_prompts(prompts_dir: Path, builders: Collection[str]) -> dict[str, Prom
     for name, pf in parsed.items():
         if name == "judge_single":
             prompts[name] = _build_judge_single(pf, parsed["utterance_judge"], parsed["fact_checker"])
+        elif name == "comment_triage_batch":  # the single-comment rules and examples, plus the batch rules
+            ct = parsed["comment_triage"]
+            system = (_until_rule(ct.require("SYSTEM INSTRUCTION").lines) + "\n\n"
+                      + _until_rule(pf.require("SYSTEM INSTRUCTION").lines))
+            prompts[name] = _template(pf, _with_examples(system, _examples_text(ct)))
         else:
             system = _until_rule(pf.require("SYSTEM INSTRUCTION").lines)
             prompts[name] = _template(pf, _with_examples(system, _examples_text(pf)))

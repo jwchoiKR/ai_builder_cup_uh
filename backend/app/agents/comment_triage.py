@@ -2,15 +2,17 @@
 purchase impact and sensitivity from intents.json."""
 from __future__ import annotations
 
+import asyncio
+import json
 import re
 from dataclasses import dataclass, field
 
 from ..config import Settings
 from ..logic.catalog import Catalog
 from ..logic.grouping import normalise_question
-from ..models.agent_io import SLOT_KEYS, CommentTriageOutput, ConditionSlots
+from ..models.agent_io import SLOT_KEYS, CommentTriageBatchOutput, CommentTriageOutput, ConditionSlots
 from ..models.session import QuestionGroup
-from ..providers.llm import AgentResult, LLMClient, LLMRequest
+from ..providers.llm import MOCK_FIXTURES_DIR, AgentResult, LLMClient, LLMRequest, MockBackend
 from ..providers.prompts import PromptTemplate
 from . import inputs
 
@@ -55,17 +57,19 @@ def post_validate(out: CommentTriageOutput, catalog: Catalog, text: str, open_gr
 class CommentTriage:
     name = "comment_triage"
 
-    def __init__(self, llm: LLMClient, prompt: PromptTemplate, catalog: Catalog, settings: Settings) -> None:
+    def __init__(self, llm: LLMClient, prompt: PromptTemplate, catalog: Catalog, settings: Settings,
+                 batch_prompt: PromptTemplate | None = None) -> None:
         self.llm = llm
         self.prompt = prompt
+        self.batch_prompt = batch_prompt
         self.prompt_version = prompt.version
         self.model = llm.fast.model
         self.catalog = catalog
         self.settings = settings
 
-    async def run(self, inp: TriageInput, *, deadline_ms: int) -> AgentResult[CommentTriageOutput]:
-        groups = inputs.open_groups_json(inp.open_groups, self.settings.TRIAGE_MAX_OPEN_GROUPS)
-        group_ids = {g["group_id"] for g in groups}
+    def _groups(self, open_groups: list[QuestionGroup]):
+        """OPEN_GROUPS for the prompt, their ids, and the fixture encode/decode of group ids."""
+        groups = inputs.open_groups_json(open_groups, self.settings.TRIAGE_MAX_OPEN_GROUPS)
         by_question = {normalise_question(g["canonical_question"]): g["group_id"] for g in groups}
         id_to_question = {g["group_id"]: normalise_question(g["canonical_question"]) for g in groups}
 
@@ -81,6 +85,10 @@ class CommentTriage:
                 data["group_candidate_id"] = by_question.get(ref[len(GROUP_REF):])
             return data
 
+        return groups, {g["group_id"] for g in groups}, encode, decode
+
+    async def run(self, inp: TriageInput, *, deadline_ms: int) -> AgentResult[CommentTriageOutput]:
+        groups, group_ids, encode, decode = self._groups(inp.open_groups)
         user = self.prompt.render({
             "products_compact_json": inputs.products_compact_json(self.catalog),
             "product_id_at_comment_time_minus_grace": inputs.product_id_at_comment_time_minus_grace(inp.context_product_id),
@@ -100,6 +108,62 @@ class CommentTriage:
         if res.output is not None:
             res.output = post_validate(res.output, self.catalog, inp.text, group_ids)
         return res
+
+    async def run_batch(self, inps: list[TriageInput], *, deadline_ms: int) -> list[AgentResult[CommentTriageOutput]]:
+        """Several waiting comments in one call (PLANNING 5.1.2). All items share `inps[0].open_groups`.
+        Items the model leaves out, or a failed call, fall back to one `run` per comment."""
+        assert self.batch_prompt is not None, "run_batch needs the comment_triage_batch prompt"
+        groups, group_ids, encode, decode = self._groups(inps[0].open_groups)
+        user = self.batch_prompt.render({
+            "products_compact_json": inputs.products_compact_json(self.catalog),
+            "intent_names_json": inputs.intent_names_json(self.catalog),
+            "condition_slots_json": inputs.condition_slots_json(self.catalog.pack.intents.condition_slots),
+            "open_groups_json": groups,
+            "comments_json": inputs.comments_json([(x.text, x.context_product_id) for x in inps],
+                                                  self.settings.MAX_COMMENT_CHARS),
+        })
+
+        def each(data: dict, fn) -> dict:
+            data["items"] = [fn(it) for it in data.get("items", [])]
+            return data
+
+        res = await self.llm.call(LLMRequest(
+            agent="comment_triage_batch", model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
+            prompt_version=self.batch_prompt.version, system_instruction=self.batch_prompt.system_instruction,
+            user_message=user, output_model=CommentTriageBatchOutput, deadline_ms=deadline_ms,
+            session_id=inps[0].session_id, mock_primary_text="\n".join(x.text for x in inps),
+            mock_scenario=inps[0].scenario,
+            mock_fallback=lambda _: {"items": [{**self._mock_one(x, decode), "i": i} for i, x in enumerate(inps)]},
+            fixture_encode=lambda d: each(d, encode), fixture_decode=lambda d: each(d, decode),
+            preview=f"{len(inps)} comments",
+        ))
+        by_i = {it.i: it for it in res.output.items} if res.output is not None else {}
+        out: list[AgentResult[CommentTriageOutput] | None] = []
+        for i, x in enumerate(inps):
+            it = by_i.get(i)
+            if it is None:
+                out.append(None)
+                continue
+            one = CommentTriageOutput.model_validate(it.model_dump(exclude={"i"}))
+            out.append(AgentResult(res.status, post_validate(one, self.catalog, x.text, group_ids), res.latency_ms,
+                                   res.call_id, res.error, res.meta))
+        missing = [i for i, r in enumerate(out) if r is None]
+        if missing:
+            singles = await asyncio.gather(*(self.run(inps[i], deadline_ms=self.settings.TRIAGE_TIMEOUT_MS)
+                                             for i in missing))
+            for i, r in zip(missing, singles):
+                out[i] = r
+        return out  # type: ignore[return-value]
+
+    def _mock_one(self, inp: TriageInput, decode) -> dict:
+        """Mock provider: the recorded single-comment fixture if there is one, so a burst replays
+        the same demo outputs batched or not; else the rule-based triage."""
+        mock = MockBackend(getattr(self.llm.backend, "fixtures_dir", MOCK_FIXTURES_DIR))
+        for scenario in dict.fromkeys((inp.scenario, "default")):
+            path = mock.fixture_path(self.name, inp.text, scenario)
+            if path.is_file():
+                return decode(json.loads(path.read_text(encoding="utf-8")))
+        return rule_based_triage(inp.text, inp.context_product_id, self.catalog)
 
 
 # ---- rule-based fallback for unit tests (mock provider without a fixture) -----------------------

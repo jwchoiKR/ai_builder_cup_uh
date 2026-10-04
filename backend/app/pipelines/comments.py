@@ -1,6 +1,6 @@
 """Comment pipeline (DEV_SPEC §8.8, §8.9) and operator question actions (§8.13).
 
-Steps 1-6 run concurrently per comment (triage limited to 8 at a time); grouping, routing,
+Steps 1-6 run concurrently per comment (triage through `TriageQueue`, D-102); grouping, routing,
 answering and the host queue run under the session lock.
 """
 from __future__ import annotations
@@ -91,14 +91,8 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
         if attempt == 1 and cached is not None:
             output, source, seen = CommentTriageOutput.model_validate(cached), "cache", set()
         else:
-            async with rt.triage_sem:
-                open_groups = [g for g in await rt.groups() if is_open(g)]
-                seen = {g.group_id for g in open_groups}
-                res = await rt.triage.run(
-                    TriageInput(text=comment.text, context_product_id=context_pid, open_groups=open_groups,
-                                session_id=rt.sid, scenario=scenario),
-                    deadline_ms=rt.settings.TRIAGE_TIMEOUT_MS,
-                )
+            res, seen = await rt.triage_queue.classify(
+                TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario))
             if res.status == "ok" and res.output is not None:
                 output, source = res.output, "llm"
                 rt.triage_cache.put(key, output.model_dump(mode="json"))
@@ -119,6 +113,58 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
                 continue  # D-042: triage ran on a stale list of open groups; ask once more
             await _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, source, latency_ms, scenario)
             return
+
+
+class TriageQueue:
+    """Adaptive micro-batch (PLANNING 5.1.2). A comment that finds a free slot is triaged alone at
+    once, exactly as before. Comments that arrive while all `TRIAGE_CONCURRENCY` calls are running
+    wait, and the next free slot takes up to `TRIAGE_MAX_BATCH` of them in one call. There is no
+    timer: under load, the wait for a free slot is the collection window."""
+
+    def __init__(self, rt: "SessionRuntime") -> None:
+        self.rt = rt
+        self.busy = 0
+        self.waiting: list[tuple[TriageInput, asyncio.Future]] = []
+
+    async def classify(self, inp: TriageInput):
+        """Returns the triage result and the ids of the open groups the call saw."""
+        fut = asyncio.get_running_loop().create_future()
+        self.waiting.append((inp, fut))
+        self._pump()
+        return await fut
+
+    def _pump(self) -> None:
+        st = self.rt.settings
+        while self.waiting and self.busy < st.TRIAGE_CONCURRENCY:
+            batch, self.waiting = self.waiting[:st.TRIAGE_MAX_BATCH], self.waiting[st.TRIAGE_MAX_BATCH:]
+            self.busy += 1
+            self.rt.spawn(self._run(batch), name=f"triage:{self.rt.sid}:{len(batch)}")
+
+    async def _run(self, batch: list[tuple[TriageInput, asyncio.Future]]) -> None:
+        rt = self.rt
+        try:
+            open_groups = [g for g in await rt.groups() if is_open(g)]
+            seen = {g.group_id for g in open_groups}
+            inps = [inp for inp, _ in batch]
+            for inp in inps:
+                inp.open_groups = open_groups
+            if len(inps) == 1:
+                results = [await rt.triage.run(inps[0], deadline_ms=rt.settings.TRIAGE_TIMEOUT_MS)]
+            else:
+                results = await rt.triage.run_batch(inps, deadline_ms=rt.settings.TRIAGE_BATCH_TIMEOUT_MS)
+            for (_, fut), res in zip(batch, results):
+                if not fut.done():
+                    fut.set_result((res, seen))
+        except Exception as e:  # noqa: BLE001 - every waiting comment gets the error, none hangs
+            for _, fut in batch:
+                if not fut.done():
+                    fut.set_exception(e)
+        finally:
+            for _, fut in batch:
+                if not fut.done():
+                    fut.cancel()
+            self.busy -= 1
+            self._pump()
 
 
 async def _missed_new_group(rt, output: CommentTriageOutput, pid, intent: str, seen: set[str]) -> bool:
