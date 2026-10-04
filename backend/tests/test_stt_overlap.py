@@ -111,3 +111,60 @@ async def test_without_a_standby_the_old_bridged_restart_still_works(monkeypatch
     await stream.close()
     await reader
     assert fake.speech.streams >= 2 and stream.restarts >= 1 and len(texts) >= 6
+
+
+class TrailingFragment(FakeSpeech):
+    """Like a real recognizer: when a stream's audio ends mid-word, it still finalizes the fragment."""
+
+    async def streaming_recognize(self, requests):
+        self.streams += 1
+        out: asyncio.Queue = asyncio.Queue()
+
+        async def pump():
+            audio_ms, n = 0.0, 0
+            async for req in requests:
+                if getattr(req, "audio", None):
+                    audio_ms += len(req.audio) / 32
+                    while audio_ms >= (n + 1) * WORD_MS:
+                        n += 1
+                        await out.put(_final(f"w{n}", n * WORD_MS))
+            if audio_ms > n * WORD_MS:
+                await out.put(_final(f"fragment{n + 1}", audio_ms))  # the cut-off word
+            await out.put(None)
+        asyncio.create_task(pump())
+
+        async def responses():
+            while (item := await out.get()) is not None:
+                yield item
+        return responses()
+
+
+def _final(text, end_ms):
+    return SimpleNamespace(results=[SimpleNamespace(is_final=True, alternatives=[SimpleNamespace(transcript=text)],
+                                                    result_end_offset=timedelta(milliseconds=end_ms))])
+
+
+async def test_the_old_stream_reports_no_fragment_after_the_switch(monkeypatch):
+    """D-145 (local run with real Speech-to-Text): cut off mid-sentence at the switch, the old stream
+    finalized "This serum will fill them" while the new one reported the whole sentence."""
+    monkeypatch.setattr(stt_mod, "PREWARM_MS", 3_000)
+    monkeypatch.setattr(stt_mod, "SOFT_RESTART_MS", 5_000)
+    monkeypatch.setattr(stt_mod, "STREAM_LIMIT_MS", 9_000)
+    fake = FakeStt()
+    fake.speech = TrailingFragment()
+    stream = GoogleV2Stream(fake, [])
+    texts: list[str] = []
+
+    async def read():
+        async for r in stream.results():
+            texts.append(r.text)
+    reader = asyncio.create_task(read())
+    for _ in range(95):
+        fake.clock.t += 100
+        await stream.write(FRAME)
+        await asyncio.sleep(0)
+    await asyncio.sleep(0.05)
+    await stream.close()
+    await reader
+    assert stream.restarts >= 1
+    assert sum(t.startswith("fragment") for t in texts) <= 1  # only the very last stream's, at close

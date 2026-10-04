@@ -152,6 +152,7 @@ class GoogleV2Stream:
                     switch_at = st.time_at(st.last_final_ms)
                     if nxt is not None and soft and switch_at is not None and nxt.started_at <= switch_at:
                         nxt.emit_after, nxt.active, nxt.activated = switch_at, True, time.monotonic()
+                        cur.emit_before = switch_at  # its audio is cut here: a fragment it finalizes later is not reported
                         cur.feed.put_nowait(None)
                         self.restarts += 1
                         log.info("speech stream switch #%d to the warm stream after %.0f s of audio "
@@ -215,10 +216,16 @@ class GoogleV2Stream:
                     end_at = state.time_at(end_ms) if end_ms is not None else None
                     if r.is_final and end_ms is not None:
                         state.last_final_ms = end_ms
-                    if not lane.active or not alt:
-                        continue  # a standby listens without reporting
-                    if lane.emit_after is not None and end_at is not None and end_at <= lane.emit_after + SWITCH_MARGIN_MS:
-                        continue  # said before the switch: the previous stream reported it
+                    skip = ("standby" if not lane.active else "empty" if not alt
+                            else "before switch" if lane.emit_after is not None and end_at is not None
+                            and end_at <= lane.emit_after + SWITCH_MARGIN_MS
+                            else "after switch" if lane.emit_before is not None
+                            and (end_at is None or end_at > lane.emit_before) else "")
+                    if r.is_final:
+                        log.debug("stt lane %s final end_at=%s emit_after=%s %s: %s", id(lane) % 1000, end_at,
+                                  lane.emit_after, skip or "emitted", alt)
+                    if skip:
+                        continue  # a standby listens without reporting; earlier speech was the old stream's
                     if lane.activated is not None and not lane.reported:
                         lane.reported = True
                         speech = (f"; first speech audio {(lane.first_speech - lane.activated) * 1000:.0f} ms after"
@@ -244,6 +251,7 @@ class _Lane:
     state: _StreamState = field(default_factory=_StreamState)
     task: asyncio.Task | None = None
     emit_after: int | None = None  # results ending at or before this server time are the old stream's
+    emit_before: int | None = None  # replaced: only results ending by this server time are still its own
     activated: float | None = None  # monotonic time it took over
     first_speech: float | None = None
     reported: bool = False
