@@ -21,6 +21,12 @@ class QualifiedResult(BaseModel):
     say: str
 
 
+class AvoidSaying(BaseModel):
+    """Host card hint (D-106): wording to avoid, and an approved claim to say instead (verbatim)."""
+    say_not: str
+    say: str
+
+
 class Product(BaseModel):
     product_id: str
     code: str
@@ -39,6 +45,8 @@ class Product(BaseModel):
     approved_claims: list[str]
     not_approved_claims: list[str]
     qualified_results: list[QualifiedResult] = []
+    cautions: list[str] = []  # short host lines from the sheet's Cautions section (D-106)
+    avoid_saying: list[AvoidSaying] = []
 
 
 class SetOffer(BaseModel):

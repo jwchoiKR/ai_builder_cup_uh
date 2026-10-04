@@ -193,7 +193,26 @@ export function HostView({
   const checking = provisionalAlerts(state).length > 0;
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
-  const bannersOpen = Boolean(mediums.length || facts.length || pendingSwitch);
+  const bannersOpen = Boolean(facts.length || pendingSwitch);
+  // D-106: compliance alerts and the green Corrected bar sit at the top of the prompter card.
+  const prompterAlerts =
+    high || mediums.length || toast ? (
+      <>
+        {high && (
+          <ComplianceOverlay
+            key={high.alert.alert_id}
+            view={high}
+            catalog={catalog}
+            serverOffsetMs={state.serverOffsetMs}
+            onRendered={actions.rendered}
+          />
+        )}
+        {!high && toast && <CorrectedBar />}
+        {mediums.map(({ alert: a, fact }) => (
+          <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} />
+        ))}
+      </>
+    ) : null;
 
   return (
     <div
@@ -208,9 +227,6 @@ export function HostView({
         {cue && <CueStrip cue={cue} />}
         <div className={cx(styles.banners, bannersOpen && styles.bannersOpen)}>
           <div className={styles.bannersInner}>
-            {mediums.map(({ alert: a, fact }) => (
-              <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} />
-            ))}
             {facts.slice(0, 2).map((a) => (
               <FactNote key={a.alert_id} alert={a} catalog={catalog} />
             ))}
@@ -228,7 +244,13 @@ export function HostView({
         <div className={styles.main}>
           <div className={cx(styles.left, pd && styles.leftWithPd)}>
             {pd && <PdCard card={pd} onDismiss={actions.dismissPd} />}
-            <Prompter view={prompter} product={prompter.product ?? product} price={price} checking={checking} />
+            <Prompter
+              view={prompter}
+              product={prompter.product ?? product}
+              price={price}
+              checking={checking}
+              alerts={prompterAlerts}
+            />
             <Questions slots={hostSlots(state)} catalog={catalog} />
           </div>
           <div className={styles.right}>
@@ -240,16 +262,6 @@ export function HostView({
             />
           </div>
         </div>
-        {high && (
-          <ComplianceOverlay
-            key={high.alert.alert_id}
-            view={high}
-            catalog={catalog}
-            serverOffsetMs={state.serverOffsetMs}
-            onRendered={actions.rendered}
-          />
-        )}
-        {!high && toast && <CorrectedBar />}
       </div>
     </div>
   );

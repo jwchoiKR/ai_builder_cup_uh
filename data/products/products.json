@@ -144,6 +144,20 @@
           ],
           "say": "In our in-house patch test, 0 of 32 participants had an irritation reaction."
         }
+      ],
+      "cautions": [
+        "Do not apply to broken or damaged skin.",
+        "Pregnant or breastfeeding: not specifically tested. Consult a doctor before use."
+      ],
+      "avoid_saying": [
+        {
+          "say_not": "Heals eczema",
+          "say": "Helps relieve the feeling of dryness."
+        },
+        {
+          "say_not": "Removes wrinkles",
+          "say": "Helps support the skin's moisture barrier."
+        }
       ]
     },
     {
@@ -267,6 +281,20 @@
             "30"
           ],
           "say": "In our in-house patch test, 0 of 30 participants had an irritation reaction."
+        }
+      ],
+      "cautions": [
+        "Sensitive skin may feel a mild, temporary tingling. Patch test first.",
+        "Pregnant or breastfeeding: not specifically tested. Consult a doctor before use."
+      ],
+      "avoid_saying": [
+        {
+          "say_not": "Whitens your skin",
+          "say": "Helps skin look more radiant and even-toned with continued use."
+        },
+        {
+          "say_not": "Removes wrinkles",
+          "say": "Helps reduce the look of fine dryness lines."
         }
       ]
     }

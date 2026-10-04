@@ -191,7 +191,9 @@ export const catalog: Catalog = {
     {
       product_id: CREAM, code: "DL-CR-01", name: "Hydra Barrier Cream", short_name: "the cream", eyebrow: "THE EVERYDAY ESSENTIAL",
       tagline: "", doc: "DAON_LAB_Hydra_Barrier_Cream.pdf", volume: "50 mL", list_price: 48, live_price: 36, hero_badge: "", aliases: [],
-      key_facts: {},
+      key_facts: { volume: "50 mL", panthenol: "5%", squalane: "3%", ceramide_np: "1%" },
+      cautions: ["Do not apply to broken or damaged skin."],
+      avoid_saying: [{ say_not: "Heals eczema", say: "Helps relieve the feeling of dryness." }],
       prompter_points: [
         { point_id: "cr-p1", text: "Lightweight gel-cream. Absorbs quickly.", required: false },
         { point_id: "cr-p2", text: "Ceramide NP 1%, panthenol 5%, squalane 3%.", required: true },

@@ -74,7 +74,7 @@ describe("prompter", () => {
     expect(screen.getByTestId("host-point-cr-p2")).toHaveAttribute("data-state", "todo");
     expect(screen.getByTestId("host-point-cr-p3")).toHaveAttribute("data-state", "todo");
     expect(screen.getByTestId("host-point-cr-p2")).not.toHaveAttribute("aria-current");
-    expect(screen.getAllByText("REQUIRED POINT")).toHaveLength(2);
+    expect(screen.getAllByText("REQUIRED")).toHaveLength(2);
     expect(screen.getByTestId("host-required-count")).toHaveTextContent("0 / 2 required points");
     expect(screen.getByText("YOUR PROMPTER")).toBeInTheDocument();
     expect(screen.getByText("LIVE PRICE")).toBeInTheDocument();
@@ -86,7 +86,19 @@ describe("prompter", () => {
   it("counts covered required points and drops the label", () => {
     render(view({ segments: [segment({ covered_point_ids: ["cr-p1", "cr-p2"] })] }));
     expect(screen.getByTestId("host-required-count")).toHaveTextContent("1 / 2 required points");
-    expect(screen.getAllByText("REQUIRED POINT")).toHaveLength(1);
+    expect(screen.getAllByText("REQUIRED")).toHaveLength(1);
+  });
+
+  it("D-106: price, ingredient numbers, cautions and wording to avoid; said ingredients turn grey", () => {
+    const { rerender } = render(view({}));
+    expect(screen.getByTestId("host-ing-panthenol")).toHaveTextContent("5%Panthenol");
+    expect(screen.getByTestId("host-ing-ceramide_np")).toHaveTextContent("1%Ceramide NP");
+    expect(screen.queryByTestId("host-ing-volume")).toBeNull(); // not an ingredient amount
+    expect(screen.getByTestId("host-cautions")).toHaveTextContent("Do not apply to broken or damaged skin.");
+    expect(screen.getByTestId("host-avoid")).toHaveTextContent("✕ Heals eczema→Helps relieve the feeling of dryness.");
+    expect(screen.getByTestId("host-ing-panthenol").className).not.toMatch(/said/);
+    rerender(view({ segments: [segment({ covered_point_ids: ["cr-p2"] })] }));
+    expect(screen.getByTestId("host-ing-panthenol").className).toMatch(/said/);
   });
 
   it("shows TIME SALE prices during a price promo", () => {
@@ -154,20 +166,19 @@ describe("compliance", () => {
     expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
   });
 
-  it("HIGH: full-screen overlay for the newest alert, 1 of N, render ack", () => {
+  it("HIGH: the newest alert takes the prompter box, 1 of N, render ack (D-106)", () => {
     const acts = actions();
     const older = alert({ alert_id: "al_000001", span: "older claim", shown_at: now() - 5000 });
     const newer = alert({ alert_id: "al_000002", span: "your wrinkles will disappear overnight", shown_at: now() - 1000 });
     render(view({ alerts: [older, newer] }, acts));
-    const overlay = screen.getByTestId("host-compliance-overlay");
+    const overlay = within(screen.getByTestId("host-prompter")).getByTestId("host-compliance-overlay");
+    expect(screen.queryByTestId("host-point-cr-p1")).toBeNull(); // the product info gives way, nothing else moves
     expect(overlay).toHaveTextContent("HIGH-RISK CLAIM");
-    expect(overlay).toHaveTextContent("PAUSE. CORRECT YOUR LAST STATEMENT.");
     expect(overlay).toHaveTextContent("Say this instead.");
     expect(overlay).toHaveTextContent("Helps keep skin hydrated for up to 24 hours in our in-house test.");
-    expect(overlay).toHaveTextContent('"your wrinkles will disappear overnight"');
+    expect(overlay).toHaveTextContent('Heard: "your wrinkles will disappear overnight"');
     expect(overlay).toHaveTextContent("Prevents, reduces or reverses physiological changes of ageing · Appendix III §3");
     expect(overlay).toHaveTextContent("Waiting for your correction");
-    expect(overlay).toHaveTextContent("This screen clears when your correction is confirmed.");
     expect(screen.getByTestId("host-overlay-count")).toHaveTextContent("1 of 2");
     expect(screen.queryByTestId("host-unverified")).toBeNull();
     expect(acts.rendered).toHaveBeenCalledWith("al_000002");
@@ -184,7 +195,7 @@ describe("compliance", () => {
     expect(screen.getByTestId("host-compliance-overlay")).toBeInTheDocument();
     rerender(view({ alerts: [{ ...a, status: "corrected", resolved_at: now() }] }));
     expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
-    expect(screen.getByTestId("host-corrected")).toHaveTextContent("Corrected");
+    expect(within(screen.getByTestId("host-prompter")).getByTestId("host-corrected")).toHaveTextContent("Corrected");
   });
 
   it("the Corrected bar disappears after CORRECTED_TOAST_MS", () => {
@@ -212,17 +223,17 @@ describe("compliance", () => {
     expect(screen.queryByTestId("host-corrected")).toBeNull();
   });
 
-  it("MEDIUM: red banner in the prompter area, not full screen", () => {
+  it("MEDIUM: a yellow block in the prompter box", () => {
     render(
       view({
         alerts: [alert({ rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best moisturiser in Singapore", say_instead: "It helps keep skin hydrated." })],
       }),
     );
     expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
-    const banner = screen.getByTestId("host-medium-banner");
-    expect(banner).toHaveTextContent("Avoid this claim");
+    const banner = within(screen.getByTestId("host-prompter")).getByTestId("host-medium-banner");
+    expect(banner).toHaveTextContent("CHECK WORDING");
     expect(banner).toHaveTextContent('"the best moisturiser in Singapore"');
-    expect(banner).toHaveTextContent("Say: 'It helps keep skin hydrated.'");
+    expect(banner).toHaveTextContent("Say this instead.“It helps keep skin hydrated.”");
     expect(banner).toHaveTextContent("Comparative or superlative claims");
   });
 
@@ -249,8 +260,8 @@ describe("compliance", () => {
   it("MEDIUM test qualifier: one card with the right number when the fact note is on the same sentence", () => {
     const { rerender } = render(view({ alerts: [qualifier] }));
     let banner = screen.getByTestId("host-medium-banner");
-    expect(banner).toHaveTextContent("Add 'in our in-house test'");
-    expect(banner).toHaveTextContent("Say: 'In our in-house test, skin hydration went up 45% right after one use.'");
+    expect(banner).toHaveTextContent("ADD 'IN OUR IN-HOUSE TEST'");
+    expect(banner).toHaveTextContent("“In our in-house test, skin hydration went up 45% right after one use.”");
     expect(screen.queryByTestId("host-medium-fact")).toBeNull();
 
     // the fact checker finishes later: the same card gains the number, no second banner

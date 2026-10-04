@@ -64,29 +64,31 @@ export function MediumBanner({
   /** D-105: the fact note on the same sentence, shown in this card instead of its own. */
   fact?: Alert | null;
 }) {
+  // D-106: a block at the top of the prompter card, yellow, with the replacement as the biggest text.
   const rule = ruleInfo(catalog, alert.rule_id);
   const qualifier = alert.rule_id === TEST_QUALIFIER_RULE;
   return (
-    <div className={cx(styles.banner, styles.medium)} data-testid="host-medium-banner" role="alert">
-      <span className={styles.bannerIcon} aria-hidden>
-        <ShieldAlert />
-      </span>
-      <div className={styles.bannerBody}>
-        <div className={styles.bannerTitleRow}>
-          <span className={styles.bannerTitle}>{qualifier ? "Add 'in our in-house test'" : "Avoid this claim"}</span>
-          <span className={styles.mediumSpan}>"{alert.span}"</span>
-          {fact && (
-            <span className={styles.factValues} data-testid="host-medium-fact">
-              <span className={styles.factRight}>○ {fact.correct_value}</span>
-              <span className={styles.factWrong}>(not {fact.stated_value})</span>
-            </span>
-          )}
-        </div>
-        <span className={styles.mediumSay}>
-          {alert.say_instead ? `Say: '${alert.say_instead}'` : "Say the result with 'in our in-house test'."}
+    <div className={cx(styles.alertBlock, styles.alertMedium)} data-testid="host-medium-banner" role="alert">
+      <div className={styles.alertTop}>
+        <span className={styles.warnBadge}>
+          <ShieldAlert aria-hidden />
+          {qualifier ? "ADD 'IN OUR IN-HOUSE TEST'" : "CHECK WORDING"}
         </span>
+        <span className={styles.alertSaid}>Heard: "{alert.span}"</span>
+        {fact && (
+          <span className={styles.factValues} data-testid="host-medium-fact">
+            <span className={styles.factRight}>○ {fact.correct_value}</span>
+            <span className={styles.factWrong}>(not {fact.stated_value})</span>
+          </span>
+        )}
       </div>
-      <span className={styles.bannerAside}>{rule.title}</span>
+      <span className={styles.alertSayLabel}>Say this instead.</span>
+      <span className={styles.alertSay}>
+        {alert.say_instead ? `“${alert.say_instead}”` : "Say the result with 'in our in-house test'."}
+      </span>
+      <span className={styles.alertMeta}>
+        <span className={styles.alertRule}>{rule.title}</span>
+      </span>
     </div>
   );
 }
@@ -118,6 +120,7 @@ export function SwitchBanner({
   );
 }
 
+/** D-106: in the prompter card, where the alert was. */
 export function CorrectedBar() {
   return (
     <div className={styles.corrected} data-testid="host-corrected" role="status">
