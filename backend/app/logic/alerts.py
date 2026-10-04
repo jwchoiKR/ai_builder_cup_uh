@@ -99,12 +99,12 @@ def apply_judge_failure(
 
 
 def apply_corrections(alerts: Sequence[Alert], corrects_ids: Sequence[str], t: Transcript, now: int) -> list[Alert]:
-    """§8.4.5: listed alerts and every other active alert of the same transcript become corrected."""
-    listed = {a.alert_id for a in alerts if a.alert_id in set(corrects_ids)}
-    transcripts = {a.transcript_id for a in alerts if a.alert_id in listed}
+    """The listed alerts, each already checked (D-089, D-098), become corrected. D-117: no longer every
+    other alert of the same transcript (§8.4.5): retracting one claim must not clear another one."""
+    listed = set(corrects_ids)
     out: list[Alert] = []
     for a in alerts:
-        if a.kind == "compliance" and a.status == "active" and (a.alert_id in listed or a.transcript_id in transcripts):
+        if a.kind == "compliance" and a.status == "active" and a.alert_id in listed:
             a.status, a.resolved_at = "corrected", now
             a.corrected_by_transcript_id, a.corrected_text = t.transcript_id, t.text
             out.append(a)

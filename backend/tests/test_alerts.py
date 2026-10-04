@@ -147,7 +147,8 @@ async def test_medium_alert_is_not_escalated(env):
     assert a.status == "active" and a.severity == "MEDIUM" and a.escalated_at is None
 
 
-async def test_correction_resolves_listed_and_same_transcript_alerts(env):
+async def test_correction_resolves_only_the_listed_alert(env):
+    """D-117: no longer every alert of the same transcript (§8.4.5); each claim needs its own correction."""
     rt, llm = env
     double = "It cures eczema and kills the bacteria on your skin."
     other = "You'll look ten years younger after one bottle."
@@ -161,11 +162,11 @@ async def test_correction_resolves_listed_and_same_transcript_alerts(env):
     llm.judge(fix, corrects=[first.alert_id], utterance_type="correction")
     t3 = await speak(rt, fix)
     by_rule = {a.rule_id: a for a in await rt.alerts()}
-    for rule in ("ASEAN-2D-DISEASE", "ASEAN-3-SKIN-ANTIMICROBIAL"):
-        a = by_rule[rule]
-        assert a.transcript_id == t1.transcript_id
-        assert a.status == "corrected" and a.resolved_at is not None
-        assert a.corrected_by_transcript_id == t3.transcript_id and a.corrected_text == fix
+    a = by_rule["ASEAN-2D-DISEASE"]
+    assert a.transcript_id == t1.transcript_id
+    assert a.status == "corrected" and a.resolved_at is not None
+    assert a.corrected_by_transcript_id == t3.transcript_id and a.corrected_text == fix
+    assert by_rule["ASEAN-3-SKIN-ANTIMICROBIAL"].status == "active"  # same sentence, not corrected
     assert by_rule["ASEAN-3-SKIN-AGEING"].status == "active"  # other transcript, not listed
 
 

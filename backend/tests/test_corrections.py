@@ -153,3 +153,18 @@ async def test_real_correction_clears_the_alert(env):
     await speak(rt, fix)
     a = await rt.get_alert(a.alert_id)
     assert a.status == "corrected" and a.corrected_text == fix
+
+
+async def test_correcting_one_claim_leaves_the_other_claim_of_the_same_sentence_active(env):
+    """Review B1: two rules in one sentence; retracting one must not clear the other (D-117)."""
+    rt, llm = env
+    both = "It cures eczema and your wrinkles will disappear overnight."
+    llm.judge(both, violations=[violation("ASEAN-2D-DISEASE", "cures eczema"),
+                                violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
+    await speak(rt, both)
+    alerts = {a.rule_id: a for a in await rt.alerts() if a.status == "active"}
+    fix = "Sorry, it does not cure eczema."
+    llm.judge(fix, corrects=[alerts["ASEAN-2D-DISEASE"].alert_id])
+    await speak(rt, fix)
+    assert (await rt.get_alert(alerts["ASEAN-2D-DISEASE"].alert_id)).status == "corrected"
+    assert (await rt.get_alert(alerts["ASEAN-3-SKIN-AGEING"].alert_id)).status == "active"
