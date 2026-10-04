@@ -34,7 +34,7 @@ import { useCorrectedToast, useHostScale } from "./hooks";
 import { correctedToastMs, hostProducts, hostPrompterView, promoChips, switchSecondsLeft } from "./hostSelectors";
 import styles from "./host.module.css";
 import { PdCard } from "./PdCard";
-import { Prompter } from "./Prompter";
+import { pointsStatus, Prompter } from "./Prompter";
 import { Questions } from "./Questions";
 
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
@@ -212,7 +212,7 @@ export function HostView({
   // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
   // product box, in this order: HIGH, fact notes, MEDIUM.
   const prompterAlerts =
-    high || facts.length || mediums.length || toast ? (
+    high || facts.length || mediums.length ? (
       <>
         {high && (
           <ComplianceOverlay
@@ -223,7 +223,6 @@ export function HostView({
             onRendered={actions.rendered}
           />
         )}
-        {!high && toast && <CorrectedBar />}
         {facts.slice(0, 2).map((a) => (
           <FactNote key={a.alert_id} alert={a} catalog={catalog} />
         ))}
@@ -257,18 +256,27 @@ export function HostView({
               price={price}
               checking={checking}
               alerts={prompterAlerts}
+              notice={!high && toast ? <CorrectedBar /> : null}
+              status={
+                // D-115: one reserved line, so nothing below the prompter moves
+                pendingSwitch ? (
+                  <SwitchBanner
+                    productName={target?.name ?? t("the next product")}
+                    secondsLeft={switchSecondsLeft(pendingSwitch.commit_at, now)}
+                    onCancel={actions.cancelSwitch}
+                  />
+                ) : cue ? (
+                  <CueStrip cue={cue} />
+                ) : (
+                  <span className={cx(styles.pointsStatus, "tabular")} data-testid="host-points-status">
+                    {pointsStatus(t, prompter.requiredTotal - prompter.requiredCovered, timing)}
+                  </span>
+                )
+              }
               timing={timing}
             />
             {/* D-107: everything that comes and goes sits here, so the prompter box never moves */}
             <div className={styles.leftBottom}>
-              {cue && <CueStrip cue={cue} />}
-              {pendingSwitch && (
-                <SwitchBanner
-                  productName={target?.name ?? t("the next product")}
-                  secondsLeft={switchSecondsLeft(pendingSwitch.commit_at, now)}
-                  onCancel={actions.cancelSwitch}
-                />
-              )}
               {/* D-113: one fixed AI PD card slot under the prompter, the only place an answer appears */}
               <div className={styles.pdSlot} data-testid="host-pd-slot">
                 {pd ? (

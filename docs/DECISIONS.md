@@ -648,3 +648,11 @@ D-114: Product talk that answers an open question is an answer (user, 10/5: our 
 - **Why:** on c6031d9 (D-112) 6 of 78 expected posts were missed. In every miss the judge labelled the sentence `product_talk` because it also stated a product fact or a prompter point (an ingredient amount, "no added fragrance") and so did not link it to the open question asking for that fact.
 - **Prompt** (both judges, same wording, a general rule, no case sentences): one sentence can cover a prompter point AND answer a question; `product_talk` only when the sentence answers none of the open questions; check every open question first.
 - **Scorer:** a post to any group in `matched_group` + `also_ok_groups` is correct (one sentence may answer two questions). Re-scoring the saved c6031d9 outputs: 0 false posts, 6 missed; the prompt change needs a new Vertex run.
+
+D-115: Host screen fixes after the GPT/Gemini review of 62cff40 (user approved).
+- **Corrected:** no full green box any more. A compact green "Corrected" line sits at the top of the prompter box and the product information shows at once below it, for compliance and fact corrections alike.
+- **Fact card:** keeps the box; the right value is the hero (38px), "Heard" and the source line are 16px, aligned like the red alert.
+- **Status line:** one reserved 64px line at the bottom of the prompter shows, in this order, the switch countdown with "Cancel switch (Esc)", the PD's cue, or "N required points left · m:ss". Nothing outside the prompter appears or disappears, so the AI PD card slot and the waiting list never move.
+- **Red alert:** unchanged.
+- **Fewer repeated badges:** no "REQUIRED" on every point (the counter, the status line and the checkmarks carry it); in the host chat, later askers of one coalesced reply fold into one note under the first asker ("Also answered: @A, @B").
+- **Tests:** `host.test.tsx` (compact Corrected with points visible, switch in the status line, no REQUIRED tags, chat folding).
