@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { useT } from "../../app/i18n";
 import { TEST_QUALIFIER_RULE } from "../../app/selectors";
 import type { Alert, Catalog, HostCue } from "../../app/types";
-import { factContext, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
+import { factContext, factSayLine, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
 
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
@@ -26,7 +26,13 @@ export function CueStrip({ cue }: { cue: HostCue }) {
   );
 }
 
-export function FactNote({ alert, catalog, onRendered }: { alert: Alert; catalog: Catalog | null; onRendered?: (alertId: string) => void }) {
+export function FactNote({ alert, catalog, onRendered, pricePromoTitle = null }: {
+  alert: Alert;
+  catalog: Catalog | null;
+  onRendered?: (alertId: string) => void;
+  /** the active price promotion's title, for the "during the time sale" condition (D-136) */
+  pricePromoTitle?: string | null;
+}) {
   // D-107: wrong product information is as urgent as a compliance alert, so it takes the prompter's
   // product box too: what was heard small, the right value as the biggest text.
   const t = useT();
@@ -48,9 +54,9 @@ export function FactNote({ alert, catalog, onRendered }: { alert: Alert; catalog
           {t("Heard:")} ✕ {alert.stated_value}
         </span>
       </div>
-      <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
+      {/* D-136: one line the host can read out, with the product and the promo condition */}
       <span className={styles.alertSay} data-testid="host-fact-right">
-        ○ {alert.correct_value}
+        ○ {factSayLine(catalog, alert, pricePromoTitle)}
       </span>
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>

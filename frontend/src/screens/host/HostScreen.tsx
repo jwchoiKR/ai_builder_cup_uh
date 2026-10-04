@@ -10,6 +10,7 @@ import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
   activePdCard,
+  activePricePromo,
   chatItems,
   cueStrip,
   formatClock,
@@ -225,7 +226,8 @@ export function HostView({
           />
         )}
         {facts.slice(0, 2).map((a) => (
-          <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} />
+          <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered}
+            pricePromoTitle={activePricePromo(state, catalog)?.title ?? null} />
         ))}
         {mediums.map(({ alert: a, fact }) => (
           <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered} />

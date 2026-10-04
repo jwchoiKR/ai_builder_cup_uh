@@ -156,15 +156,23 @@ describe("fact note", () => {
     const note = within(screen.getByTestId("host-prompter")).getByTestId("host-fact-note");
     expect(screen.queryByTestId("host-point-cr-p1")).toBeNull(); // the product info gives way
     expect(note).toHaveTextContent("PRICE CORRECTION");
-    expect(note).toHaveTextContent("Say this instead.");
     expect(note).toHaveTextContent("Live broadcast price · Source: product sheet, Key facts");
     const wrong = screen.getByTestId("host-fact-wrong");
     expect(wrong).toHaveTextContent("Heard: ✕ S$32");
-    expect(screen.getByTestId("host-fact-right")).toHaveTextContent("○ S$36.00");
+    // D-136: one line the host can read out, with the product
+    expect(screen.getByTestId("host-fact-right")).toHaveTextContent("○ Cream: say S$36.00");
     expect(wrong.closest("s, del, strike")).toBeNull();
     expect(wrong.querySelector("s, del, strike")).toBeNull();
     expect(wrong.style.textDecoration).not.toContain("line-through");
     expect(wrong.className).not.toMatch(/strike/i);
+  });
+
+  it("D-136: a promo price note names the product and the time sale", async () => {
+    const { factSayLine } = await import("./hostSelectors");
+    const promo = { ...fx, passage_id: null, correct_value: "S$32.40" };
+    expect(factSayLine(catalog, promo, "Time sale: extra 10% off")).toBe("Cream: say S$32.40 during the time sale");
+    expect(factSayLine(catalog, { ...fx, product_id: "set_cream_ampoule", correct_value: "S$62.00" }, null))
+      .toBe("Cream + Ampoule set: say S$62.00");
   });
 
   it("a corrected fact shows the green Corrected in the box (D-107)", () => {

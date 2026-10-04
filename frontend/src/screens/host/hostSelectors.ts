@@ -68,6 +68,19 @@ export function factSourceLabel(catalog: Catalog | null, alert: Alert): string {
   return section ? `product sheet, ${section}` : "product sheet";
 }
 
+/** D-136: the correction as the host can read it out: "Cream: say S$32.40 during the time sale". The product
+ * (or set) comes from the note; the promo condition is added when the right value comes from the active
+ * price promotion (no sheet passage). */
+export function factSayLine(catalog: Catalog | null, alert: Alert, pricePromoTitle: string | null): string {
+  const product = productById(catalog, alert.product_id);
+  const set = catalog?.set_offers.find((s) => s.set_id === alert.product_id);
+  const name = (product?.short_name ?? (set ? set.short_name || set.name : "")).replace(/^the /i, "");
+  const label = name ? `${name.charAt(0).toUpperCase()}${name.slice(1)}: ` : "";
+  const promo = pricePromoTitle ? pricePromoTitle.split(":")[0].trim().toLowerCase() : "";
+  const condition = !alert.passage_id && promo ? ` during the ${promo}` : "";
+  return `${label}say ${alert.correct_value ?? ""}${condition}`;
+}
+
 /** What the value is: the quoted passage label ("Live broadcast price", "Niacinamide"), else the
  * field label. */
 export function factContext(catalog: Catalog | null, alert: Alert): string {
