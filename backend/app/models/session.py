@@ -25,6 +25,20 @@ class HostCue(BaseModel):  # in session doc (one active)
     done_by_transcript_id: str | None = None
 
 
+class PdCard(BaseModel):  # in session doc (one at a time): the AI PD's current suggestion (PLANNING 5.1.1)
+    card_id: str
+    kind: Literal["answer_question", "cover_point", "promo", "wrap_up", "switch_product"]
+    say: str  # verified wording only: suggested answer, prompter point or promo text
+    detail: str | None = None
+    ref_id: str  # group_id | point_id | promo_id | product_id
+    created_at: int
+    hold_until: int  # not replaced before this
+    status: Literal["active", "done", "dismissed", "expired"] = "active"
+    source: Literal["ai", "rule"]
+    reason: str = ""
+    segment_id: str | None = None
+
+
 class ActivePromo(BaseModel):  # in session doc (§8.10)
     promo_id: str
     started_at: int
@@ -55,6 +69,7 @@ class Session(BaseModel):  # [sessions/{session_id}]
     pre_covered: dict[str, list[str]] = {}  # product_id -> point ids covered before it went on air
     switch: SwitchState = Field(default_factory=SwitchState)
     cue: HostCue | None = None
+    pd_card: PdCard | None = None
     host_slots: list[HostSlot] = []
     active_promos: list[ActivePromo] = []  # all running promos; active_promo_id is the price-changing one
     # Prompter points confirmed on /setup, frozen at session creation (§12.7): product_id -> points

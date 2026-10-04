@@ -85,6 +85,9 @@ class SessionRuntime:
         from .utterances import UtterancePipeline
 
         self.utterances = UtterancePipeline(self)
+        from .pd import PdDirector
+
+        self.pd = PdDirector(self)
         self.reply_latencies: defaultdict[str, list[int]] = defaultdict(list)
         self.overtime_emitted: set[str] = set()
         self._ticks = 0
@@ -112,6 +115,9 @@ class SessionRuntime:
             data["answer"] = answer.model_dump(mode="json") if answer else None
             payload = data
         await self.ctx.bus.emit(self.sid, type_, payload)
+        pd = getattr(self, "pd", None)
+        if pd is not None and type_ != "pd.card":
+            pd.on_event(type_, payload)  # only schedules work; never takes the lock
 
     def spawn(self, coro, name: str | None = None) -> asyncio.Task:
         return self.ctx.scheduler.spawn(coro, name=name)
@@ -309,6 +315,7 @@ class SessionRuntime:
                                                      "overtime_sec": over_ms // 1000})
         if self._ticks % 5 == 0:
             await self.emit("metrics.updated", await self.compute_metrics())
+        self.pd.on_tick()  # time milestones, promo endings, pauses
 
     async def simulate_overtime(self) -> Segment:
         """Demo tool: move the on-air segment start back by its planned duration."""
