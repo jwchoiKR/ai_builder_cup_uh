@@ -430,6 +430,9 @@
   grid-template-rows: 1fr 1fr;
   gap: calc(20px * var(--hs));
 }
+.leftWithPd {
+  grid-template-rows: auto 1fr 1fr;
+}
 .right {
   min-height: 0;
   display: grid;
@@ -1063,6 +1066,132 @@
     opacity: 1;
     transform: none;
   }
+}
+
+/* ---- AI PD card (§5.1) --------------------------------------------------------------------------- */
+
+.pdCard {
+  flex: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: calc(10px * var(--hs));
+  padding: calc(16px * var(--hs)) calc(22px * var(--hs));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: calc(4px * var(--hs)) solid var(--accent);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
+  animation: expandIn var(--motion) var(--ease);
+}
+.pdCardDone {
+  animation: pdCardFade 1.5s var(--ease) forwards;
+}
+@keyframes pdCardFade {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.pdTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(12px * var(--hs));
+}
+.pdHeaderLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(10px * var(--hs));
+}
+.pdSource {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(5px * var(--hs));
+  font-size: calc(12px * var(--hs));
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--eyebrow-tracking);
+  color: var(--ok-text);
+  background: var(--ok-bg);
+  border: 1px solid var(--ok-border);
+  padding: calc(2px * var(--hs)) calc(8px * var(--hs));
+  border-radius: var(--radius-chip);
+}
+.pdSourceIcon {
+  width: calc(14px * var(--hs));
+  height: calc(14px * var(--hs));
+}
+.pdKind {
+  font-size: calc(13px * var(--hs));
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--eyebrow-tracking);
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.pdHeaderRight {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(8px * var(--hs));
+}
+.pdDoneTag {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--hs));
+  font-size: calc(13px * var(--hs));
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+}
+.pdCheck {
+  width: calc(18px * var(--hs));
+  height: calc(18px * var(--hs));
+}
+.pdDismiss {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--hs));
+  padding: calc(4px * var(--hs)) calc(10px * var(--hs));
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  font-size: calc(13px * var(--hs));
+  font-weight: var(--fw-medium);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background var(--motion) var(--ease), color var(--motion) var(--ease);
+}
+.pdDismiss:hover {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--text-3);
+}
+.pdKbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(18px * var(--hs));
+  height: calc(18px * var(--hs));
+  padding: 0 calc(4px * var(--hs));
+  border-radius: calc(4px * var(--hs));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: calc(11px * var(--hs));
+  font-weight: var(--fw-semibold);
+  color: var(--text-2);
+}
+.pdSay {
+  font-size: calc(26px * var(--hs));
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+  color: var(--text);
+}
+.pdDetail {
+  font-size: calc(14px * var(--hs));
+  line-height: 1.35;
+  color: var(--text-2);
 }
 @media (prefers-reduced-motion: reduce) {
   .liveDot,

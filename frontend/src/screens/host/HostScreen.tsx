@@ -10,6 +10,7 @@ import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
   activeMediumAlerts,
+  activePdCard,
   chatItems,
   cueStrip,
   factNotesForHost,
@@ -31,6 +32,7 @@ import { ComplianceOverlay } from "./ComplianceOverlay";
 import { useCorrectedToast, useHostScale } from "./hooks";
 import { correctedToastMs, hostProducts, hostPrompterView, promoChips, switchSecondsLeft } from "./hostSelectors";
 import styles from "./host.module.css";
+import { PdCard } from "./PdCard";
 import { Prompter } from "./Prompter";
 import { Questions } from "./Questions";
 
@@ -41,6 +43,8 @@ export interface HostActions {
   rendered: (alertId: string) => void;
   /** POST /segments/cancel {by: "host"}. */
   cancelSwitch: () => void;
+  /** POST /sessions/{sid}/pd/dismiss {card_id: "..."}. */
+  dismissPd: (cardId: string) => void;
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -165,6 +169,8 @@ export function HostView({
 
   const sw = state.session?.switch;
   const pendingSwitch = sw?.status === "pending" && sw.commit_at ? sw : null;
+  const high = activeHighAlert(state);
+  const pd = !high ? activePdCard(state, clientNow) : null;
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
@@ -172,16 +178,18 @@ export function HostView({
       if (e.key === "Escape" && pendingSwitch) actions.cancelSwitch();
       else if ((e.key === "m" || e.key === "M") && sessionId) mic.toggle(sessionId);
       else if ((e.key === "t" || e.key === "T") && !embedded) onToggleTheme?.();
+      else if ((e.key === "n" || e.key === "N") && sessionId && pd && pd.status === "active") {
+        actions.dismissPd(pd.card_id);
+      }
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, [actions, embedded, onToggleTheme, pendingSwitch, sessionId, mic]);
+  }, [actions, embedded, onToggleTheme, pendingSwitch, sessionId, mic, pd]);
 
   const { now: product } = hostProducts(state, catalog);
   const prompter = hostPrompterView(state, catalog, product);
   const price = priceView(state, catalog, prompter.product ?? product);
   const cue = cueStrip(state, clientNow);
-  const high = activeHighAlert(state);
   const mediums = activeMediumAlerts(state);
   const facts = factNotesForHost(state);
   const checking = provisionalAlerts(state).length > 0;
@@ -220,7 +228,8 @@ export function HostView({
         {/* D-095: live chat is what the host watches most, so it has the whole right column; the
             prompter and the audience questions share the left one. */}
         <div className={styles.main}>
-          <div className={styles.left}>
+          <div className={cx(styles.left, pd && styles.leftWithPd)}>
+            {pd && <PdCard card={pd} onDismiss={actions.dismissPd} />}
             <Prompter view={prompter} product={prompter.product ?? product} price={price} checking={checking} />
             <Questions slots={hostSlots(state)} catalog={catalog} />
           </div>
@@ -271,12 +280,20 @@ export function HostScreen(props: ScreenProps) {
   const cancelSwitch = useCallback(() => {
     if (sid) void api.cancelSwitch(sid, "host").catch(() => undefined);
   }, [sid]);
+  const dismissPd = useCallback(
+    (cardId: string) => {
+      if (!sid) return;
+      void api.dismissPdCard(sid, cardId).catch(() => undefined);
+    },
+    [sid],
+  );
   // One stable object for the view; its functions call the latest callbacks.
-  const latest = useRef<HostActions>({ rendered, cancelSwitch });
-  latest.current = { rendered, cancelSwitch };
+  const latest = useRef<HostActions>({ rendered, cancelSwitch, dismissPd });
+  latest.current = { rendered, cancelSwitch, dismissPd };
   const [actions] = useState<HostActions>(() => ({
     rendered: (id) => latest.current.rendered(id),
     cancelSwitch: () => latest.current.cancelSwitch(),
+    dismissPd: (id) => latest.current.dismissPd(id),
   }));
 
   return (

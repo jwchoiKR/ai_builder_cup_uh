@@ -25,6 +25,24 @@ export interface HostCue {
   done_at?: number;
 }
 
+export type PdCardKind = "answer_question" | "cover_point" | "promo" | "wrap_up" | "switch_product";
+export type PdCardStatus = "active" | "done" | "dismissed" | "expired";
+export type PdCardSource = "ai" | "rule";
+
+export interface PdCard {
+  card_id: string;
+  kind: PdCardKind;
+  say: string;
+  detail: string | null;
+  ref_id: string;
+  created_at: number;
+  hold_until: number;
+  status: PdCardStatus;
+  source: PdCardSource;
+  /** client-side: when the card became done (for short "done" fade) */
+  done_at?: number;
+}
+
 export interface ActivePromo {
   promo_id: string;
   started_at: number;
@@ -54,6 +72,7 @@ export interface Session {
   pre_covered: Record<string, string[]>;
   switch: SwitchState;
   cue: HostCue | null;
+  pd_card?: PdCard | null;
   host_slots: HostSlot[];
   active_promos: ActivePromo[];
   created_at: number;

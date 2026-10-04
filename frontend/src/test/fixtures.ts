@@ -5,6 +5,7 @@ import type {
   Catalog,
   Comment,
   Message,
+  PdCard,
   QuestionGroup,
   Segment,
   Session,
@@ -33,6 +34,7 @@ export function session(over: Partial<Session> = {}): Session {
     pre_covered: {},
     switch: { status: "idle", target_product_id: null, cue_count: 0, cue_transcript_ids: [], first_cue_at: null, commit_at: null, last_commit: null },
     cue: null,
+    pd_card: null,
     host_slots: [],
     active_promos: [],
     created_at: T0 - 1000,
@@ -231,3 +233,18 @@ export const catalog: Catalog = {
     },
   ],
 };
+
+export function pdCard(over: Partial<PdCard> = {}): PdCard {
+  return {
+    card_id: "card_000001",
+    kind: "answer_question",
+    say: "Yes. Apply sunscreen after the cream, then makeup.",
+    detail: "Raj: Can I use it under makeup?",
+    ref_id: "grp_000001",
+    created_at: T0,
+    hold_until: T0 + 15_000,
+    status: "active",
+    source: "ai",
+    ...over,
+  };
+}
