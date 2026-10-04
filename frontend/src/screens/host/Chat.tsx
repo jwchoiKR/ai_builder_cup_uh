@@ -50,7 +50,21 @@ export function alsoAnsweredIds(items: ChatItem[]): Set<string> {
   return out;
 }
 
-function Row({ item, offset, alsoAnswered }: { item: ChatItem; offset: number; alsoAnswered: boolean }) {
+/** D-115: the names of later askers, once, under the first asker's reply ("Also answered: @A, @B"). */
+export function alsoAnsweredNames(items: ChatItem[]): Map<string, string[]> {
+  const names = new Map<string, string>();
+  for (const it of items) if (it.kind === "comment") names.set(it.comment.comment_id, it.comment.author_name);
+  const out = new Map<string, string[]>();
+  for (const it of items) {
+    if (it.kind !== "comment") continue;
+    const others = it.replies.flatMap((m) => m.reply_to_comment_ids.filter((cid) => cid !== it.comment.comment_id));
+    const list = [...new Set(others.map((cid) => names.get(cid)).filter((n): n is string => Boolean(n)))];
+    if (list.length) out.set(it.comment.comment_id, list);
+  }
+  return out;
+}
+
+function Row({ item, offset, alsoNames }: { item: ChatItem; offset: number; alsoNames: string[] | undefined }) {
   const t = useT();
   if (item.kind === "message") {
     const m = item.message;
@@ -90,10 +104,11 @@ function Row({ item, offset, alsoAnswered }: { item: ChatItem; offset: number; a
           <span>{m.text}</span>
         </div>
       ))}
-      {alsoAnswered && item.replies.length === 0 && (
+      {alsoNames && (
         <div className={cx(styles.reply, styles.alsoAnswered)} data-testid={`host-also-answered-${c.comment_id}`}>
-          <CornerDownRight className={styles.replyArrow} aria-hidden size="1em" />
-          <span>{t("Also answered:")} @{c.author_name}</span>
+          <span>
+            {t("Also answered:")} {alsoNames.map((n) => `@${n}`).join(", ")}
+          </span>
         </div>
       )}
     </div>
@@ -114,6 +129,9 @@ export function Chat({
   const t = useT();
   const ok = connection === "connected";
   const also = useMemo(() => alsoAnsweredIds(items), [items]);
+  const alsoNames = useMemo(() => alsoAnsweredNames(items), [items]);
+  // later askers of a coalesced reply are folded into the first asker's note
+  const rows = useMemo(() => items.filter((it) => it.kind !== "comment" || !also.has(it.comment.comment_id) || it.replies.length > 0), [items, also]);
   return (
     <section className={styles.card} data-testid="host-chat" aria-label={t("Live chat")}>
       <header className={styles.cardHeader}>
@@ -131,12 +149,12 @@ export function Chat({
       )}
       <VirtualList
         className={styles.chatList}
-        items={items}
+        items={rows}
         stickToBottom
         rowHeight={52}
         getKey={(it) => (it.kind === "comment" ? it.comment.comment_id : it.message.message_id)}
         renderItem={(it) => (
-          <Row item={it} offset={serverOffsetMs} alsoAnswered={it.kind === "comment" && also.has(it.comment.comment_id)} />
+          <Row item={it} offset={serverOffsetMs} alsoNames={it.kind === "comment" ? alsoNames.get(it.comment.comment_id) : undefined} />
         )}
       />
     </section>

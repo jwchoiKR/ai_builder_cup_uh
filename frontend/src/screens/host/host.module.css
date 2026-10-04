@@ -329,24 +329,26 @@
 }
 
 /* green "Corrected" confirmation */
+/* D-115: a compact confirmation at the top of the prompter box; the product info shows below at once */
 .corrected {
+  flex: none;
+  margin-bottom: calc(10px * var(--hs));
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: calc(14px * var(--hs));
-  min-height: calc(88px * var(--hs));
+  gap: calc(10px * var(--hs));
+  min-height: calc(44px * var(--hs));
   border-radius: var(--radius-card);
   border: calc(3px * var(--hs)) solid var(--ok-border);
   background: var(--ok-bg);
   color: var(--ok-text);
-  font-size: calc(34px * var(--hs));
+  font-size: calc(22px * var(--hs));
   font-weight: var(--fw-semibold);
-  box-shadow: var(--shadow);
   animation: fadeIn var(--motion-fast) var(--ease);
 }
 .corrected svg {
-  width: calc(38px * var(--hs));
-  height: calc(38px * var(--hs));
+  width: calc(26px * var(--hs));
+  height: calc(26px * var(--hs));
 }
 
 /* ---- main grid ----------------------------------------------------------------------------------- */
@@ -476,6 +478,36 @@
   font-weight: var(--fw-semibold);
   color: var(--text-2);
 }
+/* D-115: one reserved line under the box: switch countdown, the PD's cue, or points and time left */
+.prompterStatus {
+  flex: none;
+  height: calc(64px * var(--hs));
+  display: flex;
+  align-items: center;
+  gap: calc(12px * var(--hs));
+  padding: 0 calc(24px * var(--hs));
+  border-top: 1px solid var(--border);
+}
+.prompterStatus > .cue,
+.prompterStatus > .banner {
+  flex: 1;
+  min-height: 0;
+  height: calc(50px * var(--hs));
+  padding: 0 calc(16px * var(--hs));
+  animation: none;
+}
+.prompterStatus .cueText,
+.prompterStatus .switchTitle {
+  font-size: calc(20px * var(--hs));
+}
+.prompterStatus .bannerIcon {
+  width: calc(32px * var(--hs));
+  height: calc(32px * var(--hs));
+}
+.prompterStatus .switchCount {
+  width: calc(40px * var(--hs));
+  height: calc(40px * var(--hs));
+}
 .prompterBox {
   flex: 1;
   min-height: 0;
@@ -582,8 +614,7 @@
   }
 }
 .pointsStatus {
-  margin-bottom: calc(6px * var(--hs));
-  font-size: calc(15px * var(--hs));
+  font-size: calc(17px * var(--hs));
   font-weight: var(--fw-semibold);
   color: var(--text-2);
 }
@@ -608,15 +639,6 @@
 .said span,
 .said .pointIcon {
   color: var(--text-3);
-}
-.required {
-  display: inline-block;
-  margin-left: calc(8px * var(--hs));
-  vertical-align: 0.15em;
-  font-size: calc(12px * var(--hs));
-  font-weight: var(--fw-semibold);
-  letter-spacing: var(--eyebrow-tracking);
-  color: var(--fact-text);
 }
 .guards {
   flex: none;
@@ -998,6 +1020,15 @@
   background: var(--fact-bg);
   border-color: var(--fact-border);
   color: var(--fact-text);
+}
+/* D-115: the fact card keeps the box; the right value is the hero, heard and source are small */
+.alertFact .alertSay {
+  font-size: calc(38px * var(--hs));
+  font-weight: var(--fw-semibold);
+}
+.alertFact .alertSaid,
+.alertFact .alertMeta {
+  font-size: calc(16px * var(--hs));
 }
 .alertMedium {
   background: var(--fact-bg);

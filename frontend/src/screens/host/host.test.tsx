@@ -75,7 +75,7 @@ describe("prompter", () => {
     expect(screen.getByTestId("host-point-cr-p2")).toHaveAttribute("data-state", "todo");
     expect(screen.getByTestId("host-point-cr-p3")).toHaveAttribute("data-state", "todo");
     expect(screen.getByTestId("host-point-cr-p2")).not.toHaveAttribute("aria-current");
-    expect(screen.getAllByText("REQUIRED")).toHaveLength(2);
+    expect(screen.queryByText("REQUIRED")).toBeNull(); // D-115: the counter and checkmarks carry it
     expect(screen.getByTestId("host-required-count")).toHaveTextContent("0 / 2 required points");
     expect(screen.getByText("YOUR PROMPTER")).toBeInTheDocument();
     expect(screen.getByText("LIVE PRICE")).toBeInTheDocument();
@@ -87,7 +87,14 @@ describe("prompter", () => {
   it("counts covered required points and drops the label", () => {
     render(view({ segments: [segment({ covered_point_ids: ["cr-p1", "cr-p2"] })] }));
     expect(screen.getByTestId("host-required-count")).toHaveTextContent("1 / 2 required points");
-    expect(screen.getAllByText("REQUIRED")).toHaveLength(1);
+    expect(screen.getByTestId("host-points-status")).toHaveTextContent("1 required point left");
+  });
+
+  it("D-115: the switch countdown takes the reserved status line inside the prompter", () => {
+    render(view({ session: session({ switch: { status: "pending", target_product_id: AMPOULE, cue_count: 2, cue_transcript_ids: [], first_cue_at: null, commit_at: now() + 4000, last_commit: null } }) }));
+    const status = screen.getByTestId("host-prompter-status");
+    expect(within(status).getByTestId("host-switch-banner")).toHaveTextContent("Cancel switch (Esc)");
+    expect(screen.queryByTestId("host-points-status")).toBeNull();
   });
 
   it("D-107: status line with points and time left; the lead point is emphasised once from 80% of the time", () => {
@@ -219,12 +226,13 @@ describe("compliance", () => {
     expect(screen.getByTestId("host-unverified")).toHaveTextContent("AI check unavailable");
   });
 
-  it("correction replaces the overlay with the green Corrected bar", () => {
+  it("correction: a compact green Corrected line, with the product info at once below (D-115)", () => {
     const a = alert();
     const { rerender } = render(view({ alerts: [a] }));
     expect(screen.getByTestId("host-compliance-overlay")).toBeInTheDocument();
     rerender(view({ alerts: [{ ...a, status: "corrected", resolved_at: now() }] }));
     expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
+    expect(screen.getByTestId("host-point-cr-p1")).toBeInTheDocument();
     expect(within(screen.getByTestId("host-prompter")).getByTestId("host-corrected")).toHaveTextContent("Corrected");
   });
 
@@ -545,5 +553,18 @@ describe("settings and screen language (D-109)", () => {
     } finally {
       act(() => setLang("en"));
     }
+  });
+});
+
+describe("chat folding (D-115)", () => {
+  it("later askers of one reply become a single note under the first asker", async () => {
+    const { alsoAnsweredNames } = await import("./Chat");
+    const reply = message({ message_id: "msg_9", reply_to_comment_ids: ["cm_a", "cm_b", "cm_c"] });
+    const items = [
+      { kind: "comment" as const, at: 1, comment: comment({ comment_id: "cm_a", author_name: "Ann" }), replies: [reply] },
+      { kind: "comment" as const, at: 2, comment: comment({ comment_id: "cm_b", author_name: "Ben" }), replies: [] },
+      { kind: "comment" as const, at: 3, comment: comment({ comment_id: "cm_c", author_name: "Cy" }), replies: [] },
+    ];
+    expect(alsoAnsweredNames(items as never).get("cm_a")).toEqual(["Ben", "Cy"]);
   });
 });

@@ -96,6 +96,8 @@ export function Prompter({
   price,
   checking,
   alerts,
+  notice,
+  status,
   timing = null,
 }: {
   view: PrompterViewModel;
@@ -104,6 +106,10 @@ export function Prompter({
   checking: boolean;
   /** Compliance alerts or the green Corrected bar: they take the product box while present. */
   alerts?: ReactNode;
+  /** D-115: a compact green "Corrected" line at the top of the box; the product info stays below */
+  notice?: ReactNode;
+  /** D-115: the reserved status line at the bottom (switch countdown, PD cue, or points and time) */
+  status?: ReactNode;
   timing?: SegmentTiming | null;
 }) {
   const t = useT();
@@ -134,6 +140,7 @@ export function Prompter({
       </header>
       <div className={styles.prompterBox} ref={box}>
         <div className={styles.fit} ref={fit}>
+          {notice}
           {alerts ? (
             <div className={styles.prompterAlerts} data-testid="host-prompter-alerts">
               {alerts}
@@ -143,13 +150,15 @@ export function Prompter({
               product={product}
               price={price}
               points={view.points}
-              status={pointsStatus(t, view.requiredTotal - view.requiredCovered, timing)}
               late={Boolean(timing?.plannedMs && timing.elapsedMs >= timing.plannedMs * LATE_SHARE)}
             />
           ) : (
             <p className={styles.emptyPrompter}>{t("No product on air.")}</p>
           )}
         </div>
+      </div>
+      <div className={styles.prompterStatus} data-testid="host-prompter-status">
+        {status}
       </div>
     </section>
   );
@@ -159,13 +168,11 @@ function ProductPanel({
   product,
   price,
   points,
-  status,
   late,
 }: {
   product: Product;
   price: PriceView | null;
   points: PrompterPointRow[];
-  status: string;
   late: boolean;
 }) {
   const t = useT();
@@ -216,9 +223,6 @@ function ProductPanel({
         </div>
         <div>
           <h4 className={styles.factsLabel}>{t("Points to say")}</h4>
-          <div className={cx(styles.pointsStatus, "tabular")} data-testid="host-points-status">
-            {status}
-          </div>
           <ul className={styles.points}>
             {rows.map((p) => (
               <li
@@ -232,10 +236,7 @@ function ProductPanel({
                 <span className={styles.pointIcon} aria-label={p.covered ? t("Said") : undefined}>
                   {p.covered ? <Check /> : <span className={styles.bullet} />}
                 </span>
-                <span>
-                  {p.text}
-                  {p.required && !p.covered && <span className={styles.required}>{t("REQUIRED")}</span>}
-                </span>
+                <span>{p.text}</span>
               </li>
             ))}
           </ul>
