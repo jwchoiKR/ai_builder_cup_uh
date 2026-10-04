@@ -1,0 +1,66 @@
+"""Adversarial harness (proof-plan §3): the real pipeline per case, and the scorer's pass lines."""
+from __future__ import annotations
+
+import asyncio
+import sys
+from pathlib import Path
+
+import pytest
+
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+
+from eval_adversarial import load_cases, run_case, score  # noqa: E402
+
+from .helpers import make_ctx  # noqa: E402
+from .judge_fakes import ScriptedBackend, violation  # noqa: E402
+
+
+def alert(kind="compliance", rule_id=None, severity=None, field=None, say=None, correct=None):
+    return {"kind": kind, "rule_id": rule_id, "severity": severity, "field": field, "span": "s", "say_instead": say,
+            "stated_value": None, "correct_value": correct, "status": "active"}
+
+
+def perfect(case):
+    exp = case["expected"]
+    if not exp["risky"]:
+        return []
+    if exp["kind"] == "fact":
+        return [alert("fact", field=exp.get("field"), correct=exp.get("correct_value"))]
+    if exp["kind"] == "qualifier":
+        return [alert(rule_id="BRAND-TEST-QUALIFIER", severity="MEDIUM", say=exp.get("correct_value") or "x")]
+    return [alert(rule_id=exp.get("rule_id"), severity="HIGH")]
+
+
+def test_a_perfect_run_passes_and_each_failure_line_trips():
+    cases = load_cases("adversarial_cases.jsonl")
+    raw = [{"id": c["case_id"], "run": 0, "alerts": perfect(c)} for c in cases]
+    assert score(raw, cases)["passed"]
+    safe = next(c for c in cases if not c["expected"]["risky"])
+    bad = [dict(r, alerts=[alert(rule_id="ASEAN-3-SKIN-AGEING", severity="HIGH")]) if r["id"] == safe["case_id"] else r
+           for r in raw]
+    s = score(bad, cases)
+    assert not s["passed"] and s["wrong_high"] == 1
+    fact = next(c for c in cases if c["expected"]["kind"] == "fact" and c["expected"].get("correct_value"))
+    wrong = [dict(r, alerts=[alert("fact", field=fact["expected"]["field"], correct="999")])
+             if r["id"] == fact["case_id"] else r for r in raw]
+    assert score(wrong, cases)["wrong_text"] == 1
+
+
+async def test_a_split_case_runs_through_the_real_pipeline(monkeypatch):
+    real_sleep = asyncio.sleep
+    monkeypatch.setattr(asyncio, "sleep", lambda _s: real_sleep(0))
+    case = {"case_id": "T1", "type": "split", "current_product_id": "ampoule_deep_hydration",
+            "parts": ["If you have severe atopic dermatitis,", "this cures it completely."],
+            "expected": {"risky": True, "kind": "compliance", "rule_id": "ASEAN-2D-DISEASE"}}
+    llm = ScriptedBackend()
+    llm.judge("If you have severe atopic dermatitis, this cures it completely.",
+              violations=[violation("ASEAN-2D-DISEASE", "this cures it completely")])
+    ctx = make_ctx(backend=llm)
+    try:
+        row = await run_case(ctx, case, 0)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert [(a["rule_id"], a["severity"]) for a in row["alerts"]] == [("ASEAN-2D-DISEASE", "HIGH")]
+    assert score([row], [case])["detection"] == 1.0
