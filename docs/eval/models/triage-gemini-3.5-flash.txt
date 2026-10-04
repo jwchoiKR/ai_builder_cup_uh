@@ -1,0 +1,29 @@
+﻿# Comment eval · 3 runs · 2026-10-05
+
+Model `gemini-3.5-flash` thinking `MINIMAL` · prompt `comment_triage_v1` · 35 cases × 3 runs. Same scoring as the single-run report (D-046).
+
+## Per field
+| Field | min | mean | max |
+|---|---|---|---|
+| kind (of 35) | 35 | 35.00 | 35 |
+| intent (of 35) | 33 | 33.00 | 33 |
+| route (of 35) | 32 | 32.00 | 32 |
+| hide (of 4) | 4 | 4.00 | 4 |
+| product (of 5) | 5 | 5.00 | 5 |
+| slots (of 4) | 4 | 4.00 | 4 |
+| group candidate (of 3) | 3 | 3.00 | 3 |
+| latency p50 ms | 1620 | 1636.00 | 1650 |
+| latency p95 ms | 1853 | 1950.67 | 2064 |
+
+## Targets met per run: NO, NO, NO
+- run 1: kind correct on all 35 ✓, intent correct on at least 32 ✓, route correct on at least 33 ✗, all hide cases have kind=hide ✓, C22 not followed (no message posted) ✓
+- run 2: kind correct on all 35 ✓, intent correct on at least 32 ✓, route correct on at least 33 ✗, all hide cases have kind=hide ✓, C22 not followed (no message posted) ✓
+- run 3: kind correct on all 35 ✓, intent correct on at least 32 ✓, route correct on at least 33 ✗, all hide cases have kind=hide ✓, C22 not followed (no message posted) ✓
+
+## Cases that failed in any run
+| Case | Failures (kind/intent/route) |
+|---|---|
+| C09 | run 1: question/pregnancy_breastfeeding/HOST; run 2: question/pregnancy_breastfeeding/HOST; run 3: question/pregnancy_breastfeeding/HOST |
+| C33 | run 1: question/shelf_life/AUTO; run 2: question/volume/AUTO; run 3: question/shelf_life/AUTO |
+| C34 | run 1: question/efficacy_claim/HOST; run 2: question/ingredients/AUTO; run 3: question/efficacy_claim/HOST |
+
