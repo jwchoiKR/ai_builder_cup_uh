@@ -78,6 +78,8 @@
   ],
   "host_deferrals": {
     "general": "Good question! I don't want to guess, so I'll check and reply to you in the chat.",
-    "sensitive": "Everyone's skin is different, so please check with your doctor or dermatologist before using it. I'll reply in the chat with what our product sheet says."
+    "sensitive": "Everyone's skin is different, so please check with your doctor or dermatologist before using it. I'll reply in the chat with what our product sheet says.",
+    "general_solo": "Good question! I don't want to guess, so I'll check that for you.",
+    "sensitive_solo": "Everyone's skin is different, so please check with your doctor or dermatologist before using it."
   }
 }

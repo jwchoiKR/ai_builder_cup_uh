@@ -103,6 +103,8 @@ class PdDirector:
         now = rt.now()
         groups = {g.group_id: g for g in await rt.groups()}
         questions = []
+        deferrals = rt.ctx.pack.notices.host_deferrals
+        solo = "_solo" if s.show_mode == "solo" else ""  # a solo host promises no chat reply
         for slot in s.host_slots:  # the host's waiting list, in order (D-113)
             g = groups.get(slot.group_id)
             if g is None or g.status in ("answered", "closed", "rejected") or g.host_verbal_answer_transcript_id:
@@ -118,13 +120,13 @@ class PdDirector:
                 # D-140: a general question gets the general deferral card only once enough viewers ask
                 if askers >= rt.settings.HOST_REPEAT_THRESHOLD:
                     questions.append(pdl.Question(g.group_id, g.canonical_question,
-                                                  rt.ctx.pack.notices.host_deferrals["general"], "answer", askers,
+                                                  deferrals["general" + solo], "answer", askers,
                                                   slot.pinned))
                 continue
             if g.status == "needs_review" and g.route_reason == "no_verified_answer":
                 # D-135: no verified answer: the host says so honestly instead of guessing
                 kind = "sensitive" if rt.intent(g.intent).sensitive else "general"
-                questions.append(pdl.Question(g.group_id, g.canonical_question, rt.ctx.pack.notices.host_deferrals[kind],
+                questions.append(pdl.Question(g.group_id, g.canonical_question, deferrals[kind + solo],
                                               "answer", askers, slot.pinned))
                 continue
             if a is None or not a.verified:

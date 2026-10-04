@@ -93,5 +93,16 @@ export function voiceTools({ base, auth }) {
     close() { clearInterval(this.pump); this.ws.send(JSON.stringify({ type: "stop" })); this.ws.close(); }
   }
 
-  return { api, synth, Mic };
+  /** A fresh session that deletes nobody else's (POST /demo/sessions, D-139); an older service without
+   *  that endpoint falls back to /demo/reset, which drops the previous session. */
+  async function newSession(body = {}) {
+    try {
+      return await api("POST", "/demo/sessions", body);
+    } catch (e) {
+      if (!String(e.message).includes("-> 404") && !String(e.message).includes("-> 405")) throw e;
+      return api("POST", "/demo/reset", body);
+    }
+  }
+
+  return { api, synth, Mic, newSession };
 }
