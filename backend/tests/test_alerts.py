@@ -322,3 +322,33 @@ async def test_extend_adds_two_minutes_to_the_on_air_segment(env):
     assert (await rt.pd._state()).planned_ms == (planned + 120) * 1000
     [e] = await events(rt, "segment.extended")
     assert e.payload["added_sec"] == 120
+
+
+async def test_two_failures_within_a_minute_turn_amber_even_with_answers_between(env):
+    """D-144 (cloud lines run, LT055): two fact-checker timeouts 58 s apart, other lines answered between."""
+    rt, llm = env
+    llm.fail("fact_checker", "The cream feels light.")
+    await speak(rt, "The cream feels light.")
+    await speak(rt, "It absorbs quickly.")  # answered on time
+    assert rt.utterances.degraded == []
+    await advance(rt, 50_000)
+    llm.fail("fact_checker", "Use it every morning.")
+    await speak(rt, "Use it every morning.")
+    assert rt.utterances.degraded == ["fact_checker"]
+    await speak(rt, "It comes in a tube.")  # the next on-time answer clears it
+    assert rt.utterances.degraded == []
+    await advance(rt, 70_000)  # outside the window: one more failure alone is nothing
+    llm.fail("fact_checker", "It is made in Korea.")
+    await speak(rt, "It is made in Korea.")
+    assert rt.utterances.degraded == []
+
+
+async def test_a_fact_call_slower_than_the_on_time_line_counts_for_the_health_dot(env):
+    """D-144: the fact call may answer until FACT_LATE_MS (its note still shows), but past FACT_TIMEOUT_MS
+    it counts as a timeout for the dot."""
+    rt, llm = env
+    assert rt.settings.FACT_LATE_MS > rt.settings.FACT_TIMEOUT_MS
+    await rt.utterances._note_health("fact_checker", "timeout")
+    await advance(rt, 1000)
+    await rt.utterances._note_health("fact_checker", "timeout")
+    assert rt.utterances.degraded == ["fact_checker"]

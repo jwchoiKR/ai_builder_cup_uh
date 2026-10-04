@@ -819,3 +819,9 @@ D-142: JAPAC step B: each session holds its own (market, language) pack (plannin
 
 D-143: Skin-type suitability is not a vulnerable-group claim (sealed adversarial round 2, AW010: "…making it suitable for all skin types" got ASEAN-2D-VULNERABLE HIGH in 2 of 3 runs; D-132's sheet match stays below 80% because of "making it").
 - The rule's description (`data/markets/sg.json`) and the compliance job (same bullet in `utterance_judge.md` and `compliance_judge.md`) now say: saying which skin types the product suits is a cosmetic suitability statement; vulnerable groups are people with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema) and safety promises to them. No case sentence is quoted. To be confirmed on the sealed set by the planning session.
+
+D-144: A slow fact call still shows its note; the health dot counts failures in a window (cloud lines run LT055: the fact checker timed out at 3001 ms twice, 58 s apart; no note, and the dot stayed neutral).
+- The fact checker's deadline is `FACT_LATE_MS` (6000). `FACT_TIMEOUT_MS` (3000) stays the "on time" line: a fact call slower than it counts as a timeout for the health dot, but its contradicted note is still shown (a late correct note beats none). Late notes stay in the alert latency metrics as they are.
+- Health dot: a judge turns it amber when it failed `HEALTH_STREAK` (2) times within `HEALTH_WINDOW_MS` (60 s), even with on-time answers between; its next on-time answer clears it. One failure alone, or two more than a minute apart, is nothing.
+- No retry: a second call cannot fit in 3 s (planning session).
+- Tests: two failures 50 s apart with an answer between turn amber, the next answer clears it, a lone failure 70 s later does not; a slow fact call counts as a timeout.

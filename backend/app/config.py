@@ -48,7 +48,8 @@ class Settings(BaseSettings):
     JUDGE_MODE: Literal["split3", "split", "single"] = "split3"  # D-099; split = one UtteranceJudge (rollback)
     JUDGE_TIMEOUT_MS: int = 2500
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
-    FACT_TIMEOUT_MS: int = 3000
+    FACT_TIMEOUT_MS: int = 3000  # the "on time" line: a slower fact call counts as a timeout for the health dot
+    FACT_LATE_MS: int = 6000  # D-144: a fact call may still answer until here; a late wrong-fact note beats none
     FACT_SEARCH_TIMEOUT_MS: int = 600
     TRIAGE_TIMEOUT_MS: int = 2500
     MODEL_ARMOR_ENABLED: bool = False  # D-125: screen comments before triage (needs a template)
