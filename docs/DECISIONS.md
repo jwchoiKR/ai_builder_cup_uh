@@ -580,3 +580,13 @@ D-105: A test number said without "in our in-house test" gets one yellow banner 
 - **Wrong number too (H052):** the alert and the fact note stay separate in events, logs and evaluation. On the host screen, a test-qualifier banner and a fact note on the same sentence show as one card with "○ +45% (not +70%)". The fact note joins the card when the fact checker finishes; the first card is never delayed.
 - **To review:** the nine approved sentences in `qualified_results` were written from section 5 of the product sheets and need the user's check. Uploaded products (setup) have no `qualified_results` yet, so their banners show the generic line.
 - **Tests:** `tests/test_qualifier.py`, `frontend/src/screens/host/host.test.tsx` (test qualifier).
+
+D-106: Compliance alerts take the prompter's product box; the box is laid out like the earlier prototype (user, 10/5).
+- **Why:** on the demo, the user found the alerts too far from YOUR PROMPTER, so they did not look urgent. The host's eyes are already on the product information.
+- **Product box** (`Prompter.tsx`, fixed size: the left column's top half):
+  - three labeled columns: Price & offers (the live or time-sale price is the biggest text; list and set price below), Ingredients (up to 4 amounts from `key_facts` with a percentage, big number and name), Points to say (the prompter points; the first required point not said yet is bigger);
+  - two blocks below: Caution and Avoid saying ("✕ wording → approved claim"). They come from new `products.json` fields `cautions` and `avoid_saying`; each replacement is an approved claim word for word;
+  - facts the host already said turn grey (points by `covered_point_ids`; an ingredient when a said point names it). The price never turns grey. A price point is listed only when it is required.
+- **Alerts:** an active HIGH (red) or MEDIUM (yellow) alert replaces the product box's content: badge, "Heard: ..." small, "Say this instead." and the replacement as the biggest text. Several alerts stack in the box, HIGH first. The test-qualifier and fact merge (D-105) shows there too. On correction, the green "Corrected" fills the box for `CORRECTED_TOAST_MS`, then the product information returns. The full-screen overlay and the separate MEDIUM banner are gone; fact notes and the switch banner stay in the banner strip.
+- **Unchanged:** alerts render on arrival (the 3 s path), the render acknowledgement, and the AI PD card hidden during a HIGH alert.
+- **Not changed, to decide:** the AI PD card above the prompter and the banner strip still push the prompter down when they appear.

@@ -372,6 +372,10 @@ export interface Product {
   prompter_points: PrompterPoint[];
   approved_claims: string[];
   not_approved_claims: string[];
+  /** D-106: short host lines from the sheet's Cautions section */
+  cautions?: string[];
+  /** D-106: wording to avoid and an approved claim to say instead */
+  avoid_saying?: { say_not: string; say: string }[];
   list_price_display: string;
   live_price_display: string;
 }
