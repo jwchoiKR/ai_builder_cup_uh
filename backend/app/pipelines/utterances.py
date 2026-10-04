@@ -35,8 +35,9 @@ from ..logic import qualifier
 from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view
 from ..logic.segments import classify_switch, expire, names_product, replace_cue, step_switch, withdraw_cue
 from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
-from ..models.session import Alert, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
+from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
+from .comments import answer_key
 from .runtime import ActionError
 
 if TYPE_CHECKING:
@@ -291,7 +292,7 @@ class UtterancePipeline:
                 ready.set_result(None)
 
     async def _judge_input_locked(self, t: Transcript, text: str, merge: Merge | None, on_air: str,
-                                  scenario: str) -> tuple[JudgeInput, set[str]]:
+                                  scenario: str) -> tuple[JudgeInput, dict[str, Answer | None]]:
         rt = self.rt
         s = await rt.load_session()
         alerts = [a for a in await rt.alerts() if a.transcript_id != t.transcript_id]
@@ -303,7 +304,12 @@ class UtterancePipeline:
         inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
                          cue=s.cue, previous=previous, points_by_product=rt.points or None, session_id=rt.sid, scenario=scenario,
                          switch=s.switch, promo=promo)
-        return inp, {g.group_id for g, _ in questions}
+        # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
+        offered: dict[str, Answer | None] = {}
+        for g, _ in questions:
+            ans = await rt.get_answer(g.answer_id)
+            offered[g.group_id] = ans if ans is not None and ans.verified else None
+        return inp, offered
 
     async def _open_questions_locked(self, s, on_air: str) -> list[tuple[QuestionGroup, str | None]]:
         """§7.3: groups on the host screen first, then the best HOST/AUTO candidates of the product."""
@@ -618,7 +624,7 @@ class UtterancePipeline:
         rt.ctx.scheduler.call_later(rt.key(f"facthide:{a.alert_id}"), rt.settings.FACT_NOTE_HOST_MAX_SEC * 1000, hide)
 
     async def _publish_locked(self, t: Transcript, judge: UtteranceJudgeOutput, facts: FactCheckOutput | None,
-                              offered: set[str], merge: Merge | None = None) -> None:
+                              offered: dict[str, Answer | None], merge: Merge | None = None) -> None:
         rt = self.rt
         if not self._claim_application(t, "publish"):
             return
@@ -630,7 +636,9 @@ class UtterancePipeline:
         group = await rt.get_group(gid) if gid else None
         answer = await rt.get_answer(group.answer_id) if group is not None else None
         decision = publish_logic.decide(judge, offered, group, answer,
-                                        high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts)
+                                        high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
+                                        utterance=merge.text if merge else t.text,
+                                        current_key=await answer_key(rt, group) if group is not None else None)
         mine = self._judged.get(t.transcript_id)
         before = self._judged.get(merge.prev.transcript_id) if merge else None
         if before is not None and before.publish is not None:

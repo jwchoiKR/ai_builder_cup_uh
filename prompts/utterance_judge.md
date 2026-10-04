@@ -37,8 +37,8 @@ ACTIVE_ALERTS lists alerts already shown to the host. If this sentence retracts 
 OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested answer.
 - `utterance_type`: one of `product_talk`, `answer`, `question_readout`, `correction`, `transition`, `chit_chat`, `other`.
 - `matched_group_id`: the question this sentence is about, or null. Set it also when the host only reads the question out or puts it off (then `is_answer = false`).
-- `is_answer = true` only when the host actually answers it. Reading the question out, promising to answer later, or saying "let me check" is NOT an answer.
-- `consistent_with_suggested = true` only when the host's answer agrees with the suggested answer and adds no contradicting fact. A shorter answer that keeps the same meaning is consistent.
+- `is_answer = true` only when the host actually answers it with a statement. Reading the question out, asking it back, quoting someone, a hypothetical ("if it were ..."), promising to answer later, or saying "let me check" is NOT an answer.
+- `consistent_with_suggested = true` only when the host's answer agrees with the suggested answer: the same direction (yes or no) and the same numbers. Saying less than the suggested answer is consistent. It is false when the host adds a claim, caveat, condition or restriction that is not in the suggested answer, sounds unsure, contradicts it, or takes it back. The suggested answer is posted to viewers when this is true.
 
 ### Job 4. Prompter tracking and product switch
 - `covered_point_ids`: ids from PROMPTER_POINTS whose meaning the host has now stated. Paraphrase counts. A partial mention counts only if the point's key fact is stated.

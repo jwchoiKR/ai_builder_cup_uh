@@ -40,7 +40,7 @@ def facts(*claims) -> FactCheckOutput:
     return FactCheckOutput.model_validate({"claims": list(claims), "reason": ""})
 
 
-OFFERED = {"g1"}
+OFFERED = {"g1": ans()}  # the verified answer shown with the question
 
 
 def test_all_conditions_hold_posts():
@@ -54,7 +54,7 @@ def test_fact_timeout_does_not_block():
 
 def test_condition_1_answer_to_offered_question():
     assert decide(jo(is_answer=False), OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "none"
-    assert decide(jo(), set(), grp(), ans(), high_alert_active=False, facts=None).action == "none"
+    assert decide(jo(), {}, grp(), ans(), high_alert_active=False, facts=None).action == "none"
     assert decide(jo(matched=None), OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "none"
     assert decide(jo(), OFFERED, None, ans(), high_alert_active=False, facts=None).action == "none"
 
@@ -70,6 +70,63 @@ def test_condition_2_inconsistent_is_verbal():
 ])
 def test_condition_3_verified_answer_and_not_operator(group, answer):
     assert decide(jo(), OFFERED, group, answer, high_alert_active=False, facts=None).action == "verbal_not_posted"
+
+
+# ---- D-110: stricter spoken-answer posting ---------------------------------------------------------
+
+
+def test_bound_to_the_answer_shown_and_the_current_state():
+    shown_older = {"g1": ans().model_copy(update={"answer_id": "a0"})}
+    d = decide(jo(), shown_older, grp(), ans(), high_alert_active=False, facts=None)
+    assert (d.action, d.reason) == ("verbal_not_posted", "stale answer")
+    keyed = ans().model_copy(update={"cache_key": "k_old"})
+    d = decide(jo(), {"g1": keyed}, grp(), keyed, high_alert_active=False, facts=None, current_key="k_new")
+    assert (d.action, d.reason) == ("verbal_not_posted", "stale answer")
+    assert decide(jo(), {"g1": keyed}, grp(), keyed, high_alert_active=False, facts=None,
+                  current_key="k_old").action == "post"
+
+
+@pytest.mark.parametrize("kind", ["question_readout", "product_talk", "other"])
+def test_only_an_answer_utterance_posts(kind):
+    assert decide(jo(utterance_type=kind), OFFERED, grp(), ans(), high_alert_active=False,
+                  facts=None).action == "verbal_not_posted"
+
+
+def test_hedge_or_new_number_holds_the_post_even_when_the_judge_says_consistent():
+    draft = ans().model_copy(update={"text": "It is 50 mL."})
+    offered = {"g1": draft}
+    for said, reason in [("I think it's 50 mL.", "host sounded unsure or took it back"),
+                         ("It's forty mils.", "a number differs from the verified draft")]:
+        d = decide(jo(), offered, grp(), draft, high_alert_active=False, facts=None, utterance=said)
+        assert (d.action, d.reason) == ("verbal_not_posted", reason)
+    assert decide(jo(), offered, grp(), draft, high_alert_active=False, facts=None,
+                  utterance="Fifty mils in this jar.").action == "post"
+
+
+def _verbal_cases() -> list[dict]:
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "data" / "eval" / "verbal_post_cases.jsonl"
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+@pytest.mark.parametrize("case", _verbal_cases(), ids=lambda c: c["case_id"])
+def test_code_checks_on_the_verbal_post_cases(case):
+    """The code layer alone: it never blocks an expected post, and it blocks every wrong number,
+    hedge and retraction (the other near-misses are the judge's job)."""
+    from app.logic.publish import verbal_check
+
+    qs = {q["group_id"]: q["suggested_answer"] for q in case["context"]["open_questions"]}
+    shown = case["shown_group_id"]
+    if shown not in qs:
+        return  # other_group: no draft shown for this question
+    held = verbal_check(case["utterance"], qs[shown], [a for g, a in qs.items() if g != shown])
+    exp = case["expected"]
+    if exp["post"]:
+        assert held is None, held
+    elif exp["category"] in ("wrong_number", "hedge", "retracted"):
+        assert held is not None
 
 
 def test_condition_4_compliance():
