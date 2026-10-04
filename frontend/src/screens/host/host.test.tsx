@@ -370,7 +370,9 @@ describe("audience questions", () => {
       }),
     );
     const states = screen.getAllByTestId("host-question-state").map((e) => e.textContent);
-    expect(states).toEqual(["Drafting…", "Which product?", "On your card"]);
+    // D-127: the question on the card is no row any more; the card opened in its place
+    expect(states).toEqual(["Drafting…", "Which product?"]);
+    expect(within(screen.getByTestId("host-question-grp_000006")).getByTestId("host-pd-card")).toBeInTheDocument();
   });
 
   it("D-113: Q pulls the top waiting question", () => {
@@ -393,10 +395,39 @@ describe("audience questions", () => {
     expect(screen.getByTestId(`host-question-${g.group_id}`)).toHaveTextContent("Posting answer…");
   });
 
-  it("empty state", () => {
+  it("D-127: empty state is one dim line, not a block", () => {
     render(view());
-    expect(screen.getByText("You have the floor.")).toBeInTheDocument();
-    expect(screen.getByText("Your next audience question will appear here.")).toBeInTheDocument();
+    expect(screen.getByText("No questions waiting.")).toBeInTheDocument();
+    expect(screen.queryByTestId("host-pd-slot")).toBeNull();
+  });
+
+  it("D-127: a question card opens in place of its own row; the question shows once", () => {
+    const a = group({ group_id: "grp_a", canonical_question: "Can I use it under makeup?" });
+    const b = group({ group_id: "grp_b", canonical_question: "Is it okay for oily skin?" });
+    const card = pdCard({ card_id: "card_q", kind: "answer_question", ref_id: "grp_b", say: "Yes.", detail: "Is it okay for oily skin?", status: "active" });
+    render(
+      view({
+        session: session({ pd_card: card }),
+        groups: [a, b],
+        host_slots: [
+          { group_id: "grp_a", pinned: false, on_host_since: now() },
+          { group_id: "grp_b", pinned: false, on_host_since: now() },
+        ],
+      }),
+    );
+    const rows = screen.getByTestId("host-questions").querySelectorAll('[data-testid^="host-question-grp_"]');
+    expect([...rows].map((r) => r.getAttribute("data-testid"))).toEqual(["host-question-grp_a", "host-question-grp_b"]);
+    expect(within(screen.getByTestId("host-question-grp_b")).getByTestId("host-pd-card")).toBeInTheDocument();
+    expect(screen.getAllByText("Is it okay for oily skin?")).toHaveLength(1);
+  });
+
+  it("D-127: a non-question card goes on top of the list", () => {
+    const a = group({ group_id: "grp_a" });
+    const card = pdCard({ card_id: "card_p", kind: "promo", ref_id: "promo_time_sale_10", say: "Time sale now!", status: "active" });
+    render(view({ session: session({ pd_card: card }), groups: [a], host_slots: [{ group_id: "grp_a", pinned: false, on_host_since: now() }] }));
+    const list = screen.getByTestId("host-questions");
+    const slot = within(list).getByTestId("host-pd-slot");
+    expect(slot.compareDocumentPosition(screen.getByTestId("host-question-grp_a")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -506,11 +537,18 @@ describe("AI PD card", () => {
     expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Ceramide NP 1%, panthenol 5%, squalane 3%.");
   });
 
-  it("shows done indicator when status is done", () => {
-    const card = pdCard({ card_id: "card_ai_5", status: "done", done_at: now() });
-    render(view({ session: session({ pd_card: card }) }));
+  it("shows done indicator when status is done, in the place of the answered question's row", () => {
+    const a = group({ group_id: "grp_a" });
+    const b = group({ group_id: "grp_000001" });
+    const slots = [a, b].map((g) => ({ group_id: g.group_id, pinned: false, on_host_since: now() }));
+    const active = pdCard({ card_id: "card_ai_5", status: "active" });
+    const { rerender } = render(view({ session: session({ pd_card: active }), groups: [a, b], host_slots: slots }));
+    // answered: the row leaves and the card turns done at the same moment
+    rerender(view({ session: session({ pd_card: { ...active, status: "done", done_at: now() } }), groups: [a], host_slots: slots.slice(0, 1) }));
     expect(screen.getByTestId("host-pd-done")).toHaveTextContent("Done");
     expect(screen.queryByTestId("host-pd-dismiss")).toBeNull();
+    const slot = screen.getByTestId("host-pd-slot");
+    expect(screen.getByTestId("host-question-grp_a").compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 

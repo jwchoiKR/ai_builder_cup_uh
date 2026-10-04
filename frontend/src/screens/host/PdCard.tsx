@@ -17,7 +17,7 @@ const KIND_LABELS: Record<PdCardKind, string> = {
   switch_product: "Next product",
 };
 
-const QUESTION_KINDS = new Set<PdCardKind>(["answer_question", "read_question", "clarify_product"]);
+export const QUESTION_KINDS = new Set<PdCardKind>(["answer_question", "read_question", "clarify_product"]);
 
 export function PdCard({
   card,
