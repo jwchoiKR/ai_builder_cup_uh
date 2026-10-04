@@ -55,7 +55,12 @@ The script:
 2. SSE through IAP: open the host and operator screens and start a demo session; events must arrive.
 3. Audio WebSocket through IAP: turn the microphone on in the host screen; `mic` must reach "listening"
    and finals must appear.
-4. Voice rehearsal: `BASE=<url> IAP_TOKEN=<token> node e2e/rehearsal-voice.mjs alerts`. A user's
-   `gcloud auth print-identity-token` is refused ("Invalid JWT audience"): scripts need a token of a service
-   account that has IAP access (`--impersonate-service-account=... --audiences=<url>`), which widens access
-   and needs the user's approval. The browser flow is enough for a first check.
+4. Voice rehearsal: `IAP_TOKEN=$(deploy/iap-token.sh) BASE=<url> node e2e/rehearsal-voice.mjs alerts`.
+   Direct IAP on Cloud Run refuses ordinary ID tokens, also of a service account with access
+   ("Invalid JWT audience"). `deploy/iap-token.sh` signs a one-hour JWT (`aud` = `<url>/*`) as the test
+   service account `live-studio-driver` through your gcloud user (`roles/iam.serviceAccountTokenCreator` on
+   that account, no key file). The account has nothing but IAP access to this service (user, 10/5).
+
+Checked 10/5 with that token: `/api/health` ok (`llm: vertex`, `stt: google_v2`); SSE `200
+text/event-stream` with session, transcript and alert events; the audio WebSocket reached "listening" in
+280 ms.
