@@ -216,5 +216,12 @@
     "육만 이천",
     "사만 팔천",
     "사만 이천"
+  ],
+  "verification_notes_10_5": [
+    "Replace '일반화장품 승인 문구' with '제품 자료에서 확인한 표현'.",
+    "'무자극으로 확인된 순한 제형' overstates 0/32; use '참여자 32명 중 자극 반응을 보고한 분은 없었어요'.",
+    "Remove unverified '다온랩 연구진' and '36,000원'.",
+    "Avoid '환하게', '잔주름' in say-instead lines for a non-functional cosmetic (functional-claim confusion); use moisture wording.",
+    "More natural spoken forms: '건조해서 당기는 피부를 촉촉하게 해줘요' instead of '건조감을 부드럽게 완화'."
   ]
 }
