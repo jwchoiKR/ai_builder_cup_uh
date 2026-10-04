@@ -1,0 +1,430 @@
+[
+ {
+  "seed": "SEED1",
+  "assistant": "on",
+  "sid": "ses_01M44FXD0VQ7Q8B42QRCVGN4PX",
+  "summary": {
+   "errors_by_kind": {
+    "fact": {
+     "planted": 3,
+     "alerted": 3,
+     "within_3s": 3
+    },
+    "compliance": {
+     "planted": 3,
+     "alerted": 2,
+     "within_3s": 2
+    }
+   },
+   "lookalikes": {
+    "total": 12,
+    "red": 1,
+    "yellow": 2
+   },
+   "questions": {
+    "total": 22,
+    "auto_answered": 7,
+    "host_card": 0,
+    "deferred_honestly": 0,
+    "posted": 5,
+    "never": 10,
+    "late": 0
+   },
+   "operator_actions": 11,
+   "wrong_posts": 0,
+   "stale_posts": 0
+  },
+  "errors": [
+   {
+    "t_s": 41,
+    "kind": "fact",
+    "alerted": true,
+    "ms": -931,
+    "within_3s": true,
+    "heard": [
+     "And this one comes in a nice jar.",
+     "You just scoop a little bit out with your finger.",
+     "Very easy. Okay, okay."
+    ]
+   },
+   {
+    "t_s": 100,
+    "kind": "compliance",
+    "alerted": true,
+    "ms": 1660,
+    "within_3s": true,
+    "heard": [
+     "My friend has really bad eczema.",
+     "And she used this cream.",
+     "And honestly, her eczema went away. So you can try. Okay.",
+     "Ha ha, she and"
+    ]
+   },
+   {
+    "t_s": 174,
+    "kind": "compliance",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "The cream gives you 38% more hydration right after you put it on.",
+     "I think that's amazing."
+    ]
+   },
+   {
+    "t_s": 301,
+    "kind": "fact",
+    "alerted": true,
+    "ms": 2169,
+    "within_3s": true,
+    "heard": [
+     "So the set is $52. Wow, that's cheaper than buying them separate.",
+     "So very worth it."
+    ]
+   },
+   {
+    "t_s": 415,
+    "kind": "fact",
+    "alerted": true,
+    "ms": -1687,
+    "within_3s": true,
+    "heard": [
+     "The main ingredient is Niacinamide.",
+     "It has 5% Niacinamide.",
+     "5% written right on the label.",
+     "Niacinamide"
+    ]
+   },
+   {
+    "t_s": 548,
+    "kind": "compliance",
+    "alerted": true,
+    "ms": 2176,
+    "within_3s": true,
+    "heard": [
+     "Oh, um yes, it's totally safe. Even pregnant ladies can use it. My cousin used it every day when she was pregnant."
+    ]
+   }
+  ],
+  "lookalikes": [
+   {
+    "t_s": 115,
+    "why": "Test number with the in-house qualifier (approved wording).",
+    "red": false,
+    "yellow": true
+   },
+   {
+    "t_s": 122,
+    "why": "24-hour result 21% with the in-house qualifier (sheet value).",
+    "red": false,
+    "yellow": true
+   },
+   {
+    "t_s": 136,
+    "why": "Negated: says it does not cure anything.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 200,
+    "why": "S$36 live and S$48 list are correct before the time sale starts at 240.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 214,
+    "why": "Set S$62 is correct before the time sale.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 330,
+    "why": "Pregnancy caution as the sheet says; not a safety claim.",
+    "red": true,
+    "yellow": false
+   },
+   {
+    "t_s": 429,
+    "why": "Approved claim 'radiant and even-toned with continued use'; looks like whitening.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 478,
+    "why": "Patch test 0 of 30 with the in-house qualifier; looks like an absolute safety claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 485,
+    "why": "45% hydration with the in-house qualifier (sheet value).",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 527,
+    "why": "Approved claim 'reduce the look of fine dryness lines'; looks like a wrinkle claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 534,
+    "why": "Negated: says it does not remove wrinkles.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 633,
+    "why": "Negated: results are not permanent.",
+    "red": false,
+    "yellow": false
+   }
+  ],
+  "questions": [
+   {
+    "id": "q1",
+    "intent": "price_cream",
+    "answerable": true,
+    "asks": 4,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 6245,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q2",
+    "intent": "fragrance",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 5497,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q3",
+    "intent": "oily_skin",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "posted",
+    "ms": 27740,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q4",
+    "intent": "under_makeup",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q5",
+    "intent": "packaging_pump_or_jar",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 4665,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q6",
+    "intent": "promo_discount",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 4849,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q7",
+    "intent": "stock",
+    "answerable": false,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q8",
+    "intent": "time_sale_duration",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "auto_answered",
+    "ms": 4074,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q9",
+    "intent": "price_cream_time_sale",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "auto_answered",
+    "ms": 3921,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q10",
+    "intent": "routine_order",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q11",
+    "intent": "set_vs_separate",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "auto_answered",
+    "ms": 4855,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q12",
+    "intent": "gift_freebie",
+    "answerable": false,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q13",
+    "intent": "usage_frequency",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q14",
+    "intent": "bottle_lasts_how_long",
+    "answerable": false,
+    "asks": 1,
+    "groups": 1,
+    "handling": "auto_answered",
+    "ms": -94957,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q15",
+    "intent": "niacinamide_percent",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "auto_answered",
+    "ms": 4614,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q16",
+    "intent": "vitamin_c_combo",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q17",
+    "intent": "how_to_use_ampoule",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q18",
+    "intent": "sticky",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "auto_answered",
+    "ms": 6500,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q19",
+    "intent": "price_ampoule_time_sale",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "auto_answered",
+    "ms": 6408,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q20",
+    "intent": "pregnancy",
+    "answerable": true,
+    "asks": 3,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q21",
+    "intent": "ship_malaysia",
+    "answerable": false,
+    "asks": 2,
+    "groups": 2,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q22",
+    "intent": "delivery_days",
+    "answerable": false,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   }
+  ],
+  "wrong": [],
+  "stale": []
+ }
+]

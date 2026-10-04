@@ -1,0 +1,462 @@
+[
+ {
+  "seed": "SEED2",
+  "assistant": "on",
+  "sid": "ses_01M44HE211KXR6AAC1KBHD8KDW",
+  "summary": {
+   "errors_by_kind": {
+    "compliance": {
+     "planted": 3,
+     "alerted": 3,
+     "within_3s": 3
+    },
+    "fact": {
+     "planted": 3,
+     "alerted": 1,
+     "within_3s": 1
+    }
+   },
+   "lookalikes": {
+    "total": 12,
+    "red": 0,
+    "yellow": 2
+   },
+   "questions": {
+    "total": 25,
+    "auto_answered": 1,
+    "host_card": 0,
+    "deferred_honestly": 0,
+    "posted": 8,
+    "never": 16,
+    "late": 0
+   },
+   "operator_actions": 18,
+   "wrong_posts": 0,
+   "stale_posts": 0
+  },
+  "errors": [
+   {
+    "t_s": 120,
+    "kind": "compliance",
+    "alerted": true,
+    "ms": 1902,
+    "within_3s": true,
+    "heard": [
+     "So, if you use this cream",
+     "Once you finish one bottle, your skin stays hydrated for good.",
+     "It's like permanent hydration.",
+     "Honestly."
+    ]
+   },
+   {
+    "t_s": 205,
+    "kind": "fact",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "It's $36, very cheap. I think it's worth it for a moisturizer like this."
+    ]
+   },
+   {
+    "t_s": 262,
+    "kind": "compliance",
+    "alerted": true,
+    "ms": 1763,
+    "within_3s": true,
+    "heard": [
+     "Honestly, this is the best moisturizer in Singapore.",
+     "No joke.",
+     "Nothing else comes close to it, I swear."
+    ]
+   },
+   {
+    "t_s": 391,
+    "kind": "fact",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "This one is also 50 ml, so a big bottle.",
+     "You can use it for a long time."
+    ]
+   },
+   {
+    "t_s": 458,
+    "kind": "fact",
+    "alerted": true,
+    "ms": 1962,
+    "within_3s": true,
+    "heard": [
+     "In our in-house test, skin hydration went up 54% right after one use.",
+     "That's more than half."
+    ]
+   },
+   {
+    "t_s": 528,
+    "kind": "compliance",
+    "alerted": true,
+    "ms": 1744,
+    "within_3s": true,
+    "heard": [
+     "and for wrinkles",
+     "This ampoule removes wrinkles. My mom's fine lines got way less in 2 weeks.",
+     "I saw it."
+    ]
+   }
+  ],
+  "lookalikes": [
+   {
+    "t_s": 98,
+    "why": "Correct: sheet says free from ethanol; sounds like an ingredient claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 105,
+    "why": "pH 5.5 plus or minus half is the sheet value.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 149,
+    "why": "Pregnancy caution as the sheet says; not a safety claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 170,
+    "why": "38% with the in-house qualifier (sheet value).",
+    "red": false,
+    "yellow": true
+   },
+   {
+    "t_s": 181,
+    "why": "Time sale price S$32.40 is correct after the start at 180.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 311,
+    "why": "29 of 32 after two weeks with the in-house qualifier.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 433,
+    "why": "26 of 30 radiant with the in-house qualifier.",
+    "red": false,
+    "yellow": true
+   },
+   {
+    "t_s": 465,
+    "why": "Ampoule S$28.80 is correct during the time sale.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 486,
+    "why": "Gift pouch over S$60 is the promo text.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 521,
+    "why": "Approved claim 'radiant and even-toned with continued use'; looks like a whitening claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 556,
+    "why": "Patch test 0 of 30 with the in-house qualifier; looks like an absolute safety claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 563,
+    "why": "Negated: says it is not a medicine.",
+    "red": false,
+    "yellow": false
+   }
+  ],
+  "questions": [
+   {
+    "id": "q1",
+    "intent": "price_list",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "posted",
+    "ms": 3852,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q2",
+    "intent": "texture_sticky",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 4778,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q3",
+    "intent": "packaging_tube_or_jar",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 5566,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q4",
+    "intent": "ethanol_free",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 4195,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q5",
+    "intent": "ph",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 4371,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q6",
+    "intent": "pregnancy_breastfeeding",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q7",
+    "intent": "men_can_use",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q8",
+    "intent": "price_cream_time_sale",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 4416,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q9",
+    "intent": "price_ampoule_time_sale",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "posted",
+    "ms": 5176,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q10",
+    "intent": "time_sale_duration",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q11",
+    "intent": "set_vs_time_sale",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "posted",
+    "ms": 5521,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q12",
+    "intent": "ampoule_vs_serum",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q13",
+    "intent": "routine_order",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q14",
+    "intent": "niacinamide_percent",
+    "answerable": true,
+    "asks": 2,
+    "groups": 1,
+    "handling": "auto_answered",
+    "ms": 4433,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q15",
+    "intent": "vitamin_c_combo",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q16",
+    "intent": "tingling",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q17",
+    "intent": "drops_per_use",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q18",
+    "intent": "morning_use",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q19",
+    "intent": "time_to_results",
+    "answerable": false,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q20",
+    "intent": "gift_pouch_threshold",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q21",
+    "intent": "pouch_with_set",
+    "answerable": true,
+    "asks": 2,
+    "groups": 2,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": true
+   },
+   {
+    "id": "q22",
+    "intent": "ship_malaysia",
+    "answerable": false,
+    "asks": 2,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q23",
+    "intent": "delivery_days",
+    "answerable": false,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q24",
+    "intent": "returns",
+    "answerable": false,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q25",
+    "intent": "sensitive_skin",
+    "answerable": true,
+    "asks": 1,
+    "groups": 1,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   }
+  ],
+  "wrong": [],
+  "stale": []
+ }
+]

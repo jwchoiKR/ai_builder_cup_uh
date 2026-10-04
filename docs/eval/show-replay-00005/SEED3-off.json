@@ -1,0 +1,489 @@
+[
+ {
+  "seed": "SEED3",
+  "assistant": "off",
+  "sid": "ses_01M44KSSB4EWYQQCJSVSJR2MP2",
+  "summary": {
+   "errors_by_kind": {
+    "compliance": {
+     "planted": 3,
+     "alerted": 0,
+     "within_3s": 0
+    },
+    "fact": {
+     "planted": 3,
+     "alerted": 0,
+     "within_3s": 0
+    }
+   },
+   "lookalikes": {
+    "total": 12,
+    "red": 0,
+    "yellow": 0
+   },
+   "questions": {
+    "total": 28,
+    "auto_answered": 0,
+    "host_card": 0,
+    "deferred_honestly": 0,
+    "posted": 0,
+    "never": 28,
+    "late": 0
+   },
+   "operator_actions": 34,
+   "wrong_posts": 0,
+   "stale_posts": 0
+  },
+  "errors": [
+   {
+    "t_s": 140,
+    "kind": "compliance",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "Honestly, this cream works like a medicine for dry skin.",
+     "Like the kind of cream a dermatologist prescribes for you."
+    ]
+   },
+   {
+    "t_s": 210,
+    "kind": "fact",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "Also, I think it has a little bit of alcohol inside, so it dries fast and you don't feel wet on your face."
+    ]
+   },
+   {
+    "t_s": 322,
+    "kind": "fact",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "extra 20% off. So very very worth it. I think you should really grab it now."
+    ]
+   },
+   {
+    "t_s": 503,
+    "kind": "fact",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "one more thing",
+     "Once you open the ampoule",
+     "You should finish it within 6 months because it's a serum."
+    ]
+   },
+   {
+    "t_s": 569,
+    "kind": "compliance",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "Honestly, the ampoule widens your skin. Like my skin is wider after 2 weeks and you can see it in my cheeks."
+    ]
+   },
+   {
+    "t_s": 635,
+    "kind": "compliance",
+    "alerted": false,
+    "ms": null,
+    "within_3s": false,
+    "heard": [
+     "And for those who have acne marks, my acne scars faded because of this ampoule. Honestly, it fixed my acne marks."
+    ]
+   }
+  ],
+  "lookalikes": [
+   {
+    "t_s": 68,
+    "why": "S$36 live and S$48 list are correct before the time sale at 300.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 75,
+    "why": "Ampoule S$32 / S$42 and set S$62 are correct before the time sale.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 135,
+    "why": "Patch test 0 of 32 with the in-house qualifier; looks like a sensitive-skin safety claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 182,
+    "why": "38% with the in-house qualifier (sheet value).",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 189,
+    "why": "21% after 24 hours with the in-house qualifier (sheet value).",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 230,
+    "why": "Negated: says it cannot be said to treat acne.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 237,
+    "why": "Faint natural smell is in the sheet FAQ; looks like a fragrance contradiction.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 392,
+    "why": "Approved claims: instant hydration, radiant and even-toned with continued use.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 468,
+    "why": "Pregnancy caution as the sheet says; not a safety claim.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 482,
+    "why": "45% with the in-house qualifier (sheet value).",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 534,
+    "why": "Approved claim 'radiant and even-toned with continued use'; looks like whitening.",
+    "red": false,
+    "yellow": false
+   },
+   {
+    "t_s": 541,
+    "why": "Negated: says it does not whiten.",
+    "red": false,
+    "yellow": false
+   }
+  ],
+  "questions": [
+   {
+    "id": "q1",
+    "intent": "price_cream",
+    "answerable": true,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q2",
+    "intent": "set_price",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q3",
+    "intent": "set_vs_separate",
+    "answerable": true,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q4",
+    "intent": "gift_freebie",
+    "answerable": false,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q5",
+    "intent": "skin_type_fit",
+    "answerable": true,
+    "asks": 3,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q6",
+    "intent": "sensitive_skin",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q7",
+    "intent": "packaging_pump_or_jar",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q8",
+    "intent": "volume_cream",
+    "answerable": true,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q9",
+    "intent": "acne",
+    "answerable": false,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q10",
+    "intent": "fragrance",
+    "answerable": true,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q11",
+    "intent": "shelf_life_after_opening_cream",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q12",
+    "intent": "price_set_time_sale",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q13",
+    "intent": "time_sale_duration",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q14",
+    "intent": "stock",
+    "answerable": false,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q15",
+    "intent": "routine_order_cream",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q16",
+    "intent": "sunscreen_after_cream",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q17",
+    "intent": "under_makeup",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q18",
+    "intent": "ingredients_ampoule",
+    "answerable": true,
+    "asks": 3,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q19",
+    "intent": "texture_ampoule",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q20",
+    "intent": "vitamin_c_combo",
+    "answerable": true,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q21",
+    "intent": "morning_use",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q22",
+    "intent": "pregnancy",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q23",
+    "intent": "price_ampoule_time_sale",
+    "answerable": true,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q24",
+    "intent": "drops_per_use",
+    "answerable": true,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q25",
+    "intent": "where_to_buy",
+    "answerable": false,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q26",
+    "intent": "ship_malaysia",
+    "answerable": false,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q27",
+    "intent": "delivery_days",
+    "answerable": false,
+    "asks": 1,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   },
+   {
+    "id": "q28",
+    "intent": "acne_marks",
+    "answerable": false,
+    "asks": 2,
+    "groups": 0,
+    "handling": "never",
+    "ms": null,
+    "late": false,
+    "on_list_only": false
+   }
+  ],
+  "wrong": [],
+  "stale": []
+ }
+]
