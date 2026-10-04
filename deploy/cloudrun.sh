@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 # Deploy Live Studio to Cloud Run with IAP (see docs/DEPLOY.md). Test deployments only.
 #   deploy/cloudrun.sh                     # us-central1, next to Speech-to-Text "us" (user, 10/5)
-#   deploy/cloudrun.sh asia-southeast1     # optional second service for a latency comparison
 # Env: IAP_MEMBERS (comma list; default user:jaewoo@cloocus.com). The project is fixed to separk-cloocus.
 set -euo pipefail
 
 PROJECT="separk-cloocus"  # never another project
 REGION="${1:-us-central1}"
 case "$REGION" in
-  asia-southeast1) SERVICE="live-studio-sg" ;;
   us-central1) SERVICE="live-studio-us" ;;
   *) echo "unsupported region $REGION" >&2; exit 2 ;;
 esac
