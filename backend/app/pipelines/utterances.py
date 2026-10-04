@@ -969,7 +969,8 @@ async def render_ack(rt: "SessionRuntime", aid: str) -> None:
 def notice_template(rt: "SessionRuntime", a: Alert) -> str:
     """Prefilled 'Post notice' text from templates/notices.json (§8.5, §8.13)."""
     notices = rt.ctx.pack.notices
-    name = rt.catalog.get_product(a.product_id).name
+    sets = {o.set_id: o.name for o in rt.catalog.set_offers}  # a set price note names the set
+    name = sets.get(a.product_id) or rt.catalog.get_product(a.product_id).name
     if a.kind == "compliance":
         t = next(n for n in notices.correction_notices if n.template_id == "compliance_correction")
         return t.text.replace("{product_name}", name)

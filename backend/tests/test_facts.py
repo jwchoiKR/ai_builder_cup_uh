@@ -222,3 +222,34 @@ def test_test_result_is_checked_only_when_a_test_is_cited(pack, catalog, text, v
 def test_other_field_never_gives_a_note(pack, catalog):
     """"prescription cream" -> "cosmetic product" has no value to compare; the quote alone is not enough."""
     assert verdicts(pack, catalog, "In our test it worked in two weeks.", weeks("other")) == ["not_in_sources"]
+
+
+# ---- set offers (holdout H046) -------------------------------------------------------------------
+
+SET = "set_cream_ampoule"
+H046 = "The time sale price for the two-piece set is fifty dollars flat."
+
+
+async def test_set_promo_price_contradiction_names_the_set(env):
+    """The model names the set offer, which is not a product; the note must still stand."""
+    rt, llm = env
+    await rt.start_promo("promo_time_sale_10")
+    llm.facts(H046, claim("promo", "contradicted", product_id=SET, stated="S$50", correct="S$55.80"))
+    await speak(rt, H046)
+    [a] = await fact_alerts(rt)
+    assert (a.product_id, a.correct_value) == (SET, "S$55.80")
+    assert utt.notice_template(rt, a).startswith("Correction: the current price of ")
+    assert "S$55.80" in utt.notice_template(rt, a)
+
+
+@pytest.mark.parametrize("bad", [
+    claim("promo", "contradicted", product_id=SET, stated="S$50", correct="S$50.00"),  # not the set's promo price
+    claim("promo", "contradicted", product_id=CREAM, stated="S$50", correct="S$55.80"),  # set price on the cream
+    claim("volume", "contradicted", product_id=SET, stated="2 pieces", correct="3 pieces"),  # sets have only prices
+])
+async def test_set_claims_that_stay_downgraded(env, bad):
+    rt, llm = env
+    await rt.start_promo("promo_time_sale_10")
+    llm.facts(H046, bad)
+    await speak(rt, H046)
+    assert await fact_alerts(rt) == []
