@@ -586,8 +586,11 @@ class UtterancePipeline:
         seq = self._sequence.get(t.transcript_id, 0)
         claims = []
         for claim in facts.claims:
-            key = (claim.product_id, claim.field)
-            latest = self._fact_sequence.get(key)
+            # D-117 B3: ordered per subject; a claim without a passage also counts for the whole field
+            key = fact_logic.subject_key(claim.product_id, claim.field, claim.passage_id)
+            wide = fact_logic.subject_key(claim.product_id, claim.field, "*")
+            seen = [x for x in (self._fact_sequence.get(key), self._fact_sequence.get(wide)) if x is not None]
+            latest = max(seen, key=lambda x: x[0]) if seen else None
             if latest is not None and seq < latest[0]:
                 newer = self._judged.get(latest[1])
                 if not (latest[2] == "supported" and newer is not None
@@ -596,6 +599,8 @@ class UtterancePipeline:
             if claim.verdict in ("supported", "contradicted"):
                 if latest is None or seq >= latest[0]:
                     self._fact_sequence[key] = (seq, t.transcript_id, claim.verdict)
+                    if claim.passage_id is None:
+                        self._fact_sequence[wide] = (seq, t.transcript_id, claim.verdict)
             claims.append(claim)
         created, reshown, corrected = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
                                                                   protected=protected)

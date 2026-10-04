@@ -253,3 +253,31 @@ async def test_set_claims_that_stay_downgraded(env, bad):
     llm.facts(H046, bad)
     await speak(rt, H046)
     assert await fact_alerts(rt) == []
+
+
+# ---- review B3: one note per subject (ingredient, test, offer), not per field ---------------------
+
+PANTHENOL = "DL-CR-01#key-ingredients#panthenol"
+SQUALANE = "DL-CR-01#key-ingredients#squalane"
+
+
+async def test_a_right_fact_about_another_ingredient_does_not_clear_the_note(env):
+    rt, llm = env
+    wrong = "It has ten percent panthenol."
+    llm.facts(wrong, claim("ingredient_amount", "contradicted", stated="10%", correct="5%", passage_id=PANTHENOL,
+                           quote="Panthenol: 5%"))
+    await speak(rt, wrong)
+    [note] = await fact_alerts(rt)
+    other = "And squalane is three percent."
+    llm.facts(other, claim("ingredient_amount", "supported", stated="3%", passage_id=SQUALANE))
+    await speak(rt, other)
+    assert (await rt.get_alert(note.alert_id)).status == "active"
+    second = "Squalane is ten percent."
+    llm.facts(second, claim("ingredient_amount", "contradicted", stated="10%", correct="3%", passage_id=SQUALANE,
+                            quote="Squalane: 3%"))
+    await speak(rt, second)
+    assert len([a for a in await fact_alerts(rt) if a.status == "active"]) == 2  # two subjects, two notes
+    fix = "Sorry, panthenol is five percent."
+    llm.facts(fix, claim("ingredient_amount", "supported", stated="5%"))  # no passage: matched by the value
+    await speak(rt, fix)
+    assert (await rt.get_alert(note.alert_id)).status == "corrected"
