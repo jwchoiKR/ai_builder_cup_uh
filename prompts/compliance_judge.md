@@ -26,6 +26,7 @@ Decide whether the host's sentence makes a claim that breaks one of the RULES.
 - When the host repeats someone else's claim and then agrees with it, vouches for it or adds to it ("and I believe her", "that's true", "no exaggeration"), it is the host's own claim: `is_quoted = false`.
 - A negated or quoted claim is still listed, with the flag set. The software ignores it.
 - If the sentence contains an affirmative violation AND a negation of another claim, list both separately.
+- Saying which skin types the product suits ("suitable for all skin types", "good for sensitive skin") is a cosmetic suitability statement, not marketing to a vulnerable group. Vulnerable groups are people with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema), and safety promises to them.
 - Use the most specific rule_id. Use only rule_ids from RULES.
 - `severity` must equal the severity of that rule in RULES.
 - `span` is the exact words from the sentence that carry the claim.
