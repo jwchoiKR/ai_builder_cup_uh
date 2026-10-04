@@ -238,6 +238,22 @@ describe("Operator screen", () => {
     expect((posts[1].body as { origin: string }).origin).toBe("operator_written");
   });
 
+  it("D-120: a collapsed row shows the proposed reply and the next action without opening", async () => {
+    snap = snapshot({
+      groups: [
+        group({ group_id: "g_rev", canonical_question: "Is it suitable for oily skin?", status: "needs_review", answer_id: "ans_000001" }),
+        group({ group_id: "g_none", canonical_question: "Do you ship to Malaysia?", status: "needs_review", answer_id: null, intent: "shipping" }),
+      ],
+      answers: { ans_000001: answer() },
+    });
+    render(<Operator sessionId="ses_op_preview" />);
+    const desk = await screen.findByTestId("op-question-desk");
+    const row = await within(desk).findByTestId("op-preview-g_rev");
+    expect(row).toHaveTextContent(answer().text);
+    expect(within(row).getByRole("button", { name: "Approve" })).toBeEnabled();
+    expect(within(desk).getByTestId("op-preview-g_none")).toHaveTextContent("No AI draft for this question.");
+  });
+
   it("filters the question desk by tab", async () => {
     snap = snapshot({
       groups: [
@@ -350,5 +366,13 @@ describe("Operator screen", () => {
     } finally {
       setLang("en");
     }
+  });
+});
+
+describe("operator desk rows and header (D-120)", () => {
+  it("hides latency chips until a real latency is measured", async () => {
+    const { latencyShown } = await import("./Header");
+    expect(latencyShown({ header: { alert_in_s: 0, judge_p50_s: null } })).toEqual({ alert: false, judge: false });
+    expect(latencyShown({ header: { alert_in_s: 2.4, judge_p50_s: 1.2 } })).toEqual({ alert: true, judge: true });
   });
 });
