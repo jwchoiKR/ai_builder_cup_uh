@@ -123,7 +123,10 @@ class PromosFile(BaseModel):
     rules: PromoRules
 
 
-# ---- data/policy/claim_rules.json ------------------------------------------------------------
+# ---- data/markets/<code>.json + data/lang/<code>.json (D-129) ---------------------------------
+# A market pack holds the law (regulator, sources, rules by category with their legal reference and
+# severity, currency, offered broadcast languages); a language pack holds the wording (reflex phrases,
+# examples, say-instead hints, negation and quote cues). Together they make the ClaimRulesFile below.
 
 
 class PolicySource(BaseModel):
@@ -144,6 +147,58 @@ class Rule(BaseModel):
     unacceptable_examples: list[str]
     say_instead_hint: str
     reflex_phrases: list[str]
+
+
+class Currency(BaseModel):
+    code: str
+    symbol: str
+    minor_units: int
+
+
+class MarketLanguage(BaseModel):
+    lang: str
+    stt_language: str  # a chirp_3 code checked by a direct call (docs/research/japac-regulators.md)
+    tier: Literal["live", "preview", "not_yet"]
+    note: str | None = None
+
+
+class MarketRule(BaseModel):
+    rule_id: str
+    category: str  # stable across markets; the language pack's wording is keyed by it
+    source_id: str
+    source_ref: str
+    title: str
+    description: str
+    severity: Literal["HIGH", "MEDIUM"]
+
+
+class MarketPack(BaseModel):
+    market: str
+    name: str
+    regulator: str
+    policy_id: str
+    category: str
+    tier: Literal["live", "preview", "not_yet"]
+    currency: Currency
+    languages: list[MarketLanguage]
+    sources: list[PolicySource]
+    severity_display: dict[str, str]
+    softening_guidance: dict
+    rules: list[MarketRule]
+
+
+class CategoryWording(BaseModel):
+    unacceptable_examples: list[str]
+    say_instead_hint: str
+    reflex_phrases: list[str]
+
+
+class LangPack(BaseModel):
+    lang: str
+    name: str
+    categories: dict[str, CategoryWording]
+    negation_cues: list[str]
+    quote_cues: list[str]
 
 
 class ClaimRulesFile(BaseModel):

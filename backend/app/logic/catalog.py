@@ -1,6 +1,6 @@
 """Data pack loading and catalog helpers (DEV_SPEC §6.1, §6.4).
 
-Product facts come only from data/products/, rules only from data/policy/. Prices are read,
+Product facts come only from data/products/, rules only from data/markets/ (law) and data/lang/ (wording). Prices are read,
 never computed.
 """
 from __future__ import annotations
@@ -16,6 +16,8 @@ from ..models.data import (
     ClaimRulesFile,
     Intent,
     IntentsFile,
+    LangPack,
+    MarketPack,
     NoticesFile,
     Passage,
     Product,
@@ -31,6 +33,23 @@ DEFAULT_RUNSHEET_ID = "daon_skincare_demo"
 
 # §6.4: the bare alias "cream" maps to the cream only when "ampoule" is not also present.
 _GENERIC_ALIAS_BLOCKERS = {"cream": "ampoule"}
+
+
+def claim_rules(market: MarketPack, lang: LangPack) -> ClaimRulesFile:
+    """D-129: the rules of one broadcast = the market's law + the language's wording for each category."""
+    offered = {x.lang for x in market.languages}
+    if lang.lang not in offered:
+        raise DataPackError(f"market {market.market} does not offer language {lang.lang} (offers {sorted(offered)})")
+    missing = sorted({r.category for r in market.rules} - set(lang.categories))
+    if missing:
+        raise DataPackError(f"language pack {lang.lang} has no wording for categories {missing}")
+    return ClaimRulesFile(
+        policy_id=market.policy_id, market=market.market, category=market.category, sources=market.sources,
+        severity_display=market.severity_display,
+        rules=[Rule(**r.model_dump(exclude={"category"}), **lang.categories[r.category].model_dump())
+               for r in market.rules],
+        negation_cues=lang.negation_cues, quote_cues=lang.quote_cues,
+    )
 
 
 class DataPackError(ValueError):
@@ -51,9 +70,17 @@ class DataPack:
     intents: IntentsFile
     notices: NoticesFile
     passages: list[Passage]
+    market: MarketPack | None = None  # D-129: None only for packs built by hand in tests
+    lang: str = "en"
+
+    @property
+    def stt_language(self) -> str:
+        """The chirp_3 code of this broadcast language in this market (D-129)."""
+        assert self.market is not None
+        return next(x.stt_language for x in self.market.languages if x.lang == self.lang)
 
     @classmethod
-    def load(cls, data_dir: Path) -> "DataPack":
+    def load(cls, data_dir: Path, market: str = "SG", lang: str = "en") -> "DataPack":
         if not data_dir.is_dir():
             raise DataPackError(f"DATA_DIR not found: {data_dir}")
         runsheets = {}
@@ -65,14 +92,17 @@ class DataPack:
             for line in f:
                 if line.strip():
                     passages.append(Passage.model_validate_json(line))
+        market_pack = MarketPack.model_validate(_read_json(data_dir / "markets" / f"{market.lower()}.json"))
         pack = cls(
             products=ProductsFile.model_validate(_read_json(data_dir / "products" / "products.json")),
             runsheets=runsheets,
             promos=PromosFile.model_validate(_read_json(data_dir / "promos" / "promos.json")),
-            rules=ClaimRulesFile.model_validate(_read_json(data_dir / "policy" / "claim_rules.json")),
+            rules=claim_rules(market_pack, LangPack.model_validate(_read_json(data_dir / "lang" / f"{lang}.json"))),
             intents=IntentsFile.model_validate(_read_json(data_dir / "policy" / "intents.json")),
             notices=NoticesFile.model_validate(_read_json(data_dir / "templates" / "notices.json")),
             passages=passages,
+            market=market_pack,
+            lang=lang,
         )
         pack._validate()
         return pack
@@ -118,6 +148,9 @@ class DataPack:
                 errors.append(f"passage {p.passage_id}: unknown product {p.product_id}")
         if DEFAULT_RUNSHEET_ID not in self.runsheets:
             errors.append(f"default run-sheet {DEFAULT_RUNSHEET_ID} missing")
+        if self.market is not None and self.products.currency_symbol != self.market.currency.symbol:
+            errors.append(f"products are priced in {self.products.currency_symbol}, market "
+                          f"{self.market.market} uses {self.market.currency.symbol}")
         if errors:
             raise DataPackError("data pack is inconsistent: " + "; ".join(errors))
 

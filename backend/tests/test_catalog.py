@@ -87,3 +87,44 @@ def test_catalog_unknown_product(catalog):
     with pytest.raises(KeyError):
         catalog.get_product("nope")
     assert isinstance(catalog, Catalog)
+
+
+def test_d129_market_and_language_packs_make_the_rules(pack):
+    """Singapore law + English wording: every rule has its category's phrases; STT code from the pack."""
+    assert pack.rules.market == "SG" and pack.market.regulator.startswith("Health Sciences Authority")
+    assert pack.stt_language == "en-US"  # chirp_3 rejects en-SG
+    disease = pack.rules_by_id["ASEAN-2D-DISEASE"]
+    assert disease.severity == "HIGH" and "eczema" in disease.reflex_phrases
+    assert "does not" in pack.rules.negation_cues
+
+
+def _copy(tmp_path, settings):
+    import shutil
+
+    data = tmp_path / "data"
+    shutil.copytree(settings.data_path, data)
+    return data
+
+
+def test_d129_language_must_be_offered_and_complete(tmp_path, settings):
+    data = _copy(tmp_path, settings)
+    with pytest.raises(FileNotFoundError):
+        DataPack.load(data, lang="ko")  # no Korean pack yet
+    (data / "lang" / "ko.json").write_text((data / "lang" / "en.json").read_text(encoding="utf-8")
+                                           .replace('"lang": "en"', '"lang": "ko"'), encoding="utf-8")
+    with pytest.raises(DataPackError, match="does not offer language ko"):
+        DataPack.load(data, lang="ko")
+    en = json.loads((data / "lang" / "en.json").read_text(encoding="utf-8"))
+    del en["categories"]["whitening"]
+    (data / "lang" / "en.json").write_text(json.dumps(en), encoding="utf-8")
+    with pytest.raises(DataPackError, match="whitening"):
+        DataPack.load(data)
+
+
+def test_d129_products_priced_in_the_market_currency(tmp_path, settings):
+    data = _copy(tmp_path, settings)
+    sg = json.loads((data / "markets" / "sg.json").read_text(encoding="utf-8"))
+    sg["currency"]["symbol"] = "RM"
+    (data / "markets" / "sg.json").write_text(json.dumps(sg), encoding="utf-8")
+    with pytest.raises(DataPackError, match="priced in S\$"):
+        DataPack.load(data)

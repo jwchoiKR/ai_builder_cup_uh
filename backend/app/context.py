@@ -72,7 +72,9 @@ def build_context(
 
     clock = clock or SystemClock()
     ids = Ids(clock, deterministic=settings.LLM_PROVIDER == "mock")
-    pack = DataPack.load(settings.data_path)
+    pack = DataPack.load(settings.data_path, settings.MARKET, settings.BROADCAST_LANGUAGE)
+    if not settings.STT_LANGUAGE:
+        settings = settings.model_copy(update={"STT_LANGUAGE": pack.stt_language})
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     store = make_store(settings)
     bus = EventBus(store, clock)
