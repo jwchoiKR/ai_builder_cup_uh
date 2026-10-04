@@ -151,6 +151,13 @@ class ComposerOutput(BaseModel):
     reason: str
 
 
+class DraftCheckOutput(BaseModel):
+    """DraftVerifier (D-126): the LLM check of a composed answer against its cited passages."""
+    verdict: Literal["pass", "fail"]
+    problems: list[str] = []
+    reason: str
+
+
 # ---- BriefAgent (§7.7) -----------------------------------------------------------------------
 
 

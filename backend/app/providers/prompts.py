@@ -19,7 +19,8 @@ from typing import Any
 
 PROMPT_NAMES = (
     "utterance_judge", "judge_single", "compliance_judge", "context_judge", "fact_checker",
-    "comment_triage", "comment_triage_batch", "answer_composer", "brief_agent", "broadcast_summary",
+    "comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier", "brief_agent",
+    "broadcast_summary",
 )
 
 # Rendered as plain text; every other placeholder must contain `_json` and is rendered as JSON.

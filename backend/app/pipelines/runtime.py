@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 from ..agents.answer_composer import AnswerComposer
+from ..agents.draft_verifier import DraftVerifier
 from ..agents.comment_triage import CommentTriage
 from ..logic import host_queue as hq
 from ..logic.cache import PRICE_INTENTS, AnswerCache, TriageCache
@@ -82,6 +83,7 @@ class SessionRuntime:
         self.triage = CommentTriage(ctx.llm, ctx.prompts["comment_triage"], self.catalog, ctx.settings,
                                     batch_prompt=ctx.prompts["comment_triage_batch"])
         self.composer = AnswerComposer(ctx.llm, ctx.prompts["answer_composer"], self.catalog)
+        self.draft_verifier = DraftVerifier(ctx.llm, ctx.prompts["draft_verifier"], self.catalog)
         self.feed = FeedEngine(self)
         from .utterances import UtterancePipeline
 

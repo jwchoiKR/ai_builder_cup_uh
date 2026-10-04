@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 
 from ..models.agent_io import ComposerOutput
 from ..models.data import Passage
+from .qualifier import is_qualified
 from .reflex import Reflex
 
 MAX_ANSWER_CHARS = 240
@@ -107,6 +108,8 @@ def is_promo_passage(passage_id: str) -> bool:
     return passage_id.startswith("PROMO#")
 
 
+IN_HOUSE_SECTION = "In-house test results"
+
 def verify_answer(
     output: ComposerOutput,
     passages: Sequence[Passage],
@@ -163,6 +166,14 @@ def verify_answer(
     subjects = quoted_subjects([c.quote for c in output.citations if c.passage_id in by_id])
     for n, subject in misattributed_numbers(answer, subjects):
         errors.append(f"number {n} is not the value of '{subject}' in the cited quotes")
+
+    # 7. D-126: a number from an in-house test result is said with "in-house" / "our test" (D007)
+    test_numbers: set[str] = set()
+    for p in cited:
+        if p.section == IN_HOUSE_SECTION:
+            test_numbers |= number_set(p.text)
+    if test_numbers & number_set(answer) and not is_qualified(answer):
+        errors.append("in-house test result without 'in-house test'")
 
     # 5. no restricted wording, even negated
     hits = reflex.scan(answer)

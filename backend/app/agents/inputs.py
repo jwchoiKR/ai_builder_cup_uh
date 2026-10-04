@@ -205,6 +205,10 @@ def canonical_question(text: str) -> str:
     return text
 
 
+def draft_answer_json(text: str) -> str:
+    return text  # JSON-encoded on render: the draft is untrusted model output
+
+
 def product_id(pid: str) -> str:
     return pid
 
@@ -225,7 +229,7 @@ BUILDERS = {
         set_offers_json, active_promo_json_or_null, switch_context_json, rules_compact_json,
         intent_names_json, condition_slots_json, active_alerts_json, open_questions_json,
         open_groups_json, host_cues_json, last_two_final_transcripts_json, passages_json,
-        summary_stats_json, utterance_text, comment_text, comments_json, canonical_question, product_id,
+        summary_stats_json, draft_answer_json, utterance_text, comment_text, comments_json, canonical_question, product_id,
         product_id_at_comment_time_minus_grace, full_document_text_with_section_headings,
     )
 }
