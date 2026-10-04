@@ -186,3 +186,32 @@ async def test_say_instead_without_a_test_number_is_kept(env):
     await speak(rt, text)
     [a] = await compliance_alerts(rt)
     assert a.say_instead == "It helps relieve the feeling of dryness."
+
+
+async def test_a_statement_of_the_product_sheet_is_never_an_alert(env):
+    """D-132 (sealed AW010): "suitable for all skin types" is in the cream's sheet (Key facts, FAQ);
+    the judge flagged it once HIGH (vulnerable users) and twice MEDIUM (superlative)."""
+    rt, llm = env
+    text = "Contains no added fragrance and no essential oils, making it suitable for all skin types."
+    llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE", "suitable for all skin types"),
+                                violation("BRAND-SUPERLATIVE", "it is suitable for all skin types", severity="MEDIUM")])
+    await speak(rt, text)
+    assert await compliance_alerts(rt) == []
+
+
+async def test_sheet_words_do_not_cover_a_wider_claim(env):
+    rt, llm = env
+    text = "It is suitable for babies and every skin condition."
+    llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE", "suitable for babies and every skin condition")])
+    await speak(rt, text)
+    assert len(await compliance_alerts(rt)) == 1
+
+
+def test_not_approved_claims_of_the_sheet_never_count_as_approved(catalog, pack):
+    from app.agents.utterance_judge import _is_approved_wording
+
+    cream = catalog.get_product(CREAM)
+    passages = [p for p in pack.passages if p.product_id == CREAM]
+    assert not _is_approved_wording("the best moisturiser in Singapore", cream, passages)
+    assert not _is_approved_wording("removes wrinkles or reverses skin ageing", cream, passages)
+    assert _is_approved_wording("suitable for all skin types", cream, passages)

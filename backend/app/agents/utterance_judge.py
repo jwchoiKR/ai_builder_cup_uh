@@ -78,15 +78,33 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
 APPROVED_SPAN_MIN = 0.8
 
 
-def _is_approved_wording(span: str, product) -> bool:
+# D-132: product-sheet sections whose statements the host may repeat. Not "Cautions" (a warning's words
+# reused out of context could hide a claim) and not "Approved on-air claims", which also lists the claims
+# NOT approved (the approved ones come from the product's own list); a FAQ passage counts by its answer.
+SHEET_SECTIONS = frozenset({"Product overview", "Key facts", "Key ingredients", "How to use",
+                            "In-house test results", "Frequently asked questions"})
+
+
+def _sheet_statements(passages) -> list[str]:
+    """One sentence at a time, so words from different sentences never add up to a claim."""
+    out = []
+    for p in passages:
+        if p.section in SHEET_SECTIONS:
+            text = p.text.split(" A: ", 1)[1] if " A: " in p.text else p.text
+            out += [x for x in re.split(r"(?<=[.!?;])\s+", text) if x]
+    return out
+
+
+def _is_approved_wording(span: str, product, passages=()) -> bool:
     """The flagged words are the product's own approved wording: an approved claim, an approved in-house
-    result or a prompter point (at least 80% of the span's content words, every number of it)."""
+    result, a prompter point or a statement of its product sheet (D-132, sealed AW010: "suitable for all
+    skin types" is in the cream's sheet) - at least 80% of the span's content words, every number of it."""
     words = content_words(span)
     if len(words) < 3:
         return False
     numbers = {w for w in words if w.isdigit()}
     texts = [*product.approved_claims, *(r.say for r in product.qualified_results),
-             *(p.text for p in product.prompter_points)]
+             *(p.text for p in product.prompter_points), *_sheet_statements(passages)]
     for text in texts:
         heard = content_words(text)
         if coverage(words, heard) >= APPROVED_SPAN_MIN and numbers <= set(heard):
@@ -108,7 +126,8 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
         if (on_air_product is not None and v.rule_id != qualifier.RULE_ID
-                and _is_approved_wording(v.span, on_air_product)):
+                and _is_approved_wording(v.span, on_air_product,
+                                         [p for p in catalog.pack.passages if p.product_id == on_air_product.product_id])):
             continue  # D-123: approved product wording is never a violation (the qualifier rule still applies)
         if v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
