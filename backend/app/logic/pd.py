@@ -1,8 +1,8 @@
 """AI PD candidates and the deterministic fallback (PLANNING 5.1.1).
 
 The AI PD never writes its own wording. Every candidate carries verified text: a suggested answer
-that passed verify_answer, a prompter point, or a promo's viewer text. The model (or the rule
-fallback) only picks one candidate.
+that passed verify_answer, a promo's viewer text, or a fixed switch/wrap-up line with the missing
+required prompter points verbatim. The model (or the rule fallback) only picks one candidate.
 """
 from __future__ import annotations
 
@@ -84,25 +84,26 @@ def candidates(st: PdState) -> list[Candidate]:
         elif 0 < p.ends_at - st.now <= PROMO_ENDING_MS:
             secs = (p.ends_at - st.now) // 1000
             out.append(Candidate(f"promo:{p.promo_id}", "promo", p.viewer_text, f"Ends in {secs} s", p.promo_id, 1))
-    late = st.elapsed_ratio >= 0.5
-    for pt in st.missing_required:
-        out.append(Candidate(f"point:{pt.point_id}", "cover_point", pt.text, "Required point not said yet",
-                             pt.point_id, 2 if late else 4))
+    # D-107: no "say this point" card. The prompter's highlighted next required point is the cue;
+    # the switch and wrap-up cards name the required points still to say, verbatim.
     for q in st.questions:
         out.append(Candidate(f"question:{q.group_id}", "answer_question", q.answer, q.question, q.group_id, 3))
-    if not st.missing_required and st.elapsed_ratio >= 0.8:
+    if st.elapsed_ratio >= 0.8:
+        missing = st.missing_required
+        before = "; ".join(p.text.rstrip(". ") for p in missing)
+        left = f"{len(missing)} required point{'s' if len(missing) != 1 else ''} left" if missing else None
+        # the missing points are part of the id, so the card text is refreshed when one is said
+        tag = "".join(f":{p.point_id}" for p in missing)
         if st.next_product:
             pid, name = st.next_product
-            out.append(Candidate(f"switch:{pid}", "switch_product", f"Next up: {name}", "Required points done",
-                                 pid, 3))
+            say = f"Before switching: {before}, then introduce {name}." if missing else f"Next up: {name}"
+            out.append(Candidate(f"switch:{pid}{tag}", "switch_product", say, left or "Required points done", pid,
+                                 2 if missing else 3))
         else:
-            out.append(Candidate(f"wrap:{st.product_id}", "wrap_up", "Wrap up: thank viewers and remind them of "
-                                 "today's live price.", "Last product, time is nearly up", st.product_id, 3))
-    if st.silent:
-        for pt in st.points:
-            if pt.point_id not in st.covered_ids and pt.point_id not in st.required_ids:
-                out.append(Candidate(f"point:{pt.point_id}", "cover_point", pt.text, "Something to say next",
-                                     pt.point_id, 5))
+            tail = "thank viewers and remind them of today's live price."
+            say = f"Before wrapping up: {before}, then {tail}" if missing else f"Wrap up: {tail}"
+            out.append(Candidate(f"wrap:{st.product_id}{tag}", "wrap_up", say,
+                                 left or "Last product, time is nearly up", st.product_id, 2 if missing else 3))
     out = [c for c in out if c.ref_id not in st.dismissed_refs]
     return sorted(out, key=lambda c: c.priority)
 

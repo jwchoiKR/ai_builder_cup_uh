@@ -160,7 +160,7 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   await say(4);
   const fact = host.getByTestId("host-fact-note");
   await expect(fact).toBeVisible();
-  await expect(fact).toContainText("Price correction");
+  await expect(fact).toContainText("PRICE CORRECTION");
   await expect(host.getByTestId("host-fact-wrong")).toContainText("S$32");
   await expect(host.getByTestId("host-fact-right")).toContainText("S$36.00");
   await expect(fact).toContainText("Source:");

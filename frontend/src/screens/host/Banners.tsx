@@ -1,6 +1,6 @@
 // Cue strip (§12.3.2), fact note (§12.3.5), MEDIUM banner (§12.3.6), switch banner (§12.3.9) and
 // the green "Corrected" confirmation (§12.3.7).
-import { ArrowLeftRight, ArrowRight, Check, CircleAlert, Headphones, ShieldAlert } from "lucide-react";
+import { ArrowLeftRight, Check, CircleAlert, Headphones, ShieldAlert } from "lucide-react";
 
 import { TEST_QUALIFIER_RULE } from "../../app/selectors";
 import type { Alert, Catalog, HostCue } from "../../app/types";
@@ -24,32 +24,31 @@ export function CueStrip({ cue }: { cue: HostCue }) {
 }
 
 export function FactNote({ alert, catalog }: { alert: Alert; catalog: Catalog | null }) {
+  // D-107: wrong product information is as urgent as a compliance alert, so it takes the prompter's
+  // product box too: what was heard small, the right value as the biggest text.
   const label = fieldLabel(catalog, alert.field);
   const source = factSourceLabel(catalog, alert);
   const context = alert.passage_id ? factContext(catalog, alert) : null;
   return (
-    <div className={cx(styles.banner, styles.fact)} data-testid="host-fact-note" role="alert">
-      <span className={styles.bannerIcon} aria-hidden>
-        <CircleAlert />
-      </span>
-      <div className={styles.bannerBody}>
-        <div className={styles.bannerTitleRow}>
-          <span className={styles.bannerTitle}>{label} correction</span>
-          <span className={styles.factValues}>
-            <span className={styles.factWrong} data-testid="host-fact-wrong">
-              ✕ {alert.stated_value}
-            </span>
-            <ArrowRight className={styles.factArrow} aria-label="should be" />
-            <span className={styles.factRight} data-testid="host-fact-right">
-              ○ {alert.correct_value}
-            </span>
-          </span>
-        </div>
-        <span className={styles.bannerSub}>
-          {context ? `${context} · ` : ""}Source: {source}
+    <div className={cx(styles.alertBlock, styles.alertFact)} data-testid="host-fact-note" role="alert">
+      <div className={styles.alertTop}>
+        <span className={styles.warnBadge}>
+          <CircleAlert aria-hidden />
+          {label.toUpperCase()} CORRECTION
+        </span>
+        <span className={styles.alertSaid} data-testid="host-fact-wrong">
+          Heard: ✕ {alert.stated_value}
         </span>
       </div>
-      <span className={styles.bannerAside}>SAY THE UPDATED {label.toUpperCase()}</span>
+      <span className={styles.alertSayLabel}>Say this instead.</span>
+      <span className={styles.alertSay} data-testid="host-fact-right">
+        ○ {alert.correct_value}
+      </span>
+      <span className={styles.alertMeta}>
+        <span className={styles.alertRule}>
+          {context ? `${context} · ` : ""}Source: {source}
+        </span>
+      </span>
     </div>
   );
 }

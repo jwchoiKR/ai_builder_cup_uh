@@ -18,6 +18,7 @@ import {
   priceView,
   productById,
   provisionalAlerts,
+  runOfShow,
 } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
@@ -190,13 +191,15 @@ export function HostView({
   const price = priceView(state, catalog, prompter.product ?? product);
   const cue = cueStrip(state, clientNow);
   const { mediums, facts } = hostBanners(state);
+  const onAir = runOfShow(state, catalog, now).find((i) => i.status === "on_air");
+  const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
   const checking = provisionalAlerts(state).length > 0;
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
-  const bannersOpen = Boolean(facts.length || pendingSwitch);
-  // D-106: compliance alerts and the green Corrected bar sit at the top of the prompter card.
+  // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
+  // product box, in this order: HIGH, fact notes, MEDIUM.
   const prompterAlerts =
-    high || mediums.length || toast ? (
+    high || facts.length || mediums.length || toast ? (
       <>
         {high && (
           <ComplianceOverlay
@@ -208,6 +211,9 @@ export function HostView({
           />
         )}
         {!high && toast && <CorrectedBar />}
+        {facts.slice(0, 2).map((a) => (
+          <FactNote key={a.alert_id} alert={a} catalog={catalog} />
+        ))}
         {mediums.map(({ alert: a, fact }) => (
           <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} />
         ))}
@@ -224,34 +230,29 @@ export function HostView({
     >
       <TopBar state={state} catalog={catalog} now={now} mic={mic} />
       <div className={styles.content}>
-        {cue && <CueStrip cue={cue} />}
-        <div className={cx(styles.banners, bannersOpen && styles.bannersOpen)}>
-          <div className={styles.bannersInner}>
-            {facts.slice(0, 2).map((a) => (
-              <FactNote key={a.alert_id} alert={a} catalog={catalog} />
-            ))}
-            {pendingSwitch && (
-              <SwitchBanner
-                productName={target?.name ?? "the next product"}
-                secondsLeft={switchSecondsLeft(pendingSwitch.commit_at, now)}
-                onCancel={actions.cancelSwitch}
-              />
-            )}
-          </div>
-        </div>
-        {/* D-095: live chat is what the host watches most, so it has the whole right column; the
-            prompter and the audience questions share the left one. */}
         <div className={styles.main}>
-          <div className={cx(styles.left, pd && styles.leftWithPd)}>
-            {pd && <PdCard card={pd} onDismiss={actions.dismissPd} />}
+          <div className={styles.left}>
             <Prompter
               view={prompter}
               product={prompter.product ?? product}
               price={price}
               checking={checking}
               alerts={prompterAlerts}
+              timing={timing}
             />
-            <Questions slots={hostSlots(state)} catalog={catalog} />
+            {/* D-107: everything that comes and goes sits here, so the prompter box never moves */}
+            <div className={styles.leftBottom}>
+              {cue && <CueStrip cue={cue} />}
+              {pendingSwitch && (
+                <SwitchBanner
+                  productName={target?.name ?? "the next product"}
+                  secondsLeft={switchSecondsLeft(pendingSwitch.commit_at, now)}
+                  onCancel={actions.cancelSwitch}
+                />
+              )}
+              {pd && <PdCard card={pd} onDismiss={actions.dismissPd} />}
+              <Questions slots={hostSlots(state)} catalog={catalog} />
+            </div>
           </div>
           <div className={styles.right}>
             <Chat

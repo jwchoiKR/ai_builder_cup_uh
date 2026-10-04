@@ -3,7 +3,7 @@
 // blocks (caution | avoid saying), as in the earlier prototype. Facts already said turn grey; the price
 // never does. Compliance alerts take this same box while they are active, so nothing else moves.
 import { Ban, Check, CircleDot, ListChecks, TriangleAlert } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import type { PriceView, PrompterPointRow, PrompterViewModel } from "../../app/selectors";
 import type { Product } from "../../app/types";
@@ -28,12 +28,72 @@ export function ingredientsOf(product: Product): { key: string; name: string; va
     .map(([key, value]) => ({ key, name: ingredientName(key), value }));
 }
 
+const MIN_ZOOM = 0.8; // below this the text gets too small to read
+const LATE_SHARE = 0.8; // D-107: from here an unsaid required point is emphasised once
+
+/** Planned time of the on-air segment, for the status line and the late emphasis. */
+export interface SegmentTiming {
+  elapsedMs: number;
+  plannedMs: number;
+}
+
+const mmss = (ms: number) => {
+  const t = Math.floor(Math.abs(ms) / 1000);
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+};
+
+/** "2 required points left · 0:30", or "+0:15 over" past the planned time. */
+export function pointsStatus(left: number, timing: SegmentTiming | null): string {
+  const points = left ? `${left} required point${left === 1 ? "" : "s"} left` : "All required points said";
+  if (!timing || !timing.plannedMs) return points;
+  const rest = timing.plannedMs - timing.elapsedMs;
+  return `${points} · ${rest >= 0 ? mmss(rest) : `+${mmss(rest)} over`}`;
+}
+
+/** D-107 (the prototype's fitSlot): when the box content is taller than the box, shrink it step by
+ *  step down to MIN_ZOOM; if it still does not fit, the card grows downward (its top never moves and
+ *  the questions below get less room). Nothing is ever clipped. */
+function useFit(box: RefObject<HTMLDivElement>, fit: RefObject<HTMLDivElement>) {
+  const run = useRef(() => {});
+  run.current = () => {
+    const s = box.current;
+    const f = fit.current;
+    const card = s?.parentElement;
+    if (!s || !f || !card) return;
+    f.style.zoom = "1";
+    f.style.minHeight = "";
+    card.style.minHeight = "";
+    const cs = getComputedStyle(s);
+    const room = s.clientHeight - parseFloat(cs.paddingTop || "0") - parseFloat(cs.paddingBottom || "0");
+    if (!(room > 0)) return; // no layout (tests, hidden pane)
+    const fits = () => f.getBoundingClientRect().height <= room + 1;
+    let z = 1;
+    while (!fits() && z > MIN_ZOOM) {
+      z = Math.round((z - 0.05) * 100) / 100;
+      f.style.zoom = String(z);
+    }
+    if (!fits()) {
+      card.style.minHeight = `${Math.ceil(card.clientHeight + f.getBoundingClientRect().height - room)}px`;
+      return;
+    }
+    f.style.minHeight = `${room / z}px`; // keeps the guard blocks at the bottom and fills the box with alerts
+  };
+  useLayoutEffect(() => run.current());
+  useEffect(() => {
+    if (!box.current || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => run.current());
+    ro.observe(box.current);
+    return () => ro.disconnect();
+  }, [box]);
+}
+
 export function Prompter({
   view,
   product,
   price,
   checking,
   alerts,
+  timing = null,
 }: {
   view: PrompterViewModel;
   product: Product | null;
@@ -41,7 +101,11 @@ export function Prompter({
   checking: boolean;
   /** Compliance alerts or the green Corrected bar: they take the product box while present. */
   alerts?: ReactNode;
+  timing?: SegmentTiming | null;
 }) {
+  const box = useRef<HTMLDivElement>(null);
+  const fit = useRef<HTMLDivElement>(null);
+  useFit(box, fit);
   return (
     <section className={styles.card} data-testid="host-prompter" aria-label="Your prompter">
       {checking && (
@@ -64,22 +128,42 @@ export function Prompter({
           {view.requiredCovered} / {view.requiredTotal} required points
         </span>
       </header>
-      <div className={styles.prompterBox}>
-        {alerts ? (
-          <div className={styles.prompterAlerts} data-testid="host-prompter-alerts">
-            {alerts}
-          </div>
-        ) : product ? (
-          <ProductPanel product={product} price={price} points={view.points} />
-        ) : (
-          <p className={styles.emptyPrompter}>No product on air.</p>
-        )}
+      <div className={styles.prompterBox} ref={box}>
+        <div className={styles.fit} ref={fit}>
+          {alerts ? (
+            <div className={styles.prompterAlerts} data-testid="host-prompter-alerts">
+              {alerts}
+            </div>
+          ) : product ? (
+            <ProductPanel
+              product={product}
+              price={price}
+              points={view.points}
+              status={pointsStatus(view.requiredTotal - view.requiredCovered, timing)}
+              late={Boolean(timing?.plannedMs && timing.elapsedMs >= timing.plannedMs * LATE_SHARE)}
+            />
+          ) : (
+            <p className={styles.emptyPrompter}>No product on air.</p>
+          )}
+        </div>
       </div>
     </section>
   );
 }
 
-function ProductPanel({ product, price, points }: { product: Product; price: PriceView | null; points: PrompterPointRow[] }) {
+function ProductPanel({
+  product,
+  price,
+  points,
+  status,
+  late,
+}: {
+  product: Product;
+  price: PriceView | null;
+  points: PrompterPointRow[];
+  status: string;
+  late: boolean;
+}) {
   const saidText = points
     .filter((p) => p.covered)
     .map((p) => p.text.toLowerCase())
@@ -123,13 +207,18 @@ function ProductPanel({ product, price, points }: { product: Product; price: Pri
         </div>
         <div>
           <h4 className={styles.factsLabel}>Points to say</h4>
+          <div className={cx(styles.pointsStatus, "tabular")} data-testid="host-points-status">
+            {status}
+          </div>
           <ul className={styles.points}>
             {rows.map((p) => (
               <li
                 key={p.point_id}
-                className={cx(styles.point, p === lead && styles.leadPoint, p.covered && styles.said)}
+                className={cx(styles.point, p === lead && styles.leadPoint, p === lead && late && styles.leadLate,
+                  p.covered && styles.said)}
                 data-testid={`host-point-${p.point_id}`}
                 data-state={p.covered ? "said" : "todo"}
+                data-late={p === lead && late ? "true" : undefined}
               >
                 <span className={styles.pointIcon} aria-label={p.covered ? "Said" : undefined}>
                   {p.covered ? <Check /> : <span className={styles.bullet} />}
