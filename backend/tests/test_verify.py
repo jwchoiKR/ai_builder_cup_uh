@@ -167,3 +167,14 @@ def test_rule7_in_house_numbers_need_the_qualifier(passages, catalog, reflex):
     assert check(bare, passages, catalog, reflex)[1] == ["in-house test result without 'in-house test'"]
     said = out("In our in-house test, skin hydration was 38% higher right after one application.", [HYDRATION])
     assert check(said, passages, catalog, reflex)[0]
+
+
+@pytest.mark.parametrize("text", [
+    "The Hydra Barrier Cream is S$36.00 during this live (list price S$48.00). The set with the ampoule is S$62.00.",
+    "The live broadcast price is S$36.00 and list price S$48.00.",
+])
+def test_rule6_stays_in_its_clause_and_accepts_any_matching_subject(passages, catalog, reflex, text):
+    """D-135 (comment-flow CF05, CF09, CF11): correct price answers were blocked as "48 is not the value
+    of 'set'" and "36 is not the value of 'list'"."""
+    ok, errors = check(out(text, [PRICE, LIST, SET]), passages, catalog, reflex)
+    assert ok, errors

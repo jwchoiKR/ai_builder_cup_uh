@@ -30,7 +30,8 @@ def test_triage_basis_used_without_alias(catalog, pack):
     assert attribute_product("price pls", triage(CREAM, "context"), AMPOULE, catalog, intent) == (AMPOULE, "context")
     assert attribute_product("does it have niacinamide", triage(AMPOULE, "content"), CREAM, catalog,
                              pack.intents_by_name["ingredients"]) == (AMPOULE, "content")
-    assert attribute_product("price?", triage(None, "unknown"), CREAM, catalog, intent) == (None, "unknown")
+    # D-135: no product named and triage unsure: the product on air ("ml?", "SPF?")
+    assert attribute_product("price?", triage(None, "unknown"), CREAM, catalog, intent) == (CREAM, "context")
     assert attribute_product("price?", triage(None, "context"), None, catalog, intent) == (None, "unknown")
 
 
@@ -77,7 +78,11 @@ def test_candidate_must_match_product_intent_slots():
     args = dict(product_id=CREAM, intent="skin_type_suitability", canonical_question="Will it work for oily skin?")
     assert find_group([oily], slots={"skin_type": "oily"}, candidate_id="g_oily", **args) is oily
     assert find_group([oily], slots={"skin_type": "dry"}, candidate_id="g_oily", **args) is None
-    assert find_group([oily], slots={"skin_type": "oily"}, candidate_id="g_missing", **args) is None
+    # D-135: a single-question intent joins the only open group that fits, whatever the candidate id
+    assert find_group([oily], slots={"skin_type": "oily"}, candidate_id="g_missing", **args) is oily
+    how = dict(args, intent="how_to_use")
+    assert find_group([group("g_how", intent="how_to_use")], slots={"skin_type": "oily"}, candidate_id=None,
+                      **how) is None  # several questions share how_to_use: wording or candidate only
     closed = group("g_closed", status="closed")
     assert find_group([closed], slots={"skin_type": "oily"}, candidate_id="g_closed", **args) is None
     wrong_product = dict(args, product_id=AMPOULE)

@@ -20,8 +20,8 @@ def make_ctx(fixtures_dir: Path | None = None, backend: LLMBackend | None = None
                          scheduler=ManualScheduler(clock))
 
 
-async def live_runtime(ctx: AppContext) -> SessionRuntime:
-    s = await create_session(ctx, "daon_skincare_demo")
+async def live_runtime(ctx: AppContext, show_mode: str = "solo") -> SessionRuntime:
+    s = await create_session(ctx, "daon_skincare_demo", show_mode)
     rt = await ctx.runtimes.get(s.session_id)
     await rt.start()
     await ctx.scheduler.advance(5000)  # past STREAM_GRACE_SEC, so comments have a context product

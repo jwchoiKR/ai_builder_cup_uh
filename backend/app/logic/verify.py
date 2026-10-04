@@ -46,12 +46,15 @@ SUBJECT_WINDOW = 3
 
 
 def _words_near(tokens: list[str], i: int) -> list[tuple[int, str]]:
-    """(distance, word) around tokens[i]; before wins a tie."""
+    """(distance, word) around tokens[i]; before wins a tie. Units and fillers ("S$" -> "s", "is") do not
+    count toward the distance (D-135: "live broadcast price is S$36.00")."""
+    left = [t for t in tokens[:i] if t not in _UNITS][::-1]
+    right = [t for t in tokens[i + 1:] if t not in _UNITS]
     out = []
     for d in range(1, SUBJECT_WINDOW + 1):
-        for j in (i - d, i + d):
-            if 0 <= j < len(tokens) and not tokens[j][0].isdigit():
-                out.append((d, tokens[j][:5]))
+        for side in (left, right):
+            if d <= len(side) and not side[d - 1][0].isdigit():
+                out.append((d, side[d - 1][:5]))
     return out
 
 
@@ -80,14 +83,17 @@ def quoted_subjects(quotes: Sequence[str], stopwords: frozenset[str]) -> dict[st
 
 def misattributed_numbers(answer: str, subjects: dict[str, set[str]]) -> list[tuple[str, str]]:
     """(number, subject) pairs in the answer whose subject has another value in the quotes."""
-    tokens = _TOKEN.findall(answer.lower())
     out = []
-    for i, tok in enumerate(tokens):
-        if not tok[0].isdigit():
-            continue
-        near = next((w for _, w in _words_near(tokens, i) if w in subjects), None)
-        if near is not None and not number_set(tok) <= subjects[near]:
-            out.extend((n, near) for n in sorted(number_set(tok)))
+    # D-135: within one clause only (split at . ; ( ) ", " and "and"): "(list price S$48.00). The set ..." must
+    # not tie 48 to "set"; a number is fine when any subject of its clause near it has that value
+    for clause in re.split(r"[;()]|,\s|\band\b|(?<!\d)[.!?](?!\d)", answer.lower()):
+        tokens = _TOKEN.findall(clause)
+        for i, tok in enumerate(tokens):
+            if not tok[0].isdigit():
+                continue
+            near = [w for _, w in _words_near(tokens, i) if w in subjects]
+            if near and not any(number_set(tok) <= subjects[w] for w in near):
+                out.extend((n, near[0]) for n in sorted(number_set(tok)))
     return out
 
 
