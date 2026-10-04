@@ -229,12 +229,28 @@ async def test_repeat_of_active_rule_creates_a_second_alert(env):
     rt, llm = env
     llm.judge(BACTERIA, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL")])
     await speak(rt, BACTERIA)
+    await advance(rt, 5000)  # a separate sentence, outside the adjacent-final window (D-118)
     again = "Really, it kills bacteria."
     llm.judge(again, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL", "kills bacteria")])
     await speak(rt, again)
     alerts = await rt.alerts()
     # the reflex phrase is already covered by an active alert: no provisional, the judge creates a new one
     assert [a.status for a in alerts] == ["active", "active"] and alerts[1].provisional_at is None
+
+
+async def test_the_next_final_continuing_the_same_claim_adds_no_second_card(env):
+    """D-118 (voice rehearsal): "The ampoule treats acne." / "So you will never break out again." raised
+    ASEAN-3-SKIN-ACNE twice. Inside the adjacent-final window the second final adds no second card,
+    so one correction clears the claim."""
+    rt, llm = env
+    first, second = "The ampoule treats acne.", "So you will never break out again."
+    llm.judge(first, violations=[violation("ASEAN-3-SKIN-ACNE", "treats acne")])
+    llm.judge(second, violations=[violation("ASEAN-3-SKIN-ACNE", "never break out again")])
+    await speak(rt, first)
+    await advance(rt, 1500)
+    await speak(rt, second)
+    assert [(a.rule_id, a.status) for a in await rt.alerts() if a.kind == "compliance"] == [
+        ("ASEAN-3-SKIN-ACNE", "active")]
 
 
 async def test_render_ack(env):
