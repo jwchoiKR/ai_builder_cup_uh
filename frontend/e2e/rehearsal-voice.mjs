@@ -269,7 +269,9 @@ async function runLines(page, lines) {
       const first = state.transcripts.find((x) => x.transcript_id === ids[0]);
       const got = alert ? (line.kind === "fact" ? alert.field : alert.rule_id) : null;
       row = {
-        ...row, got, correct: alert !== null && (row.expected === null || got === row.expected),
+        // an adjacent rule the label accepts (expected.also_ok_rule_ids) counts as correct, as in eval_adversarial
+        ...row, got, correct: alert !== null && (row.expected === null || got === row.expected
+          || (line.also_ok_rule_ids ?? line.expected?.also_ok_rule_ids ?? []).includes(got)),
         alert_on_final: alert ? ids.indexOf(alert.transcript_id) + 1 : null,
         stt_ms: first ? first.received_at - first.speech_end_at : null,
         server_ms: alert ? alert.shown_at - t.speech_end_at : null,
@@ -310,6 +312,8 @@ function summarizeLines(results) {
       misses: k.filter((x) => x.got === null).map((x) => x.id),
       wrong: k.filter((x) => x.got !== null && !x.correct).map((x) => `${x.id}: ${x.got} (expected ${x.expected})`),
       within_3s: k.filter((x) => x.correct && x.render_ms !== null && x.render_ms <= WITHIN_MS).length / k.length,
+      // an alert of the right kind on screen within 3 s, whatever its rule or field
+      kind_within_3s: k.filter((x) => x.got !== null && x.render_ms !== null && x.render_ms <= WITHIN_MS).length / k.length,
     };
   }
   return out;
