@@ -6,7 +6,7 @@ import pytest
 from app.logic import qualifier
 from app.models.session import Alert
 
-from .judge_fakes import AMPOULE, CREAM, claim, close_env, make_env, speak, violation
+from .judge_fakes import AMPOULE, CREAM, claim, close_env, make_env, price_contradiction, speak, violation
 
 RULE = qualifier.RULE_ID
 AM_45 = "In our in-house test, skin hydration went up 45% right after one use."
@@ -95,20 +95,36 @@ async def test_quoted_or_negated_gives_no_alert(env, flags):
     assert await compliance_alerts(rt) == []
 
 
-async def test_the_same_result_alerts_once_per_product_segment(env):
+async def test_no_second_card_while_active_but_a_repeat_after_correction_alerts_again(env):
+    """D-108 (user: always alert again): wrong -> correct -> wrong again shows a second alert."""
     rt, llm = env
     again = "Again, zero of thirty-two had a reaction."
-    other = "It keeps your skin hydrated for twenty-four hours."
-    for text in (UNQUALIFIED, again, other):
+    fixed = "In our in-house patch test, 0 of 32 participants had an irritation reaction."
+    for text in (UNQUALIFIED, again):
         llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
     await speak(rt, UNQUALIFIED)
     [first] = await compliance_alerts(rt)
-    first.status = "corrected"  # even after a correction, the same result is not raised again
-    await rt.save_alert(first)
+    await speak(rt, again)  # still active: no double card
+    assert [a.alert_id for a in await compliance_alerts(rt)] == [first.alert_id]
+    await speak(rt, fixed)  # says the approved wording: corrected (D-098)
+    assert (await rt.get_alert(first.alert_id)).status == "corrected"
     await speak(rt, again)
-    await speak(rt, other)
-    assert [a.say_instead for a in await compliance_alerts(rt)] == [
-        "It helps keep skin hydrated for up to 24 hours in our in-house test."]
+    [second] = await compliance_alerts(rt)
+    assert second.alert_id != first.alert_id and second.say_instead == CR_0_32
+
+
+async def test_a_wrong_fact_repeated_after_its_correction_alerts_again(env):
+    rt, llm = env
+    wrong, right = "And today the live price is only thirty-two dollars.", "Sorry, it is thirty-six dollars."
+    llm.facts(wrong, price_contradiction("S$32"))
+    llm.facts(right, claim("price", "supported", stated="S$36"))
+    await speak(rt, wrong)
+    [first] = [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"]
+    await speak(rt, right)
+    assert (await rt.get_alert(first.alert_id)).status == "corrected"
+    await speak(rt, wrong)
+    [second] = [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"]
+    assert second.alert_id != first.alert_id
 
 
 async def test_wrong_number_keeps_both_findings_on_one_sentence(env):
