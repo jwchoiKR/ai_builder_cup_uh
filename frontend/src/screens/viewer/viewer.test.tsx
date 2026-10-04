@@ -61,8 +61,8 @@ describe("Viewer chat", () => {
     const ai = within(screen.getByTestId("viewer-comment-cm_3")).getByTestId("viewer-reply-msg_2");
     expect(ai).toHaveAttribute("data-kind", "ai_answer");
     expect(within(ai).getByText("AI answer")).toBeInTheDocument();
-    fireEvent.click(within(ai).getByText("Source: product sheet"));
-    expect(screen.getByRole("dialog", { name: "Source" })).toHaveTextContent("Live broadcast price: S$36.00");
+    fireEvent.click(within(ai).getByText("Source: product sheet"));  // D-122: expands inline
+    expect(within(ai).getByTestId("viewer-source-details")).toHaveTextContent("Live broadcast price: S$36.00");
   });
 
   it("an AI answer citing the active promotion says 'Source: active promotion' (item 5)", () => {
@@ -79,7 +79,7 @@ describe("Viewer chat", () => {
     expect(within(reply).getAllByTestId("viewer-source").map((b) => b.textContent)).toEqual(["Source: active promotion"]);
     expect(within(reply).queryByText("Source: product sheet")).toBeNull();
     fireEvent.click(within(reply).getByText("Source: active promotion"));
-    expect(screen.getByRole("dialog", { name: "Source" })).toHaveTextContent("Hydra Barrier Cream S$32.40");
+    expect(within(reply).getByTestId("viewer-source-details")).toHaveTextContent("Hydra Barrier Cream S$32.40");
   });
 
   it("an AI answer citing a sheet passage and the promotion shows both sources (item 5)", () => {

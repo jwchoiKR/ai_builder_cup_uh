@@ -1,5 +1,5 @@
 // Viewer page body (§12.5). Pure presentation over the client state; Viewer.tsx wires the store.
-import { BadgeCheck, Gift, Mic, Pin, Send, Sparkles, X } from "lucide-react";
+import { BadgeCheck, Gift, Mic, Pin, Send, Sparkles } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { ApiError } from "../../app/api";
@@ -66,7 +66,6 @@ export function ViewerView({
   );
   const rows = useMemo(() => viewerChat(state, now), [state, now]);
   const camera = useCamera(cameraEnabled && !embedded);
-  const [source, setSource] = useState<Message | null>(null);
   const popup = useTimeSalePopup(state);
 
   return (
@@ -115,6 +114,14 @@ export function ViewerView({
           )}
         </div>
 
+        {/* D-122: a compact time-sale banner right above the price, not a pop-up over the video */}
+        {popup && salePromo && salePromo.promo.promo_id === popup && (
+          <div className={styles.saleBanner} role="status" aria-label="Time sale" data-testid="viewer-timesale-popup">
+            <span className={styles.popupEyebrow}>TIME SALE</span>
+            <span className={styles.saleBannerText}>{popupText(salePromo.promo.viewer_text)}</span>
+            <Countdown until={salePromo.endsAt} serverOffsetMs={offset} className={styles.popupCountdown} />
+          </div>
+        )}
         {/* product strip */}
         {product && price && (
           <div className={styles.strip} data-testid="viewer-product-strip">
@@ -168,21 +175,11 @@ export function ViewerView({
           </div>
         )}
 
-        <ChatList rows={rows} brand={brand} serverOffsetMs={offset} onSource={setSource} />
+        <ChatList rows={rows} brand={brand} serverOffsetMs={offset} catalog={catalog} />
 
         <Composer enabled={inputEnabled && Boolean(onSend)} onSend={onSend} />
 
-        {popup && salePromo && salePromo.promo.promo_id === popup && (
-          <div className={styles.scrim} role="presentation">
-            <div className={styles.popup} role="dialog" aria-label="Time sale" data-testid="viewer-timesale-popup">
-              <span className={styles.popupEyebrow}>TIME SALE</span>
-              <span className={styles.popupText}>{popupText(salePromo.promo.viewer_text)}</span>
-              <Countdown until={salePromo.endsAt} serverOffsetMs={offset} className={styles.popupCountdown} />
-            </div>
-          </div>
-        )}
 
-        {source && <SourceSheet message={source} catalog={catalog} onClose={() => setSource(null)} />}
       </div>
     </div>
   );
@@ -247,12 +244,12 @@ function ChatList({
   rows,
   brand,
   serverOffsetMs,
-  onSource,
+  catalog,
 }: {
   rows: ViewerChatRow[];
   brand: string;
   serverOffsetMs: number;
-  onSource: (m: Message) => void;
+  catalog: Catalog | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const pinned = useRef(true); // following the newest message until the viewer scrolls up
@@ -292,7 +289,7 @@ function ChatList({
               </div>
               <p className={styles.text}>{row.comment.text}</p>
               {row.replies.map((r) => (
-                <Reply key={r.message.message_id} message={r.message} brand={brand} onSource={onSource} />
+                <Reply key={r.message.message_id} message={r.message} brand={brand} catalog={catalog} />
               ))}
               {row.alsoAnswered && row.replies.length === 0 && (
                 <p className={styles.answeredAbove} data-testid={`viewer-also-answered-${row.comment.comment_id}`}>
@@ -303,7 +300,7 @@ function ChatList({
           </div>
         ) : (
           <div key={row.key} className={styles.systemRow}>
-            <Reply message={row.message} brand={brand} onSource={onSource} />
+            <Reply message={row.message} brand={brand} catalog={catalog} />
           </div>
         ),
       )}
@@ -315,12 +312,13 @@ function ChatList({
 function Reply({
   message,
   brand,
-  onSource,
+  catalog,
 }: {
   message: Message;
   brand: string;
-  onSource: (m: Message) => void;
+  catalog: Catalog | null;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <div className={styles.reply} data-testid={`viewer-reply-${message.message_id}`} data-kind={message.kind}>
       <span className={styles.replyArrow} aria-hidden>
@@ -331,47 +329,38 @@ function Reply({
         <p className={styles.text}>{message.text}</p>
         {message.kind === "ai_answer" &&
           sourceLabels(message).map((label) => (
-            <button key={label} type="button" className={styles.source} onClick={() => onSource(message)} data-testid="viewer-source">
+            <button
+              key={label}
+              type="button"
+              className={styles.source}
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              data-testid="viewer-source"
+            >
               {label}
             </button>
           ))}
+        {open && <SourceDetails message={message} catalog={catalog} />}
       </div>
     </div>
   );
 }
 
-function SourceSheet({ message, catalog, onClose }: { message: Message; catalog: Catalog | null; onClose: () => void }) {
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, [onClose]);
+/** D-122: the source of an AI answer, expanded inline under the reply. */
+function SourceDetails({ message, catalog }: { message: Message; catalog: Catalog | null }) {
   return (
-    <div className={styles.sheetScrim} onClick={onClose} role="presentation">
-      <div className={styles.sheet} role="dialog" aria-label="Source" onClick={(e) => e.stopPropagation()}>
-        <div className={styles.sheetHead}>
-          <span className={styles.sheetTitle}>{sourceLabels(message).join(" · ") || "Source"}</span>
-          <button type="button" className={styles.sheetClose} onClick={onClose} aria-label="Close">
-            <X size={16} aria-hidden />
-          </button>
-        </div>
-        {message.citations.map((c) => {
-          const passage = catalog?.passages?.[c.passage_id];
-          const product = catalog?.products.find((p) => p.product_id === passage?.product_id);
-          const section = passage?.section ?? c.section ?? (c.passage_id.startsWith("PROMO#") ? "Active promotion" : "");
-          return (
-            <div key={`${c.passage_id}:${c.quote}`} className={styles.citation}>
-              <span className={styles.citationMeta}>
-                {[product?.name, section].filter(Boolean).join(" · ")}
-              </span>
-              <span className={styles.quote}>“{c.quote}”</span>
-              {passage && passage.text !== c.quote && <span>{passage.text}</span>}
-            </div>
-          );
-        })}
-      </div>
+    <div className={styles.sourceDetails} data-testid="viewer-source-details">
+      {message.citations.map((c) => {
+        const passage = catalog?.passages?.[c.passage_id];
+        const product = catalog?.products.find((p) => p.product_id === passage?.product_id);
+        const section = passage?.section ?? c.section ?? (c.passage_id.startsWith("PROMO#") ? "Active promotion" : "");
+        return (
+          <div key={`${c.passage_id}:${c.quote}`} className={styles.citation}>
+            <span className={styles.citationMeta}>{[product?.name, section].filter(Boolean).join(" · ")}</span>
+            <span className={styles.quote}>“{c.quote}”</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
