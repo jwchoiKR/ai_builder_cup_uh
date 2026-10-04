@@ -127,6 +127,14 @@ class CommentTriageOutput(BaseModel):
     reason: str
 
 
+class CommentTriageBatchItem(CommentTriageOutput):
+    i: int  # index into COMMENTS
+
+
+class CommentTriageBatchOutput(BaseModel):  # micro-batch triage (PLANNING 5.1.2)
+    items: list[CommentTriageBatchItem]
+
+
 # ---- AnswerComposer (§7.6) -------------------------------------------------------------------
 
 

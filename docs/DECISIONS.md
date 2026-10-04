@@ -541,3 +541,16 @@ D-101: Successive finals are judged concurrently; only state changes stay ordere
 - **Tests:** `tests/test_utterance_concurrency.py` (late correction, merged fragments, switch and undo, timeouts, urgent facts, idempotence, all judge modes). `test_preparation_does_not_wait_for_the_previous_judge` now expects the second final's reflex alert before the first final's slow judge alert.
 - **Rollback:** revert the `utterances.py` change; `JUDGE_MODE=split` and `single` keep working.
 - Built by codex, reviewed and test-fixed by Claude (10/5).
+
+D-102: Comment triage uses an adaptive micro-batch.
+- **Why:** in a comment burst each comment made its own triage call (at most 8 at once), so later comments waited for a free slot and every comment paid for a full prompt. PLANNING 5.1.2 asks for "one waiting comment: now; several: one call".
+- **Now:**
+  - a comment that finds a free slot (`TRIAGE_CONCURRENCY`, default 8) is triaged alone with `comment_triage.md`, exactly as before;
+  - comments that arrive while every slot is busy wait; the next free slot takes up to `TRIAGE_MAX_BATCH` (10) of them in one call (`comment_triage_batch.md`, deadline `TRIAGE_BATCH_TIMEOUT_MS` 5000);
+  - there is no timer. The planning note's "up to 2 s" is not needed: under load the wait for a free slot is the collection window, and without load nothing waits (user choice, 10/5);
+  - the batch prompt is built at load time from the single-comment rules and examples plus a short batch section, so the two never drift apart;
+  - an item the model leaves out, or a failed batch call, is triaged again alone. Grouping, routing and answering still run per comment under the session lock, and the D-042 stale-group retry still applies;
+  - under the mock provider a batched comment replays its recorded single-comment fixture, so demo bursts give the same outputs batched or not.
+- **Tuning:** the three values are start values; tune them with burst tests on Vertex. Batched calls appear as agent `comment_triage_batch` in agent calls and metrics.
+- **Tests:** `tests/test_triage_batch.py`.
+- **Rollback:** `TRIAGE_MAX_BATCH=1` (every call is single again).

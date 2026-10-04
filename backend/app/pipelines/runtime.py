@@ -69,7 +69,6 @@ class SessionRuntime:
         self.settings = ctx.settings
         self.catalog = Catalog(ctx.pack, session.runsheet_id)
         self.lock = asyncio.Lock()
-        self.triage_sem = asyncio.Semaphore(8)
         self.triage_cache = TriageCache()
         self.answer_cache = AnswerCache()
         self.composing: dict[str, asyncio.Future] = {}
@@ -79,7 +78,8 @@ class SessionRuntime:
         self.counters: defaultdict[str, int] = defaultdict(int)
         self._rate_session: deque[int] = deque()
         self._rate_author: defaultdict[str, deque[int]] = defaultdict(deque)
-        self.triage = CommentTriage(ctx.llm, ctx.prompts["comment_triage"], self.catalog, ctx.settings)
+        self.triage = CommentTriage(ctx.llm, ctx.prompts["comment_triage"], self.catalog, ctx.settings,
+                                    batch_prompt=ctx.prompts["comment_triage_batch"])
         self.composer = AnswerComposer(ctx.llm, ctx.prompts["answer_composer"], self.catalog)
         self.feed = FeedEngine(self)
         from .utterances import UtterancePipeline
@@ -88,6 +88,9 @@ class SessionRuntime:
         from .pd import PdDirector
 
         self.pd = PdDirector(self)
+        from .comments import TriageQueue
+
+        self.triage_queue = TriageQueue(self)
         self.reply_latencies: defaultdict[str, list[int]] = defaultdict(list)
         self.overtime_emitted: set[str] = set()
         self._ticks = 0
