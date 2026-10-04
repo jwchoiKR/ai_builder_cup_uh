@@ -21,6 +21,17 @@ _NAME = re.compile(r"[a-z][a-z-]{3,}")
 _NOT_NAMES = frozenset({"percent", "with", "and", "contains", "has", "the", "this", "ampoule", "cream", "product"})
 
 
+WORD_FIELDS = frozenset({"packaging", "texture", "fragrance", "origin"})
+_UNIT_WORDS = frozenset({"ml", "mls", "milliliter", "milliliters", "g", "gram", "grams", "size"})
+
+
+def _words_within(stated: str, correct: str | None) -> bool:
+    """Every word the host said is part of the sheet's value: a less specific form, not a contradiction."""
+    said = {w for w in _NAME.findall((stated or "").lower()) if w not in _UNIT_WORDS and w not in _NOT_NAMES}
+    sheet = set(_NAME.findall((correct or "").lower()))
+    return bool(said) and said <= sheet
+
+
 def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
     """D-121: every ingredient word the host named is missing from all of the product's sheet passages."""
     names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
@@ -95,6 +106,9 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         if c.field == "other" or (c.field == "test_result" and utterance is not None
                                   and not TEST_CITED.search(utterance)):
             c.verdict = "not_in_sources"
+            continue
+        if c.field in WORD_FIELDS and _words_within(c.stated_value, c.correct_value):
+            c.verdict = "not_in_sources"  # D-123: "tube" is the "Airless pump tube", only less specific
             continue
         ok = False
         if (c.field in ("ingredient", "ingredient_amount") and c.passage_id is None

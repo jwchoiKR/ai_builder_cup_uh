@@ -152,3 +152,15 @@ async def test_ingredient_amounts_prices_and_volumes_never_get_the_test_qualifie
     llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
     await speak(rt, text)
     assert await compliance_alerts(rt) == []
+
+
+async def test_approved_wording_is_never_a_red_alert(env):
+    """D-123 (adversarial AV037): the judge flagged ASEAN-3-SKIN-ACNE with the span of an approved,
+    in-house result. A violation whose span is approved product wording is dropped (the qualifier rule
+    still applies to an unqualified number)."""
+    rt, llm = env
+    text = "29 of 32 participants said their skin felt less dry after 2 weeks."
+    llm.judge(text, violations=[violation("ASEAN-3-SKIN-ACNE", "29 of 32 participants said their skin felt less dry "
+                                          "after 2 weeks")])
+    await speak(rt, text)
+    assert await compliance_alerts(rt) == []
