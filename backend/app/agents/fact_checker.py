@@ -16,6 +16,16 @@ from ..providers.retriever import Retriever
 from . import inputs
 
 CLAIMS_SECTION = "Approved on-air claims"
+ABSENT = "not in this product"  # D-121: correct_value of an ingredient the sheet never names
+_NAME = re.compile(r"[a-z][a-z-]{3,}")
+_NOT_NAMES = frozenset({"percent", "with", "and", "contains", "has", "the", "this", "ampoule", "cream", "product"})
+
+
+def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
+    """D-121: every ingredient word the host named is missing from all of the product's sheet passages."""
+    names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
+    sheet = " ".join(p.text.lower() for p in passages if p.product_id == product_id)
+    return bool(names) and bool(sheet) and not any(n in sheet for n in names)
 PRICE_FIELDS = ("price", "set_price", "promo")
 # D-100: a test result is checked only when the host cites a test. A time or number inside a benefit
 # claim ("it whitens your skin in two weeks") is compliance wording, not a test result.
@@ -87,7 +97,10 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             c.verdict = "not_in_sources"
             continue
         ok = False
-        if c.passage_id is not None:
+        if (c.field in ("ingredient", "ingredient_amount") and c.passage_id is None
+                and (c.correct_value or "").strip().lower() == ABSENT):
+            ok = _absent_from_sheet(c.stated_value, passages, c.product_id)  # code verifies the absence
+        elif c.passage_id is not None:
             p = by_id.get(c.passage_id)
             ok = (p is not None and c.quote is not None and quote_in_passage(c.quote, p.text)
                   and c.correct_value is not None and number_set(c.correct_value) <= number_set(c.quote)

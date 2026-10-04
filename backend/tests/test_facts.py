@@ -281,3 +281,33 @@ async def test_a_right_fact_about_another_ingredient_does_not_clear_the_note(env
     llm.facts(fix, claim("ingredient_amount", "supported", stated="5%"))  # no passage: matched by the value
     await speak(rt, fix)
     assert (await rt.get_alert(note.alert_id)).status == "corrected"
+
+
+# ---- D-121: an ingredient the product does not contain; pH ----------------------------------------
+
+ABSENT = "not in this product"
+
+
+@pytest.mark.parametrize("stated, verdict", [
+    ("4% niacinamide", "contradicted"),  # the cream's sheet never names niacinamide
+    ("5% panthenol", "not_in_sources"),  # it does contain panthenol: absence is not accepted
+])
+def test_an_absent_ingredient_is_contradicted_only_when_the_sheet_never_names_it(pack, catalog, stated, verdict):
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    c = claim("ingredient", "contradicted", stated=stated, correct=ABSENT)
+    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
+    sheet = [p for p in pack.passages if p.product_id == CREAM]
+    assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"It has {stated}.").claims] == [verdict]
+
+
+def test_a_wrong_ph_is_a_fact_note(pack, catalog):
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    c = claim("ph", "contradicted", stated="pH 6.8", correct="5.5 (plus or minus 0.5)",
+              passage_id="DL-CR-01#key-facts#ph", quote="pH: 5.5 (plus or minus 0.5)")
+    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
+    sheet = [p for p in pack.passages if p.product_id == CREAM]
+    assert [x.verdict for x in post_validate(out, sheet, catalog, None, "It has a pH of 6.8.").claims] == ["contradicted"]

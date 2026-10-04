@@ -22,6 +22,7 @@ Decide whether the host's sentence makes a claim that breaks one of the RULES.
 - Speech-to-text can cut one spoken sentence into two lines. When UTTERANCE completes a claim begun in the last line of RECENT_TRANSCRIPT ("It is completely safe." then "Even for babies."), judge the completed claim and list it here, with `span` taken from UTTERANCE. Do not list again a claim the earlier line made on its own.
 - `is_negated = true` when the host denies the claim ("it does not treat acne", "we can't say it removes wrinkles").
 - `is_quoted = true` when the host is reading out or reporting someone else's words or question ("someone asked if it cures eczema").
+- When the host repeats someone else's claim and then agrees with it, vouches for it or adds to it ("and I believe her", "that's true", "no exaggeration"), it is the host's own claim: `is_quoted = false`.
 - A negated or quoted claim is still listed, with the flag set. The software ignores it.
 - If the sentence contains an affirmative violation AND a negation of another claim, list both separately.
 - Use the most specific rule_id. Use only rule_ids from RULES.
