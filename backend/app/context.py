@@ -84,7 +84,7 @@ def build_context(
     ctx = AppContext(
         settings=settings, clock=clock, ids=ids, pack=pack, prompts=prompts, store=store, bus=bus, llm=llm,
         scheduler=scheduler or AsyncScheduler(clock), retriever=LocalRetriever(pack.passages),
-        reflex=Reflex(pack.rules),
+        reflex=Reflex(pack.rules, pack.lexicon),
         stt=make_stt(settings, clock),
         armor=make_armor(settings),
     )

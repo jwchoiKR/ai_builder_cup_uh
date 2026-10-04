@@ -174,6 +174,7 @@ class MarketRule(BaseModel):
 
 class MarketPack(BaseModel):
     market: str
+    phone_pattern: str  # local phone numbers, hidden from chat (prefilter)
     name: str
     regulator: str
     policy_id: str
@@ -193,12 +194,44 @@ class CategoryWording(BaseModel):
     reflex_phrases: list[str]
 
 
+class NumberWords(BaseModel):
+    ones: dict[str, int]
+    tens: dict[str, int]
+    decimal: str
+    skip_alone: list[str]
+
+
+class Stemming(BaseModel):
+    suffixes: list[str]
+    min_stem: int
+
+
+class LexiconPatterns(BaseModel):
+    unsure: str
+    test_qualifier: str
+    in_house: str
+    sentence_end: str
+    sentence_split: str
+    clause_split: str
+
+
+class LexiconData(BaseModel):
+    """D-134: what the text guards need of a language (compiled by logic.lexicon.Lexicon)."""
+    stopwords: list[str]
+    number_words: NumberWords
+    stem: Stemming
+    prefix_match: int
+    patterns: LexiconPatterns
+    reactions: list[str]
+
+
 class LangPack(BaseModel):
     lang: str
     name: str
     categories: dict[str, CategoryWording]
     negation_cues: list[str]
     quote_cues: list[str]
+    lexicon: LexiconData
 
 
 class ClaimRulesFile(BaseModel):

@@ -7,7 +7,6 @@ from decimal import Decimal, InvalidOperation
 
 from ..models.agent_io import ComposerOutput
 from ..models.data import Passage
-from .qualifier import is_qualified
 from .reflex import Reflex
 
 MAX_ANSWER_CHARS = 240
@@ -15,17 +14,7 @@ MAX_SENTENCES = 2
 SET_PRICE_SUFFIX = "#key-facts#live-set-price"
 
 # A sentence ends at . ! ? followed by whitespace or the end of the text; "S$36.00" is one token.
-_SENTENCE_END = re.compile(r"[.!?]+(?=\s|$)")
 _NUMBER = re.compile(r"\d+(?:\.\d+)?")
-
-
-def split_sentences(text: str) -> list[str]:
-    parts, start = [], 0
-    for m in _SENTENCE_END.finditer(text):
-        parts.append(text[start:m.end()].strip())
-        start = m.end()
-    parts.append(text[start:].strip())
-    return [p for p in parts if p]
 
 
 def _ws(text: str) -> str:
@@ -69,17 +58,15 @@ def _words_near(tokens: list[str], i: int) -> list[tuple[int, str]]:
 _LABELLED = re.compile(r"([A-Za-z][A-Za-z ()/'-]{1,60}):\s*(?:S\$|\$)?(\d+(?:\.\d+)?)")
 
 
-def quoted_subjects(quotes: Sequence[str]) -> dict[str, set[str]]:
+def quoted_subjects(quotes: Sequence[str], stopwords: frozenset[str]) -> dict[str, set[str]]:
     """Subjects of the sheet's "Label: value" facts ("Panthenol: 5%" -> panthenol = 5). A label word
     with several values ("price" in "Live price" and "List price") cannot tell them apart and is dropped."""
-    from .corrections import STOPWORDS
-
     by_word: dict[str, set[str]] = {}
     near: dict[str, set[str]] = {}  # every number a word stands next to anywhere in the quotes
     for q in quotes:
         for label, value in _LABELLED.findall(q):
             for w in _TOKEN.findall(label.lower()):
-                if not w[0].isdigit() and w not in STOPWORDS and w not in _UNITS and len(w) > 2:
+                if not w[0].isdigit() and w not in stopwords and w not in _UNITS and len(w) > 2:
                     by_word.setdefault(w[:5], set()).update(number_set(value))
         tokens = _TOKEN.findall(q.lower())
         for i, tok in enumerate(tokens):
@@ -130,7 +117,7 @@ def verify_answer(
         errors.append("empty answer")
     if len(answer) > MAX_ANSWER_CHARS:
         errors.append(f"longer than {MAX_ANSWER_CHARS} characters")
-    if len(split_sentences(answer)) > MAX_SENTENCES:
+    if len(reflex.lexicon.split_sentences(answer)) > MAX_SENTENCES:
         errors.append(f"more than {MAX_SENTENCES} sentences")
 
     # 2. citations exist and quote their passages
@@ -163,7 +150,7 @@ def verify_answer(
         errors.append(f"number {n} not in a cited quote")
 
     # 6. D-117 B8: a number next to a subject of the quotes must be that subject's value there
-    subjects = quoted_subjects([c.quote for c in output.citations if c.passage_id in by_id])
+    subjects = quoted_subjects([c.quote for c in output.citations if c.passage_id in by_id], reflex.lexicon.stopwords)
     for n, subject in misattributed_numbers(answer, subjects):
         errors.append(f"number {n} is not the value of '{subject}' in the cited quotes")
 
@@ -172,7 +159,7 @@ def verify_answer(
     for p in cited:
         if p.section == IN_HOUSE_SECTION:
             test_numbers |= number_set(p.text)
-    if test_numbers & number_set(answer) and not is_qualified(answer):
+    if test_numbers & number_set(answer) and not reflex.lexicon.is_qualified(answer):
         errors.append("in-house test result without 'in-house test'")
 
     # 5. no restricted wording, even negated

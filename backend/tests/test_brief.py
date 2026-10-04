@@ -16,7 +16,7 @@ DOC = "DAON LAB Hydra Barrier Cream contains Panthenol 5% and Ceramide NP 1%. Me
 
 @pytest.fixture(scope="module")
 def reflex(pack):
-    return Reflex(pack.rules)
+    return Reflex(pack.rules, pack.lexicon)
 
 
 def term(t: str, kind: str = "ingredient") -> dict:

@@ -23,6 +23,12 @@ from .judge_fakes import (
     speak,
 )
 
+from app.config import get_settings as _settings  # noqa: E402
+from app.logic.catalog import DataPack as _DataPack  # noqa: E402
+
+LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexicon
+
+
 WRONG = "And today the live price is only thirty-two dollars."
 WRONGER = "Actually it's thirty dollars live."
 RIGHT = "Sorry, my mistake, the live price is thirty-six dollars."
@@ -178,14 +184,14 @@ def test_apply_fact_check_pure(ids):
                    segment_id="seg_1")
     new_id = lambda p: ids.new(p, "s")  # noqa: E731
     c = FactClaim.model_validate(price_contradiction("S$32"))
-    created, reshown, corrected = fact_logic.apply_fact_check([c], [], t, new_id, now=100)
+    created, reshown, corrected = fact_logic.apply_fact_check([c], [], t, new_id, now=100, lex=LEX)
     assert len(created) == 1 and not reshown and not corrected
     alerts = created
     c2 = FactClaim.model_validate(price_contradiction("S$31"))
-    created, reshown, corrected = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200)
+    created, reshown, corrected = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200, lex=LEX)
     assert not created and reshown[0].stated_value == "S$31" and reshown[0].shown_at == 200
     sup = FactClaim.model_validate(claim("price", "supported"))
-    created, reshown, corrected = fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300)
+    created, reshown, corrected = fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300, lex=LEX)
     assert corrected and corrected[0].status == "corrected" and corrected[0].resolved_at == 300
     assert fact_logic.PURCHASE_FIELDS >= {"price", "volume", "ingredient_amount"}
 

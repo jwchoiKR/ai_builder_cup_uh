@@ -290,7 +290,7 @@ async def eval_utterances(mode: str, record: bool, runs: int) -> tuple[str, bool
     catalog = Catalog(pack)
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     client, backend = make_client(record)
-    judge = UtteranceJudge(client, prompts, catalog, Reflex(pack.rules), single=mode == "single")
+    judge = UtteranceJudge(client, prompts, catalog, Reflex(pack.rules, pack.lexicon), single=mode == "single")
     facts = FactChecker(client, prompts["fact_checker"], catalog)
     retriever = LocalRetriever(pack.passages)
     prefetched: dict = {}

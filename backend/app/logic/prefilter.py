@@ -6,18 +6,13 @@ import unicodedata
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from .lexicon import Lexicon
 
 _URL = re.compile(r"https?://|www\.|\b\w+\.(?:com|net|org|sg|ly|io|co|example)\b", re.IGNORECASE)
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
-# 8-digit Singapore numbers starting with 6, 8 or 9, optional +65, spaces (or hyphens) allowed.
-_PHONE = re.compile(r"(?<![\d+])(?:\+?65[\s-]*)?[689](?:[\s-]?\d){7}(?!\d)")
-
-REACTIONS = frozenset({
-    "lol", "lmao", "haha", "hahaha", "wow", "omg", "nice", "cute", "same", "yes", "yesss", "yay",
-    "love it", "love this", "so pretty", "so cute", "hi", "hello", "hi hi", "first", "+1",
-})
-
 
 @dataclass(frozen=True)
 class PrefilterVerdict:
@@ -46,10 +41,11 @@ def _letters(text: str) -> int:
     return sum(1 for ch in text if unicodedata.category(ch).startswith("L"))
 
 
-def prefilter(text: str) -> PrefilterVerdict:
+def prefilter(text: str, lex: "Lexicon") -> PrefilterVerdict:
+    """Phone numbers come from the market pack, reactions from the language pack (D-134)."""
     if _EMAIL.search(text):
         return PrefilterVerdict("hide", "personal_info", "email address")
-    if _PHONE.search(text):
+    if lex.phone.search(text):
         return PrefilterVerdict("hide", "personal_info", "phone number")
     if _URL.search(text):
         return PrefilterVerdict("hide", "link", "link or domain")
@@ -59,6 +55,6 @@ def prefilter(text: str) -> PrefilterVerdict:
     # a short comment with a question mark can be a real question ("ml?", "spf?"): the LLM decides
     if letters == 0 or (letters < 3 and "?" not in text):
         return PrefilterVerdict("reaction", None, "emoji, punctuation or fewer than 3 letters without '?'")
-    if _reaction_form(text) in REACTIONS:
+    if _reaction_form(text) in lex.reactions:
         return PrefilterVerdict("reaction", None, "reaction list")
     return PrefilterVerdict(None)

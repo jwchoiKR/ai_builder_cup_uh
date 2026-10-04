@@ -617,7 +617,7 @@ class UtterancePipeline:
                         self._fact_sequence[wide] = (seq, t.transcript_id, claim.verdict)
             claims.append(claim)
         created, reshown, corrected = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
-                                                                  protected=protected)
+                                                                  protected=protected, lex=rt.catalog.lexicon)
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
@@ -661,6 +661,7 @@ class UtterancePipeline:
         answer = await rt.get_answer(group.answer_id) if group is not None else None
         decision = publish_logic.decide(judge, offered, group, answer,
                                         high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
+                                        lex=rt.catalog.lexicon,
                                         utterance=merge.text if merge else t.text,
                                         current_key=await answer_key(rt, group) if group is not None else None)
         mine = self._judged.get(t.transcript_id)

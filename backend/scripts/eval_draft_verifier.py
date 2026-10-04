@@ -37,7 +37,7 @@ def load_cases(name: str) -> list[dict]:
 
 def check_all(cases: list[dict]) -> list[dict]:
     pack = DataPack.load(get_settings().data_path)
-    catalog, reflex = Catalog(pack), Reflex(pack.rules)
+    catalog, reflex = Catalog(pack), Reflex(pack.rules, pack.lexicon)
     rows = []
     for c in cases:
         out = ComposerOutput.model_validate(c["composer_output"])
