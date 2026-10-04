@@ -45,7 +45,7 @@
 {"text": "It genuinely works like a prescription steroid cream to calm allergic dermatitis without the doctor fee.", "product": "cream_hydra_barrier", "kind": "compliance", "rule_id": "BRAND-MEDICINE-LIKE", "src": "H021", "id": "LT045", "also_ok_rule_ids": ["ASEAN-2D-DISEASE"]}
 {"text": "This cream heals psoriasis patches.", "product": "cream_hydra_barrier", "kind": "compliance", "rule_id": "ASEAN-2D-DISEASE", "src": "new", "id": "LT046"}
 {"text": "Your pores will shrink permanently.", "product": "ampoule_deep_hydration", "kind": "compliance", "rule_id": "ASEAN-2E-PERMANENT", "src": "new", "id": "LT047"}
-{"text": "It works like a botox injection in a jar.", "product": "cream_hydra_barrier", "kind": "compliance", "rule_id": "BRAND-MEDICINE-LIKE", "src": "new", "id": "LT048"}
+{"text": "It works like a botox injection in a jar.", "product": "cream_hydra_barrier", "kind": "compliance", "rule_id": "BRAND-MEDICINE-LIKE", "src": "new", "id": "LT048", "also_ok_rule_ids": ["ASEAN-2D-DISEASE"]}
 {"text": "It fades melasma completely.", "product": "ampoule_deep_hydration", "kind": "compliance", "rule_id": "BRAND-WHITENING", "src": "new", "id": "LT049", "also_ok_rule_ids": ["ASEAN-2D-DISEASE"]}
 {"text": "Zero side effects for anyone, guaranteed.", "product": "cream_hydra_barrier", "kind": "compliance", "rule_id": "BRAND-ABSOLUTE-SAFETY", "src": "new", "id": "LT050"}
 {"text": "In clinical corneometer tests, instant skin hydration increased by seventy percent right after one application.", "product": "ampoule_deep_hydration", "kind": "fact", "field": "test_result", "correct_value": "+45%", "src": "H052", "id": "LT051"}
