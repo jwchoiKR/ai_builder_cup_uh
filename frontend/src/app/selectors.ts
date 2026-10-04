@@ -115,7 +115,8 @@ export function runOfShow(state: ClientState, catalog: Catalog | null, now: numb
             ? "next"
             : "planned";
       const elapsedMs = seg ? (seg.ended_at ?? now) - seg.started_at : 0;
-      const plannedMs = item.planned_duration_sec * 1000;
+      // D-138: the segment's own plan (it can be extended); the run-sheet plan before it starts
+      const plannedMs = (seg?.planned_duration_sec ?? item.planned_duration_sec) * 1000;
       const covered = new Set([...(seg?.covered_point_ids ?? []), ...(state.session?.pre_covered[item.product_id] ?? [])]);
       return {
         order: item.order,

@@ -83,6 +83,11 @@ export function RunOfShow() {
                 <span className={["tabular", styles.muted].join(" ")}>
                   {t("{elapsed} / {planned} planned", { elapsed: formatMmSs(item.elapsedMs), planned: formatMmSs(item.plannedMs) })}
                 </span>
+                {item.status === "on_air" && (
+                  <Button size="sm" data-testid="op-extend" disabled={act.busy} onClick={() => act.run(() => api.extendSegment(sid))}>
+                    {t("+2 min")}
+                  </Button>
+                )}
               </div>
               <div className={styles.progress} aria-hidden>
                 <span className={item.overtimeMs > 0 ? styles.progressOver : undefined} style={{ width: `${pct}%` }} />

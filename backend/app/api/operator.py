@@ -157,6 +157,12 @@ class PdDismissBody(BaseModel):
     card_id: str
 
 
+@router.post("/segments/extend")
+async def extend(rt: SessionRuntime = Depends(runtime)) -> dict:
+    """+2 min on the on-air segment: operator button or host key E (D-138)."""
+    return (await rt.extend_segment()).model_dump()
+
+
 @router.post("/pd/pull")
 async def pd_pull(rt: SessionRuntime = Depends(runtime)) -> dict:
     """Host takes the top waiting question now (key Q): no time gap, no pause needed (D-113)."""

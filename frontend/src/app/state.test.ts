@@ -91,6 +91,7 @@ describe("every event type", () => {
       "agent.call": { call_id: "call_1", agent: "comment_triage", model: "m", prompt_version: "v", started_at: T0, latency_ms: 900, status: "ok", input_hash: "h", input_preview: "p", output: {}, error: null },
       "judge.failed": { transcript_id: "tr_1", status: "timeout", alert_ids: [] },
       "judge.health": { degraded: ["compliance_judge"], at: 1 },
+      "segment.extended": { segment: segment(), added_sec: 120 },
       "summary.ready": {},
     };
     expect(Object.keys(samples).sort()).toEqual([...EVENT_TYPES].sort());
@@ -230,5 +231,16 @@ describe("event semantics", () => {
     const s = reduceEvent(base(), ev(11, "prompter.updated", { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: ["cr-p1", "cr-p2"], required_total: 2, required_covered: 1 }));
     expect(s.segments.seg_000001.covered_point_ids).toEqual(["cr-p1", "cr-p2"]);
     expect(s.prompter?.required_covered).toBe(1);
+  });
+});
+
+describe("segment.extended (D-138)", () => {
+  it("takes the new plan and drops the overtime badge of that segment", () => {
+    const seg = segment();
+    let s = reduceSnapshot(snapshot({ segments: [seg] }), "operator");
+    s = reduceEvent(s, ev(50, "segment.overtime", { segment_id: seg.segment_id, product_id: seg.product_id, overtime_sec: 5 }));
+    s = reduceEvent(s, ev(51, "segment.extended", { segment: { ...seg, planned_duration_sec: seg.planned_duration_sec + 120 }, added_sec: 120 }));
+    expect(s.segments[seg.segment_id].planned_duration_sec).toBe(seg.planned_duration_sec + 120);
+    expect(s.overtime[seg.segment_id]).toBeUndefined();
   });
 });
