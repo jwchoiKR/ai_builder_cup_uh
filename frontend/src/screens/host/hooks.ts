@@ -25,64 +25,6 @@ export function useHostScale(ref: RefObject<HTMLElement | null>, min = 0.42): nu
   return scale;
 }
 
-/** FLIP: rows keyed by data-flip-key slide from their old position in 200 ms (§12.3.4). */
-export function useFlip(container: RefObject<HTMLElement | null>, deps: unknown[]): void {
-  const last = useRef(new Map<string, number>());
-  useLayoutEffect(() => {
-    const root = container.current;
-    if (!root) return;
-    const next = new Map<string, number>();
-    const rows = Array.from(root.querySelectorAll<HTMLElement>("[data-flip-key]"));
-    for (const row of rows) {
-      const key = row.dataset.flipKey!;
-      const top = row.getBoundingClientRect().top;
-      next.set(key, top);
-      const before = last.current.get(key);
-      if (before !== undefined && before !== top && typeof row.animate === "function") {
-        row.animate([{ transform: `translateY(${before - top}px)` }, { transform: "translateY(0)" }], {
-          duration: 200,
-          easing: "ease-out",
-        });
-      }
-    }
-    last.current = next;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-}
-
-/** Keeps removed items for `ms` with leaving=true so they can fade out. */
-export function usePresence<T>(items: T[], keyOf: (item: T) => string, ms = 200): { item: T; leaving: boolean }[] {
-  const [leaving, setLeaving] = useState<Map<string, T>>(new Map());
-  const prev = useRef<Map<string, T>>(new Map());
-  const keys = items.map(keyOf).join("|");
-
-  useEffect(() => {
-    const now = new Map(items.map((i) => [keyOf(i), i] as const));
-    const gone = [...prev.current.entries()].filter(([k]) => !now.has(k));
-    prev.current = now;
-    if (!gone.length) return;
-    setLeaving((m) => {
-      const out = new Map(m);
-      for (const [k, v] of gone) out.set(k, v);
-      return out;
-    });
-    const t = setTimeout(() => {
-      setLeaving((m) => {
-        const out = new Map(m);
-        for (const [k] of gone) out.delete(k);
-        return out;
-      });
-    }, ms);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keys, ms]);
-
-  const present = items.map((item) => ({ item, leaving: false }));
-  const current = new Set(items.map(keyOf));
-  const exiting = [...leaving.entries()].filter(([k]) => !current.has(k)).map(([, item]) => ({ item, leaving: true }));
-  return [...present, ...exiting];
-}
-
 /** The green "Corrected" bar: shown for `toastMs` when this client saw a compliance alert or a fact
  * note go from active to corrected. A dismiss closes the alert without it (§12.3.7). */
 export function useCorrectedToast(alerts: Record<string, Alert>, toastMs: number): Alert | null {
