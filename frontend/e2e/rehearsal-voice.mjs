@@ -14,6 +14,9 @@ import { join, resolve } from "node:path";
 import { chromium } from "playwright";
 
 const BASE = process.env.BASE ?? "http://127.0.0.1:8000";
+// Behind IAP (Cloud Run), scripts need an identity token: IAP_TOKEN="$(gcloud auth print-identity-token)"
+// for an account the IAP policy allows. It is sent on API calls, the audio WebSocket and the page.
+const AUTH = process.env.IAP_TOKEN ? { Authorization: `Bearer ${process.env.IAP_TOKEN}` } : {};
 const MODE = process.argv[2] ?? "alerts";
 const RUNS = Number(process.argv[3] ?? 1);
 const VOICE_DIR = join(tmpdir(), "live-studio-voice");
@@ -37,7 +40,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function api(method, path, body) {
   const r = await fetch(`${BASE}/api${path}`, {
-    method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined,
+    method, headers: { "Content-Type": "application/json", ...AUTH }, body: body ? JSON.stringify(body) : undefined,
   });
   if (!r.ok) throw new Error(`${method} ${path} -> ${r.status} ${await r.text()}`);
   return r.json();
@@ -64,7 +67,9 @@ function synth(text) {
 
 class Mic {
   constructor(sid) {
-    this.ws = new WebSocket(`${BASE.replace("http", "ws")}/api/sessions/${sid}/audio`);
+    // Node's WebSocket (undici) accepts extra headers in its options object
+    this.ws = new WebSocket(`${BASE.replace("http", "ws")}/api/sessions/${sid}/audio`,
+      process.env.IAP_TOKEN ? { headers: AUTH } : undefined);
     this.ws.binaryType = "arraybuffer";
     this.finals = [];
     this.ready = new Promise((res, rej) => {
@@ -227,7 +232,7 @@ async function runScript(page, operatorPage) {
 }
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "msedge" });
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, extraHTTPHeaders: AUTH });
 const results = [];
 for (let r = 1; r <= RUNS; r++) {
   console.log(`== ${MODE} run ${r}`);
