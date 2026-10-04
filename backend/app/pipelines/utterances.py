@@ -376,12 +376,10 @@ class UtterancePipeline:
                                  t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain)}
             active_rules.update(a.rule_id for a in alerts if a.transcript_id == t.transcript_id
                                 and a.status in ("corrected", "dismissed"))
-            seg = await rt.current_segment()
-            judge = judge.model_copy(deep=True)  # D-105: the same test result alerts once per product segment
+            judge = judge.model_copy(deep=True)  # D-108: no second card while the same result's alert is active
             judge.compliance.violations = [
                 v for v in judge.compliance.violations
-                if not (v.rule_id == qualifier.RULE_ID
-                        and qualifier.is_repeat(v.say_instead or None, alerts, on_air, seg.started_at if seg else 0))]
+                if not (v.rule_id == qualifier.RULE_ID and qualifier.is_repeat(v.say_instead or None, alerts, on_air))]
             changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.ctx.pack.rules_by_id,
                                                                   rt.new_id, now, active_rule_ids=active_rules)
             for a in created:

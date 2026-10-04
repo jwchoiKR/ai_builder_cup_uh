@@ -602,3 +602,8 @@ D-107: Fact notes join the prompter box; the box never moves or clips; no "say t
   From 80% of the planned time, the switch or wrap-up card is offered even with required points missing, and then names them verbatim: "Before switching: <points>, then introduce <next product>." It ranks above viewer questions while points are missing, and its text is refreshed when one is said. PD cards now cover only viewer questions with verified answers, promos, and switch or wrap-up. Coverage tracking and the D-090 switch rules are unchanged: a switch card never switches by itself (test).
 - **Demo Console:** a drag handle (and arrow keys) resizes the open console; the height is remembered per browser (`ls.console.height`, storage errors ignored). The bar still collapses it.
 - **Tests:** `tests/test_pd.py`; `frontend/src/screens/host/host.test.tsx`; `frontend/src/screens/screens.test.tsx`; e2e expects the new fact label.
+
+D-108: A claim repeated after its correction alerts again (user, 10/5: "계속 띄워야지").
+- D-105's "the same test result alerts once per product segment" is replaced: a test-qualifier alert is skipped only while an alert with the same approved wording is still provisional or active (no second card for the same claim). After a correction, or after the alert ended, a repeat is a new alert with the same box rules.
+- Fact notes and the other compliance rules already worked this way (a new note once the earlier one is corrected); tests now cover both.
+- **Tests:** `tests/test_qualifier.py` (wrong, correct, wrong again: second alert, for the qualifier and for a fact note).
