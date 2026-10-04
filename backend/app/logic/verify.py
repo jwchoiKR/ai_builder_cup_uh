@@ -48,6 +48,53 @@ def number_set(text: str) -> set[str]:
     return out
 
 
+# D-117 B8: numbers are checked with their subject ("panthenol 5%"), not only "appears in some quote"
+_TOKEN = re.compile(r"\d+(?:\.\d+)?|[a-z][a-z'-]*")
+_UNITS = frozenset("""ml mls percent s sgd dollar dollars hour hours week weeks month months day days minute minutes
+pump pumps drop drops g x of and the a an is are has have with""".split())
+SUBJECT_WINDOW = 3
+
+
+def _words_near(tokens: list[str], i: int) -> list[tuple[int, str]]:
+    """(distance, word) around tokens[i]; before wins a tie."""
+    out = []
+    for d in range(1, SUBJECT_WINDOW + 1):
+        for j in (i - d, i + d):
+            if 0 <= j < len(tokens) and not tokens[j][0].isdigit():
+                out.append((d, tokens[j][:5]))
+    return out
+
+
+_LABELLED = re.compile(r"([A-Za-z][A-Za-z ()/'-]{1,60}):\s*(?:S\$|\$)?(\d+(?:\.\d+)?)")
+
+
+def quoted_subjects(quotes: Sequence[str]) -> dict[str, set[str]]:
+    """Subjects of the sheet's "Label: value" facts ("Panthenol: 5%" -> panthenol = 5). A label word
+    with several values ("price" in "Live price" and "List price") cannot tell them apart and is dropped."""
+    from .corrections import STOPWORDS
+
+    by_word: dict[str, set[str]] = {}
+    for q in quotes:
+        for label, value in _LABELLED.findall(q):
+            for w in _TOKEN.findall(label.lower()):
+                if not w[0].isdigit() and w not in STOPWORDS and w not in _UNITS and len(w) > 2:
+                    by_word.setdefault(w[:5], set()).update(number_set(value))
+    return {w: ns for w, ns in by_word.items() if len(ns) == 1}
+
+
+def misattributed_numbers(answer: str, subjects: dict[str, set[str]]) -> list[tuple[str, str]]:
+    """(number, subject) pairs in the answer whose subject has another value in the quotes."""
+    tokens = _TOKEN.findall(answer.lower())
+    out = []
+    for i, tok in enumerate(tokens):
+        if not tok[0].isdigit():
+            continue
+        near = next((w for _, w in _words_near(tokens, i) if w in subjects), None)
+        if near is not None and not number_set(tok) <= subjects[near]:
+            out.extend((n, near) for n in sorted(number_set(tok)))
+    return out
+
+
 def is_promo_passage(passage_id: str) -> bool:
     return passage_id.startswith("PROMO#")
 
@@ -103,6 +150,11 @@ def verify_answer(
             quoted_numbers |= number_set(c.quote)
     for n in sorted(number_set(answer) - quoted_numbers):
         errors.append(f"number {n} not in a cited quote")
+
+    # 6. D-117 B8: a number next to a subject of the quotes must be that subject's value there
+    subjects = quoted_subjects([c.quote for c in output.citations if c.passage_id in by_id])
+    for n, subject in misattributed_numbers(answer, subjects):
+        errors.append(f"number {n} is not the value of '{subject}' in the cited quotes")
 
     # 5. no restricted wording, even negated
     hits = reflex.scan(answer)
