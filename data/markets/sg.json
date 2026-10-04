@@ -183,5 +183,6 @@
       "description": "Brand policy: a number from a test or study (a percentage, a count of participants such as '0 of 32', or a measured time such as '24 hours') must be said together with 'in our in-house test' or 'in our in-house study'. Use this rule, not an ageing, physiological or superlative rule, when the only problem is the missing qualifier. Only results of a test or study need it. Not this rule: ingredient amounts ('5% panthenol'), prices, volumes or pH; a sentence that already says the result is from our own test ('in our in-house test', 'in our 48-hour patch test'), benefit wording without a test number ('it keeps skin hydrated'), a viewer's question read out, or a denial.",
       "severity": "MEDIUM"
     }
-  ]
+  ],
+  "phone_pattern": "(?<![\\d+])(?:\\+?65[\\s-]*)?[689](?:[\\s-]?\\d){7}(?!\\d)"
 }

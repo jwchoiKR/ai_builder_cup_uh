@@ -151,7 +151,7 @@ async def run(structure: str, runs: int, concurrency: int, cases: list[dict] | N
     catalog = Catalog(pack)
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     client, _ = make_client(False)
-    reflex = Reflex(pack.rules)
+    reflex = Reflex(pack.rules, pack.lexicon)
     judge = UtteranceJudge(client, prompts, catalog, reflex)
     comp_judge, ctx_judge = ComplianceJudge(client, prompts, catalog, reflex), ContextJudge(client, prompts, catalog, reflex)
     facts = FactChecker(client, prompts["fact_checker"], catalog)

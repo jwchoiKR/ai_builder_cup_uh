@@ -31,7 +31,6 @@ from eval_holdout_sequences import ReplayClock  # noqa: E402
 
 from app.config import REPO_DIR, Settings, get_settings  # noqa: E402
 from app.context import build_context  # noqa: E402
-from app.logic.publish import spoken_numbers  # noqa: E402
 from app.logic.qualifier import RULE_ID as QUALIFIER  # noqa: E402
 from app.models.session import AgentCall  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
@@ -82,10 +81,17 @@ def _kind(a: dict) -> str:
     return "qualifier" if a["rule_id"] == QUALIFIER else "compliance"
 
 
+def _lexicon():
+    from app.logic.catalog import DataPack
+
+    return DataPack.load(get_settings().data_path).lexicon
+
+
 def _wrong_text(a: dict, correct: str | None) -> bool:
     """The correction shown to the host does not carry the expected right value."""
     if not correct:
         return False
+    spoken_numbers = _lexicon().spoken_numbers
     want = spoken_numbers(correct)
     shown = a["correct_value"] if a["kind"] == "fact" else a["say_instead"]
     if not want:

@@ -5,7 +5,7 @@ from collections.abc import Callable, Collection, Sequence
 
 from ..models.agent_io import FactClaim
 from ..models.session import Alert, Transcript
-from .publish import spoken_numbers
+from .lexicon import Lexicon
 
 PURCHASE_FIELDS = frozenset({"price", "set_price", "promo", "volume", "ingredient_amount"})
 
@@ -20,21 +20,23 @@ def subject_key(product_id: str, field: str | None, passage_id: str | None) -> t
     return product_id, field, passage_id
 
 
-def _corrected_note(c: FactClaim, notes: Sequence[Alert]) -> Alert | None:
+def _corrected_note(c: FactClaim, notes: Sequence[Alert], lex: Lexicon) -> Alert | None:
     """The active note a supported claim corrects: the same passage, or without a passage the note
     whose right value the host now states (or the only note of that field when no number is said)."""
     same = [a for a in notes if (a.product_id, a.field) == (c.product_id, c.field)]
     if c.passage_id is not None:
         return next((a for a in same if a.passage_id == c.passage_id), None)
-    said = spoken_numbers(c.stated_value or "")
+    said = lex.spoken_numbers(c.stated_value or "")
     if said:
-        return next((a for a in same if spoken_numbers(a.correct_value or "") == said), None)
+        return next((a for a in same if lex.spoken_numbers(a.correct_value or "") == said), None)
     return same[0] if len(same) == 1 else None
 
 
 def apply_fact_check(
     claims: Sequence[FactClaim], alerts: Sequence[Alert], t: Transcript, new_id: Callable[[str], str], now: int,
     protected: Collection[str] = (),
+    *,
+    lex: Lexicon,
 ) -> tuple[list[Alert], list[Alert], list[Alert]]:
     """Returns (created, re-shown, corrected). One active note per subject (product, field, passage).
 
@@ -67,7 +69,7 @@ def apply_fact_check(
     for c in claims:
         if c.verdict != "supported":
             continue
-        a = _corrected_note(c, [x for x in active.values() if x.status == "active"])
+        a = _corrected_note(c, [x for x in active.values() if x.status == "active"], lex)
         if a is not None and a.alert_id not in fresh and a.transcript_id not in protected:
             a.status, a.resolved_at = "corrected", now
             a.corrected_by_transcript_id, a.corrected_text = t.transcript_id, t.text

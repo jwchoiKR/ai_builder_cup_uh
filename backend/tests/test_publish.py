@@ -13,6 +13,12 @@ from app.pipelines.runtime import ActionError
 from .helpers import say
 from .judge_fakes import CREAM, advance, claim, close_env, events, judge_output, make_env, price_contradiction, speak, violation
 
+from app.config import get_settings as _settings  # noqa: E402
+from app.logic.catalog import DataPack as _DataPack  # noqa: E402
+
+LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexicon
+
+
 ANSWER = "Raj is asking if it's OK for oily skin. Yes, it's a lightweight gel-cream, so just use a smaller amount on oily areas."
 
 
@@ -44,23 +50,23 @@ OFFERED = {"g1": ans()}  # the verified answer shown with the question
 
 
 def test_all_conditions_hold_posts():
-    d = decide(jo(), OFFERED, grp(), ans(), high_alert_active=False, facts=facts())
+    d = decide(jo(), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=facts())
     assert (d.action, d.group_id) == ("post", "g1")
 
 
 def test_fact_timeout_does_not_block():
-    assert decide(jo(), OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "post"
+    assert decide(jo(), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=None).action == "post"
 
 
 def test_condition_1_answer_to_offered_question():
-    assert decide(jo(is_answer=False), OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "none"
-    assert decide(jo(), {}, grp(), ans(), high_alert_active=False, facts=None).action == "none"
-    assert decide(jo(matched=None), OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "none"
-    assert decide(jo(), OFFERED, None, ans(), high_alert_active=False, facts=None).action == "none"
+    assert decide(jo(is_answer=False), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=None).action == "none"
+    assert decide(jo(), {}, grp(), ans(), lex=LEX, high_alert_active=False, facts=None).action == "none"
+    assert decide(jo(matched=None), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=None).action == "none"
+    assert decide(jo(), OFFERED, None, ans(), lex=LEX, high_alert_active=False, facts=None).action == "none"
 
 
 def test_condition_2_inconsistent_is_verbal():
-    assert decide(jo(consistent=False), OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "verbal_not_posted"
+    assert decide(jo(consistent=False), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=None).action == "verbal_not_posted"
 
 
 @pytest.mark.parametrize("group, answer", [
@@ -69,7 +75,7 @@ def test_condition_2_inconsistent_is_verbal():
     (grp(route="OPERATOR"), ans()),
 ])
 def test_condition_3_verified_answer_and_not_operator(group, answer):
-    assert decide(jo(), OFFERED, group, answer, high_alert_active=False, facts=None).action == "verbal_not_posted"
+    assert decide(jo(), OFFERED, group, answer, lex=LEX, high_alert_active=False, facts=None).action == "verbal_not_posted"
 
 
 # ---- D-110: stricter spoken-answer posting ---------------------------------------------------------
@@ -77,18 +83,18 @@ def test_condition_3_verified_answer_and_not_operator(group, answer):
 
 def test_bound_to_the_answer_shown_and_the_current_state():
     shown_older = {"g1": ans().model_copy(update={"answer_id": "a0"})}
-    d = decide(jo(), shown_older, grp(), ans(), high_alert_active=False, facts=None)
+    d = decide(jo(), shown_older, grp(), ans(), lex=LEX, high_alert_active=False, facts=None)
     assert (d.action, d.reason) == ("verbal_not_posted", "stale answer")
     keyed = ans().model_copy(update={"cache_key": "k_old"})
-    d = decide(jo(), {"g1": keyed}, grp(), keyed, high_alert_active=False, facts=None, current_key="k_new")
+    d = decide(jo(), {"g1": keyed}, grp(), keyed, lex=LEX, high_alert_active=False, facts=None, current_key="k_new")
     assert (d.action, d.reason) == ("verbal_not_posted", "stale answer")
-    assert decide(jo(), {"g1": keyed}, grp(), keyed, high_alert_active=False, facts=None,
+    assert decide(jo(), {"g1": keyed}, grp(), keyed, lex=LEX, high_alert_active=False, facts=None,
                   current_key="k_old").action == "post"
 
 
 @pytest.mark.parametrize("kind", ["question_readout", "product_talk", "other"])
 def test_only_an_answer_utterance_posts(kind):
-    assert decide(jo(utterance_type=kind), OFFERED, grp(), ans(), high_alert_active=False,
+    assert decide(jo(utterance_type=kind), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False,
                   facts=None).action == "verbal_not_posted"
 
 
@@ -97,9 +103,9 @@ def test_hedge_or_new_number_holds_the_post_even_when_the_judge_says_consistent(
     offered = {"g1": draft}
     for said, reason in [("I think it's 50 mL.", "host sounded unsure or took it back"),
                          ("It's forty mils.", "a number differs from the verified draft")]:
-        d = decide(jo(), offered, grp(), draft, high_alert_active=False, facts=None, utterance=said)
+        d = decide(jo(), offered, grp(), draft, lex=LEX, high_alert_active=False, facts=None, utterance=said)
         assert (d.action, d.reason) == ("verbal_not_posted", reason)
-    assert decide(jo(), offered, grp(), draft, high_alert_active=False, facts=None,
+    assert decide(jo(), offered, grp(), draft, lex=LEX, high_alert_active=False, facts=None,
                   utterance="Fifty mils in this jar.").action == "post"
 
 
@@ -119,9 +125,8 @@ def _verbal_cases() -> list[dict]:
     ("fifty mils, thirty-six dollars", {"50", "36"}),
 ])
 def test_spoken_numbers_include_spoken_decimals(said, numbers):
-    from app.logic.publish import spoken_numbers
 
-    assert spoken_numbers(said) == numbers
+    assert LEX.spoken_numbers(said) == numbers
 
 
 @pytest.mark.parametrize("case", _verbal_cases(), ids=lambda c: c["case_id"])
@@ -134,7 +139,7 @@ def test_code_checks_on_the_verbal_post_cases(case):
     shown = case["shown_group_id"]
     if shown not in qs:
         return  # other_group: no draft shown for this question
-    held = verbal_check(case["utterance"], qs[shown], [a for g, a in qs.items() if g != shown])
+    held = verbal_check(case["utterance"], qs[shown], [a for g, a in qs.items() if g != shown], LEX)
     exp = case["expected"]
     if exp["post"]:
         assert held is None, held
@@ -143,29 +148,29 @@ def test_code_checks_on_the_verbal_post_cases(case):
 
 
 def test_condition_4_compliance():
-    assert decide(jo(), OFFERED, grp(), ans(), high_alert_active=True, facts=None).action == "none"
+    assert decide(jo(), OFFERED, grp(), ans(), lex=LEX, high_alert_active=True, facts=None).action == "none"
     with_violation = jo(violations=[violation("ASEAN-3-SKIN-AGEING")])
-    assert decide(with_violation, OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "none"
+    assert decide(with_violation, OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=None).action == "none"
     negated = jo(violations=[violation("ASEAN-3-SKIN-ACNE", negated=True)])
-    assert decide(negated, OFFERED, grp(), ans(), high_alert_active=False, facts=None).action == "post"
+    assert decide(negated, OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=None).action == "post"
 
 
 def test_condition_5_contradicted_fact():
     f = facts(price_contradiction())
-    assert decide(jo(), OFFERED, grp(), ans(), high_alert_active=False, facts=f).action == "none"
+    assert decide(jo(), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=f).action == "none"
     ok = facts(claim("texture", "supported"))
-    assert decide(jo(), OFFERED, grp(), ans(), high_alert_active=False, facts=ok).action == "post"
+    assert decide(jo(), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=ok).action == "post"
 
 
 @pytest.mark.parametrize("group", [grp(published_message_id="m1"), grp(status="answered")])
 def test_condition_6_no_published_answer_yet(group):
-    assert decide(jo(), OFFERED, group, ans(), high_alert_active=False, facts=None).action == "verbal_not_posted"
+    assert decide(jo(), OFFERED, group, ans(), lex=LEX, high_alert_active=False, facts=None).action == "verbal_not_posted"
 
 
 def test_ai_answered_group_is_confirmed():
     g = grp(status="auto_answered", route="AUTO", published_message_id="m1")
-    assert decide(jo(), OFFERED, g, ans(), high_alert_active=False, facts=None).action == "confirm_ai"
-    assert decide(jo(consistent=False), OFFERED, g, ans(), high_alert_active=False, facts=None).action == "verbal_not_posted"
+    assert decide(jo(), OFFERED, g, ans(), lex=LEX, high_alert_active=False, facts=None).action == "confirm_ai"
+    assert decide(jo(consistent=False), OFFERED, g, ans(), lex=LEX, high_alert_active=False, facts=None).action == "verbal_not_posted"
 
 
 # ---- pipeline ----------------------------------------------------------------------------------

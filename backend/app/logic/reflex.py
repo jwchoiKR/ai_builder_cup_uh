@@ -8,11 +8,15 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from typing import TYPE_CHECKING
+
 from ..models.data import ClaimRulesFile
+
+if TYPE_CHECKING:  # lexicon imports normalise from here
+    from .lexicon import Lexicon
 
 _QUOTES = str.maketrans({"‘": "'", "’": "'", "‛": "'", "′": "'",
                          "“": '"', "”": '"', "‟": '"'})
-_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def normalise(text: str) -> str:
@@ -43,7 +47,8 @@ class ReflexHit:
 
 
 class Reflex:
-    def __init__(self, policy: ClaimRulesFile) -> None:
+    def __init__(self, policy: ClaimRulesFile, lexicon: "Lexicon") -> None:
+        self.lexicon = lexicon  # D-134: the guards that get this Reflex take their language from it
         self._phrases: list[tuple[str, str, str, re.Pattern]] = []
         for rule in policy.rules:
             for phrase in rule.reflex_phrases:
@@ -54,7 +59,7 @@ class Reflex:
 
     def scan(self, text: str) -> list[ReflexHit]:
         hits: list[ReflexHit] = []
-        for si, sentence in enumerate(s for s in _SENTENCE_SPLIT.split(text) if s.strip()):
+        for si, sentence in enumerate(s for s in self.lexicon.sentence_split.split(text) if s.strip()):
             norm = normalise(sentence)
             for rule_id, severity, phrase, rx in self._phrases:
                 for m in rx.finditer(norm):

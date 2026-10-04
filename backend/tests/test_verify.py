@@ -4,15 +4,21 @@ import pytest
 
 from app.logic.promos import promo_passage
 from app.logic.reflex import Reflex
-from app.logic.verify import number_set, split_sentences, verify_answer
+from app.logic.verify import number_set, verify_answer
 from app.models.agent_io import ComposerOutput
+
+from app.config import get_settings as _settings  # noqa: E402
+from app.logic.catalog import DataPack as _DataPack  # noqa: E402
+
+LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexicon
+
 
 CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
 
 
 @pytest.fixture(scope="module")
 def reflex(pack):
-    return Reflex(pack.rules)
+    return Reflex(pack.rules, pack.lexicon)
 
 
 @pytest.fixture
@@ -37,8 +43,8 @@ SET = ("DL-CR-01#key-facts#live-set-price", "S$62.00 for Hydra Barrier Cream 50 
 
 
 def test_sentence_split_keeps_prices_together():
-    assert split_sentences("It is S$36.00 today. The set is S$62.00!") == ["It is S$36.00 today.", "The set is S$62.00!"]
-    assert len(split_sentences("Yes. It absorbs quickly. Use less.")) == 3
+    assert LEX.split_sentences("It is S$36.00 today. The set is S$62.00!") == ["It is S$36.00 today.", "The set is S$62.00!"]
+    assert len(LEX.split_sentences("Yes. It absorbs quickly. Use less.")) == 3
 
 
 def test_numbers_normalise():
@@ -135,7 +141,7 @@ def test_rule6_keeps_good_drafts_whose_labels_contain_numbers():
     from app.logic.catalog import Catalog, DataPack
 
     pack = DataPack.load(get_settings().data_path)
-    catalog, rfx = Catalog(pack), Reflex(pack.rules)
+    catalog, rfx = Catalog(pack), Reflex(pack.rules, pack.lexicon)
     path = Path(get_settings().data_path) / "eval" / "draft_verifier_cases.jsonl"
     blocked = []
     for line in path.read_text(encoding="utf-8").splitlines():

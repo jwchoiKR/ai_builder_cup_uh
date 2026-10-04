@@ -8,34 +8,25 @@ in-house test". The judge decides the meaning; this module keeps the rule's aler
 """
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 
 from ..models.data import Product, QualifiedResult
 from ..models.session import Alert
-from .corrections import _claim_words, content_words, coverage
+from .lexicon import Lexicon
 
 RULE_ID = "BRAND-TEST-QUALIFIER"
 MIN_COVERAGE = 0.4  # without a matching number, this share of the approved wording must be heard
 
-# "in our in-house test", "in-house study", "in our 48-hour patch test", "our own study showed"
-_QUALIFIED = re.compile(r"\bin-house\b|\bour\b(?:\s+[\w-]+){0,4}?\s+(?:tests?|study|studies|trials?)\b", re.I)
-
-
-def is_qualified(text: str) -> bool:
-    return bool(_QUALIFIED.search(text))
-
-
-def approved_replacement(text: str, on_air: Product, others: Sequence[Product] = ()) -> QualifiedResult | None:
+def approved_replacement(text: str, on_air: Product, others: Sequence[Product], lex: Lexicon) -> QualifiedResult | None:
     """The approved result the sentence is about: most matching numbers, then the product on air,
     then most matching words. None when nothing matches well enough (no wording is invented)."""
-    heard = content_words(text)
+    heard = lex.content_words(text)
     numbers = {w for w in heard if w.isdigit()}
     best, best_key = None, None
     for rank, product in enumerate([on_air, *others]):
         for r in product.qualified_results:
             hits = len(numbers & set(r.numbers))
-            cov = coverage(_claim_words(r.say), heard)
+            cov = lex.coverage(lex.claim_words(r.say), heard)
             if hits == 0 and cov < MIN_COVERAGE:
                 continue
             key = (hits, -rank, cov)

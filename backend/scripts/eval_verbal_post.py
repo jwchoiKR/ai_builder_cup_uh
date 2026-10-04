@@ -48,6 +48,12 @@ def _answer(q: dict) -> Answer:
                   origin="ai", verified=True, verify_errors=[], needs_human=False, created_at=0)
 
 
+def _lexicon():
+    from app.logic.catalog import DataPack
+
+    return DataPack.load(get_settings().data_path).lexicon
+
+
 def decision_for(case: dict, row: dict) -> tuple[str, str | None, str]:
     """(action, group_id, reason) the runtime would take for this agent output."""
     if row.get("judge") is None:
@@ -58,7 +64,7 @@ def decision_for(case: dict, row: dict) -> tuple[str, str | None, str]:
     offered = {gid: _answer(q) for gid, q in qs.items()}
     gid = judge.answer.matched_group_id
     group = _group(qs[gid], case["current_product_id"]) if gid in qs else None
-    d = decide(judge, offered, group, offered.get(gid), high_alert_active=False, facts=facts,
+    d = decide(judge, offered, group, offered.get(gid), high_alert_active=False, facts=facts, lex=_lexicon(),
                utterance=case["utterance"])
     return d.action, d.group_id, d.reason
 

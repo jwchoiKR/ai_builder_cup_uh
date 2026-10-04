@@ -168,7 +168,7 @@ async def run(runs: int, concurrency: int, routers: list[str] | tuple[str, ...] 
     settings = get_settings().model_copy(update={"LLM_RETRY_ON_5XX": 0})
     cases, has_extra = load_cases(settings.data_path)
     pack = DataPack.load(settings.data_path)
-    catalog, reflex = Catalog(pack), Reflex(pack.rules)
+    catalog, reflex = Catalog(pack), Reflex(pack.rules, pack.lexicon)
     pattern = fact_pattern(pack) if "regex" in routers else None
     template = router_template() if "llm" in routers else None
     threshold = get_threshold() if "jev" in routers else 0.05

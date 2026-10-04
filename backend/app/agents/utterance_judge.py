@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
 from ..logic import qualifier
-from ..logic.corrections import content_words, coverage
 from ..logic.grouping import normalise_question
 from ..logic.reflex import Reflex
 from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput
@@ -63,10 +62,11 @@ def qualified_say(say: str, on_air, catalog: Catalog) -> str:
     even when the model copied the approved claim without its '*'. Otherwise the host gets a
     test-qualifier alert for saying exactly the line they were given."""
     say = spoken_claim(say)
-    if on_air is None or qualifier.is_qualified(say):
+    lex = catalog.lexicon
+    if on_air is None or lex.is_qualified(say):
         return say
-    r = qualifier.approved_replacement(say, on_air, [p for p in catalog.products if p is not on_air])
-    numbers = {w for w in content_words(say) if w.isdigit()}
+    r = qualifier.approved_replacement(say, on_air, [p for p in catalog.products if p is not on_air], lex)
+    numbers = {w for w in lex.content_words(say) if w.isdigit()}
     return r.say if r is not None and numbers & set(r.numbers) else say
 
 
@@ -95,19 +95,19 @@ def _sheet_statements(passages) -> list[str]:
     return out
 
 
-def _is_approved_wording(span: str, product, passages=()) -> bool:
+def _is_approved_wording(span: str, product, lex, passages=()) -> bool:
     """The flagged words are the product's own approved wording: an approved claim, an approved in-house
     result, a prompter point or a statement of its product sheet (D-132, sealed AW010: "suitable for all
     skin types" is in the cream's sheet) - at least 80% of the span's content words, every number of it."""
-    words = content_words(span)
+    words = lex.content_words(span)
     if len(words) < 3:
         return False
     numbers = {w for w in words if w.isdigit()}
     texts = [*product.approved_claims, *(r.say for r in product.qualified_results),
              *(p.text for p in product.prompter_points), *_sheet_statements(passages)]
     for text in texts:
-        heard = content_words(text)
-        if coverage(words, heard) >= APPROVED_SPAN_MIN and numbers <= set(heard):
+        heard = lex.content_words(text)
+        if lex.coverage(words, heard) >= APPROVED_SPAN_MIN and numbers <= set(heard):
             return True
     return False
 
@@ -119,19 +119,20 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     text = values.get("utterance_text") or ""
     # D-105: a sentence that names our own test never breaks the test-qualifier rule
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
-                               and not (v.rule_id == qualifier.RULE_ID and qualifier.is_qualified(text))]
+                               and not (v.rule_id == qualifier.RULE_ID and catalog.lexicon.is_qualified(text))]
     kept = []
     on_air_id = (values.get("current_product_json") or {}).get("product_id")
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
         if (on_air_product is not None and v.rule_id != qualifier.RULE_ID
-                and _is_approved_wording(v.span, on_air_product,
+                and _is_approved_wording(v.span, on_air_product, catalog.lexicon,
                                          [p for p in catalog.pack.passages if p.product_id == on_air_product.product_id])):
             continue  # D-123: approved product wording is never a violation (the qualifier rule still applies)
         if v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
-            r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air])
+            r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air],
+                                               catalog.lexicon)
             if r is None:
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
             v.say_instead = r.say

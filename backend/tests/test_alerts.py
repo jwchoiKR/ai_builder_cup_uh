@@ -269,7 +269,7 @@ async def test_render_ack(env):
 
 
 def test_provisional_from_reflex_skips_rules_with_active_alert(pack, ids):
-    reflex = Reflex(pack.rules)
+    reflex = Reflex(pack.rules, pack.lexicon)
     t = Transcript(transcript_id="tr_1", text="It cures eczema and removes wrinkles.", is_final=True,
                    speech_end_at=0, received_at=0, source="injected", segment_id="seg_1")
     existing = [Alert(alert_id="al_x", kind="compliance", status="active", transcript_id="tr_0", product_id=CREAM,

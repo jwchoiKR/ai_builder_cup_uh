@@ -47,7 +47,7 @@ async def submit_comment(
         raise ActionError(400, "empty_comment", "comment text is empty")
     now = rt.now()
     rt.check_rate(author_id, now)
-    verdict = prefilter(text)
+    verdict = prefilter(text, rt.catalog.lexicon)
     comment = Comment(
         comment_id=rt.new_id("cm_"), author_id=author_id, author_name=author_name.strip() or "Viewer",
         text=text, received_at=now, source=source,

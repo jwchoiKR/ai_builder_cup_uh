@@ -3,10 +3,16 @@ from __future__ import annotations
 
 import pytest
 
-from app.logic.corrections import check_correction, content_words, coverage
+from app.logic.corrections import check_correction
 from app.models.session import Alert
 
 from .judge_fakes import advance, close_env, events, make_env, speak, violation
+
+from app.config import get_settings as _settings  # noqa: E402
+from app.logic.catalog import DataPack as _DataPack  # noqa: E402
+
+LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexicon
+
 
 WRINKLES = "Use it every night and your wrinkles will disappear overnight."
 SPAN = "your wrinkles will disappear overnight"
@@ -26,14 +32,15 @@ def reflex():
     from app.logic.catalog import DataPack
     from app.logic.reflex import Reflex
 
-    return Reflex(DataPack.load(get_settings().data_path).rules)
+    pack = DataPack.load(get_settings().data_path)
+    return Reflex(pack.rules, pack.lexicon)
 
 
 def test_content_words_normalise_numbers_and_drop_fillers():
-    assert content_words("Oh, I'm sorry. Let me correct that.") == []
-    assert content_words("up to twenty-four hours") == ["24", "hour"]
-    assert content_words("4% niacinamide") == ["4", "percent", "niacinamide"]
-    assert coverage(["keep", "skin"], ["skin"]) == 0.5
+    assert LEX.content_words("Oh, I'm sorry. Let me correct that.") == []
+    assert LEX.content_words("up to twenty-four hours") == ["24", "hour"]
+    assert LEX.content_words("4% niacinamide") == ["4", "percent", "niacinamide"]
+    assert LEX.coverage(["keep", "skin"], ["skin"]) == 0.5
 
 
 @pytest.mark.parametrize("text, ok, reason", [

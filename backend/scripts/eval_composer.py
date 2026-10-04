@@ -98,7 +98,7 @@ def build_questions(pack: DataPack, catalog: Catalog, data_dir: Path) -> tuple[l
     skipped: list[str] = []
 
     def consider(text: str, scenario: str, context_pid: str, label: str) -> None:
-        if prefilter(text).kind is not None:
+        if prefilter(text, pack.lexicon).kind is not None:
             return  # reaction or hidden by the prefilter: never reaches triage or the composer
         raw = load_triage(mock, text, scenario)
         if raw is None:
@@ -160,7 +160,7 @@ async def main() -> int:
     catalog = Catalog(pack)
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     retriever = LocalRetriever(pack.passages)
-    reflex = Reflex(pack.rules)
+    reflex = Reflex(pack.rules, pack.lexicon)
     prefetched = {p.product_id: await retriever.prefetch(p.product_id) for p in catalog.products}
 
     questions, skipped = build_questions(pack, catalog, settings.data_path)

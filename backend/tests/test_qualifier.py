@@ -8,6 +8,12 @@ from app.models.session import Alert
 
 from .judge_fakes import AMPOULE, CREAM, claim, close_env, make_env, price_contradiction, speak, violation
 
+from app.config import get_settings as _settings  # noqa: E402
+from app.logic.catalog import DataPack as _DataPack  # noqa: E402
+
+LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexicon
+
+
 RULE = qualifier.RULE_ID
 AM_45 = "In our in-house test, skin hydration went up 45% right after one use."
 CR_0_32 = "In our in-house patch test, 0 of 32 participants had an irritation reaction."
@@ -22,7 +28,7 @@ CR_0_32 = "In our in-house patch test, 0 of 32 participants had an irritation re
     ("In clinical corneometer tests, instant skin hydration increased by seventy percent.", False),  # H052
 ])
 def test_is_qualified(text, qualified):
-    assert qualifier.is_qualified(text) is qualified
+    assert LEX.is_qualified(text) is qualified
 
 
 @pytest.mark.parametrize("on_air, text, say", [
@@ -40,7 +46,7 @@ def test_is_qualified(text, qualified):
 ])
 def test_approved_replacement(catalog, on_air, text, say):
     others = [p for p in catalog.products if p.product_id != on_air]
-    r = qualifier.approved_replacement(text, catalog.get_product(on_air), others)
+    r = qualifier.approved_replacement(text, catalog.get_product(on_air), others, catalog.lexicon)
     assert (r.say if r else None) == say
 
 
@@ -176,7 +182,7 @@ async def test_say_instead_with_a_test_number_carries_the_qualifier(env):
     await speak(rt, text)
     [a] = await compliance_alerts(rt)
     assert a.say_instead == "It helps keep skin hydrated for up to 24 hours in our in-house test."
-    assert qualifier.is_qualified(a.say_instead)
+    assert LEX.is_qualified(a.say_instead)
 
 
 async def test_say_instead_without_a_test_number_is_kept(env):
@@ -212,6 +218,7 @@ def test_not_approved_claims_of_the_sheet_never_count_as_approved(catalog, pack)
 
     cream = catalog.get_product(CREAM)
     passages = [p for p in pack.passages if p.product_id == CREAM]
-    assert not _is_approved_wording("the best moisturiser in Singapore", cream, passages)
-    assert not _is_approved_wording("removes wrinkles or reverses skin ageing", cream, passages)
-    assert _is_approved_wording("suitable for all skin types", cream, passages)
+    lex = catalog.lexicon
+    assert not _is_approved_wording("the best moisturiser in Singapore", cream, lex, passages)
+    assert not _is_approved_wording("removes wrinkles or reverses skin ageing", cream, lex, passages)
+    assert _is_approved_wording("suitable for all skin types", cream, lex, passages)

@@ -28,6 +28,7 @@ from ..models.data import (
     Runsheet,
     SetOffer,
 )
+from .lexicon import Lexicon
 
 DEFAULT_RUNSHEET_ID = "daon_skincare_demo"
 
@@ -72,6 +73,13 @@ class DataPack:
     passages: list[Passage]
     market: MarketPack | None = None  # D-129: None only for packs built by hand in tests
     lang: str = "en"
+    lang_pack: LangPack | None = None
+
+    @cached_property
+    def lexicon(self) -> Lexicon:
+        """D-134: the text helpers of this (market, language)."""
+        assert self.market is not None and self.lang_pack is not None
+        return Lexicon.from_packs(self.lang_pack, self.market)
 
     @property
     def stt_language(self) -> str:
@@ -93,16 +101,18 @@ class DataPack:
                 if line.strip():
                     passages.append(Passage.model_validate_json(line))
         market_pack = MarketPack.model_validate(_read_json(data_dir / "markets" / f"{market.lower()}.json"))
+        lang_pack = LangPack.model_validate(_read_json(data_dir / "lang" / f"{lang}.json"))
         pack = cls(
             products=ProductsFile.model_validate(_read_json(data_dir / "products" / "products.json")),
             runsheets=runsheets,
             promos=PromosFile.model_validate(_read_json(data_dir / "promos" / "promos.json")),
-            rules=claim_rules(market_pack, LangPack.model_validate(_read_json(data_dir / "lang" / f"{lang}.json"))),
+            rules=claim_rules(market_pack, lang_pack),
             intents=IntentsFile.model_validate(_read_json(data_dir / "policy" / "intents.json")),
             notices=NoticesFile.model_validate(_read_json(data_dir / "templates" / "notices.json")),
             passages=passages,
             market=market_pack,
             lang=lang,
+            lang_pack=lang_pack,
         )
         pack._validate()
         return pack
@@ -246,6 +256,10 @@ class Catalog:
         return best.pop() if len(best) == 1 else None
 
     # ---- prices -----------------------------------------------------------------------------
+
+    @property
+    def lexicon(self) -> Lexicon:
+        return self.pack.lexicon
 
     def money(self, value: float) -> str:
         amount = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)

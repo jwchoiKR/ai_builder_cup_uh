@@ -44,7 +44,7 @@ def main() -> int:
     args = ap.parse_args()
     settings = get_settings()
     pack = DataPack.load(settings.data_path)
-    reflex = Reflex(pack.rules)
+    reflex = Reflex(pack.rules, pack.lexicon)
     severity = {r.rule_id: r.severity for r in pack.rules.rules}
     cases = [json.loads(x) for x in (settings.data_path / "eval" / "utterance_cases.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
 

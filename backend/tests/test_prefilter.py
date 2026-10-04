@@ -4,6 +4,12 @@ import pytest
 
 from app.logic.prefilter import prefilter
 
+from app.config import get_settings as _settings  # noqa: E402
+from app.logic.catalog import DataPack as _DataPack  # noqa: E402
+
+LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexicon
+
+
 
 @pytest.mark.parametrize(
     "text, category",
@@ -23,14 +29,14 @@ from app.logic.prefilter import prefilter
     ],
 )
 def test_hide(text, category):
-    v = prefilter(text)
+    v = prefilter(text, LEX)
     assert (v.kind, v.hide_category) == ("hide", category)
 
 
 @pytest.mark.parametrize("text", ["😍😍", "😍😍😍", "👏👏", "!!!", "ok", "So pretty! 💜", "wow", "hi hi", "yesss",
                                   "LOL", "+1", "love it!!", "  same  ", "??", "?!"])
 def test_reaction_without_llm(text):
-    assert prefilter(text).kind == "reaction"
+    assert prefilter(text, LEX).kind == "reaction"
 
 
 @pytest.mark.parametrize("text", [
@@ -48,4 +54,4 @@ def test_reaction_without_llm(text):
     "SPF?",
 ])
 def test_needs_llm(text):
-    assert prefilter(text).kind is None
+    assert prefilter(text, LEX).kind is None

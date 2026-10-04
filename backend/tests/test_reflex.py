@@ -7,7 +7,7 @@ from app.logic.reflex import Reflex, normalise
 
 @pytest.fixture(scope="module")
 def reflex(pack):
-    return Reflex(pack.rules)
+    return Reflex(pack.rules, pack.lexicon)
 
 
 def rules(hits):

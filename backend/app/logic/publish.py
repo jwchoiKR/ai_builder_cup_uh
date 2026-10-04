@@ -1,20 +1,13 @@
 """Host spoken answer -> publish decision (DEV_SPEC §8.6)."""
 from __future__ import annotations
 
-import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
 from ..models.agent_io import FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Answer, QuestionGroup
-from .corrections import _numbers
-from .reflex import normalise
-
-# D-110: the host sounds unsure or takes the answer back. A hedge never auto-posts, whatever the judge says.
-UNSURE = re.compile(
-    r"\b(i think|i guess|i believe|maybe|perhaps|probably|not (?:totally |really |entirely |100% )?sure"
-    r"|don'?t quote me|let me (?:check|double-check|confirm)|double-check|wait,? no|sorry,? (?:no|wait))\b", re.I)
+from .lexicon import Lexicon
 
 Action = Literal["post", "confirm_ai", "verbal_not_posted", "none"]
 
@@ -26,37 +19,15 @@ class PublishDecision:
     reason: str = ""
 
 
-def spoken_numbers(text: str) -> set[str]:
-    """Numbers as said or written: "fifty mils" -> {"50"}, "S$36.00" -> {"36"}, "4%" -> {"4"},
-    "zero point two" -> {"0.2"}.
-    A lone "one" is ignored ("after one use" is not a claimed number)."""
-    tokens = [w for w in normalise(text).replace("$", " ").split() if w != "one"]
-    words = _numbers(tokens)
-    merged: list[str] = []  # D-116: spoken decimals, "five point five" -> "5.5"
-    i = 0
-    while i < len(words):
-        if i + 2 < len(words) and words[i + 1] == "point" and words[i].isdigit() and words[i + 2].isdigit():
-            merged.append(f"{words[i]}.{words[i + 2]}")
-            i += 3
-        else:
-            merged.append(words[i])
-            i += 1
-    out = set()
-    for w in merged:
-        if re.fullmatch(r"\d+(\.\d+)?", w):
-            out.add(w.rstrip("0").rstrip(".") if "." in w else w)
-    return out
-
-
-def verbal_check(utterance: str, draft: str, other_drafts: Iterable[str] = ()) -> str | None:
+def verbal_check(utterance: str, draft: str, other_drafts: Iterable[str], lex: Lexicon) -> str | None:
     """D-110: code checks on top of the judge before a host's spoken answer is auto-posted.
     The host may say less than the draft, but every number they say must be in the draft (or in
     another offered draft: two questions answered at once), and they must not sound unsure.
     Returns the reason to hold the post, or None."""
-    if UNSURE.search(utterance):
+    if lex.is_unsure(utterance):
         return "host sounded unsure or took it back"
-    allowed = spoken_numbers(draft).union(*(spoken_numbers(d) for d in other_drafts))
-    if not spoken_numbers(utterance) <= allowed:
+    allowed = lex.spoken_numbers(draft).union(*(lex.spoken_numbers(d) for d in other_drafts))
+    if not lex.spoken_numbers(utterance) <= allowed:
         return "a number differs from the verified draft"
     return None
 
@@ -69,6 +40,7 @@ def decide(
     *,
     high_alert_active: bool,
     facts: FactCheckOutput | None,
+    lex: Lexicon,
     utterance: str = "",
     current_key: str | None = None,
 ) -> PublishDecision:
@@ -85,7 +57,7 @@ def decide(
     stale = (answer is None or shown is None or shown.answer_id != answer.answer_id
              or (current_key is not None and answer.cache_key is not None and answer.cache_key != current_key))
     held = None if answer is None else verbal_check(
-        utterance, answer.text, [x.text for g, x in offered.items() if g != gid and x is not None])
+        utterance, answer.text, [x.text for g, x in offered.items() if g != gid and x is not None], lex)
     consistent = a.consistent_with_suggested and not stale and held is None  # 2.
     if a.consistent_with_suggested and group.status == "auto_answered":  # a mark only: nothing is posted
         return PublishDecision("confirm_ai", gid, "already answered by AI")
