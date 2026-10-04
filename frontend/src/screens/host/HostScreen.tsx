@@ -225,10 +225,10 @@ export function HostView({
           />
         )}
         {facts.slice(0, 2).map((a) => (
-          <FactNote key={a.alert_id} alert={a} catalog={catalog} />
+          <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} />
         ))}
         {mediums.map(({ alert: a, fact }) => (
-          <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} />
+          <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered} />
         ))}
       </>
     ) : null;
