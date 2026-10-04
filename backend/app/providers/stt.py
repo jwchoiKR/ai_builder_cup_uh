@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 
@@ -126,6 +127,10 @@ class GoogleV2Stream:
                     errors = 0
                 self.restarts += 1
                 bridge = state.tail_after(state.last_final_ms)
+                # proof-plan §2 (3 of 300 lines had a 3.3-3.9 s STT final): every restart with its cause,
+                # so a slow final can be matched to it in the logs
+                log.info("speech stream restart #%d (%s) after %.0f s of audio; re-sending %d ms",
+                         self.restarts, ended, state.audio_ms / 1000, sum(c.duration_ms for c in bridge))
         except Exception as e:  # noqa: BLE001 - surfaced to the consumer
             log.exception("speech stream stopped")
             await self._results.put(e)
@@ -159,9 +164,15 @@ class GoogleV2Stream:
                     state.add(part, arrival)
                     yield cs.StreamingRecognizeRequest(audio=part)
 
+        opened = time.monotonic()
+        first = True
         try:
             responses = await self._stt.client().streaming_recognize(requests=requests())
             async for resp in responses:
+                if first and resp.results and self.restarts:
+                    first = False
+                    log.info("speech stream #%d first result after %.0f ms", self.restarts,
+                             (time.monotonic() - opened) * 1000)
                 for r in resp.results:
                     alt = r.alternatives[0].transcript.strip() if r.alternatives else ""
                     end_ms = r.result_end_offset.total_seconds() * 1000 if r.result_end_offset else None
