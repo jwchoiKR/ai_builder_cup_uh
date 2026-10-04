@@ -42,6 +42,7 @@ export const EVENT_TYPES = [
   "operator.action",
   "agent.call",
   "judge.failed",
+  "judge.health",
   "summary.ready",
 ] as const;
 

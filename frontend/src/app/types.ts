@@ -352,6 +352,7 @@ export interface StateSnapshot {
   messages: Message[];
   metrics: Metrics;
   feed?: FeedState;
+  judge_health?: { degraded: string[] }; // D-137
   // P2 (planned): missing keys are treated as empty
   alerts?: Alert[];
   prompter?: PrompterSnapshot | null;

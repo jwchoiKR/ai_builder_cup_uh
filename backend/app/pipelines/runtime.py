@@ -539,6 +539,7 @@ class SessionRuntime:
             "prompter": prompter_view(self.catalog, await self.current_segment(), self.points),
             "metrics": await self.compute_metrics(),
             "feed": self.feed.state(),
+            "judge_health": {"degraded": list(self.utterances.degraded)},  # D-137
         }
         if role == "operator":
             ids = {c.comment_id for c in shown}

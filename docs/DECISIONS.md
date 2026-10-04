@@ -778,3 +778,8 @@ D-136: Feature B1, a speakable correction line on the fact note (feature round o
 - The fact note's big line is now one sentence the host can read out: "{product}: say {value}", and " during the {promo}" when the right value comes from the active price promotion (no sheet passage), e.g. "Cream: say S$32.40 during the time sale". The product is the note's product short name ("the cream" → "Cream") or the set's label. The separate "Say this instead." label is gone from the fact note (the line says it). From the note's existing fields; no new detector.
 - Not yet measured: the planning session's pass line (100% of fact-eval cases show the right product and value; read aloud through the spoken-number normalizer, the line clears its own note 100%).
 - Tests: `host.test.tsx` (product on the line; promo condition; set label).
+
+D-137: Feature B2, judge-health dot ("silence must not look like safety").
+- The utterance pipeline counts, per judge (compliance, context, fact checker; or the single judge), the finals in a row on which it failed (timeout, error, invalid). At 2 (`HEALTH_STREAK`) it emits `judge.health` with the degraded judges; the judge's next answer clears it. The snapshot carries `judge_health`.
+- The host's prompter header shows a neutral dot after the required-points count; it turns amber with "AI check slow" (tooltip: "alerts may be missing") while any judge is degraded. One failed final alone changes nothing.
+- Tests: `test_alerts.py` (each judge: amber after 2 failed finals, back after 1 answer; 1 failure is nothing), `host.test.tsx`, reducer sample. Not yet run: the planning session's live pass lines (amber within 8 s when a judge is forced to time out, 3/3; recovery within 8 s; 0 amber across a healthy 12-minute show).

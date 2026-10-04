@@ -107,6 +107,9 @@ export const KO_HOST: Record<string, string> = {
   // D-113 waiting list and AI PD card
   "take the top one now": "맨 위 질문 바로 받기",
   "Finish the correction first": "먼저 정정을 마치세요",
+  "AI check slow": "AI 확인 지연",
+  "AI check slow: alerts may be missing": "AI 확인 지연: 경고가 빠질 수 있습니다",
+  "AI checks running": "AI 확인 정상",
   "No questions waiting.": "기다리는 질문이 없습니다.",
   "On your card": "카드에 표시 중",
   "Drafting…": "답변 작성 중…",

@@ -95,6 +95,7 @@ export function Prompter({
   product,
   price,
   checking,
+  degraded = [],
   alerts,
   notice,
   status,
@@ -104,6 +105,8 @@ export function Prompter({
   product: Product | null;
   price: PriceView | null;
   checking: boolean;
+  /** D-137: judges that failed on the last finals: the health dot turns amber */
+  degraded?: string[];
   /** Compliance alerts or the green Corrected bar: they take the product box while present. */
   alerts?: ReactNode;
   /** D-115: a compact green "Corrected" line at the top of the box; the product info stays below */
@@ -136,6 +139,19 @@ export function Prompter({
         )}
         <span className={`${styles.cardMeta} tabular`} data-testid="host-required-count">
           {t("{a} / {b} required points", { a: view.requiredCovered, b: view.requiredTotal })}
+        </span>
+        {/* D-137: silence must not look like safety. Neutral while every judge answers; amber when one
+            failed on the last finals in a row. */}
+        <span
+          className={degraded.length ? `${styles.healthDot} ${styles.healthDotWarn}` : styles.healthDot}
+          data-testid="host-judge-health"
+          data-state={degraded.length ? "degraded" : "ok"}
+          role="status"
+          title={degraded.length ? t("AI check slow: alerts may be missing") : t("AI checks running")}
+          aria-label={degraded.length ? t("AI check slow: alerts may be missing") : t("AI checks running")}
+        >
+          <span className={styles.healthDotMark} aria-hidden />
+          {degraded.length > 0 && t("AI check slow")}
         </span>
       </header>
       <div className={styles.prompterBox} ref={box}>

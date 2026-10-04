@@ -258,6 +258,7 @@ export function HostView({
               product={prompter.product ?? product}
               price={price}
               checking={checking}
+              degraded={state.judgeDegraded}
               alerts={prompterAlerts}
               notice={!high && toast ? <CorrectedBar /> : null}
               status={

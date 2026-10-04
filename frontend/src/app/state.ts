@@ -76,6 +76,8 @@ export interface ClientState {
   overtime: Record<string, OvertimeInfo>;
   missingPoints: MissingPoints[];
   judgeFailures: JudgeFailure[];
+  /** D-137: judges that failed on the last finals in a row (empty: healthy) */
+  judgeDegraded: string[];
   summaryReady: boolean;
   /** an event referenced data the client does not have yet (e.g. a new answer): refetch /state */
   needsResync: boolean;
@@ -114,6 +116,7 @@ export function emptyState(role: Role): ClientState {
     prompter: null,
     metrics: {},
     feed: null,
+    judgeDegraded: [],
     agentCalls: [],
     actions: [],
     switchChips: {},
@@ -156,6 +159,7 @@ export function reduceSnapshot(snap: StateSnapshot, role: Role, clientNow: numbe
     prompter: snap.prompter ?? null,
     metrics: snap.metrics ?? {},
     feed: snap.feed ?? null,
+    judgeDegraded: snap.judge_health?.degraded ?? [],
     agentCalls: [...(snap.agent_calls ?? [])].reverse().slice(0, MAX_LOG),
   };
 }
@@ -405,6 +409,9 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
     case "judge.failed":
       if (state.judgeFailures.some((j) => j.transcript_id === p.transcript_id)) return state;
       return { ...state, judgeFailures: [...state.judgeFailures, { ...p, seq: ev.seq } as JudgeFailure] };
+
+    case "judge.health":
+      return { ...state, judgeDegraded: (p.degraded as string[]) ?? [] };
 
     case "summary.ready":
       return { ...state, summaryReady: true };
