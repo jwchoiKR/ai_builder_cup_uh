@@ -684,3 +684,9 @@ D-119: Settings gear on the host screen: reading size and microphone input (user
 - **Microphone input:** a list of the audio inputs (labels appear after the browser has granted access once) and "System default"; stored per browser (`ls.mic.device`). A running microphone switches to the chosen input at once.
 - Both can be set before the show and changed during it; storage errors are ignored. No thresholds, timers or pacing in Settings.
 - **Tests:** `host.test.tsx` (scale × 1.5 remembered; device list and choice).
+
+D-120: Operator question desk (S09 review, user approved).
+- The desk list scrolls inside its own bounds; the comment stream below keeps at least 200px.
+- A collapsed row shows the proposed reply in one line (or "Drafting a reply…" / "No AI draft for this question.") and the next action as a button (Approve, Post suggested answer or Push to host), so the operator does not have to open each row. The status chip stays.
+- Header latency chips appear only once a real latency is measured; mock runs no longer show "0.0s".
+- **Tests:** `operator.test.tsx`.

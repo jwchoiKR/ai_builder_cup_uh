@@ -18,6 +18,13 @@ function measured(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
+/** D-120: latency chips appear only once a real latency is measured (mock runs report 0, "0.0s"). */
+export function latencyShown(metrics: { header?: { alert_in_s?: number | null; judge_p50_s?: number | null } }) {
+  const h = metrics?.header;
+  const real = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v > 0;
+  return { alert: real(h?.alert_in_s), judge: real(h?.judge_p50_s) };
+}
+
 /** Header chips (§8.16). Anything not measured yet shows "–", never "0.0s". */
 export function metricChips(
   metrics: Record<string, unknown> & { header?: { alert_in_s?: number | null; judge_p50_s?: number | null; instant_answers?: number; answers_total?: number } },
@@ -57,6 +64,7 @@ export function OperatorHeader({
   const title = rs?.title ?? s?.title ?? "";
   const subtitle = brand && !title.startsWith(brand) ? `${brand} · ${title}` : title;
   const chips = metricChips(state.metrics, t);
+  const shown = latencyShown(state.metrics);
 
   return (
     <header className={styles.header} data-testid="op-header">
@@ -67,8 +75,8 @@ export function OperatorHeader({
       </div>
       <div className={styles.headerRight}>
         <div className={styles.metricChips} data-testid="op-metrics">
-          <Chip className="tabular">{chips.alert}</Chip>
-          <Chip className="tabular">{chips.judge}</Chip>
+          {shown.alert && <Chip className="tabular">{chips.alert}</Chip>}
+          {shown.judge && <Chip className="tabular">{chips.judge}</Chip>}
           <Chip className="tabular">{chips.instant}</Chip>
         </div>
         {s?.status === "live" && s.started_at !== null ? (

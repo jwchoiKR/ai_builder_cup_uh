@@ -143,8 +143,43 @@ function GroupRow({ group: g, expanded, onToggle }: { group: QuestionGroup; expa
           <span className={["tabular", stale ? styles.stale : styles.muted].join(" ")}>{relativeTime(g.first_at, now)}</span>
         </span>
       </button>
-      {expanded && <GroupDetail group={g} />}
+      {expanded ? <GroupDetail group={g} /> : <GroupPreview group={g} />}
     </li>
+  );
+}
+
+const INLINE_ACTIONS = ["approve", "post_suggested", "push"] as const;
+
+/** D-120: a collapsed row shows the proposed reply (or why there is none) and the next action. */
+function GroupPreview({ group: g }: { group: QuestionGroup }) {
+  const t = useT();
+  const { sid, state } = useOperator();
+  const act = useAction();
+  if (["answered", "rejected", "closed"].includes(g.status)) return null;
+  const answer = draftAnswer(state, g);
+  const pending = pendingMessages(state).find((m) => m.group_id === g.group_id) ?? null;
+  const next = INLINE_ACTIONS.map((k) => groupActions(g, answer, pending).find((a) => a.key === k && a.enabled))
+    .find(Boolean);
+  const text = answer?.text
+    ? answer.text
+    : g.status === "composing" || g.status === "new"
+      ? t("Drafting a reply…")
+      : t("No AI draft for this question.");
+  const run = () =>
+    next?.key === "approve"
+      ? act.run(() => api.approve(sid, g.group_id))
+      : next?.key === "post_suggested"
+        ? act.run(() => api.postSuggested(sid, g.group_id))
+        : act.run(() => api.pushToHost(sid, g.group_id));
+  return (
+    <div className={styles.groupPreview} data-testid={`op-preview-${g.group_id}`}>
+      <span className={[styles.previewText, !answer?.text && styles.muted].filter(Boolean).join(" ")}>{text}</span>
+      {next && (
+        <Button size="sm" variant={next.key === "approve" ? "primary" : "secondary"} disabled={act.busy} onClick={() => void run()}>
+          {t(next.label)}
+        </Button>
+      )}
+    </div>
   );
 }
 

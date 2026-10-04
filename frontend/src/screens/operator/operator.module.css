@@ -457,6 +457,24 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  /* D-120: the desk scrolls inside its own bounds; the comment stream below keeps its room */
+  max-height: calc(100vh - 460px);
+  min-height: 160px;
+  overflow: auto;
+}
+.groupPreview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-2) calc(var(--space-3) + 24px);
+}
+.previewText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-14);
 }
 .groupRow {
   border: 1px solid var(--border);
@@ -636,6 +654,7 @@
 /* ---- comment stream (§12.4.8) ------------------------------------------------------------------------------------ */
 
 .streamList {
+  min-height: 200px; /* D-120: reserved for the comment stream */
   max-height: 360px;
 }
 .commentRow {
