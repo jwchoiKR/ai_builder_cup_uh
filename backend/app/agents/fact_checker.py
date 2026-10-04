@@ -16,6 +16,7 @@ from ..providers.retriever import Retriever
 from . import inputs
 
 CLAIMS_SECTION = "Approved on-air claims"
+PRICE_FIELDS = ("price", "set_price", "promo")
 # D-100: a test result is checked only when the host cites a test. A time or number inside a benefit
 # claim ("it whitens your skin in two weeks") is compliance wording, not a test result.
 TEST_CITED = re.compile(r"\b(?:tests?|tested|testing|study|studies|trials?|clinical(?:ly)?|participants?|"
@@ -73,8 +74,10 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
     product": that is the compliance judge's job), and on `test_result` only when the host cites a test."""
     o = out.model_copy(deep=True)
     by_id = {p.passage_id: p for p in passages}
+    set_ids = {s.set_id for s in catalog.set_offers}
     for c in o.claims:
-        if not catalog.is_product(c.product_id):
+        # A set's price is a fact about the set offer, not about one product (holdout H046).
+        if not catalog.is_product(c.product_id) and not (c.field in PRICE_FIELDS and c.product_id in set_ids):
             c.verdict = "not_in_sources"
             continue
         if c.verdict != "contradicted":
@@ -90,7 +93,7 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                   and c.correct_value is not None and number_set(c.correct_value) <= number_set(c.quote)
                   # Claim wording is compliance (the judge's job), never a product fact (D-048).
                   and p.section != CLAIMS_SECTION)
-        elif c.field in ("promo", "price") and promo is not None and promo.changes_prices:
+        elif c.field in PRICE_FIELDS and promo is not None and promo.changes_prices:
             ok = c.correct_value == catalog.price_display(c.product_id, promo)
         if not ok:
             c.verdict = "not_in_sources"
