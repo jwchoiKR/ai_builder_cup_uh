@@ -1,6 +1,7 @@
 // Cue strip (§12.3.2), fact note (§12.3.5), MEDIUM banner (§12.3.6), switch banner (§12.3.9) and
 // the green "Corrected" confirmation (§12.3.7).
 import { ArrowLeftRight, Check, CircleAlert, Headphones, ShieldAlert } from "lucide-react";
+import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
 import { TEST_QUALIFIER_RULE } from "../../app/selectors";
@@ -25,10 +26,14 @@ export function CueStrip({ cue }: { cue: HostCue }) {
   );
 }
 
-export function FactNote({ alert, catalog }: { alert: Alert; catalog: Catalog | null }) {
+export function FactNote({ alert, catalog, onRendered }: { alert: Alert; catalog: Catalog | null; onRendered?: (alertId: string) => void }) {
   // D-107: wrong product information is as urgent as a compliance alert, so it takes the prompter's
   // product box too: what was heard small, the right value as the biggest text.
   const t = useT();
+  // D-133: every alert on the host screen acknowledges its render (latency of fact notes too)
+  useEffect(() => {
+    onRendered?.(alert.alert_id);
+  }, [alert.alert_id, onRendered]);
   const label = fieldLabel(catalog, alert.field);
   const source = factSourceLabel(catalog, alert);
   const context = alert.passage_id ? factContext(catalog, alert) : null;
@@ -61,14 +66,20 @@ export function MediumBanner({
   alert,
   catalog,
   fact = null,
+  onRendered,
 }: {
   alert: Alert;
   catalog: Catalog | null;
   /** D-105: the fact note on the same sentence, shown in this card instead of its own. */
   fact?: Alert | null;
+  onRendered?: (alertId: string) => void;
 }) {
   // D-106: a block at the top of the prompter card, yellow, with the replacement as the biggest text.
   const t = useT();
+  useEffect(() => {
+    onRendered?.(alert.alert_id);
+    if (fact) onRendered?.(fact.alert_id);
+  }, [alert.alert_id, fact?.alert_id, onRendered]);
   const rule = ruleInfo(catalog, alert.rule_id);
   const qualifier = alert.rule_id === TEST_QUALIFIER_RULE;
   return (
