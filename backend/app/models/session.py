@@ -149,6 +149,7 @@ class Comment(BaseModel):  # [sessions/{sid}/comments/{comment_id}]
     kind: Literal["pending", "reaction", "question", "hide"] = "pending"
     analysis_id: str | None = None
     group_id: str | None = None
+    armor: Literal["blocked", "unscreened"] | None = None  # D-125: never triaged, answered or carded
 
 
 class CommentAnalysis(BaseModel):  # [sessions/{sid}/analyses/{analysis_id}]
@@ -160,7 +161,7 @@ class CommentAnalysis(BaseModel):  # [sessions/{sid}/analyses/{analysis_id}]
     context_product_id: str | None = None  # product on air at received_at - STREAM_GRACE_SEC
     route: Literal["AUTO", "HOST", "OPERATOR"] | None = None
     route_reason: str | None = None
-    source: Literal["prefilter", "cache", "llm", "fallback"]
+    source: Literal["prefilter", "cache", "llm", "fallback", "armor"]
     latency_ms: int | None = None
 
 

@@ -92,6 +92,8 @@ export const KO_OPERATOR: Record<string, string> = {
   Harassment: "괴롭힘",
   Spam: "스팸",
   Link: "링크",
+  "Armor blocked": "보안 차단",
+  Unscreened: "보안 미검사",
   "Personal info": "개인정보",
   Unhide: "숨김 해제",
   "Open question": "질문 열기",

@@ -22,6 +22,7 @@ from ..logic.pd import ShoutOut
 from ..logic.segments import segment_at
 from ..logic.shoutout import shout_kind
 from ..logic.verify import verify_answer
+from ..providers.armor import screen as armor_screen
 from ..models.agent_io import CommentTriageOutput, ConditionSlots
 from ..models.session import Answer, Comment, CommentAnalysis, QuestionGroup
 from .runtime import ActionError
@@ -71,6 +72,30 @@ async def submit_comment(
     return comment
 
 
+async def _finish_armored(rt, comment_id: str, verdict: str, detail: str, latency_ms: int) -> None:
+    """Blocked: hidden from chat, no LLM call; in the operator's hidden list (team) or only counted (solo);
+    never a host card. Unscreened: stays in chat as a plain comment, never triaged, answered or carded."""
+    async with rt.lock:
+        comment = await rt.get_comment(comment_id)
+        if comment is None:
+            return
+        analysis = CommentAnalysis(analysis_id=rt.new_id("an_"), comment_id=comment_id,
+                                   output={"kind": "armor", "verdict": verdict, "detail": detail},
+                                   product_basis="unknown", source="armor", latency_ms=latency_ms)
+        await rt.save_analysis(analysis)
+        comment.armor, comment.analysis_id = verdict, analysis.analysis_id
+        if verdict == "blocked":
+            comment.kind, comment.visibility, comment.hide_category = "hide", "hidden", "armor_blocked"
+        else:
+            comment.kind = "reaction"
+        await rt.save_comment(comment)
+        rt.counters[f"armor_{verdict}"] += 1
+        if verdict == "blocked":
+            await rt.emit("comment.hidden", comment)
+        await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"),
+                                           "analysis": analysis.model_dump(mode="json")})
+
+
 def note_shoutout(rt: "SessionRuntime", comment: Comment) -> None:
     """D-113: a purchase, first-time or compliment reaction the AI PD may read out with the name."""
     kind = shout_kind(comment.text)
@@ -92,6 +117,11 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
     if comment is None:
         return
     t0 = time.perf_counter()
+    # D-125: Model Armor before triage, on every comment the prefilter let through (no cache bypass)
+    verdict, detail = await armor_screen(rt.ctx.armor, comment.text, rt.settings.MODEL_ARMOR_TIMEOUT_MS)
+    if verdict != "pass":
+        await _finish_armored(rt, comment_id, verdict, detail, round((time.perf_counter() - t0) * 1000))
+        return
     segs = await rt.segments()
     seg = segment_at(segs, comment.received_at - rt.settings.STREAM_GRACE_SEC * 1000)
     context_pid = seg.product_id if seg else None
@@ -571,8 +601,12 @@ async def unhide_comment(rt: "SessionRuntime", cid: str) -> None:
             raise ActionError(404, "comment_not_found", f"comment {cid} not found")
         if c.visibility != "hidden":
             raise ActionError(409, "invalid_state", "comment is not hidden")
-        c.visibility, c.hide_category, c.kind = "visible", None, "pending"
+        armored = c.armor == "blocked"
+        # D-125: an Armor-blocked comment comes back to chat only; it never goes to an LLM
+        c.visibility, c.hide_category, c.kind = "visible", None, "reaction" if armored else "pending"
         await rt.save_comment(c)
         await rt.emit("comment.unhidden", c)
         await operator_action(rt, "unhide", comment_id=cid)
+    if armored:
+        return
     rt.spawn(process_comment(rt, cid, unhidden=True), name=f"unhide:{cid}")

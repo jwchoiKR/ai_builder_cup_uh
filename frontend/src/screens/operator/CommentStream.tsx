@@ -83,7 +83,7 @@ function CommentRow({ comment: c }: { comment: Comment }) {
           </>
         ) : (
           <>
-            <Chip>{t(KIND_LABEL[c.kind])}</Chip>
+            {c.armor === "unscreened" ? <Chip tone="risk">{t("Unscreened")}</Chip> : <Chip>{t(KIND_LABEL[c.kind])}</Chip>}
             {productChip && <Chip tone="accent">{productChip}</Chip>}
             {c.kind === "question" && c.group_id && (
               <button type="button" className={styles.linkish} onClick={() => focusGroup(c.group_id)}>
