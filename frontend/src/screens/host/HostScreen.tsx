@@ -34,7 +34,6 @@ import { ComplianceOverlay } from "./ComplianceOverlay";
 import { useCorrectedToast, useHostScale } from "./hooks";
 import { correctedToastMs, hostProducts, hostPrompterView, promoChips, switchSecondsLeft } from "./hostSelectors";
 import styles from "./host.module.css";
-import { PdCard } from "./PdCard";
 import { pointsStatus, Prompter } from "./Prompter";
 import { Questions } from "./Questions";
 
@@ -277,17 +276,10 @@ export function HostView({
               }
               timing={timing}
             />
-            {/* D-107: everything that comes and goes sits here, so the prompter box never moves */}
+            {/* D-107: everything that comes and goes sits here, so the prompter box never moves;
+                D-127: the AI PD card lives inside the questions panel */}
             <div className={styles.leftBottom}>
-              {/* D-113: one fixed AI PD card slot under the prompter, the only place an answer appears */}
-              <div className={styles.pdSlot} data-testid="host-pd-slot">
-                {pd ? (
-                  <PdCard card={pd} onDismiss={actions.dismissPd} />
-                ) : (
-                  <span className={styles.pdEmpty}>{t("AI PD: nothing to do right now")}</span>
-                )}
-              </div>
-              <Questions slots={hostSlots(state)} />
+              <Questions slots={hostSlots(state)} card={pd} onDismiss={actions.dismissPd} />
             </div>
           </div>
           <div className={styles.right}>

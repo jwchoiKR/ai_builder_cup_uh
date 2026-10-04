@@ -95,7 +95,7 @@ export const KO_HOST: Record<string, string> = {
   Dismiss: "닫기",
   // questions
   "Audience questions": "시청자 질문",
-  "AUDIENCE QUESTIONS": "시청자 질문",
+  "AI PD · QUESTIONS": "AI PD · 시청자 질문",
   "TOP {n}": "상위 {n}",
   "{n} asking": "{n}명 질문",
   "AI answered": "AI 답변함",
@@ -103,12 +103,10 @@ export const KO_HOST: Record<string, string> = {
   "For you": "진행자용",
   "SUGGESTED ANSWER": "추천 답변",
   "Posting answer…": "답변 게시 중…",
-  "You have the floor.": "지금은 자유롭게 진행하세요.",
-  "Your next audience question will appear here.": "다음 시청자 질문이 여기에 나옵니다.",
   "Questions stay in place while you speak": "말하는 동안 질문 순서는 바뀌지 않습니다",
   // D-113 waiting list and AI PD card
   "take the top one now": "맨 위 질문 바로 받기",
-  "AI PD: nothing to do right now": "AI PD: 지금은 할 일이 없습니다",
+  "No questions waiting.": "기다리는 질문이 없습니다.",
   "On your card": "카드에 표시 중",
   "Drafting…": "답변 작성 중…",
   "Which product?": "어느 제품인지 확인",

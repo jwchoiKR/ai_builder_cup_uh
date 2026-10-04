@@ -713,14 +713,9 @@
 .question {
   padding: calc(10px * var(--hs)) calc(24px * var(--hs));
   border-bottom: 1px solid var(--border);
-  animation: fadeIn var(--motion) var(--ease);
 }
 .question:last-child {
   border-bottom: 0;
-}
-.leaving {
-  animation: fadeOut var(--motion) var(--ease) forwards;
-  pointer-events: none;
 }
 .qMeta {
   display: flex;
@@ -848,30 +843,6 @@
   to {
     transform: scaleX(1);
   }
-}
-.emptyQuestions {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: calc(8px * var(--hs));
-  padding: calc(24px * var(--hs));
-  text-align: center;
-  color: var(--text-2);
-}
-.emptyQuestions svg {
-  width: calc(36px * var(--hs));
-  height: calc(36px * var(--hs));
-  color: var(--text-3);
-}
-.emptyTitle {
-  font-size: calc(24px * var(--hs));
-  font-weight: var(--fw-semibold);
-  color: var(--text);
-}
-.emptySub {
-  font-size: calc(17px * var(--hs));
 }
 
 /* ---- 12.3.8 live chat ----------------------------------------------------------------------------- */
@@ -1117,11 +1088,6 @@
     opacity: 1;
   }
 }
-@keyframes fadeOut {
-  to {
-    opacity: 0;
-  }
-}
 @keyframes expandIn {
   from {
     opacity: 0;
@@ -1147,7 +1113,6 @@
   border-left: calc(4px * var(--hs)) solid var(--accent);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow);
-  animation: expandIn var(--motion) var(--ease);
 }
 .pdCardDone {
   animation: pdCardFade 1.5s var(--ease) forwards;
@@ -1247,26 +1212,26 @@
   font-weight: var(--fw-semibold);
   color: var(--text-2);
 }
-/* D-113: the fixed AI PD card slot under the prompter; the waiting list below never moves */
+/* D-127: the AI PD card inside the questions panel, in place of its question's row or on top.
+   A fixed height, so a shown card never grows or shrinks; nothing animates in the panel. */
 .pdSlot {
   flex: none;
   height: calc(200px * var(--hs));
   display: flex;
   flex-direction: column;
+  padding: calc(8px * var(--hs)) calc(12px * var(--hs));
+  border-bottom: 1px solid var(--border);
+}
+.panelEmpty {
+  margin: 0;
+  padding: calc(10px * var(--hs)) calc(24px * var(--hs));
+  font-size: calc(15px * var(--hs));
+  color: var(--text-3);
 }
 .pdSlot > .pdCard {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-.pdEmpty {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-card);
-  font-size: calc(15px * var(--hs));
-  color: var(--text-3);
 }
 .pdQuestion {
   display: flex;

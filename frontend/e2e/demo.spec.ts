@@ -2,7 +2,7 @@
 // Host lines are injected from the Demo Console (STT injection), bursts fired from it; operator actions
 // go through the Operator pane. Every scene's "Expected" row is asserted as DOM state on the host,
 // operator and viewer panes; the API is only read to look up ids (groups, comments, alerts).
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 type Step = { index: number; scene: string; who: string; action: string; text: string; arg: string | null };
 type Group = {
@@ -45,6 +45,45 @@ async function waitFor<T>(request: APIRequestContext, pick: (s: State) => T | un
 
 const groupOf = (s: State, pred: (g: Group) => boolean) => s.groups.find(pred);
 
+/** D-127: watch every animation frame; when the AI PD card appears, goes or changes (id, kind or status),
+ *  compare the host's prompter box and questions panel with the frame before. */
+async function watchCardLayout(page: Page) {
+  await page.evaluate(() => {
+    const w = window as unknown as { __cardLayout: { counts: Record<string, number>; moves: string[]; maxPx: number } };
+    w.__cardLayout = { counts: { on: 0, off: 0, swap: 0, status: 0 }, moves: [], maxPx: 0 };
+    const q = (id: string) => document.querySelector(`section[aria-label="Host screen"] [data-testid="${id}"]`);
+    const rect = (id: string) => {
+      const r = q(id)?.getBoundingClientRect();
+      return r ? [r.x, r.y, r.width, r.height] : null;
+    };
+    let prev: { sig: string; id: string; status: string; boxes: Record<string, number[] | null> } | null = null;
+    const tick = () => {
+      const card = q("host-pd-card") as HTMLElement | null;
+      const id = card ? `${card.dataset.kind}|${card.querySelector('[data-testid="host-pd-say"]')?.textContent ?? ""}` : "";
+      const status = card?.dataset.status ?? "";
+      const boxes = { prompter: rect("host-prompter"), panel: rect("host-questions") };
+      if (prev && (id !== prev.id || status !== prev.status)) {
+        const kind = !prev.id ? "on" : !id ? "off" : id !== prev.id ? "swap" : "status";
+        w.__cardLayout.counts[kind] += 1;
+        for (const name of ["prompter", "panel"] as const) {
+          const a = prev.boxes[name], b = boxes[name];
+          if (!a || !b) continue;
+          const px = Math.max(...a.map((v, i) => Math.abs(v - b[i])));
+          w.__cardLayout.maxPx = Math.max(w.__cardLayout.maxPx, px);
+          if (px > 0) w.__cardLayout.moves.push(`${kind}: ${name} moved ${px.toFixed(1)} px`);
+        }
+      }
+      prev = { sig: id + status, id, status, boxes };
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+async function cardLayoutReport(page: Page) {
+  return page.evaluate(() => (window as unknown as { __cardLayout: { counts: Record<string, number>; moves: string[]; maxPx: number } }).__cardLayout);
+}
+
 test.describe.configure({ mode: "serial" });
 
 test("demo script S02-S14 on /studio", async ({ page, request }) => {
@@ -61,6 +100,7 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   await expect(host).toHaveCount(1);
   await expect(op).toHaveCount(1);
   await expect(viewer).toHaveCount(1);
+  await watchCardLayout(page);
 
   const openConsole = async () => {
     if ((await handle.getAttribute("aria-expanded")) !== "true") await handle.click();
@@ -144,7 +184,8 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
     await expect(host.getByTestId(`host-question-${g.group_id}`)).toBeVisible();
   }
   // D-113: the top question is released on the AI PD card (question above, verified answer below)
-  await expect(host.getByTestId(`host-question-${s4.oily.group_id}`)).toContainText("On your card");
+  // D-127: the top row opens in place into the card (the question shows once)
+  await expect(host.getByTestId(`host-question-${s4.oily.group_id}`).getByTestId("host-pd-card")).toBeVisible();
   await expect(host.getByTestId("host-pd-card")).toHaveAttribute("data-kind", "answer_question");
   await expect(host.getByTestId("host-pd-question")).toContainText("oily skin");
   await expect(opGroup(s4.oily)).toContainText("7");
@@ -318,6 +359,13 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   await expect(host.getByTestId("host-fact-right")).toContainText("4% niacinamide");
   await say(14);
   await expect(host.getByTestId("host-fact-note")).toHaveCount(0);
+
+  // D-127: across every AI PD card on, off and swap, the prompter and the panel did not move by a pixel
+  const layout = await cardLayoutReport(page);
+  console.log("D-127 card transitions", JSON.stringify(layout.counts), "max px", layout.maxPx);
+  expect(layout.counts.on).toBeGreaterThan(0);
+  expect(layout.counts.off).toBeGreaterThan(0);
+  expect(layout.moves).toEqual([]);
 
   // ---- S14 End broadcast (confirm dialog) and the summary page -------------------------------------------
   await closeConsole();
