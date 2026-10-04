@@ -64,6 +64,9 @@ def ends_sentence(text: str) -> bool:
     return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
 
 
+HEALTH_STREAK = 2  # D-137: failed finals in a row before the health dot turns amber
+
+
 @dataclass
 class Merge:
     """The previous final(s) a new final is judged with (D-088)."""
@@ -90,6 +93,9 @@ class UtterancePipeline:
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, ctx.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, ctx.reflex)
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_checker"], rt.catalog)
+        # D-137 (feature B2): judges that failed (timeout, error, invalid) on the last HEALTH_STREAK finals
+        self._fail_streak: dict[str, int] = {}
+        self.degraded: list[str] = []
         self._main_tail: asyncio.Task | None = None
         self._side_tail: asyncio.Task | None = None
         self._context_tail: asyncio.Task | None = None
@@ -262,6 +268,9 @@ class UtterancePipeline:
                 done, waiting = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
                 for task in sorted(done, key=lambda task: (task is not comp_task, task is not facts_task)):
                     res = _result(task)
+                    await self._note_health(
+                        "fact_checker" if task is facts_task else "context_judge" if task is ctx_task
+                        else "compliance_judge" if self.split3 else "utterance_judge", res.status)
                     output = res.output if res.status == "ok" else None
                     if task is comp_task:
                         comp = output
@@ -295,6 +304,16 @@ class UtterancePipeline:
                 await asyncio.gather(*waiting, return_exceptions=True)
             if not ready.done():
                 ready.set_result(None)
+
+    async def _note_health(self, agent: str, status: str) -> None:
+        """D-137: "silence must not look like safety". A judge that failed on HEALTH_STREAK finals in a row
+        turns the host's health dot amber; its next answer turns it back."""
+        self._fail_streak[agent] = 0 if status == "ok" else self._fail_streak.get(agent, 0) + 1
+        degraded = sorted(a for a, n in self._fail_streak.items() if n >= HEALTH_STREAK)
+        if degraded != self.degraded:
+            self.degraded = degraded
+            async with self.rt.lock:
+                await self.rt.emit("judge.health", {"degraded": degraded, "at": self.rt.now()})
 
     async def _judge_input_locked(self, t: Transcript, text: str, merge: Merge | None, on_air: str,
                                   scenario: str) -> tuple[JudgeInput, dict[str, Answer | None]]:

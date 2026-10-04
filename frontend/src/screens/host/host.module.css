@@ -1233,6 +1233,26 @@
   min-height: 0;
   overflow: hidden;
 }
+/* D-137: judge health dot in the prompter header */
+.healthDot {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--hs));
+  font-size: calc(13px * var(--hs));
+  font-weight: var(--fw-semibold);
+  color: var(--fact-text);
+  white-space: nowrap;
+}
+.healthDotMark {
+  width: calc(8px * var(--hs));
+  height: calc(8px * var(--hs));
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.healthDotWarn .healthDotMark {
+  background: var(--fact-border);
+  box-shadow: 0 0 0 calc(2px * var(--hs)) var(--fact-bg);
+}
 .pdQuestion {
   display: flex;
   align-items: baseline;

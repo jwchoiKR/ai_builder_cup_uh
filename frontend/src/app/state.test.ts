@@ -90,6 +90,7 @@ describe("every event type", () => {
       "operator.action": { actor: "operator", action: "push", group_id: "grp_000001" },
       "agent.call": { call_id: "call_1", agent: "comment_triage", model: "m", prompt_version: "v", started_at: T0, latency_ms: 900, status: "ok", input_hash: "h", input_preview: "p", output: {}, error: null },
       "judge.failed": { transcript_id: "tr_1", status: "timeout", alert_ids: [] },
+      "judge.health": { degraded: ["compliance_judge"], at: 1 },
       "summary.ready": {},
     };
     expect(Object.keys(samples).sort()).toEqual([...EVENT_TYPES].sort());

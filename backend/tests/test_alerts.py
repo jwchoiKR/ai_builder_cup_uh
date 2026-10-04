@@ -284,3 +284,26 @@ def test_dismiss_function_states():
     assert alert_logic.dismiss(a, 5) is False
     a.status = "active"
     assert alert_logic.dismiss(a, 5) and a.status == "dismissed" and a.resolved_at == 5
+
+
+@pytest.mark.parametrize("agent", ["compliance_judge", "context_judge", "fact_checker"])
+async def test_judge_health_turns_amber_after_two_failed_finals_and_recovers(env, agent):
+    """D-137 (feature B2): silence must not look like safety. Two failed finals in a row of one judge
+    turn the host's health dot amber; its next answer turns it back."""
+    rt, llm = env
+    for text in ("The cream feels light.", "It absorbs quickly."):
+        llm.fail(agent, text)
+        await speak(rt, text)
+    assert rt.utterances.degraded == [agent]
+    assert (await rt.snapshot("host"))["judge_health"] == {"degraded": [agent]}
+    await speak(rt, "Use it every morning.")
+    assert rt.utterances.degraded == []
+    assert [e.payload["degraded"] for e in await events(rt, "judge.health")] == [[agent], []]
+
+
+async def test_one_failed_final_is_not_a_health_problem(env):
+    rt, llm = env
+    llm.fail("compliance_judge", "The cream feels light.")
+    await speak(rt, "The cream feels light.")
+    await speak(rt, "It absorbs quickly.")
+    assert rt.utterances.degraded == [] and await events(rt, "judge.health") == []

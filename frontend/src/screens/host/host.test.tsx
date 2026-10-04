@@ -484,6 +484,17 @@ describe("chat and switch", () => {
   });
 });
 
+describe("judge health (D-137)", () => {
+  it("is a neutral dot while the judges answer and amber when one failed on the last finals", () => {
+    const { rerender } = render(view());
+    expect(screen.getByTestId("host-judge-health")).toHaveAttribute("data-state", "ok");
+    expect(screen.getByTestId("host-judge-health")).not.toHaveTextContent("AI check slow");
+    rerender(view({ judge_health: { degraded: ["compliance_judge"] } }));
+    expect(screen.getByTestId("host-judge-health")).toHaveAttribute("data-state", "degraded");
+    expect(screen.getByTestId("host-judge-health")).toHaveTextContent("AI check slow");
+  });
+});
+
 describe("AI PD card", () => {
   it("D-113: a question card shows the question and askers above the answer, in the fixed slot", () => {
     const card = pdCard({
