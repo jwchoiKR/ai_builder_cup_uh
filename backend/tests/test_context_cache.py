@@ -160,3 +160,35 @@ async def test_mock_ignores_cache_metadata(tmp_path):
     backend = MockBackend(tmp_path)
     reply = await backend.generate(request(mock_fallback=lambda req: {"answer": req.user_message}), 2500)
     assert Out.model_validate_json(reply.text).answer == request().user_message
+
+
+@pytest.mark.asyncio
+async def test_slow_creation_is_not_cancelled_and_serves_later_calls(backend):
+    """D-130: a creation slower than the caller's budget keeps running; the next call uses the cache.
+    (wait_for used to cancel it, so the fact checker never got a cache: 202 failures in one eval run.)"""
+    async def slow_create(**kwargs):
+        await asyncio.sleep(0.3)
+        return SimpleNamespace(name="cached/slow")
+    backend._client.aio.caches.create.side_effect = slow_create
+    req = request()
+    await backend.generate(req, 1000)  # budget 0.2 s: this call runs uncached
+    assert backend._client.aio.models.generate_content.call_args.kwargs["contents"] == req.user_message
+    await asyncio.sleep(0.2)
+    await backend.generate(req, 1000)
+    assert backend._client.aio.models.generate_content.call_args.kwargs["config"].cached_content == "cached/slow"
+    backend._client.aio.caches.create.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_sessions_with_the_same_prefix_share_one_cache(backend):
+    await backend.generate(request(session_id="ses_a"), 2500)
+    await backend.generate(request(session_id="ses_b"), 2500)
+    backend._client.aio.caches.create.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_creation_failure_logs_its_reason(backend, caplog):
+    backend._client.aio.caches.create.side_effect = RuntimeError("quota exceeded for cached contents")
+    await backend.generate(request(), 2500)
+    await asyncio.sleep(0)
+    assert "context cache creation failed for fact: RuntimeError: quota exceeded" in caplog.text

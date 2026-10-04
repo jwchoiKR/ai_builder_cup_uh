@@ -191,9 +191,17 @@ def vertex_config(req: LLMRequest, timeout_ms: int, schema: dict):
     )
 
 
+def _log_cache_failure(task: asyncio.Task, agent: str) -> None:
+    if task.cancelled():
+        return
+    e = task.exception()
+    if e is not None:
+        log.warning("context cache creation failed for %s: %s: %s", agent, type(e).__name__, e)
+
+
 @dataclass
 class _ContextCache:
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    task: asyncio.Task | None = None  # the one creation in flight (single-flight), never cancelled by a caller
     name: str | None = None
     expires_at: float = 0
     eligible: bool | None = None
@@ -220,28 +228,37 @@ class VertexBackend:
         # Vertex documents 4,096 tokens for Gemini 3, 2,048 for Gemini 2.
         if not re.match(r"gemini-[23]\.", req.model):
             return None
+        # Content-addressed: sessions with the same pack share one cache (D-130; the session id was in
+        # the key, so every new session, e.g. each eval case, created its own).
         key = hashlib.sha256(json.dumps([
-            req.session_id, req.agent, req.model, req.prompt_version,
-            req.system_instruction, req.cache_prefix,
+            req.agent, req.model, req.prompt_version, req.system_instruction, req.cache_prefix,
         ], ensure_ascii=False).encode()).hexdigest()
         if key not in self._caches:
-            # Bound local state without evicting an in-flight singleflight lock.
+            # Bound local state without evicting an entry whose creation is in flight.
             if len(self._caches) >= 256:
-                victim = next((k for k, v in self._caches.items() if not v.lock.locked()), None)
+                victim = next((k for k, v in self._caches.items() if v.task is None or v.task.done()), None)
                 if victim is None:
                     return None
                 del self._caches[victim]
             self._caches[key] = _ContextCache()
         return self._caches[key]
 
-    async def _prepare_cache(self, req: LLMRequest, entry: _ContextCache) -> str | None:
+    def _cache_task(self, req: LLMRequest, entry: _ContextCache) -> asyncio.Task | None:
+        """The creation of this entry's cache: running, or started now. None while a cache (or a known
+        "not eligible" / "failed, retry later") is fresh."""
+        if entry.expires_at > time.monotonic():
+            return None
+        if entry.task is None or entry.task.done():
+            entry.task = asyncio.create_task(self._create_cache(req, entry), name=f"context-cache:{req.agent}")
+            entry.task.add_done_callback(lambda t, agent=req.agent: _log_cache_failure(t, agent))
+        return entry.task
+
+    async def _create_cache(self, req: LLMRequest, entry: _ContextCache) -> str | None:
         from google.genai import types
 
-        async with entry.lock:
-            if entry.expires_at > time.monotonic():
-                return entry.name
-            entry.name = None
-            ttl = max(60, req.cache_ttl_sec if req.cache_ttl_sec is not None else self._cache_ttl_sec)
+        entry.name = None
+        ttl = max(60, req.cache_ttl_sec if req.cache_ttl_sec is not None else self._cache_ttl_sec)
+        try:
             if entry.eligible is None:
                 count = await self._client.aio.models.count_tokens(
                     model=req.model, contents=req.cache_prefix,
@@ -264,9 +281,12 @@ class VertexBackend:
             )
             if not cached.name:
                 raise LLMError("cache creation returned no name")
-            entry.name = cached.name
-            entry.expires_at = started + ttl
-            return entry.name
+        except Exception:
+            entry.expires_at = time.monotonic() + 60  # cool down, then try again
+            raise
+        entry.name = cached.name
+        entry.expires_at = started + ttl
+        return entry.name
 
     def _schema(self, model: type[BaseModel]) -> dict:
         if model not in self._schemas:
@@ -281,14 +301,19 @@ class VertexBackend:
         entry = self._cache_entry(req)
         cache_name = None
         if entry is not None:
-            try:
-                cache_name = await asyncio.wait_for(
-                    self._prepare_cache(req, entry), timeout=min(1.0, timeout_ms / 5000),
-                )
-            except Exception:  # optional optimization; CancelledError deliberately propagates
-                if not entry.lock.locked():  # a timed-out waiter must not invalidate another creator
-                    entry.name, entry.expires_at = None, time.monotonic() + 60
-                log.warning("context cache preparation failed for %s", req.agent)
+            task = self._cache_task(req, entry)
+            if task is None:
+                cache_name = entry.name
+            else:
+                # D-130: wait a little for the creation, but never cancel it: if this call's budget runs
+                # out, it goes uncached and the cache is ready for the next calls. (wait_for used to
+                # cancel the creation itself, so a creation slower than the budget never finished.)
+                try:
+                    cache_name = await asyncio.wait_for(asyncio.shield(task), timeout=min(1.0, timeout_ms / 5000))
+                except asyncio.TimeoutError:
+                    log.info("context cache for %s still being created; this call runs uncached", req.agent)
+                except Exception:  # the reason is logged once by the task's done callback
+                    cache_name = None
         try:
             if cache_name:
                 cached_config = config.model_copy(update={"system_instruction": None, "cached_content": cache_name})
@@ -341,6 +366,9 @@ class VertexBackend:
         )
 
     async def aclose(self) -> None:
+        for entry in self._caches.values():
+            if entry.task is not None and not entry.task.done():
+                entry.task.cancel()
         self._caches.clear()  # remote caches expire at their TTL
         await self._client.aio.aclose()
 
