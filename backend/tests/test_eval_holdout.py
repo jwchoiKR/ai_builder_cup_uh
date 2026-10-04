@@ -149,3 +149,26 @@ async def test_gaps_follow_finals_without_draining_inference(monkeypatch):
 async def test_negative_gap_is_rejected_before_submission():
     with pytest.raises(ValueError):
         await feed_turns(None, [{"utterance": "test", "gap_ms": -1}])
+
+
+@pytest.mark.asyncio
+async def test_sequence_with_open_questions_runs_on_the_mock_runtime(monkeypatch):
+    """S05 seeds open questions; the seeded groups must use a known id prefix (grp_)."""
+    import json
+
+    from eval_holdout_sequences import run_sequence
+
+    from .helpers import make_ctx
+
+    real_sleep = asyncio.sleep
+    monkeypatch.setattr(asyncio, "sleep", lambda _s: real_sleep(0))
+    lines = (SCRIPTS.parents[1] / "data" / "eval" / "holdout_sequences.jsonl").read_text(encoding="utf-8").splitlines()
+    s05 = next(json.loads(ln) for ln in lines if ln.strip() and json.loads(ln)["seq_id"] == "S05")
+    ctx = make_ctx()
+    try:
+        result = await run_sequence(ctx, s05, 1)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert result["symbols"]["g_makeup"].startswith("grp_")
+    assert len(result["turns"]) == len(s05["turns"])

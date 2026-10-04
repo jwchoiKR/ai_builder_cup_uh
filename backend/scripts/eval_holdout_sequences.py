@@ -134,7 +134,7 @@ async def run_sequence(ctx, sequence: dict, run_no: int) -> dict:
         await rt.start_promo(initial["active_promo_id"])
     symbols = {}
     for q in initial.get("open_questions", []):
-        gid = rt.new_id("g_")
+        gid = rt.new_id("grp_")
         symbols[q["group_id"]] = gid
         group = _group({**q, "group_id": gid, "product_id": q.get("product_id", sequence["current_product_id"]),
                         "intent": q.get("intent", "skin_type_suitability")}, rt.now())
