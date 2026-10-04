@@ -702,3 +702,10 @@ D-122: Viewer screen (S11 review, user approved).
 - The time-sale pop-up over the video is now a compact banner right above the price strip ("TIME SALE · text · countdown"); it still shows for 4 s when a sale starts and the chip in the strip stays. The product/video area keeps its size.
 - Answer cards use less padding; "Source: …" expands the cited quotes inline under the reply instead of opening a sheet.
 - **Tests:** `viewer.test.tsx` (inline source details); e2e S11 unchanged (same test id).
+
+D-123: Fixes from the adversarial rerun on 1f8b8d3 (tune 99.2% detection; sealed round 1 had 1 false HIGH and 2.5% false alerts).
+- **Approved wording is never a violation** (AV037: ASEAN-3-SKIN-ACNE, HIGH, with the span "29 of 32 participants said their skin felt less dry after 2 weeks", an approved in-house result): `validate_compliance` drops a violation whose span is the on-air product's approved wording (an approved claim, an approved in-house result or a prompter point: at least 80% of the span's content words and every number of it). The test-qualifier rule is exempt (an unqualified approved number still needs the qualifier). A code guard, because the judge's reason was not saved; the adversarial harness now saves every judge and fact output with its reason (`calls`).
+- **A less specific wording is not a wrong fact** (AV117: "a 50 mL tube" got a packaging note although the cream is an "Airless pump tube"): for packaging, texture, fragrance and origin, a contradiction whose stated words are all part of the sheet's value is downgraded.
+- **Scorer:** the expected right value is compared only with the alert of the expected field (a correct volume note plus a correct packaging note on the same line is not a wrong text). Re-scored tune outputs: PASS (99.2%, 0 wrong HIGH, 0% false alerts, 0 wrong texts).
+- Not changed: AV083 (1 miss in 1 run, a negated claim followed by the same claim affirmed).
+- **Tests:** `test_qualifier.py` (approved span), `test_facts.py` (less specific container).

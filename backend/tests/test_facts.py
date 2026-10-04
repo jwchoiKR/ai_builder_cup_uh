@@ -311,3 +311,16 @@ def test_a_wrong_ph_is_a_fact_note(pack, catalog):
     out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
     sheet = [p for p in pack.passages if p.product_id == CREAM]
     assert [x.verdict for x in post_validate(out, sheet, catalog, None, "It has a pH of 6.8.").claims] == ["contradicted"]
+
+
+def test_a_less_specific_container_is_not_contradicted(pack, catalog):
+    """D-123 (adversarial AV117): "a 50 mL tube" is consistent with "Airless pump tube"."""
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    sheet = [p for p in pack.passages if p.product_id == CREAM]
+    for stated, verdict in [("50 mL tube", "not_in_sources"), ("jar", "contradicted")]:
+        c = claim("packaging", "contradicted", stated=stated, correct="Airless pump tube",
+                  passage_id="DL-CR-01#key-facts#packaging", quote="Packaging: Airless pump tube")
+        out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
+        assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"It is a {stated}.").claims] == [verdict]

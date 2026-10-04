@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
 from ..logic import qualifier
+from ..logic.corrections import content_words, coverage
 from ..logic.grouping import normalise_question
 from ..logic.reflex import Reflex
 from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput
@@ -62,6 +63,25 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
     return spoken_claim(catalog.approved_claims(product_id)[0])
 
 
+APPROVED_SPAN_MIN = 0.8
+
+
+def _is_approved_wording(span: str, product) -> bool:
+    """The flagged words are the product's own approved wording: an approved claim, an approved in-house
+    result or a prompter point (at least 80% of the span's content words, every number of it)."""
+    words = content_words(span)
+    if len(words) < 3:
+        return False
+    numbers = {w for w in words if w.isdigit()}
+    texts = [*product.approved_claims, *(r.say for r in product.qualified_results),
+             *(p.text for p in product.prompter_points)]
+    for text in texts:
+        heard = content_words(text)
+        if coverage(words, heard) >= APPROVED_SPAN_MIN and numbers <= set(heard):
+            return True
+    return False
+
+
 def validate_compliance(o, catalog: Catalog, values: dict):
     """In place, on any output with `compliance` and `correction`: drop unknown rules and alert ids
     that were not in the input; severity comes from the rule."""
@@ -71,8 +91,13 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
                                and not (v.rule_id == qualifier.RULE_ID and qualifier.is_qualified(text))]
     kept = []
+    on_air_id = (values.get("current_product_json") or {}).get("product_id")
+    on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
+        if (on_air_product is not None and v.rule_id != qualifier.RULE_ID
+                and _is_approved_wording(v.span, on_air_product)):
+            continue  # D-123: approved product wording is never a violation (the qualifier rule still applies)
         if v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
             r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air])

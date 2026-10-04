@@ -29,6 +29,7 @@ from app.config import REPO_DIR, Settings, get_settings  # noqa: E402
 from app.context import build_context  # noqa: E402
 from app.logic.publish import spoken_numbers  # noqa: E402
 from app.logic.qualifier import RULE_ID as QUALIFIER  # noqa: E402
+from app.models.session import AgentCall  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.pipelines.utterances import operator_switch  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
@@ -58,7 +59,12 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 await asyncio.sleep(PART_GAP_S)
         await rt.utterances.drain()
         alerts = [a for a in await rt.alerts() if a.shown_at is not None]
+        calls = await rt.ctx.store.query(rt.path("agent_calls"), AgentCall)
         return {"id": case["case_id"], "run": run_no,
+                # every judge and fact output with its reason, to diagnose a miss or a false alert
+                "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output}
+                          for c in calls if c.agent in ("compliance_judge", "context_judge", "fact_checker",
+                                                        "utterance_judge", "judge_single")],
                 "alerts": [{"kind": a.kind, "rule_id": a.rule_id, "severity": a.severity, "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
                             "correct_value": a.correct_value, "status": a.status} for a in alerts]}
@@ -98,7 +104,9 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
             exact = [a for a in hits if (exp.get("rule_id") and a["rule_id"] == exp["rule_id"])
                      or (exp.get("field") and a["field"] == exp["field"])]
             row["exact"] = bool(exact) if (exp.get("rule_id") or exp.get("field")) else row["caught"]
-            row["wrong_text"] = any(_wrong_text(a, exp.get("correct_value")) for a in hits)
+            # the expected right value is compared with the alert of the expected field only
+            same_field = [a for a in hits if not exp.get("field") or a["field"] == exp["field"]]
+            row["wrong_text"] = any(_wrong_text(a, exp.get("correct_value")) for a in same_field)
             # a red alert is wrong when the line's risk is not a HIGH compliance claim
             row["wrong_high"] = any(a["severity"] == "HIGH" for a in alerts) and exp["kind"] != "compliance"
         else:
