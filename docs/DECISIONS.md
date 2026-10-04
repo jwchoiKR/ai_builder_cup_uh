@@ -816,3 +816,6 @@ D-142: JAPAC step B: each session holds its own (market, language) pack (plannin
 - Speech-to-Text: the audio WebSocket opens the stream with the session pack's chirp_3 code; `STT_LANGUAGE`, when set, still overrides it.
 - Setup shows the market and broadcast language of new sessions as a read-only chip (`GET /setup/market`), since only Singapore/English exists. The retriever and products are still shared (one market's products); per-market products and prices come with step 1.
 - Tests: default pair; refused pair; two sessions with two languages on one service (own pack, reflex, lexicon, STT code; loaded once); setup chip.
+
+D-143: Skin-type suitability is not a vulnerable-group claim (sealed adversarial round 2, AW010: "…making it suitable for all skin types" got ASEAN-2D-VULNERABLE HIGH in 2 of 3 runs; D-132's sheet match stays below 80% because of "making it").
+- The rule's description (`data/markets/sg.json`) and the compliance job (same bullet in `utterance_judge.md` and `compliance_judge.md`) now say: saying which skin types the product suits is a cosmetic suitability statement; vulnerable groups are people with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema) and safety promises to them. No case sentence is quoted. To be confirmed on the sealed set by the planning session.
