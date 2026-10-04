@@ -8,6 +8,10 @@ Structures:
          switch) + FactChecker.
   router3 (experiment): an LLM router (scripts/experiments/prompts/router.md) first, then only the
          chosen specialists.
+  jev_selective: Jev routes all three specialists, with deterministic overrides and fail-open.
+  jev_tiered: compliance and facts start immediately; Jev gates context only.
+  gemini_selective: purpose-based Gemini routes all three specialists with the same overrides.
+  gemini_tiered: compliance and facts start immediately; Gemini gates context only.
 
 Inputs are the 39 utterance eval cases (data/eval/utterance_cases.jsonl) built as run_eval.py does:
 text in as the final transcript, real models on Vertex AI. No orchestrator code runs. Judge outputs
@@ -29,6 +33,7 @@ import collections
 import datetime as dt
 import json
 import sys
+import uuid
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -40,7 +45,7 @@ import app.agents.fact_checker as fc_module  # noqa: E402
 from app.agents.fact_checker import FactChecker, FactInput, gather_fact_passages  # noqa: E402
 from app.agents.inputs import BUILDERS  # noqa: E402
 from app.agents.split_judges import ComplianceJudge, ContextJudge  # noqa: E402
-from app.agents.utterance_judge import JudgeInput, UtteranceJudge  # noqa: E402
+from app.agents.utterance_judge import STATIC_JUDGE_KEYS, JudgeInput, UtteranceJudge  # noqa: E402
 from app.agents.utterance_judge import post_validate as judge_post_validate  # noqa: E402
 from app.clock import SystemClock  # noqa: E402
 from app.config import REPO_DIR, get_settings  # noqa: E402
@@ -53,19 +58,18 @@ from app.providers.prompts import (  # noqa: E402
     _examples_text, _parse_file, _template, _until_rule, _with_examples, load_prompts,
 )
 from app.providers.retriever import LocalRetriever  # noqa: E402
+from eval_expectations import expectation_checks
 from run_eval import _group, _same_value, load_cases, make_client, pct  # noqa: E402
+from experiments.gemini_router import GeminiRouter, GEMINI_ROUTER_DEADLINE_MS  # noqa: E402
+from experiments.jev_router import (  # noqa: E402
+    JevRouter, apply_route, build_state, get_threshold, routing_overrides,
+)
 
-VIOLATION = [f"U{i:02d}" for i in range(1, 13)] + ["U23"]
-CLEAN = [f"U{i:02d}" for i in range(13, 19)]
-FACT_WRONG = ["U19", "U21", "U23", "U27"]
-FACT_RIGHT = ["U20", "U22", "U24", "U26", "U25", "U39"]
-ANSWER_YES, ANSWER_NO = ["U28", "U31"], ["U29", "U30"]
 EXP_PROMPTS = Path(__file__).resolve().parent / "experiments" / "prompts"
 EVAL_DIR = REPO_DIR / "docs" / "eval"
 
 # Keep the fact checker's raw model answer: run() normally applies post_validate before returning.
 _fact_post_validate = fc_module.post_validate
-fc_module.post_validate = lambda out, *a, **k: out
 
 
 class RouterOutput(BaseModel):
@@ -76,16 +80,32 @@ class RouterOutput(BaseModel):
 
 
 ROUTER_DEADLINE_MS = 1500  # experiment choice; on timeout or error every specialist runs
-NEEDS = {  # cases a specialist must see for the expected result
-    "compliance": set(VIOLATION) | {"U38"},
-    "facts": set(FACT_WRONG),
-}
 EMPTY_FACTS = {"claims": [], "reason": "not routed"}
+
+
+def needed_specialists(cases: list[dict]) -> dict[str, set[str]]:
+    """Dispatch requirements come from labels, independently of case IDs."""
+    return {
+        "compliance": {c["case_id"] for c in cases if c.get("expected", {}).get("compliance") is True
+                       or "corrects_alert_ids" in c.get("expected", {})},
+        "facts": {c["case_id"] for c in cases if c.get("expected", {}).get("fact") == "contradicted"
+                  or c.get("context", {}).get("active_fact_alerts")},
+        "context": {c["case_id"] for c in cases if set(c.get("expected", {})) &
+                    {"answer", "matched_group", "consistent_with_suggested", "covered_points", "switch"}},
+    }
 
 
 def exp_template(name: str):
     pf = _parse_file(EXP_PROMPTS / f"{name}.md")
     return _template(pf, _with_examples(_until_rule(pf.require("SYSTEM INSTRUCTION").lines), _examples_text(pf)))
+
+
+def make_router(structure: str):
+    if structure in ("jev_selective", "jev_tiered"):
+        return JevRouter()
+    if structure in ("gemini_selective", "gemini_tiered"):
+        return GeminiRouter()
+    return None
 
 
 # ---- running ---------------------------------------------------------------------------------------
@@ -125,7 +145,7 @@ async def revalidate(raw: list[dict], cases: list[dict]) -> list[dict]:
     return raw
 
 
-async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
+async def run(structure: str, runs: int, concurrency: int, cases: list[dict] | None = None) -> list[dict]:
     settings = get_settings()
     pack = DataPack.load(settings.data_path)
     catalog = Catalog(pack)
@@ -137,18 +157,25 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
     facts = FactChecker(client, prompts["fact_checker"], catalog)
     comp_t, ctx_t = prompts["compliance_judge"], prompts["context_judge"]
     router_t = exp_template("router") if structure == "router3" else None
+    router = make_router(structure)
+    threshold = get_threshold() if structure.startswith("jev_") else 0.5 if router else None
     retriever = LocalRetriever(pack.passages)
     prefetched: dict = {}
     print("warm-up:", await client.warm_up())
+    if router:
+        await router.warm_up()
     now = SystemClock().now_ms()
-    cases = load_cases("utterance_cases.jsonl")
+    cases = cases if cases is not None else load_cases("utterance_cases.jsonl")
     sem = asyncio.Semaphore(concurrency)
+    eval_session = "eval_" + uuid.uuid4().hex
 
     def call(template, output_model, values: dict, utterance: str, agent: str, deadline_ms: int | None = None):
+        user, prefix = template.render_cached(values, STATIC_JUDGE_KEYS)
         return client.call(LLMRequest(
             agent=agent, model=client.fast.model, thinking_level=client.fast.thinking_level,
             prompt_version=template.version, system_instruction=template.system_instruction,
-            user_message=template.render(values), output_model=output_model,
+            user_message=user, output_model=output_model, session_id=eval_session,
+            cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in catalog.runsheet.items),
             deadline_ms=deadline_ms or settings.JUDGE_TIMEOUT_MS, mock_primary_text=utterance, mock_scenario="eval",
             preview=utterance))
 
@@ -171,19 +198,39 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
             passages = await gather_fact_passages(retriever, catalog, prefetched, utterance=utt, on_air=on_air,
                                                   switch=switch, search_timeout_ms=settings.FACT_SEARCH_TIMEOUT_MS)
             jin = JudgeInput(utterance=utt, on_air=on_air, active_alerts=alerts, open_questions=questions,
-                             previous=previous, scenario="eval", switch=switch, promo=promo, passages=passages)
+                             previous=previous, scenario="eval", switch=switch, promo=promo, passages=passages,
+                             session_id=eval_session)
             fin = FactInput(utterance=utt, on_air=on_air, switch=switch, promo=promo, passages=passages,
-                            previous=previous, scenario="eval")
+                            previous=previous, scenario="eval", session_id=eval_session)
             row: dict = {"id": case["case_id"], "run": run_no}
             if structure == "split2":
                 j, f = await asyncio.gather(judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS),
                                             facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS))
                 row |= {"comp_status": j.status, "comp_ms": j.latency_ms, "ctx_status": j.status, "ctx_ms": j.latency_ms,
+                        "judge_usage": getattr(j, "meta", {}).get("usage"),
                         "judge": j.output.model_dump(mode="json") if j.output else None}
             else:
                 values = judge.build_values(jin)
                 route = {"compliance": True, "facts": True, "context": True}
                 router_ms = 0
+                comp_task = fact_task = None
+                if router:
+                    forced, overrides = routing_overrides(case, reflex)
+                    # These tasks start before waiting for the router in the tiered experiment.
+                    if structure.endswith("_tiered"):
+                        comp_task = asyncio.create_task(comp_judge.run(
+                            jin, deadline_ms=settings.JUDGE_TIMEOUT_MS, values=values))
+                        fact_task = asyncio.create_task(facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS))
+                    product = catalog.get_product(on_air)
+                    points = [p.text for p in product.prompter_points]
+                    probs, router_ms, status = await router.route(build_state(case, product.name, points))
+                    route = apply_route(probs, threshold, forced)
+                    if structure.endswith("_tiered"):
+                        route |= {"compliance": True, "facts": True}
+                    row |= {"router_status": status, "router_ms": router_ms, "route_probs": probs,
+                            "route": route, "overrides": overrides, "route_threshold": threshold}
+                    if structure.startswith("jev_"):
+                        row["jev_threshold"] = threshold
                 if structure == "router3":
                     r = await call(router_t, RouterOutput, values, utt, "router", ROUTER_DEADLINE_MS)
                     router_ms = r.latency_ms
@@ -191,17 +238,22 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
                     if r.output is not None:  # on timeout or error every specialist runs
                         route = {"compliance": r.output.compliance, "facts": r.output.facts, "context": r.output.context}
                     row["route"] = route
-                if structure == "split3":  # the production agents
-                    comp_call = comp_judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS, values=values)
-                    ctx_call = ctx_judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS, values=values)
+                if structure == "split3" or router:  # the production agents
+                    comp_call = comp_task if comp_task is not None else (
+                        comp_judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS, values=values)
+                        if route["compliance"] else skipped())
+                    ctx_call = (ctx_judge.run(jin, deadline_ms=settings.JUDGE_TIMEOUT_MS, values=values)
+                                if route["context"] else skipped())
                 else:
                     comp_call = call(comp_t, ComplianceOutput, values, utt, "compliance_judge") if route["compliance"] else skipped()
                     ctx_call = call(ctx_t, ContextOutput, values, utt, "context_judge") if route["context"] else skipped()
                 c, x, f = await asyncio.gather(
-                    comp_call, ctx_call, facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS) if route["facts"] else skipped())
-                if structure == "router3":
+                    comp_call, ctx_call, fact_task if fact_task is not None else (
+                        facts.run(fin, deadline_ms=settings.FACT_TIMEOUT_MS) if route["facts"] else skipped()))
+                if structure == "router3" or router:
                     # a specialist that was not chosen "answers" nothing as soon as the router has decided
-                    row |= {"comp_status": c.status if c else "ok", "comp_ms": router_ms + (c.latency_ms if c else 0),
+                    comp_delay = 0 if structure.endswith("_tiered") else router_ms
+                    row |= {"comp_status": c.status if c else "ok", "comp_ms": comp_delay + (c.latency_ms if c else 0),
                             "ctx_status": x.status if x else "ok", "ctx_ms": router_ms + (x.latency_ms if x else 0)}
                     if f is None:
                         row |= {"facts_status": "ok", "facts_ms": router_ms, "facts_raw": EMPTY_FACTS,
@@ -221,23 +273,34 @@ async def run(structure: str, runs: int, concurrency: int) -> list[dict]:
                 if structure == "split3":
                     row |= {"comp_status": c.status, "comp_ms": c.latency_ms, "ctx_status": x.status, "ctx_ms": x.latency_ms}
                 row["judge"] = judge_post_validate(merged, catalog, values).model_dump(mode="json")
+                row["compliance_usage"] = getattr(c, "meta", {}).get("usage")
+                row["context_usage"] = getattr(x, "meta", {}).get("usage")
                 if f is None:  # router3: facts not chosen
                     return row
-                if structure == "router3":
+                if structure == "router3" or router:
                     validated = _fact_post_validate(f.output, passages, catalog, promo, utt) if f.output is not None else None
-                    return row | {"facts_status": f.status, "facts_ms": row["router_ms"] + f.latency_ms,
+                    fact_delay = 0 if structure.endswith("_tiered") else router_ms
+                    return row | {"facts_status": f.status, "facts_ms": fact_delay + f.latency_ms,
+                                  "facts_usage": getattr(f, "meta", {}).get("usage"),
                                   "facts_raw": f.output.model_dump(mode="json") if f.output else None,
                                   "facts_validated": validated.model_dump(mode="json") if validated else None}
         validated = _fact_post_validate(f.output, passages, catalog, promo, utt) if f.output is not None else None
         return row | {"facts_status": f.status, "facts_ms": f.latency_ms,
+                      "facts_usage": getattr(f, "meta", {}).get("usage"),
                       "facts_raw": f.output.model_dump(mode="json") if f.output else None,
                       "facts_validated": validated.model_dump(mode="json") if validated else None}
 
     results = []
-    for r in range(runs):
-        results += await asyncio.gather(*(one(c, r) for c in cases))
-        print(f"run {r + 1}/{runs} done")
-    await client.aclose()
+    fc_module.post_validate = lambda out, *a, **k: out
+    try:
+        for r in range(runs):
+            results += await asyncio.gather(*(one(c, r) for c in cases))
+            print(f"run {r + 1}/{runs} done")
+    finally:
+        fc_module.post_validate = _fact_post_validate
+        await client.aclose()
+        if router:
+            await router.aclose()
     return results
 
 
@@ -258,8 +321,6 @@ def _ms(x: dict, key: str) -> int:
 def score(raw: list[dict], cases: list[dict]) -> dict:
     """A timed-out agent counts as a timeout, never as a right or wrong answer."""
     by_id = {c["case_id"]: c for c in cases}
-    non_compliance = [c["case_id"] for c in cases if c["case_id"] not in VIOLATION + CLEAN]
-    non_fact = [c["case_id"] for c in cases if c["case_id"] not in FACT_WRONG + FACT_RIGHT]
     tally: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
     misses: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
 
@@ -272,49 +333,19 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
             misses[key][f"{cid}: {what}"] += 1
 
     for x in raw:
-        cid, exp, jo = x["id"], by_id[x["id"]]["expected"], x["judge"] or {}
-        cs, xs = _st(x, "comp_status"), _st(x, "ctx_status")
-        active = [v for v in ((jo.get("compliance") or {}).get("violations") or []) if not v["is_negated"] and not v["is_quoted"]]
-        av = ",".join(v["rule_id"] for v in active) or "none"
-        if cid in VIOLATION:
-            mark(COMP_KEYS[0], cid, cs, any(v["rule_id"] == exp["rule_id"] for v in active), f"got {av}")
-        if cid in CLEAN:
-            mark(COMP_KEYS[1], cid, cs, not active, f"got {av}")
-        if cid in non_compliance:
-            mark(COMP_KEYS[3], cid, cs, not active, f"got {av}")
-        if cid == "U38":
-            mark(COMP_KEYS[2], cid, cs, "al_u01" in ((jo.get("correction") or {}).get("corrects_alert_ids") or []), "not corrected")
-        a = jo.get("answer") or {}
-        pr = jo.get("prompter") or {"covered_point_ids": [], "switch": {}}
-        sw = pr.get("switch") or {}
-        if cid in ANSWER_YES:
-            mark("judge · answer linking", cid, xs, bool(a) and a["is_answer"] and a["consistent_with_suggested"]
-                 and a["matched_group_id"] == exp["matched_group"], f"is_answer={a.get('is_answer')}")
-        if cid in ANSWER_NO:
-            mark("judge · answer linking", cid, xs, bool(a) and not a["is_answer"], "read-out taken as an answer")
-        if cid == "U35":
-            mark("judge · switch", cid, xs, bool(sw.get("is_transition")) and sw.get("target_product_id") == "ampoule_deep_hydration", "no transition")
-        if cid == "U34":
-            mark("judge · switch", cid, xs, not sw.get("is_transition") or bool(sw.get("is_quote")), "mention taken as a transition")
-        if cid == "U36":
-            mark("judge · switch", cid, xs, "am-p2" in pr["covered_point_ids"], f"covered={pr['covered_point_ids']}")
-        if cid == "U37":
-            mark("judge · switch", cid, xs, bool(sw.get("is_transition")) and sw.get("target_product_id") == "cream_hydra_barrier", "not back to cream")
-        if "covered_points" in exp:
-            mark("judge · prompter points", cid, xs, set(exp["covered_points"]) <= set(pr["covered_point_ids"]),
-                 f"covered={pr['covered_point_ids']}")
-        for label, key in (("raw", "facts_raw"), ("after quote check", "facts_validated")):
-            fo, fs = x[key], x["facts_status"]
-            wrong = [c for c in (fo["claims"] if fo else []) if c["verdict"] == "contradicted"]
-            wtxt = "; ".join(f"{c['field']}: {c['stated_value']} -> {c['correct_value']}" for c in wrong) or "none"
-            if cid in FACT_WRONG:
-                mark(f"facts ({label}) · catches the wrong fact", cid, fs,
-                     any(c["field"] == exp["field"] and _same_value(c["correct_value"], exp["correct_value"]) for c in wrong), f"got {wtxt}")
-            if cid in FACT_RIGHT:
-                mark(f"facts ({label}) · no note on a right fact", cid, fs, not wrong, f"got {wtxt}")
-            if cid in non_fact:
-                mark(f"facts ({label}) · leak: note on a sentence that is not about facts", cid, fs, not wrong, f"got {wtxt}")
-
+        cid = x["id"]
+        for label, fact_key in (("raw", "facts_raw"), ("after quote check", "facts_validated")):
+            checks = expectation_checks(by_id[cid]["expected"], x.get("judge") or {},
+                                        x.get(fact_key) or {}, _same_value)
+            for area, name, ok, detail in checks:
+                if area != "facts" and label != "raw":
+                    continue
+                key = f"facts ({label}) · {name}" if area == "facts" else f"judge · {name}"
+                status = x.get("facts_status") if area == "facts" else _st(x, f"{area}_status")
+                if status == "ok" and ((area == "facts" and x.get(fact_key) is None)
+                                       or (area != "facts" and x.get("judge") is None)):
+                    status = "invalid"
+                mark(key, cid, status, ok, detail)
     comp_ms = [_ms(x, "comp_ms") for x in raw if _st(x, "comp_status") == "ok"]
     ctx_ms = [_ms(x, "ctx_ms") for x in raw if _st(x, "ctx_status") == "ok"]
     facts_ms = [x["facts_ms"] for x in raw if x["facts_status"] == "ok"]
@@ -328,8 +359,7 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
     # routing (router3 only): calls per sentence, routes a needed specialist did not get
     routing = None
     if any("route" in x for x in raw):
-        context_needed = set(ANSWER_YES) | {"U35", "U36", "U37"} | {c["case_id"] for c in cases if "covered_points" in c["expected"]}
-        needs = NEEDS | {"context": context_needed}
+        needs = needed_specialists(cases)
         missed = collections.Counter()
         chosen = collections.Counter()
         router_ms = [x["router_ms"] for x in raw if x.get("router_status") == "ok"]
@@ -364,6 +394,10 @@ AGENTS = {
     "split2": "UtteranceJudge + FactChecker in parallel (JUDGE_MODE=split, rollback)",
     "split3": "ComplianceJudge + ContextJudge + FactChecker in parallel (production, D-099)",
     "router3": "LLM router first, then only the chosen of ComplianceJudge / ContextJudge / FactChecker in parallel (experiment)",
+    "gemini_selective": "Gemini first, then selected specialists in parallel (experiment)",
+    "gemini_tiered": "ComplianceJudge and FactChecker immediately; Gemini gates ContextJudge (experiment)",
+    "jev_selective": "Jev first, then selected specialists in parallel (experiment)",
+    "jev_tiered": "ComplianceJudge and FactChecker immediately; Jev gates ContextJudge (experiment)",
 }
 
 
@@ -371,10 +405,13 @@ def routing_lines(s: dict) -> list[str]:
     r = s["routing"]
     if not r:
         return []
+    missed_by_specialist = {spec: sum(n for key, n in r["missed"].items() if key.startswith(spec + ":"))
+                           for spec in ("compliance", "facts", "context")}
     missed = "; ".join(f"{k} ×{n}" for k, n in r["missed"].most_common()) or "none"
     return [
         f"- **Router:** {lat(r['router_ms'])}; timed out {r['router_timeouts']}/{s['n']} (then every specialist runs)",
         f"- **Model calls per sentence:** {r['calls']:.2f} (router included)",
+        f"- **Needed specialist not dispatched (must be zero):** {missed_by_specialist}",
         f"- **Specialist chosen:** " + ", ".join(f"{k} {r['chosen'][k]}/{s['n']}" for k in ("compliance", "context", "facts")),
         f"- **Needed specialist not chosen (case × runs):** {missed}",
     ]
@@ -387,7 +424,7 @@ def write_report(structure: str, raw: list[dict], cases: list[dict], out: Path, 
         f"# Utterance agents · {structure} · {dt.date.today().isoformat()}",
         "",
         f"- **Agents:** {AGENTS[structure]}, on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
-        f"- **Runs:** 39 eval cases × {runs} runs = {s['n']} case runs; every run scored. Timeouts are counted apart from wrong answers.",
+        f"- **Runs:** {len(cases)} eval cases × {runs} runs = {s['n']} case runs; every run scored. Timeouts are counted apart from wrong answers.",
         "- **Script:** `backend/scripts/eval_agents.py`; production prompts in `prompts/`, the router prompt in "
         "`backend/scripts/experiments/prompts/`. Judge outputs get the production `post_validate`.",
         "",
@@ -404,6 +441,16 @@ def write_report(structure: str, raw: list[dict], cases: list[dict], out: Path, 
         "",
         "## Wrong answers (case: what came back × runs)",
     ]
+    if structure.startswith("gemini_"):
+        md[6:6] = [f"- **Gemini router:** fast model and thinking above; threshold 0.5; "
+                   f"{GEMINI_ROUTER_DEADLINE_MS} ms deadline; fail-open."]
+    if structure.startswith("jev_"):
+        md[6:6] = [
+            f"- **Jev:** `typesafe/jev-1.13`; threshold {raw[0].get('jev_threshold', 0.05)}; 500 ms deadline; fail-open.",
+            "- **Timing scope:** router plus specialist calls only; excludes STT, retrieval, queueing and browser paint.",
+            "- **Production findings (unchanged):** successive finals wait for previous judges in "
+            "`utterances.py:143-145`; fact-note publication waits in `_side` (`utterances.py:473`).",
+        ]
     for k in ordered(s["tally"]):
         if s["misses"][k]:
             md.append(f"- **{k}:** " + "; ".join(f"{w[:150]} ×{n}" for w, n in s["misses"][k].most_common(6)))
@@ -435,7 +482,7 @@ def write_compare(runs: list[tuple[str, list[dict]]], cases: list[dict], out: Pa
           for label, raw in runs],
         "",
         "**Same conditions:**",
-        f"- 39 eval cases × 20 runs on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
+        f"- {len(cases)} eval cases × 20 runs on `{settings.LLM_FAST_MODEL}` (thinking {settings.LLM_FAST_THINKING}).",
         "- The same specialist prompts (compliance_judge and context_judge are cut from utterance_judge with the same wording).",
         "- At most 12 specialist calls in flight. Timeouts are counted apart from wrong answers.",
         "",
@@ -472,7 +519,8 @@ def write_compare(runs: list[tuple[str, list[dict]]], cases: list[dict], out: Pa
 
 async def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--structure", choices=["split2", "split3", "router3"], default="split2")
+    ap.add_argument("--cases", choices=["utterance", "holdout"], default="utterance")
+    ap.add_argument("--structure", choices=list(AGENTS), default="split2")
     ap.add_argument("--runs", type=int, default=20)
     ap.add_argument("--concurrency", type=int, default=None, help="cases at a time (default: 12 specialist calls in flight)")
     ap.add_argument("--out", type=Path, default=None)
@@ -482,8 +530,10 @@ async def main() -> int:
     ap.add_argument("--compare", nargs="+", default=None, metavar="LABEL=JSON",
                     help="compare saved runs, e.g. '2 agents=docs/eval/agents-baseline.json'")
     args = ap.parse_args()
+    if args.runs < 1 or (args.concurrency is not None and args.concurrency < 1):
+        ap.error("--runs and --concurrency must be positive")
     settings = get_settings()
-    cases = load_cases("utterance_cases.jsonl")
+    cases = load_cases(f"{args.cases}_cases.jsonl")
     if args.compare:
         runs = []
         for item in args.compare:
@@ -491,8 +541,13 @@ async def main() -> int:
             runs.append((label, json.loads(Path(path).read_text(encoding="utf-8"))))
         write_compare(runs, cases, args.out or EVAL_DIR / "agents-compare.md", settings)
         return 0
-    name = {"split2": "agents-baseline", "split3": "agents-split3", "router3": "agents-router3"}[args.structure]
+    name = {"split2": "agents-baseline", "split3": "agents-split3", "router3": "agents-router3",
+            "jev_selective": "agents-jev-selective", "jev_tiered": "agents-jev-tiered",
+            "gemini_selective": "agents-gemini-selective", "gemini_tiered": "agents-gemini-tiered"}[args.structure]
+    if args.cases == "holdout":
+        name = f"holdout-{args.structure}"
     out = args.out or EVAL_DIR / f"{name}.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
     if args.from_json:
         raw = json.loads(args.from_json.read_text(encoding="utf-8"))
         if args.revalidate:
@@ -500,7 +555,7 @@ async def main() -> int:
             out.with_suffix(".json").write_text(json.dumps(raw, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     else:
         concurrency = args.concurrency or (6 if args.structure == "split2" else 4)  # 12 specialist calls in flight
-        raw = await run(args.structure, args.runs, concurrency)
+        raw = await run(args.structure, args.runs, concurrency, cases)
         for x in raw:
             x["structure"] = args.structure
         out.with_suffix(".json").write_text(json.dumps(raw, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
