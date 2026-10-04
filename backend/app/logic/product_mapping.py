@@ -24,6 +24,13 @@ def attribute_product(
     if scope == "none":
         return None, "unknown"  # general question: product null by design, not "unresolved"
     named = catalog.products_meant(text)
+    if intent is not None and intent.intent in SET_INTENTS:
+        # D-147 (comment-flow CF10): the set is the same whichever product the comment names, so a set
+        # question always uses one product: the one on air, else the first named (or first) in show order
+        if context_product_id is not None:
+            return context_product_id, "context"
+        pid = next((p for p in catalog.order if p in named), catalog.order[0] if catalog.order else None)
+        return pid, "explicit" if named else "unknown"
     if scope == "multi" and len(named) >= 2:
         return None, "explicit"  # both products named: the comparison stays product-less
     if len(named) == 1:
@@ -35,11 +42,6 @@ def attribute_product(
     # (no product on air) or when two products are named does it stay unresolved ("Which product?").
     if context_product_id is not None and len(named) == 0:
         return context_product_id, "context"
-    if intent is not None and intent.intent in SET_INTENTS and context_product_id is not None:
-        return context_product_id, "context"  # D-043: both products named, the set is on each sheet
-    if intent is not None and intent.intent in SET_INTENTS and len(named) >= 2:
-        # D-135: before the first product is on air: the set is on each sheet, take the first in show order
-        return next(p for p in catalog.order if p in named), "explicit"
     return None, "unknown"
 
 

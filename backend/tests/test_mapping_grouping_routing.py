@@ -122,3 +122,15 @@ def test_routes(pack):
     assert is_composable(i["product_comparison"], None)
     assert not is_composable(i["shipping"], None)
     assert not is_composable(i["price"], None)
+
+
+def test_a_set_question_always_uses_the_on_air_product(catalog, pack):
+    """D-147 (comment-flow CF10): "cream and serum set" with the ampoule on air was attributed to the cream
+    (named first), the other set questions to the ampoule: two groups and two drafts for one set."""
+    set_price = pack.intents_by_name["set_price"]
+    assert attribute_product("how much for cream and serum set?", triage(CREAM, "explicit", "set_price"), AMPOULE,
+                             catalog, set_price) == (AMPOULE, "context")
+    assert attribute_product("both together price pls", triage(None, "unknown", "set_price"), AMPOULE,
+                             catalog, set_price) == (AMPOULE, "context")
+    first = catalog.order[0]
+    assert attribute_product("set price?", triage(None, "unknown", "set_price"), None, catalog, set_price)[0] == first
