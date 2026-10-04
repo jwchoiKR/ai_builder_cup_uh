@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from ..context import AppContext, get_ctx
 from ..pipelines import comments as ops
 from ..pipelines import utterances as utt
-from ..pipelines.runtime import SessionRuntime
+from ..pipelines.runtime import ActionError, SessionRuntime
 
 router = APIRouter(prefix="/sessions/{session_id}")
 
@@ -151,6 +151,19 @@ async def send_cue(body: CueBody, rt: SessionRuntime = Depends(runtime)) -> dict
 async def clear_cue(cue_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
     await utt.clear_cue(rt, cue_id)
     return OK
+
+
+class PdDismissBody(BaseModel):
+    card_id: str
+
+
+@router.post("/pd/dismiss")
+async def pd_dismiss(body: PdDismissBody, rt: SessionRuntime = Depends(runtime)) -> dict:
+    """Host skips the AI PD card (key N); its topic is not offered again on this product."""
+    card = await rt.pd.dismiss(body.card_id)
+    if card is None:
+        raise ActionError(409, "invalid_state", "no active AI PD card with this id")
+    return card.model_dump()
 
 
 class SwitchBody(BaseModel):
