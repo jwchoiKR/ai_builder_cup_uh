@@ -328,3 +328,25 @@ async def test_ai_answered_group_is_confirmed_not_reposted(env):
     g = await rt.get_group(g.group_id)
     assert g.host_confirmed and g.status == "auto_answered"
     assert [m.kind for m in await messages(rt)] == ["ai_answer"]
+
+
+@pytest.mark.parametrize("change", ["closed", "new_answer"])
+async def test_a_pending_host_answer_is_dropped_when_its_question_changes(env, change):
+    """Review B4 (D-117): the 2 s cancel window must not post a reply whose question was closed (e.g. a
+    price question closed by a time sale) or whose answer changed meanwhile."""
+    rt, llm = env
+    g = await oily_on_host(rt)
+    answer_script(llm, g.group_id)
+    await speak(rt, ANSWER)
+    [m] = await messages(rt, "host_answer")
+    assert m.state == "pending"
+    g = await rt.get_group(g.group_id)
+    if change == "closed":
+        g.status = "closed"
+    else:
+        g.answer_id = "ans_other"
+    await rt.save_group(g)
+    await advance(rt, 2000)
+    [m] = await messages(rt, "host_answer")
+    assert m.state == "cancelled" and await events(rt, "message.cancelled")
+    assert (await rt.get_group(g.group_id)).status != "answered"
