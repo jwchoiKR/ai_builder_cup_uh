@@ -22,6 +22,7 @@ from .utterance_judge import (
 
 class _SplitJudge:
     name: str
+    spec: str  # the LLMClient model spec (D-128)
     output_model: type
 
     def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
@@ -43,7 +44,8 @@ class _SplitJudge:
         encode, decode = symbolic_ids(values)
         user, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
         res = await self.llm.call(LLMRequest(
-            agent=self.name, model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
+            agent=self.name, model=getattr(self.llm, self.spec).model,
+            thinking_level=getattr(self.llm, self.spec).thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
             user_message=user, output_model=self.output_model, deadline_ms=deadline_ms,
             cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
@@ -58,6 +60,7 @@ class _SplitJudge:
 
 class ComplianceJudge(_SplitJudge):
     name = "compliance_judge"
+    spec = "compliance"
     output_model = ComplianceOutput
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
@@ -69,6 +72,7 @@ class ComplianceJudge(_SplitJudge):
 
 class ContextJudge(_SplitJudge):
     name = "context_judge"
+    spec = "context"
     output_model = ContextOutput
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:

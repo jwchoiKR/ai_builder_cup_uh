@@ -2,7 +2,7 @@
 
 2026-10-05 · `draft_verifier_cases.jsonl` · 30 bad and 30 good drafts × 3 runs · `gemini-3.5-flash-lite` (MINIMAL).
 
-**FAIL** · bad drafts posted 0 (0) · good drafts blocked 0/90 (0.0%, ≤ 3%) · LLM check p50 961 ms, p95 1187 ms (≤ 700 ms) · timeouts or errors 0
+**FAIL** · bad drafts posted 0 (0) · good drafts blocked 0/90 (0.0%, ≤ 3%) · LLM check p50 1001 ms, p95 1243 ms (≤ 700 ms) · timeouts or errors 1
 
 - Bad drafts the LLM check alone lets through (all runs): 3/90
 - Good drafts verify_answer blocks: 0/30

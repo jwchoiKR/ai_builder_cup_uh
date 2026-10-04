@@ -375,6 +375,11 @@ class LLMClient:
         self.fast = ModelSpec(settings.LLM_FAST_MODEL, settings.LLM_FAST_THINKING)
         self.quality = ModelSpec(settings.LLM_QUALITY_MODEL, settings.LLM_QUALITY_THINKING)  # Brief, Summary
         self.composer = ModelSpec(settings.LLM_QUALITY_MODEL, settings.COMPOSER_THINKING)
+        # D-128: the fast model with a thinking level per agent
+        self.compliance = ModelSpec(settings.LLM_FAST_MODEL, settings.COMPLIANCE_THINKING)
+        self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
+        self.facts = ModelSpec(settings.LLM_FAST_MODEL, settings.FACTS_THINKING)
+        self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
         self.warmup_status: dict[str, str] = {}
 
     async def call(self, req: LLMRequest[T]) -> AgentResult[T]:

@@ -98,7 +98,7 @@ class CommentTriage:
             "comment_text": inputs.comment_text(inp.text, self.settings.MAX_COMMENT_CHARS),
         })
         res = await self.llm.call(LLMRequest(
-            agent=self.name, model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
+            agent=self.name, model=self.llm.triage.model, thinking_level=self.llm.triage.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
             user_message=user, output_model=CommentTriageOutput, deadline_ms=deadline_ms,
             session_id=inp.session_id, mock_primary_text=inp.text, mock_scenario=inp.scenario,
@@ -128,7 +128,7 @@ class CommentTriage:
             return data
 
         res = await self.llm.call(LLMRequest(
-            agent="comment_triage_batch", model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
+            agent="comment_triage_batch", model=self.llm.triage.model, thinking_level=self.llm.triage.thinking_level,
             prompt_version=self.batch_prompt.version, system_instruction=self.batch_prompt.system_instruction,
             user_message=user, output_model=CommentTriageBatchOutput, deadline_ms=deadline_ms,
             session_id=inps[0].session_id, mock_primary_text="\n".join(x.text for x in inps),
