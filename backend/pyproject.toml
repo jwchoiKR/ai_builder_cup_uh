@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "LIVE / Studio: AI co-pilot backend for live-commerce broadcasts"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "fastapi>=0.142",
+    "fastapi>=0.133,<0.142",
     "uvicorn[standard]>=0.54",
     "pydantic>=2.13",
     "pydantic-settings>=2.15",
@@ -13,6 +13,7 @@ dependencies = [
     "rank-bm25>=0.2.2",
     "pypdf>=5.0",
     "google-cloud-speech>=2.37",
+    "google-adk>=2.11,<2.12",
 ]
 
 [dependency-groups]
