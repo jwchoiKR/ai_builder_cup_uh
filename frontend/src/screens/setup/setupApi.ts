@@ -2,6 +2,17 @@
 import { API_BASE, ApiError, request } from "../../app/api";
 import type { PrompterPoint } from "../../app/types";
 
+export interface SetupMarket {
+  market: string;
+  name: string;
+  regulator: string;
+  lang: string;
+  lang_name: string;
+  stt_language: string;
+  tier: string;
+  offered: string[];
+}
+
 export type GlossaryKind = "brand" | "product" | "ingredient" | "technical" | "value";
 
 export interface GlossaryTerm {
@@ -121,6 +132,8 @@ async function getBrief(productId: string): Promise<BriefRecord | null> {
 
 export const setupApi = {
   documents: () => request<{ documents: SetupDocument[]; doc_version: number }>("GET", "/setup/documents"),
+  /** D-142: the market and broadcast language of new sessions (read-only for now) */
+  market: () => request<SetupMarket>("GET", "/setup/market"),
   upload,
   uploadJob: (jobId: string) => request<UploadJob>("GET", `/setup/documents/jobs/${encodeURIComponent(jobId)}`),
   runBrief: (productId: string) => request<BriefRecord>("POST", "/setup/brief/run", { product_id: productId }),

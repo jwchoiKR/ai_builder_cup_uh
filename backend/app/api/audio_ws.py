@@ -76,7 +76,7 @@ async def audio(ws: WebSocket, session_id: str) -> None:
     _active[session_id] = ws
 
     phrases = await glossary_phrases(ctx)
-    stream = stt.open(phrases)
+    stream = stt.open(phrases, rt.pack.stt_language)  # D-142: the session's broadcast language
     await _send(ws, {"type": "status", "state": "listening", "phrases": len(phrases)})
 
     async def consume() -> None:

@@ -21,12 +21,14 @@ Role = Literal["operator", "host", "viewer"]
 class CreateSessionBody(BaseModel):
     runsheet_id: str = DEFAULT_RUNSHEET_ID
     show_mode: Literal["solo", "team"] = "solo"  # D-111
+    market: str | None = None  # D-142: default MARKET; the market must offer the language
+    lang: str | None = None  # D-142: default BROADCAST_LANGUAGE
 
 
 @router.post("/sessions", status_code=201)
 async def create_session(body: CreateSessionBody | None = None, ctx: AppContext = Depends(get_ctx)) -> Session:
     body = body or CreateSessionBody()
-    return await _create(ctx, body.runsheet_id, body.show_mode)
+    return await _create(ctx, body.runsheet_id, body.show_mode, market=body.market, lang=body.lang)
 
 
 @router.post("/sessions/{session_id}/start")

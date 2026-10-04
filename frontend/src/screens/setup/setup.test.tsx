@@ -86,6 +86,8 @@ function client(over: Partial<SetupClient> = {}): SetupClient {
     getBrief: vi.fn().mockResolvedValue(null),
     confirmAll: vi.fn().mockResolvedValue({ ...version0, version: 1, confirmed_products: ["cream_hydra_barrier"] }),
     glossary: vi.fn().mockResolvedValue(version0),
+    market: vi.fn().mockResolvedValue({ market: "SG", name: "Singapore", regulator: "Health Sciences Authority (HSA)", lang: "en",
+      lang_name: "English", stt_language: "en-US", tier: "live", offered: ["en"] }),
     ...over,
   } as SetupClient;
 }
@@ -227,5 +229,12 @@ describe("Setup page", () => {
     const table = await screen.findByTestId("setup-glossary-cream_hydra_barrier");
     await waitFor(() => expect(within(table).getByText("squalene")).toBeInTheDocument());
     expect(within(table).queryByText("DAON LAB")).toBeNull();
+  });
+});
+
+describe("market and language (D-142)", () => {
+  it("shows the market and broadcast language of new sessions, read-only", async () => {
+    renderView(client());
+    expect(await screen.findByTestId("setup-market")).toHaveTextContent("Singapore · English");
   });
 });

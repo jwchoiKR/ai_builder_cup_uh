@@ -78,9 +78,10 @@ def phrases_from_glossary(glossary: dict | None, limit: int = MAX_PHRASES) -> li
 
 
 class GoogleV2Stream:
-    def __init__(self, stt: "GoogleV2Stt", phrases: list[str]) -> None:
+    def __init__(self, stt: "GoogleV2Stt", phrases: list[str], language: str | None = None) -> None:
         self._stt = stt
         self._phrases = phrases
+        self._language = language
         self._audio: asyncio.Queue[tuple[bytes, int] | None] = asyncio.Queue()
         self._results: asyncio.Queue[SttResult | Exception | None] = asyncio.Queue()
         self._closed = False
@@ -145,7 +146,7 @@ class GoogleV2Stream:
         reason = {"value": "closed"}
 
         async def requests():
-            yield self._stt.first_request(self._phrases)
+            yield self._stt.first_request(self._phrases, self._language)
             for c in bridge:  # re-send audio after the previous stream's last final result
                 state.add(c.data, c.arrival_ms)
                 yield cs.StreamingRecognizeRequest(audio=c.data)
@@ -210,7 +211,7 @@ class GoogleV2Stt:
             self._client = speech_v2.SpeechAsyncClient(client_options=ClientOptions(api_endpoint=endpoint))
         return self._client
 
-    def first_request(self, phrases: list[str]):
+    def first_request(self, phrases: list[str], language: str | None = None):
         cs = self.types
         s = self.settings
         adaptation = None
@@ -221,7 +222,8 @@ class GoogleV2Stt:
             explicit_decoding_config=cs.ExplicitDecodingConfig(
                 encoding=cs.ExplicitDecodingConfig.AudioEncoding.LINEAR16, sample_rate_hertz=SAMPLE_RATE,
                 audio_channel_count=1),
-            language_codes=[s.STT_LANGUAGE], model=s.STT_MODEL,
+            # D-142: STT_LANGUAGE overrides; else the session pack's chirp_3 code
+            language_codes=[s.STT_LANGUAGE or language or "en-US"], model=s.STT_MODEL,
             features=cs.RecognitionFeatures(enable_automatic_punctuation=True),
             adaptation=adaptation,
         )
@@ -234,8 +236,8 @@ class GoogleV2Stt:
             streaming_config=cs.StreamingRecognitionConfig(config=config, streaming_features=features),
         )
 
-    def open(self, phrases: list[str]) -> GoogleV2Stream:
-        return GoogleV2Stream(self, phrases)
+    def open(self, phrases: list[str], language: str | None = None) -> GoogleV2Stream:
+        return GoogleV2Stream(self, phrases, language)
 
 
 def make_stt(settings: Settings, clock: Clock) -> GoogleV2Stt | None:

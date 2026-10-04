@@ -103,7 +103,7 @@ class PdDirector:
         now = rt.now()
         groups = {g.group_id: g for g in await rt.groups()}
         questions = []
-        deferrals = rt.ctx.pack.notices.host_deferrals
+        deferrals = rt.pack.notices.host_deferrals
         solo = "_solo" if s.show_mode == "solo" else ""  # a solo host promises no chat reply
         for slot in s.host_slots:  # the host's waiting list, in order (D-113)
             g = groups.get(slot.group_id)

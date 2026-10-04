@@ -63,6 +63,10 @@ class Session(BaseModel):  # [sessions/{session_id}]
     # D-139: proof-plan §1 baseline. False: transcripts and comments are stored and shown, but no judge,
     # triage, answer or AI PD runs (what a host would have without the assistant).
     assistant: bool = True
+    # D-142 (JAPAC B): the market (law) and broadcast language (wording) of this show, chosen at setup and
+    # frozen for the session; the runtime loads that pack
+    market: str = "SG"
+    lang: str = "en"
     started_at: int | None = None
     ended_at: int | None = None
     current_segment_id: str | None = None

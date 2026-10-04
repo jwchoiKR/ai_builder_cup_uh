@@ -38,7 +38,7 @@ class FakeStt:
     def __init__(self) -> None:
         self.opened: list[list[str]] = []
 
-    def open(self, phrases):
+    def open(self, phrases, language=None):
         self.opened.append(phrases)
         return FakeStream()
 
