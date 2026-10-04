@@ -15,7 +15,7 @@ from ..agents.comment_triage import TriageInput
 from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
 from ..logic.grouping import find_group, is_open, join_group, slots_compatible
 from ..logic.prefilter import prefilter
-from ..logic.product_mapping import attribute_product
+from ..logic.product_mapping import attribute_product, set_question
 from ..logic.promos import promo_state
 from ..logic.routing import is_composable, route_for
 from ..logic.pd import ShoutOut
@@ -125,7 +125,8 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
         return
     segs = await rt.segments()
     seg = segment_at(segs, comment.received_at - rt.settings.STREAM_GRACE_SEC * 1000)
-    context_pid = seg.product_id if seg else None
+    # D-135: before the first segment, the host screen already shows the first run-sheet product as NOW
+    context_pid = seg.product_id if seg else (rt.catalog.order[0] if rt.catalog.order else None)
 
     key = triage_cache_key(comment.text, context_pid)
     cached = rt.triage_cache.get(key)
@@ -148,6 +149,8 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
             await _finish_non_question(rt, comment_id, output, context_pid, source, latency_ms)
             return
 
+        if set_question(output.intent, comment.text, rt.catalog):
+            output = output.model_copy(update={"intent": "set_price"})
         intent = rt.intent(output.intent)
         pid, basis = attribute_product(comment.text, output, context_pid, rt.catalog, intent)
         async with rt.lock:
@@ -315,13 +318,29 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
     rt.spawn(compose_for_group(rt, g.group_id, key, scenario), name=f"compose:{g.group_id}")
 
 
+async def no_draft_locked(rt: "SessionRuntime", g: QuestionGroup) -> None:
+    """D-135: no verified answer. A host question, or any question in a solo show (nobody watches the
+    operator list), stays on the host's list with the honest deferral line; in a team show the others
+    go to the operator."""
+    solo = (await rt.load_session()).show_mode == "solo"
+    route = "HOST" if g.route == "HOST" or solo else "OPERATOR"
+    g.route, g.route_reason, g.status = route, "no_verified_answer", "needs_review"
+
+
 async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: Answer, *, instant: bool) -> None:
     g.answer_id = answer.answer_id
+    if answer.verified and g.route_reason in ("no_verified_answer", "needs_human"):
+        # D-135: an earlier draft failed (or timed out); a verified one now takes the intent's own route
+        g.route, g.route_reason = route_for(rt.intent(g.intent), g.product_id)
     if not answer.verified:
-        g.route, g.route_reason, g.status = "OPERATOR", "no_verified_answer", "needs_review"
+        await no_draft_locked(rt, g)
         return
     if answer.needs_human and g.route == "AUTO":
-        g.route, g.route_reason, g.status = "OPERATOR", "needs_human", "needs_review"
+        # D-135: never posted by itself; the host reads the verified draft (solo) or the operator checks it
+        if (await rt.load_session()).show_mode == "solo":
+            g.route, g.route_reason, g.status = "HOST", "needs_human", "ready"
+        else:
+            g.route, g.route_reason, g.status = "OPERATOR", "needs_human", "needs_review"
         return
     if g.route == "AUTO" and rt.settings.AUTO_ANSWER_ENABLED:
         msg = await rt.publish_message_locked(
@@ -409,7 +428,7 @@ async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scena
                 await rt.emit("group.updated", g)
             return
         if answer is None:
-            g.route, g.route_reason, g.status = "OPERATOR", "no_verified_answer", "needs_review"
+            await no_draft_locked(rt, g)
         else:
             await apply_answer_locked(rt, g, answer, instant=False)
         g.version += 1

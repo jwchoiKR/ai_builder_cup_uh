@@ -33,6 +33,7 @@ class Lexicon:
     sentence_split: re.Pattern
     clause_split: re.Pattern
     reactions: frozenset[str]
+    exclusion: re.Pattern  # matches when a text ends with an exclusion cue ("..., not")
     phone: re.Pattern  # from the market
 
     @classmethod
@@ -46,6 +47,7 @@ class Lexicon:
             test_qualifier=re.compile(p.test_qualifier), in_house=re.compile(p.in_house),
             sentence_end=re.compile(p.sentence_end), sentence_split=re.compile(p.sentence_split),
             clause_split=re.compile(p.clause_split), reactions=frozenset(lx.reactions),
+            exclusion=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.exclusion_cues) + r")\s+(?:the\s+)?$"),
             phone=re.compile(market.phone_pattern),
         )
 

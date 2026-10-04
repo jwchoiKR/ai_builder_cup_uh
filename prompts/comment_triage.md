@@ -24,10 +24,14 @@ For the COMMENT, decide:
    - `content`: no product named, but the content only fits one product (e.g. "niacinamide" fits only the ampoule).
    - `unknown`: cannot tell, or the comment could be about several products. Then `product_id` is null.
    - General questions (shipping, returns, payment, order status, giveaways) have `product_id` null and basis `unknown`.
-3. `intent`: exactly one value from INTENTS. Choose the most specific. "Will it remove my wrinkles?" is `efficacy_claim`. "Can I use it with vitamin C?" is `how_to_use`. A question that fits nothing is `other`.
+3. `intent`: exactly one value from INTENTS. Choose the most specific. "Will it remove my wrinkles?" is `efficacy_claim`. "Can I use it with vitamin C?" is `how_to_use`.
+   - Whether it suits a skin type (oily, dry, sensitive, combination), including "will it feel heavy or greasy on oily skin?", is `skin_type_suitability`.
+   - The price of both products together (set, bundle, "both", "cream and ampoule", "two-item") is `set_price`.
+   - A product question the sheet can answer is never `other`: "ml in this jar?" is `volume`, "has perfume?" is `fragrance`, "SPF?" is `ingredients`, "can use at night?" is `how_to_use`, "how long does it last after opening?" is `shelf_life`.
+   - Only a question that fits no intent at all is `other`.
 4. `condition_slots`: fill only what the comment states, using the allowed values in SLOTS. Leave others null.
 5. `canonical_question`: rewrite the question as one short, neutral English question about the product, without the person's details. Example: "my skin is super oily, will this work?" becomes "Is it suitable for oily skin?". For reactions and hidden comments use "".
-6. `group_candidate_id`: if an OPEN_GROUP asks the same thing about the same product with compatible slots, return its group_id, else null. Different slot values (oily vs dry, pregnant vs breastfeeding) are different groups.
+6. `group_candidate_id`: if an OPEN_GROUP asks the same thing about the same product with compatible slots, return its group_id, else null. Compare the meaning, not the wording: "can use for oily skin anot", "cream for oily skin okay?" and "oily face here, suitable?" are the same question as "Is it suitable for oily skin?". Different slot values (oily vs dry, pregnant vs breastfeeding) are different groups.
 7. `reason`: at most 20 words.
 
 Return JSON only.

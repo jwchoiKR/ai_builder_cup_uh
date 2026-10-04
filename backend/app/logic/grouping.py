@@ -22,6 +22,11 @@ def normalise_question(q: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s%$]", " ", q.lower())).strip()
 
 
+SINGLE_QUESTION_INTENTS = frozenset({
+    "price", "set_price", "volume", "fragrance", "texture", "shelf_life", "origin", "packaging",
+    "skin_type_suitability", "pregnancy_breastfeeding", "age_suitability",
+})
+
 def find_group(
     groups: Iterable[QuestionGroup],
     *,
@@ -44,6 +49,10 @@ def find_group(
     for g in sorted(open_groups, key=lambda g: g.last_at, reverse=True):
         if normalise_question(g.canonical_question) == norm:
             return g
+    # D-135 (comment-flow recall 74-82%): for intents that hold one question per product and slots, the
+    # only open group that fits is the same question, whatever the wording ("oily skin can use anot?")
+    if intent in SINGLE_QUESTION_INTENTS and len(open_groups) == 1:
+        return open_groups[0]
     return None
 
 

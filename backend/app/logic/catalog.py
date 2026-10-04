@@ -241,6 +241,15 @@ class Catalog:
         """All products named in `text` by any alias (word boundaries)."""
         return {pid for pid, _ in self._alias_hits(text)}
 
+    def products_meant(self, text: str) -> set[str]:
+        """D-135: products named and not excluded ("ampule price, not cream" means the ampoule only)."""
+        t = text.lower()
+        meant = set()
+        for pid, alias, rx in self._alias_patterns:
+            if any(not self.lexicon.exclusion.search(t[:m.start()]) for m in rx.finditer(t)):
+                meant.add(pid)
+        return meant
+
     def product_by_alias(self, text: str) -> str | None:
         """The product named in `text`: longest matching alias wins; a tie between products is None."""
         t = text.lower()

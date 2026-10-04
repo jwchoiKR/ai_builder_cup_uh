@@ -5,19 +5,28 @@
       "template_id": "compliance_correction",
       "use_when": "A compliance alert (HIGH) was raised and the operator chooses 'Post notice'.",
       "text": "Correction from DAON LAB: {product_name} is a cosmetic product. Its effects are cosmetic, not permanent, and it does not treat or cure any skin condition.",
-      "placeholders": ["product_name"]
+      "placeholders": [
+        "product_name"
+      ]
     },
     {
       "template_id": "fact_correction_price",
       "use_when": "Fact correction on field price, set_price or promo.",
       "text": "Correction: the current price of {product_name} is {correct_value}.",
-      "placeholders": ["product_name", "correct_value"]
+      "placeholders": [
+        "product_name",
+        "correct_value"
+      ]
     },
     {
       "template_id": "fact_correction_generic",
       "use_when": "Fact correction on any other purchase-relevant field (volume, ingredient amount).",
       "text": "Correction: {product_name} {field_label} is {correct_value}.",
-      "placeholders": ["product_name", "field_label", "correct_value"]
+      "placeholders": [
+        "product_name",
+        "field_label",
+        "correct_value"
+      ]
     }
   ],
   "field_labels": {
@@ -46,9 +55,29 @@
     }
   ],
   "host_cue_presets": [
-    {"cue_id": "preset_missing_points", "label": "Missing points", "text": "Please cover: {missing_points}"},
-    {"cue_id": "preset_time_sale", "label": "Time sale", "text": "Time sale is live. Mention the extra 10% off."},
-    {"cue_id": "preset_wrap_up", "label": "Wrap up", "text": "Please wrap up this product."},
-    {"cue_id": "preset_patch_test", "label": "Patch test", "text": "Mention the patch test results."}
-  ]
+    {
+      "cue_id": "preset_missing_points",
+      "label": "Missing points",
+      "text": "Please cover: {missing_points}"
+    },
+    {
+      "cue_id": "preset_time_sale",
+      "label": "Time sale",
+      "text": "Time sale is live. Mention the extra 10% off."
+    },
+    {
+      "cue_id": "preset_wrap_up",
+      "label": "Wrap up",
+      "text": "Please wrap up this product."
+    },
+    {
+      "cue_id": "preset_patch_test",
+      "label": "Patch test",
+      "text": "Mention the patch test results."
+    }
+  ],
+  "host_deferrals": {
+    "general": "Good question! I don't want to guess, so I'll check and reply to you in the chat.",
+    "sensitive": "Everyone's skin is different, so please check with your doctor or dermatologist before using it. I'll reply in the chat with what our product sheet says."
+  }
 }

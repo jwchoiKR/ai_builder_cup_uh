@@ -388,3 +388,95 @@ async def test_llm_draft_check_keeps_a_failed_draft_for_the_operator(verdict):
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+@pytest.mark.parametrize("show_mode, route", [("solo", "HOST"), ("team", "OPERATOR")])
+async def test_no_verified_answer_goes_to_the_host_in_a_solo_show(show_mode, route):
+    """D-135: an AUTO question whose draft fails verification. In a solo show nobody watches the operator
+    list, so it waits on the host's list with the honest deferral; in a team show the operator gets it."""
+    import json
+
+    from app.providers.llm import RawReply
+
+    from .judge_fakes import ScriptedBackend
+
+    class NoGrounding(ScriptedBackend):
+        async def generate(self, req, timeout_ms):
+            if req.agent == "answer_composer":
+                return RawReply(json.dumps({"answer": "", "citations": [], "grounded": False, "needs_human": False,
+                                            "reason": "not in sources"}), model_version="scripted")
+            return await super().generate(req, timeout_ms)
+
+    ctx = make_ctx(backend=NoGrounding())
+    rt = await live_runtime(ctx, show_mode)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        assert (g.route, g.route_reason, g.status) == (route, "no_verified_answer", "needs_review")
+        on_host = [sl.group_id for sl in (await rt.load_session()).host_slots]
+        assert (g.group_id in on_host) is (route == "HOST")
+        assert await messages(rt) == []
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_the_pd_offers_the_honest_deferral_for_a_question_without_an_answer():
+    """D-135: the host's card for a question with no verified answer carries the fixed deferral line."""
+    import json
+
+    from app.providers.llm import RawReply
+
+    from .judge_fakes import ScriptedBackend
+
+    class NoGrounding(ScriptedBackend):
+        async def generate(self, req, timeout_ms):
+            if req.agent == "answer_composer":
+                return RawReply(json.dumps({"answer": "", "citations": [], "grounded": False, "needs_human": True,
+                                            "reason": "not in sources"}), model_version="scripted")
+            return await super().generate(req, timeout_ms)
+
+    ctx = make_ctx(backend=NoGrounding())
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Mei", "Can I use the cream on my eczema?")
+        [g] = await groups(rt)
+        assert (g.route, g.status) == ("HOST", "needs_review")
+        st = await rt.pd._state()
+        [q] = [q for q in st.questions if q.group_id == g.group_id]
+        assert q.answer == ctx.pack.notices.host_deferrals["sensitive"]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_a_later_verified_draft_takes_the_intents_route_again():
+    """D-135 (comment-flow CF11): the first draft timed out, so the price group waited on the host's list;
+    when a later asker brings a verified draft, the group is AUTO again and the answer is posted."""
+    from .judge_fakes import ScriptedBackend
+
+    class FirstComposerFails(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.first = True
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "answer_composer" and self.first:
+                self.first = False
+                raise LLMError("timeout")
+            return await super().generate(req, timeout_ms)
+
+    ctx = make_ctx(backend=FirstComposerFails())
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        assert (g.route, g.route_reason) == ("HOST", "no_verified_answer")
+        await rt.ctx.scheduler.advance(3000)
+        await say(rt, "Kumar", "How much is the cream?")
+        [g] = await groups(rt)
+        assert (g.route, g.route_reason, g.status) == ("AUTO", "intent", "auto_answered")
+        assert len(await messages(rt)) == 1
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

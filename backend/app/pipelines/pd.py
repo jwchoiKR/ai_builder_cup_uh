@@ -112,13 +112,19 @@ class PdDirector:
                                                   slot.pinned))
                 continue
             a = await rt.get_answer(g.answer_id)
+            if g.status == "needs_review" and g.route_reason == "no_verified_answer":
+                # D-135: no verified answer: the host says so honestly instead of guessing
+                kind = "sensitive" if rt.intent(g.intent).sensitive else "general"
+                questions.append(pdl.Question(g.group_id, g.canonical_question, rt.ctx.pack.notices.host_deferrals[kind],
+                                              "answer", askers, slot.pinned))
+                continue
             if a is None or not a.verified:
                 continue  # still drafting: it waits in the list, no card yet
             if g.status == "auto_answered":  # AI answered in chat, many asked: the host reads it out
                 if g.group_id not in self.mentioned:
                     questions.append(pdl.Question(g.group_id, g.canonical_question, a.text, "read", askers,
                                                   slot.pinned))
-            elif not a.needs_human:
+            else:  # D-135: a sensitive question with a verified draft shows the draft (it is on the sheet)
                 questions.append(pdl.Question(g.group_id, g.canonical_question, a.text, "answer", askers,
                                               slot.pinned))
         promos = []

@@ -223,6 +223,7 @@ class LexiconData(BaseModel):
     prefix_match: int
     patterns: LexiconPatterns
     reactions: list[str]
+    exclusion_cues: list[str]  # "not cream", "without the ampoule": the product is excluded, not meant
 
 
 class LangPack(BaseModel):
@@ -299,3 +300,4 @@ class NoticesFile(BaseModel):
     field_labels: dict[str, str]
     operator_quick_replies: list[QuickReply]
     host_cue_presets: list[CuePreset]
+    host_deferrals: dict[Literal["general", "sensitive"], str]  # D-135: no verified answer, said honestly

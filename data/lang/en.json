@@ -432,6 +432,13 @@
       "yay",
       "yes",
       "yesss"
+    ],
+    "exclusion_cues": [
+      "not",
+      "no",
+      "without",
+      "except",
+      "instead of"
     ]
   }
 }
