@@ -83,7 +83,7 @@ async def test_fact_checker_prefix_stays_stable_across_finals(catalog, prompts):
     requests = []
 
     class Client:
-        fast = SimpleNamespace(model="gemini-3.5-flash-lite", thinking_level="MINIMAL")
+        fast = facts = SimpleNamespace(model="gemini-3.5-flash-lite", thinking_level="MINIMAL")
 
         async def call(self, req):
             requests.append(req)

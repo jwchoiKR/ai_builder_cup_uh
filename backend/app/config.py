@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     LLM_QUALITY_MODEL: str = "gemini-3.8-flash"
     LLM_QUALITY_THINKING: ThinkingLevel = "MEDIUM"
     COMPOSER_THINKING: ThinkingLevel = "LOW"  # per-agent override for AnswerComposer (D-067)
+    # D-128: per-agent overrides of LLM_FAST_THINKING (thinking-level comparison, docs/eval/models/README.md)
+    COMPLIANCE_THINKING: ThinkingLevel = "LOW"
+    CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
+    FACTS_THINKING: ThinkingLevel = "MINIMAL"
+    TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1
     LLM_CONTEXT_CACHE: bool = True  # measured 10/5: fact checker cached share 44% -> 72.5%, accuracy and latency unchanged
     LLM_CONTEXT_CACHE_TTL_SEC: int = 3600  # request session duration overrides this fallback

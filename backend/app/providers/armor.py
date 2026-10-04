@@ -21,6 +21,7 @@ Verdict = Literal["pass", "blocked", "unscreened"]
 
 class Armor(Protocol):
     async def screen(self, text: str) -> tuple[Verdict, str]: ...
+    async def warm_up(self) -> None: ...
 
 
 class NoArmor:
@@ -28,6 +29,9 @@ class NoArmor:
 
     async def screen(self, text: str) -> tuple[Verdict, str]:
         return "pass", "armor off"
+
+    async def warm_up(self) -> None:
+        return None
 
 
 class ModelArmorClient:
@@ -45,8 +49,9 @@ class ModelArmorClient:
         import google.auth
         from google.auth.transport.requests import Request
 
-        if self._creds is None:
-            self._creds, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+        if self._creds is None:  # sync lookup (metadata server on Cloud Run): off the event loop
+            self._creds, _ = await asyncio.to_thread(
+                google.auth.default, scopes=["https://www.googleapis.com/auth/cloud-platform"])
         if not self._creds.valid:
             await asyncio.to_thread(self._creds.refresh, Request())
         return self._creds.token
@@ -62,6 +67,14 @@ class ModelArmorClient:
                      if '"matchState": "MATCH_FOUND"' in json.dumps(f)]
             return "blocked", ", ".join(found) or "match found"
         return "pass", "no match"
+
+    async def warm_up(self) -> None:
+        """At startup: the first call fetches a token and opens the connection, which can take longer than
+        MODEL_ARMOR_TIMEOUT_MS and would leave the first viewer comment unscreened (seen on Cloud Run)."""
+        try:
+            await self.screen("warm up")
+        except Exception as e:  # noqa: BLE001
+            log.warning("Model Armor warm-up failed: %s", e)
 
 
 def make_armor(settings: Settings) -> Armor:

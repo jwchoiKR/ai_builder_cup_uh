@@ -148,7 +148,7 @@ class FactChecker:
             "utterance_text": inputs.utterance_text(inp.utterance),
         }, {"current_product_compact_json", "passages_json"})
         res = await self.llm.call(LLMRequest(
-            agent=self.name, model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
+            agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
             user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=inp.session_id,
             cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),

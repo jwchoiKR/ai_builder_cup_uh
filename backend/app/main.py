@@ -44,6 +44,8 @@ async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
             "fast": {"id": ctx.llm.fast.model, "thinking": ctx.llm.fast.thinking_level},
             "quality": {"id": ctx.llm.quality.model, "thinking": ctx.llm.quality.thinking_level},
             "composer": {"id": ctx.llm.composer.model, "thinking": ctx.llm.composer.thinking_level},
+            "agent_thinking": {name: getattr(ctx.llm, name).thinking_level  # D-128
+                               for name in ("compliance", "context", "facts", "triage")},
             "warmup": ctx.llm.warmup_status,
         },
         "judge_mode": s.JUDGE_MODE,
@@ -112,10 +114,12 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         warmup = asyncio.create_task(ctx.llm.warm_up())
+        armor_warmup = asyncio.create_task(ctx.armor.warm_up())
         try:
             yield
         finally:
             warmup.cancel()
+            armor_warmup.cancel()
             ctx.runtimes.shutdown()
             ctx.scheduler.shutdown()
             await ctx.llm.aclose()
