@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { api } from "../../app/api";
+import { useT } from "../../app/i18n";
 import { Button, Eyebrow } from "../../components";
 import { useAction, useOperator } from "./context";
 import styles from "./operator.module.css";
@@ -40,6 +41,7 @@ export function ConfirmDialog({
   onConfirm: () => Promise<unknown>;
   onClose: () => void;
 }) {
+  const t = useT();
   const { busy, error, run } = useAction();
   return (
     <Modal
@@ -47,7 +49,7 @@ export function ConfirmDialog({
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("Cancel")}</Button>
           <Button
             variant={danger ? "danger" : "primary"}
             disabled={busy}
@@ -68,6 +70,7 @@ export function ConfirmDialog({
 
 /** "Post notice": editable text prefilled from templates/notices.json (§8.13). */
 export function NoticeDialog({ alertId, onClose }: { alertId: string; onClose: () => void }) {
+  const t = useT();
   const { sid } = useOperator();
   const [text, setText] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -85,11 +88,11 @@ export function NoticeDialog({ alertId, onClose }: { alertId: string; onClose: (
   }, [sid, alertId]);
   return (
     <Modal
-      title="Post notice"
+      title={t("Post notice")}
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("Cancel")}</Button>
           <Button
             variant="primary"
             disabled={busy || !text.trim()}
@@ -97,19 +100,19 @@ export function NoticeDialog({ alertId, onClose }: { alertId: string; onClose: (
               if (await run(() => api.postNotice(sid, alertId, text.trim()))) onClose();
             }}
           >
-            Post notice
+            {t("Post notice")}
           </Button>
         </>
       }
     >
-      <p className={styles.muted}>Pinned in the viewer chat for 60 s, labelled "Correction".</p>
+      <p className={styles.muted}>{t('Pinned in the viewer chat for 60 s, labelled "Correction".')}</p>
       <textarea
         className={styles.textarea}
         rows={4}
         value={text}
-        placeholder={loaded ? "" : "Loading template…"}
+        placeholder={loaded ? "" : t("Loading template…")}
         onChange={(e) => setText(e.target.value)}
-        aria-label="Notice text"
+        aria-label={t("Notice text")}
       />
       {error && <p className={styles.error}>{error}</p>}
     </Modal>
@@ -118,6 +121,7 @@ export function NoticeDialog({ alertId, onClose }: { alertId: string; onClose: (
 
 /** Passage text behind a citation chip (§12.4.7). */
 export function CitationSheet({ passageId, quote, onClose }: { passageId: string; quote?: string; onClose: () => void }) {
+  const t = useT();
   const { catalog } = useOperator();
   const p = catalog?.passages?.[passageId];
   const product = catalog?.products.find((x) => x.product_id === p?.product_id);
@@ -127,21 +131,21 @@ export function CitationSheet({ passageId, quote, onClose }: { passageId: string
     return () => window.removeEventListener("keydown", on);
   }, [onClose]);
   return (
-    <aside className={styles.sheet} role="dialog" aria-label="Source passage">
+    <aside className={styles.sheet} role="dialog" aria-label={t("Source passage")}>
       <header className={styles.sheetHeader}>
         <div>
-          <Eyebrow>{passageId.startsWith("PROMO#") ? "Active promotion" : "Product sheet"}</Eyebrow>
+          <Eyebrow>{passageId.startsWith("PROMO#") ? t("Active promotion") : t("Product sheet")}</Eyebrow>
           <h2 className={styles.dialogTitle}>{p?.section ?? passageId}</h2>
           {product && <span className={styles.muted}>{product.name} · {p?.doc}</span>}
         </div>
-        <button type="button" className={styles.iconBtn} onClick={onClose} aria-label="Close source">
+        <button type="button" className={styles.iconBtn} onClick={onClose} aria-label={t("Close source")}>
           <X size={16} aria-hidden />
         </button>
       </header>
-      <p className={styles.sheetText}>{p?.text ?? quote ?? "Passage text is not available."}</p>
+      <p className={styles.sheetText}>{p?.text ?? quote ?? t("Passage text is not available.")}</p>
       {quote && p && (
         <>
-          <Eyebrow>Quoted</Eyebrow>
+          <Eyebrow>{t("Quoted")}</Eyebrow>
           <blockquote className={styles.quote}>{quote}</blockquote>
         </>
       )}

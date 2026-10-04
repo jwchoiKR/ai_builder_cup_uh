@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { useState } from "react";
 
 import { api } from "../../app/api";
+import { useT } from "../../app/i18n";
 import { alertLog, formatMmSs, onAirProduct, recentTranscripts, runsheetOf } from "../../app/selectors";
 import { Button, Chip } from "../../components";
 import { useAction, useOperator } from "./context";
@@ -23,21 +24,22 @@ export function RightRail() {
 }
 
 function LiveTranscript() {
+  const tr = useT();
   const { state, catalog } = useOperator();
   const lines = recentTranscripts(state, 20);
   return (
-    <section className={styles.block} data-testid="op-transcript" aria-label="Live transcript">
-      <h2 className={styles.blockTitle}>Live transcript</h2>
+    <section className={styles.block} data-testid="op-transcript" aria-label={tr("Live transcript")}>
+      <h2 className={styles.blockTitle}>{tr("Live transcript")}</h2>
       {state.interim && <p className={styles.interim}>{state.interim.text}</p>}
       {lines.length === 0 && !state.interim ? (
-        <p className={styles.empty}>Waiting for the host.</p>
+        <p className={styles.empty}>{tr("Waiting for the host.")}</p>
       ) : (
         <ol className={styles.transcriptList}>
           {lines.map((t) => (
             <li key={t.transcript_id} data-testid={`op-transcript-${t.transcript_id}`}>
               <p>{t.text}</p>
               <div className={styles.commentChips}>
-                {transcriptChips(state, catalog, t).map((c, i) => (
+                {transcriptChips(state, catalog, t, tr).map((c, i) => (
                   <Chip key={i} tone={c.tone}>
                     {c.text}
                   </Chip>
@@ -52,14 +54,15 @@ function LiveTranscript() {
 }
 
 function HostCuePanel() {
+  const t = useT();
   const { sid, state, catalog } = useOperator();
   const [text, setText] = useState("");
   const act = useAction();
   const cue = state.session?.cue;
   const presets = catalog?.notices?.host_cue_presets ?? [];
   return (
-    <section className={styles.block} data-testid="op-cue" aria-label="Host cue">
-      <h2 className={styles.blockTitle}>Host cue</h2>
+    <section className={styles.block} data-testid="op-cue" aria-label={t("Host cue")}>
+      <h2 className={styles.blockTitle}>{t("Host cue")}</h2>
       <div className={styles.presetRow}>
         {presets.map((p) => (
           <Button key={p.cue_id} size="sm" disabled={act.busy} onClick={() => act.run(() => api.sendCue(sid, { preset_id: p.cue_id }))}>
@@ -74,17 +77,17 @@ function HostCuePanel() {
           if (text.trim() && (await act.run(() => api.sendCue(sid, { text: text.trim() })))) setText("");
         }}
       >
-        <input className={styles.input} value={text} maxLength={200} placeholder="Cue for the host" aria-label="Cue text" onChange={(e) => setText(e.target.value)} />
+        <input className={styles.input} value={text} maxLength={200} placeholder={t("Cue for the host")} aria-label={t("Cue text")} onChange={(e) => setText(e.target.value)} />
         <Button size="sm" type="submit" variant="primary" disabled={act.busy || !text.trim()}>
-          Send
+          {t("Send")}
         </Button>
       </form>
       {cue && cue.status !== "cleared" && (
         <div className={styles.currentCue}>
-          <Chip tone={cue.status === "done" ? "ok" : "accent"}>{cue.status === "done" ? "Done" : "Active"}</Chip>
+          <Chip tone={cue.status === "done" ? "ok" : "accent"}>{cue.status === "done" ? t("Done") : t("Active")}</Chip>
           <span>{cue.text}</span>
           <Button size="sm" variant="ghost" disabled={act.busy} onClick={() => act.run(() => api.clearCue(sid, cue.cue_id))}>
-            Clear
+            {t("Clear")}
           </Button>
         </div>
       )}
@@ -94,6 +97,7 @@ function HostCuePanel() {
 }
 
 function BannersPanel() {
+  const t = useT();
   const { sid, state, catalog, now } = useOperator();
   const [notice, setNotice] = useState("");
   const act = useAction();
@@ -103,8 +107,8 @@ function BannersPanel() {
   const live = state.session?.status === "live";
   const pinned = state.session?.pinned_notice;
   return (
-    <section className={styles.block} data-testid="op-promos" aria-label="Banners & notices">
-      <h2 className={styles.blockTitle}>Banners &amp; notices</h2>
+    <section className={styles.block} data-testid="op-promos" aria-label={t("Banners & notices")}>
+      <h2 className={styles.blockTitle}>{t("Banners & notices")}</h2>
       <ul className={styles.promoList}>
         {promos.map((p) => {
           const a = active.get(p.promo_id);
@@ -117,12 +121,12 @@ function BannersPanel() {
                     {formatMmSs(a.ends_at - now)}
                   </Chip>
                   <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.stopPromo(sid, p.promo_id))}>
-                    Stop
+                    {t("Stop")}
                   </Button>
                 </>
               ) : (
                 <Button size="sm" disabled={act.busy || !live} onClick={() => act.run(() => api.startPromo(sid, p.promo_id))}>
-                  Start
+                  {t("Start")}
                 </Button>
               )}
             </li>
@@ -136,17 +140,17 @@ function BannersPanel() {
           if (notice.trim() && (await act.run(() => api.pinNotice(sid, notice.trim())))) setNotice("");
         }}
       >
-        <input className={styles.input} value={notice} maxLength={300} placeholder="Pinned notice for viewers" aria-label="Pinned notice" onChange={(e) => setNotice(e.target.value)} />
+        <input className={styles.input} value={notice} maxLength={300} placeholder={t("Pinned notice for viewers")} aria-label={t("Pinned notice")} onChange={(e) => setNotice(e.target.value)} />
         <Button size="sm" type="submit" disabled={act.busy || !notice.trim()}>
-          Pin
+          {t("Pin")}
         </Button>
       </form>
       {pinned && (
         <div className={styles.currentCue}>
-          <Chip tone="accent">Pinned</Chip>
+          <Chip tone="accent">{t("Pinned")}</Chip>
           <span>{pinned}</span>
           <Button size="sm" variant="ghost" disabled={act.busy} onClick={() => act.run(() => api.unpinNotice(sid))}>
-            Unpin
+            {t("Unpin")}
           </Button>
         </div>
       )}
@@ -156,13 +160,14 @@ function BannersPanel() {
 }
 
 function QuickReplies() {
+  const t = useT();
   const { state, catalog } = useOperator();
   const [copied, setCopied] = useState<string | null>(null);
   const product = onAirProduct(state, catalog);
   const replies = catalog?.notices?.operator_quick_replies ?? [];
   return (
-    <section className={styles.block} aria-label="Quick replies">
-      <h2 className={styles.blockTitle}>Quick replies</h2>
+    <section className={styles.block} aria-label={t("Quick replies")}>
+      <h2 className={styles.blockTitle}>{t("Quick replies")}</h2>
       <ul className={styles.quickList}>
         {replies.map((r) => {
           const text = fillProductName(r.text, product?.name ?? null);
@@ -182,7 +187,7 @@ function QuickReplies() {
                 }}
               >
                 <Copy size={14} aria-hidden />
-                {copied === r.reply_id ? "Copied" : "Copy"}
+                {copied === r.reply_id ? t("Copied") : t("Copy")}
               </Button>
             </li>
           );
@@ -193,14 +198,15 @@ function QuickReplies() {
 }
 
 function AlertLogPanel() {
+  const t = useT();
   const { state, catalog } = useOperator();
   const log = alertLog(state);
   const start = state.session?.started_at ?? 0;
   return (
-    <section className={styles.block} data-testid="op-alert-log" aria-label="Alert log">
-      <h2 className={styles.blockTitle}>Alert log</h2>
+    <section className={styles.block} data-testid="op-alert-log" aria-label={t("Alert log")}>
+      <h2 className={styles.blockTitle}>{t("Alert log")}</h2>
       {log.length === 0 ? (
-        <p className={styles.empty}>No alerts yet.</p>
+        <p className={styles.empty}>{t("No alerts yet.")}</p>
       ) : (
         <ul className={styles.logList}>
           {log.map((a) => {
@@ -209,14 +215,14 @@ function AlertLogPanel() {
               <li key={a.alert_id}>
                 <span className={["tabular", styles.muted].join(" ")}>{formatMmSs((a.shown_at ?? a.created_at) - start)}</span>
                 <Chip tone={a.kind === "compliance" ? "risk" : "fact"}>
-                  {a.kind === "compliance" ? a.rule_id : `${sentenceCase(fieldLabel(catalog, a.field))}`}
+                  {a.kind === "compliance" ? a.rule_id : `${sentenceCase(t(fieldLabel(catalog, a.field)))}`}
                 </Chip>
                 <span className={styles.logText}>
                   {a.kind === "compliance" ? `“${a.span}”` : `${a.stated_value} → ${a.correct_value}`}
                 </span>
                 <span className={styles.muted}>
-                  {alertOutcome(a)}
-                  {lat !== null ? ` · shown ${seconds1(lat)} s after speech` : ""}
+                  {alertOutcome(a, t)}
+                  {lat !== null ? ` · ${t("shown {s} s after speech", { s: seconds1(lat) })}` : ""}
                 </span>
               </li>
             );
@@ -228,14 +234,15 @@ function AlertLogPanel() {
 }
 
 function AgentCalls() {
+  const t = useT();
   const { state } = useOperator();
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   return (
-    <section className={styles.block} aria-label="Agent calls">
+    <section className={styles.block} aria-label={t("Agent calls")}>
       <button type="button" className={styles.collapse} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         {open ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
-        <span className={styles.blockTitle}>Agent calls</span>
+        <span className={styles.blockTitle}>{t("Agent calls")}</span>
         <span className={["tabular", styles.muted].join(" ")}>{state.agentCalls.length}</span>
       </button>
       {open && (

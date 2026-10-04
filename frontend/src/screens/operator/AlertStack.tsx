@@ -3,6 +3,7 @@ import { AlertTriangle, CircleAlert, Info, ShieldAlert, X } from "lucide-react";
 import { useState } from "react";
 
 import { api } from "../../app/api";
+import { useT } from "../../app/i18n";
 import type { Alert } from "../../app/types";
 import { Button, Chip } from "../../components";
 import { useAction, useOperator } from "./context";
@@ -24,13 +25,14 @@ import {
 import styles from "./operator.module.css";
 
 export function AlertStack() {
+  const t = useT();
   const { state, catalog, now } = useOperator();
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const alerts = stackAlerts(state, now);
-  const system = systemCards(state, catalog, now).filter((c) => !dismissed.has(c.key));
+  const system = systemCards(state, catalog, now, t).filter((c) => !dismissed.has(c.key));
   if (!alerts.length && !system.length) return null;
   return (
-    <section className={styles.alertStack} aria-label="Alert stack">
+    <section className={styles.alertStack} aria-label={t("Alert stack")}>
       {alerts.map((a) =>
         a.kind === "compliance" ? <ComplianceCard key={a.alert_id} alert={a} /> : <FactCard key={a.alert_id} alert={a} />,
       )}
@@ -42,12 +44,13 @@ export function AlertStack() {
 }
 
 function ComplianceCard({ alert: a }: { alert: Alert }) {
+  const t = useT();
   const { sid, catalog, now } = useOperator();
   const [notice, setNotice] = useState(false);
   const act = useAction();
   const state = alertCardState(a);
   const rule = ruleInfo(catalog, a.rule_id);
-  const corrected = correctedLine(a);
+  const corrected = correctedLine(a, t);
   const cls = [styles.alertCard, styles.riskCard, state === "escalated" && styles.escalated, state === "corrected" && styles.correctedCard]
     .filter(Boolean)
     .join(" ");
@@ -55,9 +58,9 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
     <article className={cls} data-testid={`op-alert-${a.alert_id}`} data-kind="compliance" data-state={state}>
       <header className={styles.alertHead}>
         <ShieldAlert size={16} aria-hidden />
-        <span className={styles.alertTitle}>{complianceTitle(a, now)}</span>
-        <Chip tone="risk">{a.severity ?? "HIGH"}</Chip>
-        {a.unverified && <Chip tone="fact">AI check unavailable</Chip>}
+        <span className={styles.alertTitle}>{complianceTitle(a, now, t)}</span>
+        <Chip tone="risk">{t(a.severity ?? "HIGH")}</Chip>
+        {a.unverified && <Chip tone="fact">{t("AI check unavailable")}</Chip>}
       </header>
       {corrected ? (
         <p className={styles.alertText}>{corrected}</p>
@@ -65,7 +68,7 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
         <>
           <blockquote className={styles.span}>“{a.span}”</blockquote>
           <p className={styles.alertMeta}>
-            Rule:{" "}
+            {t("Rule:")}{" "}
             {catalog?.policy_pdf_url ? (
               <a href={catalog.policy_pdf_url} target="_blank" rel="noreferrer">
                 {rule?.title ?? a.rule_id}
@@ -78,21 +81,21 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
               </>
             )}
           </p>
-          {a.say_instead && <p className={styles.alertMeta}>Say: “{a.say_instead}”</p>}
+          {a.say_instead && <p className={styles.alertMeta}>{t("Say:")} “{a.say_instead}”</p>}
           <p className={styles.helper}>
             {a.severity === "MEDIUM"
-              ? "The host is seeing a correction banner above the prompter."
-              : "The host is seeing a full-screen correction prompt."}
+              ? t("The host is seeing a correction banner above the prompter.")
+              : t("The host is seeing a full-screen correction prompt.")}
           </p>
           <div className={styles.actions}>
             <Button size="sm" variant="danger" disabled={act.busy} onClick={() => act.run(() => api.alertCue(sid, a.alert_id))}>
-              Send correction cue
+              {t("Send correction cue")}
             </Button>
             <Button size="sm" onClick={() => setNotice(true)}>
-              Post notice
+              {t("Post notice")}
             </Button>
             <Button size="sm" variant="ghost" disabled={act.busy} onClick={() => act.run(() => api.dismissAlert(sid, a.alert_id))}>
-              Dismiss false alert
+              {t("Dismiss false alert")}
             </Button>
           </div>
           {act.error && <p className={styles.error}>{act.error}</p>}
@@ -104,39 +107,40 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
 }
 
 function FactCard({ alert: a }: { alert: Alert }) {
+  const t = useT();
   const { sid, catalog } = useOperator();
   const [notice, setNotice] = useState(false);
   const act = useAction();
   const state = alertCardState(a);
-  const label = fieldLabel(catalog, a.field);
-  const corrected = correctedLine(a);
+  const label = t(fieldLabel(catalog, a.field));
+  const corrected = correctedLine(a, t);
   const cls = [styles.alertCard, styles.factCard, state === "corrected" && styles.correctedCard].filter(Boolean).join(" ");
   return (
     <article className={cls} data-testid={`op-alert-${a.alert_id}`} data-kind="fact" data-state={state}>
       <header className={styles.alertHead}>
         <CircleAlert size={16} aria-hidden />
         <span className={styles.alertTitle}>
-          {sentenceCase(label)} correction · {a.stated_value} → {a.correct_value}
+          {t("{field} correction", { field: sentenceCase(label) })} · {a.stated_value} → {a.correct_value}
         </span>
-        {state === "hidden_from_host" && <Chip tone="risk">Not corrected</Chip>}
+        {state === "hidden_from_host" && <Chip tone="risk">{t("Not corrected")}</Chip>}
       </header>
       {corrected ? (
         <p className={styles.alertText}>{corrected}</p>
       ) : (
         <>
-          <p className={styles.alertMeta}>The {label} differs from the host's statement.</p>
-          <p className={styles.alertMeta}>Source: {sourceLabel(catalog, a.passage_id)}</p>
+          <p className={styles.alertMeta}>{t("The {field} differs from the host's statement.", { field: label })}</p>
+          <p className={styles.alertMeta}>{t("Source:")} {sourceLabel(catalog, a.passage_id, t)}</p>
           <div className={styles.actions}>
             <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.resendFactNote(sid, a.alert_id))}>
-              Resend to host
+              {t("Resend to host")}
             </Button>
             {a.field && PURCHASE_FIELDS.has(a.field) && (
               <Button size="sm" onClick={() => setNotice(true)}>
-                Post notice
+                {t("Post notice")}
               </Button>
             )}
             <Button size="sm" variant="ghost" disabled={act.busy} onClick={() => act.run(() => api.dismissAlert(sid, a.alert_id))}>
-              Dismiss
+              {t("Dismiss")}
             </Button>
           </div>
           {act.error && <p className={styles.error}>{act.error}</p>}
@@ -148,6 +152,7 @@ function FactCard({ alert: a }: { alert: Alert }) {
 }
 
 function SystemAlertCard({ card, onDismiss }: { card: SystemCard; onDismiss: () => void }) {
+  const t = useT();
   const { sid, catalog } = useOperator();
   const act = useAction();
   const Icon = card.kind === "overtime" ? Info : AlertTriangle;
@@ -156,7 +161,7 @@ function SystemAlertCard({ card, onDismiss }: { card: SystemCard; onDismiss: () 
       <header className={styles.alertHead}>
         <Icon size={16} aria-hidden />
         <span className={styles.alertTitle}>{card.text}</span>
-        <button type="button" className={styles.iconBtn} onClick={onDismiss} aria-label="Dismiss">
+        <button type="button" className={styles.iconBtn} onClick={onDismiss} aria-label={t("Dismiss")}>
           <X size={14} aria-hidden />
         </button>
       </header>
@@ -167,7 +172,7 @@ function SystemAlertCard({ card, onDismiss }: { card: SystemCard; onDismiss: () 
             disabled={act.busy}
             onClick={() => act.run(() => api.sendCue(sid, { text: missingPointsCue(catalog, card.missingTexts ?? []) }))}
           >
-            Send cue
+            {t("Send cue")}
           </Button>
         </div>
       )}

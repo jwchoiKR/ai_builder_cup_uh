@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronRight, Circle } from "lucide-react";
 import { useState } from "react";
 
 import { api } from "../../app/api";
+import { useT } from "../../app/i18n";
 import { formatMmSs, nextProduct, onAirProduct, priceView, runOfShow, type RunOfShowItem } from "../../app/selectors";
 import { Button, Chip, Eyebrow, StatusDot } from "../../components";
 import { Viewer } from "../Viewer";
@@ -12,19 +13,20 @@ import { switchSecondsLeft, undoRemainingMs } from "./model";
 import styles from "./operator.module.css";
 
 export function ViewerPreview() {
+  const t = useT();
   const { sid, state, catalog } = useOperator();
   const product = onAirProduct(state, catalog);
   const price = priceView(state, catalog, product);
   return (
-    <section className={styles.block} aria-label="Viewer preview">
-      <h2 className={styles.blockTitle}>Viewer preview</h2>
+    <section className={styles.block} aria-label={t("Viewer preview")}>
+      <h2 className={styles.blockTitle}>{t("Viewer preview")}</h2>
       <div className={styles.phoneFrame}>
         <div className={styles.phoneScaled}>
           <Viewer sessionId={sid} embedded />
         </div>
       </div>
       <div className={styles.previewProduct}>
-        <span className={styles.previewName}>{product?.name ?? "No product on air"}</span>
+        <span className={styles.previewName}>{product?.name ?? t("No product on air")}</span>
         {price && <span className={["tabular", styles.previewPrice].join(" ")}>{price.current}</span>}
       </div>
     </section>
@@ -39,6 +41,7 @@ const STATUS_LABEL: Record<RunOfShowItem["status"], string> = {
 };
 
 export function RunOfShow() {
+  const t = useT();
   const { sid, state, catalog, now } = useOperator();
   const items = runOfShow(state, catalog, now);
   const next = nextProduct(state, catalog);
@@ -52,10 +55,10 @@ export function RunOfShow() {
   const target = catalog?.products.find((p) => p.product_id === sw?.target_product_id);
 
   return (
-    <section className={styles.block} data-testid="op-run-of-show" aria-label="Run of show">
+    <section className={styles.block} data-testid="op-run-of-show" aria-label={t("Run of show")}>
       <div className={styles.blockHeader}>
-        <h2 className={styles.blockTitle}>Run of show</h2>
-        <span className={styles.muted}>{items.length} products</span>
+        <h2 className={styles.blockTitle}>{t("Run of show")}</h2>
+        <span className={styles.muted}>{t("{n} products", { n: items.length })}</span>
       </div>
       <ol className={styles.runList}>
         {items.map((item) => {
@@ -70,15 +73,15 @@ export function RunOfShow() {
                 <span className={styles.runName}>{item.product?.name ?? pid}</span>
                 {item.overtimeMs > 0 && item.status === "on_air" && (
                   <Chip tone="fact" className="tabular">
-                    Overtime +{formatMmSs(item.overtimeMs).replace(/^0(\d:)/, "$1")}
+                    {t("Overtime +{time}", { time: formatMmSs(item.overtimeMs).replace(/^0(\d:)/, "$1") })}
                   </Chip>
                 )}
               </div>
               <div className={styles.runStatus}>
                 {item.status === "on_air" && <StatusDot tone="ok" />}
-                <span>{STATUS_LABEL[item.status]}</span>
+                <span>{t(STATUS_LABEL[item.status])}</span>
                 <span className={["tabular", styles.muted].join(" ")}>
-                  {formatMmSs(item.elapsedMs)} / {formatMmSs(item.plannedMs)} planned
+                  {t("{elapsed} / {planned} planned", { elapsed: formatMmSs(item.elapsedMs), planned: formatMmSs(item.plannedMs) })}
                 </span>
               </div>
               <div className={styles.progress} aria-hidden>
@@ -96,7 +99,7 @@ export function RunOfShow() {
                 })}
               >
                 {expanded ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
-                {item.coveredRequired} / {item.requiredIds.length} required points covered
+                {t("{covered} / {total} required points covered", { covered: item.coveredRequired, total: item.requiredIds.length })}
               </button>
               {expanded && (
                 <ul className={styles.pointList}>
@@ -104,7 +107,7 @@ export function RunOfShow() {
                     <li key={p.point_id} className={covered.has(p.point_id) ? styles.pointDone : undefined}>
                       {covered.has(p.point_id) ? <Check size={14} aria-hidden /> : <Circle size={10} aria-hidden />}
                       <span>{p.text}</span>
-                      {item.requiredIds.includes(p.point_id) && <Eyebrow>Required</Eyebrow>}
+                      {item.requiredIds.includes(p.point_id) && <Eyebrow>{t("Required")}</Eyebrow>}
                     </li>
                   ))}
                 </ul>
@@ -115,16 +118,17 @@ export function RunOfShow() {
       </ol>
       {sw?.status === "pending" && pendingLeft !== null && (
         <div className={styles.switchPending} role="status">
-          <span className="tabular">Switching in {pendingLeft}s</span>
+          <span className="tabular">{t("Switching in {n}s", { n: pendingLeft })}</span>
           {target && <span className={styles.muted}>→ {target.name}</span>}
           <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.cancelSwitch(sid, "operator"))}>
-            Cancel switch
+            {t("Cancel switch")}
           </Button>
         </div>
       )}
       {sw?.status === "counting" && (
         <p className={styles.muted}>
-          Switch cue {sw.cue_count} heard{target ? ` · ${target.name}` : ""}
+          {t("Switch cue {n} heard", { n: sw.cue_count })}
+          {target ? ` · ${target.name}` : ""}
         </p>
       )}
       <div className={styles.actions}>
@@ -133,21 +137,21 @@ export function RunOfShow() {
           disabled={!live || !next || sw?.status === "pending" || act.busy}
           onClick={() => setConfirm(true)}
         >
-          Switch product
+          {t("Switch product")}
         </Button>
         {undoLeft > 0 && (
           <Button data-testid="op-undo" disabled={act.busy} onClick={() => act.run(() => api.undoSwitch(sid))}>
-            Undo switch <span className="tabular">({formatMmSs(undoLeft)})</span>
+            {t("Undo switch")} <span className="tabular">({formatMmSs(undoLeft)})</span>
           </Button>
         )}
       </div>
       {act.error && <p className={styles.error}>{act.error}</p>}
-      <p className={styles.footerNote}>AI prepares and checks. You stay in control.</p>
+      <p className={styles.footerNote}>{t("AI prepares and checks. You stay in control.")}</p>
       {confirm && next && (
         <ConfirmDialog
-          title="Switch product"
-          text={`Switch to ${next.name} now? The host prompter moves to the next product.`}
-          confirmLabel="Switch product"
+          title={t("Switch product")}
+          text={t("Switch to {product} now? The host prompter moves to the next product.", { product: next.name })}
+          confirmLabel={t("Switch product")}
           onConfirm={() => api.switchProduct(sid, next.product_id)}
           onClose={() => setConfirm(false)}
         />

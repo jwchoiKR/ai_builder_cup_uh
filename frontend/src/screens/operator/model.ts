@@ -1,7 +1,11 @@
 // Pure helpers for the operator control room (DEV_SPEC §12.4). No React here, so they are unit-tested.
+import { translate, type Translate } from "../../app/i18n";
 import { formatMmSs, onAirSegment, productById } from "../../app/selectors";
 import type { ClientState } from "../../app/state";
 import type { Alert, Answer, Catalog, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
+
+/** Default for the optional `t` of the label helpers below: English, as the tests expect. */
+const EN: Translate = (en, vars) => translate("en", en, vars);
 
 // ---- settings (values of §5 snapshotted on the session) -------------------------------------------
 
@@ -54,14 +58,14 @@ export function setLabel(set: SetOffer): string {
 }
 
 /** Product label of a group; a set-price question is about the set, so it shows the set label. */
-export function productLabel(catalog: Catalog | null, g: QuestionGroup): string {
+export function productLabel(catalog: Catalog | null, g: QuestionGroup, t: Translate = EN): string {
   if (g.intent === SET_INTENT) {
     const set = setOfferFor(catalog, g.product_id);
     if (set) return setLabel(set);
   }
   if (g.product_id) return productById(catalog, g.product_id)?.name ?? g.product_id;
   const scope = intentInfo(catalog, g.intent)?.product_scope;
-  return scope === "multi" ? "Both products" : scope === "none" ? "General" : "No product";
+  return scope === "multi" ? t("Both products") : scope === "none" ? t("General") : t("No product");
 }
 
 export function ruleInfo(catalog: Catalog | null, ruleId: string | null) {
@@ -69,17 +73,17 @@ export function ruleInfo(catalog: Catalog | null, ruleId: string | null) {
 }
 
 /** "Hydra Barrier Cream product sheet · Key facts", or "Active promotion" (§8.5). */
-export function sourceLabel(catalog: Catalog | null, passageId: string | null): string {
-  if (!passageId) return "Active promotion";
-  if (passageId.startsWith("PROMO#")) return "Active promotion";
+export function sourceLabel(catalog: Catalog | null, passageId: string | null, t: Translate = EN): string {
+  if (!passageId) return t("Active promotion");
+  if (passageId.startsWith("PROMO#")) return t("Active promotion");
   const p = catalog?.passages?.[passageId];
-  if (!p) return "Product sheet";
+  if (!p) return t("Product sheet");
   const product = productById(catalog, p.product_id);
-  return `${product ? `${product.name} product sheet` : "Product sheet"} · ${p.section}`;
+  return `${product ? t("{product} product sheet", { product: product.name }) : t("Product sheet")} · ${p.section}`;
 }
 
-export function citationLabel(section: string | null | undefined): string {
-  return `Product sheet · ${section ?? "source"}`;
+export function citationLabel(section: string | null | undefined, t: Translate = EN): string {
+  return `${t("Product sheet")} · ${section ?? t("source")}`;
 }
 
 export function seconds1(ms: number): string {
@@ -197,30 +201,30 @@ export function alertCardState(a: Alert): AlertCardState {
   return "active";
 }
 
-export function complianceTitle(a: Alert, now: number): string {
-  if (a.status === "corrected") return "Corrected";
-  if (a.escalated_at !== null) return `Not corrected · ${formatMmSs(now - (a.shown_at ?? a.created_at))}`;
-  return "Host correction required";
+export function complianceTitle(a: Alert, now: number, t: Translate = EN): string {
+  if (a.status === "corrected") return t("Corrected");
+  if (a.escalated_at !== null) return `${t("Not corrected")} · ${formatMmSs(now - (a.shown_at ?? a.created_at))}`;
+  return t("Host correction required");
 }
 
-export function correctedLine(a: Alert): string | null {
+export function correctedLine(a: Alert, t: Translate = EN): string | null {
   if (a.status !== "corrected" || a.resolved_at === null || a.shown_at === null) return null;
   const text = a.corrected_text ? ` · '${a.corrected_text}'` : "";
-  return `Corrected in ${seconds1(a.resolved_at - a.shown_at)} s${text}`;
+  return `${t("Corrected in {s} s", { s: seconds1(a.resolved_at - a.shown_at) })}${text}`;
 }
 
-export function alertOutcome(a: Alert): string {
+export function alertOutcome(a: Alert, t: Translate = EN): string {
   switch (a.status) {
     case "corrected":
-      return a.shown_at !== null && a.resolved_at !== null ? `Corrected in ${seconds1(a.resolved_at - a.shown_at)} s` : "Corrected";
+      return a.shown_at !== null && a.resolved_at !== null ? t("Corrected in {s} s", { s: seconds1(a.resolved_at - a.shown_at) }) : t("Corrected");
     case "dismissed":
-      return "Dismissed";
+      return t("Dismissed");
     case "active":
-      return a.escalated_at !== null || a.host_hidden_at !== null ? "Not corrected" : "Active";
+      return a.escalated_at !== null || a.host_hidden_at !== null ? t("Not corrected") : t("Active");
     case "cleared":
-      return "Cleared";
+      return t("Cleared");
     default:
-      return "Checking";
+      return t("Checking");
   }
 }
 
@@ -239,7 +243,7 @@ export interface SystemCard {
   missingTexts?: string[];
 }
 
-export function systemCards(state: ClientState, catalog: Catalog | null, now: number): SystemCard[] {
+export function systemCards(state: ClientState, catalog: Catalog | null, now: number, t: Translate = EN): SystemCard[] {
   const cards: SystemCard[] = [];
   for (const m of state.missingPoints) {
     const product = productById(catalog, m.product_id);
@@ -250,12 +254,12 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
     cards.push({
       key: `missing:${m.segment_id}`,
       kind: "missing_points",
-      text: `Switched with missing required points: ${texts.join("; ")}`,
+      text: t("Switched with missing required points: {points}", { points: texts.join("; ") }),
       missingTexts: texts,
     });
   }
   for (const j of state.judgeFailures) {
-    cards.push({ key: `judge:${j.transcript_id}`, kind: "judge_failed", text: "AI check unavailable for the last sentence" });
+    cards.push({ key: `judge:${j.transcript_id}`, kind: "judge_failed", text: t("AI check unavailable for the last sentence") });
   }
   const onAir = onAirSegment(state);
   for (const o of Object.values(state.overtime)) {
@@ -268,7 +272,10 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
     cards.push({
       key: `overtime:${o.segment_id}`,
       kind: "overtime",
-      text: `Overtime +${formatMmSs(overMs).replace(/^0(\d:)/, "$1")} on ${product?.name ?? o.product_id}`,
+      text: t("Overtime +{time} on {product}", {
+        time: formatMmSs(overMs).replace(/^0(\d:)/, "$1"),
+        product: product?.name ?? o.product_id,
+      }),
     });
   }
   return cards;
@@ -308,19 +315,19 @@ interface JudgeOutputLike {
 
 const CONTEXT_AGENTS = new Set(["context_judge", "utterance_judge", "judge_single"]);
 
-export function transcriptChips(state: ClientState, catalog: Catalog | null, t: Transcript): TranscriptChip[] {
+export function transcriptChips(state: ClientState, catalog: Catalog | null, t: Transcript, tr: Translate = EN): TranscriptChip[] {
   const chips: TranscriptChip[] = [];
   for (const a of Object.values(state.alerts)) {
     if (a.transcript_id !== t.transcript_id) continue;
     if (a.kind === "compliance" && a.status !== "cleared" && a.status !== "provisional") {
-      chips.push({ tone: "risk", text: a.rule_id ?? "compliance" });
+      chips.push({ tone: "risk", text: a.rule_id ?? tr("compliance") });
     } else if (a.kind === "fact") {
-      chips.push({ tone: "fact", text: `${fieldLabel(catalog, a.field)}` });
+      chips.push({ tone: "fact", text: `${tr(fieldLabel(catalog, a.field))}` });
     }
   }
   // D-088: a final joined with the previous unfinished one was judged on the joined text.
   const judged = t.judged_text ?? t.text;
-  if (t.merged_from_transcript_id) chips.push({ tone: "accent", text: "joined with previous" });
+  if (t.merged_from_transcript_id) chips.push({ tone: "accent", text: tr("joined with previous") });
   // The judge call that carries answer and prompter: context_judge in split3 (D-099).
   const call = state.agentCalls.find(
     (c) => CONTEXT_AGENTS.has(c.agent) && c.status === "ok" && c.input_preview === judged.slice(0, 300),
@@ -328,14 +335,14 @@ export function transcriptChips(state: ClientState, catalog: Catalog | null, t: 
   const out = (call?.output ?? null) as JudgeOutputLike | null;
   if (out?.answer?.is_answer && out.answer.matched_group_id) {
     const g = state.groups[out.answer.matched_group_id];
-    if (g) chips.push({ tone: "ok", text: `answered: ${g.canonical_question}` });
+    if (g) chips.push({ tone: "ok", text: tr("answered: {question}", { question: g.canonical_question }) });
   } else {
     const g = Object.values(state.groups).find((x) => x.host_verbal_answer_transcript_id === t.transcript_id);
-    if (g) chips.push({ tone: "ok", text: `answered: ${g.canonical_question}` });
+    if (g) chips.push({ tone: "ok", text: tr("answered: {question}", { question: g.canonical_question }) });
   }
   for (const pid of out?.prompter?.covered_point_ids ?? []) chips.push({ tone: "accent", text: pid });
   const cue = state.switchChips[t.transcript_id];
-  if (cue) chips.push({ tone: "ok", text: `switch cue ${cue}/${setting(state, "SWITCH_CONSECUTIVE_CUES")}` });
+  if (cue) chips.push({ tone: "ok", text: tr("switch cue {n}/{m}", { n: cue, m: setting(state, "SWITCH_CONSECUTIVE_CUES") }) });
   return chips;
 }
 

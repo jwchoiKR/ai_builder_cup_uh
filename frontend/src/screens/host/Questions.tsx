@@ -3,6 +3,7 @@
 import { CheckCheck, FileText, Inbox, MessagesSquare, Mic, Pin, Sparkles, Users } from "lucide-react";
 import { useRef } from "react";
 
+import { useT } from "../../app/i18n";
 import type { HostSlotView } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { answerSource } from "./hostSelectors";
@@ -12,32 +13,34 @@ import styles from "./host.module.css";
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
 
 function Tag({ tag }: { tag: HostSlotView["tag"] }) {
+  const t = useT();
   if (tag === "AI answered")
     return (
       <span className={cx(styles.qTag, styles.qTagAi)}>
         <CheckCheck aria-hidden />
-        AI answered
+        {t("AI answered")}
       </span>
     );
   if (tag === "From your PD")
     return (
       <span className={cx(styles.qTag, styles.qTagPd)}>
         <Pin aria-hidden />
-        From your PD
+        {t("From your PD")}
       </span>
     );
   return (
     <span className={styles.qTag}>
       <Mic aria-hidden />
-      For you
+      {t("For you")}
     </span>
   );
 }
 
 function Posting({ windowMs }: { windowMs: number }) {
+  const t = useT();
   return (
     <div className={styles.posting} role="status">
-      Posting answer…
+      {t("Posting answer…")}
       <span className={styles.progress} aria-hidden>
         <span className={styles.progressBar} style={{ animationDuration: `${windowMs}ms` }} />
       </span>
@@ -46,6 +49,7 @@ function Posting({ windowMs }: { windowMs: number }) {
 }
 
 function Item({ view, first, catalog }: { view: HostSlotView; first: boolean; catalog: Catalog | null }) {
+  const t = useT();
   const { group, answer, pending, tag } = view;
   const asking = group.unique_author_ids.length;
   const source = answerSource(catalog, answer);
@@ -56,7 +60,7 @@ function Item({ view, first, catalog }: { view: HostSlotView; first: boolean; ca
         <span className={styles.qIndex}>{String(view.index).padStart(2, "0")}</span>
         <span className={styles.qAsking}>
           <Users aria-hidden />
-          <span className="tabular">{asking} asking</span>
+          <span className="tabular">{t("{n} asking", { n: asking })}</span>
         </span>
         <Tag tag={tag} />
       </div>
@@ -65,7 +69,7 @@ function Item({ view, first, catalog }: { view: HostSlotView; first: boolean; ca
         <div className={styles.suggest}>
           <span className={styles.suggestLabel}>
             <Sparkles aria-hidden />
-            SUGGESTED ANSWER
+            {t("SUGGESTED ANSWER")}
           </span>
           <div className={styles.suggestText}>{answer.text}</div>
           {source && (
@@ -83,6 +87,7 @@ function Item({ view, first, catalog }: { view: HostSlotView; first: boolean; ca
 }
 
 export function Questions({ slots, catalog }: { slots: HostSlotView[]; catalog: Catalog | null }) {
+  const t = useT();
   const listRef = useRef<HTMLDivElement>(null);
   const shown = usePresence(slots, (s) => s.group.group_id);
   useFlip(listRef, [slots.map((s) => s.group.group_id).join("|")]);
@@ -90,14 +95,14 @@ export function Questions({ slots, catalog }: { slots: HostSlotView[]; catalog: 
   const firstId = slots[0]?.group.group_id;
 
   return (
-    <section className={styles.card} data-testid="host-questions" aria-label="Audience questions">
+    <section className={styles.card} data-testid="host-questions" aria-label={t("Audience questions")}>
       <header className={styles.cardHeader}>
         <span className={styles.cardTitle}>
           <MessagesSquare aria-hidden />
-          AUDIENCE QUESTIONS
+          {t("AUDIENCE QUESTIONS")}
         </span>
         <span className={styles.cardMeta}>
-          <span className={styles.topChip}>TOP {filled}</span>
+          <span className={styles.topChip}>{t("TOP {n}", { n: filled })}</span>
         </span>
       </header>
       {shown.length ? (
@@ -117,14 +122,14 @@ export function Questions({ slots, catalog }: { slots: HostSlotView[]; catalog: 
       ) : (
         <div className={styles.emptyQuestions}>
           <Inbox aria-hidden />
-          <span className={styles.emptyTitle}>You have the floor.</span>
-          <span className={styles.emptySub}>Your next audience question will appear here.</span>
+          <span className={styles.emptyTitle}>{t("You have the floor.")}</span>
+          <span className={styles.emptySub}>{t("Your next audience question will appear here.")}</span>
         </div>
       )}
       <footer className={styles.cardFooter}>
         <span className={styles.footerNote}>
           <Pin aria-hidden />
-          Questions stay in place while you speak
+          {t("Questions stay in place while you speak")}
         </span>
       </footer>
     </section>

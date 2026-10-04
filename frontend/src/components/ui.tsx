@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 import type { ConnectionStatus } from "../app/sse";
+import { useT } from "../app/i18n";
 import styles from "./ui.module.css";
 
 const cx = (...names: (string | false | null | undefined)[]) => names.filter(Boolean).join(" ");
@@ -91,11 +92,12 @@ export function StatusDot({
 
 /** "• Connected" / "Reconnecting…" (§12.9). */
 export function ConnectionLabel({ status }: { status: ConnectionStatus }) {
+  const t = useT();
   const ok = status === "connected";
   return (
     <span className={styles.connection} aria-live="polite">
       <StatusDot tone={ok ? "ok" : "off"} pulse={!ok} />
-      {ok ? "Connected" : "Reconnecting…"}
+      {ok ? t("Connected") : t("Reconnecting…")}
     </span>
   );
 }

@@ -3,6 +3,7 @@
 import { CornerDownRight, Mic, Pin, Sparkles, Store } from "lucide-react";
 import { useMemo } from "react";
 
+import { useT } from "../../app/i18n";
 import type { ChatItem } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
 import type { Message } from "../../app/types";
@@ -13,18 +14,19 @@ import styles from "./host.module.css";
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
 
 function ReplyBadge({ kind }: { kind: Message["kind"] }) {
+  const t = useT();
   if (kind === "ai_answer")
     return (
       <span className={styles.badge}>
         <Sparkles aria-hidden />
-        AI answer
+        {t("AI answer")}
       </span>
     );
   if (kind === "host_answer")
     return (
       <span className={styles.badge}>
         <Mic aria-hidden />
-        Host answer
+        {t("Host answer")}
       </span>
     );
   return (
@@ -49,6 +51,7 @@ export function alsoAnsweredIds(items: ChatItem[]): Set<string> {
 }
 
 function Row({ item, offset, alsoAnswered }: { item: ChatItem; offset: number; alsoAnswered: boolean }) {
+  const t = useT();
   if (item.kind === "message") {
     const m = item.message;
     return (
@@ -58,7 +61,7 @@ function Row({ item, offset, alsoAnswered }: { item: ChatItem; offset: number; a
         </span>
         <span>
           <ReplyBadge kind={m.kind} />{" "}
-          {m.kind === "correction_notice" && <span className={styles.chatName}>Correction</span>}
+          {m.kind === "correction_notice" && <span className={styles.chatName}>{t("Correction")}</span>}
           {m.text}
         </span>
         <span className={styles.chatTime}>
@@ -90,7 +93,7 @@ function Row({ item, offset, alsoAnswered }: { item: ChatItem; offset: number; a
       {alsoAnswered && item.replies.length === 0 && (
         <div className={cx(styles.reply, styles.alsoAnswered)} data-testid={`host-also-answered-${c.comment_id}`}>
           <CornerDownRight className={styles.replyArrow} aria-hidden size="1em" />
-          <span>Also answered: @{c.author_name}</span>
+          <span>{t("Also answered:")} @{c.author_name}</span>
         </div>
       )}
     </div>
@@ -108,15 +111,16 @@ export function Chat({
   connection: ConnectionStatus;
   serverOffsetMs: number;
 }) {
+  const t = useT();
   const ok = connection === "connected";
   const also = useMemo(() => alsoAnsweredIds(items), [items]);
   return (
-    <section className={styles.card} data-testid="host-chat" aria-label="Live chat">
+    <section className={styles.card} data-testid="host-chat" aria-label={t("Live chat")}>
       <header className={styles.cardHeader}>
-        <span className={styles.cardTitle}>LIVE CHAT</span>
+        <span className={styles.cardTitle}>{t("LIVE CHAT")}</span>
         <span className={styles.connection} aria-live="polite">
           <span className={cx(styles.connDot, !ok && styles.connDotOff)} aria-hidden />
-          {ok ? "Connected" : "Reconnecting…"}
+          {ok ? t("Connected") : t("Reconnecting…")}
         </span>
       </header>
       {pinnedNotice && (

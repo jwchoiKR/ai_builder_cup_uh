@@ -27,10 +27,14 @@ export function readStoredTheme(screen: ScreenKey, storage?: Storage | null): Th
   }
 }
 
-export function writeStoredTheme(screen: ScreenKey, theme: ThemeName, storage?: Storage | null): boolean {
+export type ThemePref = ThemeName | "system";
+
+/** Stores a theme, or removes it for "system" (the screen then follows the OS again). */
+export function writeStoredTheme(screen: ScreenKey, theme: ThemePref, storage?: Storage | null): boolean {
   try {
     const store = storage === undefined ? window.localStorage : storage;
-    store?.setItem(storageKey(screen), theme);
+    if (theme === "system") store?.removeItem(storageKey(screen));
+    else store?.setItem(storageKey(screen), theme);
     return true;
   } catch {
     return false;
@@ -51,8 +55,9 @@ export function resolveTheme(screen: ScreenKey, stored: ThemeName | null, prefer
   return d === "system" ? (prefersDark ? "dark" : "light") : d;
 }
 
-/** [theme, toggle, set]. "System" screens follow prefers-color-scheme until the user toggles. */
-export function useTheme(screen: ScreenKey): [ThemeName, () => void, (t: ThemeName) => void] {
+/** [theme, toggle, set, pref]. "System" screens follow prefers-color-scheme until the user picks a
+ *  theme; set("system") goes back to that. `pref` is what the Settings menu shows. */
+export function useTheme(screen: ScreenKey): [ThemeName, () => void, (t: ThemePref) => void, ThemePref] {
   const [stored, setStored] = useState<ThemeName | null>(() => readStoredTheme(screen));
   const [prefersDark, setPrefersDark] = useState(systemPrefersDark);
 
@@ -80,12 +85,12 @@ export function useTheme(screen: ScreenKey): [ThemeName, () => void, (t: ThemeNa
 
   const theme = resolveTheme(screen, stored, prefersDark);
   const set = useCallback(
-    (t: ThemeName) => {
+    (t: ThemePref) => {
       writeStoredTheme(screen, t);
-      setStored(t);
+      setStored(t === "system" ? null : t);
     },
     [screen],
   );
   const toggle = useCallback(() => set(theme === "dark" ? "light" : "dark"), [set, theme]);
-  return [theme, toggle, set];
+  return [theme, toggle, set, stored ?? "system"];
 }

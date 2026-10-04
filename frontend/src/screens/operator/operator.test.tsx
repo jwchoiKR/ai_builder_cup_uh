@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { setLang } from "../../app/i18n";
 import { emptyState, reduceSnapshot } from "../../app/state";
 import type { QuestionGroup, StateSnapshot } from "../../app/types";
 import { alert, answer, catalog, comment, group, message, snapshot, T0 } from "../../test/fixtures";
@@ -337,5 +338,17 @@ describe("Operator screen", () => {
     expect(within(desk).getByRole("button", { name: "Approve" })).toBeDisabled();
     expect(within(desk).getByText("Unverified draft: no citation")).toBeInTheDocument();
     expect(within(desk).getByRole("button", { name: "Edit reply" })).toBeEnabled();
+  });
+
+  it("shows header labels in Korean when the screen language is Korean (D-109)", async () => {
+    snap = snapshot();
+    setLang("ko");
+    try {
+      render(<Operator sessionId="ses_op_ko" />);
+      const header = await screen.findByTestId("op-header");
+      expect(within(header).getByText("라이브 컨트롤룸")).toBeInTheDocument();
+    } finally {
+      setLang("en");
+    }
   });
 });
