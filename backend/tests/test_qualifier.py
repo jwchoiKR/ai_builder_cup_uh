@@ -164,3 +164,25 @@ async def test_approved_wording_is_never_a_red_alert(env):
                                           "after 2 weeks")])
     await speak(rt, text)
     assert await compliance_alerts(rt) == []
+
+
+async def test_say_instead_with_a_test_number_carries_the_qualifier(env):
+    """D-131 (holdout H090): the judge copied the approved claim without its '*'. The host is told to say
+    the qualified line, so saying it word for word never raises the test-qualifier alert."""
+    rt, llm = env
+    text = "Your wrinkles will completely disappear."
+    llm.judge(text, violations=[violation("ASEAN-3-SKIN-AGEING", "wrinkles will completely disappear",
+                                          say="It helps keep skin hydrated for up to 24 hours.")])
+    await speak(rt, text)
+    [a] = await compliance_alerts(rt)
+    assert a.say_instead == "It helps keep skin hydrated for up to 24 hours in our in-house test."
+    assert qualifier.is_qualified(a.say_instead)
+
+
+async def test_say_instead_without_a_test_number_is_kept(env):
+    rt, llm = env
+    text = "It cures eczema."
+    llm.judge(text, violations=[violation("ASEAN-2D-DISEASE", "cures eczema", say="It helps relieve the feeling of dryness.")])
+    await speak(rt, text)
+    [a] = await compliance_alerts(rt)
+    assert a.say_instead == "It helps relieve the feeling of dryness."

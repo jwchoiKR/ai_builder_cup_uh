@@ -58,6 +58,18 @@ def spoken_claim(text: str) -> str:
     return claim + " in our in-house test."
 
 
+def qualified_say(say: str, on_air, catalog: Catalog) -> str:
+    """D-131 (holdout H090): a say-instead line with a number of an in-house result carries the qualifier,
+    even when the model copied the approved claim without its '*'. Otherwise the host gets a
+    test-qualifier alert for saying exactly the line they were given."""
+    say = spoken_claim(say)
+    if on_air is None or qualifier.is_qualified(say):
+        return say
+    r = qualifier.approved_replacement(say, on_air, [p for p in catalog.products if p is not on_air])
+    numbers = {w for w in content_words(say) if w.isdigit()}
+    return r.say if r is not None and numbers & set(r.numbers) else say
+
+
 def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
     """§8.4.3: the on-air product's first approved claim, with the in-house-test qualifier."""
     return spoken_claim(catalog.approved_claims(product_id)[0])
@@ -105,7 +117,7 @@ def validate_compliance(o, catalog: Catalog, values: dict):
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
             v.say_instead = r.say
         else:
-            v.say_instead = spoken_claim(v.say_instead)
+            v.say_instead = qualified_say(v.say_instead, on_air_product, catalog)
         kept.append(v)
     o.compliance.violations = kept
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
