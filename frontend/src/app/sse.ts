@@ -24,6 +24,7 @@ export const EVENT_TYPES = [
   "alert.updated",
   "alert.escalated",
   "cue.updated",
+  "pd.card",
   "comment.created",
   "comment.hidden",
   "comment.unhidden",

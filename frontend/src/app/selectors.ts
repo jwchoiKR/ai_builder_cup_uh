@@ -7,6 +7,7 @@ import type {
   Comment,
   HostSlot,
   Message,
+  PdCard,
   Product,
   Promo,
   QuestionGroup,
@@ -450,5 +451,14 @@ export function cueStrip(state: ClientState, clientNow: number) {
   if (!cue) return null;
   if (cue.status === "active") return cue;
   if (cue.status === "done" && cue.done_at && clientNow - cue.done_at < 2000) return cue;
+  return null;
+}
+
+/** The active AI PD card: active, or done less than 1.5 s ago (short done fade). */
+export function activePdCard(state: ClientState, clientNow: number): PdCard | null {
+  const card = state.session?.pd_card;
+  if (!card) return null;
+  if (card.status === "active") return card;
+  if (card.status === "done" && card.done_at && clientNow - card.done_at < 1500) return card;
   return null;
 }

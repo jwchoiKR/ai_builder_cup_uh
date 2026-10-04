@@ -12,6 +12,7 @@ import type {
   HostSlot,
   Message,
   Metrics,
+  PdCard,
   PrompterSnapshot,
   QuestionGroup,
   Role,
@@ -307,6 +308,17 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       // A cue update for an older cue never replaces the current active one.
       if (prev && prev.cue_id !== cue.cue_id && cue.created_at < prev.created_at) return state;
       return withSession(state, (s) => ({ ...s, cue: { ...cue, done_at: doneAt } }));
+    }
+
+    case "pd.card": {
+      const card = ev.payload as PdCard | null; // not `p`: it turns a null payload into {}
+      if (!card) return withSession(state, (s) => ({ ...s, pd_card: null }));
+      const prev = state.session?.pd_card;
+      const doneAt =
+        card.status === "done" ? (prev?.card_id === card.card_id && prev.done_at ? prev.done_at : clientNow) : undefined;
+      // An update for an older card never replaces the current active one.
+      if (prev && prev.card_id !== card.card_id && card.created_at < prev.created_at) return state;
+      return withSession(state, (s) => ({ ...s, pd_card: { ...card, done_at: doneAt } }));
     }
 
     case "comment.created":

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { AMPOULE, CREAM, T0, alert, answer, comment, group, message, segment, snapshot } from "../test/fixtures";
+import { AMPOULE, CREAM, T0, alert, answer, comment, group, message, pdCard, segment, snapshot } from "../test/fixtures";
+import { activePdCard } from "./selectors";
 import { EVENT_TYPES } from "./sse";
 import { reduceEvent, reduceSnapshot, type ClientState } from "./state";
 import type { SessionEvent } from "./types";
@@ -71,6 +72,7 @@ describe("every event type", () => {
       "alert.updated": alert(),
       "alert.escalated": alert({ escalated_at: T0 + 10_000 }),
       "cue.updated": { cue_id: "cue_1", text: "Mention the patch test results.", preset_id: null, created_at: T0, status: "active", done_by_transcript_id: null },
+      "pd.card": pdCard(),
       "comment.created": comment(),
       "comment.hidden": comment({ comment_id: "cm_h", visibility: "hidden" }),
       "comment.unhidden": comment({ comment_id: "cm_h" }),
@@ -190,6 +192,37 @@ describe("event semantics", () => {
     expect(s.session?.cue?.done_at).toBe(T0 + 50);
     s = reduceEvent(s, ev(14, "cue.updated", { ...cue, cue_id: "cue_1", created_at: T0, status: "cleared" }));
     expect(s.session?.cue?.cue_id).toBe("cue_2");
+  });
+
+  it("a new pd.card replaces older, an older update is ignored, done/dismissed ends it", () => {
+    const card = pdCard({ card_id: "card_2", created_at: T0 + 100, status: "active" });
+    let s = reduceEvent(base(), ev(11, "pd.card", card), T0);
+    expect(s.session?.pd_card?.card_id).toBe("card_2");
+    expect(activePdCard(s, T0 + 100)?.card_id).toBe("card_2");
+
+    // An update for an older card never replaces the current active one
+    const older = pdCard({ card_id: "card_1", created_at: T0, status: "active" });
+    s = reduceEvent(s, ev(12, "pd.card", older), T0 + 120);
+    expect(s.session?.pd_card?.card_id).toBe("card_2");
+
+    // Done sets done_at and keeps first done time
+    s = reduceEvent(s, ev(13, "pd.card", { ...card, status: "done" }), T0 + 150);
+    expect(s.session?.pd_card?.status).toBe("done");
+    expect(s.session?.pd_card?.done_at).toBe(T0 + 150);
+    s = reduceEvent(s, ev(14, "pd.card", { ...card, status: "done" }), T0 + 900);
+    expect(s.session?.pd_card?.done_at).toBe(T0 + 150);
+    expect(activePdCard(s, T0 + 200)?.status).toBe("done");
+    expect(activePdCard(s, T0 + 2000)).toBeNull();
+
+    // Dismissed ends the card
+    s = reduceEvent(s, ev(15, "pd.card", { ...card, status: "dismissed" }), T0 + 2100);
+    expect(s.session?.pd_card?.status).toBe("dismissed");
+    expect(activePdCard(s, T0 + 2100)).toBeNull();
+
+    // Null clears the card
+    s = reduceEvent(s, ev(16, "pd.card", null), T0 + 2200);
+    expect(s.session?.pd_card).toBeNull();
+    expect(activePdCard(s, T0 + 2200)).toBeNull();
   });
 
   it("prompter.updated mirrors covered points into the segment", () => {

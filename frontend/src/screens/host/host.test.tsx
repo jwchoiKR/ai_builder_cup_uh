@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { reduceSnapshot } from "../../app/state";
 import type { Catalog, StateSnapshot } from "../../app/types";
-import { alert, AMPOULE, answer, catalog, comment, CREAM, group, message, segment, session, snapshot } from "../../test/fixtures";
+import { alert, AMPOULE, answer, catalog, comment, CREAM, group, message, pdCard, segment, session, snapshot } from "../../test/fixtures";
 import { factContext, fieldLabel, shortRef } from "./hostSelectors";
 import { HostView, type HostActions } from "./HostScreen";
 
@@ -25,7 +25,7 @@ const cat: Catalog = {
 };
 
 function actions(): HostActions {
-  return { rendered: vi.fn(), cancelSwitch: vi.fn() };
+  return { rendered: vi.fn(), cancelSwitch: vi.fn(), dismissPd: vi.fn() };
 }
 
 function view(over: Partial<StateSnapshot> = {}, acts: HostActions = actions()) {
@@ -328,6 +328,67 @@ describe("chat and switch", () => {
     render(view({ session: session({ cue: { cue_id: "cue_000001", text: "Mention the patch test results.", preset_id: null, created_at: now(), status: "active", done_by_transcript_id: null } }) }));
     expect(screen.getByTestId("host-cue")).toHaveTextContent("FROM YOUR PD");
     expect(screen.getByTestId("host-cue")).toHaveTextContent("Mention the patch test results.");
+  });
+});
+
+describe("AI PD card", () => {
+  it("renders active card at the top of the left column above the prompter with kind, say, and detail", () => {
+    const card = pdCard({
+      card_id: "card_ai_1",
+      kind: "answer_question",
+      say: "Yes. Apply sunscreen after the cream, then makeup.",
+      detail: "Raj: Can I use it under makeup?",
+      source: "ai",
+      status: "active",
+    });
+    render(view({ session: session({ pd_card: card }) }));
+    const el = screen.getByTestId("host-pd-card");
+    expect(el).toBeInTheDocument();
+    expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Answer");
+    expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Yes. Apply sunscreen after the cream, then makeup.");
+    expect(screen.getByTestId("host-pd-detail")).toHaveTextContent("Raj: Can I use it under makeup?");
+    expect(screen.getByText("AI PD")).toBeInTheDocument();
+  });
+
+  it("pressing N or clicking dismiss calls dismissPd with card_id", () => {
+    const acts = actions();
+    const card = pdCard({ card_id: "card_ai_2", status: "active" });
+    render(view({ session: session({ pd_card: card }) }, acts));
+    fireEvent.keyDown(window, { key: "n" });
+    expect(acts.dismissPd).toHaveBeenCalledWith("card_ai_2");
+
+    fireEvent.click(screen.getByTestId("host-pd-dismiss"));
+    expect(acts.dismissPd).toHaveBeenCalledTimes(2);
+  });
+
+  it("hidden while HIGH compliance overlay is active, returns after", () => {
+    const card = pdCard({ card_id: "card_ai_3", status: "active" });
+    const high = alert({ status: "active", severity: "HIGH", rule_id: "ASEAN-3-SKIN-AGEING", span: "erases wrinkles" });
+    const { rerender } = render(view({ session: session({ pd_card: card }), alerts: [high] }));
+    expect(screen.queryByTestId("host-pd-card")).toBeNull();
+    expect(screen.getByTestId("host-compliance-overlay")).toBeInTheDocument();
+
+    // When alert is corrected or dismissed, card comes back
+    rerender(view({ session: session({ pd_card: card }), alerts: [{ ...high, status: "corrected", resolved_at: now() }] }));
+    expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
+    expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
+  });
+
+  it("renders below CueStrip in team mode when both operator cue and AI PD card are active", () => {
+    const cue = { cue_id: "cue_op_1", text: "Operator direction here", preset_id: null, created_at: now(), status: "active" as const, done_by_transcript_id: null };
+    const card = pdCard({ card_id: "card_ai_4", kind: "cover_point", say: "Ceramide NP 1%, panthenol 5%, squalane 3%." });
+    render(view({ session: session({ cue, pd_card: card }) }));
+    expect(screen.getByTestId("host-cue")).toHaveTextContent("Operator direction here");
+    expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
+    expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Say this point");
+    expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Ceramide NP 1%, panthenol 5%, squalane 3%.");
+  });
+
+  it("shows done indicator when status is done", () => {
+    const card = pdCard({ card_id: "card_ai_5", status: "done", done_at: now() });
+    render(view({ session: session({ pd_card: card }) }));
+    expect(screen.getByTestId("host-pd-done")).toHaveTextContent("Done");
+    expect(screen.queryByTestId("host-pd-dismiss")).toBeNull();
   });
 });
 
