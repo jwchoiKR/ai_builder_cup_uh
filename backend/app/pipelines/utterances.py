@@ -296,9 +296,11 @@ class UtterancePipeline:
         rt = self.rt
         s = await rt.load_session()
         alerts = [a for a in await rt.alerts() if a.transcript_id != t.transcript_id]
-        finals = await rt.ctx.store.query(rt.path("transcripts"), Transcript, order_by="received_at")
         inside = {t.transcript_id, *(merge.chain if merge else [])}  # already in the utterance text
-        previous = [x.text for x in finals if x.transcript_id not in inside][-2:]
+        # D-117 B9: a bounded tail, not every transcript of the session
+        tail = await rt.ctx.store.query(rt.path("transcripts"), Transcript, order_by="received_at", descending=True,
+                                        limit=len(inside) + 4)
+        previous = [x.text for x in reversed(tail) if x.transcript_id not in inside][-2:]
         questions = await self._open_questions_locked(s, on_air)
         promo = rt.promo(s.active_promo_id)
         card = s.pd_card  # D-112: the answer card on screen, else the first question slot
