@@ -159,7 +159,7 @@ export function groupActions(g: QuestionGroup, answer: Answer | null, pending: M
   if (g.status !== "auto_answered") {
     actions.push({
       key: "approve",
-      label: "Approve",
+      label: "Post to chat",
       enabled: verified && !pending,
       reason: verified ? (pending ? "A host answer is being posted" : undefined) : "Only a verified draft can be approved",
     });

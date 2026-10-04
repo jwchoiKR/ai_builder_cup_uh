@@ -250,7 +250,9 @@ describe("Operator screen", () => {
     const desk = await screen.findByTestId("op-question-desk");
     const row = await within(desk).findByTestId("op-preview-g_rev");
     expect(row).toHaveTextContent(answer().text);
-    expect(within(row).getByRole("button", { name: "Approve" })).toBeEnabled();
+    expect(within(row).getByRole("button", { name: "Post to chat" })).toBeEnabled();
+    // the whole reply wraps before it can be posted (no ellipsis)
+    expect(row.querySelector("span")?.className).toMatch(/previewFull/);
     expect(within(desk).getByTestId("op-preview-g_none")).toHaveTextContent("No AI draft for this question.");
   });
 
@@ -343,7 +345,7 @@ describe("Operator screen", () => {
     expect(setLabel(catalog.set_offers[0])).toBe("Cream + Ampoule set");
   });
 
-  it("disables Approve for an unverified draft in the expanded row", async () => {
+  it("disables Post to chat for an unverified draft in the expanded row", async () => {
     snap = snapshot({
       groups: [group({ group_id: "g_x", status: "needs_review", answer_id: "ans_x", canonical_question: "Can I use it while pregnant?" })],
       answers: { ans_x: answer({ answer_id: "ans_x", verified: false, verify_errors: ["no citation"] }) },
@@ -351,7 +353,7 @@ describe("Operator screen", () => {
     render(<Operator sessionId="ses_op_unverified" />);
     const desk = await screen.findByTestId("op-question-desk");
     fireEvent.click(await within(desk).findByText("Can I use it while pregnant?", { selector: "span" }));
-    expect(within(desk).getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(within(desk).getByRole("button", { name: "Post to chat" })).toBeDisabled();
     expect(within(desk).getByText("Unverified draft: no citation")).toBeInTheDocument();
     expect(within(desk).getByRole("button", { name: "Edit reply" })).toBeEnabled();
   });

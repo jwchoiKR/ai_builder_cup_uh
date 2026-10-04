@@ -129,7 +129,7 @@ export const KO_OPERATOR: Record<string, string> = {
   Recall: "회수",
   "Push to host": "진행자에게 보내기",
   "Post suggested answer": "추천 답변 게시",
-  Approve: "승인",
+  "Post to chat": "채팅에 게시",
   "Edit reply": "답변 수정",
   "Write reply": "답변 작성",
   "Assign product": "상품 지정",

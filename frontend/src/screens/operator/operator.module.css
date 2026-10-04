@@ -476,6 +476,10 @@
   white-space: nowrap;
   font-size: var(--fs-14);
 }
+.previewFull {
+  overflow: visible;
+  white-space: normal;
+}
 .groupRow {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);

@@ -106,6 +106,7 @@ export const KO_HOST: Record<string, string> = {
   "Questions stay in place while you speak": "말하는 동안 질문 순서는 바뀌지 않습니다",
   // D-113 waiting list and AI PD card
   "take the top one now": "맨 위 질문 바로 받기",
+  "Finish the correction first": "먼저 정정을 마치세요",
   "No questions waiting.": "기다리는 질문이 없습니다.",
   "On your card": "카드에 표시 중",
   "Drafting…": "답변 작성 중…",
