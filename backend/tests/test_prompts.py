@@ -147,6 +147,8 @@ def test_builders_shape_live_values(catalog, pack):
     assert sets[0]["live_price"] == "S$62.00" and sets[0]["promo_price"] == "S$55.80"
     assert inputs.set_offers_json(catalog, None)[0]["promo_price"] is None
     assert inputs.active_promo_json_or_null(catalog, promo)["promo_prices_display"]["cream_hydra_barrier"] == "S$32.40"
+    assert inputs.active_promo_json_or_null(catalog, promo)["discount_pct_off_live_price"] == 10  # D-148: checkable terms
+    assert inputs.active_promo_json_or_null(catalog, promo)["duration_min"] == 10
     assert inputs.active_promo_json_or_null(catalog, pack.promos_by_id["promo_gift_pouch"]) is None
     statuses = [r["status"] for r in inputs.run_sheet_compact_json(catalog, "ampoule_deep_hydration")]
     assert statuses == ["done", "on_air"]

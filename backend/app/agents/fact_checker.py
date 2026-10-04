@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from decimal import Decimal
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -30,6 +31,15 @@ def _words_within(stated: str, correct: str | None) -> bool:
     said = {w for w in _NAME.findall((stated or "").lower()) if w not in _UNIT_WORDS and w not in _NOT_NAMES}
     sheet = set(_NAME.findall((correct or "").lower()))
     return bool(said) and said <= sheet
+
+
+def _promo_term(c, promo) -> bool:
+    """D-148: a wrong discount or duration of the active promo ("an extra 20% off" for 10%). Code checks that
+    the right value is one of the promo's own terms and that the host said a different number."""
+    terms = {format(Decimal(str(v)).normalize(), "f") for v in
+             (promo.discount_pct_off_live_price, round(promo.duration_sec / 60)) if v is not None}
+    right, said = number_set(c.correct_value or ""), number_set(c.stated_value or "")
+    return bool(right) and right <= terms and bool(said) and not said <= right
 
 
 def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
@@ -97,6 +107,14 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
     by_id = {p.passage_id: p for p in passages}
     set_ids = {s.set_id for s in catalog.set_offers}
     for c in o.claims:
+        # D-148 (sealed show replay): during a time sale the live price said as the price now is stale, even when
+        # the model calls it supported ("It's $36, very cheap"); "normally $36" or "after the sale" is fine
+        if (c.verdict == "supported" and c.field == "price" and promo is not None and promo.changes_prices
+                and c.product_id in promo.promo_prices and utterance is not None
+                and not catalog.lexicon.price_contrast.search(utterance)
+                and number_set(c.stated_value or "") == number_set(catalog.money(catalog.live_price_value(c.product_id)))):
+            c.verdict, c.field, c.passage_id, c.quote = "contradicted", "promo", None, None
+            c.correct_value = catalog.price_display(c.product_id, promo)
         # A set's price is a fact about the set offer, not about one product (holdout H046).
         if not catalog.is_product(c.product_id) and not (c.field in PRICE_FIELDS and c.product_id in set_ids):
             c.verdict = "not_in_sources"
@@ -121,7 +139,8 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                   # Claim wording is compliance (the judge's job), never a product fact (D-048).
                   and p.section != CLAIMS_SECTION)
         elif c.field in PRICE_FIELDS and promo is not None and promo.changes_prices:
-            ok = c.correct_value == catalog.price_display(c.product_id, promo)
+            ok = c.correct_value == catalog.price_display(c.product_id, promo) or (
+                c.field == "promo" and _promo_term(c, promo))
         if not ok:
             c.verdict = "not_in_sources"
     return o

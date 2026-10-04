@@ -330,3 +330,36 @@ def test_a_less_specific_container_is_not_contradicted(pack, catalog):
                   passage_id="DL-CR-01#key-facts#packaging", quote="Packaging: Airless pump tube")
         out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
         assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"It is a {stated}.").claims] == [verdict]
+
+
+def test_d148_a_wrong_promo_discount_is_a_checked_fact(catalog, pack):
+    """D-148 (sealed show replay): "It's an extra 20% off" during the 10% time sale got no note: code only
+    accepted promo prices as right values."""
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    promo = pack.promos_by_id["promo_time_sale_10"]
+    claim = {"span": "an extra 20% off", "field": "promo", "product_id": "cream_hydra_barrier", "stated_value": "20% off",
+             "verdict": "contradicted", "correct_value": "10% off", "passage_id": None, "quote": None}
+    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
+    [c] = post_validate(out, [], catalog, promo).claims
+    assert c.verdict == "contradicted"
+    made_up = FactCheckOutput.model_validate({"claims": [claim | {"correct_value": "15% off"}], "reason": "t"})
+    assert post_validate(made_up, [], catalog, promo).claims[0].verdict == "not_in_sources"
+
+
+def test_d148_the_live_price_said_as_now_during_a_sale_is_stale(catalog, pack):
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    promo = pack.promos_by_id["promo_time_sale_10"]
+    claim = {"span": "thirty-six dollars", "field": "price", "product_id": "cream_hydra_barrier", "stated_value": "S$36",
+             "verdict": "supported", "correct_value": None, "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
+             "quote": "Live broadcast price: S$36.00"}
+    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
+    [c] = post_validate(out, [], catalog, promo, utterance="It's thirty-six dollars, very cheap.").claims
+    assert (c.verdict, c.field, c.correct_value) == ("contradicted", "promo", "S$32.40")
+    [c] = post_validate(out, [], catalog, promo, utterance="Normally thirty-six dollars, now it's less.").claims
+    assert c.verdict == "supported"
+    [c] = post_validate(out, [], catalog, None, utterance="It's thirty-six dollars.").claims
+    assert c.verdict == "supported"  # no sale: the live price is right
