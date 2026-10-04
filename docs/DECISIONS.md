@@ -568,3 +568,15 @@ D-104: A negated trigger phrase of the alert's own rule counts as a retraction (
   - S01 run 1: the judge listed the correction one sentence early, on "It has a lightweight gel-cream texture that absorbs very quickly.", and D-089 accepted it because that sentence is an approved claim of the cream. The alert closed before the real retraction. Option: an approved claim other than `say_instead` counts only together with a negation or a correction cue.
   - S04 turn 2: the model output is right (no transition, no quote). The runtime does not confirm the switch on "This ampoule comes in a glass dropper bottle for targeted application.", because D-090 confirms only on a prompter point of the new product, and packaging is not one. The switch confirms on the next sentence (am-p1). The sequence scorer reads the runtime effect, while the 39-case scorer (U36) reads only the model output.
 - **Tests:** `tests/test_corrections.py`.
+
+D-105: A test number said without "in our in-house test" gets one yellow banner (PLANNING 5.1.3, user decision A).
+- **Why:** all 6 false alerts of the v2 holdout run were in-house test numbers said without the qualifier. With no matching rule, the judge borrowed superlative or HIGH rules (ageing, physiological), so the host got a red overlay.
+- **Rule:** `BRAND-TEST-QUALIFIER` in `data/policy/claim_rules.json`, MEDIUM only. Any number from a test or study (a percentage, "0 of 32", "24 hours") must come with "in our in-house test". Benefit wording without a number is exempt. The judge decides from the rule text and examples; no reflex phrases.
+- **Code keeps it safe** (`logic/qualifier.py`, applied in `validate_compliance` and the utterance pipeline):
+  - severity always comes from the rule (MEDIUM). Other rules are never demoted: a real ageing claim in the same sentence stays HIGH;
+  - a sentence that already names our own test ("in-house", "in our 48-hour patch test") never gets this alert;
+  - "Say this instead" is always approved wording: `Product.qualified_results` in `data/products/products.json` holds one sentence per in-house result, with the sheet's number, timing and qualifier. The sentence is chosen by matching numbers first, then the product on air, then words. Without a match it is empty, and the host card says "Say the result with 'in our in-house test'." The model's own wording is never used;
+  - the same result alerts once per product segment, even after a correction (fewer yellow banners, interview #2).
+- **Wrong number too (H052):** the alert and the fact note stay separate in events, logs and evaluation. On the host screen, a test-qualifier banner and a fact note on the same sentence show as one card with "○ +45% (not +70%)". The fact note joins the card when the fact checker finishes; the first card is never delayed.
+- **To review:** the nine approved sentences in `qualified_results` were written from section 5 of the product sheets and need the user's check. Uploaded products (setup) have no `qualified_results` yet, so their banners show the generic line.
+- **Tests:** `tests/test_qualifier.py`, `frontend/src/screens/host/host.test.tsx` (test qualifier).

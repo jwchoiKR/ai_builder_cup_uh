@@ -225,6 +225,50 @@ describe("compliance", () => {
     expect(banner).toHaveTextContent("Say: 'It helps keep skin hydrated.'");
     expect(banner).toHaveTextContent("Comparative or superlative claims");
   });
+
+  // D-105: a test number without "in our in-house test", with a wrong number on the same sentence
+  const qualifier = alert({
+    alert_id: "al_000002",
+    transcript_id: "tr_000007",
+    rule_id: "BRAND-TEST-QUALIFIER",
+    severity: "MEDIUM",
+    span: "increased by seventy percent",
+    say_instead: "In our in-house test, skin hydration went up 45% right after one use.",
+  });
+  const wrongNumber = alert({
+    alert_id: "fx_000002",
+    kind: "fact",
+    transcript_id: "tr_000007",
+    rule_id: null,
+    severity: null,
+    field: "test_result",
+    stated_value: "+70%",
+    correct_value: "+45%",
+  });
+
+  it("MEDIUM test qualifier: one card with the right number when the fact note is on the same sentence", () => {
+    const { rerender } = render(view({ alerts: [qualifier] }));
+    let banner = screen.getByTestId("host-medium-banner");
+    expect(banner).toHaveTextContent("Add 'in our in-house test'");
+    expect(banner).toHaveTextContent("Say: 'In our in-house test, skin hydration went up 45% right after one use.'");
+    expect(screen.queryByTestId("host-medium-fact")).toBeNull();
+
+    // the fact checker finishes later: the same card gains the number, no second banner
+    rerender(view({ alerts: [qualifier, wrongNumber] }));
+    banner = screen.getByTestId("host-medium-banner");
+    expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("○ +45%(not +70%)");
+    expect(screen.queryByTestId("host-fact-note")).toBeNull();
+
+    // a fact note on another sentence keeps its own card
+    rerender(view({ alerts: [qualifier, { ...wrongNumber, transcript_id: "tr_000008" }] }));
+    expect(screen.queryByTestId("host-medium-fact")).toBeNull();
+    expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
+  });
+
+  it("MEDIUM test qualifier without an approved sentence asks for the qualifier", () => {
+    render(view({ alerts: [{ ...qualifier, say_instead: null }] }));
+    expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("Say the result with 'in our in-house test'.");
+  });
 });
 
 describe("audience questions", () => {

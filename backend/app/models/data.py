@@ -14,6 +14,13 @@ class PrompterPoint(BaseModel):
     required: bool
 
 
+class QualifiedResult(BaseModel):
+    """Approved wording of one in-house test number, with its qualifier (BRAND-TEST-QUALIFIER, D-105)."""
+    result_id: str
+    numbers: list[str]  # digits as heard after normalisation: "45", "0", "32"
+    say: str
+
+
 class Product(BaseModel):
     product_id: str
     code: str
@@ -31,6 +38,7 @@ class Product(BaseModel):
     prompter_points: list[PrompterPoint]
     approved_claims: list[str]
     not_approved_claims: list[str]
+    qualified_results: list[QualifiedResult] = []
 
 
 class SetOffer(BaseModel):

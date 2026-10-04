@@ -104,6 +104,46 @@
         "Completely safe for everyone, or safe during pregnancy.",
         "Works like a medicine or a prescription product.",
         "Comparative or superlative claims, such as \"the best moisturiser in Singapore\"."
+      ],
+      "qualified_results": [
+        {
+          "result_id": "cr-t1",
+          "numbers": [
+            "38"
+          ],
+          "say": "In our in-house test, skin hydration went up 38% right after one application."
+        },
+        {
+          "result_id": "cr-t2",
+          "numbers": [
+            "21"
+          ],
+          "say": "In our in-house test, skin hydration was still 21% higher 24 hours after one application."
+        },
+        {
+          "result_id": "cr-t3",
+          "numbers": [
+            "24"
+          ],
+          "say": "It helps keep skin hydrated for up to 24 hours in our in-house test."
+        },
+        {
+          "result_id": "cr-t4",
+          "numbers": [
+            "29",
+            "32",
+            "91"
+          ],
+          "say": "In our in-house test, 29 of 32 participants said their skin felt less dry after 2 weeks."
+        },
+        {
+          "result_id": "cr-t5",
+          "numbers": [
+            "0",
+            "32"
+          ],
+          "say": "In our in-house patch test, 0 of 32 participants had an irritation reaction."
+        }
       ]
     },
     {
@@ -193,6 +233,41 @@
         "Permanent results, or results without continued use.",
         "Completely safe for everyone, or safe during pregnancy.",
         "Comparative or superlative claims, such as \"stronger than any other ampoule\"."
+      ],
+      "qualified_results": [
+        {
+          "result_id": "am-t1",
+          "numbers": [
+            "45"
+          ],
+          "say": "In our in-house test, skin hydration went up 45% right after one use."
+        },
+        {
+          "result_id": "am-t2",
+          "numbers": [
+            "26",
+            "30",
+            "87"
+          ],
+          "say": "In our in-house test, 26 of 30 participants said their skin looked more radiant after 4 weeks."
+        },
+        {
+          "result_id": "am-t3",
+          "numbers": [
+            "24",
+            "30",
+            "80"
+          ],
+          "say": "In our in-house test, 24 of 30 participants said their skin tone looked more even after 4 weeks."
+        },
+        {
+          "result_id": "am-t4",
+          "numbers": [
+            "0",
+            "30"
+          ],
+          "say": "In our in-house patch test, 0 of 30 participants had an irritation reaction."
+        }
       ]
     }
   ]
