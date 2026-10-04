@@ -8,12 +8,11 @@
 //   node e2e/rehearsal-voice.mjs lines <file> [runs]  proof-plan §2: each JSONL line (id, text, product, kind
 //                                                  compliance|fact, ...) on its product; per-stage times per kind
 // Writes a JSON report to ../docs/rehearsal-<mode>.json and prints a summary.
-import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright";
+
+import { sleep, voiceTools } from "./voice.mjs";
 
 const BASE = process.env.BASE ?? "http://127.0.0.1:8000";
 // Behind IAP (Cloud Run), scripts need an identity token: IAP_TOKEN="$(gcloud auth print-identity-token)"
@@ -23,9 +22,7 @@ const MODE = process.argv[2] ?? "alerts";
 const LINES_FILE = MODE === "lines" ? process.argv[3] : null;
 const RUNS = Number(process.argv[MODE === "lines" ? 4 : 3] ?? 1);
 const WITHIN_MS = 3000; // proof-plan §2: shown correctly within 3 s of the end of speech
-const VOICE_DIR = join(tmpdir(), "live-studio-voice");
 const DOCS = resolve(process.env.DOCS ?? "../docs");
-mkdirSync(VOICE_DIR, { recursive: true });
 
 const ALERT_LINES = [
   "Use it every night and your wrinkles will disappear overnight.",
@@ -40,87 +37,7 @@ const ALERT_LINES = [
   "It's a hundred ml tube, so it lasts forever.",
 ];
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-async function api(method, path, body) {
-  const r = await fetch(`${BASE}/api${path}`, {
-    method, headers: { "Content-Type": "application/json", ...AUTH }, body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!r.ok) throw new Error(`${method} ${path} -> ${r.status} ${await r.text()}`);
-  return r.json();
-}
-
-function synth(text) {
-  const file = join(VOICE_DIR, createHash("sha1").update(text).digest("hex").slice(0, 16) + ".wav");
-  if (!existsSync(file)) {
-    const ps = [
-      "Add-Type -AssemblyName System.Speech;",
-      "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer;",
-      "$s.SelectVoice('Microsoft Zira Desktop');",
-      "$f = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(16000, [System.Speech.AudioFormat.AudioBitsPerSample]::Sixteen, [System.Speech.AudioFormat.AudioChannel]::Mono);",
-      `$s.SetOutputToWaveFile('${file}', $f);`,
-      `$s.Speak('${text.replace(/'/g, "''")}');`,
-      "$s.Dispose();",
-    ].join(" ");
-    execFileSync("powershell", ["-NoProfile", "-Command", ps]);
-  }
-  const wav = readFileSync(file);
-  const dataAt = wav.indexOf("data") + 8; // PCM after the 'data' chunk header
-  return wav.subarray(dataAt);
-}
-
-class Mic {
-  constructor(sid) {
-    // Node's WebSocket (undici) accepts extra headers in its options object
-    this.ws = new WebSocket(`${BASE.replace("http", "ws")}/api/sessions/${sid}/audio`,
-      process.env.IAP_TOKEN ? { headers: AUTH } : undefined);
-    this.ws.binaryType = "arraybuffer";
-    this.finals = [];
-    this.ready = new Promise((res, rej) => {
-      this.ws.onmessage = (e) => {
-        const m = JSON.parse(e.data);
-        if (m.type === "status" && m.state === "listening") res();
-        if (m.type === "status" && m.state === "error") rej(new Error(m.message));
-        if (m.type === "final") this.finals.push(m);
-      };
-      this.ws.onerror = () => rej(new Error("audio websocket error"));
-    });
-    this.silence = new Uint8Array(3200);
-    this.pump = setInterval(() => { if (this.idle && this.ws.readyState === 1) this.ws.send(this.silence); }, 100);
-    this.idle = true;
-  }
-  async say(pcm) {
-    this.idle = false;
-    const t0 = Date.now();
-    for (let i = 0, n = 0; i < pcm.length; i += 3200, n++) {
-      this.ws.send(pcm.subarray(i, i + 3200));
-      const wait = t0 + (n + 1) * 100 - Date.now(); // real-time pace
-      if (wait > 0) await sleep(wait);
-    }
-    this.idle = true; // silence keeps flowing like an open microphone
-  }
-  async waitFinal(count, ms = 15000) {
-    const until = Date.now() + ms;
-    while (this.finals.length < count && Date.now() < until) await sleep(100);
-    return this.finals.length >= count;
-  }
-  /** Review B6: every final of one spoken line. `from` is the final count captured BEFORE playback;
-   *  after the first new final, keep collecting until no new final arrives for `quietMs`. */
-  async finalsSince(from, ms = 15000, quietMs = 1500) {
-    if (!(await this.waitFinal(from + 1, ms))) return [];
-    let n = this.finals.length;
-    let quietUntil = Date.now() + quietMs;
-    while (Date.now() < quietUntil) {
-      await sleep(100);
-      if (this.finals.length !== n) {
-        n = this.finals.length;
-        quietUntil = Date.now() + quietMs;
-      }
-    }
-    return this.finals.slice(from);
-  }
-  close() { clearInterval(this.pump); this.ws.send(JSON.stringify({ type: "stop" })); this.ws.close(); }
-}
+const { api, synth, Mic } = voiceTools({ base: BASE, auth: AUTH });
 
 /** The first rendered compliance alert raised by any final of the line (a split line can alert on the
  *  first fragment, or under the merged text of the later one), plus the state for per-final records. */
