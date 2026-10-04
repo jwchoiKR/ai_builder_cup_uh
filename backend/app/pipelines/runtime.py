@@ -352,7 +352,11 @@ class SessionRuntime:
         seg = await self.current_segment()
         on_air = seg.product_id if seg else None
         now = self.now()
-        groups = {g.group_id: g for g in await self.groups()}
+        # D-117 B9: answered, rejected and closed groups are history; only open groups (or one still
+        # holding a host slot) are scored and saved, so the lock is not held for the whole session's past
+        groups = {g.group_id: g for g in await self.groups()
+                  if g.status not in ("answered", "rejected", "closed") or g.host_slot != "none"}
+        before = {gid: g.score for gid, g in groups.items()}
         for g in groups.values():
             g.score = self.score_of(g, on_air, now)
         scores = {gid: g.score for gid, g in groups.items()}
@@ -373,7 +377,8 @@ class SessionRuntime:
             if changed:
                 g.host_slot, g.on_host_since = want
                 g.version += 1
-            await self.save_group(g)  # scores move with time; saved without an event
+            if changed or g.score != before[g.group_id]:
+                await self.save_group(g)  # scores move with time; saved without an event
             if changed:
                 await self.emit("group.updated", g)
         old = [sl.model_dump() for sl in s.host_slots]

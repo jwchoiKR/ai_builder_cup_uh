@@ -98,3 +98,33 @@ def test_repeat_threshold():
     assert ids(run([], groups, now=0)) == ["ai"]
     groups[0].unique_author_ids.pop()
     assert ids(run([], groups, now=0)) == []
+
+
+async def test_queue_refresh_skips_history_and_saves_only_changes():
+    """Review B9 (D-117): answered/closed groups are neither rescored nor saved on every refresh."""
+    from app.models.session import QuestionGroup
+
+    from .helpers import live_runtime, make_ctx
+
+    ctx = make_ctx()
+    rt = await live_runtime(ctx)
+    try:
+        for i in range(30):
+            await rt.save_group(QuestionGroup(
+                group_id=f"grp_old{i}", product_id=CREAM, intent="price", condition_slots={},
+                canonical_question=f"Old {i}?", member_comment_ids=[], unique_author_ids=[], first_at=0, last_at=0,
+                route="AUTO", route_reason="intent", status="answered" if i % 2 else "closed"))
+        saved = []
+        real = rt.save_group
+
+        async def counting(g):
+            saved.append(g.group_id)
+            await real(g)
+
+        rt.save_group = counting
+        async with rt.lock:
+            await rt.recompute_host_queue_locked()
+        assert not [gid for gid in saved if gid.startswith("grp_old")]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
