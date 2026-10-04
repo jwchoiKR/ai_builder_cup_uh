@@ -4,7 +4,7 @@
   "regulator": "Ministry of Food and Drug Safety (MFDS, 식품의약품안전처)",
   "policy_id": "kr_mfds_cosmetic_claims_v1",
   "category": "cosmetics",
-  "tier": "live",
+  "tier": "draft",
   "currency": {
     "code": "KRW",
     "symbol": "원",
@@ -14,7 +14,7 @@
     {
       "lang": "ko",
       "stt_language": "ko-KR",
-      "tier": "live",
+      "tier": "draft",
       "note": "chirp_3 streaming ko-KR is Generally Available (GA) in region us"
     }
   ],
@@ -134,5 +134,14 @@
       "description": "명확한 공인 비교 기준이나 실증 근거 없이 타사 제품보다 우수하다고 주장하거나 경쟁사 제품을 비방·폄하하는 발언 금지.",
       "severity": "MEDIUM"
     }
+  ],
+  "verification_notes_10_5": [
+    "WRONG source: 화장품법 is 법률 제20901호 (2025.4.1. 개정, 2026.4.2. 시행), not 제19925호 (교육세법).",
+    "WRONG source: 화장품법 시행규칙 is 총리령 제2109호 (2026.3.31. 개정, 2026.4.2. 시행), not 제1934호.",
+    "CONFIRMED: 별표 5 '화장품 표시·광고의 범위 및 준수사항' (제22조 관련).",
+    "WRONG guideline id: 「화장품 표시·광고 관리 지침」 is 안내서-0086-07 (2025.8.14.); edition/chapter refs and examples UNVERIFIED.",
+    "Rule refs to fix: absolute_safety -> 별표5 2사·아 and 법 제13조①4; test_qualifier -> 법 제14조 (실증) and 2사·아 (2차 is endangered species); comparative -> 2바 (비교), 2카 (비방) (2자 is obscene/hateful).",
+    "Product sale price in Korea is unknown: remove 36,000원; S$36 is not a Korean price.",
+    "Checked by GPT with law.go.kr / mfds.go.kr on 10/5; a Korean reader on the team must still review ko.draft.json wording."
   ]
 }
