@@ -20,11 +20,13 @@ Role = Literal["operator", "host", "viewer"]
 
 class CreateSessionBody(BaseModel):
     runsheet_id: str = DEFAULT_RUNSHEET_ID
+    show_mode: Literal["solo", "team"] = "solo"  # D-111
 
 
 @router.post("/sessions", status_code=201)
 async def create_session(body: CreateSessionBody | None = None, ctx: AppContext = Depends(get_ctx)) -> Session:
-    return await _create(ctx, (body or CreateSessionBody()).runsheet_id)
+    body = body or CreateSessionBody()
+    return await _create(ctx, body.runsheet_id, body.show_mode)
 
 
 @router.post("/sessions/{session_id}/start")

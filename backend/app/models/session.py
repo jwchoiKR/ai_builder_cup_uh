@@ -56,6 +56,8 @@ class Session(BaseModel):  # [sessions/{session_id}]
     runsheet_id: str
     title: str
     status: Literal["ready", "live", "ended"]
+    # D-111: solo = the host runs the show alone; team = an operator is in the control room
+    show_mode: Literal["solo", "team"] = "solo"
     started_at: int | None = None
     ended_at: int | None = None
     current_segment_id: str | None = None

@@ -122,3 +122,11 @@ def test_sse_over_http_replays_and_resumes_with_last_event_id():
     finally:
         server.should_exit = True
         thread.join(timeout=10)
+
+
+def test_show_mode_is_chosen_at_creation_and_defaults_to_solo(client):
+    """D-111: solo or team, chosen when the session is created."""
+    solo = client.post("/api/sessions").json()
+    team = client.post("/api/sessions", json={"show_mode": "team"}).json()
+    assert (solo["show_mode"], team["show_mode"]) == ("solo", "team")
+    assert client.post("/api/sessions", json={"show_mode": "duo"}).status_code == 422

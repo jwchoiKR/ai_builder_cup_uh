@@ -80,10 +80,10 @@ async def demo_current(ctx: AppContext = Depends(get_ctx)) -> Session:
 @router.post("/demo/reset")
 async def demo_reset(ctx: AppContext = Depends(demo_tools)) -> Session:
     s = await latest_session(ctx)
-    runsheet_id = DEFAULT_RUNSHEET_ID
+    runsheet_id, show_mode = DEFAULT_RUNSHEET_ID, "solo"
     if s is not None:
-        runsheet_id = s.runsheet_id
+        runsheet_id, show_mode = s.runsheet_id, s.show_mode  # a reset keeps the show mode
         await ctx.runtimes.drop(s.session_id)
         await ctx.store.delete_session(s.session_id)
         ctx.bus.forget_session(s.session_id)
-    return await create_session(ctx, runsheet_id)
+    return await create_session(ctx, runsheet_id, show_mode)

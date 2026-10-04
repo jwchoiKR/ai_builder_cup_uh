@@ -120,6 +120,9 @@ export function DemoConsole({
   };
   const sid = sessionId ?? "";
   const status = state.session?.status ?? "ready";
+  const mode = state.session?.show_mode ?? "solo";
+  const [newMode, setNewMode] = useState<"solo" | "team">("solo");
+  useEffect(() => setNewMode(mode), [mode]);
   const disabled = !sessionId || busy !== null;
   const b5Armed = isArmed(feed, "B5");
 
@@ -148,6 +151,7 @@ export function DemoConsole({
         Demo console
         <Chip tone={status === "live" ? "live" : "neutral"}>{status === "live" ? "LIVE" : status === "ended" ? "Ended" : "READY"}</Chip>
         {feed?.pool_running && <Chip tone="accent">Chatter on</Chip>}
+        <Chip>{mode === "team" ? "Team show" : "Solo show"}</Chip>
         {b5Armed && <Chip tone="fact">B5 armed</Chip>}
         {error && <span className={styles.error}>{error}</span>}
       </button>
@@ -156,7 +160,21 @@ export function DemoConsole({
           <div className={styles.section}>
             <Eyebrow>Session</Eyebrow>
             <div className={styles.buttons}>
-              <Button size="sm" disabled={busy !== null} onClick={() => run("new", async () => onSessionChange?.((await api.createSession()).session_id))}>
+              <select
+                className={styles.select}
+                aria-label="Show mode of the new session"
+                value={newMode}
+                onChange={(e) => setNewMode(e.target.value as "solo" | "team")}
+                data-testid="console-show-mode"
+              >
+                <option value="solo">Solo show</option>
+                <option value="team">Team show</option>
+              </select>
+              <Button
+                size="sm"
+                disabled={busy !== null}
+                onClick={() => run("new", async () => onSessionChange?.((await api.createSession(undefined, newMode)).session_id))}
+              >
                 New demo session
               </Button>
               <Button size="sm" variant="primary" disabled={disabled || status !== "ready"} onClick={() => run("start", () => api.start(sid))}>

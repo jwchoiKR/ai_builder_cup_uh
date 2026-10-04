@@ -543,7 +543,7 @@ class SessionRuntime:
         return out
 
 
-async def create_session(ctx: "AppContext", runsheet_id: str) -> Session:
+async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "solo") -> Session:
     """§8.1.1: a new session in status `ready`."""
     from ..logic.catalog import DataPackError
 
@@ -561,6 +561,7 @@ async def create_session(ctx: "AppContext", runsheet_id: str) -> Session:
         pass
     session = Session(
         session_id=ctx.ids.new("ses_"), runsheet_id=runsheet.runsheet_id, title=runsheet.title, status="ready",
+        show_mode=show_mode,
         settings_snapshot=ctx.settings.snapshot(), doc_version=ctx.retriever.doc_version(),
         glossary_version=glossary_version, prompter_points=points, created_at=ctx.clock.now_ms(),
     )
