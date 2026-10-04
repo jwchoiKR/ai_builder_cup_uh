@@ -308,6 +308,11 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
     intent = rt.intent(g.intent)
     if not is_composable(intent, g.product_id):
         g.status = "needs_review"  # D-113: an unresolved product stays with the host ("Which product?")
+        if intent.product_scope == "none" and (await rt.load_session()).show_mode == "solo":
+            # D-140 (step F): shipping, returns, payment ... in a solo show wait on the host's list (a card
+            # with the general deferral once HOST_REPEAT_THRESHOLD viewers ask); nobody watches an operator list
+            # (a triage failure keeps its reason: it waits in the list without a card)
+            g.route, g.route_reason = "HOST", "general" if g.route_reason == "intent" else g.route_reason
         return
     key = await answer_key(rt, g)
     cached = rt.answer_cache.get(key)

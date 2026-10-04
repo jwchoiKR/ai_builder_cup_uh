@@ -140,7 +140,7 @@ async def test_triage_failure_falls_back_to_operator(tmp_path):
             return None
 
     ctx = make_ctx(backend=Failing())
-    rt = await live_runtime(ctx)
+    rt = await live_runtime(ctx, "team")  # D-140: in a solo show it waits on the host's list instead
     await say(rt, "Lee", "How much is the cream?")
     [g] = await groups(rt)
     assert (g.route, g.route_reason, g.status) == ("OPERATOR", "ai_unavailable", "needs_review")
@@ -159,7 +159,7 @@ async def test_rate_limit_per_author(rt):
 async def test_operator_actions(rt):
     await say(rt, "Tom", "Do you ship to Malaysia?")
     [g] = await groups(rt)
-    assert g.route == "OPERATOR"
+    assert g.route == "HOST"  # D-140: a solo show; the operator's actions work on any route
     with pytest.raises(ActionError, match="verified draft"):
         await ops.approve(rt, g.group_id)
     with pytest.raises(ActionError, match="restricted phrase"):
@@ -498,6 +498,31 @@ async def test_assistant_off_stores_and_shows_but_never_answers():
         assert (await rt.get_comment(c.comment_id)).kind == "pending"
         assert await groups(rt) == [] and await messages(rt) == [] and await rt.alerts() == []
         assert (await rt.load_session()).pd_card is None
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+@pytest.mark.parametrize("show_mode", ["solo", "team"])
+async def test_general_questions_wait_on_the_host_list_in_a_solo_show(show_mode):
+    """D-140 (step F): shipping and the like in a solo show wait on the host's list and get the general
+    deferral card at HOST_REPEAT_THRESHOLD askers; in a team show the operator keeps them."""
+    ctx = make_ctx()
+    rt = await live_runtime(ctx, show_mode)
+    try:
+        for name in ("Tom", "Amy"):
+            await say(rt, name, "Do you ship to Malaysia?")
+            await rt.ctx.scheduler.advance(3000)
+        [g] = await groups(rt)
+        on_host = [sl.group_id for sl in (await rt.load_session()).host_slots]
+        if show_mode == "team":
+            assert g.route == "OPERATOR" and g.group_id not in on_host
+            return
+        assert (g.route, g.route_reason, g.status) == ("HOST", "general", "needs_review") and g.group_id in on_host
+        assert [q for q in (await rt.pd._state()).questions if q.group_id == g.group_id] == []  # 2 askers: no card
+        await say(rt, "Raj", "Do you ship to Malaysia?")
+        [q] = [q for q in (await rt.pd._state()).questions if q.group_id == g.group_id]
+        assert q.answer == ctx.pack.notices.host_deferrals["general"]
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()

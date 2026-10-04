@@ -30,8 +30,8 @@ def is_candidate(
         pass
     else:
         return False
-    if not (g.product_id == on_air or (g.product_id is None and scope == "multi")):
-        return False
+    if not (g.product_id == on_air or (g.product_id is None and scope in ("multi", "none"))):
+        return False  # D-140: a general question (no product) waits whatever is on air
     if g.host_verbal_answer_transcript_id is not None:
         return False
     return not (g.recalled_at is not None and now - g.recalled_at < RECALL_BLOCK_MS)

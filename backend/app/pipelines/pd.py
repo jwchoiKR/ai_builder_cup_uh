@@ -114,6 +114,13 @@ class PdDirector:
                                                   slot.pinned))
                 continue
             a = await rt.get_answer(g.answer_id)
+            if g.route_reason == "general":
+                # D-140: a general question gets the general deferral card only once enough viewers ask
+                if askers >= rt.settings.HOST_REPEAT_THRESHOLD:
+                    questions.append(pdl.Question(g.group_id, g.canonical_question,
+                                                  rt.ctx.pack.notices.host_deferrals["general"], "answer", askers,
+                                                  slot.pinned))
+                continue
             if g.status == "needs_review" and g.route_reason == "no_verified_answer":
                 # D-135: no verified answer: the host says so honestly instead of guessing
                 kind = "sensitive" if rt.intent(g.intent).sensitive else "general"
