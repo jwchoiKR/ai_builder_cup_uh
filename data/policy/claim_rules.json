@@ -136,7 +136,7 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "Appendix III, Section 2.d.vi (particular target of the marketing)",
       "title": "Targets groups with, or vulnerable to, specific conditions",
-      "description": "Product presentation includes marketing aimed at population groups with, or particularly vulnerable to, specific diseases or adverse conditions. The product sheets also state the products were not specifically tested on pregnant or breastfeeding women.",
+      "description": "Product presentation includes marketing aimed at population groups with, or particularly vulnerable to, specific diseases or adverse conditions. The product sheets also state the products were not specifically tested on pregnant or breastfeeding women. Not this rule: telling pregnant or breastfeeding viewers that the product was not specifically tested for them and that they should check with their doctor first (the approved answer).",
       "severity": "HIGH",
       "unacceptable_examples": ["It is safe for pregnant women.", "Perfect for people with eczema.", "Safe for babies."],
       "say_instead_hint": "Refer to the doctor, e.g. 'If you are pregnant or breastfeeding, please check with your doctor first.'",

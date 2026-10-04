@@ -199,7 +199,7 @@ async def run(structure: str, runs: int, concurrency: int, cases: list[dict] | N
                                                   switch=switch, search_timeout_ms=settings.FACT_SEARCH_TIMEOUT_MS)
             jin = JudgeInput(utterance=utt, on_air=on_air, active_alerts=alerts, open_questions=questions,
                              previous=previous, scenario="eval", switch=switch, promo=promo, passages=passages,
-                             session_id=eval_session)
+                             session_id=eval_session, on_screen_group_id=case.get("shown_group_id"))
             fin = FactInput(utterance=utt, on_air=on_air, switch=switch, promo=promo, passages=passages,
                             previous=previous, scenario="eval", session_id=eval_session)
             row: dict = {"id": case["case_id"], "run": run_no}

@@ -301,9 +301,12 @@ class UtterancePipeline:
         previous = [x.text for x in finals if x.transcript_id not in inside][-2:]
         questions = await self._open_questions_locked(s, on_air)
         promo = rt.promo(s.active_promo_id)
+        card = s.pd_card  # D-112: the answer card on screen, else the first question slot
+        on_screen = (card.ref_id if card is not None and card.status == "active" and card.kind == "answer_question"
+                     else s.host_slots[0].group_id if s.host_slots else None)
         inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
                          cue=s.cue, previous=previous, points_by_product=rt.points or None, session_id=rt.sid, scenario=scenario,
-                         switch=s.switch, promo=promo)
+                         switch=s.switch, promo=promo, on_screen_group_id=on_screen)
         # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
         offered: dict[str, Answer | None] = {}
         for g, _ in questions:

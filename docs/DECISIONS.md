@@ -627,3 +627,10 @@ D-109: Settings gear with theme and screen language (user, 10/5).
 D-111: Show mode, solo or team, chosen when a session is created (default solo).
 - Stored on the session (`show_mode`); `POST /sessions {"show_mode": "team"}`; a demo reset keeps the mode. The Demo Console shows the current mode and picks the mode of the next "New demo session".
 - Used by the unresolved-question list (team: the operator follows up; solo: the list stays for after the show, and a no-evidence question reaches the host only when 3+ viewers ask it).
+
+D-112: A plain answer is recognised without a read-out; the correct pregnancy answer is not a vulnerable-group claim (user, 10/5: "질문 읽고 답 읽는 구조가 아니라 그냥 답만 해도 잘 인식해야지").
+- **Why:** the first verbal-post run on Vertex (`docs/eval/verbal-post.md`, 82af749) had 0 false posts but 31 of 60 missed posts; 28 of them were sentences the judge did not link because the host answered without reading the question first.
+- **Prompt** (`utterance_judge.md` and `context_judge.md`, same wording): a sentence that states the answer to ANY open question answers it, with no read-out or "yes" needed; `utterance_type` is then `answer`. When two open questions fit, the one marked `on_screen` wins.
+- **Input:** OPEN_QUESTIONS marks the question whose card the host sees now (`on_screen`: the active AI PD answer card, else the first question slot). The eval uses the case's `shown_group_id`.
+- **Unchanged:** every D-110 code check (numbers in the shown or another offered draft, hedges and take-backs, binding to the shown answer and the promo/doc state, no violation, `utterance_type` "answer"). The posted text is still the verified draft.
+- **Pregnancy answer (V08):** in 1 of 3 runs the compliance judge raised HIGH `ASEAN-2D-VULNERABLE` on the correct answer ("it hasn't been specifically tested for that, so please ask your doctor first"). As with D-103, the rule's description now says that this approved answer is not the rule.

@@ -144,11 +144,14 @@ def active_alerts_json(alerts: Sequence[Alert]) -> list[dict]:
             for a in live[:3]]
 
 
-def open_questions_json(items: Sequence[tuple[QuestionGroup, str | None]], limit: int) -> list[dict]:
-    """`items` are already selected and ordered by the caller (§7.3): (group, verified answer text)."""
+def open_questions_json(items: Sequence[tuple[QuestionGroup, str | None]], limit: int,
+                        on_screen: str | None = None) -> list[dict]:
+    """`items` are already selected and ordered by the caller (§7.3): (group, verified answer text).
+    D-112: the question whose card the host sees now is marked `on_screen` (a tie-breaker only)."""
     return [
         {"group_id": g.group_id, "product_id": g.product_id,
          "canonical_question": g.canonical_question, "suggested_answer": answer}
+        | ({"on_screen": True} if g.group_id == on_screen else {})
         for g, answer in items[:limit]
     ]
 
