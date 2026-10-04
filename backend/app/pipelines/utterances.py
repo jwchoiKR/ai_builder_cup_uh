@@ -197,6 +197,8 @@ class UtterancePipeline:
         # 1. store, emit
         await rt.ctx.store.put(rt.path("transcripts"), t.transcript_id, t)
         await rt.emit("transcript.final", t)
+        if not rt.assistant:
+            return  # D-139: no reflex chip, no judge, no prompter coverage
         # 2. reflex -> provisional alerts
         hits = rt.ctx.reflex.scan(text)
         async with rt.lock:

@@ -69,6 +69,7 @@ class SessionRuntime:
         self.sid = session.session_id
         self.settings = ctx.settings
         self.catalog = Catalog(ctx.pack, session.runsheet_id)
+        self.assistant = session.assistant  # D-139
         self.lock = asyncio.Lock()
         self.triage_cache = TriageCache()
         self.shoutouts: deque = deque(maxlen=20)  # D-113: recent purchase/welcome/compliment comments
@@ -567,7 +568,7 @@ class SessionRuntime:
         return out
 
 
-async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "solo") -> Session:
+async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "solo", assistant: bool = True) -> Session:
     """§8.1.1: a new session in status `ready`."""
     from ..logic.catalog import DataPackError
 
@@ -585,7 +586,7 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
         pass
     session = Session(
         session_id=ctx.ids.new("ses_"), runsheet_id=runsheet.runsheet_id, title=runsheet.title, status="ready",
-        show_mode=show_mode,
+        show_mode=show_mode, assistant=assistant,
         settings_snapshot=ctx.settings.snapshot(), doc_version=ctx.retriever.doc_version(),
         glossary_version=glossary_version, prompter_points=points, created_at=ctx.clock.now_ms(),
     )

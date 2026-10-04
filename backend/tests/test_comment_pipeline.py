@@ -480,3 +480,24 @@ async def test_a_later_verified_draft_takes_the_intents_route_again():
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+async def test_assistant_off_stores_and_shows_but_never_answers():
+    """D-139: the proof-plan §1 baseline. Comments and finals are kept; no triage, judge, answer or AI PD."""
+    from app.pipelines.runtime import create_session
+
+    ctx = make_ctx()
+    s = await create_session(ctx, "daon_skincare_demo", "solo", assistant=False)
+    rt = await ctx.runtimes.get(s.session_id)
+    await rt.start()
+    await ctx.scheduler.advance(5000)
+    try:
+        c = await say(rt, "Lee", "How much is the cream?")
+        await rt.utterances.submit("This cream cures eczema.", source="injected", speech_end_at=rt.now())
+        await rt.utterances.drain()
+        assert (await rt.get_comment(c.comment_id)).kind == "pending"
+        assert await groups(rt) == [] and await messages(rt) == [] and await rt.alerts() == []
+        assert (await rt.load_session()).pd_card is None
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
