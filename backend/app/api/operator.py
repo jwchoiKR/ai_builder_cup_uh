@@ -157,6 +157,13 @@ class PdDismissBody(BaseModel):
     card_id: str
 
 
+@router.post("/pd/pull")
+async def pd_pull(rt: SessionRuntime = Depends(runtime)) -> dict:
+    """Host takes the top waiting question now (key Q): no time gap, no pause needed (D-113)."""
+    rt.pd.pull()
+    return {"ok": True}
+
+
 @router.post("/pd/dismiss")
 async def pd_dismiss(body: PdDismissBody, rt: SessionRuntime = Depends(runtime)) -> dict:
     """Host skips the AI PD card (key N); its topic is not offered again on this product."""

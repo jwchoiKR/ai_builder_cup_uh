@@ -50,6 +50,12 @@ class PdDirector:
         self._again = False
         self._last_decision_at = 0
         self._last_cands: tuple[str, ...] = ()
+        # D-113 pacing
+        self.mentioned: set[str] = set()  # groups the host named or read out (context judge)
+        self.last_question_card_at: int | None = None
+        self.last_shout_at: int | None = None
+        self.used_shouts: set[str] = set()
+        self._pull = False
 
     # ---- inputs (never take the lock here) ------------------------------------------------------
 
@@ -95,13 +101,26 @@ class PdDirector:
         now = rt.now()
         groups = {g.group_id: g for g in await rt.groups()}
         questions = []
-        for slot in s.host_slots:
+        for slot in s.host_slots:  # the host's waiting list, in order (D-113)
             g = groups.get(slot.group_id)
             if g is None or g.status in ("answered", "closed", "rejected") or g.host_verbal_answer_transcript_id:
                 continue
+            askers = len(g.unique_author_ids)
+            if g.status == "needs_review" and g.route_reason == "unresolved_product":
+                if g.group_id not in self.mentioned:
+                    questions.append(pdl.Question(g.group_id, g.canonical_question, None, "clarify", askers,
+                                                  slot.pinned))
+                continue
             a = await rt.get_answer(g.answer_id)
-            if a is not None and a.verified and not a.needs_human:
-                questions.append(pdl.Question(g.group_id, g.canonical_question, a.text))
+            if a is None or not a.verified:
+                continue  # still drafting: it waits in the list, no card yet
+            if g.status == "auto_answered":  # AI answered in chat, many asked: the host reads it out
+                if g.group_id not in self.mentioned:
+                    questions.append(pdl.Question(g.group_id, g.canonical_question, a.text, "read", askers,
+                                                  slot.pinned))
+            elif not a.needs_human:
+                questions.append(pdl.Question(g.group_id, g.canonical_question, a.text, "answer", askers,
+                                              slot.pinned))
         promos = []
         for ap in s.active_promos:
             p = rt.promo(ap.promo_id)
@@ -116,7 +135,11 @@ class PdDirector:
             required_ids=required_ids(rt.catalog, seg.product_id), covered_ids=list(seg.covered_point_ids),
             next_product=(nxt, rt.catalog.get_product(nxt).name) if nxt else None, questions=questions,
             promos=promos, high_alert_active=high, last_final_at=self.last_final_at, recent_lines=list(self.recent),
-            dismissed_refs=frozenset(self.dismissed[seg.segment_id]))
+            dismissed_refs=frozenset(self.dismissed[seg.segment_id]),
+            product_names=[rt.catalog.get_product(i.product_id).name for i in rt.catalog.runsheet.items],
+            last_question_card_at=self.last_question_card_at, last_shout_at=self.last_shout_at, pull=self._pull,
+            shoutouts=[so for so in rt.shoutouts
+                       if so.comment_id not in self.used_shouts and now - so.at <= pdl.SHOUT_MAX_AGE_MS])
 
     @staticmethod
     def is_done(card: PdCard, st: pdl.PdState) -> bool:
@@ -124,7 +147,7 @@ class PdDirector:
             return True  # the product changed: every card of the old segment is over
         if card.kind == "cover_point":
             return card.ref_id in st.covered_ids
-        if card.kind == "answer_question":
+        if card.kind in pdl.QUESTION_KINDS:  # answered, read out or named by the host, or gone from the list
             return card.ref_id not in {q.group_id for q in st.questions}
         if card.kind == "promo":
             return card.ref_id not in {p.promo_id for p in st.promos}
@@ -149,6 +172,9 @@ class PdDirector:
             if st.high_alert_active:
                 return
             cands = pdl.candidates(st)
+            if card is not None and card.kind in pdl.QUESTION_KINDS:
+                # D-113: a question card stays until it ends; only a pushed or pulled question or a promo replaces it
+                cands = [c for c in cands if c.priority <= 1 and c.ref_id != card.ref_id]
             if not cands:
                 return
             key = tuple(c.cid for c in cands)
@@ -195,7 +221,12 @@ class PdDirector:
                 await self._end_locked(old, "expired")
             new = PdCard(card_id=rt.new_id("pd_"), kind=chosen.kind, say=chosen.say, detail=chosen.detail,
                          ref_id=chosen.ref_id, created_at=st.now, hold_until=st.now + pdl.HOLD_MS,
-                         source=source, reason=reason[:120], segment_id=st.segment_id)
+                         source=source, reason=reason[:120], segment_id=st.segment_id, askers=chosen.askers)
+            if chosen.kind in pdl.QUESTION_KINDS:
+                self.last_question_card_at, self._pull = st.now, False
+            elif chosen.kind == "shout_out":
+                self.last_shout_at = st.now
+                self.used_shouts.add(chosen.ref_id)
             s = await rt.load_session()
             s.pd_card = new
             await rt.save_session(s)
@@ -208,6 +239,17 @@ class PdDirector:
         s.pd_card = None
         await rt.save_session(s)
         await rt.emit("pd.card", ended)
+
+    def pull(self) -> None:
+        """The host takes the top waiting question now: no gap, no pause needed (D-113)."""
+        self._pull = True
+        self._last_cands = ()
+        self.trigger()
+
+    def mention(self, group_id: str) -> None:
+        """The context judge linked a host sentence to this question (answer, read-out or "which product")."""
+        self.mentioned.add(group_id)
+        self.trigger()
 
     async def dismiss(self, card_id: str) -> PdCard | None:
         rt = self.rt

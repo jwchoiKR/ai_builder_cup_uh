@@ -27,7 +27,8 @@ class HostCue(BaseModel):  # in session doc (one active)
 
 class PdCard(BaseModel):  # in session doc (one at a time): the AI PD's current suggestion (PLANNING 5.1.1)
     card_id: str
-    kind: Literal["answer_question", "cover_point", "promo", "wrap_up", "switch_product"]
+    kind: Literal["answer_question", "read_question", "clarify_product", "shout_out", "cover_point", "promo",
+                  "wrap_up", "switch_product"]
     say: str  # verified wording only: suggested answer, prompter point or promo text
     detail: str | None = None
     ref_id: str  # group_id | point_id | promo_id | product_id
@@ -37,6 +38,7 @@ class PdCard(BaseModel):  # in session doc (one at a time): the AI PD's current 
     source: Literal["ai", "rule"]
     reason: str = ""
     segment_id: str | None = None
+    askers: int | None = None  # question cards: how many viewers asked (D-113)
 
 
 class ActivePromo(BaseModel):  # in session doc (§8.10)

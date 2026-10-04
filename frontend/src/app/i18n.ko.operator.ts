@@ -2,6 +2,7 @@
 // Labels only: comment text, viewer names, answers, say-instead lines, product names and facts,
 // promo text, rule titles and policy references never go through t().
 export const KO_OPERATOR: Record<string, string> = {
+  "On the host's card": "진행자 카드에 표시됨",
   // header
   "BROADCAST WORKSPACE": "방송 워크스페이스",
   "Live control room": "라이브 컨트롤룸",

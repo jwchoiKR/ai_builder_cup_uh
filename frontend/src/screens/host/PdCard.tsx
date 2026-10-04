@@ -8,11 +8,16 @@ const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).jo
 
 const KIND_LABELS: Record<PdCardKind, string> = {
   answer_question: "Answer",
+  read_question: "Read out",
+  clarify_product: "Which product?",
+  shout_out: "Shout-out",
   cover_point: "Say this point",
   promo: "Promo",
   wrap_up: "Wrap up",
   switch_product: "Next product",
 };
+
+const QUESTION_KINDS = new Set<PdCardKind>(["answer_question", "read_question", "clarify_product"]);
 
 export function PdCard({
   card,
@@ -23,6 +28,7 @@ export function PdCard({
 }) {
   const t = useT();
   const done = card.status === "done";
+  const question = QUESTION_KINDS.has(card.kind);
   const kindLabel = t(KIND_LABELS[card.kind] ?? "Direction");
   const sourceLabel = card.source === "ai" ? "AI PD" : "PD";
 
@@ -71,10 +77,17 @@ export function PdCard({
           )}
         </div>
       </div>
-      <div className={styles.pdSay} data-testid="host-pd-say">
+      {question && card.detail && (
+        // D-113: the question and how many asked, above the answer
+        <div className={styles.pdQuestion} data-testid="host-pd-question">
+          {card.detail}
+          {card.askers ? <span className={styles.pdAskers}>{t("{n} asking", { n: card.askers })}</span> : null}
+        </div>
+      )}
+      <div className={cx(styles.pdSay, question && styles.pdSayAnswer)} data-testid="host-pd-say">
         {card.say}
       </div>
-      {card.detail && (
+      {!question && card.detail && (
         <div className={styles.pdDetail} data-testid="host-pd-detail">
           {card.detail}
         </div>

@@ -24,8 +24,9 @@ class QueueParams:
 def is_candidate(
     g: QuestionGroup, *, on_air: str | None, scope: str, now: int, repeat_threshold: int
 ) -> bool:
-    if g.status == "ready" and g.route == "HOST":
-        pass
+    if g.route == "HOST" and (g.status in ("ready", "composing")
+                              or (g.status == "needs_review" and g.route_reason == "unresolved_product")):
+        pass  # D-113: drafting and "which product?" questions wait in the host's list too
     elif g.status == "auto_answered" and len(g.unique_author_ids) >= repeat_threshold and not g.host_confirmed:
         pass
     else:

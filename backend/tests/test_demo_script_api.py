@@ -139,7 +139,7 @@ async def test_demo_script_end_to_end(demo: Demo):
     await demo.sched.advance(12_000)
     await demo.refresh()
     [preg] = demo.groups("pregnancy_breastfeeding")
-    assert preg["status"] == "needs_review" and demo.state["answers"][preg["answer_id"]]["verified"]
+    assert preg["status"] == "ready" and demo.state["answers"][preg["answer_id"]]["verified"]  # D-113: to the host
     hidden = {c["author_id"] for c in demo.state["comments"] if c["visibility"] == "hidden"}
     assert {"u_spam1", "u_rude", "u_spam2"} <= hidden
     draft = demo.state["answers"][preg["answer_id"]]["text"]
@@ -193,7 +193,7 @@ async def test_demo_script_end_to_end(demo: Demo):
     assert how_much["product_id"] == CREAM and how_much["product_basis"] == "context"
     assert analyses[comments["is the cream fragrance free?"]["comment_id"]]["product_id"] == CREAM
     sting = next(g for g in demo.state["groups"] if comments["Does the ampoule sting?"]["comment_id"] in g["member_comment_ids"])
-    assert sting["product_id"] == AMPOULE and sting["status"] == "needs_review"
+    assert sting["product_id"] == AMPOULE and (sting["route"], sting["status"]) == ("HOST", "ready")  # D-113
 
     # ---- S13 fact error on the ampoule -------------------------------------------------------------
     t = await demo.line(L[13], "S13")

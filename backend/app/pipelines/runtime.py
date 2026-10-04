@@ -70,6 +70,7 @@ class SessionRuntime:
         self.catalog = Catalog(ctx.pack, session.runsheet_id)
         self.lock = asyncio.Lock()
         self.triage_cache = TriageCache()
+        self.shoutouts: deque = deque(maxlen=20)  # D-113: recent purchase/welcome/compliment comments
         self.answer_cache = AnswerCache()
         self.composing: dict[str, asyncio.Future] = {}
         self.prefetched: dict[str, list[Passage]] = {}

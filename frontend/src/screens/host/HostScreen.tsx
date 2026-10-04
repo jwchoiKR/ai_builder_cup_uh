@@ -46,6 +46,8 @@ export interface HostActions {
   cancelSwitch: () => void;
   /** POST /sessions/{sid}/pd/dismiss {card_id: "..."}. */
   dismissPd: (cardId: string) => void;
+  /** POST /sessions/{sid}/pd/pull: the top waiting question now (key Q, D-113). */
+  pullQuestion: () => void;
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -191,7 +193,7 @@ export function HostView({
       else if ((e.key === "t" || e.key === "T") && !embedded) onToggleTheme?.();
       else if ((e.key === "n" || e.key === "N") && sessionId && pd && pd.status === "active") {
         actions.dismissPd(pd.card_id);
-      }
+      } else if ((e.key === "q" || e.key === "Q") && sessionId) actions.pullQuestion();
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
@@ -267,8 +269,15 @@ export function HostView({
                   onCancel={actions.cancelSwitch}
                 />
               )}
-              {pd && <PdCard card={pd} onDismiss={actions.dismissPd} />}
-              <Questions slots={hostSlots(state)} catalog={catalog} />
+              {/* D-113: one fixed AI PD card slot under the prompter, the only place an answer appears */}
+              <div className={styles.pdSlot} data-testid="host-pd-slot">
+                {pd ? (
+                  <PdCard card={pd} onDismiss={actions.dismissPd} />
+                ) : (
+                  <span className={styles.pdEmpty}>{t("AI PD: nothing to do right now")}</span>
+                )}
+              </div>
+              <Questions slots={hostSlots(state)} />
             </div>
           </div>
           <div className={styles.right}>
@@ -315,13 +324,17 @@ export function HostScreen(props: ScreenProps) {
     },
     [sid],
   );
+  const pullQuestion = useCallback(() => {
+    if (sid) void api.pullQuestion(sid).catch(() => undefined);
+  }, [sid]);
   // One stable object for the view; its functions call the latest callbacks.
-  const latest = useRef<HostActions>({ rendered, cancelSwitch, dismissPd });
-  latest.current = { rendered, cancelSwitch, dismissPd };
+  const latest = useRef<HostActions>({ rendered, cancelSwitch, dismissPd, pullQuestion });
+  latest.current = { rendered, cancelSwitch, dismissPd, pullQuestion };
   const [actions] = useState<HostActions>(() => ({
     rendered: (id) => latest.current.rendered(id),
     cancelSwitch: () => latest.current.cancelSwitch(),
     dismissPd: (id) => latest.current.dismissPd(id),
+    pullQuestion: () => latest.current.pullQuestion(),
   }));
 
   return (

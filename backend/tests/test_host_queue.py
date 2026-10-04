@@ -54,8 +54,9 @@ def test_candidates_only():
               g("ai_conf", status="auto_answered", route="AUTO", askers=6, host_confirmed=True),
               g("other_product", pid=AMPOULE), g("cmp", pid=None, intent="product_comparison"),
               g("verbal", host_verbal_answer_transcript_id="tr_1"), g("recalled", recalled_at=50_000)]
-    assert set(ids(run([], groups, now=60_000))) == {"ai_many", "cmp"}  # recalled 10 s ago is blocked
-    assert "recalled" in ids(run([], groups, now=110_001))
+    # recalled 10 s ago is blocked; a drafting question waits in the host's list too (D-113)
+    assert set(ids(run([], groups, now=60_000))) == {"ai_many", "cmp", "comp"}
+    assert "recalled" in ids(run([], [x for x in groups if x.group_id != "comp"], now=110_001))
 
 
 def test_answered_and_switch_remove_immediately():

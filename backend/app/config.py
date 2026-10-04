@@ -68,9 +68,9 @@ class Settings(BaseSettings):
     SWITCH_CANCEL_WINDOW_SEC: int = 5
     UNDO_SWITCH_WINDOW_SEC: int = 60
     STREAM_GRACE_SEC: int = 2
-    HOST_TOP_N: int = 3
+    HOST_TOP_N: int = 6  # D-113: the compact waiting list (cards are released one at a time by the AI PD)
     HOST_MIN_DWELL_SEC: int = 20
-    HOST_REPEAT_THRESHOLD: int = 5
+    HOST_REPEAT_THRESHOLD: int = 3  # D-113: an AI-answered question with this many askers is read out on air
     REPLY_COALESCE_SEC: int = 10
     STALE_COMMENT_SEC: int = 300
     GROUP_TTL_SEC: int = 600

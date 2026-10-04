@@ -143,7 +143,10 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   for (const g of [s4.oily, s4.makeup]) {
     await expect(host.getByTestId(`host-question-${g.group_id}`)).toBeVisible();
   }
-  await expect(host.getByTestId("host-questions")).toContainText("SUGGESTED ANSWER");
+  // D-113: the top question is released on the AI PD card (question above, verified answer below)
+  await expect(host.getByTestId(`host-question-${s4.oily.group_id}`)).toContainText("On your card");
+  await expect(host.getByTestId("host-pd-card")).toHaveAttribute("data-kind", "answer_question");
+  await expect(host.getByTestId("host-pd-question")).toContainText("oily skin");
   await expect(opGroup(s4.oily)).toContainText("7");
   await expect(opGroup(s4.makeup)).toContainText("4");
   await expect(opGroup(s4.dry)).toBeVisible();
@@ -202,14 +205,16 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   // ---- S09 sensitive burst, hidden abuse, operator Edit reply + Post ------------------------------------
   await burst("B3 Sensitive & spam");
   const s9 = await waitFor(request, (s) => {
-    const preg = groupOf(s, (g) => g.intent === "pregnancy_breastfeeding" && g.status === "needs_review" && g.unique_author_ids.length === 3);
+    // D-113: sensitive questions go to the host's waiting list (no operator routing by sensitivity)
+    const preg = groupOf(s, (g) => g.intent === "pregnancy_breastfeeding" && g.route === "HOST" && g.status === "ready" && g.unique_author_ids.length === 3);
     const eczema = groupOf(s, (g) => g.intent === "medical_condition" && g.status === "needs_review");
     const ship = groupOf(s, (g) => g.intent === "shipping" && g.status === "needs_review");
     const hidden = s.comments.filter((c) => c.visibility === "hidden");
     return preg && eczema && ship && hidden.length >= 3 ? { preg, eczema, ship, hidden, s } : null;
   });
   await closeConsole();
-  for (const g of [s9.preg, s9.eczema, s9.ship]) {
+  await expect(host.getByTestId(`host-question-${s9.preg.group_id}`)).toBeVisible();
+  for (const g of [s9.eczema, s9.ship]) {
     await expect(opGroup(g)).toContainText("Needs review");
     await expect(host.getByTestId(`host-question-${g.group_id}`)).toHaveCount(0);
   }
@@ -295,12 +300,12 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
     const sting = by("Does the ampoule sting?");
     const stingGroup = sting && groupOf(s, (g) => g.member_comment_ids.includes(sting.comment_id));
     return howMuch && fragrance && stingGroup && s.analyses[howMuch.comment_id] && s.analyses[fragrance.comment_id]
-      && stingGroup.status === "needs_review" ? { s, howMuch, fragrance, stingGroup } : null;
+      && stingGroup.route === "HOST" && stingGroup.status === "ready" ? { s, howMuch, fragrance, stingGroup } : null;  // D-113
   }, 30_000);
   expect(b5.s.analyses[b5.howMuch.comment_id]).toMatchObject({ product_id: CREAM, product_basis: "context" });
   expect(b5.s.analyses[b5.fragrance.comment_id].product_id).toBe(CREAM);
   expect(b5.stingGroup.product_id).toBe(AMPOULE);
-  await expect(opGroup(b5.stingGroup)).toContainText("Needs review");
+  await expect(host.getByTestId(`host-question-${b5.stingGroup.group_id}`)).toBeVisible();  // D-113: to the host
   const later = await waitFor(request, (s) => {
     const t = s.comments.find((c) => c.text === "how much is the ampoule?");
     return t && s.analyses[t.comment_id] ? s.analyses[t.comment_id] : null;

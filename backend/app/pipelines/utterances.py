@@ -636,6 +636,8 @@ class UtterancePipeline:
                 or self._generations.get(t.transcript_id) != self._segment_generation):
             return
         gid = judge.answer.matched_group_id
+        if gid is not None and gid in offered:
+            rt.pd.mention(gid)  # D-113: a read-out or "which product" card ends when the host takes it up
         group = await rt.get_group(gid) if gid else None
         answer = await rt.get_answer(group.answer_id) if group is not None else None
         decision = publish_logic.decide(judge, offered, group, answer,
