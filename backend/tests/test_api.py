@@ -130,3 +130,14 @@ def test_show_mode_is_chosen_at_creation_and_defaults_to_solo(client):
     team = client.post("/api/sessions", json={"show_mode": "team"}).json()
     assert (solo["show_mode"], team["show_mode"]) == ("solo", "team")
     assert client.post("/api/sessions", json={"show_mode": "duo"}).status_code == 422
+
+
+def test_driver_sessions_never_delete_other_sessions(client):
+    """D-139: two drivers share one service; /demo/sessions deletes nothing (/demo/reset drops the latest)."""
+    a = client.post("/api/demo/sessions", json={"assistant": False}).json()
+    client.post(f"/api/sessions/{a['session_id']}/start")
+    b = client.post("/api/demo/sessions", json={}).json()
+    assert a["assistant"] is False and b["assistant"] is True
+    assert client.get(f"/api/sessions/{a['session_id']}/state?role=operator").status_code == 200
+    c = client.post(f"/api/sessions/{b['session_id']}/demo/comments", json={"author": "Amy", "text": "how much?"})
+    assert c.status_code == 201 and c.json()["source"] == "script"

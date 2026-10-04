@@ -37,7 +37,7 @@ const ALERT_LINES = [
   "It's a hundred ml tube, so it lasts forever.",
 ];
 
-const { api, synth, Mic } = voiceTools({ base: BASE, auth: AUTH });
+const { api, synth, Mic, newSession } = voiceTools({ base: BASE, auth: AUTH });
 
 /** The first rendered compliance alert raised by any final of the line (a split line can alert on the
  *  first fragment, or under the merged text of the later one), plus the state for per-final records. */
@@ -77,7 +77,7 @@ function perFinal(state, finals) {
 }
 
 async function runAlerts(page) {
-  const { session_id: sid } = await api("POST", "/demo/reset");
+  const { session_id: sid } = await newSession();
   await page.goto(`${BASE}/host?session=${sid}`);
   await api("POST", `/sessions/${sid}/start`);
   await sleep(2000);
@@ -116,7 +116,7 @@ async function runAlerts(page) {
 
 async function runScript(page, operatorPage) {
   const steps = (await api("GET", "/demo/script")).steps;
-  const { session_id: sid } = await api("POST", "/demo/reset");
+  const { session_id: sid } = await newSession();
   await page.goto(`${BASE}/host?session=${sid}`);
   if (operatorPage) await operatorPage.goto(`${BASE}/operator?session=${sid}`);
   let mic = null;
@@ -161,7 +161,7 @@ async function runScript(page, operatorPage) {
 
 /** proof-plan §2: each line on its product; wait for the expected alert kind; per-stage times. */
 async function runLines(page, lines) {
-  const { session_id: sid } = await api("POST", "/demo/reset");
+  const { session_id: sid } = await newSession();
   await page.goto(`${BASE}/host?session=${sid}`);
   await api("POST", `/sessions/${sid}/start`);
   await sleep(2000);

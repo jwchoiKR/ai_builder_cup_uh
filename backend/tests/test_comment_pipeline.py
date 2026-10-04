@@ -444,7 +444,7 @@ async def test_the_pd_offers_the_honest_deferral_for_a_question_without_an_answe
         assert (g.route, g.status) == ("HOST", "needs_review")
         st = await rt.pd._state()
         [q] = [q for q in st.questions if q.group_id == g.group_id]
-        assert q.answer == ctx.pack.notices.host_deferrals["sensitive"]
+        assert q.answer == ctx.pack.notices.host_deferrals["sensitive_solo"]
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
@@ -522,7 +522,7 @@ async def test_general_questions_wait_on_the_host_list_in_a_solo_show(show_mode)
         assert [q for q in (await rt.pd._state()).questions if q.group_id == g.group_id] == []  # 2 askers: no card
         await say(rt, "Raj", "Do you ship to Malaysia?")
         [q] = [q for q in (await rt.pd._state()).questions if q.group_id == g.group_id]
-        assert q.answer == ctx.pack.notices.host_deferrals["general"]
+        assert q.answer == ctx.pack.notices.host_deferrals["general_solo"]
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()

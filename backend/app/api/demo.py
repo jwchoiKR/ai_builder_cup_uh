@@ -98,6 +98,14 @@ async def demo_reset(body: ResetBody | None = None, ctx: AppContext = Depends(de
     return await create_session(ctx, runsheet_id, body.show_mode or show_mode, assistant=body.assistant)
 
 
+@router.post("/demo/sessions", status_code=201)
+async def demo_session(body: ResetBody | None = None, ctx: AppContext = Depends(demo_tools)) -> Session:
+    """D-139: a new session for a driver (voice rehearsal, show replay) that deletes nothing, so several
+    drivers and the studio can share one service. Drivers end their session when they finish."""
+    body = body or ResetBody()
+    return await create_session(ctx, DEFAULT_RUNSHEET_ID, body.show_mode or "solo", assistant=body.assistant)
+
+
 class ScriptCommentBody(BaseModel):
     author: str
     text: str
