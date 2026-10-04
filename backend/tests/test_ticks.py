@@ -26,7 +26,7 @@ async def test_overtime_once_and_metrics_every_5s(tmp_path):
 
 async def test_simulate_overtime_and_group_ttl(tmp_path):
     ctx = make_ctx(tmp_path)
-    rt = await live_runtime(ctx)
+    rt = await live_runtime(ctx, "team")  # D-140: in a solo show the question waits on the host's list
     await rt.simulate_overtime()
     await ctx.scheduler.advance(1500)
     assert len(await events(rt, "segment.overtime")) == 1
