@@ -1,0 +1,4525 @@
+{
+ "file": "../data/eval/latency_lines.jsonl",
+ "runs": 1,
+ "summary": {
+  "compliance": {
+   "lines": 50,
+   "stt_ms": {
+    "p50": 657,
+    "p95": 750,
+    "max": 898
+   },
+   "server_ms": {
+    "p50": 1549,
+    "p95": 1784,
+    "max": 1995
+   },
+   "render_ms": {
+    "p50": 1823,
+    "p95": 2075,
+    "max": 2268
+   },
+   "misses": [],
+   "wrong": [
+    "LT025: ASEAN-2E-PERMANENT (expected ASEAN-3-SKIN-AGEING)",
+    "LT031: BRAND-SUPERLATIVE (expected BRAND-WHITENING)",
+    "LT039: BRAND-ABSOLUTE-SAFETY (expected ASEAN-2D-VULNERABLE)",
+    "LT041: ASEAN-DP5-PHYSIOLOGICAL (expected ASEAN-2E-PERMANENT)",
+    "LT045: ASEAN-2D-DISEASE (expected BRAND-MEDICINE-LIKE)",
+    "LT049: ASEAN-2D-DISEASE (expected BRAND-WHITENING)"
+   ],
+   "within_3s": 0.88
+  },
+  "fact": {
+   "lines": 50,
+   "stt_ms": {
+    "p50": 632,
+    "p95": 745,
+    "max": 3279
+   },
+   "server_ms": {
+    "p50": 1669,
+    "p95": 2171,
+    "max": 4196
+   },
+   "render_ms": {
+    "p50": 1950,
+    "p95": 2441,
+    "max": 4468
+   },
+   "misses": [],
+   "wrong": [
+    "LT054: ingredient_amount (expected panthenol)",
+    "LT057: ingredient_amount (expected centella_asiatica_leaf_water)",
+    "LT060: ingredient_amount (expected panthenol)",
+    "LT061: ingredient_amount (expected ceramide_np)",
+    "LT062: ingredient_amount (expected beta_glucan)",
+    "LT063: ingredient_amount (expected niacinamide)",
+    "LT064: price (expected live_price)",
+    "LT067: price (expected list_price)",
+    "LT068: price (expected live_price)",
+    "LT069: price (expected live_price)",
+    "LT071: usage (expected how_to_use)",
+    "LT074: price (expected live_price)",
+    "LT080: ingredient_amount (expected squalane)",
+    "LT088: price (expected live_price)",
+    "LT089: price (expected list_price)",
+    "LT091: ingredient_amount (expected sodium_hyaluronate)",
+    "LT093: ingredient_amount (expected panthenol)",
+    "LT094: ingredient_amount (expected niacinamide)",
+    "LT096: price (expected live_price)",
+    "LT097: ingredient_amount (expected ceramide_np)",
+    "LT098: ingredient_amount (expected sodium_hyaluronate)",
+    "LT099: ingredient_amount (expected allantoin)",
+    "LT100: ingredient_amount (expected centella_asiatica_leaf_water)"
+   ],
+   "within_3s": 0.54
+  }
+ },
+ "results": [
+  {
+   "sid": "ses_01M44AGQVF5KHY65EXANJCCPSY",
+   "rows": [
+    {
+     "id": "LT001",
+     "kind": "compliance",
+     "expected": "BRAND-ABSOLUTE-SAFETY",
+     "finals": [
+      "This moisturizer is 100% safe for literally everyone without exception."
+     ],
+     "got": "BRAND-ABSOLUTE-SAFETY",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 662,
+     "server_ms": 1488,
+     "render_ms": 1777,
+     "per_final": [
+      {
+       "text": "This moisturizer is 100% safe for literally everyone without exception.",
+       "transcript_id": "tr_01M44AH1ME2D7AP407AT5CJA8M",
+       "verdict": [
+        {
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT002",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-SCARS",
+     "finals": [
+      "Put two drops only.",
+      "Your deep acne scars all completely disappear SIA."
+     ],
+     "got": "ASEAN-3-SKIN-SCARS",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 699,
+     "server_ms": 1411,
+     "render_ms": 1686,
+     "per_final": [
+      {
+       "text": "Put two drops only.",
+       "transcript_id": "tr_01M44AH928T4BDP5AEJKS596EW",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "usage",
+         "verdict": "supported",
+         "stated": "two drops",
+         "correct": "two to three drops"
+        }
+       ],
+       "alerts": []
+      },
+      {
+       "text": "Your deep acne scars all completely disappear SIA.",
+       "transcript_id": "tr_01M44AHCCT9B4R3JSBZGSMRJYB",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "Removes acne scars",
+         "correct": "Treats acne, acne scars, pigmentation disorders or any skin disease."
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT003",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-DISEASE",
+     "finals": [
+      "If your scalp and hairline suffer from psoriasis patches",
+      "Smoothing this on will cure the chronic lesion."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 750,
+     "server_ms": 1727,
+     "render_ms": 2016,
+     "per_final": [
+      {
+       "text": "If your scalp and hairline suffer from psoriasis patches",
+       "transcript_id": "tr_01M44AHNQ0SRARDKJP64048402",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "Smoothing this on will cure the chronic lesion.",
+       "transcript_id": "tr_01M44AHR83VBYV7YCV0BZ8826E",
+       "verdict": null,
+       "claims": null,
+       "alerts": []
+      }
+     ]
+    },
+    {
+     "id": "LT004",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-AGEING",
+     "finals": [
+      "One dropper of this gold liquid will literally stop your skin aging process in its tracks."
+     ],
+     "got": "ASEAN-3-SKIN-AGEING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 807,
+     "server_ms": 1739,
+     "render_ms": 2027,
+     "per_final": [
+      {
+       "text": "One dropper of this gold liquid will literally stop your skin aging process in its tracks.",
+       "transcript_id": "tr_01M44AJ34A2F4PMXV9D0QZQ718",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "stops skin aging process",
+         "correct": "Removes wrinkles or reverses skin ageing."
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT005",
+     "kind": "compliance",
+     "expected": "BRAND-ABSOLUTE-SAFETY",
+     "finals": [
+      "I can promise every single person watching that this formula has zero side effects and zero risk of allergic reaction."
+     ],
+     "got": "BRAND-ABSOLUTE-SAFETY",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 720,
+     "server_ms": 1711,
+     "render_ms": 1996,
+     "per_final": [
+      {
+       "text": "I can promise every single person watching that this formula has zero side effects and zero risk of allergic reaction.",
+       "transcript_id": "tr_01M44AJFBM8MJ6S3V62ZMH6WYQ",
+       "verdict": [
+        {
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT006",
+     "kind": "compliance",
+     "expected": "BRAND-WHITENING",
+     "finals": [
+      "Reviewers say it bleaches out melanin like pure snow.",
+      "And it really widens your entire face."
+     ],
+     "got": "BRAND-WHITENING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 583,
+     "server_ms": 1422,
+     "render_ms": 1692,
+     "per_final": [
+      {
+       "text": "Reviewers say it bleaches out melanin like pure snow.",
+       "transcript_id": "tr_01M44AJR857CGRK888TD4NCKQX",
+       "verdict": [
+        {
+         "rule": "BRAND-WHITENING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "bleaches out melanin like pure snow",
+         "correct": "Whitens skin, or permanently changes skin colour. (Not approved)"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-WHITENING",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "And it really widens your entire face.",
+       "transcript_id": "tr_01M44AJTQD7HH16D7XZ3SRPPJV",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-BODY",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-BODY",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT007",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-ANTIMICROBIAL",
+     "finals": [
+      "It contains active agents that kill all pathogenic bacteria and viruses on your face."
+     ],
+     "got": "ASEAN-3-SKIN-ANTIMICROBIAL",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 721,
+     "server_ms": 1549,
+     "render_ms": 1823,
+     "per_final": [
+      {
+       "text": "It contains active agents that kill all pathogenic bacteria and viruses on your face.",
+       "transcript_id": "tr_01M44AK6C3KTQ8FPCPQD5CT2K5",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-ANTIMICROBIAL",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-ANTIMICROBIAL",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT008",
+     "kind": "compliance",
+     "expected": "ASEAN-2E-PERMANENT",
+     "finals": [
+      "Use this for one single broadcast cycle and your dry skin issues are fixed once and for all."
+     ],
+     "got": "ASEAN-2E-PERMANENT",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 731,
+     "server_ms": 1608,
+     "render_ms": 1885,
+     "per_final": [
+      {
+       "text": "Use this for one single broadcast cycle and your dry skin issues are fixed once and for all.",
+       "transcript_id": "tr_01M44AKGYRTCZQXBZ1YH1DAT50",
+       "verdict": [
+        {
+         "rule": "ASEAN-2E-PERMANENT",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2E-PERMANENT",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT009",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-AGEING",
+     "finals": [
+      "This 60 ml cream will erase every wrinkle and give you teenage skin again."
+     ],
+     "got": "ASEAN-3-SKIN-AGEING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 633,
+     "server_ms": 1558,
+     "render_ms": 1838,
+     "per_final": [
+      {
+       "text": "This 60 ml cream will erase every wrinkle and give you teenage skin again.",
+       "transcript_id": "tr_01M44AKTHZ6HSEYCGN3RT0KE60",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "contradicted",
+         "stated": "60 mL",
+         "correct": "50 mL"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        },
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "volume",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT010",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-AGEING",
+     "finals": [
+      "People tease that it is like a time machine that reverses aging by 20 years, which it basically does."
+     ],
+     "got": "ASEAN-3-SKIN-AGEING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 677,
+     "server_ms": 1614,
+     "render_ms": 1915,
+     "per_final": [
+      {
+       "text": "People tease that it is like a time machine that reverses aging by 20 years, which it basically does.",
+       "transcript_id": "tr_01M44AM685VC1HCC1J49T8WNWG",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT011",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-AGEING",
+     "finals": [
+      "I won't say your wrinkles will disappear overnight, but your wrinkles literally disappear overnight."
+     ],
+     "got": "ASEAN-3-SKIN-AGEING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 703,
+     "server_ms": 1503,
+     "render_ms": 1787,
+     "per_final": [
+      {
+       "text": "I won't say your wrinkles will disappear overnight, but your wrinkles literally disappear overnight.",
+       "transcript_id": "tr_01M44AMH76MVQ8678HQ1RT684A",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT012",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-VULNERABLE",
+     "finals": [
+      "We shouldn't tell you it is 100% safe for pregnant moms, but honestly it is completely safe for pregnancy."
+     ],
+     "got": "ASEAN-2D-VULNERABLE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 740,
+     "server_ms": 1779,
+     "render_ms": 2050,
+     "per_final": [
+      {
+       "text": "We shouldn't tell you it is 100% safe for pregnant moms, but honestly it is completely safe for pregnancy.",
+       "transcript_id": "tr_01M44AMXKKZGZ3BH766Q41YYZ0",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-VULNERABLE",
+         "negated": true,
+         "quoted": false
+        },
+        {
+         "rule": "ASEAN-2D-VULNERABLE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-VULNERABLE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        },
+        {
+         "kind": "compliance",
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "cleared"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT013",
+     "kind": "compliance",
+     "expected": "ASEAN-DP5-PHYSIOLOGICAL",
+     "finals": [
+      "It rebuilds your depleted dermal fibers at the cellular core."
+     ],
+     "got": "ASEAN-DP5-PHYSIOLOGICAL",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 668,
+     "server_ms": 1666,
+     "render_ms": 1948,
+     "per_final": [
+      {
+       "text": "It rebuilds your depleted dermal fibers at the cellular core.",
+       "transcript_id": "tr_01M44AN79331KT0RMYS1WBKCT9",
+       "verdict": [
+        {
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT014",
+     "kind": "compliance",
+     "expected": "BRAND-WHITENING",
+     "finals": [
+      "With high concentration Niacinamide, it bleaches out stubborn melanin so your face turns fairer within days."
+     ],
+     "got": "BRAND-WHITENING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 707,
+     "server_ms": 1784,
+     "render_ms": 2075,
+     "per_final": [
+      {
+       "text": "With high concentration Niacinamide, it bleaches out stubborn melanin so your face turns fairer within days.",
+       "transcript_id": "tr_01M44ANJY3FAGPCYTZ7CCXXWG9",
+       "verdict": [
+        {
+         "rule": "BRAND-WHITENING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "bleaches out stubborn melanin",
+         "correct": "Whitens skin, or permanently changes skin colour."
+        },
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "turns fairer within days",
+         "correct": "Permanent results, or results without continued use."
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-WHITENING",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT015",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-DISEASE",
+     "finals": [
+      "If your skin barrier breaks down and flares up with painful eczema patches.",
+      "This cream completely cures the inflammation."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 660,
+     "server_ms": 1471,
+     "render_ms": 1752,
+     "per_final": [
+      {
+       "text": "If your skin barrier breaks down and flares up with painful eczema patches.",
+       "transcript_id": "tr_01M44ANX8MQ1G05WA9YCV43RPV",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "This cream completely cures the inflammation.",
+       "transcript_id": "tr_01M44AP00DHJSQV2Z9WRMGBFNZ",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": []
+      }
+     ]
+    },
+    {
+     "id": "LT016",
+     "kind": "compliance",
+     "expected": "BRAND-MEDICINE-LIKE",
+     "finals": [
+      "Someone said, \"Is this medical grade prescription ointment?\"",
+      "Well, it works just as strongly."
+     ],
+     "got": "BRAND-MEDICINE-LIKE",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 654,
+     "server_ms": 1637,
+     "render_ms": 1905,
+     "per_final": [
+      {
+       "text": "Someone said, \"Is this medical grade prescription ointment?\"",
+       "transcript_id": "tr_01M44AP8QW8G39PEHACXRD5Z1Y",
+       "verdict": [
+        {
+         "rule": "BRAND-MEDICINE-LIKE",
+         "negated": false,
+         "quoted": true
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-MEDICINE-LIKE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "cleared"
+        }
+       ]
+      },
+      {
+       "text": "Well, it works just as strongly.",
+       "transcript_id": "tr_01M44APARZZR8B25J0D5XV187T",
+       "verdict": [
+        {
+         "rule": "BRAND-MEDICINE-LIKE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-MEDICINE-LIKE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT017",
+     "kind": "compliance",
+     "expected": "BRAND-WHITENING",
+     "finals": [
+      "It will whiten your dull skin tone and turn your complexion snow white."
+     ],
+     "got": "BRAND-WHITENING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 575,
+     "server_ms": 1406,
+     "render_ms": 1689,
+     "per_final": [
+      {
+       "text": "It will whiten your dull skin tone and turn your complexion snow white.",
+       "transcript_id": "tr_01M44APMW1K9VVNA53EJ2383HR",
+       "verdict": [
+        {
+         "rule": "BRAND-WHITENING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-WHITENING",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT018",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-NUMBING",
+     "finals": [
+      "When your face is stinging.",
+      "This cream provides an immediate numbing action to freeze the pain."
+     ],
+     "got": "ASEAN-3-SKIN-NUMBING",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 579,
+     "server_ms": 1549,
+     "render_ms": 1839,
+     "per_final": [
+      {
+       "text": "When your face is stinging.",
+       "transcript_id": "tr_01M44APWGNSGVYXRZ4B3QB13RM",
+       "verdict": [],
+       "claims": [],
+       "alerts": []
+      },
+      {
+       "text": "This cream provides an immediate numbing action to freeze the pain.",
+       "transcript_id": "tr_01M44AQ04ED9M8CVAFEX4RBVAS",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-NUMBING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-NUMBING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT019",
+     "kind": "compliance",
+     "expected": "BRAND-MEDICINE-LIKE",
+     "finals": [
+      "We are not allowed to call it medicine.",
+      "But it functions exactly like medical acne treatment."
+     ],
+     "got": "BRAND-MEDICINE-LIKE",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 635,
+     "server_ms": 1527,
+     "render_ms": 1815,
+     "per_final": [
+      {
+       "text": "We are not allowed to call it medicine.",
+       "transcript_id": "tr_01M44AQ8G0DG8Z0FPQH2ASTNYT",
+       "verdict": [],
+       "claims": [],
+       "alerts": []
+      },
+      {
+       "text": "But it functions exactly like medical acne treatment.",
+       "transcript_id": "tr_01M44AQBXEY48R84MJKZK1MXT3",
+       "verdict": [
+        {
+         "rule": "BRAND-MEDICINE-LIKE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-MEDICINE-LIKE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT020",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-ACNE",
+     "finals": [
+      "Apply this concentrated ampoule nightly so you wake up completely acne free forever."
+     ],
+     "got": "ASEAN-3-SKIN-ACNE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 669,
+     "server_ms": 1808,
+     "render_ms": 2134,
+     "per_final": [
+      {
+       "text": "Apply this concentrated ampoule nightly so you wake up completely acne free forever.",
+       "transcript_id": "tr_01M44AQPC1BC95HM7KYP17TH3Q",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-ACNE",
+         "negated": false,
+         "quoted": false
+        },
+        {
+         "rule": "ASEAN-2E-PERMANENT",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "Removes acne permanently",
+         "correct": "Treats acne, acne scars, pigmentation disorders or any skin disease. Repairs, heals or regenerates skin cells. Permanent results, or results without continued use. (Not approved)"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-ACNE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        },
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2E-PERMANENT",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT021",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-DISEASE",
+     "finals": [
+      "Say goodbye to a topic flare UPS and angry eczema patches forever."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 643,
+     "server_ms": 1568,
+     "render_ms": 1844,
+     "per_final": [
+      {
+       "text": "Say goodbye to a topic flare UPS and angry eczema patches forever.",
+       "transcript_id": "tr_01M44AR1450ZJ14SYWHXF22R6R",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        },
+        {
+         "rule": "ASEAN-2E-PERMANENT",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        },
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2E-PERMANENT",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT022",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-DISEASE",
+     "finals": [
+      "I cannot legally say it cures eczema.",
+      "But between you and me, it cures eczema."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 898,
+     "server_ms": 1467,
+     "render_ms": 1737,
+     "per_final": [
+      {
+       "text": "I cannot legally say it cures eczema.",
+       "transcript_id": "tr_01M44AR9BEXADFK6GXGYE31S08",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": true,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "cleared"
+        }
+       ]
+      },
+      {
+       "text": "But between you and me, it cures eczema.",
+       "transcript_id": "tr_01M44ARBKYFS0ZQEJ0K0RYXPAC",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT023",
+     "kind": "compliance",
+     "expected": "BRAND-SUPERLATIVE",
+     "finals": [
+      "This barrier cream is easily better than any luxury brand you find in department stores."
+     ],
+     "got": "BRAND-SUPERLATIVE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 738,
+     "server_ms": 1684,
+     "render_ms": 1963,
+     "per_final": [
+      {
+       "text": "This barrier cream is easily better than any luxury brand you find in department stores.",
+       "transcript_id": "tr_01M44ARP04NZTD5HXWXZV6ZYSM",
+       "verdict": [
+        {
+         "rule": "BRAND-SUPERLATIVE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-SUPERLATIVE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT024",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-ACNE",
+     "finals": [
+      "Apply this every morning and I guarantee you will never see another acne breakout again."
+     ],
+     "got": "ASEAN-3-SKIN-ACNE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 620,
+     "server_ms": 1530,
+     "render_ms": 1806,
+     "per_final": [
+      {
+       "text": "Apply this every morning and I guarantee you will never see another acne breakout again.",
+       "transcript_id": "tr_01M44AS0TBZ4TVKH1MKNCNGSWP",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-ACNE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-ACNE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT025",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-AGEING",
+     "finals": [
+      "After one single jar.",
+      "Your biological age turns back by 10 whole years."
+     ],
+     "got": "ASEAN-2E-PERMANENT",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 505,
+     "server_ms": 1503,
+     "render_ms": 1785,
+     "per_final": [
+      {
+       "text": "After one single jar.",
+       "transcript_id": "tr_01M44AS8C6PR9FYPCY5Q8BXP87",
+       "verdict": [
+        {
+         "rule": "ASEAN-2E-PERMANENT",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "jar",
+         "correct": "Airless pump tube"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        },
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2E-PERMANENT",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "Your biological age turns back by 10 whole years.",
+       "transcript_id": "tr_01M44ASBWX48PJ52RY8VZEB23J",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT026",
+     "kind": "compliance",
+     "expected": "ASEAN-DP5-PHYSIOLOGICAL",
+     "finals": [
+      "It actively rebuilds your collagen matrix from deep within the dermis layer."
+     ],
+     "got": "ASEAN-DP5-PHYSIOLOGICAL",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 717,
+     "server_ms": 1620,
+     "render_ms": 1890,
+     "per_final": [
+      {
+       "text": "It actively rebuilds your collagen matrix from deep within the dermis layer.",
+       "transcript_id": "tr_01M44ASPK7TXS61722SNA8TBNX",
+       "verdict": [
+        {
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "actively rebuilds your collagen matrix from deep within the dermis layer",
+         "correct": "Repairs, heals or regenerates skin cells. / Removes wrinkles or reverses skin ageing."
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT027",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-ACNE",
+     "finals": [
+      "It stops all future breakouts from ever emerging on your jawline."
+     ],
+     "got": "ASEAN-3-SKIN-ACNE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 635,
+     "server_ms": 1480,
+     "render_ms": 1758,
+     "per_final": [
+      {
+       "text": "It stops all future breakouts from ever emerging on your jawline.",
+       "transcript_id": "tr_01M44ASZX4H0TMTZ2YDE5JDJKD",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-ACNE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-ACNE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT028",
+     "kind": "compliance",
+     "expected": "BRAND-SUPERLATIVE",
+     "finals": [
+      "This is legitimately the number one barrier moisturizer in the whole of Southeast Asia right now."
+     ],
+     "got": "BRAND-SUPERLATIVE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 698,
+     "server_ms": 1702,
+     "render_ms": 1990,
+     "per_final": [
+      {
+       "text": "This is legitimately the number one barrier moisturizer in the whole of Southeast Asia right now.",
+       "transcript_id": "tr_01M44ATB7DRR744Z6Z0YVAG6HN",
+       "verdict": [
+        {
+         "rule": "BRAND-SUPERLATIVE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-SUPERLATIVE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT029",
+     "kind": "compliance",
+     "expected": "BRAND-WHITENING",
+     "finals": [
+      "I am not claiming it permanently whitens your skin tone.",
+      "But it truly bleaches out melanin forever."
+     ],
+     "got": "BRAND-WHITENING",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 574,
+     "server_ms": 1471,
+     "render_ms": 1745,
+     "per_final": [
+      {
+       "text": "I am not claiming it permanently whitens your skin tone.",
+       "transcript_id": "tr_01M44ATMHNHMBK73K9CDBFF39D",
+       "verdict": [
+        {
+         "rule": "BRAND-WHITENING",
+         "negated": true,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2E-PERMANENT",
+         "field": null,
+         "severity": "HIGH",
+         "status": "cleared"
+        },
+        {
+         "kind": "compliance",
+         "rule": "BRAND-WHITENING",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "cleared"
+        }
+       ]
+      },
+      {
+       "text": "But it truly bleaches out melanin forever.",
+       "transcript_id": "tr_01M44ATQ5Q142QVH573HFD5ZPK",
+       "verdict": [
+        {
+         "rule": "BRAND-WHITENING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-WHITENING",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT030",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-DISEASE",
+     "finals": [
+      "Hey, yo. This cream confirm can cure your eczema flare up one law."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 680,
+     "server_ms": 1598,
+     "render_ms": 1889,
+     "per_final": [
+      {
+       "text": "Hey, yo. This cream confirm can cure your eczema flare up one law.",
+       "transcript_id": "tr_01M44AV1QMD6K07H8M81T2QZJQ",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT031",
+     "kind": "compliance",
+     "expected": "BRAND-WHITENING",
+     "finals": [
+      "This ampoule is super powerful.",
+      "Can whiten and bleach out dark pigmentation fast fast."
+     ],
+     "got": "BRAND-SUPERLATIVE",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 594,
+     "server_ms": 1442,
+     "render_ms": 1713,
+     "per_final": [
+      {
+       "text": "This ampoule is super powerful.",
+       "transcript_id": "tr_01M44AV9XNBX73C5H18Z7E4MFG",
+       "verdict": [
+        {
+         "rule": "BRAND-SUPERLATIVE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-SUPERLATIVE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "Can whiten and bleach out dark pigmentation fast fast.",
+       "transcript_id": "tr_01M44AVDJMBNKPTAZMYNZXW7TS",
+       "verdict": [
+        {
+         "rule": "BRAND-WHITENING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-WHITENING",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT032",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-SCARS",
+     "finals": [
+      "Those deep ice pick acne scars on your cheeks.",
+      "This serum will fill them up and erase them completely."
+     ],
+     "got": "ASEAN-3-SKIN-SCARS",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 621,
+     "server_ms": 1530,
+     "render_ms": 1813,
+     "per_final": [
+      {
+       "text": "Those deep ice pick acne scars on your cheeks.",
+       "transcript_id": "tr_01M44AVP08XD06ZNGF4BHCGQWY",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "This serum will fill them up and erase them completely.",
+       "transcript_id": "tr_01M44AVS1ET756NRP554NAG6S3",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "fill them up and erase them completely",
+         "correct": "Removes wrinkles or reverses skin ageing. Treats acne, acne scars, pigmentation disorders or any skin disease."
+        }
+       ],
+       "alerts": []
+      }
+     ]
+    },
+    {
+     "id": "LT033",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-AGEING",
+     "finals": [
+      "Trust me, all.",
+      "Use this continuously for 3 nights and your crow's feet and smile lines will completely erase."
+     ],
+     "got": "ASEAN-3-SKIN-AGEING",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 598,
+     "server_ms": 1517,
+     "render_ms": 1794,
+     "per_final": [
+      {
+       "text": "Trust me, all.",
+       "transcript_id": "tr_01M44AW0DH6VK82BJDDGER6Z4X",
+       "verdict": [],
+       "claims": [],
+       "alerts": []
+      },
+      {
+       "text": "Use this continuously for 3 nights and your crow's feet and smile lines will completely erase.",
+       "transcript_id": "tr_01M44AW5ZC66N5DP77RGCSEB7P",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT034",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-BODY",
+     "finals": [
+      "You can massage this into your jawline and neck to reduce puffiness and burn facial fat."
+     ],
+     "got": "ASEAN-3-SKIN-BODY",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 660,
+     "server_ms": 1453,
+     "render_ms": 1741,
+     "per_final": [
+      {
+       "text": "You can massage this into your jawline and neck to reduce puffiness and burn facial fat.",
+       "transcript_id": "tr_01M44AWH6ZXJR6BFAYY6MVD6W9",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-BODY",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-BODY",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT035",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-AGEING",
+     "finals": [
+      "Use one jar only.",
+      "Forehead wrinkles all gone forever.",
+      "Confirm reverse aging."
+     ],
+     "got": "ASEAN-3-SKIN-AGEING",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 493,
+     "server_ms": 1606,
+     "render_ms": 1888,
+     "per_final": [
+      {
+       "text": "Use one jar only.",
+       "transcript_id": "tr_01M44AWSCWAAEEWWFJRBCY5ZY0",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "jar",
+         "correct": "Airless pump tube"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "Forehead wrinkles all gone forever.",
+       "transcript_id": "tr_01M44AWVNEK0FG7ED9XHFAA99W",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "Confirm reverse aging.",
+       "transcript_id": "tr_01M44AWXEX5QP6ANRT67T4C9K3",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": []
+      }
+     ]
+    },
+    {
+     "id": "LT036",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-DISEASE",
+     "finals": [
+      "My sister joked that this cream cured her severe eczema in 2 days.",
+      "And honestly, I believe her."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 679,
+     "server_ms": 1334,
+     "render_ms": 1627,
+     "per_final": [
+      {
+       "text": "My sister joked that this cream cured her severe eczema in 2 days.",
+       "transcript_id": "tr_01M44AX75AMC6VX2W8FD1CKZNB",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": true
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "cleared"
+        }
+       ]
+      },
+      {
+       "text": "And honestly, I believe her.",
+       "transcript_id": "tr_01M44AX8XESYH7H9KWH9DGRB9G",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT037",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-VULNERABLE",
+     "finals": [
+      "Because it is so mild.",
+      "You can even put this safely on newborn babies and toddlers."
+     ],
+     "got": "ASEAN-2D-VULNERABLE",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 559,
+     "server_ms": 1411,
+     "render_ms": 1695,
+     "per_final": [
+      {
+       "text": "Because it is so mild.",
+       "transcript_id": "tr_01M44AXFYM06M41H2D7Q019026",
+       "verdict": [],
+       "claims": [],
+       "alerts": []
+      },
+      {
+       "text": "You can even put this safely on newborn babies and toddlers.",
+       "transcript_id": "tr_01M44AXKJEAJ9D5A5WND81ADSF",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-VULNERABLE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "newborn babies and toddlers",
+         "correct": "all skin types, including sensitive skin"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-VULNERABLE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT038",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-VULNERABLE",
+     "finals": [
+      "Even if you are 7 months pregnant or currently nursing.",
+      "This formulation is totally safe for expecting mothers."
+     ],
+     "got": "ASEAN-2D-VULNERABLE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 600,
+     "server_ms": 1458,
+     "render_ms": 1740,
+     "per_final": [
+      {
+       "text": "Even if you are 7 months pregnant or currently nursing.",
+       "transcript_id": "tr_01M44AXW3B00BRWZ4YMD8TMQ50",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-VULNERABLE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "pregnant or breastfeeding",
+         "correct": "consult their doctor before use"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-VULNERABLE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "This formulation is totally safe for expecting mothers.",
+       "transcript_id": "tr_01M44AXZGS750DJDMJHQNSGC99",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-VULNERABLE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "completely safe during pregnancy",
+         "correct": "not approved as completely safe during pregnancy"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "cleared"
+        },
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-VULNERABLE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT039",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-VULNERABLE",
+     "finals": [
+      "Pregnant sisters don't be scared. Confirm 100% safe for baby law."
+     ],
+     "got": "BRAND-ABSOLUTE-SAFETY",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 640,
+     "server_ms": 1666,
+     "render_ms": 1951,
+     "per_final": [
+      {
+       "text": "Pregnant sisters don't be scared. Confirm 100% safe for baby law.",
+       "transcript_id": "tr_01M44AYA459AXD07787EH377BQ",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-VULNERABLE",
+         "negated": false,
+         "quoted": false
+        },
+        {
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "100% safe",
+         "correct": "not specifically tested on pregnant or breastfeeding women"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        },
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-VULNERABLE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT040",
+     "kind": "compliance",
+     "expected": "ASEAN-DP5-PHYSIOLOGICAL",
+     "finals": [
+      "It doesn't just sit on top. It physically reactivates your dormant skin cells to regenerate fresh tissue."
+     ],
+     "got": "ASEAN-DP5-PHYSIOLOGICAL",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 741,
+     "server_ms": 1618,
+     "render_ms": 1896,
+     "per_final": [
+      {
+       "text": "It doesn't just sit on top. It physically reactivates your dormant skin cells to regenerate fresh tissue.",
+       "transcript_id": "tr_01M44AYPRCGK0PM6VXVX5HVTBT",
+       "verdict": [
+        {
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "reactivates dormant skin cells to regenerate fresh tissue",
+         "correct": "Repairs, heals or regenerates skin cells is not approved"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT041",
+     "kind": "compliance",
+     "expected": "ASEAN-2E-PERMANENT",
+     "finals": [
+      "Once the hydration penetrates your deeper dermal layers.",
+      "The moisture retention is permanent."
+     ],
+     "got": "ASEAN-DP5-PHYSIOLOGICAL",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 563,
+     "server_ms": 1380,
+     "render_ms": 1668,
+     "per_final": [
+      {
+       "text": "Once the hydration penetrates your deeper dermal layers.",
+       "transcript_id": "tr_01M44AYZ95HQ5QSH2B93REQ2PY",
+       "verdict": [
+        {
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "The moisture retention is permanent.",
+       "transcript_id": "tr_01M44AZ1P8572W86CN4HNPX0EV",
+       "verdict": [
+        {
+         "rule": "ASEAN-2E-PERMANENT",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2E-PERMANENT",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT042",
+     "kind": "compliance",
+     "expected": "ASEAN-3-SKIN-SCARS",
+     "finals": [
+      "A buyer in the chat said this erased all my acne scars.",
+      "And yes, it truly does remove scars."
+     ],
+     "got": "ASEAN-3-SKIN-SCARS",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 633,
+     "server_ms": 1609,
+     "render_ms": 1878,
+     "per_final": [
+      {
+       "text": "A buyer in the chat said this erased all my acne scars.",
+       "transcript_id": "tr_01M44AZAWYGJC4Y020NHZFBA51",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "negated": false,
+         "quoted": true
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "field": null,
+         "severity": "HIGH",
+         "status": "cleared"
+        }
+       ]
+      },
+      {
+       "text": "And yes, it truly does remove scars.",
+       "transcript_id": "tr_01M44AZD8NVCGDCN94MHD1GC3R",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "removes scars",
+         "correct": "Treats acne, acne scars, pigmentation disorders or any skin disease."
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-SCARS",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT043",
+     "kind": "compliance",
+     "expected": "BRAND-WHITENING",
+     "finals": [
+      "This formula erases stubborn melanin so your dull face turns snow white within days."
+     ],
+     "got": "BRAND-WHITENING",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 706,
+     "server_ms": 1609,
+     "render_ms": 1886,
+     "per_final": [
+      {
+       "text": "This formula erases stubborn melanin so your dull face turns snow white within days.",
+       "transcript_id": "tr_01M44AZRD4EX5Y97ZBS2KGWGCX",
+       "verdict": [
+        {
+         "rule": "BRAND-WHITENING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-WHITENING",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT044",
+     "kind": "compliance",
+     "expected": "BRAND-MEDICINE-LIKE",
+     "finals": [
+      "You don't need to visit a dermatologist for medical grade ointment. This tube gives you pharmaceutical strength relief."
+     ],
+     "got": "BRAND-MEDICINE-LIKE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 710,
+     "server_ms": 1500,
+     "render_ms": 1794,
+     "per_final": [
+      {
+       "text": "You don't need to visit a dermatologist for medical grade ointment. This tube gives you pharmaceutical strength relief.",
+       "transcript_id": "tr_01M44B04MW5EJ2YWBFN0M3PZ12",
+       "verdict": [
+        {
+         "rule": "BRAND-MEDICINE-LIKE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-MEDICINE-LIKE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT045",
+     "kind": "compliance",
+     "expected": "BRAND-MEDICINE-LIKE",
+     "finals": [
+      "It genuinely works like a prescription steroid cream to come allergic dermatitis without the doctor fee."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 702,
+     "server_ms": 1995,
+     "render_ms": 2268,
+     "per_final": [
+      {
+       "text": "It genuinely works like a prescription steroid cream to come allergic dermatitis without the doctor fee.",
+       "transcript_id": "tr_01M44B0FZYN6XJRRTR2C5W7MVX",
+       "verdict": [
+        {
+         "rule": "BRAND-MEDICINE-LIKE",
+         "negated": false,
+         "quoted": false
+        },
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        },
+        {
+         "kind": "compliance",
+         "rule": "BRAND-MEDICINE-LIKE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT046",
+     "kind": "compliance",
+     "expected": "ASEAN-2D-DISEASE",
+     "finals": [
+      "This cream heals psoriasis patches."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 553,
+     "server_ms": 1429,
+     "render_ms": 1701,
+     "per_final": [
+      {
+       "text": "This cream heals psoriasis patches.",
+       "transcript_id": "tr_01M44B0R18T07C1V0KCC1Y64Q0",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "heals psoriasis patches",
+         "correct": "Not approved (Claims not approved: Repairs, heals or cures damaged skin. Treats eczema, dermatitis, acne or any skin disease.)"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT047",
+     "kind": "compliance",
+     "expected": "ASEAN-2E-PERMANENT",
+     "finals": [
+      "Your pores will shrink permanently."
+     ],
+     "got": "ASEAN-2E-PERMANENT",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 633,
+     "server_ms": 1639,
+     "render_ms": 1907,
+     "per_final": [
+      {
+       "text": "Your pores will shrink permanently.",
+       "transcript_id": "tr_01M44B10DF97DVCBPCH2K92Y9Z",
+       "verdict": [
+        {
+         "rule": "ASEAN-2E-PERMANENT",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2E-PERMANENT",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT048",
+     "kind": "compliance",
+     "expected": "BRAND-MEDICINE-LIKE",
+     "finals": [
+      "It works like a botox injection in a jar."
+     ],
+     "got": "BRAND-MEDICINE-LIKE",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 619,
+     "server_ms": 1433,
+     "render_ms": 1724,
+     "per_final": [
+      {
+       "text": "It works like a botox injection in a jar.",
+       "transcript_id": "tr_01M44B19GKA2DCKP9R1VXP69NJ",
+       "verdict": [
+        {
+         "rule": "BRAND-MEDICINE-LIKE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-MEDICINE-LIKE",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT049",
+     "kind": "compliance",
+     "expected": "BRAND-WHITENING",
+     "finals": [
+      "It fades melasma completely."
+     ],
+     "got": "ASEAN-2D-DISEASE",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 657,
+     "server_ms": 1631,
+     "render_ms": 1917,
+     "per_final": [
+      {
+       "text": "It fades melasma completely.",
+       "transcript_id": "tr_01M44B1J1X30DKA1W2Q2CF0HXV",
+       "verdict": [
+        {
+         "rule": "ASEAN-2D-DISEASE",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-2D-DISEASE",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT050",
+     "kind": "compliance",
+     "expected": "BRAND-ABSOLUTE-SAFETY",
+     "finals": [
+      "Zero side effects for anyone guaranteed."
+     ],
+     "got": "BRAND-ABSOLUTE-SAFETY",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 606,
+     "server_ms": 1480,
+     "render_ms": 1742,
+     "per_final": [
+      {
+       "text": "Zero side effects for anyone guaranteed.",
+       "transcript_id": "tr_01M44B1VEJX26357NDS08BS7J4",
+       "verdict": [
+        {
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-ABSOLUTE-SAFETY",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT051",
+     "kind": "fact",
+     "expected": "test_result",
+     "finals": [
+      "In clinical corneometer tests",
+      "Instant skin hydration increased by 70% right after one application."
+     ],
+     "got": "test_result",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 671,
+     "server_ms": 1677,
+     "render_ms": 1950,
+     "per_final": [
+      {
+       "text": "In clinical corneometer tests",
+       "transcript_id": "tr_01M44B23S8N5BXA15P262S15KH",
+       "verdict": [],
+       "claims": [],
+       "alerts": []
+      },
+      {
+       "text": "Instant skin hydration increased by 70% right after one application.",
+       "transcript_id": "tr_01M44B28F6FKHZ3HSHRV668004",
+       "verdict": [
+        {
+         "rule": "BRAND-TEST-QUALIFIER",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "test_result",
+         "verdict": "contradicted",
+         "stated": "+70%",
+         "correct": "+45%"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "BRAND-TEST-QUALIFIER",
+         "field": null,
+         "severity": "MEDIUM",
+         "status": "active"
+        },
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "test_result",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT052",
+     "kind": "fact",
+     "expected": "origin",
+     "finals": [
+      "It's made in Japan."
+     ],
+     "got": "origin",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 566,
+     "server_ms": 1430,
+     "render_ms": 1705,
+     "per_final": [
+      {
+       "text": "It's made in Japan.",
+       "transcript_id": "tr_01M44B2G8ZZG7ZWE0XE09APR06",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "origin",
+         "verdict": "contradicted",
+         "stated": "Japan",
+         "correct": "Republic of Korea"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "origin",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT053",
+     "kind": "fact",
+     "expected": "ph",
+     "finals": [
+      "The ampoule pH is about eight."
+     ],
+     "got": "ph",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 641,
+     "server_ms": 1746,
+     "render_ms": 2026,
+     "per_final": [
+      {
+       "text": "The ampoule pH is about eight.",
+       "transcript_id": "tr_01M44B2RSBZV8P72A9TCY9N637",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ph",
+         "verdict": "contradicted",
+         "stated": "8",
+         "correct": "5.5 to 6.0"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ph",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT054",
+     "kind": "fact",
+     "expected": "panthenol",
+     "finals": [
+      "The cream gives you 10% Panthenol."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 626,
+     "server_ms": 1440,
+     "render_ms": 1714,
+     "per_final": [
+      {
+       "text": "The cream gives you 10% Panthenol.",
+       "transcript_id": "tr_01M44B31JEQZHDX2VMK2KW99R7",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "10% Panthenol",
+         "correct": "5%"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT055",
+     "kind": "fact",
+     "expected": "volume",
+     "finals": [
+      "In this 30 ml jar you get 1% Ceramide NP."
+     ],
+     "got": "volume",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 699,
+     "server_ms": 2171,
+     "render_ms": 2441,
+     "per_final": [
+      {
+       "text": "In this 30 ml jar you get 1% Ceramide NP.",
+       "transcript_id": "tr_01M44B3ARGJ0VBGFDEA9MGRF7F",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "contradicted",
+         "stated": "30 mL",
+         "correct": "50 mL"
+        },
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "jar",
+         "correct": "Airless pump tube"
+        },
+        {
+         "field": "ingredient_amount",
+         "verdict": "supported",
+         "stated": "1% Ceramide NP",
+         "correct": "1%"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "volume",
+         "severity": null,
+         "status": "active"
+        },
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT056",
+     "kind": "fact",
+     "expected": "origin",
+     "finals": [
+      "This ampoule is made in France."
+     ],
+     "got": "origin",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 552,
+     "server_ms": 1629,
+     "render_ms": 1899,
+     "per_final": [
+      {
+       "text": "This ampoule is made in France.",
+       "transcript_id": "tr_01M44B3KCY2E6QKYM0ZQ5V00YJ",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "origin",
+         "verdict": "contradicted",
+         "stated": "France",
+         "correct": "Republic of Korea"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "origin",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT057",
+     "kind": "fact",
+     "expected": "centella_asiatica_leaf_water",
+     "finals": [
+      "70% Centella Leaf Water"
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 582,
+     "server_ms": 1621,
+     "render_ms": 1894,
+     "per_final": [
+      {
+       "text": "70% Centella Leaf Water",
+       "transcript_id": "tr_01M44B3VCCXAKNXVSCAFKTP2WW",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "70% centella asiatica leaf water",
+         "correct": "50% centella asiatica leaf water"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT058",
+     "kind": "fact",
+     "expected": "price",
+     "finals": [
+      "Right now on the stream.",
+      "The single cream is going for $30."
+     ],
+     "got": "price",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 564,
+     "server_ms": 1702,
+     "render_ms": 1954,
+     "per_final": [
+      {
+       "text": "Right now on the stream.",
+       "transcript_id": "tr_01M44B437Q9BXYWSDYE189SDHZ",
+       "verdict": [],
+       "claims": [],
+       "alerts": []
+      },
+      {
+       "text": "The single cream is going for $30.",
+       "transcript_id": "tr_01M44B45WS5KBEGDZ39GSQZ8M7",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$30",
+         "correct": "S$36.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT059",
+     "kind": "fact",
+     "expected": "volume",
+     "finals": [
+      "This 60 ml cream will erase every wrinkle and give you teenage skin again."
+     ],
+     "got": "volume",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 650,
+     "server_ms": 2031,
+     "render_ms": 2297,
+     "per_final": [
+      {
+       "text": "This 60 ml cream will erase every wrinkle and give you teenage skin again.",
+       "transcript_id": "tr_01M44B4G10VB75QNH0Q0TPJGJD",
+       "verdict": [
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        },
+        {
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "negated": false,
+         "quoted": false
+        }
+       ],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "contradicted",
+         "stated": "60 mL",
+         "correct": "50 mL"
+        },
+        {
+         "field": "other",
+         "verdict": "contradicted",
+         "stated": "erase every wrinkle and give teenage skin",
+         "correct": "Claims not approved: Repairs, heals or cures damaged skin. Treats eczema, dermatitis, acne or any skin disease. Removes wrinkles or reverses skin ageing."
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "compliance",
+         "rule": "ASEAN-3-SKIN-AGEING",
+         "field": null,
+         "severity": "HIGH",
+         "status": "active"
+        },
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "volume",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT060",
+     "kind": "fact",
+     "expected": "panthenol",
+     "finals": [
+      "The cream has 3% Panthenol."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 3279,
+     "server_ms": 4196,
+     "render_ms": 4468,
+     "per_final": [
+      {
+       "text": "The cream has 3% Panthenol.",
+       "transcript_id": "tr_01M44B538BA60FJF4BDN64DTBT",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "3% Panthenol",
+         "correct": "5% Panthenol"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT061",
+     "kind": "fact",
+     "expected": "ceramide_np",
+     "finals": [
+      "half a percent Ceramide NP in this one"
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 688,
+     "server_ms": 1669,
+     "render_ms": 1951,
+     "per_final": [
+      {
+       "text": "half a percent Ceramide NP in this one",
+       "transcript_id": "tr_01M44B5BFJRSV5VT00Q7FWEWWV",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "0.5% Ceramide NP",
+         "correct": "1% Ceramide NP"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT062",
+     "kind": "fact",
+     "expected": "beta_glucan",
+     "finals": [
+      "2% Beta Glucan in the ampoule"
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 554,
+     "server_ms": 1521,
+     "render_ms": 1799,
+     "per_final": [
+      {
+       "text": "2% Beta Glucan in the ampoule",
+       "transcript_id": "tr_01M44B5KZ08Y8XG5QCZGXH4M3D",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "2% Beta-Glucan",
+         "correct": "1% Beta-Glucan"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT063",
+     "kind": "fact",
+     "expected": "niacinamide",
+     "finals": [
+      "We pack 10% Niacinamide into every single bottle."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 701,
+     "server_ms": 1581,
+     "render_ms": 1854,
+     "per_final": [
+      {
+       "text": "We pack 10% Niacinamide into every single bottle.",
+       "transcript_id": "tr_01M44B5WZHWN0391NFFQ9M22PA",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "10% niacinamide",
+         "correct": "4% niacinamide"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT064",
+     "kind": "fact",
+     "expected": "live_price",
+     "finals": [
+      "This 50 ml cream costs S$32.00 today."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 648,
+     "server_ms": 1860,
+     "render_ms": 2146,
+     "per_final": [
+      {
+       "text": "This 50 ml cream costs S$32.00 today.",
+       "transcript_id": "tr_01M44B67R22JX631VGX4RBZRQT",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "supported",
+         "stated": "50 mL",
+         "correct": "50 mL"
+        },
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$32.00",
+         "correct": "S$36.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT065",
+     "kind": "fact",
+     "expected": "packaging",
+     "finals": [
+      "It comes in a plastic pump bottle."
+     ],
+     "got": "packaging",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 581,
+     "server_ms": 1444,
+     "render_ms": 1721,
+     "per_final": [
+      {
+       "text": "It comes in a plastic pump bottle.",
+       "transcript_id": "tr_01M44B6G5HJG11EXKYHSFX8JKE",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "plastic pump bottle",
+         "correct": "Glass bottle with dropper"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT066",
+     "kind": "fact",
+     "expected": "shelf_life",
+     "finals": [
+      "Unopened it lasts 48 months."
+     ],
+     "got": "shelf_life",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 648,
+     "server_ms": 1648,
+     "render_ms": 1937,
+     "per_final": [
+      {
+       "text": "Unopened it lasts 48 months.",
+       "transcript_id": "tr_01M44B6QZK28Z3MMPAXV25BXWV",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "shelf_life",
+         "verdict": "contradicted",
+         "stated": "48 months",
+         "correct": "30 months"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "shelf_life",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT067",
+     "kind": "fact",
+     "expected": "list_price",
+     "finals": [
+      "List price is $60, so it's a steal."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 634,
+     "server_ms": 1578,
+     "render_ms": 1857,
+     "per_final": [
+      {
+       "text": "List price is $60, so it's a steal.",
+       "transcript_id": "tr_01M44B71MRQRM8K3W6445RXA1P",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$60",
+         "correct": "S$48.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT068",
+     "kind": "fact",
+     "expected": "live_price",
+     "finals": [
+      "The ampoule is $25 today."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 624,
+     "server_ms": 1697,
+     "render_ms": 1966,
+     "per_final": [
+      {
+       "text": "The ampoule is $25 today.",
+       "transcript_id": "tr_01M44B7AN50ND13XR089RCV3HV",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$25",
+         "correct": "S$32.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT069",
+     "kind": "fact",
+     "expected": "live_price",
+     "finals": [
+      "The life price of this ampoule is $36."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 587,
+     "server_ms": 1612,
+     "render_ms": 1897,
+     "per_final": [
+      {
+       "text": "The life price of this ampoule is $36.",
+       "transcript_id": "tr_01M44B7KCT6QV1ZXM0P18HWSA9",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$36",
+         "correct": "S$32.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT070",
+     "kind": "fact",
+     "expected": "origin",
+     "finals": [
+      "Every single ampoule is manufactured and imported directly from Japan."
+     ],
+     "got": "origin",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 591,
+     "server_ms": 1568,
+     "render_ms": 1846,
+     "per_final": [
+      {
+       "text": "Every single ampoule is manufactured and imported directly from Japan.",
+       "transcript_id": "tr_01M44B7X5W45AX9HVKTAC6ZAVD",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "origin",
+         "verdict": "contradicted",
+         "stated": "Japan",
+         "correct": "Republic of Korea"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "origin",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT071",
+     "kind": "fact",
+     "expected": "how_to_use",
+     "finals": [
+      "Use 5 to 6 drops each time."
+     ],
+     "got": "usage",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 652,
+     "server_ms": 1688,
+     "render_ms": 1959,
+     "per_final": [
+      {
+       "text": "Use 5 to 6 drops each time.",
+       "transcript_id": "tr_01M44B852FMWQ0YEXDY1JPN6M2",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "usage",
+         "verdict": "contradicted",
+         "stated": "5 to 6 drops",
+         "correct": "two to three drops"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "usage",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT072",
+     "kind": "fact",
+     "expected": "packaging",
+     "finals": [
+      "This jar comes in a 50 ml size."
+     ],
+     "got": "packaging",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 670,
+     "server_ms": 1891,
+     "render_ms": 2168,
+     "per_final": [
+      {
+       "text": "This jar comes in a 50 ml size.",
+       "transcript_id": "tr_01M44B8E6TB5NE0TNWW0V55E9E",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "jar",
+         "correct": "Airless pump tube"
+        },
+        {
+         "field": "volume",
+         "verdict": "supported",
+         "stated": "50 mL",
+         "correct": "50 mL"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT073",
+     "kind": "fact",
+     "expected": "packaging",
+     "finals": [
+      "This moisturizer comes in an open glass tub where you scoop it out."
+     ],
+     "got": "packaging",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 609,
+     "server_ms": 1513,
+     "render_ms": 1800,
+     "per_final": [
+      {
+       "text": "This moisturizer comes in an open glass tub where you scoop it out.",
+       "transcript_id": "tr_01M44B8QKB6FHV99AX3RFTP78F",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "open glass tub",
+         "correct": "Airless pump tube"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT074",
+     "kind": "fact",
+     "expected": "live_price",
+     "finals": [
+      "This 30 ml ampoule is on live special for S$36.00."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 665,
+     "server_ms": 1835,
+     "render_ms": 2112,
+     "per_final": [
+      {
+       "text": "This 30 ml ampoule is on live special for S$36.00.",
+       "transcript_id": "tr_01M44B92PKZWKCQ5YH19FZRKND",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "supported",
+         "stated": "30 mL",
+         "correct": "30 mL"
+        },
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$36.00",
+         "correct": "S$32.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT075",
+     "kind": "fact",
+     "expected": "price",
+     "finals": [
+      "outside of this live",
+      "The normal retail list price is $55."
+     ],
+     "got": "price",
+     "correct": true,
+     "alert_on_final": 2,
+     "stt_ms": 507,
+     "server_ms": 1434,
+     "render_ms": 1714,
+     "per_final": [
+      {
+       "text": "outside of this live",
+       "transcript_id": "tr_01M44B9AD97GZ60FKXR8CP6RJ5",
+       "verdict": [],
+       "claims": [],
+       "alerts": []
+      },
+      {
+       "text": "The normal retail list price is $55.",
+       "transcript_id": "tr_01M44B9DKRF9MKFNSC724B6H4G",
+       "verdict": null,
+       "claims": null,
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT076",
+     "kind": "fact",
+     "expected": "ingredient_amount",
+     "finals": [
+      "We pack 10% Panthenol into this barrier moisturizer."
+     ],
+     "got": "ingredient_amount",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 685,
+     "server_ms": 1554,
+     "render_ms": 1826,
+     "per_final": [
+      {
+       "text": "We pack 10% Panthenol into this barrier moisturizer.",
+       "transcript_id": "tr_01M44B9PX473Z3ZG81YT5TNPNZ",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "10% Panthenol",
+         "correct": "5% Panthenol"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT077",
+     "kind": "fact",
+     "expected": "volume",
+     "finals": [
+      "This cream comes in a 75 mil tube."
+     ],
+     "got": "volume",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 616,
+     "server_ms": 1607,
+     "render_ms": 1880,
+     "per_final": [
+      {
+       "text": "This cream comes in a 75 mil tube.",
+       "transcript_id": "tr_01M44B9Z7SRSWAZVPBEER1XTZZ",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "contradicted",
+         "stated": "75 mL",
+         "correct": "50 mL"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "volume",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT078",
+     "kind": "fact",
+     "expected": "packaging",
+     "finals": [
+      "in this 50 ml jar",
+      "You get 5% Panthenol and 3% Squalane."
+     ],
+     "got": "packaging",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 565,
+     "server_ms": 1696,
+     "render_ms": 1968,
+     "per_final": [
+      {
+       "text": "in this 50 ml jar",
+       "transcript_id": "tr_01M44BA69K0CM22V1PR0W93J6R",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "supported",
+         "stated": "50 mL",
+         "correct": "50 mL"
+        },
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "jar",
+         "correct": "Airless pump tube"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      },
+      {
+       "text": "You get 5% Panthenol and 3% Squalane.",
+       "transcript_id": "tr_01M44BA9Z8HDBA7BTYQF70W6PP",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "supported",
+         "stated": "5% Panthenol",
+         "correct": "5%"
+        },
+        {
+         "field": "ingredient_amount",
+         "verdict": "supported",
+         "stated": "3% Squalane",
+         "correct": "3%"
+        }
+       ],
+       "alerts": []
+      }
+     ]
+    },
+    {
+     "id": "LT079",
+     "kind": "fact",
+     "expected": "volume",
+     "finals": [
+      "This is a massive 75 ml jar that will last you months."
+     ],
+     "got": "volume",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 745,
+     "server_ms": 1801,
+     "render_ms": 2085,
+     "per_final": [
+      {
+       "text": "This is a massive 75 ml jar that will last you months.",
+       "transcript_id": "tr_01M44BAKAYM5JEMJE58RM9D2XV",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "contradicted",
+         "stated": "75 mL",
+         "correct": "50 mL"
+        },
+        {
+         "field": "packaging",
+         "verdict": "contradicted",
+         "stated": "jar",
+         "correct": "Airless pump tube"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "volume",
+         "severity": null,
+         "status": "active"
+        },
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "packaging",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT080",
+     "kind": "fact",
+     "expected": "squalane",
+     "finals": [
+      "There's 2% Squalane in the cream."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 674,
+     "server_ms": 1732,
+     "render_ms": 2000,
+     "per_final": [
+      {
+       "text": "There's 2% Squalane in the cream.",
+       "transcript_id": "tr_01M44BAVM0BMQ236BGDC2012TR",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "2% squalane",
+         "correct": "3% squalane"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT081",
+     "kind": "fact",
+     "expected": "volume",
+     "finals": [
+      "This jar holds 80 ml of product."
+     ],
+     "got": "volume",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 585,
+     "server_ms": 1480,
+     "render_ms": 1761,
+     "per_final": [
+      {
+       "text": "This jar holds 80 ml of product.",
+       "transcript_id": "tr_01M44BB407TY6HVAV4ENFJ5MJH",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "contradicted",
+         "stated": "80 mL",
+         "correct": "50 mL"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "volume",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT082",
+     "kind": "fact",
+     "expected": "ingredient",
+     "finals": [
+      "It contains 5% Panthenol and 4% Niacinamide."
+     ],
+     "got": "ingredient",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 680,
+     "server_ms": 1691,
+     "render_ms": 1967,
+     "per_final": [
+      {
+       "text": "It contains 5% Panthenol and 4% Niacinamide.",
+       "transcript_id": "tr_01M44BBDSJ8PD78295FHDENA16",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "supported",
+         "stated": "5% panthenol",
+         "correct": "5%"
+        },
+        {
+         "field": "ingredient",
+         "verdict": "contradicted",
+         "stated": "4% niacinamide",
+         "correct": "not in this product"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT083",
+     "kind": "fact",
+     "expected": "ph",
+     "finals": [
+      "The cream's pH is 7."
+     ],
+     "got": "ph",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 630,
+     "server_ms": 1614,
+     "render_ms": 1889,
+     "per_final": [
+      {
+       "text": "The cream's pH is 7.",
+       "transcript_id": "tr_01M44BBN6ZW9V70PDVP7DPBYQD",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ph",
+         "verdict": "contradicted",
+         "stated": "7",
+         "correct": "5.5 (plus or minus 0.5)"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ph",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT084",
+     "kind": "fact",
+     "expected": "ingredient",
+     "finals": [
+      "The ampoule has 4% Niacinamide and 3% Squalane."
+     ],
+     "got": "ingredient",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 711,
+     "server_ms": 1970,
+     "render_ms": 2230,
+     "per_final": [
+      {
+       "text": "The ampoule has 4% Niacinamide and 3% Squalane.",
+       "transcript_id": "tr_01M44BBZJH9GEFDBRT320VP8NB",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "supported",
+         "stated": "4% niacinamide",
+         "correct": "4% niacinamide"
+        },
+        {
+         "field": "ingredient",
+         "verdict": "contradicted",
+         "stated": "3% squalane",
+         "correct": "not in this product"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT085",
+     "kind": "fact",
+     "expected": "shelf_life",
+     "finals": [
+      "You can use it for 24 months after opening."
+     ],
+     "got": "shelf_life",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 681,
+     "server_ms": 1789,
+     "render_ms": 2071,
+     "per_final": [
+      {
+       "text": "You can use it for 24 months after opening.",
+       "transcript_id": "tr_01M44BC8KV6M50FGDWTWB54KMH",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "shelf_life",
+         "verdict": "contradicted",
+         "stated": "24 months after opening",
+         "correct": "12 months after opening"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "shelf_life",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT086",
+     "kind": "fact",
+     "expected": "volume",
+     "finals": [
+      "Each bottle is 40 ml."
+     ],
+     "got": "volume",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 585,
+     "server_ms": 1713,
+     "render_ms": 1987,
+     "per_final": [
+      {
+       "text": "Each bottle is 40 ml.",
+       "transcript_id": "tr_01M44BCGQ9K8VRG6852SR5MJG9",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "volume",
+         "verdict": "contradicted",
+         "stated": "40 mL",
+         "correct": "30 mL"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "volume",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT087",
+     "kind": "fact",
+     "expected": "set_price",
+     "finals": [
+      "The set is $70 during this live."
+     ],
+     "got": "set_price",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 614,
+     "server_ms": 1812,
+     "render_ms": 2096,
+     "per_final": [
+      {
+       "text": "The set is $70 during this live.",
+       "transcript_id": "tr_01M44BCSQBDPBN8T087QKFN1TM",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "set_price",
+         "verdict": "contradicted",
+         "stated": "S$70",
+         "correct": "S$62.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "set_price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT088",
+     "kind": "fact",
+     "expected": "live_price",
+     "finals": [
+      "Today's live price is only $32."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 566,
+     "server_ms": 1631,
+     "render_ms": 1901,
+     "per_final": [
+      {
+       "text": "Today's live price is only $32.",
+       "transcript_id": "tr_01M44BD29GPRJA49SJAZ0NZF9E",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$32",
+         "correct": "S$36.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT089",
+     "kind": "fact",
+     "expected": "list_price",
+     "finals": [
+      "The ampoule's list price is $50."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 616,
+     "server_ms": 1554,
+     "render_ms": 1832,
+     "per_final": [
+      {
+       "text": "The ampoule's list price is $50.",
+       "transcript_id": "tr_01M44BDB9XFTA4HNG3KZNF1KMF",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$50",
+         "correct": "S$42.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT090",
+     "kind": "fact",
+     "expected": "set_price",
+     "finals": [
+      "You can grab both the cream and ampoule bundle today for $58."
+     ],
+     "got": "set_price",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 694,
+     "server_ms": 1830,
+     "render_ms": 2109,
+     "per_final": [
+      {
+       "text": "You can grab both the cream and ampoule bundle today for $58.",
+       "transcript_id": "tr_01M44BDN6S8K9BXC0V68RPE1CV",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "set_price",
+         "verdict": "contradicted",
+         "stated": "S$58",
+         "correct": "S$62.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "set_price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT091",
+     "kind": "fact",
+     "expected": "sodium_hyaluronate",
+     "finals": [
+      "3% Sodium Hyaluronate here"
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 605,
+     "server_ms": 1531,
+     "render_ms": 1797,
+     "per_final": [
+      {
+       "text": "3% Sodium Hyaluronate here",
+       "transcript_id": "tr_01M44BDXBH8SCMPQ9NDZVP6H5G",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "3% Sodium Hyaluronate",
+         "correct": "2% Sodium Hyaluronate"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT092",
+     "kind": "fact",
+     "expected": "price",
+     "finals": [
+      "The ampoule alone is $25 during the broadcast."
+     ],
+     "got": "price",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 545,
+     "server_ms": 1603,
+     "render_ms": 1873,
+     "per_final": [
+      {
+       "text": "The ampoule alone is $25 during the broadcast.",
+       "transcript_id": "tr_01M44BE6QKKWAGRXFGQFWJS3YJ",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$25",
+         "correct": "S$32.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT093",
+     "kind": "fact",
+     "expected": "panthenol",
+     "finals": [
+      "3% Panthenol in the ampoule."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 631,
+     "server_ms": 1560,
+     "render_ms": 1835,
+     "per_final": [
+      {
+       "text": "3% Panthenol in the ampoule.",
+       "transcript_id": "tr_01M44BEEVAAJAEERKRRPFGZGYH",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "3% panthenol",
+         "correct": "1% panthenol"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT094",
+     "kind": "fact",
+     "expected": "niacinamide",
+     "finals": [
+      "6% Niacinamide in the ampoule."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 633,
+     "server_ms": 1782,
+     "render_ms": 2053,
+     "per_final": [
+      {
+       "text": "6% Niacinamide in the ampoule.",
+       "transcript_id": "tr_01M44BEPZNZW9HY3WSKC3BX2Y7",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "6% niacinamide",
+         "correct": "4% niacinamide"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT095",
+     "kind": "fact",
+     "expected": "ingredient_amount",
+     "finals": [
+      "It is formulated with a potent 8% Niacinamide concentration."
+     ],
+     "got": "ingredient_amount",
+     "correct": true,
+     "alert_on_final": 1,
+     "stt_ms": 594,
+     "server_ms": 1681,
+     "render_ms": 1956,
+     "per_final": [
+      {
+       "text": "It is formulated with a potent 8% Niacinamide concentration.",
+       "transcript_id": "tr_01M44BF0P4ZR60HYZMTZ6711BN",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "8% niacinamide",
+         "correct": "4% niacinamide"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT096",
+     "kind": "fact",
+     "expected": "live_price",
+     "finals": [
+      "The cream is only $29 today."
+     ],
+     "got": "price",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 641,
+     "server_ms": 1533,
+     "render_ms": 1825,
+     "per_final": [
+      {
+       "text": "The cream is only $29 today.",
+       "transcript_id": "tr_01M44BF9T2NNED7JTEZQ95HNK7",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "price",
+         "verdict": "contradicted",
+         "stated": "S$29",
+         "correct": "S$36.00"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "price",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT097",
+     "kind": "fact",
+     "expected": "ceramide_np",
+     "finals": [
+      "The cream has 4% Ceramide NP."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 690,
+     "server_ms": 1638,
+     "render_ms": 1884,
+     "per_final": [
+      {
+       "text": "The cream has 4% Ceramide NP.",
+       "transcript_id": "tr_01M44BFJCWY5Q5QTJ8SJF60A35",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "4% Ceramide NP",
+         "correct": "1% Ceramide NP"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT098",
+     "kind": "fact",
+     "expected": "sodium_hyaluronate",
+     "finals": [
+      "Sodium Hyaluronate in the cream is 3%."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 639,
+     "server_ms": 1699,
+     "render_ms": 1979,
+     "per_final": [
+      {
+       "text": "Sodium Hyaluronate in the cream is 3%.",
+       "transcript_id": "tr_01M44BG4GSXXEPYVS99VQAX7VT",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "3%",
+         "correct": "1%"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT099",
+     "kind": "fact",
+     "expected": "allantoin",
+     "finals": [
+      "Allantoin is 2% in this cream."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 1596,
+     "server_ms": 2592,
+     "render_ms": 2879,
+     "per_final": [
+      {
+       "text": "Allantoin is 2% in this cream.",
+       "transcript_id": "tr_01M44BGDJJTK9JDDY9B5PXNCXT",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "2% Allantoin",
+         "correct": "0.2%"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "LT100",
+     "kind": "fact",
+     "expected": "centella_asiatica_leaf_water",
+     "finals": [
+      "The ampoule is made with 80% Centella water."
+     ],
+     "got": "ingredient_amount",
+     "correct": false,
+     "alert_on_final": 1,
+     "stt_ms": 632,
+     "server_ms": 1695,
+     "render_ms": 1981,
+     "per_final": [
+      {
+       "text": "The ampoule is made with 80% Centella water.",
+       "transcript_id": "tr_01M44BGPYFJZ475KWEV4CAT2XS",
+       "verdict": [],
+       "claims": [
+        {
+         "field": "ingredient_amount",
+         "verdict": "contradicted",
+         "stated": "80% Centella Asiatica Leaf Water",
+         "correct": "50% Centella Asiatica Leaf Water"
+        }
+       ],
+       "alerts": [
+        {
+         "kind": "fact",
+         "rule": null,
+         "field": "ingredient_amount",
+         "severity": null,
+         "status": "active"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
