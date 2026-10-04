@@ -2,7 +2,7 @@
 // HIGH-risk compliance overlay covers the screen. Keyboard: Esc cancels a pending switch, M toggles
 // the mic, T the theme (§12.3.10).
 import { Menu, Timer } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { api } from "../../app/api";
 import { useMic, type MicSnapshot, type MicState } from "../../app/mic";
@@ -23,9 +23,10 @@ import {
 import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
 import { useCatalog, useNow, useSession } from "../../app/store";
-import { useTheme, type ThemeName } from "../../app/theme";
+import { useT } from "../../app/i18n";
+import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { Catalog } from "../../app/types";
-import { Countdown, Elapsed } from "../../components";
+import { Countdown, Elapsed, SettingsButton } from "../../components";
 import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchBanner } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
@@ -64,12 +65,15 @@ function TopBar({
   catalog,
   now,
   mic,
+  settings,
 }: {
   state: ClientState;
   catalog: Catalog | null;
   now: number;
   mic: Pick<MicSnapshot, "state" | "level" | "message">;
+  settings?: ReactNode;
 }) {
+  const t = useT();
   const s = state.session;
   const { now: onAir, next } = hostProducts(state, catalog);
   const promos = promoChips(state, catalog, now);
@@ -85,7 +89,7 @@ function TopBar({
         {live || ended ? (
           <>
             <span className={live ? styles.liveDot : styles.readyDot} aria-hidden />
-            <span className={styles.liveLabel}>LIVE</span>
+            <span className={styles.liveLabel}>{t("LIVE")}</span>
             {live ? (
               <Elapsed since={s!.started_at!} serverOffsetMs={state.serverOffsetMs} />
             ) : (
@@ -95,18 +99,18 @@ function TopBar({
         ) : (
           <>
             <span className={styles.readyDot} aria-hidden />
-            <span className={styles.readyLabel}>READY</span>
+            <span className={styles.readyLabel}>{t("READY")}</span>
           </>
         )}
       </span>
       <div className={styles.nowNext}>
-        <span className={styles.nnLabel}>NOW</span>
+        <span className={styles.nnLabel}>{t("NOW")}</span>
         <span className={styles.nowName} data-testid="host-now">
           {onAir?.name ?? "—"}
         </span>
-        <span className={styles.nnLabel}>NEXT</span>
+        <span className={styles.nnLabel}>{t("NEXT")}</span>
         <span className={styles.nextName} data-testid="host-next">
-          {next?.name ?? "End of run sheet"}
+          {next?.name ?? t("End of run sheet")}
         </span>
       </div>
       <span className={styles.spacer} />
@@ -119,12 +123,12 @@ function TopBar({
       ))}
       <span
         className={styles.mic}
-        aria-label={MIC_LABEL[mic.state]}
-        title={mic.message ?? MIC_LABEL[mic.state]}
+        aria-label={t(MIC_LABEL[mic.state])}
+        title={mic.message ?? t(MIC_LABEL[mic.state])}
         data-testid="host-mic"
         data-state={mic.state}
       >
-        mic
+        {t("mic")}
         {mic.state === "listening" && (
           <span className={styles.micLevel} aria-hidden>
             <span style={{ transform: `scaleX(${Math.max(0.04, mic.level)})` }} />
@@ -139,6 +143,7 @@ function TopBar({
           )}
         />
       </span>
+      {settings}
     </header>
   );
 }
@@ -150,6 +155,8 @@ export function HostView({
   embedded,
   theme,
   onToggleTheme,
+  themePref,
+  onSetTheme,
   actions,
 }: {
   state: ClientState;
@@ -158,8 +165,12 @@ export function HostView({
   embedded?: boolean;
   theme: ThemeName;
   onToggleTheme?: () => void;
+  /** D-109: the Settings gear's theme choice (absent when the Studio controls the theme) */
+  themePref?: ThemePref;
+  onSetTheme?: (t: ThemePref) => void;
   actions: HostActions;
 }) {
+  const t = useT();
   const rootRef = useRef<HTMLDivElement>(null);
   const scale = useHostScale(rootRef);
   const clientNow = useNow(250);
@@ -228,7 +239,13 @@ export function HostView({
       data-screen="host"
       style={{ "--hs": scale } as CSSProperties}
     >
-      <TopBar state={state} catalog={catalog} now={now} mic={mic} />
+      <TopBar
+        state={state}
+        catalog={catalog}
+        now={now}
+        mic={mic}
+        settings={embedded ? null : <SettingsButton themePref={themePref} onTheme={onSetTheme} />}
+      />
       <div className={styles.content}>
         <div className={styles.main}>
           <div className={styles.left}>
@@ -245,7 +262,7 @@ export function HostView({
               {cue && <CueStrip cue={cue} />}
               {pendingSwitch && (
                 <SwitchBanner
-                  productName={target?.name ?? "the next product"}
+                  productName={target?.name ?? t("the next product")}
                   secondsLeft={switchSecondsLeft(pendingSwitch.commit_at, now)}
                   onCancel={actions.cancelSwitch}
                 />
@@ -272,7 +289,7 @@ export function HostView({
 const acked = new Set<string>();
 
 export function HostScreen(props: ScreenProps) {
-  const [ownTheme, toggle] = useTheme("host");
+  const [ownTheme, toggle, setTheme, themePref] = useTheme("host");
   const theme = props.theme ?? ownTheme;
   const { state, connection } = useSession(props.sessionId, "host");
   const catalog = useCatalog();
@@ -315,6 +332,8 @@ export function HostScreen(props: ScreenProps) {
       embedded={props.embedded}
       theme={theme}
       onToggleTheme={props.theme ? undefined : toggle}
+      themePref={themePref}
+      onSetTheme={props.theme ? undefined : setTheme}
       actions={actions}
     />
   );

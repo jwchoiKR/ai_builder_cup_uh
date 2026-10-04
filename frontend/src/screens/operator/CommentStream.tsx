@@ -2,6 +2,7 @@
 import { useState } from "react";
 
 import { api } from "../../app/api";
+import { useT } from "../../app/i18n";
 import { hiddenComments, productById, relativeTime } from "../../app/selectors";
 import type { Comment } from "../../app/types";
 import { Button, Chip, VirtualList } from "../../components";
@@ -17,6 +18,7 @@ const KIND_LABEL: Record<Comment["kind"], string> = {
 };
 
 export function CommentStream() {
+  const t = useT();
   const { state } = useOperator();
   const [showFiltered, setShowFiltered] = useState(false);
   const hidden = hiddenComments(state);
@@ -25,20 +27,20 @@ export function CommentStream() {
     .sort((a, b) => b.received_at - a.received_at);
   const items = showFiltered ? hidden : visible;
   return (
-    <section className={[styles.block, styles.stream].join(" ")} data-testid="op-comment-stream" aria-label="Comment stream">
+    <section className={[styles.block, styles.stream].join(" ")} data-testid="op-comment-stream" aria-label={t("Comment stream")}>
       <div className={styles.blockHeader}>
-        <h2 className={styles.blockTitle}>Comment stream</h2>
+        <h2 className={styles.blockTitle}>{t("Comment stream")}</h2>
         <button
           type="button"
           className={[styles.tab, showFiltered && styles.tabActive].filter(Boolean).join(" ")}
           aria-pressed={showFiltered}
           onClick={() => setShowFiltered((v) => !v)}
         >
-          Show filtered ({hidden.length})
+          {t("Show filtered ({n})", { n: hidden.length })}
         </button>
       </div>
       {items.length === 0 ? (
-        <p className={styles.empty}>{showFiltered ? "Nothing filtered." : "No comments yet."}</p>
+        <p className={styles.empty}>{showFiltered ? t("Nothing filtered.") : t("No comments yet.")}</p>
       ) : (
         <VirtualList
           className={styles.streamList}
@@ -53,6 +55,7 @@ export function CommentStream() {
 }
 
 function CommentRow({ comment: c }: { comment: Comment }) {
+  const t = useT();
   const { sid, state, catalog, now, focusGroup } = useOperator();
   const act = useAction();
   const analysis = state.analyses[c.comment_id];
@@ -73,18 +76,18 @@ function CommentRow({ comment: c }: { comment: Comment }) {
       <div className={styles.commentChips}>
         {c.visibility === "hidden" ? (
           <>
-            <Chip tone="risk">{sentenceCase((c.hide_category ?? "hidden").replace(/_/g, " "))}</Chip>
+            <Chip tone="risk">{t(sentenceCase((c.hide_category ?? "hidden").replace(/_/g, " ")))}</Chip>
             <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.unhide(sid, c.comment_id))}>
-              Unhide
+              {t("Unhide")}
             </Button>
           </>
         ) : (
           <>
-            <Chip>{KIND_LABEL[c.kind]}</Chip>
+            <Chip>{t(KIND_LABEL[c.kind])}</Chip>
             {productChip && <Chip tone="accent">{productChip}</Chip>}
             {c.kind === "question" && c.group_id && (
               <button type="button" className={styles.linkish} onClick={() => focusGroup(c.group_id)}>
-                Open question
+                {t("Open question")}
               </button>
             )}
           </>

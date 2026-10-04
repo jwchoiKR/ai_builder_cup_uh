@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { setLang } from "../../app/i18n";
 import { reduceSnapshot } from "../../app/state";
 import type { Catalog, StateSnapshot } from "../../app/types";
 import { alert, AMPOULE, answer, catalog, comment, CREAM, group, message, pdCard, segment, session, snapshot } from "../../test/fixtures";
@@ -491,5 +492,35 @@ describe("host chat: coalesced replies", () => {
       { kind: "comment" as const, at: 2, comment: comment({ comment_id: "cm_b", author_name: "Daniel" }), replies: [] },
     ];
     expect([...alsoAnsweredIds(items)]).toEqual(["cm_b"]);
+  });
+});
+
+describe("settings and screen language (D-109)", () => {
+  it("Korean labels; on-air text stays in the broadcast language", () => {
+    setLang("ko");
+    try {
+      render(view({ alerts: [alert()] }));
+      expect(screen.getByText("프롬프터")).toBeInTheDocument();
+      const overlay = screen.getByTestId("host-compliance-overlay");
+      expect(overlay).toHaveTextContent("이렇게 말하세요.");
+      expect(overlay).toHaveTextContent("“Helps keep skin hydrated for up to 24 hours in our in-house test.”");
+    } finally {
+      act(() => setLang("en"));
+    }
+  });
+
+  it("the gear switches the language and the theme", () => {
+    const setTheme = vi.fn();
+    try {
+      render(<HostView state={{ ...reduceSnapshot(snapshot(), "host", now()), serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark"
+        themePref="system" onSetTheme={setTheme} actions={actions()} />);
+      fireEvent.click(screen.getByTestId("settings-button"));
+      fireEvent.click(screen.getByLabelText("한국어"));
+      expect(screen.getByText("프롬프터")).toBeInTheDocument();
+      fireEvent.click(screen.getByLabelText("다크"));
+      expect(setTheme).toHaveBeenCalledWith("dark");
+    } finally {
+      act(() => setLang("en"));
+    }
   });
 });

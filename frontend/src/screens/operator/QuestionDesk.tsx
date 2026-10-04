@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, FileText, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api, type AnswerOrigin } from "../../app/api";
+import { useT } from "../../app/i18n";
 import { deskTabOf, draftAnswer, groupStatusLabel, pendingMessages, questionDesk, relativeTime, type DeskTab } from "../../app/selectors";
 import type { QuestionGroup } from "../../app/types";
 import { Button, Chip } from "../../components";
@@ -35,6 +36,7 @@ const TABS: { key: DeskTab; label: string; onlyWhenUsed?: boolean }[] = [
 ];
 
 export function QuestionDesk() {
+  const t = useT();
   const { state, focusedGroup } = useOperator();
   const [tab, setTab] = useState<DeskTab>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function QuestionDesk() {
   const counts = deskTabCounts(all);
   const groups = questionDesk(state, tab);
   const topN = setting(state, "HOST_TOP_N");
-  const tabs = TABS.filter((t) => !t.onlyWhenUsed || counts[t.key] > 0 || tab === t.key);
+  const tabs = TABS.filter((x) => !x.onlyWhenUsed || counts[x.key] > 0 || tab === x.key);
 
   useEffect(() => {
     if (!focusedGroup) return;
@@ -51,35 +53,35 @@ export function QuestionDesk() {
   }, [focusedGroup]);
 
   return (
-    <section className={[styles.block, styles.desk].join(" ")} data-testid="op-question-desk" aria-label="Question desk">
+    <section className={[styles.block, styles.desk].join(" ")} data-testid="op-question-desk" aria-label={t("Question desk")}>
       <div className={styles.blockHeader}>
         <div>
           <h2 className={styles.blockTitle}>
-            Question desk <span className="tabular" data-testid="op-desk-count">{counts.all}</span>
+            {t("Question desk")} <span className="tabular" data-testid="op-desk-count">{counts.all}</span>
           </h2>
-          <p className={styles.muted}>Grouped by intent, ready for your next move.</p>
+          <p className={styles.muted}>{t("Grouped by intent, ready for your next move.")}</p>
         </div>
         <span className={["tabular", styles.muted].join(" ")}>
-          {state.hostSlots.length}/{topN} on host
+          {t("{n}/{max} on host", { n: state.hostSlots.length, max: topN })}
         </span>
       </div>
       <div className={styles.tabs} role="tablist">
-        {tabs.map((t) => (
+        {tabs.map((x) => (
           <button
-            key={t.key}
+            key={x.key}
             type="button"
             role="tab"
-            data-testid={`op-desk-tab-${t.key}`}
-            aria-selected={tab === t.key}
-            className={[styles.tab, tab === t.key && styles.tabActive].filter(Boolean).join(" ")}
-            onClick={() => setTab(t.key)}
+            data-testid={`op-desk-tab-${x.key}`}
+            aria-selected={tab === x.key}
+            className={[styles.tab, tab === x.key && styles.tabActive].filter(Boolean).join(" ")}
+            onClick={() => setTab(x.key)}
           >
-            {t.label} <span className="tabular">{counts[t.key]}</span>
+            {t(x.label)} <span className="tabular">{counts[x.key]}</span>
           </button>
         ))}
       </div>
       {groups.length === 0 ? (
-        <p className={styles.empty}>No questions here yet.</p>
+        <p className={styles.empty}>{t("No questions here yet.")}</p>
       ) : (
         <ul className={styles.groupList}>
           {groups.map((g) => (
@@ -97,6 +99,7 @@ export function QuestionDesk() {
 }
 
 function GroupRow({ group: g, expanded, onToggle }: { group: QuestionGroup; expanded: boolean; onToggle: () => void }) {
+  const t = useT();
   const { state, catalog, now, focusedGroup } = useOperator();
   const ref = useRef<HTMLLIElement>(null);
   const label = groupStatusLabel(g);
@@ -118,15 +121,15 @@ function GroupRow({ group: g, expanded, onToggle }: { group: QuestionGroup; expa
         <span className={styles.groupMain}>
           <span className={styles.groupQuestion}>{g.canonical_question}</span>
           <span className={styles.groupMeta}>
-            <Chip tone={statusTone(label)}>{label}</Chip>
-            <span>{productLabel(catalog, g)}</span>
+            <Chip tone={statusTone(label)}>{t(label)}</Chip>
+            <span>{productLabel(catalog, g, t)}</span>
             <span className={styles.dotSep}>·</span>
-            <span>{intentLabel(g.intent)}</span>
-            {sensitive && <Chip tone="risk">Sensitive</Chip>}
+            <span>{t(intentLabel(g.intent))}</span>
+            {sensitive && <Chip tone="risk">{t("Sensitive")}</Chip>}
           </span>
         </span>
         <span className={styles.groupStats}>
-          <span className={styles.askers} title="Unique askers">
+          <span className={styles.askers} title={t("Unique askers")}>
             <Users size={14} aria-hidden />
             <span className="tabular">{g.unique_author_ids.length}</span>
           </span>
@@ -139,6 +142,7 @@ function GroupRow({ group: g, expanded, onToggle }: { group: QuestionGroup; expa
 }
 
 function GroupDetail({ group: g }: { group: QuestionGroup }) {
+  const t = useT();
   const { sid, state, catalog, now } = useOperator();
   const answer = draftAnswer(state, g);
   const pending = pendingMessages(state).find((m) => m.group_id === g.group_id) ?? null;
@@ -191,7 +195,7 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
       </ul>
 
       <div className={styles.reply}>
-        <span className="eyebrow">Suggested reply</span>
+        <span className="eyebrow">{t("Suggested reply")}</span>
         {answer && answer.text ? (
           <>
             <p className={styles.replyText}>{answer.text}</p>
@@ -205,31 +209,33 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
                     onClick={() => setSheet({ passageId: c.passage_id, quote: c.quote })}
                   >
                     <FileText size={12} aria-hidden />
-                    {citationLabel(c.section ?? catalog?.passages?.[c.passage_id]?.section)}
+                    {citationLabel(c.section ?? catalog?.passages?.[c.passage_id]?.section, t)}
                   </button>
                 ))}
               </div>
             )}
             <p className={answer.verified ? styles.verified : styles.unverified}>
-              {answer.verified ? "Verified against the product sheet" : `Unverified draft: ${answer.verify_errors.join("; ")}`}
+              {answer.verified
+                ? t("Verified against the product sheet")
+                : t("Unverified draft: {errors}", { errors: answer.verify_errors.join("; ") })}
             </p>
           </>
         ) : (
           <p className={styles.muted}>
             {g.status === "composing" || g.status === "new"
-              ? "Composing…"
+              ? t("Composing…")
               : answer && !answer.verified
-                ? `Unverified draft: ${answer.verify_errors.join("; ")}`
-                : "No AI draft for this question."}
+                ? t("Unverified draft: {errors}", { errors: answer.verify_errors.join("; ") })
+                : t("No AI draft for this question.")}
           </p>
         )}
       </div>
 
       {pending && (
         <div className={styles.pendingPost} role="status">
-          <span>Posting answer…</span>
+          <span>{t("Posting answer…")}</span>
           <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.cancelMessage(sid, pending.message_id))}>
-            Cancel
+            {t("Cancel")}
           </Button>
         </div>
       )}
@@ -242,10 +248,10 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
               size="sm"
               variant={a.key === "approve" ? "primary" : a.key === "reject" ? "ghost" : "secondary"}
               disabled={!a.enabled || act.busy}
-              title={a.reason}
+              title={a.reason && t(a.reason)}
               onClick={() => void run(a)}
             >
-              {a.label}
+              {t(a.label)}
             </Button>
           ))}
         </div>
@@ -253,7 +259,7 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
 
       {assigning && (
         <label className={styles.assign}>
-          <span className={styles.muted}>Assign a product</span>
+          <span className={styles.muted}>{t("Assign a product")}</span>
           <select
             defaultValue=""
             onChange={async (e) => {
@@ -262,7 +268,7 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
             }}
           >
             <option value="" disabled>
-              Choose…
+              {t("Choose…")}
             </option>
             {catalog?.products.map((p) => (
               <option key={p.product_id} value={p.product_id}>
@@ -299,6 +305,7 @@ export function ReplyEditor({
   initial: string;
   onDone: () => void;
 }) {
+  const t = useT();
   const { sid } = useOperator();
   const [text, setText] = useState(initial);
   const act = useAction();
@@ -313,7 +320,7 @@ export function ReplyEditor({
         rows={3}
         value={text}
         autoFocus
-        aria-label={origin === "operator_edit" ? "Edit reply" : "Write reply"}
+        aria-label={origin === "operator_edit" ? t("Edit reply") : t("Write reply")}
         onChange={(e) => {
           setText(e.target.value);
           if (restricted) act.clear();
@@ -323,7 +330,7 @@ export function ReplyEditor({
         <div className={styles.restricted} role="alert">
           <span>{act.error}</span>
           <Button size="sm" variant="danger" disabled={act.busy} onClick={() => void post(true)}>
-            Post anyway
+            {t("Post anyway")}
           </Button>
         </div>
       ) : (
@@ -331,10 +338,10 @@ export function ReplyEditor({
       )}
       <div className={styles.actions}>
         <Button size="sm" variant="primary" disabled={act.busy || !text.trim()} onClick={() => void post(false)}>
-          Post
+          {t("Post")}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDone}>
-          Cancel
+          {t("Cancel")}
         </Button>
       </div>
     </div>

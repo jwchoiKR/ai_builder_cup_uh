@@ -4,6 +4,7 @@
 import { ShieldAlert, ShieldQuestionMark } from "lucide-react";
 import { useEffect } from "react";
 
+import { useT } from "../../app/i18n";
 import type { HighAlertView } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { Elapsed } from "../../components";
@@ -21,6 +22,7 @@ export function ComplianceOverlay({
   serverOffsetMs: number;
   onRendered: (alertId: string) => void;
 }) {
+  const t = useT();
   const { alert, position, total } = view;
   const rule = ruleInfo(catalog, alert.rule_id);
 
@@ -30,30 +32,32 @@ export function ComplianceOverlay({
 
   return (
     <div className={`${styles.alertBlock} ${styles.alertHigh}`} data-testid="host-compliance-overlay" role="alert"
-      aria-live="assertive" aria-label="High-risk claim">
+      aria-live="assertive" aria-label={t("High-risk claim")}>
       <div className={styles.alertTop}>
         <span className={styles.riskBadge}>
           <ShieldAlert aria-hidden />
-          HIGH-RISK CLAIM
+          {t("HIGH-RISK CLAIM")}
         </span>
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
             <ShieldQuestionMark aria-hidden />
-            AI check unavailable
+            {t("AI check unavailable")}
           </span>
         )}
-        <span className={styles.alertSaid}>Heard: "{alert.span}"</span>
+        <span className={styles.alertSaid}>
+          {t("Heard:")} "{alert.span}"
+        </span>
         {total > 1 && (
           <span className={`${styles.ofN} tabular`} data-testid="host-overlay-count">
-            {position} of {total}
+            {t("{a} of {b}", { a: position, b: total })}
           </span>
         )}
       </div>
-      <span className={styles.alertSayLabel}>Say this instead.</span>
+      <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
       <span className={styles.alertSay}>“{alert.say_instead}”</span>
       <div className={styles.alertMeta}>
         <span className={styles.statusDot} aria-hidden />
-        Waiting for your correction
+        {t("Waiting for your correction")}
         {alert.shown_at && (
           <Elapsed since={alert.shown_at} serverOffsetMs={serverOffsetMs} format="mmss" className={styles.statusTimer} />
         )}

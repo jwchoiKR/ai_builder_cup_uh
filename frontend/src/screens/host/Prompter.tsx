@@ -5,6 +5,7 @@
 import { Ban, Check, CircleDot, ListChecks, TriangleAlert } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 
+import { useT, type Translate } from "../../app/i18n";
 import type { PriceView, PrompterPointRow, PrompterViewModel } from "../../app/selectors";
 import type { Product } from "../../app/types";
 import styles from "./host.module.css";
@@ -43,11 +44,13 @@ const mmss = (ms: number) => {
 };
 
 /** "2 required points left · 0:30", or "+0:15 over" past the planned time. */
-export function pointsStatus(left: number, timing: SegmentTiming | null): string {
-  const points = left ? `${left} required point${left === 1 ? "" : "s"} left` : "All required points said";
+export function pointsStatus(t: Translate, left: number, timing: SegmentTiming | null): string {
+  const points = left
+    ? t(left === 1 ? "{n} required point left" : "{n} required points left", { n: left })
+    : t("All required points said");
   if (!timing || !timing.plannedMs) return points;
   const rest = timing.plannedMs - timing.elapsedMs;
-  return `${points} · ${rest >= 0 ? mmss(rest) : `+${mmss(rest)} over`}`;
+  return `${points} · ${rest >= 0 ? mmss(rest) : t("+{time} over", { time: mmss(rest) })}`;
 }
 
 /** D-107 (the prototype's fitSlot): when the box content is taller than the box, shrink it step by
@@ -103,21 +106,22 @@ export function Prompter({
   alerts?: ReactNode;
   timing?: SegmentTiming | null;
 }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const fit = useRef<HTMLDivElement>(null);
   useFit(box, fit);
   return (
-    <section className={styles.card} data-testid="host-prompter" aria-label="Your prompter">
+    <section className={styles.card} data-testid="host-prompter" aria-label={t("Your prompter")}>
       {checking && (
         <span className={styles.checking} data-testid="host-checking-chip" role="status">
           <CircleDot aria-hidden />
-          Checking a phrase…
+          {t("Checking a phrase…")}
         </span>
       )}
       <header className={styles.cardHeader}>
         <span className={styles.cardTitle}>
           <ListChecks aria-hidden />
-          YOUR PROMPTER
+          {t("YOUR PROMPTER")}
         </span>
         {product && (
           <span className={styles.prompterKicker}>
@@ -125,7 +129,7 @@ export function Prompter({
           </span>
         )}
         <span className={`${styles.cardMeta} tabular`} data-testid="host-required-count">
-          {view.requiredCovered} / {view.requiredTotal} required points
+          {t("{a} / {b} required points", { a: view.requiredCovered, b: view.requiredTotal })}
         </span>
       </header>
       <div className={styles.prompterBox} ref={box}>
@@ -139,11 +143,11 @@ export function Prompter({
               product={product}
               price={price}
               points={view.points}
-              status={pointsStatus(view.requiredTotal - view.requiredCovered, timing)}
+              status={pointsStatus(t, view.requiredTotal - view.requiredCovered, timing)}
               late={Boolean(timing?.plannedMs && timing.elapsedMs >= timing.plannedMs * LATE_SHARE)}
             />
           ) : (
-            <p className={styles.emptyPrompter}>No product on air.</p>
+            <p className={styles.emptyPrompter}>{t("No product on air.")}</p>
           )}
         </div>
       </div>
@@ -164,6 +168,7 @@ function ProductPanel({
   status: string;
   late: boolean;
 }) {
+  const t = useT();
   const saidText = points
     .filter((p) => p.covered)
     .map((p) => p.text.toLowerCase())
@@ -176,22 +181,26 @@ function ProductPanel({
     <>
       <div className={styles.facts}>
         <div>
-          <h4 className={styles.factsLabel}>Price &amp; offers</h4>
+          <h4 className={styles.factsLabel}>{t("Price & offers")}</h4>
           {price && (
             <>
               <div className={styles.pfPrice}>
-                <small className={cx(sale && styles.priceSale)}>{price.label}</small>
+                <small className={cx(sale && styles.priceSale)}>{t(price.label)}</small>
                 <span className="tabular">{price.current}</span>
               </div>
               <div className={styles.pfLine}>
-                {sale ? "Live price" : "List price"} <s className="tabular">{price.struck}</s>
+                {sale ? t("Live price") : t("List price")} <s className="tabular">{price.struck}</s>
               </div>
-              {price.set && <div className={styles.pfLine}>Set {price.set}</div>}
+              {price.set && (
+                <div className={styles.pfLine}>
+                  {t("Set")} {price.set}
+                </div>
+              )}
             </>
           )}
         </div>
         <div>
-          <h4 className={styles.factsLabel}>Ingredients</h4>
+          <h4 className={styles.factsLabel}>{t("Ingredients")}</h4>
           <div className={styles.nums}>
             {ingredientsOf(product).map((i) => (
               <div
@@ -206,7 +215,7 @@ function ProductPanel({
           </div>
         </div>
         <div>
-          <h4 className={styles.factsLabel}>Points to say</h4>
+          <h4 className={styles.factsLabel}>{t("Points to say")}</h4>
           <div className={cx(styles.pointsStatus, "tabular")} data-testid="host-points-status">
             {status}
           </div>
@@ -220,12 +229,12 @@ function ProductPanel({
                 data-state={p.covered ? "said" : "todo"}
                 data-late={p === lead && late ? "true" : undefined}
               >
-                <span className={styles.pointIcon} aria-label={p.covered ? "Said" : undefined}>
+                <span className={styles.pointIcon} aria-label={p.covered ? t("Said") : undefined}>
                   {p.covered ? <Check /> : <span className={styles.bullet} />}
                 </span>
                 <span>
                   {p.text}
-                  {p.required && !p.covered && <span className={styles.required}>REQUIRED</span>}
+                  {p.required && !p.covered && <span className={styles.required}>{t("REQUIRED")}</span>}
                 </span>
               </li>
             ))}
@@ -236,7 +245,7 @@ function ProductPanel({
         <div className={cx(styles.guard, styles.guardCare)} data-testid="host-cautions">
           <h5>
             <TriangleAlert aria-hidden />
-            Caution
+            {t("Caution")}
           </h5>
           {(product.cautions ?? []).map((c) => (
             <p key={c}>{c}</p>
@@ -245,7 +254,7 @@ function ProductPanel({
         <div className={cx(styles.guard, styles.guardAvoid)} data-testid="host-avoid">
           <h5>
             <Ban aria-hidden />
-            Avoid saying
+            {t("Avoid saying")}
           </h5>
           {(product.avoid_saying ?? []).map((a) => (
             <p key={a.say_not}>

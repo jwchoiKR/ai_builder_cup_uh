@@ -1,5 +1,6 @@
 import { Check, Sparkles, User } from "lucide-react";
 
+import { useT } from "../../app/i18n";
 import type { PdCard as PdCardType, PdCardKind } from "../../app/types";
 import styles from "./host.module.css";
 
@@ -20,8 +21,9 @@ export function PdCard({
   card: PdCardType;
   onDismiss?: (cardId: string) => void;
 }) {
+  const t = useT();
   const done = card.status === "done";
-  const kindLabel = KIND_LABELS[card.kind] ?? "Direction";
+  const kindLabel = t(KIND_LABELS[card.kind] ?? "Direction");
   const sourceLabel = card.source === "ai" ? "AI PD" : "PD";
 
   return (
@@ -32,7 +34,7 @@ export function PdCard({
       data-status={card.status}
       data-source={card.source}
       role="region"
-      aria-label="AI PD card"
+      aria-label={t("AI PD card")}
     >
       <div className={styles.pdTop}>
         <div className={styles.pdHeaderLeft}>
@@ -52,18 +54,18 @@ export function PdCard({
           {done ? (
             <span className={styles.pdDoneTag} data-testid="host-pd-done">
               <Check className={styles.pdCheck} aria-hidden />
-              <span>Done</span>
+              <span>{t("Done")}</span>
             </span>
           ) : (
             <button
               type="button"
               className={styles.pdDismiss}
               onClick={() => onDismiss?.(card.card_id)}
-              aria-label="Dismiss (N)"
-              title="Dismiss (N)"
+              aria-label={t("Dismiss (N)")}
+              title={t("Dismiss (N)")}
               data-testid="host-pd-dismiss"
             >
-              <span>Dismiss</span>
+              <span>{t("Dismiss")}</span>
               <kbd className={styles.pdKbd}>N</kbd>
             </button>
           )}
