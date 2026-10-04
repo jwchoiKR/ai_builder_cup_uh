@@ -366,6 +366,17 @@ async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scena
         g = await rt.get_group(group_id)
         if g is None or g.status != "composing":
             return  # closed by a promo change, rejected, or answered meanwhile
+        current = await answer_key(rt, g)
+        if current != key:
+            # D-117 B5: product, promo or document changed while drafting: draft again for the current state
+            # (unless a draft for the current state is already being written; it applies when it ends)
+            if current not in rt.composing:
+                g.status = "new"
+                await answer_group_locked(rt, g, [], scenario)
+                g.version += 1
+                await rt.save_group(g)
+                await rt.emit("group.updated", g)
+            return
         if answer is None:
             g.route, g.route_reason, g.status = "OPERATOR", "no_verified_answer", "needs_review"
         else:
@@ -466,8 +477,7 @@ async def assign_product(rt: "SessionRuntime", gid: str, product_id: str) -> Non
             raise ActionError(409, "invalid_state", f"group is {g.status}")
         g.product_id = product_id
         g.route, g.route_reason = route_for(rt.intent(g.intent), product_id)
-        if g.status != "composing":
-            g.status, g.answer_id = "new", None
+        g.status, g.answer_id = "new", None  # D-117 B5: a draft in progress was for the old product
         for cid in g.member_comment_ids:
             c = await rt.get_comment(cid)
             if c and c.analysis_id:
