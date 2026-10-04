@@ -35,7 +35,7 @@ from app.context import build_context  # noqa: E402
 from app.logic.verify import number_set  # noqa: E402
 from app.models.session import Answer, Comment, CommentAnalysis, Message  # noqa: E402
 from app.pipelines import comments as ops  # noqa: E402
-from app.pipelines.runtime import create_session  # noqa: E402
+from app.pipelines.runtime import ActionError, create_session  # noqa: E402
 from app.pipelines.utterances import operator_switch  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
 
@@ -103,7 +103,10 @@ async def run_scenario(ctx, case: dict, run_no: int) -> dict:
                 await rt.start_promo(e["promo_id"])
                 event_at["promo_start"] = rt.now()
             elif kind == "promo_end":
-                await rt.stop_promo(e["promo_id"], reason="expired")
+                try:
+                    await rt.stop_promo(e["promo_id"], reason="expired")
+                except ActionError:
+                    pass  # its own timer already ended it (a slow run)
                 event_at["promo_end"] = rt.now()
             elif kind == "document_change":
                 pid = e["product_id"]
