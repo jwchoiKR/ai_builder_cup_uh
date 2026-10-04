@@ -168,6 +168,11 @@ class UtterancePipeline:
         base = judged.text if judged else prev.text
         return Merge(prev=prev, chain=list(chain), text=f"{base} {t.text}")
 
+    def _previous_final(self, t: Transcript) -> Transcript | None:
+        """The final just before `t` in transcript order (still kept for merging)."""
+        seq = self._sequence.get(t.transcript_id, 0) - 1
+        return next((p for p, _, _ in self._prepared.values() if self._sequence.get(p.transcript_id) == seq), None)
+
     def _remember(self, t: Transcript, merge: Merge | None, text: str) -> None:
         self._last = t
         self._judged[t.transcript_id] = Judged(chain=[*(merge.chain if merge else []), t.transcript_id], text=text)
@@ -387,6 +392,13 @@ class UtterancePipeline:
                                  t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain)}
             active_rules.update(a.rule_id for a in alerts if a.transcript_id == t.transcript_id
                                 and a.status in ("corrected", "dismissed"))
+            # D-118: the previous final, inside the merge window, already raised this rule: the same claim
+            # continuing ("treats acne." / "so you'll never break out again."), not a second card
+            prev = self._previous_final(t)
+            if (prev is not None and prev.segment_id == t.segment_id
+                    and t.received_at - prev.received_at <= rt.settings.UTTERANCE_MERGE_WINDOW_MS):
+                active_rules.update(a.rule_id for a in alerts if a.kind == "compliance"
+                                    and a.status in ("active", "provisional") and a.transcript_id == prev.transcript_id)
             judge = judge.model_copy(deep=True)  # D-108: no second card while the same result's alert is active
             judge.compliance.violations = [
                 v for v in judge.compliance.violations
