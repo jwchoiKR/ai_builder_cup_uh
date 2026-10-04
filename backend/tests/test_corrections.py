@@ -168,3 +168,26 @@ async def test_correcting_one_claim_leaves_the_other_claim_of_the_same_sentence_
     await speak(rt, fix)
     assert (await rt.get_alert(alerts["ASEAN-2D-DISEASE"].alert_id)).status == "corrected"
     assert (await rt.get_alert(alerts["ASEAN-3-SKIN-AGEING"].alert_id)).status == "active"
+
+
+@pytest.mark.parametrize("text, ok", [
+    # review B2: the replacement's words, but negated: not a correction
+    ("It does not keep your skin hydrated for up to twenty-four hours in our in-house test.", False),
+    # the replacement without its number
+    ("With regular use, it helps keep your skin hydrated in our in-house test.", False),
+    # a correction followed by the replacement in its own clause still counts
+    ("Let me correct that, it won't change wrinkles. It helps keep your skin hydrated for up to "
+     "twenty-four hours in our in-house test.", True),
+])
+def test_replacement_wording_must_be_affirmative_and_keep_its_numbers(reflex, text, ok):
+    from app.logic.corrections import says_the_replacement
+
+    assert says_the_replacement(text, alert(), reflex) is ok
+
+
+def test_the_qualifier_correction_needs_the_qualifier(reflex):
+    qual = alert(span="hydration went up forty-five percent",
+                 say="In our in-house test, skin hydration went up 45% right after one use.")
+    assert check_correction("Skin hydration went up 45% right after one use.", qual, [], reflex).ok is False
+    assert check_correction("In our in-house test, skin hydration went up 45% right after one use.", qual, [],
+                            reflex).ok is True

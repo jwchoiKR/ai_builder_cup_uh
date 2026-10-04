@@ -86,11 +86,33 @@ def _claim_words(claim: str) -> list[str]:
     return content_words(_IN_HOUSE.sub(" ", claim.replace("*", " ")))
 
 
-def says_the_replacement(text: str, alert: Alert) -> bool:
+def says_claim(text: str, claim: str, reflex: Reflex) -> bool:
+    """The host said this approved wording: CLAIM_MIN of its content words in one clause, every number
+    it has, not negated in that clause, and its "in our in-house test" qualifier when it has one
+    (D-117 B2: word overlap alone let "it does NOT keep skin hydrated ..." count)."""
+    from .qualifier import is_qualified  # qualifier imports this module
+
+    words = _claim_words(claim)
+    if len(words) < 2:
+        return False
+    numbers = {w for w in words if w.isdigit()}
+    needs_qualifier = "*" in claim or bool(_IN_HOUSE.search(claim))
+    for clause in re.split(r"[.;!?]", text):
+        heard = content_words(clause)
+        if coverage(words, heard) < CLAIM_MIN or not numbers <= set(heard):
+            continue
+        if reflex.has_negation(clause) and not reflex.has_negation(claim):
+            continue
+        if needs_qualifier and not is_qualified(text):
+            continue
+        return True
+    return False
+
+
+def says_the_replacement(text: str, alert: Alert, reflex: Reflex) -> bool:
     """D-098: the host said the alert's "Say this instead" wording (the screen's own instruction).
     This corrects the alert even when the judge did not list it."""
-    words = _claim_words(alert.say_instead or "")
-    return len(words) >= 2 and coverage(words, content_words(text)) >= CLAIM_MIN
+    return says_claim(text, alert.say_instead or "", reflex)
 
 
 @dataclass(frozen=True)
@@ -102,8 +124,7 @@ class CorrectionCheck:
 def check_correction(text: str, alert: Alert, approved_claims: Sequence[str], reflex: Reflex) -> CorrectionCheck:
     heard = content_words(text)
     for claim in [alert.say_instead or "", *approved_claims]:
-        words = _claim_words(claim)
-        if len(words) >= 2 and coverage(words, heard) >= CLAIM_MIN:
+        if says_claim(text, claim, reflex):
             return CorrectionCheck(True, "approved_statement")
     span = content_words(alert.span or "")
     if span and reflex.has_negation(text) and coverage(span, heard) >= RETRACT_MIN:
