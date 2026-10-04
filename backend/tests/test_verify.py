@@ -149,3 +149,15 @@ def test_rule6_keeps_good_drafts_whose_labels_contain_numbers():
         if not ok:
             blocked.append((c["draft_id"], errors))
     assert blocked == []
+
+
+HYDRATION = ("DL-CR-01#in-house-test-results#skin-hydration-immediately-after-one-application",
+             "Skin hydration immediately after one application: +38% versus before application.")
+
+
+def test_rule7_in_house_numbers_need_the_qualifier(passages, catalog, reflex):
+    """D-126 (gate D007): an in-house test number without "in-house" / "our test" is not posted."""
+    bare = out("Skin hydration increases by 38% immediately after application.", [HYDRATION])
+    assert check(bare, passages, catalog, reflex)[1] == ["in-house test result without 'in-house test'"]
+    said = out("In our in-house test, skin hydration was 38% higher right after one application.", [HYDRATION])
+    assert check(said, passages, catalog, reflex)[0]

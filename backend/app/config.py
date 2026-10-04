@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     TRIAGE_MAX_BATCH: int = 10  # start value, tune with burst tests (PLANNING 5.1.2)
     TRIAGE_BATCH_TIMEOUT_MS: int = 5000  # one call for up to TRIAGE_MAX_BATCH comments; start value
     COMPOSER_TIMEOUT_MS: int = 12000
+    DRAFT_VERIFY_TIMEOUT_MS: int = 2500  # D-126: LLM check after verify_answer; slower or failing: unverified
     BRIEF_TIMEOUT_MS: int = 60000
     SUMMARY_TIMEOUT_MS: int = 30000
     STT_LOCATION: str = "us"

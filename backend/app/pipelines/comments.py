@@ -21,6 +21,7 @@ from ..logic.routing import is_composable, route_for
 from ..logic.pd import ShoutOut
 from ..logic.segments import segment_at
 from ..logic.shoutout import shout_kind
+from ..agents.draft_verifier import DraftCheckInput, cited_passages
 from ..logic.verify import verify_answer
 from ..providers.armor import screen as armor_screen
 from ..models.agent_io import CommentTriageOutput, ConditionSlots
@@ -442,6 +443,8 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
         c for p in rt.catalog.products for c in p.not_approved_claims]
     ok, errors = verify_answer(out, passages, product_id, multi=product_id is None,
                                reflex=rt.ctx.reflex, not_approved_claims=not_approved)
+    if ok:
+        ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario)
     by_id = {p.passage_id: p for p in passages}
     citations = [{"passage_id": c.passage_id, "quote": c.quote,
                   "section": by_id[c.passage_id].section if c.passage_id in by_id else None,
@@ -453,6 +456,22 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     if ok:
         rt.answer_cache.put(key, CachedAnswer(answer_id=answer.answer_id, intent=g.intent))
     return answer
+
+
+async def _llm_check(rt, question, out, passages, product_id, promo, scenario) -> tuple[bool, list[str]]:
+    """D-126: the LLM draft verifier after the code checks. A fail, a timeout or an error keeps the draft
+    unverified, so it goes to the operator instead of being posted or cached."""
+    res = await rt.draft_verifier.run(
+        DraftCheckInput(product_id=product_id, question=question, answer=out.answer.strip(), promo=promo,
+                        passages=cited_passages([c.passage_id for c in out.citations], passages),
+                        session_id=rt.sid, scenario=scenario),
+        deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS,
+    )
+    if res.status != "ok" or res.output is None:
+        return False, [f"draft_check_{res.status}"]
+    if res.output.verdict == "fail":
+        return False, [f"draft_check: {p}" for p in res.output.problems] or [f"draft_check: {res.output.reason}"]
+    return True, []
 
 
 # ---- operator question actions (§8.13) -------------------------------------------------------------

@@ -353,3 +353,38 @@ async def test_armor_failure_or_timeout_leaves_the_comment_unscreened(tmp_path, 
     assert (await rt.compute_metrics())["armor"]["unscreened"] == 1
     ctx.runtimes.shutdown()
     ctx.scheduler.shutdown()
+
+
+@pytest.mark.parametrize("verdict", ["fail", "error"])
+async def test_llm_draft_check_keeps_a_failed_draft_for_the_operator(verdict):
+    """D-126: a draft that passes the code checks but fails the LLM check (or the check errors) is never
+    posted or cached; the operator reviews it."""
+    import json
+
+    from app.providers.llm import RawReply
+
+    from .judge_fakes import ScriptedBackend
+
+    class Verifier(ScriptedBackend):
+        async def generate(self, req, timeout_ms):
+            if req.agent == "draft_verifier":
+                if verdict == "error":
+                    raise LLMError("verifier down")
+                return RawReply(json.dumps({"verdict": "fail", "problems": ["rule 2: wrong price"],
+                                            "reason": "scripted"}), model_version="scripted")
+            return await super().generate(req, timeout_ms)
+
+    ctx = make_ctx(backend=Verifier())
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        answer = await rt.get_answer(g.answer_id)
+        assert await messages(rt) == [] and g.status != "auto_answered"
+        assert answer is not None and not answer.verified
+        assert answer.verify_errors == (["draft_check: rule 2: wrong price"] if verdict == "fail"
+                                        else ["draft_check_error"])
+        assert rt.answer_cache.get(answer.cache_key) is None
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
