@@ -95,18 +95,52 @@ class Mic {
     while (this.finals.length < count && Date.now() < until) await sleep(100);
     return this.finals.length >= count;
   }
+  /** Review B6: every final of one spoken line. `from` is the final count captured BEFORE playback;
+   *  after the first new final, keep collecting until no new final arrives for `quietMs`. */
+  async finalsSince(from, ms = 15000, quietMs = 1500) {
+    if (!(await this.waitFinal(from + 1, ms))) return [];
+    let n = this.finals.length;
+    let quietUntil = Date.now() + quietMs;
+    while (Date.now() < quietUntil) {
+      await sleep(100);
+      if (this.finals.length !== n) {
+        n = this.finals.length;
+        quietUntil = Date.now() + quietMs;
+      }
+    }
+    return this.finals.slice(from);
+  }
   close() { clearInterval(this.pump); this.ws.send(JSON.stringify({ type: "stop" })); this.ws.close(); }
 }
 
-async function alertFor(sid, transcriptId, ms = 10000) {
+/** The first rendered compliance alert raised by any final of the line (a split line can alert on the
+ *  first fragment, or under the merged text of the later one), plus the state for per-final records. */
+async function alertForLine(sid, transcriptIds, ms = 10000) {
+  const ids = new Set(transcriptIds);
   const until = Date.now() + ms;
+  let st = null;
   while (Date.now() < until) {
-    const st = await api("GET", `/sessions/${sid}/state?role=operator`);
-    const a = st.alerts.find((x) => x.transcript_id === transcriptId && x.kind === "compliance" && x.status === "active");
-    if (a && a.host_rendered_at) return { alert: a, state: st };
+    st = await api("GET", `/sessions/${sid}/state?role=operator`);
+    const mine = st.alerts.filter((x) => ids.has(x.transcript_id) && x.kind === "compliance" && x.shown_at);
+    const rendered = mine.filter((x) => x.host_rendered_at).sort((a, b) => a.shown_at - b.shown_at);
+    if (rendered.length) return { alert: rendered[0], state: st };
     await sleep(200);
   }
-  return { alert: null, state: await api("GET", `/sessions/${sid}/state?role=operator`) };
+  return { alert: null, state: st ?? (await api("GET", `/sessions/${sid}/state?role=operator`)) };
+}
+
+/** Every final of the line with its compliance verdict (agent output) and the alerts it raised. */
+function perFinal(state, finals) {
+  return finals.map((f) => {
+    const call = state.agent_calls?.find((c) => c.agent === "compliance_judge" && c.input_preview === f.text);
+    return {
+      text: f.text,
+      transcript_id: f.transcript_id ?? null,
+      verdict: call?.output?.compliance?.violations?.map((v) => ({ rule: v.rule_id, negated: v.is_negated, quoted: v.is_quoted })) ?? null,
+      alerts: state.alerts.filter((a) => a.transcript_id === f.transcript_id)
+        .map((a) => ({ kind: a.kind, rule: a.rule_id, severity: a.severity, status: a.status })),
+    };
+  });
 }
 
 async function runAlerts(page) {
@@ -118,20 +152,25 @@ async function runAlerts(page) {
   await mic.ready;
   const rows = [];
   for (const [i, line] of ALERT_LINES.entries()) {
+    const from = mic.finals.length; // review B6: captured before playback
     await mic.say(synth(line));
-    const got = await mic.waitFinal(mic.finals.length + 1);
-    const final = mic.finals.at(-1);
-    let row = { line, final: got ? final.text : null };
-    if (got && final.transcript_id) {
-      const { alert, state } = await alertFor(sid, final.transcript_id);
-      const t = state.transcripts.find((x) => x.transcript_id === final.transcript_id);
+    const finals = await mic.finalsSince(from);
+    let row = { line, finals: finals.map((f) => f.text) };
+    const ids = finals.map((f) => f.transcript_id).filter(Boolean);
+    if (ids.length) {
+      const { alert, state } = await alertForLine(sid, ids);
+      const t = alert ? state.transcripts.find((x) => x.transcript_id === alert.transcript_id) : null;
       row = {
         ...row, rule: alert?.rule_id ?? null, severity: alert?.severity ?? null,
+        alert_on_final: alert ? ids.indexOf(alert.transcript_id) + 1 : null,
         stt_ms: t ? t.received_at - t.speech_end_at : null,
         server_ms: alert ? alert.shown_at - t.speech_end_at : null,
         render_ms: alert ? alert.host_rendered_at - t.speech_end_at : null,
+        per_final: perFinal(state, finals),
       };
-      if (alert) await api("POST", `/sessions/${sid}/alerts/${alert.alert_id}/dismiss`);
+      for (const a of state.alerts.filter((x) => ids.includes(x.transcript_id) && x.status === "active")) {
+        await api("POST", `/sessions/${sid}/alerts/${a.alert_id}/dismiss`);
+      }
     }
     rows.push(row);
     console.log(`${i + 1}. ${JSON.stringify(row)}`);
@@ -157,8 +196,9 @@ async function runScript(page, operatorPage) {
       await mic.ready;
       await sleep(2000);
     } else if (s.action === "host_line") {
+      const from = mic.finals.length; // review B6: captured before playback
       await mic.say(synth(s.text));
-      await mic.waitFinal(mic.finals.length + 1);
+      await mic.finalsSince(from);
       await sleep(s.scene === "S12" ? 1500 : 4000);
       if (operatorPage && s.scene === "S07" && s.text.startsWith("Let me correct")) {
         await sleep(5500); // let metrics.updated (every 5 s) carry the measured values
