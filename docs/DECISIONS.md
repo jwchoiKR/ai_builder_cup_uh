@@ -697,3 +697,8 @@ D-121: Fixes from the adversarial eval on 23627bd (tune 90.5%, sealed 92.5% dete
 - **Container type:** the prompt now says that the container (jar, tube, pump, dropper bottle) is a packaging fact.
 - **A vouched quote is the host's own claim:** compliance job (same wording in both judge prompts): repeating someone's claim and then agreeing with it or vouching for it ("and I believe her", "no exaggeration") is not a quote.
 - **Tests:** `test_facts.py` (absent ingredient only when the sheet never names it; pH note). The prompt rules are measured by the adversarial rerun.
+
+D-122: Viewer screen (S11 review, user approved).
+- The time-sale pop-up over the video is now a compact banner right above the price strip ("TIME SALE · text · countdown"); it still shows for 4 s when a sale starts and the chip in the strip stays. The product/video area keeps its size.
+- Answer cards use less padding; "Source: …" expands the cited quotes inline under the reply instead of opening a sheet.
+- **Tests:** `viewer.test.tsx` (inline source details); e2e S11 unchanged (same test id).
