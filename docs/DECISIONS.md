@@ -643,3 +643,8 @@ D-113: Every question card goes to the host, one at a time, paced by the AI PD (
 - **Shout-out card:** purchase, first-time and compliment reactions (keyword rules on the reaction path, no LLM call), read with a fixed template and the viewer's name. Only at a pause, never while a question waits, at least 30 s apart; they never delay a question.
 - **Team show:** the operator's push skips the time gap (still at a pause, still verified, still under a red alert's priority) and replaces the current question card; the operator's row shows "On the host's card" when it is on screen.
 - **Tests:** `tests/test_pd.py` (gap, pause, push, pull, read-out, which product, shout-out, a paced card on the runtime), routing and queue tests, host UI tests, e2e S04/S09/B5.
+
+D-114: Product talk that answers an open question is an answer (user, 10/5: our own functional set must pass 100%).
+- **Why:** on c6031d9 (D-112) 6 of 78 expected posts were missed. In every miss the judge labelled the sentence `product_talk` because it also stated a product fact or a prompter point (an ingredient amount, "no added fragrance") and so did not link it to the open question asking for that fact.
+- **Prompt** (both judges, same wording, a general rule, no case sentences): one sentence can cover a prompter point AND answer a question; `product_talk` only when the sentence answers none of the open questions; check every open question first.
+- **Scorer:** a post to any group in `matched_group` + `also_ok_groups` is correct (one sentence may answer two questions). Re-scoring the saved c6031d9 outputs: 0 false posts, 6 missed; the prompt change needs a new Vertex run.

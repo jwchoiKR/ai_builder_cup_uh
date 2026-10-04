@@ -71,10 +71,11 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
         exp = case["expected"]
         action, gid, reason = decision_for(case, r)
         posted = action == "post"
-        false_post = posted and (not exp["post"] or gid != exp.get("matched_group"))
+        ok_groups = {exp.get("matched_group"), *exp.get("also_ok_groups", [])}  # one sentence may answer two
+        false_post = posted and (not exp["post"] or gid not in ok_groups)
         rows.append({"id": r["id"], "run": r["run"], "category": exp["category"], "expected_post": exp["post"],
                      "action": action, "group": gid, "reason": reason, "false_post": false_post,
-                     "missed_post": exp["post"] and not (posted and gid == exp.get("matched_group")),
+                     "missed_post": exp["post"] and not (posted and gid in ok_groups),
                      "status": r.get("ctx_status")})
     return {"rows": rows,
             "false_posts": [x for x in rows if x["false_post"]],
