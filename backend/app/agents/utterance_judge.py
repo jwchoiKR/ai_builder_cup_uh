@@ -76,6 +76,7 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
 
 
 APPROVED_SPAN_MIN = 0.8
+LEAD_IN_MAX_WORDS = 8  # D-146: "In our in-house test," said as its own final
 
 
 # D-132: product-sheet sections whose statements the host may repeat. Not "Cautions" (a warning's words
@@ -118,8 +119,14 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     rules = catalog.pack.rules_by_id
     text = values.get("utterance_text") or ""
     # D-105: a sentence that names our own test never breaks the test-qualifier rule
+    # D-146 (sealed show replay): speech-to-text split "In our in-house test," from "skin hydration went up 38% ...";
+    # a short lead-in final just before, naming our test and no number, qualifies this one
+    prev = (values.get("last_two_final_transcripts_json") or [])[-1:]
+    lead_in = (bool(prev) and catalog.lexicon.is_qualified(prev[0]) and not any(ch.isdigit() for ch in prev[0])
+               and len(prev[0].split()) <= LEAD_IN_MAX_WORDS)
+    qualified = catalog.lexicon.is_qualified(text) or lead_in
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
-                               and not (v.rule_id == qualifier.RULE_ID and catalog.lexicon.is_qualified(text))]
+                               and not (v.rule_id == qualifier.RULE_ID and qualified)]
     kept = []
     on_air_id = (values.get("current_product_json") or {}).get("product_id")
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None

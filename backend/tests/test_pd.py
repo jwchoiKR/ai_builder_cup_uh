@@ -194,3 +194,21 @@ async def test_a_paced_question_card_on_the_runtime_and_the_host_pull(env):
     await rt.ctx.scheduler.advance(1000)
     pulled = (await rt.load_session()).pd_card
     assert pulled is not None and pulled.kind == "answer_question" and pulled.ref_id != g.group_id
+
+
+def test_a_question_waiting_past_its_ceiling_gets_a_card_at_the_next_break():
+    """D-146 (sealed show replay): a talkative host never pauses 8 s; a waiting question still gets its card,
+    right after a final, once it has waited 90 s (30 s when sensitive or 3+ askers)."""
+    just_after_final = dict(last_final_at=100_000 - 500)
+    mid = dict(last_final_at=100_000 - 4_000)  # talking, not at a break
+    fresh = [pdl.Question("g1", "Under makeup?", "Yes.", waiting_ms=60_000)]
+    old = [pdl.Question("g1", "Under makeup?", "Yes.", waiting_ms=pdl.CEILING_MS)]
+    urgent = [pdl.Question("g2", "Pregnant?", "Ask your doctor.", waiting_ms=pdl.URGENT_CEILING_MS, urgent=True)]
+    assert kinds_at(questions=fresh, **just_after_final) == []
+    assert kinds_at(questions=old, **mid) == []  # waits for the break
+    assert kinds_at(questions=old, **just_after_final) == ["answer_question"]
+    [c] = pdl.candidates(state(now=100_000, questions=urgent + old, **just_after_final))[:1]
+    assert (c.ref_id, c.priority) == ("g2", 1)  # the urgent one first
+    recent_card = dict(just_after_final, last_question_card_at=100_000 - pdl.DUE_GAP_MS + 1)
+    assert kinds_at(questions=old, **recent_card) == []
+    assert kinds_at(questions=old, high_alert_active=True, **just_after_final) == []  # a red alert pre-empts

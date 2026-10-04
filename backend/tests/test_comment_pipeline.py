@@ -526,3 +526,49 @@ async def test_general_questions_wait_on_the_host_list_in_a_solo_show(show_mode)
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+@pytest.mark.parametrize("consistent", [True, False])
+async def test_a_spoken_answer_before_the_draft_is_posted_once_the_draft_verifies(consistent):
+    """D-146 (sealed show replay): the host answered about 3 s after the asks, before the ~4-5 s draft.
+    When the draft verifies, the context judge checks the spoken answer against it; consistent: posted."""
+    import asyncio
+
+    from .judge_fakes import ScriptedBackend, speak
+
+    class ComposerWaits(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.gate, self.started = asyncio.Event(), asyncio.Event()
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "answer_composer":
+                self.started.set()
+                await self.gate.wait()
+            return await super().generate(req, timeout_ms)
+
+    llm = ComposerWaits()
+    ctx = make_ctx(backend=llm)
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Ming", "Can I use it under makeup?", wait=False)
+        await asyncio.wait_for(llm.started.wait(), 2)
+        [g] = await groups(rt)
+        assert g.status == "composing"
+        text = "Yes, you can wear it under makeup, just let it absorb first."
+        llm.judge(text, matched=g.group_id, is_answer=True, utterance_type="answer", consistent=False)
+        await speak(rt, text, wait=False)
+        await rt.utterances.drain()
+        assert g.group_id in rt.utterances._early and await messages(rt) == []
+        llm.judge(text, matched=g.group_id, is_answer=True, utterance_type="answer", consistent=consistent)
+        llm.gate.set()
+        await rt.ctx.scheduler.idle()
+        await rt.ctx.scheduler.advance(rt.settings.PUBLISH_CANCEL_WINDOW_MS + 100)
+        if not consistent:  # the host said something else than the draft: nothing is posted
+            assert await messages(rt) == []
+            return
+        [m] = await messages(rt)
+        assert m.kind == "host_answer" and m.state == "published"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
