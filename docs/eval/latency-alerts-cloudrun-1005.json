@@ -1,0 +1,438 @@
+[
+ {
+  "sid": "ses_01M446W86F6HX8GENR1D3A2YH0",
+  "rows": [
+   {
+    "line": "Use it every night and your wrinkles will disappear overnight.",
+    "finals": [
+     "Use it every night and your wrinkles will disappear overnight."
+    ],
+    "rule": "ASEAN-3-SKIN-AGEING",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 895,
+    "server_ms": 1853,
+    "render_ms": 2142,
+    "per_final": [
+     {
+      "text": "Use it every night and your wrinkles will disappear overnight.",
+      "transcript_id": "tr_01M446WGGGVJP10HP6XZ4RGPJW",
+      "verdict": [
+       {
+        "rule": "ASEAN-3-SKIN-AGEING",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-3-SKIN-AGEING",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "This cream literally cures eczema.",
+    "finals": [
+     "This cream literally cures eczema."
+    ],
+    "rule": "ASEAN-2D-DISEASE",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 477,
+    "server_ms": 1339,
+    "render_ms": 1631,
+    "per_final": [
+     {
+      "text": "This cream literally cures eczema.",
+      "transcript_id": "tr_01M446WQ4VJT99QBXZ919ZQNK3",
+      "verdict": [
+       {
+        "rule": "ASEAN-2D-DISEASE",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-2D-DISEASE",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "The ampoule treats acne, so you'll never break out again.",
+    "finals": [
+     "The ampoule treats acne, so you'll never break out again."
+    ],
+    "rule": "ASEAN-3-SKIN-ACNE",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 629,
+    "server_ms": 1404,
+    "render_ms": 1668,
+    "per_final": [
+     {
+      "text": "The ampoule treats acne, so you'll never break out again.",
+      "transcript_id": "tr_01M446WZRJ4D857VW76R23ZXNC",
+      "verdict": [
+       {
+        "rule": "ASEAN-3-SKIN-ACNE",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-3-SKIN-ACNE",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "Once you use it, the results are permanent.",
+    "finals": [
+     "Once you use it, the results are permanent."
+    ],
+    "rule": "ASEAN-2E-PERMANENT",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 622,
+    "server_ms": 1500,
+    "render_ms": 1804,
+    "per_final": [
+     {
+      "text": "Once you use it, the results are permanent.",
+      "transcript_id": "tr_01M446X7KWT2CM3PRAKJ9MFYS2",
+      "verdict": [
+       {
+        "rule": "ASEAN-2E-PERMANENT",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-2E-PERMANENT",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "It regenerates your skin cells from the inside.",
+    "finals": [
+     "It regenerates your skin cells from the inside."
+    ],
+    "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 629,
+    "server_ms": 1518,
+    "render_ms": 1804,
+    "per_final": [
+     {
+      "text": "It regenerates your skin cells from the inside.",
+      "transcript_id": "tr_01M446XF58EPTCQVT98W7YKN22",
+      "verdict": [
+       {
+        "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-DP5-PHYSIOLOGICAL",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "It even removes your old acne scars.",
+    "finals": [
+     "It even removes your old acne scars."
+    ],
+    "rule": "ASEAN-3-SKIN-SCARS",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 559,
+    "server_ms": 1303,
+    "render_ms": 1586,
+    "per_final": [
+     {
+      "text": "It even removes your old acne scars.",
+      "transcript_id": "tr_01M446XP76CY1WXWP7WF9J9DQX",
+      "verdict": [
+       {
+        "rule": "ASEAN-3-SKIN-SCARS",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-3-SKIN-SCARS",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "It's totally safe for pregnant women, don't worry.",
+    "finals": [
+     "It's totally safe for pregnant women.",
+     "Don't worry."
+    ],
+    "rule": "ASEAN-2D-VULNERABLE",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 500,
+    "server_ms": 1308,
+    "render_ms": 1619,
+    "per_final": [
+     {
+      "text": "It's totally safe for pregnant women.",
+      "transcript_id": "tr_01M446XX16SG62DMH4EFKZ3C7H",
+      "verdict": [
+       {
+        "rule": "ASEAN-2D-VULNERABLE",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-2D-VULNERABLE",
+        "severity": "HIGH",
+        "status": "active"
+       },
+       {
+        "kind": "compliance",
+        "rule": "BRAND-ABSOLUTE-SAFETY",
+        "severity": "MEDIUM",
+        "status": "cleared"
+       }
+      ]
+     },
+     {
+      "text": "Don't worry.",
+      "transcript_id": "tr_01M446XY6RX32TM88ZQT3NDCSS",
+      "verdict": [],
+      "alerts": []
+     }
+    ]
+   },
+   {
+    "line": "You'll look ten years younger after one bottle.",
+    "finals": [
+     "You'll look 10 years younger after one bottle."
+    ],
+    "rule": "ASEAN-3-SKIN-AGEING",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 637,
+    "server_ms": 1689,
+    "render_ms": 1967,
+    "per_final": [
+     {
+      "text": "You'll look 10 years younger after one bottle.",
+      "transcript_id": "tr_01M446Y5EWS6JAX6WRCSM8MPSV",
+      "verdict": [
+       {
+        "rule": "ASEAN-3-SKIN-AGEING",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-3-SKIN-AGEING",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "It kills the bacteria on your skin.",
+    "finals": [
+     "It kills the bacteria on your skin."
+    ],
+    "rule": "ASEAN-3-SKIN-ANTIMICROBIAL",
+    "severity": "HIGH",
+    "alert_on_final": 1,
+    "stt_ms": 592,
+    "server_ms": 1650,
+    "render_ms": 1946,
+    "per_final": [
+     {
+      "text": "It kills the bacteria on your skin.",
+      "transcript_id": "tr_01M446YCFMSF9A33Y5MNGZQM56",
+      "verdict": [
+       {
+        "rule": "ASEAN-3-SKIN-ANTIMICROBIAL",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-3-SKIN-ANTIMICROBIAL",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "line": "It's a hundred ml tube, so it lasts forever.",
+    "finals": [
+     "It's a 100 ml tube.",
+     "So it lasts forever."
+    ],
+    "rule": "ASEAN-2E-PERMANENT",
+    "severity": "HIGH",
+    "alert_on_final": 2,
+    "stt_ms": 533,
+    "server_ms": 1374,
+    "render_ms": 1673,
+    "per_final": [
+     {
+      "text": "It's a 100 ml tube.",
+      "transcript_id": "tr_01M446YK60FGFEQV1KFPN28B2F",
+      "verdict": [],
+      "alerts": [
+       {
+        "kind": "fact",
+        "rule": null,
+        "severity": null,
+        "status": "active"
+       }
+      ]
+     },
+     {
+      "text": "So it lasts forever.",
+      "transcript_id": "tr_01M446YMQXM3KHVFTFT8GM4AND",
+      "verdict": [
+       {
+        "rule": "ASEAN-2E-PERMANENT",
+        "negated": false,
+        "quoted": false
+       }
+      ],
+      "alerts": [
+       {
+        "kind": "compliance",
+        "rule": "ASEAN-2E-PERMANENT",
+        "severity": "HIGH",
+        "status": "active"
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "metrics": {
+   "alert": {
+    "last_server_ms": 1374,
+    "last_render_ms": 1673,
+    "server_p50_ms": 1404,
+    "server_p95_ms": 1853,
+    "render_p50_ms": 1673,
+    "render_p95_ms": 2142,
+    "count": 10
+   },
+   "correction": {
+    "p50_ms": null,
+    "p95_ms": null,
+    "count": 0
+   },
+   "agents": {
+    "compliance_judge": {
+     "p50_ms": 859,
+     "p95_ms": 1054,
+     "max_ms": 1054,
+     "ok": 12,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    },
+    "context_judge": {
+     "p50_ms": 931,
+     "p95_ms": 1125,
+     "max_ms": 1125,
+     "ok": 12,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    },
+    "fact_checker": {
+     "p50_ms": 958,
+     "p95_ms": 1492,
+     "max_ms": 1492,
+     "ok": 12,
+     "timeout": 0,
+     "error": 0,
+     "invalid": 0
+    }
+   },
+   "answers": {
+    "instant": 0,
+    "composed": 0,
+    "median_reply_ms": {
+     "instant": null,
+     "composed": null
+    }
+   },
+   "triage_cache": {
+    "hits": 0,
+    "misses": 0
+   },
+   "messages_by_kind": {},
+   "stt_final_latency_ms": {
+    "p50_ms": 615,
+    "p95_ms": 895,
+    "count": 12
+   },
+   "header": {
+    "alert_in_s": 1.7,
+    "judge_p50_s": 0.9,
+    "instant_answers": 0,
+    "answers_total": 0
+   },
+   "comments": 0,
+   "instant_answers": 0,
+   "composed_answers": 0,
+   "triage_cache_hits": 0,
+   "triage_cache_misses": 0
+  }
+ }
+]
