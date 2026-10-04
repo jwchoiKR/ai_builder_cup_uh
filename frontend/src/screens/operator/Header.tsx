@@ -74,6 +74,11 @@ export function OperatorHeader({
         <span className={styles.subtitle}>{subtitle}</span>
       </div>
       <div className={styles.headerRight}>
+        {state.market?.tier === "preview" && (
+          <Chip tone="fact" data-testid="op-preview">
+            {t("PREVIEW")} · {state.market.name}
+          </Chip>
+        )}
         <div className={styles.metricChips} data-testid="op-metrics">
           {shown.alert && <Chip className="tabular">{chips.alert}</Chip>}
           {shown.judge && <Chip className="tabular">{chips.judge}</Chip>}

@@ -349,6 +349,8 @@ async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: An
         else:
             g.route, g.route_reason, g.status = "OPERATOR", "needs_human", "needs_review"
         return
+    if g.route == "AUTO" and not rt.live:
+        g.route, g.route_reason = "HOST", "preview"  # D-150: a preview market posts nothing by itself
     if g.route == "AUTO" and rt.settings.AUTO_ANSWER_ENABLED:
         msg = await rt.publish_message_locked(
             kind="ai_answer", text=answer.text, group=g, comment_ids=list(g.member_comment_ids),

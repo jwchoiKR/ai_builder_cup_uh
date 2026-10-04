@@ -1233,6 +1233,19 @@
   min-height: 0;
   overflow: hidden;
 }
+/* D-150: preview market or language */
+.previewTag {
+  flex: none;
+  padding: calc(2px * var(--hs)) calc(10px * var(--hs));
+  border: 1px solid var(--fact-border);
+  border-radius: var(--radius-chip);
+  background: var(--fact-bg);
+  color: var(--fact-text);
+  font-size: calc(13px * var(--hs));
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--eyebrow-tracking);
+  white-space: nowrap;
+}
 /* D-137: judge health dot in the prompter header */
 .healthDot {
   display: inline-flex;

@@ -133,7 +133,7 @@ class PromosFile(BaseModel):
 class PolicySource(BaseModel):
     source_id: str
     title: str
-    file: str
+    file: str | None = None  # a local copy; None for an online-only source (D-150)
     publisher_url: str | None = None
     note: str | None = None
 
