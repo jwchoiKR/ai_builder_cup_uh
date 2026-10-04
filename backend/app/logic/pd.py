@@ -11,6 +11,15 @@ from dataclasses import dataclass, field
 from ..models.data import PrompterPoint
 
 HOLD_MS = 15_000  # a shown card is not replaced before this
+Q_GAP_MS = 45_000  # D-113: question cards (answer, read-out, which product) start at least this far apart
+SHOUT_GAP_MS = 30_000  # D-113: shout-out cards
+SHOUT_MAX_AGE_MS = 120_000  # an older purchase or welcome comment is not read out any more
+QUESTION_KINDS = frozenset({"answer_question", "read_question", "clarify_product"})
+SHOUT_TEMPLATES = {
+    "purchase": "Thank you {name} for your order!",
+    "first_time": "Welcome {name}, great to have you here for the first time!",
+    "compliment": "Thank you {name}, so glad you like it!",
+}
 SILENCE_MS = 8_000  # STT gives finals only, so 8 s without a final counts as a pause
 PROMO_JUST_STARTED_MS = 30_000
 PROMO_ENDING_MS = 60_000
@@ -20,7 +29,18 @@ PROMO_ENDING_MS = 60_000
 class Question:
     group_id: str
     question: str
-    answer: str  # verified suggested answer
+    answer: str | None  # verified suggested answer; None for "which product?"
+    kind: str = "answer"  # answer | read (AI already answered, many asked) | clarify (product unclear)
+    askers: int = 1
+    pushed: bool = False  # team show: the operator pushed it; it skips the time gap
+
+
+@dataclass(frozen=True)
+class ShoutOut:
+    comment_id: str
+    name: str
+    kind: str  # purchase | first_time | compliment
+    at: int
 
 
 @dataclass(frozen=True)
@@ -49,6 +69,11 @@ class PdState:
     last_final_at: int | None = None
     recent_lines: list[str] = field(default_factory=list)
     dismissed_refs: frozenset[str] = frozenset()
+    product_names: list[str] = field(default_factory=list)  # run sheet order, for "which product?"
+    last_question_card_at: int | None = None
+    last_shout_at: int | None = None
+    pull: bool = False  # the host pulled the top waiting question now (skips the gap and the pause)
+    shoutouts: list[ShoutOut] = field(default_factory=list)
 
     @property
     def elapsed_ratio(self) -> float:
@@ -57,6 +82,11 @@ class PdState:
     @property
     def silent(self) -> bool:
         return self.last_final_at is not None and self.now - self.last_final_at >= SILENCE_MS
+
+    @property
+    def pause(self) -> bool:
+        """A good moment for a new card: the host paused, or has not spoken yet."""
+        return self.last_final_at is None or self.silent
 
     @property
     def missing_required(self) -> list[PrompterPoint]:
@@ -71,6 +101,7 @@ class Candidate:
     detail: str | None
     ref_id: str
     priority: int  # rule fallback order, lower first
+    askers: int | None = None
 
 
 def candidates(st: PdState) -> list[Candidate]:
@@ -86,8 +117,33 @@ def candidates(st: PdState) -> list[Candidate]:
             out.append(Candidate(f"promo:{p.promo_id}", "promo", p.viewer_text, f"Ends in {secs} s", p.promo_id, 1))
     # D-107: no "say this point" card. The prompter's highlighted next required point is the cue;
     # the switch and wrap-up cards name the required points still to say, verbatim.
-    for q in st.questions:
-        out.append(Candidate(f"question:{q.group_id}", "answer_question", q.answer, q.question, q.group_id, 3))
+    # D-113: one question card at a time, at a pause and at least Q_GAP_MS after the last one. An
+    # operator push skips the gap (still at a pause); the host's pull takes the top one at once.
+    gap_ok = st.last_question_card_at is None or st.now - st.last_question_card_at >= Q_GAP_MS
+    waiting = [q for q in st.questions if q.group_id not in st.dismissed_refs]  # the host skipped these
+    for i, q in enumerate(waiting):
+        pulled = st.pull and i == 0
+        if not (pulled or (st.pause and (gap_ok or q.pushed))):
+            continue
+        prio = 0 if (pulled or q.pushed) else 3
+        if q.kind == "clarify":
+            say = f"Which product do you mean: {' or '.join(st.product_names)}?"
+            cand = Candidate(f"question:{q.group_id}", "clarify_product", say, q.question, q.group_id, prio, q.askers)
+        elif q.kind == "read" and q.answer:
+            detail = f"{q.askers} people asked: {q.question}"
+            cand = Candidate(f"question:{q.group_id}", "read_question", q.answer, detail, q.group_id, prio, q.askers)
+        elif q.answer:
+            cand = Candidate(f"question:{q.group_id}", "answer_question", q.answer, q.question, q.group_id, prio,
+                             q.askers)
+        else:
+            continue
+        out.append(cand)
+    # D-113: shout-outs only at a pause, never while questions are waiting, at least SHOUT_GAP_MS apart
+    if (st.pause and not waiting and st.shoutouts
+            and (st.last_shout_at is None or st.now - st.last_shout_at >= SHOUT_GAP_MS)):
+        so = st.shoutouts[0]
+        out.append(Candidate(f"shout:{so.comment_id}", "shout_out", SHOUT_TEMPLATES[so.kind].format(name=so.name),
+                             None, so.comment_id, 6))
     if st.elapsed_ratio >= 0.8:
         missing = st.missing_required
         before = "; ".join(p.text.rstrip(". ") for p in missing)

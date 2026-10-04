@@ -103,6 +103,16 @@ export const KO_HOST: Record<string, string> = {
   "You have the floor.": "지금은 자유롭게 진행하세요.",
   "Your next audience question will appear here.": "다음 시청자 질문이 여기에 나옵니다.",
   "Questions stay in place while you speak": "말하는 동안 질문 순서는 바뀌지 않습니다",
+  // D-113 waiting list and AI PD card
+  "take the top one now": "맨 위 질문 바로 받기",
+  "AI PD: nothing to do right now": "AI PD: 지금은 할 일이 없습니다",
+  "On your card": "카드에 표시 중",
+  "Drafting…": "답변 작성 중…",
+  "Which product?": "어느 제품인지 확인",
+  "Read out": "읽어 주기",
+  Ready: "답변 준비됨",
+  "No answer yet": "답변 없음",
+  "Shout-out": "감사 인사",
   // chat
   "Live chat": "라이브 채팅",
   "LIVE CHAT": "라이브 채팅",

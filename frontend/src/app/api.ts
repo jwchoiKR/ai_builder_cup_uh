@@ -130,6 +130,7 @@ export const api = {
 
   // host: AI PD card
   dismissPdCard: (sid: string, cardId: string) => post(`${s(sid)}/pd/dismiss`, { card_id: cardId }),
+  pullQuestion: (sid: string) => post(`${s(sid)}/pd/pull`),
 };
 
 export type Api = typeof api;

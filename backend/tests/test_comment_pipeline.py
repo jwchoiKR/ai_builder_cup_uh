@@ -91,15 +91,16 @@ async def test_host_route_goes_to_host_slots(rt):
     assert len(await groups(rt)) == 2  # different slot value: separate group
 
 
-async def test_sensitive_goes_to_operator_with_draft(rt):
+async def test_sensitive_goes_to_the_host_with_draft(rt):
+    """D-113: the host answers sensitive questions on air; no operator routing by sensitivity."""
     await say(rt, "Jun", "Can I use it while pregnant?")
     [g] = await groups(rt)
-    assert (g.route, g.route_reason, g.status) == ("OPERATOR", "sensitive", "needs_review")
+    assert (g.route, g.route_reason, g.status) == ("HOST", "sensitive", "ready")
     answer = await rt.get_answer(g.answer_id)
     assert answer is not None and answer.verified and "pregnant" in answer.text.lower()
     assert await messages(rt) == []  # never posted automatically
     s = await rt.load_session()
-    assert s.host_slots == []
+    assert [sl.group_id for sl in s.host_slots] == [g.group_id]
 
 
 async def test_general_question_has_no_draft(rt):

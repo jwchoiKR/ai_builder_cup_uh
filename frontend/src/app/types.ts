@@ -25,7 +25,15 @@ export interface HostCue {
   done_at?: number;
 }
 
-export type PdCardKind = "answer_question" | "cover_point" | "promo" | "wrap_up" | "switch_product";
+export type PdCardKind =
+  | "answer_question"
+  | "read_question"
+  | "clarify_product"
+  | "shout_out"
+  | "cover_point"
+  | "promo"
+  | "wrap_up"
+  | "switch_product";
 export type PdCardStatus = "active" | "done" | "dismissed" | "expired";
 export type PdCardSource = "ai" | "rule";
 
@@ -39,6 +47,8 @@ export interface PdCard {
   hold_until: number;
   status: PdCardStatus;
   source: PdCardSource;
+  /** question cards: how many viewers asked (D-113) */
+  askers?: number | null;
   /** client-side: when the card became done (for short "done" fade) */
   done_at?: number;
 }

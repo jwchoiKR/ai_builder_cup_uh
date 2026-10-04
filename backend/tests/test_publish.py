@@ -290,7 +290,9 @@ async def test_operator_routed_group_is_never_posted_from_speech(env):
     rt, llm = env
     await say(rt, "Jun", "Can I use it while pregnant?")
     [g] = await rt.groups()
-    assert g.route == "OPERATOR" and (await rt.get_answer(g.answer_id)).verified
+    assert g.route == "HOST" and (await rt.get_answer(g.answer_id)).verified  # D-113: sensitive goes to the host
+    g.route = "OPERATOR"  # a general question the operator handles (team show)
+    await rt.save_group(g)
     await ops.push_to_host(rt, g.group_id)
     text = "It hasn't been tested on pregnant women, please ask your doctor."
     answer_script(llm, g.group_id, text=text)

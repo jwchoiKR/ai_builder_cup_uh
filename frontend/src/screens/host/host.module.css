@@ -1216,6 +1216,67 @@
   font-weight: var(--fw-semibold);
   color: var(--text-2);
 }
+/* D-113: the fixed AI PD card slot under the prompter; the waiting list below never moves */
+.pdSlot {
+  flex: none;
+  height: calc(200px * var(--hs));
+  display: flex;
+  flex-direction: column;
+}
+.pdSlot > .pdCard {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.pdEmpty {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+  font-size: calc(15px * var(--hs));
+  color: var(--text-3);
+}
+.pdQuestion {
+  display: flex;
+  align-items: baseline;
+  gap: calc(12px * var(--hs));
+  font-size: calc(22px * var(--hs));
+  line-height: 1.25;
+  color: var(--text-2);
+}
+.pdAskers {
+  flex: none;
+  font-size: calc(15px * var(--hs));
+  color: var(--text-3);
+}
+.pdSayAnswer {
+  font-size: calc(30px * var(--hs));
+}
+/* D-113: compact waiting list rows */
+.wRow {
+  display: flex;
+  align-items: center;
+  gap: calc(12px * var(--hs));
+  font-size: calc(18px * var(--hs));
+}
+.wText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--fw-semibold);
+}
+.wState {
+  flex: none;
+  font-size: calc(14px * var(--hs));
+  font-weight: var(--fw-semibold);
+  color: var(--text-2);
+}
+.wStateOn {
+  color: var(--accent);
+}
 .pdSay {
   font-size: calc(26px * var(--hs));
   font-weight: var(--fw-semibold);

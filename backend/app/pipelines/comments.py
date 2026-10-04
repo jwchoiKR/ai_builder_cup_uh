@@ -18,7 +18,9 @@ from ..logic.prefilter import prefilter
 from ..logic.product_mapping import attribute_product
 from ..logic.promos import promo_state
 from ..logic.routing import is_composable, route_for
+from ..logic.pd import ShoutOut
 from ..logic.segments import segment_at
+from ..logic.shoutout import shout_kind
 from ..logic.verify import verify_answer
 from ..models.agent_io import CommentTriageOutput, ConditionSlots
 from ..models.session import Answer, Comment, CommentAnalysis, QuestionGroup
@@ -61,10 +63,19 @@ async def submit_comment(
     await rt.save_analysis(analysis)
     comment.analysis_id = analysis.analysis_id
     await rt.save_comment(comment)
+    if verdict.kind == "reaction":
+        note_shoutout(rt, comment)
     if verdict.kind == "hide":
         await rt.emit("comment.hidden", comment)
     await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"), "analysis": analysis.model_dump(mode="json")})
     return comment
+
+
+def note_shoutout(rt: "SessionRuntime", comment: Comment) -> None:
+    """D-113: a purchase, first-time or compliment reaction the AI PD may read out with the name."""
+    kind = shout_kind(comment.text)
+    if kind is not None:
+        rt.shoutouts.append(ShoutOut(comment.comment_id, comment.author_name, kind, comment.received_at))
 
 
 def _fallback_output(text: str) -> CommentTriageOutput:
@@ -196,6 +207,8 @@ async def _finish_non_question(rt, comment_id, output, context_pid, source, late
         if output.kind == "hide":
             comment.visibility, comment.hide_category = "hidden", output.hide_category
         await rt.save_comment(comment)
+        if output.kind == "reaction":
+            note_shoutout(rt, comment)
         if output.kind == "hide":
             await rt.emit("comment.hidden", comment)
         await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"), "analysis": analysis.model_dump(mode="json")})
@@ -258,8 +271,7 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
         return  # members wait for the composer, the host or the operator
     intent = rt.intent(g.intent)
     if not is_composable(intent, g.product_id):
-        g.route = "OPERATOR"
-        g.status = "needs_review"
+        g.status = "needs_review"  # D-113: an unresolved product stays with the host ("Which product?")
         return
     key = await answer_key(rt, g)
     cached = rt.answer_cache.get(key)

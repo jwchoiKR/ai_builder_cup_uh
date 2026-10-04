@@ -105,6 +105,8 @@ function GroupRow({ group: g, expanded, onToggle }: { group: QuestionGroup; expa
   const label = groupStatusLabel(g);
   const sensitive = intentInfo(catalog, g.intent)?.sensitive;
   const stale = isStale(g, now, setting(state, "STALE_COMMENT_SEC"));
+  const card = state.session?.pd_card;
+  const onCard = card?.status === "active" && card.ref_id === g.group_id; // D-113: the push reached the host
   useEffect(() => {
     if (focusedGroup === g.group_id) ref.current?.scrollIntoView?.({ block: "nearest" });
   }, [focusedGroup, g.group_id]);
@@ -126,6 +128,11 @@ function GroupRow({ group: g, expanded, onToggle }: { group: QuestionGroup; expa
             <span className={styles.dotSep}>·</span>
             <span>{t(intentLabel(g.intent))}</span>
             {sensitive && <Chip tone="risk">{t("Sensitive")}</Chip>}
+            {onCard && (
+              <Chip tone="ok" data-testid="op-on-host-card">
+                {t("On the host's card")}
+              </Chip>
+            )}
           </span>
         </span>
         <span className={styles.groupStats}>

@@ -109,9 +109,9 @@ def test_unique_authors_and_ttl():
 def test_routes(pack):
     i = pack.intents_by_name
     assert route_for(i["price"], CREAM) == ("AUTO", "intent")
-    assert route_for(i["price"], None) == ("OPERATOR", "unresolved_product")
+    assert route_for(i["price"], None) == ("HOST", "unresolved_product")  # D-113: "Which product?"
     assert route_for(i["skin_type_suitability"], CREAM) == ("HOST", "intent")
-    assert route_for(i["pregnancy_breastfeeding"], CREAM) == ("OPERATOR", "sensitive")
+    assert route_for(i["pregnancy_breastfeeding"], CREAM) == ("HOST", "sensitive")  # D-113
     assert route_for(i["shipping"], None) == ("OPERATOR", "intent")
     assert route_for(i["product_comparison"], None) == ("HOST", "intent")
     assert is_composable(i["product_comparison"], None)

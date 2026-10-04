@@ -26,7 +26,7 @@ const cat: Catalog = {
 };
 
 function actions(): HostActions {
-  return { rendered: vi.fn(), cancelSwitch: vi.fn(), dismissPd: vi.fn() };
+  return { rendered: vi.fn(), cancelSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn() };
 }
 
 function view(over: Partial<StateSnapshot> = {}, acts: HostActions = actions()) {
@@ -313,7 +313,7 @@ describe("compliance", () => {
 });
 
 describe("audience questions", () => {
-  it("orders host slots as given (pinned first) with tags and the suggested answer under 01", () => {
+  it("D-113: a compact waiting list in slot order with each question's state, never the answer", () => {
     const g1 = group({ group_id: "grp_000001", canonical_question: "Is it suitable for oily skin?", answer_id: "ans_000001", unique_author_ids: ["a", "b", "c"] });
     const g2 = group({ group_id: "grp_000002", canonical_question: "Can I use it under makeup?", answer_id: "ans_000002" });
     const g3 = group({ group_id: "grp_000003", canonical_question: "How much is the set?", status: "auto_answered", route: "AUTO", answer_id: "ans_000003" });
@@ -333,7 +333,7 @@ describe("audience questions", () => {
       }),
     );
     const card = screen.getByTestId("host-questions");
-    expect(within(card).getByText("TOP 3")).toBeInTheDocument();
+    expect(card).toHaveTextContent("take the top one now");
     const items = within(card).getAllByRole("article");
     expect(items.map((i) => i.getAttribute("data-testid"))).toEqual([
       "host-question-grp_000002",
@@ -342,12 +342,34 @@ describe("audience questions", () => {
     ]);
     expect(items[0]).toHaveTextContent("01");
     expect(items[0]).toHaveTextContent("From your PD");
-    expect(items[0]).toHaveTextContent("SUGGESTED ANSWER");
-    expect(items[0]).toHaveTextContent("Product sheet · Frequently asked questions");
-    expect(items[1]).toHaveTextContent("3 asking");
-    expect(items[1]).toHaveTextContent("For you");
-    expect(items[1]).not.toHaveTextContent("SUGGESTED ANSWER");
-    expect(items[2]).toHaveTextContent("AI answered");
+    expect(items[0]).toHaveTextContent("Ready");
+    expect(items[0]).not.toHaveTextContent("Apply sunscreen"); // the answer is only on the AI PD card
+    expect(items[1]).toHaveTextContent("3");
+    expect(items[1]).not.toHaveTextContent("For you");
+    expect(items[2]).toHaveTextContent("Read out");
+  });
+
+  it("D-113: drafting, which product and on-your-card states", () => {
+    const drafting = group({ group_id: "grp_000004", status: "composing", answer_id: null });
+    const which = group({ group_id: "grp_000005", status: "needs_review", route_reason: "unresolved_product", answer_id: null });
+    const onCard = group({ group_id: "grp_000006", answer_id: "ans_000001" });
+    render(
+      view({
+        session: session({ pd_card: pdCard({ ref_id: "grp_000006", status: "active" }) }),
+        groups: [drafting, which, onCard],
+        answers: { ans_000001: answer({ group_id: "grp_000006" }) },
+        host_slots: [drafting, which, onCard].map((g) => ({ group_id: g.group_id, pinned: false, on_host_since: now() })),
+      }),
+    );
+    const states = screen.getAllByTestId("host-question-state").map((e) => e.textContent);
+    expect(states).toEqual(["Drafting…", "Which product?", "On your card"]);
+  });
+
+  it("D-113: Q pulls the top waiting question", () => {
+    const acts = actions();
+    render(view({}, acts));
+    fireEvent.keyDown(window, { key: "q" });
+    expect(acts.pullQuestion).toHaveBeenCalledTimes(1);
   });
 
   it("shows the Posting answer chip while a host answer is pending", () => {
@@ -367,7 +389,6 @@ describe("audience questions", () => {
     render(view());
     expect(screen.getByText("You have the floor.")).toBeInTheDocument();
     expect(screen.getByText("Your next audience question will appear here.")).toBeInTheDocument();
-    expect(screen.getByText("TOP 0")).toBeInTheDocument();
   });
 });
 
@@ -417,7 +438,7 @@ describe("chat and switch", () => {
 });
 
 describe("AI PD card", () => {
-  it("renders active card at the top of the left column above the prompter with kind, say, and detail", () => {
+  it("D-113: a question card shows the question and askers above the answer, in the fixed slot", () => {
     const card = pdCard({
       card_id: "card_ai_1",
       kind: "answer_question",
@@ -425,13 +446,15 @@ describe("AI PD card", () => {
       detail: "Raj: Can I use it under makeup?",
       source: "ai",
       status: "active",
+      askers: 4,
     });
     render(view({ session: session({ pd_card: card }) }));
+    expect(within(screen.getByTestId("host-pd-slot")).getByTestId("host-pd-card")).toBeInTheDocument();
     const el = screen.getByTestId("host-pd-card");
     expect(el).toBeInTheDocument();
     expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Answer");
     expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Yes. Apply sunscreen after the cream, then makeup.");
-    expect(screen.getByTestId("host-pd-detail")).toHaveTextContent("Raj: Can I use it under makeup?");
+    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("Raj: Can I use it under makeup?4 asking");
     expect(screen.getByText("AI PD")).toBeInTheDocument();
   });
 

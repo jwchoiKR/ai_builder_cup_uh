@@ -79,19 +79,20 @@ async def test_bursts_b1_to_b4(api):
     [makeup] = by_question(state, "makeup_compatibility")
     assert len(makeup["unique_author_ids"]) == 4 and makeup["status"] == "ready"
     on_host = [s["group_id"] for s in state["host_slots"]]
-    assert on_host[:2] == [oily["group_id"], makeup["group_id"]]
+    # D-113: an AI-answered question with 3+ askers also waits there, to be read out on air
+    assert [g for g in on_host if g in (oily["group_id"], makeup["group_id"])] == [oily["group_id"], makeup["group_id"]]
     for g in (oily, makeup):
         assert state["answers"][g["answer_id"]]["verified"]
     [fragrance] = by_question(state, "fragrance")
     assert fragrance["status"] == "auto_answered" and replies_to(state, fragrance)
 
-    # ---- S09 / B3: sensitive questions only for the operator; abuse hidden -----------------------
+    # ---- S09 / B3: sensitive questions go to the host (D-113); abuse hidden ----------------------
     state, viewer = await burst(client, scheduler, sid, "B3")
     [preg] = by_question(state, "pregnancy_breastfeeding")
-    assert preg["status"] == "needs_review" and preg["route"] == "OPERATOR" and len(preg["unique_author_ids"]) == 3
+    assert preg["status"] == "ready" and preg["route"] == "HOST" and len(preg["unique_author_ids"]) == 3  # D-113
     draft = state["answers"][preg["answer_id"]]
     assert draft["verified"] and {c["section"] for c in draft["citations"]} <= {"Cautions", "Frequently asked questions"}
-    assert preg["group_id"] not in [s["group_id"] for s in state["host_slots"]] and not replies_to(state, preg)
+    assert preg["group_id"] in [s["group_id"] for s in state["host_slots"]] and not replies_to(state, preg)
     [eczema] = by_question(state, "medical_condition")
     assert eczema["status"] == "needs_review"
     assert eczema["answer_id"] is None or not state["answers"][eczema["answer_id"]]["verified"]

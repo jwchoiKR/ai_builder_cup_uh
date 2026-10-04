@@ -9,10 +9,12 @@ Route = Literal["AUTO", "HOST", "OPERATOR"]
 
 
 def route_for(intent: Intent, product_id: str | None) -> tuple[Route, str]:
+    # D-113: question cards go to the host, sensitive ones included; the host asks "Which product?"
+    # when the product is unclear. General questions (shipping, returns, ...) keep their intent route.
     if product_id is None and intent.product_scope == "single":
-        return "OPERATOR", "unresolved_product"
+        return "HOST", "unresolved_product"
     if intent.sensitive:
-        return "OPERATOR", "sensitive"
+        return "HOST", "sensitive"
     return intent.route, "intent"
 
 
