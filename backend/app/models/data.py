@@ -111,6 +111,7 @@ class Promo(BaseModel):
     viewer_text: str
     host_text: str
     changes_prices: bool
+    min_spend: float | None = None  # D-149: a gift's spend threshold, in the market's currency
 
 
 class PromoRules(BaseModel):

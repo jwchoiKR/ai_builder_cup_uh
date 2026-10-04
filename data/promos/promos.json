@@ -5,12 +5,16 @@
       "kind": "time_sale",
       "title": "Time sale: extra 10% off",
       "duration_sec": 600,
-      "applies_to": ["cream_hydra_barrier", "ampoule_deep_hydration", "set_cream_ampoule"],
+      "applies_to": [
+        "cream_hydra_barrier",
+        "ampoule_deep_hydration",
+        "set_cream_ampoule"
+      ],
       "discount_pct_off_live_price": 10,
       "promo_prices": {
-        "cream_hydra_barrier": 32.40,
-        "ampoule_deep_hydration": 28.80,
-        "set_cream_ampoule": 55.80
+        "cream_hydra_barrier": 32.4,
+        "ampoule_deep_hydration": 28.8,
+        "set_cream_ampoule": 55.8
       },
       "viewer_text": "TIME SALE · Extra 10% off for the next 10 minutes",
       "host_text": "TIME SALE",
@@ -24,14 +28,17 @@
       "applies_to": [],
       "viewer_text": "Free DAON LAB travel pouch with orders over S$60",
       "host_text": "GIFT OVER S$60",
-      "changes_prices": false
+      "changes_prices": false,
+      "min_spend": 60.0
     },
     {
       "promo_id": "promo_set_reminder",
       "kind": "notice",
       "title": "Set offer reminder",
       "duration_sec": 300,
-      "applies_to": ["set_cream_ampoule"],
+      "applies_to": [
+        "set_cream_ampoule"
+      ],
       "viewer_text": "Cream + Ampoule set: S$62 during this live",
       "host_text": "SET S$62",
       "changes_prices": false

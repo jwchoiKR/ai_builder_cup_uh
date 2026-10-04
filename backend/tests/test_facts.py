@@ -363,3 +363,21 @@ def test_d148_the_live_price_said_as_now_during_a_sale_is_stale(catalog, pack):
     assert c.verdict == "supported"
     [c] = post_validate(out, [], catalog, None, utterance="It's thirty-six dollars.").claims
     assert c.verdict == "supported"  # no sale: the live price is right
+
+
+def test_d149_a_wrong_gift_threshold_is_a_checked_fact(catalog, pack):
+    """D-149: the gift pouch's spend threshold is a structured field the fact checker can check."""
+    from app.agents import inputs
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    gift = pack.promos_by_id["promo_gift_pouch"]
+    assert inputs.active_offers_json(catalog, [gift]) == [
+        {"promo_id": "promo_gift_pouch", "title": gift.title, "min_spend": "S$60.00", "duration_min": 15}]
+    claim = {"span": "free pouch over fifty dollars", "field": "promo", "product_id": "cream_hydra_barrier",
+             "stated_value": "S$50", "verdict": "contradicted", "correct_value": "S$60.00", "passage_id": None, "quote": None}
+    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
+    assert post_validate(out, [], catalog, None, offers=[gift]).claims[0].verdict == "contradicted"
+    assert post_validate(out, [], catalog, None).claims[0].verdict == "not_in_sources"  # no offer running
+    wrong = FactCheckOutput.model_validate({"claims": [claim | {"correct_value": "S$70.00"}], "reason": "t"})
+    assert post_validate(wrong, [], catalog, None, offers=[gift]).claims[0].verdict == "not_in_sources"

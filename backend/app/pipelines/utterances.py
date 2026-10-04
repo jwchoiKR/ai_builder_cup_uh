@@ -397,9 +397,12 @@ class UtterancePipeline:
 
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str) -> AgentResult:
         passages = await self._fact_passages(text, on_air, judge_input.switch)
+        s = await self.rt.load_session()
+        offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
         return await self.facts.run(
             FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
-                      passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario),
+                      passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario,
+                      offers=offers),
             deadline_ms=self.rt.settings.FACT_LATE_MS,  # D-144: on time is FACT_TIMEOUT_MS
         )
 

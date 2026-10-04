@@ -25,6 +25,7 @@ How to decide
 - Packaging: the container type (jar, tube, pump, dropper bottle, bottle) is a packaging fact; a different container than the sheet's is `contradicted`.
 - pH is field `ph`; a value or range outside the sheet's is `contradicted`.
 - Prices: if ACTIVE_PROMO is present and changes prices, the promo price is the correct current price. A host who states the live price as the price now ("it's thirty-six dollars", "only $36 today") during the promo is `contradicted` with field `promo`, `correct_value` the promo price from ACTIVE_PROMO, `passage_id` and `quote` null. Only a clear contrast with the promo ("normally thirty-six, now thirty-two forty") makes the live price `supported` with field `price`. A host stating a "now" or "with the time sale" price must match the promo price.
+- Offers: each ACTIVE_OFFERS entry's `min_spend` is checkable. A different spend threshold for that gift ("free pouch over $50" when it is over S$60) is `contradicted` with field `promo`, `correct_value` the offer's `min_spend` (e.g. "S$60.00"), `passage_id` and `quote` null.
 - Promo terms: ACTIVE_PROMO's `discount_pct_off_live_price` and `duration_min` are checkable facts. A different discount ("an extra 20% off" for 10%) or duration is `contradicted` with field `promo`, `correct_value` the term from ACTIVE_PROMO (e.g. "10% off", "10 minutes"), `passage_id` and `quote` null.
 - Product scope: check against CURRENT_PRODUCT unless the host clearly names the other product. Never use one product's facts to correct the other product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT ("this one is also 50 ml" about the ampoule is checked against the ampoule).
 - If SWITCH_CONTEXT.in_progress is true, the host may already be describing SWITCH_CONTEXT.next_product without naming it (use RECENT_TRANSCRIPT to see which product was just introduced). Check such a sentence against that product. If you cannot tell which product a fact is about, use `not_in_sources`.
@@ -45,6 +46,7 @@ Output rules
 <data name="CURRENT_PRODUCT">{{current_product_compact_json}}</data>
 <data name="SWITCH_CONTEXT">{{switch_context_json}}</data>
 <data name="ACTIVE_PROMO">{{active_promo_json_or_null}}</data>
+<data name="ACTIVE_OFFERS">{{active_offers_json}}</data>
 <data name="SET_OFFERS">{{set_offers_json}}</data>
 <data name="SOURCE">{{passages_json}}</data>
 <data name="RECENT_TRANSCRIPT">{{last_two_final_transcripts_json}}</data>
