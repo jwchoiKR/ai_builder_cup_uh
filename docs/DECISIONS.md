@@ -607,3 +607,13 @@ D-108: A claim repeated after its correction alerts again (user, 10/5: "계속 �
 - D-105's "the same test result alerts once per product segment" is replaced: a test-qualifier alert is skipped only while an alert with the same approved wording is still provisional or active (no second card for the same claim). After a correction, or after the alert ended, a repeat is a new alert with the same box rules.
 - Fact notes and the other compliance rules already worked this way (a new note once the earlier one is corrected); tests now cover both.
 - **Tests:** `tests/test_qualifier.py` (wrong, correct, wrong again: second alert, for the qualifier and for a fact note).
+
+D-110: A host's spoken answer is auto-posted only when it clearly matches the verified draft (user, 10/5).
+- **Rule (all must hold, else nothing is posted; the card stays and "Confirm and post" still works):** the utterance answers the offered question with a statement (`utterance_type` "answer", `is_answer`); the context judge finds it consistent with the draft; the answer is verified, unpublished, with no active HIGH alert, no violation and no contradicted fact (unchanged, §8.6).
+- **New code checks** (`logic/publish.py`, on top of the judge):
+  - every number the host says (spoken forms normalised: "fifty mils", "thirty-six dollars", "four percent") must be in the draft, or in another offered draft when the host answers two questions at once. Saying less than the draft is fine, because the posted text is the draft;
+  - hedges and take-backs never post ("I think", "maybe", "not sure", "don't quote me", "let me check", "wait, no");
+  - the post is bound to the answer shown with the question when the sentence was judged and to the current promo and document state (`answer.cache_key`); a changed or stale answer is not posted. Posting stays deduplicated (unpublished check, idempotency key).
+  - "Host confirmed the AI answer" stays a mark only and still follows the judge's consistency.
+- **Prompt:** the answer-linking rule in `utterance_judge.md` and `context_judge.md` now says that a question back, a quote or a hypothetical is not an answer, and that consistency means the same direction and numbers, with no added claim, caveat, condition, restriction or uncertainty.
+- **Eval:** `scripts/eval_verbal_post.py` on `data/eval/verbal_post_cases.jsonl` (40 cases, 20 near-misses) runs the production agents and the real decision, and reports false posts (target 0) and missed posts separately. Unit tests check that the code layer never blocks an expected post and always blocks the wrong-number, hedge and retraction cases.
