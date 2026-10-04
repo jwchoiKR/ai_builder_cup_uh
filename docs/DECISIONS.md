@@ -529,3 +529,15 @@ D-100: The fact checker no longer leaves fact notes on compliance wording.
   - leaks went from 20/579, 23/560 and 19/551 to 0;
   - catching wrong facts and no note on right facts are unchanged.
 
+
+D-101: Successive finals are judged concurrently; only state changes stay ordered.
+- **Why:** a solo host talks continuously. Each final waited for the previous final's whole judging (`utterances.py` `_main` awaited the previous `_main`), so a slow context verdict (p95 about 1.9 s) delayed the next sentence's compliance verdict. Fact notes also waited behind the previous side task.
+- **Now:**
+  - preparation stays in transcript order: merge (D-088), store and emit `transcript.final`, reflex provisional alerts, judge input;
+  - each prepared final starts its compliance, context and fact calls at once, without waiting for earlier verdicts;
+  - compliance verdicts and fact notes are applied the moment they arrive (compliance first when both are in);
+  - context verdicts (prompter, switch, answer linking) and host-answer publication stay in transcript order;
+  - results carry the transcript sequence, source segment and switch generation, so a late result cannot switch products after a newer switch, bring back a corrected alert, or undo newer state; a late violation is still raised unless a later utterance already corrected it.
+- **Tests:** `tests/test_utterance_concurrency.py` (late correction, merged fragments, switch and undo, timeouts, urgent facts, idempotence, all judge modes). `test_preparation_does_not_wait_for_the_previous_judge` now expects the second final's reflex alert before the first final's slow judge alert.
+- **Rollback:** revert the `utterances.py` change; `JUDGE_MODE=split` and `single` keep working.
+- Built by codex, reviewed and test-fixed by Claude (10/5).

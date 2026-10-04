@@ -1,12 +1,11 @@
 """Utterance pipeline (DEV_SPEC §8.2) and host-side operator actions (alerts, cues, switch, undo).
 
-Steps 1-4 of each final transcript run in an ordered chain (one transcript at a time). Steps 5-6
-(fact corrections, publish decision, metrics) run in a second ordered chain, so a slow fact check
-never delays the next transcript's compliance check.
+Preparation runs in transcript order. All finals infer concurrently; compliance and facts apply
+immediately under the runtime lock. Context and all-verdict publication each have an ordered chain.
 
-Judges (D-099): with `JUDGE_MODE=split3` (default) the ComplianceJudge, the ContextJudge and the
+Judges (D-101): with `JUDGE_MODE=split3` (default) the ComplianceJudge, the ContextJudge and the
 FactChecker read each final in parallel. The compliance verdict is applied the moment it arrives
-(red alerts, corrections); the context verdict (prompter, cues, switch) when it arrives. The
+(red alerts, corrections); context verdicts (prompter, cues, switch) apply in transcript order. The
 host-answer publish decision waits for all three and is skipped if either judge failed. With
 `JUDGE_MODE=split` one UtteranceJudge does both judges' jobs (rollback).
 
@@ -91,8 +90,37 @@ class UtterancePipeline:
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_checker"], rt.catalog)
         self._main_tail: asyncio.Task | None = None
         self._side_tail: asyncio.Task | None = None
+        self._context_tail: asyncio.Task | None = None
+        self._pending: set[asyncio.Task] = set()
+        self._sequence: dict[str, int] = {}
+        self._prepared: dict[str, tuple[Transcript, str, Merge | None]] = {}
+        self._applied: set[tuple[str, str]] = set()
+        self._fact_sequence: dict[tuple[str, str], tuple[int, str, str]] = {}
+        self._segment_generation = 0
+        self._generations: dict[str, int] = {}
+        self._segments: dict[str, str] = {}
         self._last: Transcript | None = None  # previous final in the main chain
         self._judged: dict[str, Judged] = {}
+
+    def _claim_application(self, t: Transcript, kind: str) -> bool:
+        key = (t.transcript_id, kind)
+        if key in self._applied:
+            return False
+        self._applied.add(key)
+        return True
+
+    def _reconcile_late_alert(self, a: Alert, t: Transcript, now: int) -> None:
+        if a.kind != "compliance" or a.status != "active":
+            return
+        for later, text, merge in self._prepared.values():
+            if (self._sequence[later.transcript_id] <= self._sequence[t.transcript_id]
+                    or later.segment_id != t.segment_id or (merge and t.transcript_id in merge.chain)):
+                continue
+            check = check_correction(text, a, self.rt.catalog.get_product(a.product_id).approved_claims,
+                                     self.rt.ctx.reflex)
+            if check.ok:
+                alert_logic.apply_corrections([a], [a.alert_id], later, now)
+                return
 
     # ---- intake --------------------------------------------------------------------------------
 
@@ -110,14 +138,16 @@ class UtterancePipeline:
         t = Transcript(transcript_id=rt.new_id("tr_"), text=text, is_final=True, speech_start_at=speech_start_at,
                        speech_end_at=speech_end_at or now, received_at=now, source=source,
                        segment_id=seg.segment_id if seg else "")
+        self._generations[t.transcript_id] = self._segment_generation
+        self._segments[t.transcript_id] = t.segment_id
         prev = self._main_tail
         self._main_tail = rt.spawn(self._main(prev, t, scenario), name=f"utterance:{t.transcript_id}")
         return t
 
     async def drain(self) -> None:
-        for task in (self._main_tail, self._side_tail):
-            if task is not None:
-                await asyncio.gather(task, return_exceptions=True)
+        if self._main_tail is not None:
+            await asyncio.gather(self._main_tail, return_exceptions=True)
+        await asyncio.gather(*tuple(self._pending), return_exceptions=True)
 
     # ---- steps 1-4 -----------------------------------------------------------------------------
 
@@ -125,7 +155,9 @@ class UtterancePipeline:
         """D-088: join with the previous final if it arrived within the window and is unfinished."""
         prev = self._last
         window = self.rt.settings.UTTERANCE_MERGE_WINDOW_MS
-        if prev is None or window <= 0 or t.received_at - prev.received_at > window or ends_sentence(prev.text):
+        if (prev is None or window <= 0 or t.received_at - prev.received_at > window or ends_sentence(prev.text)
+                or prev.segment_id != t.segment_id
+                or self._generations.get(prev.transcript_id) != self._generations.get(t.transcript_id)):
             return None
         judged = self._judged.get(prev.transcript_id)
         chain = judged.chain if judged else [prev.transcript_id]
@@ -137,8 +169,8 @@ class UtterancePipeline:
     def _remember(self, t: Transcript, merge: Merge | None, text: str) -> None:
         self._last = t
         self._judged[t.transcript_id] = Judged(chain=[*(merge.chain if merge else []), t.transcript_id], text=text)
-        for old in list(self._judged)[:-_KEEP_JUDGED]:
-            del self._judged[old]
+        self._sequence[t.transcript_id] = len(self._sequence) + 1
+        self._prepared[t.transcript_id] = (t, text, merge)
 
     async def _main(self, prev: asyncio.Task | None, t: Transcript, scenario: str) -> None:
         if prev is not None:
@@ -155,7 +187,7 @@ class UtterancePipeline:
         # 2. reflex -> provisional alerts
         hits = rt.ctx.reflex.scan(text)
         async with rt.lock:
-            seg = await rt.current_segment()
+            seg = await rt.get_segment(t.segment_id) if t.segment_id else await rt.current_segment()
             on_air = seg.product_id if seg else rt.catalog.order[0]
             alerts = await rt.alerts()
             provisional = alert_logic.provisional_from_reflex(hits, t, on_air, alerts, rt.new_id, rt.now())
@@ -163,58 +195,99 @@ class UtterancePipeline:
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
             judge_input, offered = await self._judge_input_locked(t, text, merge, on_air, scenario)
-        # 3. judges and fact checker in parallel (single mode: retrieval first, then one call)
-        facts_task: asyncio.Task | None = None
-        if self.single:
-            judge_input.passages = await self._fact_passages(text, on_air, judge_input.switch)
-        else:
-            facts_task = rt.spawn(self._run_facts(text, on_air, judge_input, scenario), name=f"facts:{t.transcript_id}")
-        # 4. compliance, corrections, prompter and cues, switch
-        if self.split3:
-            judge = await self._run_split3(t, on_air, judge_input, hits, merge)
-        else:
-            res = await self.judge.run(judge_input, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS)
-            judge = res.output if res.status == "ok" else None
-            async with rt.lock:
-                await self._apply_compliance_locked(t, on_air, res, hits, merge)
-                if judge is not None:
-                    await self._apply_context_locked(t, judge, merge)
-        prev_side = self._side_tail
-        self._side_tail = rt.spawn(self._side(prev_side, t, judge, facts_task, offered, merge),
-                                   name=f"utterance-side:{t.transcript_id}")
+        # Only preparation waits for the previous final.
+        ready = asyncio.Future()
+        previous_context = self._context_tail
+        self._context_tail = rt.spawn(self._ordered_context(previous_context, ready, t, merge),
+                                      name=f"context-apply:{t.transcript_id}")
+        inference = rt.spawn(self._infer(t, on_air, judge_input, hits, merge, scenario, ready),
+                             name=f"inference:{t.transcript_id}")
+        self._side_tail = rt.spawn(self._ordered_publish(self._side_tail, inference, self._context_tail,
+                                                       t, offered, merge), name=f"publish:{t.transcript_id}")
+        for task in (inference, self._context_tail, self._side_tail):
+            self._pending.add(task)
+            task.add_done_callback(self._pending.discard)
 
-    async def _run_split3(self, t: Transcript, on_air: str, inp: JudgeInput, hits,
-                          merge: Merge | None) -> UtteranceJudgeOutput | None:
-        """D-099: both judges in parallel; each verdict is applied as soon as it arrives (compliance
-        first when both are in). Returns the joined verdict for the publish decision, or None if
-        either judge failed."""
+    async def _ordered_context(self, previous, ready, t, merge) -> None:
+        verdict = await ready
+        if previous is not None:
+            await asyncio.gather(previous, return_exceptions=True)
+        if verdict is not None:
+            async with self.rt.lock:
+                await self._apply_context_locked(t, verdict, merge)
+
+    async def _ordered_publish(self, previous, inference, context, t, offered, merge) -> None:
+        judge, facts = await inference
+        await asyncio.gather(context, return_exceptions=True)
+        if previous is not None:
+            await asyncio.gather(previous, return_exceptions=True)
+        if judge is not None:
+            async with self.rt.lock:
+                await self._publish_locked(t, judge, facts, offered, merge)
+        # Publication is ordered, so its completed prefix is no longer needed for merging.
+        cutoff = self._sequence[t.transcript_id] - _KEEP_JUDGED
+        for tid in list(self._judged):
+            if self._sequence[tid] < cutoff:
+                self._judged.pop(tid, None)
+                self._prepared.pop(tid, None)
+
+    async def _infer(self, t, on_air, inp, hits, merge, scenario, ready):
         rt = self.rt
-        values = build_judge_values(rt.catalog, inp)
-        deadline = rt.settings.JUDGE_TIMEOUT_MS
-        comp_task = rt.spawn(self.compliance.run(inp, deadline_ms=deadline, values=values),
-                             name=f"compliance:{t.transcript_id}")
-        ctx_task = rt.spawn(self.context.run(inp, deadline_ms=deadline, values=values), name=f"context:{t.transcript_id}")
-        comp: ComplianceOutput | None = None
-        ctx: ContextOutput | None = None
-        waiting = {comp_task, ctx_task}
-        while waiting:
-            done, waiting = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
-            for task in sorted(done, key=lambda d: d is not comp_task):
-                res = _result(task)
-                async with rt.lock:
+        comp = ctx = facts = None
+        waiting = set()
+        try:
+            if self.single:
+                inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch)
+            if self.split3:
+                values = build_judge_values(rt.catalog, inp)
+                comp_task = rt.spawn(self.compliance.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
+                                                         values=values), name=f"compliance:{t.transcript_id}")
+                ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
+                                                     values=values), name=f"context:{t.transcript_id}")
+            else:
+                comp_task = rt.spawn(self.judge.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS),
+                                     name=f"judge:{t.transcript_id}")
+                ctx_task = None
+            facts_task = None if self.single else rt.spawn(self._run_facts(inp.utterance, on_air, inp, scenario),
+                                                           name=f"facts:{t.transcript_id}")
+            waiting = {task for task in (comp_task, ctx_task, facts_task) if task is not None}
+            while waiting:
+                done, waiting = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
+                for task in sorted(done, key=lambda task: (task is not comp_task, task is not facts_task)):
+                    res = _result(task)
+                    output = res.output if res.status == "ok" else None
                     if task is comp_task:
-                        comp = res.output if res.status == "ok" else None
-                        await self._apply_compliance_locked(t, on_air, res, hits, merge)
-                    elif res.status == "ok" and res.output is not None:
-                        ctx = res.output
-                        await self._apply_context_locked(t, ctx, merge)
+                        comp = output
+                        async with rt.lock:
+                            await self._apply_compliance_locked(t, on_air, res, hits, merge)
+                        if not self.split3:
+                            ctx = output
+                            ready.set_result(ctx)
+                            if self.single:
+                                facts = output.facts if output is not None else None
+                                if facts is not None:
+                                    async with rt.lock:
+                                        await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
+                    elif task is ctx_task:
+                        ctx = output
+                        ready.set_result(ctx)
                     else:
-                        log.warning("context judge %s for %s: prompter and switch not updated", res.status,
-                                    t.transcript_id)
-        if comp is None or ctx is None:
-            return None
-        return UtteranceJudgeOutput(compliance=comp.compliance, correction=comp.correction, answer=ctx.answer,
-                                    prompter=ctx.prompter, reason=f"{comp.reason} | {ctx.reason}")
+                        facts = output
+                        if facts is not None:
+                            async with rt.lock:
+                                await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
+            if comp is None or ctx is None:
+                return None, facts
+            if self.split3:
+                comp = UtteranceJudgeOutput(compliance=comp.compliance, correction=comp.correction,
+                                            answer=ctx.answer, prompter=ctx.prompter,
+                                            reason=f"{comp.reason} | {ctx.reason}")
+            return comp, facts
+        finally:
+            if waiting:
+                await asyncio.gather(*waiting, return_exceptions=True)
+            if not ready.done():
+                ready.set_result(None)
 
     async def _judge_input_locked(self, t: Transcript, text: str, merge: Merge | None, on_air: str,
                                   scenario: str) -> tuple[JudgeInput, set[str]]:
@@ -267,6 +340,8 @@ class UtterancePipeline:
         """§8.4.1 alerts and §8.4.5 corrections, or §8.4.3 fail toward warning. `res.output` is a
         ComplianceOutput or a full judge output."""
         rt = self.rt
+        if not self._claim_application(t, "compliance"):
+            return
         now = rt.now()
         alerts = await rt.alerts()
         provisional = [a for a in alerts if a.transcript_id == t.transcript_id and a.status == "provisional"]
@@ -275,10 +350,17 @@ class UtterancePipeline:
         text = merge.text if merge else t.text
         high_before = alert_logic.high_alert_active(alerts)
         judge = res.output if res.status == "ok" else None
+        duplicate_rules = {a.rule_id for a in alerts if a.kind == "compliance" and a.status == "active"
+                           and (a.transcript_id in protected or
+                                (a.transcript_id != t.transcript_id and
+                                 t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain))}
         if judge is None:
             # §8.4.3 judge failed: fail toward warning
             changed = alert_logic.apply_judge_failure(provisional, hits, say_instead_fallback(rt.catalog, on_air), now)
             for a in changed:
+                if a.rule_id in duplicate_rules:
+                    a.status = "cleared"
+                self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
             await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
                                            "alert_ids": [a.alert_id for a in changed if a.status == "active"]})
@@ -288,14 +370,20 @@ class UtterancePipeline:
             # D-088 dedupe: a rule already active from a fragment inside this merged utterance is the
             # same spoken claim, so no second alert. Separate sentences keep §8.4.2.
             active_rules = {a.rule_id for a in alerts
-                            if a.kind == "compliance" and a.status == "active" and a.transcript_id in protected}
+                            if a.kind == "compliance" and a.status == "active"
+                            and (a.transcript_id in protected or
+                                 t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain)}
+            active_rules.update(a.rule_id for a in alerts if a.transcript_id == t.transcript_id
+                                and a.status in ("corrected", "dismissed"))
             changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.ctx.pack.rules_by_id,
                                                                   rt.new_id, now, active_rule_ids=active_rules)
             for a in created:
+                self._reconcile_late_alert(a, t, now)
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
                 self._schedule_escalation(a)
             for a in changed:
+                self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
             # D-089: an apology alone does not correct a compliance alert
             await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now)
@@ -306,8 +394,13 @@ class UtterancePipeline:
                                     merge: Merge | None = None) -> None:
         """§8.7.1 prompter points and cues, §8.7.2 switch."""
         rt = self.rt
+        if not self._claim_application(t, "context"):
+            return
         s = await rt.load_session()
         seg = await rt.current_segment()
+        if (seg is None or seg.segment_id != t.segment_id
+                or self._generations.get(t.transcript_id) != self._segment_generation):
+            return
         if seg is not None and judge.prompter.covered_point_ids:
             added, pre = apply_coverage(judge.prompter.covered_point_ids, seg, s, rt.catalog, rt.points)
             if added:
@@ -331,10 +424,12 @@ class UtterancePipeline:
         """Alerts the judge listed and the utterance really corrects (D-089), plus active alerts whose
         "Say this instead" wording the host just said, even if the judge missed it (D-098)."""
         rt = self.rt
-        correctable = [a for a in await rt.alerts() if a.transcript_id not in protected]
+        correctable = [a for a in await rt.alerts() if a.transcript_id not in protected
+                       and self._sequence.get(a.transcript_id, 0) < self._sequence.get(t.transcript_id, 1)]
         accepted = self._substantive_corrections(correctable, listed, text) if listed else []
         for a in correctable:
             if (a.kind == "compliance" and a.status == "active" and a.transcript_id != t.transcript_id
+                    and self._segments.get(a.transcript_id) == t.segment_id
                     and a.alert_id not in accepted and says_the_replacement(text, a)):
                 log.info("correction of %s by its replacement wording: %r", a.alert_id, text)
                 accepted.append(a.alert_id)
@@ -470,27 +565,25 @@ class UtterancePipeline:
 
     # ---- steps 5-6 -----------------------------------------------------------------------------
 
-    async def _side(self, prev: asyncio.Task | None, t: Transcript, judge: UtteranceJudgeOutput | None,
-                    facts_task: asyncio.Task | None, offered: set[str], merge: Merge | None = None) -> None:
-        if prev is not None:
-            await asyncio.gather(prev, return_exceptions=True)
-        rt = self.rt
-        facts: FactCheckOutput | None = None
-        if self.single:
-            facts = judge.facts if judge is not None else None
-        elif facts_task is not None:
-            fres = await asyncio.gather(facts_task, return_exceptions=True)
-            fr = fres[0]
-            facts = fr.output if isinstance(fr, AgentResult) and fr.status == "ok" else None
-        async with rt.lock:
-            if facts is not None:
-                await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
-            if judge is not None:
-                await self._publish_locked(t, judge, facts, offered, merge)
-
     async def _apply_facts_locked(self, t: Transcript, facts: FactCheckOutput, protected: set[str]) -> None:
         rt = self.rt
-        created, reshown, corrected = fact_logic.apply_fact_check(facts.claims, await rt.alerts(), t, rt.new_id, rt.now(),
+        if not self._claim_application(t, "facts"):
+            return
+        seq = self._sequence.get(t.transcript_id, 0)
+        claims = []
+        for claim in facts.claims:
+            key = (claim.product_id, claim.field)
+            latest = self._fact_sequence.get(key)
+            if latest is not None and seq < latest[0]:
+                newer = self._judged.get(latest[1])
+                if not (latest[2] == "supported" and newer is not None
+                        and t.transcript_id in newer.chain):
+                    continue
+            if claim.verdict in ("supported", "contradicted"):
+                if latest is None or seq >= latest[0]:
+                    self._fact_sequence[key] = (seq, t.transcript_id, claim.verdict)
+            claims.append(claim)
+        created, reshown, corrected = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
                                                                   protected=protected)
         for a in created:
             await rt.save_alert(a)
@@ -522,6 +615,12 @@ class UtterancePipeline:
     async def _publish_locked(self, t: Transcript, judge: UtteranceJudgeOutput, facts: FactCheckOutput | None,
                               offered: set[str], merge: Merge | None = None) -> None:
         rt = self.rt
+        if not self._claim_application(t, "publish"):
+            return
+        seg = await rt.current_segment()
+        if (seg is None or seg.segment_id != t.segment_id
+                or self._generations.get(t.transcript_id) != self._segment_generation):
+            return
         gid = judge.answer.matched_group_id
         group = await rt.get_group(gid) if gid else None
         answer = await rt.get_answer(group.answer_id) if group is not None else None
@@ -661,6 +760,7 @@ async def cancel_message(rt: "SessionRuntime", message_id: str) -> None:
 
 
 async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -> Segment:
+    rt.utterances._segment_generation += 1
     s = await rt.load_session()
     old = await rt.current_segment()
     now = rt.now()
@@ -729,6 +829,7 @@ async def undo_switch(rt: "SessionRuntime") -> Segment:
         opened = await rt.get_segment(lc["opened_segment_id"])
         if closed is None or opened is None:
             raise ActionError(409, "undo_window_over", "There is no switch to undo.")
+        rt.utterances._segment_generation += 1
         closed.ended_at = None
         await rt.save_segment(closed)
         await rt.ctx.store.delete(rt.path("segments"), opened.segment_id)
