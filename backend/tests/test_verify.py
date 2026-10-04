@@ -123,3 +123,29 @@ def test_rule6_ignores_words_that_are_not_in_the_quotes(passages, catalog, refle
     vol = ("DL-CR-01#key-facts#volume", "Volume: 50 mL")
     good, errors = check(out("It comes in a 50 mL tube.", [vol]), passages, catalog, reflex)
     assert good, errors
+
+
+def test_rule6_keeps_good_drafts_whose_labels_contain_numbers():
+    """D-117 B8 follow-up: label words next to another number ("(3 molecular weights)", "48-hour patch
+    test") are not subjects; every good draft of the verifier gate set verifies."""
+    import json
+    from pathlib import Path
+
+    from app.config import get_settings
+    from app.logic.catalog import Catalog, DataPack
+
+    pack = DataPack.load(get_settings().data_path)
+    catalog, rfx = Catalog(pack), Reflex(pack.rules)
+    path = Path(get_settings().data_path) / "eval" / "draft_verifier_cases.jsonl"
+    blocked = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        c = json.loads(line)
+        if c["label"] != "good":
+            continue
+        o = ComposerOutput.model_validate(c["composer_output"])
+        pid = c.get("product_id")
+        ok, errors = verify_answer(o, pack.passages, pid, multi=pid is None, reflex=rfx,
+                                   not_approved_claims=catalog.not_approved_claims(pid) if pid else [])
+        if not ok:
+            blocked.append((c["draft_id"], errors))
+    assert blocked == []

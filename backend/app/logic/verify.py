@@ -74,12 +74,20 @@ def quoted_subjects(quotes: Sequence[str]) -> dict[str, set[str]]:
     from .corrections import STOPWORDS
 
     by_word: dict[str, set[str]] = {}
+    near: dict[str, set[str]] = {}  # every number a word stands next to anywhere in the quotes
     for q in quotes:
         for label, value in _LABELLED.findall(q):
             for w in _TOKEN.findall(label.lower()):
                 if not w[0].isdigit() and w not in STOPWORDS and w not in _UNITS and len(w) > 2:
                     by_word.setdefault(w[:5], set()).update(number_set(value))
-    return {w: ns for w, ns in by_word.items() if len(ns) == 1}
+        tokens = _TOKEN.findall(q.lower())
+        for i, tok in enumerate(tokens):
+            if tok[0].isdigit():
+                for _, w in _words_near(tokens, i):
+                    near.setdefault(w, set()).update(number_set(tok))
+    # "(3 molecular weights): 1%" or "48-hour patch test: 0 of 30": a label word next to another number
+    # cannot tell values apart either
+    return {w: ns for w, ns in by_word.items() if len(ns) == 1 and near.get(w, ns) <= ns}
 
 
 def misattributed_numbers(answer: str, subjects: dict[str, set[str]]) -> list[tuple[str, str]]:
