@@ -73,7 +73,7 @@ async def test_transcripts_are_processed_in_order(env):
     assert (await rt.current_segment()).covered_point_ids == ["cr-p1", "cr-p2", "cr-p3", "cr-p4", "cr-p5"]
 
 
-async def test_steps_1_to_4_wait_for_the_previous_judge(env):
+async def test_preparation_does_not_wait_for_the_previous_judge(env):
     rt, llm = env
     llm.judge(BACTERIA, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL")])
     llm.delays[("utterance_judge", BACTERIA)] = 0.3
@@ -82,7 +82,9 @@ async def test_steps_1_to_4_wait_for_the_previous_judge(env):
     await speak(rt, WRINKLES, wait=False)
     await rt.ctx.scheduler.idle()
     created = [e.payload["rule_id"] for e in await events(rt, "alert.created")]
-    assert created == ["ASEAN-3-SKIN-ANTIMICROBIAL", "ASEAN-3-SKIN-AGEING"]  # N1's reflex step ran after N's judge
+    # BACTERIA has no reflex hit, so its alert comes from its slow judge; WRINKLES' reflex alert no
+    # longer waits for that judge (D-101).
+    assert created == ["ASEAN-3-SKIN-AGEING", "ASEAN-3-SKIN-ANTIMICROBIAL"]
 
 
 async def test_slow_fact_check_does_not_block_next_compliance(env):
