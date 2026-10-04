@@ -52,6 +52,6 @@
 
 ## 5. 실행 환경 메모
 
-- `.env`(git 제외): `GCP_PROJECT=separk-cloocus`, `OPENROUTER_API_KEY`(Jev 실험용. 운영에서 쓰지 않는다. 노출된 키라 실험 후 폐기·재발급 필요).
+- `.env`(git 제외): `GCP_PROJECT=separk-cloocus`. Jev를 쓰지 않기로 해서 `OPENROUTER_API_KEY`는 10/5에 모든 `.env` 사본에서 지웠다. Jev 실험 코드(`backend/scripts/experiments/jev_router.py`)는 측정 근거로 남기며, 키가 없으면 오류로 처리된다.
 - 데모 서버: 기획 세션이 마지막 커밋(HEAD)을 별도 worktree에 꺼내 `http://localhost:8000`에 띄워 두었다 (작업 트리 변경과 무관).
 - Windows PowerShell 5의 `Set-Content -Encoding utf8`은 BOM을 붙인다. Python 파일 수정에는 쓰지 않는다.
