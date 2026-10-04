@@ -118,8 +118,8 @@ class UtterancePipeline:
             if (self._sequence[later.transcript_id] <= self._sequence[t.transcript_id]
                     or later.segment_id != t.segment_id or (merge and t.transcript_id in merge.chain)):
                 continue
-            check = check_correction(text, a, self.rt.catalog.get_product(a.product_id).approved_claims,
-                                     self.rt.ctx.reflex)
+            # D-117 B2: no judge decision here, so only the alert's own replacement or a retraction counts
+            check = check_correction(text, a, [], self.rt.ctx.reflex)
             if check.ok:
                 alert_logic.apply_corrections([a], [a.alert_id], later, now)
                 return
@@ -444,7 +444,7 @@ class UtterancePipeline:
         for a in correctable:
             if (a.kind == "compliance" and a.status == "active" and a.transcript_id != t.transcript_id
                     and self._segments.get(a.transcript_id) == t.segment_id
-                    and a.alert_id not in accepted and says_the_replacement(text, a)):
+                    and a.alert_id not in accepted and says_the_replacement(text, a, rt.ctx.reflex)):
                 log.info("correction of %s by its replacement wording: %r", a.alert_id, text)
                 accepted.append(a.alert_id)
         if not accepted:

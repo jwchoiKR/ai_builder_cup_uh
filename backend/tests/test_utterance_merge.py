@@ -209,7 +209,8 @@ async def test_merged_judgment_never_resolves_the_fragment_alerts(env):
     assert (await rt.get_alert(note.alert_id)).status == "active"
     # a host correction in a later sentence still clears the compliance alert
     await advance(rt, 5000)
-    fix = "Let me correct that. It helps keep your skin hydrated."
+    # D-117 B2: an approved claim counts with its number and its in-house qualifier
+    fix = "Let me correct that. It helps keep your skin hydrated for up to 24 hours in our in-house test."
     llm.judge(fix, corrects=[alert.alert_id])
     await speak(rt, fix)
     assert (await rt.get_alert(alert.alert_id)).status == "corrected"
