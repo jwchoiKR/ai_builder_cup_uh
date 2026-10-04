@@ -1,9 +1,9 @@
 """Speech-to-Text (DEV_SPEC §10, verified in docs/VERIFIED.md item 4).
 
 `GoogleV2Stt` streams 16 kHz mono LINEAR16 to Speech-to-Text V2 (`chirp_3`, regional endpoint),
-restarts the stream before the 5-minute limit and re-sends the audio after the last final result
-("bridging"), and turns each final result's end offset into a server timestamp: the arrival time
-of the audio at that offset. chirp_3 returns no interim results (VERIFIED §4.10).
+restarts the stream before the 5-minute limit (D-145: a warm standby stream takes over at a pause; else
+the audio after the last final result is re-sent, "bridging"), and turns each final result's end offset
+into a server timestamp: the arrival time of the audio at that offset. chirp_3 returns no interim results (VERIFIED §4.10).
 """
 from __future__ import annotations
 
@@ -22,6 +22,9 @@ SAMPLE_RATE = 16_000
 BYTES_PER_MS = SAMPLE_RATE * 2 // 1000  # 16-bit mono
 STREAM_LIMIT_MS = 240_000  # hard restart, well before the 5-minute stream limit
 SOFT_RESTART_MS = 180_000  # after this, restart right after the next final result (a natural pause)
+PREWARM_MS = 165_000  # D-145: open the standby stream this long into the live one
+SWITCH_MARGIN_MS = 300  # standby results ending this close after the switch point are still the old stream's
+SPEECH_PEAK = 1_000  # 16-bit peak above which a frame counts as speech (log only)
 BRIDGE_MAX_MS = 5_000  # re-send at most this much unfinalized audio into the new stream
 MAX_CHUNK_BYTES = 15_360  # smallest documented per-request audio limit
 MAX_PHRASES = 500  # chirp_3 allows up to 1,000; fewer entries degrade less (VERIFIED §4.5)
@@ -111,39 +114,80 @@ class GoogleV2Stream:
             yield item
 
     async def _run(self) -> None:
-        bridge: list[_Chunk] = []
+        """D-145: one distributor feeds the live stream and, from PREWARM_MS, a warm standby stream. At the
+        first final after SOFT_RESTART_MS (a pause) the standby takes over: its results up to that final's end
+        are dropped (the old stream reported them) and the old stream is closed. No standby ready, a hard
+        limit without a recent final, or a stream error: the old restart that re-sends the audio after the
+        last final ("bridge")."""
         errors = 0
+        cur = self._lane([], active=True)
+        nxt: _Lane | None = None
         try:
-            while not self._closed or bridge:
-                state = _StreamState()
-                ended = await self._one_stream(state, bridge)
-                if ended == "closed":
+            while True:
+                item = await self._audio.get()
+                if item is None:
+                    for lane in (cur, nxt):
+                        if lane is not None:
+                            lane.feed.put_nowait(None)
+                    await asyncio.gather(*(lane.task for lane in (cur, nxt) if lane is not None),
+                                         return_exceptions=True)
                     break
-                if ended == "error":
-                    errors += 1
+                if cur.task.done():  # the live stream failed: restart it with the bridge
+                    errors = errors + 1 if cur.task.result() == "error" else 0
                     if errors > 5:
                         raise RuntimeError("speech stream failed repeatedly")
-                    await asyncio.sleep(min(2.0, 0.2 * errors))
-                else:
-                    errors = 0
-                self.restarts += 1
-                bridge = state.tail_after(state.last_final_ms)
-                # proof-plan §2 (3 of 300 lines had a 3.3-3.9 s STT final): every restart with its cause,
-                # so a slow final can be matched to it in the logs
-                log.info("speech stream restart #%d (%s) after %.0f s of audio; re-sending %d ms",
-                         self.restarts, ended, state.audio_ms / 1000, sum(c.duration_ms for c in bridge))
+                    if errors:
+                        await asyncio.sleep(min(2.0, 0.2 * errors))  # audio waits in the queue meanwhile
+                    cur = self._restart(cur, "error")
+                for lane in (cur, nxt):
+                    if lane is not None:
+                        lane.feed.put_nowait(item)
+                st = cur.state
+                if nxt is not None and nxt.task.done():
+                    nxt = None  # the standby failed; a new one opens below
+                if nxt is None and st.audio_ms >= PREWARM_MS:
+                    nxt = self._lane([], active=False)
+                soft = st.audio_ms >= SOFT_RESTART_MS and st.last_final_ms >= SOFT_RESTART_MS
+                if soft or st.audio_ms >= STREAM_LIMIT_MS:
+                    switch_at = st.time_at(st.last_final_ms)
+                    if nxt is not None and soft and switch_at is not None and nxt.started_at <= switch_at:
+                        nxt.emit_after, nxt.active, nxt.activated = switch_at, True, time.monotonic()
+                        cur.feed.put_nowait(None)
+                        self.restarts += 1
+                        log.info("speech stream switch #%d to the warm stream after %.0f s of audio "
+                                 "(standby had %.0f s)", self.restarts, st.audio_ms / 1000, nxt.state.audio_ms / 1000)
+                        cur, nxt = nxt, None
+                    else:
+                        cur = self._restart(cur, "limit")
         except Exception as e:  # noqa: BLE001 - surfaced to the consumer
             log.exception("speech stream stopped")
             await self._results.put(e)
         finally:
             await self._results.put(None)
 
-    async def _one_stream(self, state: _StreamState, bridge: list[_Chunk]) -> str:
-        """Run one StreamingRecognize call. Returns 'closed', 'limit' or 'error'."""
+    def _lane(self, bridge: list[_Chunk], *, active: bool) -> "_Lane":
+        lane = _Lane(active=active, started_at=self._stt.clock.now_ms())
+        lane.task = asyncio.create_task(self._one_stream(lane, bridge), name="stt-lane")
+        return lane
+
+    def _restart(self, cur: "_Lane", why: str) -> "_Lane":
+        """The old restart: close the stream, open a new one with the audio after its last final."""
+        cur.feed.put_nowait(None)
+        bridge = cur.state.tail_after(cur.state.last_final_ms)
+        self.restarts += 1
+        # proof-plan §2: every restart with its cause, so a slow final can be matched to it in the logs
+        log.info("speech stream restart #%d (%s) after %.0f s of audio; re-sending %d ms",
+                 self.restarts, why, cur.state.audio_ms / 1000, sum(c.duration_ms for c in bridge))
+        lane = self._lane(bridge, active=True)
+        lane.activated = time.monotonic()
+        return lane
+
+    async def _one_stream(self, lane: "_Lane", bridge: list[_Chunk]) -> str:
+        """Run one StreamingRecognize call fed by `lane.feed`. Returns 'closed' or 'error'."""
         from google.api_core import exceptions as gexc
 
         cs = self._stt.types
-        reason = {"value": "closed"}
+        state = lane.state
 
         async def requests():
             yield self._stt.first_request(self._phrases, self._language)
@@ -151,44 +195,64 @@ class GoogleV2Stream:
                 state.add(c.data, c.arrival_ms)
                 yield cs.StreamingRecognizeRequest(audio=c.data)
             while True:
-                if state.audio_ms >= STREAM_LIMIT_MS or (
-                        state.audio_ms >= SOFT_RESTART_MS and state.last_final_ms >= SOFT_RESTART_MS):
-                    reason["value"] = "limit"
-                    return
-                item = await self._audio.get()
+                item = await lane.feed.get()
                 if item is None:
-                    reason["value"] = "closed"
                     return
                 data, arrival = item
+                if lane.active and lane.first_speech is None and _is_speech(data):
+                    lane.first_speech = time.monotonic()
                 for i in range(0, len(data), MAX_CHUNK_BYTES):
                     part = data[i:i + MAX_CHUNK_BYTES]
                     state.add(part, arrival)
                     yield cs.StreamingRecognizeRequest(audio=part)
 
-        opened = time.monotonic()
-        first = True
         try:
             responses = await self._stt.client().streaming_recognize(requests=requests())
             async for resp in responses:
-                if first and resp.results and self.restarts:
-                    first = False
-                    log.info("speech stream #%d first result after %.0f ms", self.restarts,
-                             (time.monotonic() - opened) * 1000)
                 for r in resp.results:
                     alt = r.alternatives[0].transcript.strip() if r.alternatives else ""
                     end_ms = r.result_end_offset.total_seconds() * 1000 if r.result_end_offset else None
+                    end_at = state.time_at(end_ms) if end_ms is not None else None
+                    if r.is_final and end_ms is not None:
+                        state.last_final_ms = end_ms
+                    if not lane.active or not alt:
+                        continue  # a standby listens without reporting
+                    if lane.emit_after is not None and end_at is not None and end_at <= lane.emit_after + SWITCH_MARGIN_MS:
+                        continue  # said before the switch: the previous stream reported it
+                    if lane.activated is not None and not lane.reported:
+                        lane.reported = True
+                        speech = (f"; first speech audio {(lane.first_speech - lane.activated) * 1000:.0f} ms after"
+                                  if lane.first_speech is not None else "")
+                        log.info("speech stream #%d first result %.0f ms after it took over%s", self.restarts,
+                                 (time.monotonic() - lane.activated) * 1000, speech)
                     if r.is_final:
-                        if end_ms is not None:
-                            state.last_final_ms = end_ms
-                        if alt:
-                            await self._results.put(SttResult(alt, True, state.time_at(end_ms) if end_ms is not None else None,
-                                                              self._stt.clock.now_ms()))
-                    elif alt:
+                        await self._results.put(SttResult(alt, True, end_at, self._stt.clock.now_ms()))
+                    else:
                         await self._results.put(SttResult(alt, False, None, self._stt.clock.now_ms()))
         except (gexc.GoogleAPICallError, gexc.RetryError) as e:
-            log.warning("speech stream error (%s), restarting", e)
+            log.warning("speech stream error (%s)", e)
             return "error"
-        return reason["value"]
+        return "closed"
+
+
+@dataclass(eq=False)
+class _Lane:
+    """One StreamingRecognize call: its audio feed, offsets, and whether it reports results (D-145)."""
+    active: bool
+    started_at: int  # server time its first audio arrives (about)
+    feed: asyncio.Queue = field(default_factory=asyncio.Queue)
+    state: _StreamState = field(default_factory=_StreamState)
+    task: asyncio.Task | None = None
+    emit_after: int | None = None  # results ending at or before this server time are the old stream's
+    activated: float | None = None  # monotonic time it took over
+    first_speech: float | None = None
+    reported: bool = False
+
+
+def _is_speech(pcm: bytes) -> bool:
+    """A frame louder than background noise (16-bit samples), for the takeover log only."""
+    samples = memoryview(pcm).cast("h") if len(pcm) % 2 == 0 else memoryview(pcm[:-1]).cast("h")
+    return max((abs(x) for x in samples), default=0) > SPEECH_PEAK
 
 
 class GoogleV2Stt:

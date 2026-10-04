@@ -825,3 +825,9 @@ D-144: A slow fact call still shows its note; the health dot counts failures in 
 - Health dot: a judge turns it amber when it failed `HEALTH_STREAK` (2) times within `HEALTH_WINDOW_MS` (60 s), even with on-time answers between; its next on-time answer clears it. One failure alone, or two more than a minute apart, is nothing.
 - No retry: a second call cannot fit in 3 s (planning session).
 - Tests: two failures 50 s apart with an answer between turn amber, the next answer clears it, a lone failure 70 s later does not; a slow fact call counts as a timeout.
+
+D-145: Speech-to-Text restarts overlap a warm standby stream (planning session; 3 of 300 cloud lines had a 3.3-3.9 s STT final, and the restart logs show a restart every 182-188 s of audio).
+- From `PREWARM_MS` (165 s) into a stream, a second StreamingRecognize call opens and gets the same audio, without reporting. At the first final after `SOFT_RESTART_MS` (180 s), the standby takes over: its results that end by that final's end (+300 ms) are dropped (the old stream reported them) and the old stream is closed. The new stream has had 15 s of audio, so it is past its start-up when the host speaks again.
+- Fallbacks stay as before: no standby ready (it failed or opened after the last final), the hard limit (240 s) without a recent final, or a stream error: close and re-send the audio after the last final into a new stream (with the old backoff on errors).
+- Logs: "speech stream switch #n to the warm stream after X s of audio (standby had Y s)", "restart #n (limit|error)", and "first result Z ms after it took over; first speech audio W ms after" so a slow first final can be split into silence and start-up.
+- Tests (fake recognizer): the takeover reports every word once, in order, with no word lost; without a standby the bridged restart still works.
