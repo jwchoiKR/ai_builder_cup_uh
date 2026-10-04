@@ -42,6 +42,15 @@ def _promo_term(c, promo) -> bool:
     return bool(right) and right <= terms and bool(said) and not said <= right
 
 
+def _offer_threshold(c, offer) -> bool:
+    """D-149: a wrong spend threshold of a running gift offer: the right value is the offer's own min spend and the
+    host said another amount."""
+    if offer.min_spend is None:
+        return False
+    right, said = number_set(c.correct_value or ""), number_set(c.stated_value or "")
+    return right == number_set(f"{offer.min_spend}") and bool(said) and not said <= right
+
+
 def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
     """D-121: every ingredient word the host named is missing from all of the product's sheet passages."""
     names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
@@ -62,6 +71,7 @@ class FactInput:
     promo: Promo | None
     passages: list[Passage]
     previous: list[str] = field(default_factory=list)
+    offers: list[Promo] = field(default_factory=list)  # D-149: running offers that change no price
     session_id: str | None = None
     scenario: str = "default"
 
@@ -97,7 +107,7 @@ async def gather_fact_passages(
 
 
 def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
-                  utterance: str | None = None) -> FactCheckOutput:
+                  utterance: str | None = None, offers: Sequence[Promo] = ()) -> FactCheckOutput:
     """A contradiction stands only when its correction is backed by a quoted passage, or by the
     active promo price; otherwise it is downgraded to not_in_sources (§7.4).
 
@@ -141,6 +151,8 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         elif c.field in PRICE_FIELDS and promo is not None and promo.changes_prices:
             ok = c.correct_value == catalog.price_display(c.product_id, promo) or (
                 c.field == "promo" and _promo_term(c, promo))
+        if not ok and c.field == "promo" and c.passage_id is None:
+            ok = any(_offer_threshold(c, o) for o in offers)
         if not ok:
             c.verdict = "not_in_sources"
     return o
@@ -161,6 +173,7 @@ class FactChecker:
             "current_product_compact_json": inputs.current_product_compact_json(self.catalog, inp.on_air),
             "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
             "active_promo_json_or_null": inputs.active_promo_json_or_null(self.catalog, inp.promo),
+            "active_offers_json": inputs.active_offers_json(self.catalog, inp.offers),
             "set_offers_json": inputs.set_offers_json(self.catalog, inp.promo),
             "passages_json": inputs.passages_json(inp.passages),
             "last_two_final_transcripts_json": inp.previous[-2:],
@@ -175,5 +188,5 @@ class FactChecker:
             mock_fallback=lambda _: {"claims": [], "reason": "rule-based: no fact check"}, preview=inp.utterance,
         ))
         if res.output is not None:
-            res.output = post_validate(res.output, inp.passages, self.catalog, inp.promo, inp.utterance)
+            res.output = post_validate(res.output, inp.passages, self.catalog, inp.promo, inp.utterance, inp.offers)
         return res

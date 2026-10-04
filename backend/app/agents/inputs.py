@@ -108,6 +108,14 @@ def active_promo_json_or_null(catalog: Catalog, promo: Promo | None) -> dict | N
     }
 
 
+def active_offers_json(catalog: Catalog, offers: Sequence[Promo]) -> list[dict]:
+    """D-149: running offers that change no price (a gift over a spend), with their checkable terms."""
+    return [{"promo_id": o.promo_id, "title": o.title,
+             "min_spend": catalog.money(o.min_spend) if o.min_spend is not None else None,
+             "duration_min": round(o.duration_sec / 60)}
+            for o in offers if not o.changes_prices]
+
+
 def switch_context_json(catalog: Catalog, switch: SwitchState, on_air_product_id: str | None) -> dict:
     nxt = switch.target_product_id or catalog.next_product(on_air_product_id)
     return {
@@ -229,7 +237,7 @@ BUILDERS = {
     for f in (
         current_product_json, product_compact_json, products_compact_json,
         run_sheet_compact_json, approved_claims_of_current_product_json, prompter_points_json,
-        set_offers_json, active_promo_json_or_null, switch_context_json, rules_compact_json,
+        set_offers_json, active_promo_json_or_null, active_offers_json, switch_context_json, rules_compact_json,
         intent_names_json, condition_slots_json, active_alerts_json, open_questions_json,
         open_groups_json, host_cues_json, last_two_final_transcripts_json, passages_json,
         summary_stats_json, draft_answer_json, utterance_text, comment_text, comments_json, canonical_question, product_id,
