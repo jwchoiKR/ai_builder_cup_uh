@@ -6,7 +6,8 @@ only when the utterance
   1. says an approved statement instead: the alert's say_instead or one of the product's approved
      claims, with at least CLAIM_MIN of its content words heard (speech-to-text slips allowed), or
   2. retracts the claim: a negation cue plus at least RETRACT_MIN of the flagged span's content words
-     ("it won't make your wrinkles disappear").
+     ("it won't make your wrinkles disappear"), or a negated trigger phrase of the alert's own rule
+     ("cosmetic results are not permanent" after "permanently fixed for good", D-104).
 """
 from __future__ import annotations
 
@@ -106,5 +107,7 @@ def check_correction(text: str, alert: Alert, approved_claims: Sequence[str], re
             return CorrectionCheck(True, "approved_statement")
     span = content_words(alert.span or "")
     if span and reflex.has_negation(text) and coverage(span, heard) >= RETRACT_MIN:
+        return CorrectionCheck(True, "retraction")
+    if any(h.rule_id == alert.rule_id and h.negated for h in reflex.scan(text)):
         return CorrectionCheck(True, "retraction")
     return CorrectionCheck(False, "no_correcting_content")

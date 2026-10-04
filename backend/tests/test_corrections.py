@@ -54,6 +54,22 @@ def test_check_correction(reflex, text, ok, reason):
     assert (check.ok, check.reason) == (ok, reason)
 
 
+PERMANENT = Alert(alert_id="al_2", kind="compliance", status="active", transcript_id="tr_1",
+                  product_id="cream_hydra_barrier", rule_id="ASEAN-2E-PERMANENT", severity="HIGH",
+                  span="your dry skin condition will be permanently fixed for good",
+                  say_instead="Helps keep skin hydrated for up to 24 hours.", created_at=0, shown_at=0)
+
+
+@pytest.mark.parametrize("text, ok", [
+    # holdout S08: few span words, but the rule's own trigger phrase is negated (D-104)
+    ("Let me correct my earlier statement, cosmetic results are not permanent, regular daily use is needed.", True),
+    ("Let me correct that, it is permanent.", False),  # the trigger phrase, not negated
+    ("Sorry, it does not cure eczema.", False),  # a negated phrase of another rule
+])
+def test_negated_trigger_phrase_of_the_alerts_rule_retracts(reflex, text, ok):
+    assert check_correction(text, PERMANENT, APPROVED, reflex).ok is ok
+
+
 @pytest.fixture
 async def env():
     rt, llm = await make_env()
