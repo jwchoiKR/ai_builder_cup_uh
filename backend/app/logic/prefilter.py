@@ -55,8 +55,10 @@ def prefilter(text: str) -> PrefilterVerdict:
         return PrefilterVerdict("hide", "link", "link or domain")
     if _profanity().search(text):
         return PrefilterVerdict("hide", "profanity", "profanity list")
-    if _letters(text) < 3:
-        return PrefilterVerdict("reaction", None, "emoji, punctuation or fewer than 3 letters")
+    letters = _letters(text)
+    # a short comment with a question mark can be a real question ("ml?", "spf?"): the LLM decides
+    if letters == 0 or (letters < 3 and "?" not in text):
+        return PrefilterVerdict("reaction", None, "emoji, punctuation or fewer than 3 letters without '?'")
     if _reaction_form(text) in REACTIONS:
         return PrefilterVerdict("reaction", None, "reaction list")
     return PrefilterVerdict(None)

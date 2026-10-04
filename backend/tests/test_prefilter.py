@@ -28,7 +28,7 @@ def test_hide(text, category):
 
 
 @pytest.mark.parametrize("text", ["😍😍", "😍😍😍", "👏👏", "!!!", "ok", "So pretty! 💜", "wow", "hi hi", "yesss",
-                                  "LOL", "+1", "love it!!", "  same  "])
+                                  "LOL", "+1", "love it!!", "  same  ", "??", "?!"])
 def test_reaction_without_llm(text):
     assert prefilter(text).kind == "reaction"
 
@@ -44,6 +44,8 @@ def test_reaction_without_llm(text):
     "is it 30 mL or 50 mL",
     "scunthorpe is a town",  # word boundaries
     "hello from Jurong!",
+    "ml?",  # short questions are not dropped as reactions
+    "SPF?",
 ])
 def test_needs_llm(text):
     assert prefilter(text).kind is None
