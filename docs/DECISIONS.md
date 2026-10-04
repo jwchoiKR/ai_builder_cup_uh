@@ -709,3 +709,7 @@ D-123: Fixes from the adversarial rerun on 1f8b8d3 (tune 99.2% detection; sealed
 - **Scorer:** the expected right value is compared only with the alert of the expected field (a correct volume note plus a correct packaging note on the same line is not a wrong text). Re-scored tune outputs: PASS (99.2%, 0 wrong HIGH, 0% false alerts, 0 wrong texts).
 - Not changed: AV083 (1 miss in 1 run, a negated claim followed by the same claim affirmed).
 - **Tests:** `test_qualifier.py` (approved span), `test_facts.py` (less specific container).
+
+D-124: Draft-verifier gate: verify_answer alone lets every seeded bad draft through (tune half, 3722a95).
+- `scripts/eval_draft_verifier.py --cases <file>` runs the deterministic `verify_answer` on seeded drafts: **30 of 30 bad drafts pass** (polarity flips, dropped qualifiers, scope creep, invented suitability or policies, wrong pH in words, wrong packaging, wrong product's facts, off-topic answers). So the LLM draft verifier (proof-plan item 3) is needed.
+- The gate also caught a false block in D-117 B8: 3 of 30 good drafts were blocked because label words next to another number ("Sodium hyaluronate (3 molecular weights): 1%", "48-hour patch test: 0 of 30") were taken as subjects. Such words are no longer subjects. Now 0 of 30 good drafts are blocked; the swapped-value tests still fail as they should. Test: `test_verify.py` (all good gate drafts verify).
