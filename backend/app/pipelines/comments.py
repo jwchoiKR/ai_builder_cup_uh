@@ -114,6 +114,8 @@ def _fallback_output(text: str) -> CommentTriageOutput:
 
 async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str = "default", *, unhidden: bool = False) -> None:
     """§8.8 steps 3-8 for a comment that passed the prefilter."""
+    if not rt.assistant:
+        return  # D-139: the comment stays in chat; nobody triages, groups or answers it
     comment = await rt.get_comment(comment_id)
     if comment is None:
         return

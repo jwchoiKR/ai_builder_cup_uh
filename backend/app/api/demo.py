@@ -1,12 +1,15 @@
 """Demo tools (DEV_SPEC §11.1, §12.6, §13.2). Only when DEMO_TOOLS_ENABLED."""
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
 from ..logic.catalog import DEFAULT_RUNSHEET_ID
 from ..models.session import Session
+from ..pipelines.comments import submit_comment
 from ..pipelines.demo_script import load_host_script
 from ..pipelines.runtime import create_session, latest_session
 from .errors import ApiError
@@ -77,8 +80,14 @@ async def demo_current(ctx: AppContext = Depends(get_ctx)) -> Session:
     return s if s is not None else await create_session(ctx, DEFAULT_RUNSHEET_ID)
 
 
+class ResetBody(BaseModel):
+    assistant: bool = True  # D-139: False for the proof-plan §1 baseline replay
+    show_mode: Literal["solo", "team"] | None = None  # None keeps the previous session's mode
+
+
 @router.post("/demo/reset")
-async def demo_reset(ctx: AppContext = Depends(demo_tools)) -> Session:
+async def demo_reset(body: ResetBody | None = None, ctx: AppContext = Depends(demo_tools)) -> Session:
+    body = body or ResetBody()
     s = await latest_session(ctx)
     runsheet_id, show_mode = DEFAULT_RUNSHEET_ID, "solo"
     if s is not None:
@@ -86,4 +95,18 @@ async def demo_reset(ctx: AppContext = Depends(demo_tools)) -> Session:
         await ctx.runtimes.drop(s.session_id)
         await ctx.store.delete_session(s.session_id)
         ctx.bus.forget_session(s.session_id)
-    return await create_session(ctx, runsheet_id, show_mode)
+    return await create_session(ctx, runsheet_id, body.show_mode or show_mode, assistant=body.assistant)
+
+
+class ScriptCommentBody(BaseModel):
+    author: str
+    text: str
+
+
+@router.post("/sessions/{session_id}/demo/comments", status_code=201)
+async def script_comment(session_id: str, body: ScriptCommentBody, ctx: AppContext = Depends(demo_tools)) -> dict:
+    """D-139: a scripted viewer comment (show replay); viewer input stays off."""
+    rt = await ctx.runtimes.get(session_id)
+    c = await submit_comment(rt, author_id=f"u_{body.author.lower()}", author_name=body.author, text=body.text,
+                             source="script", scenario="replay")
+    return c.model_dump()

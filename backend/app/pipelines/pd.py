@@ -72,6 +72,8 @@ class PdDirector:
         self.trigger()
 
     def trigger(self) -> None:
+        if not self.rt.assistant:
+            return  # D-139: no AI PD without the assistant
         if self._running:
             self._again = True
             return

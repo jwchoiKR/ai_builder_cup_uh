@@ -60,6 +60,9 @@ class Session(BaseModel):  # [sessions/{session_id}]
     status: Literal["ready", "live", "ended"]
     # D-111: solo = the host runs the show alone; team = an operator is in the control room
     show_mode: Literal["solo", "team"] = "solo"
+    # D-139: proof-plan §1 baseline. False: transcripts and comments are stored and shown, but no judge,
+    # triage, answer or AI PD runs (what a host would have without the assistant).
+    assistant: bool = True
     started_at: int | None = None
     ended_at: int | None = None
     current_segment_id: str | None = None
