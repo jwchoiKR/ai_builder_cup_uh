@@ -101,3 +101,25 @@ def test_promo_passage_text(pack, catalog):
     assert p.passage_id == "PROMO#promo_time_sale_10" and p.section == "Active promotion"
     assert p.text == ("Time sale price (extra 10% off the live price): Hydra Barrier Cream S$32.40; "
                       "Deep Hydration Ampoule S$28.80; Hydra Barrier Cream + Deep Hydration Ampoule set S$55.80.")
+
+
+PANTH = ("DL-CR-01#key-ingredients#panthenol", "Panthenol: 5%")
+SQUAL = ("DL-CR-01#key-ingredients#squalane", "Squalane: 3%")
+
+
+@pytest.mark.parametrize("answer, ok", [
+    ("It has 5% panthenol and 3% squalane.", True),
+    ("Panthenol is 5% and squalane is 3%.", True),
+    ("It has 3% panthenol and 5% squalane.", False),  # review B8: values swapped between subjects
+    ("Panthenol is 3% and squalane is 5%.", False),
+])
+def test_rule6_each_number_belongs_to_its_subject(passages, catalog, reflex, answer, ok):
+    """D-117 B8: subject/value pairs, not only "the number appears in some quote"."""
+    good, errors = check(out(answer, [PANTH, SQUAL]), passages, catalog, reflex)
+    assert good is ok, errors
+
+
+def test_rule6_ignores_words_that_are_not_in_the_quotes(passages, catalog, reflex):
+    vol = ("DL-CR-01#key-facts#volume", "Volume: 50 mL")
+    good, errors = check(out("It comes in a 50 mL tube.", [vol]), passages, catalog, reflex)
+    assert good, errors
