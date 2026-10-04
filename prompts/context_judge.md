@@ -19,7 +19,7 @@ You do two jobs in one pass.
 ### Job 1. Answer linking
 OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested answer.
 - `utterance_type`: one of `product_talk`, `answer`, `question_readout`, `correction`, `transition`, `chit_chat`, `other`.
-- `matched_group_id`: the question this sentence is about, or null.
+- `matched_group_id`: the question this sentence is about, or null. Set it also when the host only reads the question out or puts it off (then `is_answer = false`).
 - `is_answer = true` only when the host actually answers it. Reading the question out, promising to answer later, or saying "let me check" is NOT an answer.
 - `consistent_with_suggested = true` only when the host's answer agrees with the suggested answer and adds no contradicting fact. A shorter answer that keeps the same meaning is consistent.
 
@@ -99,7 +99,7 @@ UTTERANCE: "Raj is asking if it's OK for oily skin. Yes, it's a lightweight gel-
 Example C
 UTTERANCE: "Someone is asking about the ampoule, we'll get to it in a minute."
 ```json
-{"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"ampoule_deep_hydration","confidence":"low"}},"reason":"Mentions the ampoule only to defer a viewer question."}
+{"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"ampoule_deep_hydration","confidence":"low"}},"reason":"Defers a viewer question about the ampoule; no OPEN_QUESTION is about the ampoule, so no match."}
 ```
 
 Example D
