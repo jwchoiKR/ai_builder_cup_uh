@@ -21,10 +21,10 @@ echo "== APIs"
 $G services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
   iap.googleapis.com aiplatform.googleapis.com speech.googleapis.com secretmanager.googleapis.com
 
-echo "== service account (least privilege: Vertex AI user, Speech client)"
+echo "== service account (least privilege: Vertex AI, Speech, Model Armor, Firestore, Trace)"
 $G iam service-accounts describe "$SA" >/dev/null 2>&1 || \
   $G iam service-accounts create "$SA_NAME" --display-name="Live Studio Cloud Run"
-for role in roles/aiplatform.user roles/speech.client; do
+for role in roles/aiplatform.user roles/speech.client roles/modelarmor.user roles/datastore.user     roles/cloudtrace.agent; do
   $G projects add-iam-policy-binding "$PROJECT" --member="serviceAccount:${SA}" --role="$role" \
     --condition=None >/dev/null
 done
@@ -42,7 +42,7 @@ $G beta run deploy "$SERVICE" --region="$REGION" --image="$IMAGE" --service-acco
   --no-allow-unauthenticated --iap \
   --min-instances=0 --max-instances=1 --session-affinity --timeout=3600 --cpu=2 --memory=2Gi \
   --cpu-boost --no-cpu-throttling \
-  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=memory,RETRIEVER=local,DEMO_TOOLS_ENABLED=true"
+  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=memory,RETRIEVER=local,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1"
 
 echo "== IAP access"
 PROJECT_NUMBER="$($G projects describe "$PROJECT" --format='value(projectNumber)')"

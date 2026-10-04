@@ -8,6 +8,7 @@ RAI HIGH); this client only asks it.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from typing import Literal, Protocol
 
@@ -56,8 +57,9 @@ class ModelArmorClient:
         r.raise_for_status()
         result = r.json().get("sanitizationResult", {})
         if result.get("filterMatchState") == "MATCH_FOUND":
+            # "NO_MATCH_FOUND" contains "MATCH_FOUND": compare the whole matchState value
             found = [name for name, f in (result.get("filterResults") or {}).items()
-                     if "MATCH_FOUND" in str(f)]
+                     if '"matchState": "MATCH_FOUND"' in json.dumps(f)]
             return "blocked", ", ".join(found) or "match found"
         return "pass", "no match"
 

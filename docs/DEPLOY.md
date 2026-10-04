@@ -49,6 +49,23 @@ The script:
 - **Demo tools** stay on (`DEMO_TOOLS_ENABLED=true`) for testing; `APP_ENV=cloud` turns them off by
   default otherwise.
 
+## Google resources (created 10/5, user approved; all in us-central1)
+
+| resource | name | used by |
+|---|---|---|
+| Firestore (Native) | database `live-studio` | `STORE=firestore` later. A named database, because the project's `(default)` location is tied to the App Engine app in asia-northeast3 |
+| Model Armor template | `live-studio-comments` | comment screening (D-125): prompt injection and jailbreak MEDIUM_AND_ABOVE, malicious URLs, RAI (hate, harassment, sexual, dangerous) HIGH |
+| Cloud Storage | `gs://separk-cloocus-live-studio-docs` (`products/`, `policy/` PDFs) | private, uniform access; the service account can only read |
+| Cloud Trace | API enabled | spans later |
+
+`live-studio-run` has `roles/datastore.user`, `roles/modelarmor.user`, `roles/cloudtrace.agent` and
+`roles/storage.objectViewer` on the bucket. The test service account `live-studio-driver` has only IAP
+access to the service.
+
+Model Armor measured from Korea: 280-370 ms per comment (a few over 500 ms, so they would be unscreened);
+from us-central1 it should be well under the 500 ms limit. "Developer mode" role-play wording passed the
+MEDIUM_AND_ABOVE jailbreak filter in one try; the triage prompt still treats comments as untrusted data.
+
 ## Check after a deploy
 
 1. Open the URL, sign in with an allowed account; `/api/health` shows `llm: vertex`, `stt: google_v2`.
