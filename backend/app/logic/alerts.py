@@ -67,12 +67,12 @@ def apply_judge_compliance(
         severity = rules[v.rule_id].severity
         a = pending.get(v.rule_id)
         if a is not None:
-            a.status, a.span, a.say_instead, a.severity, a.shown_at = "active", v.span, v.say_instead, severity, now
+            a.status, a.span, a.say_instead, a.severity, a.shown_at = "active", v.span, v.say_instead or None, severity, now
             changed.append(a)
         else:
             created.append(Alert(alert_id=new_id("al_"), kind="compliance", status="active", transcript_id=t.transcript_id,
                                  product_id=product_id, rule_id=v.rule_id, severity=severity, span=v.span,
-                                 say_instead=v.say_instead, created_at=now, shown_at=now))
+                                 say_instead=v.say_instead or None, created_at=now, shown_at=now))
     for a in pending.values():
         if a.status == "provisional":  # not confirmed by the judge
             a.status = "cleared"

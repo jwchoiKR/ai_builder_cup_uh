@@ -253,6 +253,25 @@ export function factNotesForHost(state: ClientState): Alert[] {
     .sort((a, b) => alertTime(b) - alertTime(a));
 }
 
+/** D-105: a test number said without "in our in-house test". */
+export const TEST_QUALIFIER_RULE = "BRAND-TEST-QUALIFIER";
+
+/** Host banners. D-105: a test-qualifier banner and a fact note on the same sentence show as one
+ *  card (the note joins the banner when the fact checker finishes); alerts and logs keep both. */
+export function hostBanners(state: ClientState): { mediums: { alert: Alert; fact: Alert | null }[]; facts: Alert[] } {
+  const facts = factNotesForHost(state);
+  const merged = new Set<string>();
+  const mediums = activeMediumAlerts(state).map((alert) => {
+    const fact =
+      alert.rule_id === TEST_QUALIFIER_RULE
+        ? (facts.find((f) => f.transcript_id === alert.transcript_id && !merged.has(f.alert_id)) ?? null)
+        : null;
+    if (fact) merged.add(fact.alert_id);
+    return { alert, fact };
+  });
+  return { mediums, facts: facts.filter((f) => !merged.has(f.alert_id)) };
+}
+
 export function activeFactAlerts(state: ClientState): Alert[] {
   return Object.values(state.alerts)
     .filter((a) => a.kind === "fact" && a.status === "active")

@@ -9,12 +9,11 @@ import { useMic, type MicSnapshot, type MicState } from "../../app/mic";
 import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
-  activeMediumAlerts,
   activePdCard,
   chatItems,
   cueStrip,
-  factNotesForHost,
   formatClock,
+  hostBanners,
   hostSlots,
   priceView,
   productById,
@@ -190,8 +189,7 @@ export function HostView({
   const prompter = hostPrompterView(state, catalog, product);
   const price = priceView(state, catalog, prompter.product ?? product);
   const cue = cueStrip(state, clientNow);
-  const mediums = activeMediumAlerts(state);
-  const facts = factNotesForHost(state);
+  const { mediums, facts } = hostBanners(state);
   const checking = provisionalAlerts(state).length > 0;
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
@@ -210,8 +208,8 @@ export function HostView({
         {cue && <CueStrip cue={cue} />}
         <div className={cx(styles.banners, bannersOpen && styles.bannersOpen)}>
           <div className={styles.bannersInner}>
-            {mediums.map((a) => (
-              <MediumBanner key={a.alert_id} alert={a} catalog={catalog} />
+            {mediums.map(({ alert: a, fact }) => (
+              <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} />
             ))}
             {facts.slice(0, 2).map((a) => (
               <FactNote key={a.alert_id} alert={a} catalog={catalog} />

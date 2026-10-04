@@ -11,7 +11,7 @@ CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
 
 def test_pack_loads_with_expected_sizes(pack):
     assert len(pack.passages) == 76
-    assert len(pack.rules.rules) == 14
+    assert len(pack.rules.rules) == 15  # 14 + BRAND-TEST-QUALIFIER (D-105)
     assert {p.product_id for p in pack.products.products} == {CREAM, AMPOULE}
     assert "daon_skincare_demo" in pack.runsheets
 

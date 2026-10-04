@@ -185,6 +185,17 @@
       "unacceptable_examples": ["It whitens your skin.", "Your skin tone will change permanently."],
       "say_instead_hint": "Use: 'Helps skin look more radiant and even-toned with continued use.'",
       "reflex_phrases": ["whiten", "whitens", "whitening", "bleach"]
+    },
+    {
+      "rule_id": "BRAND-TEST-QUALIFIER",
+      "source_id": "PRODUCT_SHEET",
+      "source_ref": "Product sheet, section 5 (in-house test results) and section 7 (claims marked *)",
+      "title": "Test result without 'in our in-house test'",
+      "description": "Brand policy: a number from a test or study (a percentage, a count of participants such as '0 of 32', or a measured time such as '24 hours') must be said together with 'in our in-house test' or 'in our in-house study'. Use this rule, not an ageing, physiological or superlative rule, when the only problem is the missing qualifier. Not this rule: a sentence that already says the result is from our own test ('in our in-house test', 'in our 48-hour patch test'), benefit wording without a test number ('it keeps skin hydrated'), a viewer's question read out, or a denial.",
+      "severity": "MEDIUM",
+      "unacceptable_examples": ["Hydration goes up forty-five percent right after one use.", "Zero out of thirty-two people reacted in the patch test.", "It keeps your skin hydrated for twenty-four hours."],
+      "say_instead_hint": "Say the same result with 'in our in-house test'.",
+      "reflex_phrases": []
     }
   ],
   "negation_cues": ["not", "no", "never", "doesn't", "does not", "don't", "do not", "won't", "will not", "isn't", "is not", "can't", "cannot", "can not"],

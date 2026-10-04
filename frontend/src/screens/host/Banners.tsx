@@ -2,6 +2,7 @@
 // the green "Corrected" confirmation (§12.3.7).
 import { ArrowLeftRight, ArrowRight, Check, CircleAlert, Headphones, ShieldAlert } from "lucide-react";
 
+import { TEST_QUALIFIER_RULE } from "../../app/selectors";
 import type { Alert, Catalog, HostCue } from "../../app/types";
 import { factContext, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
@@ -53,8 +54,18 @@ export function FactNote({ alert, catalog }: { alert: Alert; catalog: Catalog | 
   );
 }
 
-export function MediumBanner({ alert, catalog }: { alert: Alert; catalog: Catalog | null }) {
+export function MediumBanner({
+  alert,
+  catalog,
+  fact = null,
+}: {
+  alert: Alert;
+  catalog: Catalog | null;
+  /** D-105: the fact note on the same sentence, shown in this card instead of its own. */
+  fact?: Alert | null;
+}) {
   const rule = ruleInfo(catalog, alert.rule_id);
+  const qualifier = alert.rule_id === TEST_QUALIFIER_RULE;
   return (
     <div className={cx(styles.banner, styles.medium)} data-testid="host-medium-banner" role="alert">
       <span className={styles.bannerIcon} aria-hidden>
@@ -62,10 +73,18 @@ export function MediumBanner({ alert, catalog }: { alert: Alert; catalog: Catalo
       </span>
       <div className={styles.bannerBody}>
         <div className={styles.bannerTitleRow}>
-          <span className={styles.bannerTitle}>Avoid this claim</span>
+          <span className={styles.bannerTitle}>{qualifier ? "Add 'in our in-house test'" : "Avoid this claim"}</span>
           <span className={styles.mediumSpan}>"{alert.span}"</span>
+          {fact && (
+            <span className={styles.factValues} data-testid="host-medium-fact">
+              <span className={styles.factRight}>○ {fact.correct_value}</span>
+              <span className={styles.factWrong}>(not {fact.stated_value})</span>
+            </span>
+          )}
         </div>
-        <span className={styles.mediumSay}>Say: '{alert.say_instead}'</span>
+        <span className={styles.mediumSay}>
+          {alert.say_instead ? `Say: '${alert.say_instead}'` : "Say the result with 'in our in-house test'."}
+        </span>
       </div>
       <span className={styles.bannerAside}>{rule.title}</span>
     </div>

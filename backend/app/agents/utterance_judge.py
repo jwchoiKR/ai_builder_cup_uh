@@ -9,6 +9,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
+from ..logic import qualifier
 from ..logic.grouping import normalise_question
 from ..logic.reflex import Reflex
 from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput
@@ -64,10 +65,18 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     """In place, on any output with `compliance` and `correction`: drop unknown rules and alert ids
     that were not in the input; severity comes from the rule."""
     rules = catalog.pack.rules_by_id
-    o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules]
+    text = values.get("utterance_text") or ""
+    # D-105: a sentence that names our own test never breaks the test-qualifier rule
+    o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
+                               and not (v.rule_id == qualifier.RULE_ID and qualifier.is_qualified(text))]
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
-        v.say_instead = spoken_claim(v.say_instead)
+        if v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
+            on_air = catalog.get_product(values["current_product_json"]["product_id"])
+            r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air])
+            v.say_instead = r.say if r else ""  # empty: the host card says to add the qualifier
+        else:
+            v.say_instead = spoken_claim(v.say_instead)
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
     o.correction.corrects_alert_ids = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a in alert_ids]
     return o
