@@ -49,6 +49,8 @@ export interface HostActions {
   dismissPd: (cardId: string) => void;
   /** POST /sessions/{sid}/pd/pull: the top waiting question now (key Q, D-113). */
   pullQuestion: () => void;
+  /** POST /sessions/{sid}/segments/extend: +2 min on the on-air product (key E, D-138). */
+  extendSegment: () => void;
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -196,6 +198,7 @@ export function HostView({
       else if ((e.key === "n" || e.key === "N") && sessionId && pd && pd.status === "active") {
         actions.dismissPd(pd.card_id);
       } else if ((e.key === "q" || e.key === "Q") && sessionId) actions.pullQuestion();
+      else if ((e.key === "e" || e.key === "E") && sessionId) actions.extendSegment();
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
@@ -332,14 +335,18 @@ export function HostScreen(props: ScreenProps) {
   const pullQuestion = useCallback(() => {
     if (sid) void api.pullQuestion(sid).catch(() => undefined);
   }, [sid]);
+  const extendSegment = useCallback(() => {
+    if (sid) void api.extendSegment(sid).catch(() => undefined);
+  }, [sid]);
   // One stable object for the view; its functions call the latest callbacks.
-  const latest = useRef<HostActions>({ rendered, cancelSwitch, dismissPd, pullQuestion });
-  latest.current = { rendered, cancelSwitch, dismissPd, pullQuestion };
+  const latest = useRef<HostActions>({ rendered, cancelSwitch, dismissPd, pullQuestion, extendSegment });
+  latest.current = { rendered, cancelSwitch, dismissPd, pullQuestion, extendSegment };
   const [actions] = useState<HostActions>(() => ({
     rendered: (id) => latest.current.rendered(id),
     cancelSwitch: () => latest.current.cancelSwitch(),
     dismissPd: (id) => latest.current.dismissPd(id),
     pullQuestion: () => latest.current.pullQuestion(),
+    extendSegment: () => latest.current.extendSegment(),
   }));
 
   return (

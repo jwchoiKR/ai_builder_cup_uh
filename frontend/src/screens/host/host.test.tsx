@@ -26,7 +26,7 @@ const cat: Catalog = {
 };
 
 function actions(): HostActions {
-  return { rendered: vi.fn(), cancelSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn() };
+  return { rendered: vi.fn(), cancelSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn(), extendSegment: vi.fn() };
 }
 
 function view(over: Partial<StateSnapshot> = {}, acts: HostActions = actions()) {
@@ -387,6 +387,8 @@ describe("audience questions", () => {
     const acts = actions();
     render(view({}, acts));
     fireEvent.keyDown(window, { key: "q" });
+    fireEvent.keyDown(window, { key: "e" }); // D-138: +2 min on the on-air product
+    expect(acts.extendSegment).toHaveBeenCalledTimes(1);
     expect(acts.pullQuestion).toHaveBeenCalledTimes(1);
   });
 

@@ -323,6 +323,21 @@ class SessionRuntime:
             await self.emit("metrics.updated", await self.compute_metrics())
         self.pd.on_tick()  # time milestones, promo endings, pauses
 
+    async def extend_segment(self, sec: int = 120) -> Segment:
+        """D-138 (feature B3): +2 min on the on-air segment. The status line, the overtime badge and the
+        AI PD's wrap-up and switch thresholds all read `planned_duration_sec`, so they move together."""
+        async with self.lock:
+            seg = await self.current_segment()
+            if seg is None:
+                raise ActionError(409, "invalid_state", "no segment on air")
+            seg.planned_duration_sec += sec
+            self.overtime_emitted.discard(seg.segment_id)  # it can run over again, once, later
+            await self.save_segment(seg)
+            await self.emit("segment.extended", {"segment": seg.model_dump(mode="json"), "added_sec": sec})
+            await self.emit("operator.action", {"actor": "operator", "action": "extend", "segment_id": seg.segment_id,
+                                                "added_sec": sec, "at": self.now()})
+            return seg
+
     async def simulate_overtime(self) -> Segment:
         """Demo tool: move the on-air segment start back by its planned duration."""
         async with self.lock:

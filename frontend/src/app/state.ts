@@ -231,6 +231,13 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       return withSession({ ...state, segments }, (s) => ({ ...s, switch: { ...IDLE_SWITCH } }));
     }
 
+    case "segment.extended": {
+      // D-138: the on-air segment got more time; an overtime badge for it no longer holds
+      const seg = (p as { segment: Segment }).segment;
+      const { [seg.segment_id]: _gone, ...overtime } = state.overtime;
+      return { ...state, segments: { ...state.segments, [seg.segment_id]: seg }, overtime };
+    }
+
     case "segment.overtime":
       return { ...state, overtime: { ...state.overtime, [p.segment_id]: p as OvertimeInfo } };
 

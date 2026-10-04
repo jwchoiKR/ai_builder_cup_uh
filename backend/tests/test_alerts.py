@@ -307,3 +307,18 @@ async def test_one_failed_final_is_not_a_health_problem(env):
     await speak(rt, "The cream feels light.")
     await speak(rt, "It absorbs quickly.")
     assert rt.utterances.degraded == [] and await events(rt, "judge.health") == []
+
+
+async def test_extend_adds_two_minutes_to_the_on_air_segment(env):
+    """D-138 (feature B3): the plan, the overtime check and the AI PD's thresholds all move together."""
+    rt, _ = env
+    seg = await rt.current_segment()
+    planned = seg.planned_duration_sec
+    rt.overtime_emitted.add(seg.segment_id)
+    out = await rt.extend_segment()
+    assert out.planned_duration_sec == planned + 120
+    assert (await rt.current_segment()).planned_duration_sec == planned + 120
+    assert seg.segment_id not in rt.overtime_emitted  # it can be reported again, after the new end
+    assert (await rt.pd._state()).planned_ms == (planned + 120) * 1000
+    [e] = await events(rt, "segment.extended")
+    assert e.payload["added_sec"] == 120

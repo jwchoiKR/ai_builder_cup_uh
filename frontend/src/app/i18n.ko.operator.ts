@@ -37,6 +37,7 @@ export const KO_OPERATOR: Record<string, string> = {
   "Switch cue {n} heard": "전환 신호 {n}회 감지",
   "Switch product": "상품 전환",
   "Undo switch": "전환 되돌리기",
+  "+2 min": "+2분",
   "AI prepares and checks. You stay in control.": "AI가 준비하고 확인합니다. 결정은 운영자가 합니다.",
   "Switch to {product} now? The host prompter moves to the next product.":
     "지금 {product}(으)로 전환할까요? 진행자 프롬프터가 다음 상품으로 넘어갑니다.",
