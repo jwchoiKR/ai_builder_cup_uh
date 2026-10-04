@@ -63,6 +63,8 @@ class LLMRequest(Generic[T]):
     fixture_encode: Callable[[dict], dict] | None = None
     fixture_decode: Callable[[dict], dict] | None = None
     preview: str | None = None  # human-readable input for the audit log
+    cache_prefix: str = ""  # exact static prefix of user_message; retain full text for fallback
+    cache_ttl_sec: int | None = None
 
 
 @dataclass
@@ -189,15 +191,82 @@ def vertex_config(req: LLMRequest, timeout_ms: int, schema: dict):
     )
 
 
+@dataclass
+class _ContextCache:
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    name: str | None = None
+    expires_at: float = 0
+    eligible: bool | None = None
+
+
 class VertexBackend:
     name = "vertex"
 
-    def __init__(self, project: str, location: str) -> None:
+    def __init__(self, project: str, location: str, *, context_cache: bool = False,
+                 cache_ttl_sec: int = 3600) -> None:
         from google import genai
 
         # `enterprise=True` is the current name of the legacy `vertexai=True` flag (VERIFIED item 2).
         self._client = genai.Client(enterprise=True, project=project, location=location)
         self._schemas: dict[type, dict] = {}
+        self._context_cache = context_cache
+        self._cache_ttl_sec = cache_ttl_sec
+        self._caches: dict[str, _ContextCache] = {}
+
+    def _cache_entry(self, req: LLMRequest) -> _ContextCache | None:
+        if (not self._context_cache or not req.session_id or not req.cache_prefix
+                or not req.user_message.startswith(req.cache_prefix)):
+            return None
+        # Vertex documents 4,096 tokens for Gemini 3, 2,048 for Gemini 2.
+        if not re.match(r"gemini-[23]\.", req.model):
+            return None
+        key = hashlib.sha256(json.dumps([
+            req.session_id, req.agent, req.model, req.prompt_version,
+            req.system_instruction, req.cache_prefix,
+        ], ensure_ascii=False).encode()).hexdigest()
+        if key not in self._caches:
+            # Bound local state without evicting an in-flight singleflight lock.
+            if len(self._caches) >= 256:
+                victim = next((k for k, v in self._caches.items() if not v.lock.locked()), None)
+                if victim is None:
+                    return None
+                del self._caches[victim]
+            self._caches[key] = _ContextCache()
+        return self._caches[key]
+
+    async def _prepare_cache(self, req: LLMRequest, entry: _ContextCache) -> str | None:
+        from google.genai import types
+
+        async with entry.lock:
+            if entry.expires_at > time.monotonic():
+                return entry.name
+            entry.name = None
+            ttl = max(60, req.cache_ttl_sec if req.cache_ttl_sec is not None else self._cache_ttl_sec)
+            if entry.eligible is None:
+                count = await self._client.aio.models.count_tokens(
+                    model=req.model, contents=req.cache_prefix,
+                    config=types.CountTokensConfig(system_instruction=req.system_instruction),
+                )
+                minimum = 4096 if req.model.startswith("gemini-3.") else 2048
+                if count.total_tokens is None:
+                    raise LLMError("token count returned no total")
+                entry.eligible = count.total_tokens >= minimum
+            if not entry.eligible:
+                entry.expires_at = time.monotonic() + ttl
+                return None
+            started = time.monotonic()
+            cached = await self._client.aio.caches.create(
+                model=req.model,
+                config=types.CreateCachedContentConfig(
+                    system_instruction=req.system_instruction, contents=req.cache_prefix,
+                    ttl=f"{ttl}s",
+                ),
+            )
+            if not cached.name:
+                raise LLMError("cache creation returned no name")
+            entry.name = cached.name
+            entry.expires_at = started + ttl
+            return entry.name
 
     def _schema(self, model: type[BaseModel]) -> dict:
         if model not in self._schemas:
@@ -209,10 +278,34 @@ class VertexBackend:
         from google.genai import errors
 
         config = vertex_config(req, timeout_ms, self._schema(req.output_model))
+        entry = self._cache_entry(req)
+        cache_name = None
+        if entry is not None:
+            try:
+                cache_name = await asyncio.wait_for(
+                    self._prepare_cache(req, entry), timeout=min(1.0, timeout_ms / 5000),
+                )
+            except Exception:  # optional optimization; CancelledError deliberately propagates
+                if not entry.lock.locked():  # a timed-out waiter must not invalidate another creator
+                    entry.name, entry.expires_at = None, time.monotonic() + 60
+                log.warning("context cache preparation failed for %s", req.agent)
         try:
-            resp = await self._client.aio.models.generate_content(
-                model=req.model, contents=req.user_message, config=config
-            )
+            if cache_name:
+                cached_config = config.model_copy(update={"system_instruction": None, "cached_content": cache_name})
+                try:
+                    resp = await self._client.aio.models.generate_content(
+                        model=req.model, contents=req.user_message[len(req.cache_prefix):], config=cached_config,
+                    )
+                except Exception:  # fall back once; normal uncached error/retry handling stays below
+                    entry.name, entry.expires_at = None, time.monotonic() + 60
+                    log.warning("context cache use failed for %s", req.agent)
+                    resp = await self._client.aio.models.generate_content(
+                        model=req.model, contents=req.user_message, config=config,
+                    )
+            else:
+                resp = await self._client.aio.models.generate_content(
+                    model=req.model, contents=req.user_message, config=config
+                )
         except errors.ServerError as e:
             if e.code == 504 or e.status == "DEADLINE_EXCEEDED":
                 # The server enforced our own deadline (X-Server-Timeout): a timeout, never retried.
@@ -248,6 +341,7 @@ class VertexBackend:
         )
 
     async def aclose(self) -> None:
+        self._caches.clear()  # remote caches expire at their TTL
         await self._client.aio.aclose()
 
 
@@ -369,4 +463,6 @@ def _short_validation_error(e: ValidationError) -> str:
 def make_backend(settings: Settings) -> LLMBackend:
     if settings.LLM_PROVIDER == "mock":
         return MockBackend()
-    return VertexBackend(settings.GCP_PROJECT, settings.LLM_LOCATION)
+    return VertexBackend(settings.GCP_PROJECT, settings.LLM_LOCATION,
+                         context_cache=settings.LLM_CONTEXT_CACHE,
+                         cache_ttl_sec=settings.LLM_CONTEXT_CACHE_TTL_SEC)

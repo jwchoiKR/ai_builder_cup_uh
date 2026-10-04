@@ -53,7 +53,9 @@ def latency_line(values: list[int]) -> str:
 
 def make_client(record: bool) -> tuple[LLMClient, object]:
     settings = get_settings()
-    backend = VertexBackend(settings.GCP_PROJECT, settings.LLM_LOCATION)
+    backend = VertexBackend(settings.GCP_PROJECT, settings.LLM_LOCATION,
+                            context_cache=settings.LLM_CONTEXT_CACHE,
+                            cache_ttl_sec=settings.LLM_CONTEXT_CACHE_TTL_SEC)
     if record:
         backend = RecordingBackend(backend)
     clock = SystemClock()

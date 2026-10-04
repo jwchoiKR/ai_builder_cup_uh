@@ -15,9 +15,7 @@ from ..providers.prompts import PromptTemplate
 from ..providers.retriever import Retriever
 from . import inputs
 
-KEY_SECTIONS = ("Key facts", "Key ingredients")
 CLAIMS_SECTION = "Approved on-air claims"
-CAP, CAP_SWITCH = 24, 48
 # D-100: a test result is checked only when the host cites a test. A time or number inside a benefit
 # claim ("it whitens your skin in two weeks") is compliance wording, not a test result.
 TEST_CITED = re.compile(r"\b(?:tests?|tested|testing|study|studies|trials?|clinical(?:ly)?|participants?|"
@@ -46,28 +44,24 @@ async def gather_fact_passages(
     switch: SwitchState,
     search_timeout_ms: int,
 ) -> list[Passage]:
-    """§7.4 retrieval order, deduped by passage id, capped at 24 (48 when the other product applies)."""
-    async def key_passages(pid: str) -> list[Passage]:
-        pre = prefetched.get(pid)
-        if pre is None:
-            pre = prefetched[pid] = await retriever.prefetch(pid)
-        return [p for p in pre if p.section in KEY_SECTIONS]
+    """Full sheets, retaining original citation IDs, without search or network prefetch.
 
-    out: dict[str, Passage] = {}
-    for p in await key_passages(on_air):
-        out.setdefault(p.passage_id, p)
-    for p in await retriever.search(utterance, product_filter=on_air, top_k=6, timeout_ms=search_timeout_ms):
-        out.setdefault(p.passage_id, p)
+    Keep the existing call signature for runtime/evaluation callers. Explicitly mentioned products
+    remain available for comparisons, alongside the on-air product and a counting/pending target.
+    Local uploaded sheets take precedence over the shipped catalog.
+    """
     others = catalog.products_mentioned(utterance) - {on_air}
     if switch.status in ("counting", "pending"):
         others.add(switch.target_product_id or catalog.next_product(on_air) or on_air)
     others.discard(on_air)
-    for pid in sorted(others):
-        for p in await key_passages(pid):
+    out: dict[str, Passage] = {}
+    local_sheets = getattr(retriever, "passages_of", None)
+    for pid in [on_air, *sorted(others)]:
+        sheet = (local_sheets(pid) if callable(local_sheets) else
+                 [p for p in catalog.pack.passages if p.product_id == pid])
+        for p in sheet:
             out.setdefault(p.passage_id, p)
-        for p in await retriever.search(utterance, product_filter=pid, top_k=4, timeout_ms=search_timeout_ms):
-            out.setdefault(p.passage_id, p)
-    return list(out.values())[: CAP_SWITCH if others else CAP]
+    return list(out.values())
 
 
 def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
@@ -114,7 +108,7 @@ class FactChecker:
         self.catalog = catalog
 
     async def run(self, inp: FactInput, *, deadline_ms: int) -> AgentResult[FactCheckOutput]:
-        user = self.prompt.render({
+        user, prefix = self.prompt.render_cached({
             "current_product_compact_json": inputs.current_product_compact_json(self.catalog, inp.on_air),
             "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
             "active_promo_json_or_null": inputs.active_promo_json_or_null(self.catalog, inp.promo),
@@ -122,11 +116,12 @@ class FactChecker:
             "passages_json": inputs.passages_json(inp.passages),
             "last_two_final_transcripts_json": inp.previous[-2:],
             "utterance_text": inputs.utterance_text(inp.utterance),
-        })
+        }, {"current_product_compact_json", "passages_json"})
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
             user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=inp.session_id,
+            cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: {"claims": [], "reason": "rule-based: no fact check"}, preview=inp.utterance,
         ))

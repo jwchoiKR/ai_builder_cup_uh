@@ -56,6 +56,26 @@ class PromptTemplate:
             raise PromptError(f"{self.name}: missing values for {missing}")
         return _PLACEHOLDER_RX.sub(lambda m: render_value(m.group(1), values[m.group(1)]), self.user_template)
 
+    def render_cached(self, values: Mapping[str, Any], static_keys: Collection[str]) -> tuple[str, str]:
+        """Move complete static data blocks first; return the full prompt and its cacheable prefix.
+
+        Partition the template before rendering, so untrusted values cannot change block boundaries.
+        Instructions and mixed/dynamic lines retain their original order in the suffix.
+        """
+        self.render(values)  # Keep the same missing-value validation as render().
+        static, dynamic = [], []
+        for line in self.user_template.splitlines(keepends=True):
+            keys = _PLACEHOLDER_RX.findall(line)
+            destination = static if (keys and set(keys) <= set(static_keys)
+                                     and re.fullmatch(r'\s*<data\b[^>]*>.*</data>\s*', line)) else dynamic
+            destination.append(line)
+        render = lambda text: _PLACEHOLDER_RX.sub(
+            lambda m: render_value(m.group(1), values[m.group(1)]), text)
+        prefix = render("".join(static))
+        if prefix and not prefix.endswith("\n"):
+            prefix += "\n"
+        return prefix + render("".join(dynamic)), prefix
+
 
 def render_value(name: str, value: Any) -> str:
     if name in STRING_PLACEHOLDERS:
