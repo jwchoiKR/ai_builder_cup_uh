@@ -690,3 +690,10 @@ D-120: Operator question desk (S09 review, user approved).
 - A collapsed row shows the proposed reply in one line (or "Drafting a reply…" / "No AI draft for this question.") and the next action as a button (Approve, Post suggested answer or Push to host), so the operator does not have to open each row. The status chip stays.
 - Header latency chips appear only once a real latency is measured; mock runs no longer show "0.0s".
 - **Tests:** `operator.test.tsx`.
+
+D-121: Fixes from the adversarial eval on 23627bd (tune 90.5%, sealed 92.5% detection; pass line 95%), general rules only.
+- **An ingredient the product does not contain** ("4% niacinamide" on the cream): the fact checker may now return field `ingredient`, `correct_value` "not in this product", no passage. Code shows it only after checking that none of the product's sheet passages name that ingredient (`fact_checker._absent_from_sheet`); otherwise it is downgraded as before. The host card shows "○ not in this product".
+- **pH:** new fact field `ph` (it was `other`, which never makes a note, D-100); a value or range outside the sheet's is contradicted. Display label "pH".
+- **Container type:** the prompt now says that the container (jar, tube, pump, dropper bottle) is a packaging fact.
+- **A vouched quote is the host's own claim:** compliance job (same wording in both judge prompts): repeating someone's claim and then agreeing with it or vouching for it ("and I believe her", "no exaggeration") is not a quote.
+- **Tests:** `test_facts.py` (absent ingredient only when the sheet never names it; pH note). The prompt rules are measured by the adversarial rerun.

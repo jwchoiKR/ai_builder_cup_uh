@@ -76,7 +76,7 @@ class ContextOutput(BaseModel):
 
 FactField = Literal[
     "price", "set_price", "promo", "volume", "ingredient", "ingredient_amount", "test_result",
-    "usage", "texture", "fragrance", "packaging", "origin", "shelf_life", "other",
+    "usage", "texture", "fragrance", "packaging", "origin", "shelf_life", "ph", "other",
 ]
 
 

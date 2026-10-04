@@ -25,7 +25,8 @@
     "set_price": "set price",
     "promo": "promotion",
     "volume": "volume",
-    "ingredient_amount": "ingredient amount"
+    "ingredient_amount": "ingredient amount",
+    "ph": "pH"
   },
   "operator_quick_replies": [
     {

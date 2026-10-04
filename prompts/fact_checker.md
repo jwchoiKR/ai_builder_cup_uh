@@ -21,13 +21,16 @@ How to decide
 - `supported`: a SOURCE passage states the same value. Spoken numbers count ("thirty-six dollars" = S$36.00, "four percent" = 4%).
 - `contradicted`: a SOURCE passage states a DIFFERENT value for the same field of the SAME product. Set `correct_value` by copying the value from that passage, and `quote` with the exact words from the passage.
 - `not_in_sources`: no passage covers it. Never mark a claim contradicted because it is missing.
+- Exception, ingredients: when the host says this product contains an ingredient that none of its SOURCE passages name, it is `contradicted` with field `ingredient`, `correct_value` "not in this product", `passage_id` null and `quote` null. Software checks the sheet before showing it.
+- Packaging: the container type (jar, tube, pump, dropper bottle, bottle) is a packaging fact; a different container than the sheet's is `contradicted`.
+- pH is field `ph`; a value or range outside the sheet's is `contradicted`.
 - Prices: if ACTIVE_PROMO is present and changes prices, the promo price is the correct current price. A host stating the normal live price during the promo is NOT contradicted if they are clearly referring to the live price without the promo; mark `supported` with field `price`. A host stating a "now" or "with the time sale" price must match the promo price.
 - Product scope: check against CURRENT_PRODUCT unless the host clearly names the other product. Never use one product's facts to correct the other product.
 - If SWITCH_CONTEXT.in_progress is true, the host may already be describing SWITCH_CONTEXT.next_product without naming it (use RECENT_TRANSCRIPT to see which product was just introduced). Check such a sentence against that product. If you cannot tell which product a fact is about, use `not_in_sources`.
 - If the sentence has several facts, return one item per fact.
 
 Output rules
-- `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, other.
+- `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, ph, other.
 - A set's price or promotion price is about the set, not one product: use the set's `set_id` from SET_OFFERS as `product_id`.
 - `stated_value` and `correct_value` are short display strings, e.g. "S$32", "S$36.00", "10% niacinamide", "4% niacinamide", "100 mL", "50 mL".
 - `passage_id` must be one of the given passage ids. `quote` must be copied character for character from that passage.
