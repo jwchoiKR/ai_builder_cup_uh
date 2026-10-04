@@ -216,3 +216,79 @@ async def test_background_pool_is_seeded(rt):
     assert 10 <= len(texts) <= 25
     assert all(c.source == "pool" for c in await rt.ctx.store.query(rt.path("comments"), Comment))
     rt.feed.stop_pool()
+
+
+async def test_reassigning_a_drafting_question_never_applies_the_old_products_draft():
+    """Review B5 (D-117): the operator moves a question to another product while its draft is being
+    written; the draft for the old product must not land on it."""
+    import asyncio
+
+    from .helpers import live_runtime, make_ctx
+    from .judge_fakes import ScriptedBackend
+
+    class FirstComposerWaits(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.gate, self.started, self.first = asyncio.Event(), asyncio.Event(), True
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "answer_composer" and self.first:
+                self.first = False
+                self.started.set()
+                await self.gate.wait()
+            return await super().generate(req, timeout_ms)
+
+    llm = FirstComposerWaits()
+    ctx = make_ctx(backend=llm)
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "Is it okay for oily skin?", wait=False)
+        await asyncio.wait_for(llm.started.wait(), 2)
+        [g] = await groups(rt)
+        assert g.status == "composing" and g.product_id == "cream_hydra_barrier"
+        await ops.assign_product(rt, g.group_id, "ampoule_deep_hydration")
+        llm.gate.set()
+        await rt.ctx.scheduler.idle()
+        g = await rt.get_group(g.group_id)
+        answer = await rt.get_answer(g.answer_id)
+        assert g.product_id == "ampoule_deep_hydration"
+        assert answer is not None and answer.cache_key == await ops.answer_key(rt, g)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_a_promo_change_while_drafting_drafts_again_instead_of_sticking():
+    """D-117 B5: the answer key changed (promo or document) while drafting: no stale draft, no stuck group."""
+    import asyncio
+
+    from .helpers import live_runtime, make_ctx
+    from .judge_fakes import ScriptedBackend
+
+    class FirstComposerWaits(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.gate, self.started, self.first = asyncio.Event(), asyncio.Event(), True
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "answer_composer" and self.first:
+                self.first = False
+                self.started.set()
+                await self.gate.wait()
+            return await super().generate(req, timeout_ms)
+
+    llm = FirstComposerWaits()
+    ctx = make_ctx(backend=llm)
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "Is it okay for oily skin?", wait=False)
+        await asyncio.wait_for(llm.started.wait(), 2)
+        await rt.start_promo("promo_time_sale_10")
+        llm.gate.set()
+        await rt.ctx.scheduler.idle()
+        [g] = await groups(rt)
+        answer = await rt.get_answer(g.answer_id)
+        assert g.status != "composing" and answer.cache_key == await ops.answer_key(rt, g)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
