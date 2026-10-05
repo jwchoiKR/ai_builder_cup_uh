@@ -26,9 +26,9 @@ def test_guards_use_the_lexicon_they_are_handed(pack):
     lex = pack.lexicon
     other = replace(lex, unsure=re.compile(r"\bmungkin\b"), phone=re.compile(r"\+60\d{9}"),
                     reactions=frozenset({"cantik"}))
-    assert verbal_check("I think it is 36 dollars", "It is S$36.00.", [], lex) is not None
-    assert verbal_check("I think it is 36 dollars", "It is S$36.00.", [], other) is None
-    assert verbal_check("mungkin 36", "It is S$36.00.", [], other) is not None
+    assert verbal_check("I think it is 36 dollars", "It is S$36.00.", lex) is not None
+    assert verbal_check("I think it is 36 dollars", "It is S$36.00.", other) is None
+    assert verbal_check("mungkin 36", "It is S$36.00.", other) is not None
     assert prefilter("call +601234567890", other).hide_category == "personal_info"
     assert prefilter("call +601234567890", lex).kind != "hide"
     assert prefilter("cantik", other).kind == "reaction"
@@ -44,7 +44,7 @@ def test_guards_use_the_lexicon_they_are_handed(pack):
     ("After three days it was twelve percent better.", "After 7 days it was 12% better.", True),
 ])
 def test_d174_compound_numbers_and_equal_durations(pack, said, draft, held):
-    assert (verbal_check(said, draft, [], pack.lexicon) is not None) is held
+    assert (verbal_check(said, draft, pack.lexicon) is not None) is held
 
 
 def test_d175_relink_candidate(pack):

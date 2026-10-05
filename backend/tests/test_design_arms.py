@@ -206,7 +206,9 @@ def test_arm_d_layers_b_and_d_prompt_lines_and_gives_the_whole_sheet(catalog):
 
 
 def test_arm_d_posting_has_no_code_number_gate():
-    kw = dict(lex=LEX, high_alert_active=False, facts=None, by_judge=True)
+    from app.models.agent_io import FactCheckOutput
+
+    kw = dict(lex=LEX, high_alert_active=False, facts=FactCheckOutput(claims=[], reason=""), by_judge=True)
     d = decide(_jo(numbers_said=["4"], hedged=False), OFFERED, grp(), ans(), numbers_gate=False, **kw)
     assert d.action == "post"
     d = decide(_jo(numbers_said=[], hedged=True), OFFERED, grp(), ans(), numbers_gate=False, **kw)

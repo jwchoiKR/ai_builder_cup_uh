@@ -20,31 +20,31 @@ class PublishDecision:
     reason: str = ""
 
 
-def verbal_check(utterance: str, draft: str, other_drafts: Iterable[str], lex: Lexicon) -> str | None:
+def verbal_check(utterance: str, draft: str, lex: Lexicon) -> str | None:
     """D-110: code checks on top of the judge before a host's spoken answer is auto-posted.
-    The host may say less than the draft, but every number they say must be in the draft (or in
-    another offered draft: two questions answered at once), and they must not sound unsure.
-    Returns the reason to hold the post, or None."""
+    The host may say less than the draft, but every number they say must be in the draft, and they must not sound
+    unsure. D-195: the linked group's draft only; another offered draft never accepts a number (product A's answer
+    with product B's price is held). Returns the reason to hold the post, or None."""
     if lex.is_unsure(utterance):
         return "host sounded unsure or took it back"
-    allowed = lex.spoken_numbers(draft).union(*(lex.spoken_numbers(d) for d in other_drafts))
+    allowed = lex.spoken_numbers(draft)
     said = lex.spoken_numbers(utterance)
     # D-174: the same duration in other units ("a week later" for "after 7 days") is the same number
-    hours = {h for d in (draft, *other_drafts) for _, h in lex.durations(d)}
+    hours = {h for _, h in lex.durations(draft)}
     said -= {n for n, h in lex.durations(utterance) if n is not None and h in hours}
     if not said <= allowed:
         return "a number differs from the verified draft"
     return None
 
 
-def judged_numbers_check(link, draft: str, other_drafts: Iterable[str], numbers: bool = True) -> str | None:
+def judged_numbers_check(link, draft: str, numbers: bool = True) -> str | None:
     """D-187 arm B: the same hold as verbal_check, from what the context judge reported (`numbers_said` as digits and
-    `hedged`) instead of parsing the wording: every number said must be in the draft or another offered draft."""
+    `hedged`) instead of parsing the wording: every number said must be in the linked draft (D-195)."""
     if getattr(link, "hedged", False):
         return "host sounded unsure or took it back"
     if not numbers:  # D-191 arms D and E: no code number gate; the judge's consistency alone decides
         return None
-    allowed = number_set(draft).union(*(number_set(d) for d in other_drafts))
+    allowed = number_set(draft)
     said = number_set(" ".join(getattr(link, "numbers_said", None) or []))
     if not said <= allowed:
         return "a number differs from the verified draft"
@@ -61,7 +61,7 @@ def relink_candidate(utterance: str, drafts: Mapping[str, str], lex: Lexicon) ->
     claim words. None when no draft or more than one qualifies. Never a post by itself."""
     heard = lex.content_words(utterance)
     fits = [gid for gid, text in drafts.items()
-            if text and verbal_check(utterance, text, [], lex) is None
+            if text and verbal_check(utterance, text, lex) is None
             and lex.coverage(lex.claim_words(text), heard) >= RELINK_MIN_COVERAGE]
     return fits[0] if len(fits) == 1 else None
 
@@ -92,9 +92,12 @@ def decide(
     # D-110: bound to the answer the host saw, and to the current promo and document state
     stale = (answer is None or shown is None or shown.answer_id != answer.answer_id
              or (current_key is not None and answer.cache_key is not None and answer.cache_key != current_key))
-    others = [x.text for g, x in offered.items() if g != gid and x is not None]
-    held = (None if answer is None else judged_numbers_check(a, answer.text, others, numbers_gate) if by_judge  # D-187 arm B
-            else verbal_check(utterance, answer.text, others, lex))
+    held = (None if answer is None else judged_numbers_check(a, answer.text, numbers_gate) if by_judge  # D-187 arm B
+            else verbal_check(utterance, answer.text, lex))
+    # D-195: a line that states a number posts only after its fact check completed (a timeout or error is no check)
+    states_number = bool(getattr(a, "numbers_said", None) if by_judge else lex.spoken_numbers(utterance))
+    if held is None and facts is None and states_number:
+        held = "check incomplete"
     consistent = a.consistent_with_suggested and not stale and held is None  # 2.
     if a.consistent_with_suggested and group.status == "auto_answered":  # a mark only: nothing is posted
         return PublishDecision("confirm_ai", gid, "already answered by AI")
