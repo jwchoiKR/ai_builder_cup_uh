@@ -408,3 +408,20 @@ def test_d151_a_correction_that_restates_the_stated_value_is_dropped(catalog, pa
              "quote": "Live broadcast price: S$36.00"}
     out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
     assert post_validate(out, pack.passages, catalog, None).claims[0].verdict == "not_in_sources"
+
+
+@pytest.mark.parametrize("stated, verdict", [
+    ("a little alcohol", "contradicted"),  # the sheet names it only in "Free from: ... ethanol (denatured alcohol)"
+    ("ethanol", "contradicted"),
+    ("panthenol", "not_in_sources"),  # a real ingredient: the absence is not accepted
+])
+def test_d156_an_ingredient_the_sheet_lists_as_free_from_is_contradicted(pack, catalog, stated, verdict):
+    """D-156 (00007 show replay): "I think it has a little alcohol inside" about the cream got no note: the word
+    "alcohol" is on the sheet, but only in its "Free from" list."""
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    c = claim("ingredient", "contradicted", stated=stated, correct=ABSENT)
+    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
+    sheet = [p for p in pack.passages if p.product_id == CREAM]
+    assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"I think it has {stated}.").claims] == [verdict]
