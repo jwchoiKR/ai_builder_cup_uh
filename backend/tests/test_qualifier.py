@@ -290,3 +290,47 @@ async def test_an_add_on_with_its_own_number_is_not_a_late_qualifier(env):
     await speak(rt, text)
     await speak(rt, "In our in-house test 29 of 32 people loved it.")
     assert len(await compliance_alerts(rt)) == 1
+
+
+SPLIT = "Hydration went up 38% right after one application,"
+
+
+async def test_a_qualifier_merged_with_its_fragment_corrects_the_fragments_alert(env):
+    """D-155 (00007 show replays, yellow lookalikes): the fragment ends with a comma, so the add-on is judged
+    merged with it (D-088). The merged text holds the number, so it was not taken for an add-on, and the
+    fragment's alert is protected from the merged judgment: the false alert stayed."""
+    rt, llm = env
+    llm.judge(SPLIT, violations=[violation(RULE, SPLIT, severity="MEDIUM")])
+    await speak(rt, SPLIT)
+    [a] = await compliance_alerts(rt)
+    await speak(rt, "in our in-house test.")
+    assert await compliance_alerts(rt) == []
+    assert (await rt.ctx.store.get(rt.path("alerts"), a.alert_id, Alert)).status == "corrected"
+
+
+async def test_a_merged_qualifier_judged_first_prevents_the_fragments_alert(env):
+    import asyncio
+
+    rt, llm = env
+    llm.judge(SPLIT, violations=[violation(RULE, SPLIT, severity="MEDIUM")])
+    llm.delays[("utterance_judge", SPLIT)] = 0.3
+    await speak(rt, SPLIT, wait=False)
+    await speak(rt, "in our in-house test.", wait=False)
+    await rt.utterances.drain()
+    await asyncio.sleep(0.4)
+    await rt.ctx.scheduler.idle()
+    assert await compliance_alerts(rt) == []
+
+
+async def test_the_same_number_later_without_the_qualifier_alerts(env):
+    """D-155 (00007 show replays, class G): the false alert of the split line stayed active, so the real
+    unqualified repeat a minute later was taken for the same alert (D-108) and got none."""
+    rt, llm = env
+    llm.judge(SPLIT, violations=[violation(RULE, SPLIT, severity="MEDIUM")])
+    await speak(rt, SPLIT)
+    await speak(rt, "in our in-house test.")
+    await rt.ctx.scheduler.advance(60_000)
+    later = "The cream gives you 38% more hydration right after you put it on."
+    llm.judge(later, violations=[violation(RULE, later, severity="MEDIUM")])
+    t = await speak(rt, later)
+    assert [x.transcript_id for x in await compliance_alerts(rt)] == [t.transcript_id]
