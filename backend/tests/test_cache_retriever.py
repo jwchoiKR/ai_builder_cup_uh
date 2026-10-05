@@ -24,9 +24,11 @@ def test_answer_cache_invalidation_by_intent():
 
 
 def test_triage_normalisation():
-    assert normalise_comment("  How much is the CREAM??  ") == "how much is the cream"
-    assert normalise_comment("price? 😍😍") == "price"
-    assert triage_cache_key("How much is the cream?", CREAM) == triage_cache_key("how much is the cream", CREAM)
+    assert normalise_comment("  How much is the   CREAM??  ") == "how much is the cream??"
+    # D-211: punctuation and emoji are part of the key
+    assert normalise_comment("price? 😍😍") == "price? 😍😍"
+    assert triage_cache_key("nice!", "p") != triage_cache_key("nice?", "p")
+    assert triage_cache_key("How much is the  cream?", CREAM) == triage_cache_key("how much is the cream?", CREAM)
     assert triage_cache_key("price?", CREAM) != triage_cache_key("price?", AMPOULE)
     t = TriageCache()
     t.put("k", {"kind": "question", "group_candidate_id": "grp_1"})

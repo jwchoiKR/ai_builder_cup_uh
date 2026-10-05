@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import re
-import unicodedata
 from dataclasses import dataclass, field
 
 from .grouping import normalise_question
@@ -23,11 +22,9 @@ def answer_cache_key(
 
 
 def normalise_comment(text: str) -> str:
-    """Lowercase, trim, collapse spaces, strip trailing punctuation and emoji."""
-    t = re.sub(r"\s+", " ", text.lower()).strip()
-    while t and (unicodedata.category(t[-1])[0] in "PS" or t[-1].isspace()):
-        t = t[:-1]
-    return t
+    """Lowercase, trim, collapse spaces. D-211 (full review P3): punctuation and emoji stay, so "nice!" and
+    "nice?" (a reaction and a question) or an exclamation before a question never share a triage result."""
+    return re.sub(r"\s+", " ", text.lower()).strip()
 
 
 def triage_cache_key(text: str, context_product_id: str | None, host_line: str | None = None) -> str:
