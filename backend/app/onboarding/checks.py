@@ -226,7 +226,16 @@ def lean_items(result: OnboardingResult, risk: list[dict], file_texts: dict[str,
     keep = [x for x in keep if x["group"] != "audit"] + audits[:1]
     keep = _family([x for x in keep if x["group"] == "product"]) + [x for x in keep if x["group"] != "product"]
     keep.sort(key=lambda x: _GROUP_ORDER.get(x["group"], 9))  # stable: the order inside a group stays
-    return keep[:LEAN_MAX], keep[LEAN_MAX:], auto
+    # D-257 (second sealed pool: a folded caution held a result's qualifier): governance items and items about a
+    # qualified result (two or more of its words) are never folded; the cap applies to the rest
+    words = lambda t: {w for w in re.findall(r"\w{4,}", t.casefold()) if not w.isdigit()}  # noqa: E731
+    results = [words(f"{q.statement} {q.qualifier}") for q in r.qualified_results]
+    pinned = lambda x: x["group"] == "governance" or any(len(words(x["label"]) & w) >= 2 for w in results)  # noqa: E731
+    pins = [x for x in keep if pinned(x)]
+    rest = [x for x in keep if not pinned(x)]
+    room = max(0, LEAN_MAX - len(pins))
+    shown = [x for x in keep if pinned(x) or x in rest[:room]]
+    return shown, rest[room:], auto
 
 
 def summary(items: list[dict]) -> dict:

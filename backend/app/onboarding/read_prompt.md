@@ -20,7 +20,8 @@ Rules:
 - Variants: one per size or version sold. Use the document's code or SKU as `variant_id` when there is one.
 - Offers: `combinable` is whether the offer combines with other offers or discount codes as the files state (null
   when they do not say); `conditions` lists every other term as written (exclusions, limits per order or customer,
-  eligibility, which sizes or variants count).
+  eligibility, which sizes or variants count), with their comparison words and edge cases as written ("more than
+  S$60; exactly S$60 does not qualify", "two small sizes do not count as one large").
 - Offers: percent off, amount off, fixed price, buy X get Y, a gift over a spend, a bundle of variants. Copy the
   stated terms, rounding rule, dates and duration; do not compute prices that are not written.
 - Ingredients: name, amount and unit as written, and `per`: what the amount is for as written ("bottle", "capsule",
@@ -32,8 +33,11 @@ Rules:
   claims the files say must not be used. `avoid_saying`: pairs of "do not say X, say Y" as written.
 - `qualified_results`: test or study results with numbers. `provenance` from the files: in_house (our own test),
   third_party_lab (a named lab or institute), certifier (a named certification body), clinical, consumer_panel, other. `qualifier` is the wording that must
-  go with the result ("in our in-house test", "tested by <lab>"); `marker` is the footnote mark when there is one.
-- `cautions`: every warning, contraindication and "stop using / consult a doctor" line.
+  go with the result ("in our in-house test", "tested by <lab>"); `marker` is the footnote mark when there is one;
+  `conditions` are the test's conditions as written (indoor, dry skin, without meals, after 8 hours, N participants),
+  null when none are stated.
+- `cautions`: every warning, contraindication and "stop using / consult a doctor" line, and every market or channel
+  limit (a price valid only in one market, online only, not sold in a market).
 - `category`: the regulatory product type, what the product is, never who it is for. When CATEGORIES is given, it is
   the one entry of that list that fits best (a legging is "apparel", a serum "cosmetic", a baby body wash "body_care");
   otherwise one lower-case word or snake_case term. `category_evidence` quotes how the files describe the product.
@@ -41,6 +45,8 @@ Rules:
   women", "men"), with `target_group_evidence`; empty when the files name no group.
 - `generic_word`: the category word viewers use for it ("cream", "serum", "shampoo"); `short_names`: the shorter
   names the files use for this product, without the generic word alone.
+- Archived, superseded, old or discontinued documents or sections: their values go only to `conflicts` (with their
+  dates), never to cautions, key facts, claims or any other current field.
 - Conflicts: when files disagree on a value (two prices, two sizes, two dates), list both in `conflicts` with their
   evidence and effective dates if given. Still fill the field with the value of the newest dated version when the
   files make that clear; otherwise leave the field empty and list it in `missing`.

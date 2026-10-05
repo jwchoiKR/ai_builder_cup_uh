@@ -108,6 +108,7 @@ class QualifiedResult(_Model):
     provenance: Literal["in_house", "third_party_lab", "certifier", "clinical", "consumer_panel", "other"]
     qualifier: str  # the wording the host must say with it ("in our in-house test", "tested by <lab>")
     marker: str | None = None  # "*", "†", "※" when the document marks it
+    conditions: str | None = None  # D-257: the test's conditions as written ("indoor, after 8 hours")
     evidence: list[Evidence]
 
 
