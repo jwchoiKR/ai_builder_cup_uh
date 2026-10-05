@@ -134,3 +134,13 @@ def test_a_set_question_always_uses_the_on_air_product(catalog, pack):
                              catalog, set_price) == (AMPOULE, "context")
     first = catalog.order[0]
     assert attribute_product("set price?", triage(None, "unknown", "set_price"), None, catalog, set_price)[0] == first
+
+
+def test_d213_triage_decides_the_product_and_aliases_are_only_candidates(catalog, pack):
+    intent = pack.intents_by_name["price"]
+    # triage named the ampoule; the alias "cream" in the text does not override it
+    assert attribute_product("Is it cheaper than the cream?", triage(AMPOULE, "explicit"), CREAM, catalog,
+                             intent) == (AMPOULE, "explicit")
+    # no product from triage: the one alias candidate is used
+    assert attribute_product("how much is the cream?", triage(None, "unknown"), AMPOULE, catalog,
+                             intent) == (CREAM, "explicit")
