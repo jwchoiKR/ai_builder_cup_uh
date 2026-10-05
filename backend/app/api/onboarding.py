@@ -43,6 +43,11 @@ async def _read_files(files: list[UploadFile]) -> list[tuple[str, bytes]]:
 async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
                      ctx: AppContext = Depends(get_ctx)) -> dict:
     data = await _read_files(files)
+    return start_job(ctx, data, hints)
+
+
+def start_job(ctx: AppContext, data: list[tuple[str, bytes]], hints: str = "", on_done=None) -> dict:
+    """The read in the background; `on_done(result)` runs after a successful read (the test drive caches it)."""
     job_id = "onb_" + uuid.uuid4().hex[:12]
     _jobs[job_id] = {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None, "error": None}
 
@@ -57,6 +62,8 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
                 (ctx.settings.onboarding_path / job_id / "result.json").write_text(
                     json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
                 _jobs[job_id].update(status="done", result=out)
+                if on_done is not None:
+                    on_done(out)
             except UnsupportedFile as e:
                 _jobs[job_id].update(status="failed", error=str(e))
             except Exception as e:  # noqa: BLE001 - reported on the job
@@ -65,6 +72,13 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
 
     ctx.scheduler.spawn(run(), name=f"onboarding:{job_id}")
     return {"job_id": job_id, "status": "queued"}
+
+
+def done_job(data: list[tuple[str, bytes]], result: dict) -> dict:
+    """A job whose read is already known (the test drive's cached sample)."""
+    job_id = "onb_" + uuid.uuid4().hex[:12]
+    _jobs[job_id] = {"job_id": job_id, "status": "done", "files": [n for n, _ in data], "result": result, "error": None}
+    return _jobs[job_id]
 
 
 class ApproveBody(BaseModel):
