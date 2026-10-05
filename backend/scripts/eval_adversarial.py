@@ -8,10 +8,14 @@ not only the raw judges. A case is one `utterance`, or `parts` fed as consecutiv
     uv run python scripts/eval_adversarial.py --from-json ../docs/eval/adversarial-tune.json --cases ...
 
 Pass lines (fixed before results): risky lines caught >= 95%, 0 wrong HIGH, false alerts on safe lines
-<= 5%, 0 wrong correction texts.
+<= 5%, 0 wrong correction texts, extra wrong alerts on risky lines <= 5%.
 
-`expected.also_ok_rule_ids` (optional): a compliance alert with one of these rules is accepted for an
-ambiguous line. It is never a wrong HIGH or a false alert (a safe line keeps no error); on a risky line
+D-197 (full review, P1): a risky line counts as caught only with the expected rule or field, and for a fact line
+with the expected correct value in the correction; an alert of the right kind with another rule or field is not a
+catch. Every other alert on a risky line (another rule, another field, the other kind) is an extra wrong alert.
+
+`expected.also_ok_rule_ids` / `expected.also_ok_fields` (optional): a compliance alert with one of these rules,
+or a fact alert on one of these fields, is accepted for an ambiguous line or a line with a second true error. It is never a wrong HIGH or a false alert (a safe line keeps no error); on a risky line
 it counts as caught.
 """
 from __future__ import annotations
@@ -38,7 +42,15 @@ from app.pipelines.utterances import operator_switch  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
 
 PART_GAP_S = 0.4
-PASS = {"detection": 0.95, "false_alert": 0.05}
+# D-197: the labels name a fact by what the host said ("live_price", "panthenol"); the fact checker's fields are
+# app.models.agent_io.FactField
+LABEL_FIELDS = {"live_price": "price", "list_price": "price", "panthenol": "ingredient_amount",
+                "niacinamide": "ingredient_amount"}
+
+
+def _field(label: str | None) -> str | None:
+    return LABEL_FIELDS.get(label, label) if label else label
+PASS = {"detection": 0.95, "false_alert": 0.05, "extra_wrong": 0.05}
 
 
 def load_cases(name: str) -> list[dict]:
@@ -106,20 +118,28 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
         case = by_id[r["id"]]
         exp = case["expected"]
         also_ok = set(exp.get("also_ok_rule_ids") or [])
+        also_fields = {_field(x) for x in exp.get("also_ok_fields") or []}
+        field = _field(exp.get("field"))
         # alerts the label accepts for an ambiguous line are left out of every error count
-        alerts = [a for a in r["alerts"] if not (a["kind"] == "compliance" and a["rule_id"] in also_ok)]
+        alerts = [a for a in r["alerts"] if not (a["kind"] == "compliance" and a["rule_id"] in also_ok)
+                  and not (a["kind"] == "fact" and a["field"] in also_fields and a["field"] != field)]
         accepted = [a for a in r["alerts"] if a not in alerts]
         row = {"id": r["id"], "run": r["run"], "type": case["type"], "risky": exp["risky"], "kind": exp.get("kind"),
                "alerts": alerts + accepted}
         if exp["risky"]:
             hits = [a for a in alerts if _kind(a) == exp["kind"]]
-            row["caught"] = bool(hits) or bool(accepted)
+            labelled = exp.get("rule_id") or exp.get("field")
             exact = [a for a in hits if (exp.get("rule_id") and a["rule_id"] == exp["rule_id"])
-                     or (exp.get("field") and a["field"] == exp["field"])]
-            row["exact"] = bool(exact) if (exp.get("rule_id") or exp.get("field")) else row["caught"]
+                     or (field and a["field"] == field)] if labelled else hits
             # the expected right value is compared with the alert of the expected field only
-            same_field = [a for a in hits if not exp.get("field") or a["field"] == exp["field"]]
+            same_field = [a for a in hits if not field or a["field"] == field]
             row["wrong_text"] = any(_wrong_text(a, exp.get("correct_value")) for a in same_field)
+            # D-197: caught = the right rule or field, with the right value in a fact correction
+            right = [a for a in exact if not _wrong_text(a, exp.get("correct_value"))]
+            row["caught"] = bool(right) or bool(accepted)
+            row["exact"] = row["caught"]
+            row["extra"] = [a for a in alerts if a not in exact]
+            row["extra_wrong"] = bool(row["extra"])
             # a red alert is wrong when the line's risk is not a HIGH compliance claim
             row["wrong_high"] = any(a["severity"] == "HIGH" for a in alerts) and exp["kind"] != "compliance"
         else:
@@ -129,6 +149,7 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
             row["false_fact"] = any(a["kind"] == "fact" for a in alerts)
             row["wrong_high"] = row["false_high"]
             row["wrong_text"] = False
+            row["extra_wrong"] = False
         rows.append(row)
     risky = [x for x in rows if x["risky"]]
     safe = [x for x in rows if not x["risky"]]
@@ -136,10 +157,11 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
     false_rate = sum(x["false_alert"] for x in safe) / len(safe) if safe else 0.0
     wrong_high = sum(x["wrong_high"] for x in rows)
     wrong_text = sum(x["wrong_text"] for x in rows)
+    extra_rate = sum(x["extra_wrong"] for x in risky) / len(risky) if risky else 0.0
     return {"rows": rows, "detection": detection, "false_rate": false_rate, "wrong_high": wrong_high,
-            "wrong_text": wrong_text,
+            "wrong_text": wrong_text, "extra_rate": extra_rate,
             "passed": detection >= PASS["detection"] and wrong_high == 0 and false_rate <= PASS["false_alert"]
-            and wrong_text == 0,
+            and wrong_text == 0 and extra_rate <= PASS["extra_wrong"],
             "runs": len({x["run"] for x in rows})}
 
 
@@ -151,6 +173,7 @@ def write_report(s: dict, cases: list[dict], out: Path, name: str) -> None:
             c["risky"] += 1
             c["caught"] += x["caught"]
             c["exact"] += x["exact"]
+            c["extra"] += x["extra_wrong"]
         else:
             c["safe"] += 1
             c["false"] += x["false_alert"]
@@ -166,23 +189,25 @@ def write_report(s: dict, cases: list[dict], out: Path, name: str) -> None:
         "per case (post-validation, merge, dedupe and corrections included).", "",
         f"**{'PASS' if s['passed'] else 'FAIL'}** · detection {s['detection']:.1%} (≥ 95%) · wrong HIGH "
         f"{s['wrong_high']} (0) · false alerts {s['false_rate']:.1%} (≤ 5%) · wrong correction texts "
-        f"{s['wrong_text']} (0)", "",
-        "| type | risky caught | right rule/field | safe with an alert | HIGH | MEDIUM | fact note | wrong HIGH | "
+        f"{s['wrong_text']} (0) · risky lines with an extra wrong alert {s['extra_rate']:.1%} (≤ 5%)", "",
+        "Caught means the expected rule or field, and the right value in a fact correction (D-197).", "",
+        "| type | risky caught | extra wrong alert | safe with an alert | HIGH | MEDIUM | fact note | wrong HIGH | "
         "wrong text |", "|---|---|---|---|---|---|---|---|---|",
     ]
     for t, c in sorted(by_type.items()):
-        lines.append(f"| {t} | {pct(c['caught'], c['risky'])} | {pct(c['exact'], c['risky'])} | "
+        lines.append(f"| {t} | {pct(c['caught'], c['risky'])} | {pct(c['extra'], c['risky'])} | "
                      f"{pct(c['false'], c['safe'])} | {c['false_high']} | {c['false_medium']} | {c['false_fact']} | "
                      f"{c['wrong_high']} | {c['wrong_text']} |")
     misses = [x for x in s["rows"] if x["risky"] and not x["caught"]]
     falses = [x for x in s["rows"] if not x["risky"] and x["false_alert"]]
     bad = [x for x in s["rows"] if x["wrong_high"] or x["wrong_text"]]
+    extra = [x for x in s["rows"] if x["extra_wrong"]]
     by_id = {c["case_id"]: c for c in cases}
     text = lambda x: " / ".join(by_id[x["id"]].get("parts") or [by_id[x["id"]]["utterance"]])  # noqa: E731
     shown = lambda x: "; ".join(f"{a['kind']} {a['rule_id'] or a['field']} {a['severity'] or ''}"  # noqa: E731
                                 for a in x["alerts"]) or "none"
     for title, items in (("Missed risky lines", misses), ("Alerts on safe lines", falses),
-                         ("Wrong HIGH or wrong correction text", bad)):
+                         ("Wrong HIGH or wrong correction text", bad), ("Extra wrong alerts on risky lines", extra)):
         lines += ["", f"## {title}", ""]
         lines += [f"- {x['id']} run {x['run']} ({x['type']}): \"{text(x)}\" → {shown(x)}" for x in items] or ["- none"]
     out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
@@ -225,7 +250,7 @@ async def main() -> int:
     s = score(raw, cases)
     write_report(s, cases, args.out, args.cases)
     print(f"{'PASS' if s['passed'] else 'FAIL'} detection {s['detection']:.1%} wrong HIGH {s['wrong_high']} "
-          f"false alerts {s['false_rate']:.1%} wrong texts {s['wrong_text']}")
+          f"false alerts {s['false_rate']:.1%} wrong texts {s['wrong_text']} extra wrong {s['extra_rate']:.1%}")
     return 0 if s["passed"] else 1
 
 
