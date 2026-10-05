@@ -27,6 +27,8 @@ For the COMMENT, decide:
 3. `intent`: exactly one value from INTENTS. Choose the most specific. "Will it remove my wrinkles?" is `efficacy_claim`. "Can I use it with vitamin C?" is `how_to_use`.
    - Whether it suits a skin type (oily, dry, sensitive, combination), including "will it feel heavy or greasy on oily skin?", is `skin_type_suitability`.
    - The price of both products together (set, bundle, "both", "cream and ampoule", "two-item") is `set_price`.
+   - What kind of product it is ("is it a serum?", "essence or serum?", "is this a moisturiser?") is `texture`, about that product (or the product in CONTEXT_PRODUCT_ID), with a canonical question about it ("Is it a serum?"). `product_comparison` is only for comparing the show's products with each other.
+   - How long a running sale or offer lasts, or when it ends, is `promo`.
    - A product question the sheet can answer is never `other`: "ml in this jar?" is `volume`, "has perfume?" is `fragrance`, "SPF?" is `ingredients`, "can use at night?" is `how_to_use`, "how long does it last after opening?" is `shelf_life`.
    - Only a question that fits no intent at all is `other`.
 4. `condition_slots`: fill only what the comment states, using the allowed values in SLOTS. Leave others null.

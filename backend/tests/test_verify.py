@@ -106,7 +106,8 @@ def test_promo_passage_text(pack, catalog):
     p = promo_passage(pack.promos_by_id["promo_time_sale_10"], catalog)
     assert p.passage_id == "PROMO#promo_time_sale_10" and p.section == "Active promotion"
     assert p.text == ("Time sale price (extra 10% off the live price): Hydra Barrier Cream S$32.40; "
-                      "Deep Hydration Ampoule S$28.80; Hydra Barrier Cream + Deep Hydration Ampoule set S$55.80.")
+                      "Deep Hydration Ampoule S$28.80; Hydra Barrier Cream + Deep Hydration Ampoule set S$55.80. "
+                      "Runs for 10 minutes.")  # D-164
 
 
 PANTH = ("DL-CR-01#key-ingredients#panthenol", "Panthenol: 5%")
