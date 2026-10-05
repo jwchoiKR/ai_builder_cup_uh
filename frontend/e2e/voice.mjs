@@ -52,7 +52,7 @@ export function voiceTools({ base, auth }) {
           const m = JSON.parse(e.data);
           if (m.type === "status" && m.state === "listening") res();
           if (m.type === "status" && m.state === "error") rej(new Error(m.message));
-          if (m.type === "final") this.finals.push(m);
+          if (m.type === "final") this.finals.push({ ...m, at: Date.now() }); // arrival, to match the spoken line
         };
         this.ws.onerror = () => rej(new Error("audio websocket error"));
       });
