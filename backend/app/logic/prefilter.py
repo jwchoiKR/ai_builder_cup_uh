@@ -12,6 +12,15 @@ if TYPE_CHECKING:
     from .lexicon import Lexicon
 
 _URL = re.compile(r"https?://|www\.|\b\w+\.(?:com|net|org|sg|ly|io|co|example)\b", re.IGNORECASE)
+# D-234: the whole link, to remove it from a comment that is still a question
+_LINK = re.compile(r"(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|sg|my|ly|io|co|example)\b(?:/\S*)?",
+                   re.IGNORECASE)
+LINK_REMOVED = "[link removed]"
+
+
+def mask_links(text: str) -> str:
+    """D-234: a comment's links replaced by "[link removed]"; the rest of the comment stays."""
+    return _LINK.sub(LINK_REMOVED, text)
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
 
 @dataclass(frozen=True)
@@ -47,8 +56,13 @@ def prefilter(text: str, lex: "Lexicon") -> PrefilterVerdict:
         return PrefilterVerdict("hide", "personal_info", "email address")
     if lex.phone.search(text):
         return PrefilterVerdict("hide", "personal_info", "phone number")
-    if _URL.search(text):
-        return PrefilterVerdict("hide", "link", "link or domain")
+    if _URL.search(text) or LINK_REMOVED in text:
+        # D-234 (injection eval: a viewer question with a link was hidden): a comment with a link and a question mark
+        # goes on without its link (to triage: a real question or spam); a link without a question stays hidden
+        rest = mask_links(text).replace(LINK_REMOVED, " ")
+        if "?" not in rest or _letters(rest) < 3:
+            return PrefilterVerdict("hide", "link", "link or domain without a question")
+        text = rest
     if _profanity().search(text):
         return PrefilterVerdict("hide", "profanity", "profanity list")
     letters = _letters(text)

@@ -17,7 +17,7 @@ from ..agents.answer_composer import ComposeInput, gather_passages
 from ..agents.comment_triage import TriageInput
 from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
 from ..logic.grouping import find_group, is_open, join_group, slots_compatible
-from ..logic.prefilter import PrefilterVerdict, prefilter
+from ..logic.prefilter import PrefilterVerdict, mask_links, prefilter
 from ..logic.product_mapping import attribute_product, set_question
 from ..logic.promos import promo_passage, promo_state
 from ..logic.routing import is_composable, route_for
@@ -53,6 +53,7 @@ async def submit_comment(
     now = rt.now()
     rt.check_rate(author_id, now)
     # D-191 arms D and E: no prefilter beyond Model Armor; triage decides every comment
+    text = mask_links(text)  # D-234: the link itself never shows in chat or reaches a model; the question does
     verdict = PrefilterVerdict(None) if arms.agents_decide(rt.settings.DESIGN_ARM) else prefilter(text, rt.catalog.lexicon)
     comment = Comment(
         comment_id=rt.new_id("cm_"), author_id=author_id, author_name=author_name.strip() or "Viewer",
