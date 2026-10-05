@@ -230,6 +230,9 @@ class UtterancePipeline:
             self._addenda[t.transcript_id] = t  # D-151: "That's from our in-house test." after a number
         # 1. store, emit
         await rt.ctx.store.put(rt.path("transcripts"), t.transcript_id, t)
+        # D-162: the exact STT split of a replay, for probing a false alert (D-158 lines carry the transcript id)
+        log.info("final %s %s: %r%s", rt.sid, t.transcript_id, t.text[:100],
+                 f" (merged with {merge.prev.transcript_id})" if merge else "")
         await rt.emit("transcript.final", t)
         if not rt.assistant:
             return  # D-139: no reflex chip, no judge, no prompter coverage

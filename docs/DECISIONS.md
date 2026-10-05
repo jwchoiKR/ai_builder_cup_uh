@@ -916,3 +916,5 @@ D-161: A red alert blocks AI PD cards for 20 s, then waits as a header chip (pla
 - The show-replay driver still never dismisses compliance alerts, so replays show the real solo case.
 - To revert: set `RED_BLOCK_MS` very large in both places.
 - Tests: an uncorrected red blocks the card while fresh, the card shows after the block while the red stays active (fails without the change); red_blocks by created and escalated time, MEDIUM and corrected never; host screen: a red past 20 s shows the chip and the card, an escalation brings the full red back.
+
+D-162: Every final logs its text, cut to 100 characters, with the transcript it was merged with (`final <sid> <transcript>: '<text>' (merged with <transcript>)`), so one replay gives the exact STT split behind a false alert and the split can be probed (planning session: the pregnancy-caution red did not reproduce with any of 9 guessed splits).
