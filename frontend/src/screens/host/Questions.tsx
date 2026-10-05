@@ -62,12 +62,15 @@ export function Questions({
   card,
   onDismiss,
   correcting = false,
+  unanswered = 0,
 }: {
   slots: HostSlotView[];
   card?: PdCardType | null;
   onDismiss?: (cardId: string) => void;
   /** a HIGH alert is up: one instruction on screen, so the Q hint gives way */
   correcting?: boolean;
+  /** D-178: solo show: how many questions only the operator could answer (no card, nothing posted) */
+  unanswered?: number;
 }) {
   const t = useT();
   const isQuestion = !!card && QUESTION_KINDS.has(card.kind);
@@ -128,6 +131,11 @@ export function Questions({
           <Pin aria-hidden />
           {t("Questions stay in place while you speak")}
         </span>
+        {unanswered > 0 && (
+          <span className="tabular" data-testid="host-unanswered">
+            {t("{n} unanswered questions", { n: unanswered })}
+          </span>
+        )}
       </footer>
     </section>
   );

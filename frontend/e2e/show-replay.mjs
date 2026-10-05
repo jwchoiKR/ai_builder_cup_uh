@@ -255,12 +255,16 @@ function score(show, run) {
       // the host answered it aloud (not posted): viewers heard the answer, no operator action needed
       handling = "answered_on_air";
       at = Math.min(...gs.map((g) => run.seen.transcripts[g.host_verbal_answer_transcript_id]?.received_at ?? Infinity));
+    } else if (gs.some((g) => g.route === "OPERATOR")) {
+      // D-178: no verified answer, shop policy or the previous product: the operator's list (team) or the solo
+      // host's unanswered count; still an operator action
+      handling = "to_operator";
     }
     const ms = at === Infinity || !mine.length ? null : at - firstAsk;
     const detail = groupDetail(run, qg, mine, gs, list);
     return { id: qg.id, intent: qg.intent, answerable: qg.answerable, asks: mine.length, groups: gs.length,
       handling, ms, late: ms !== null && ms > LATE_MS, on_list_only: handling === "never" && list !== Infinity,
-      ...detail, reason: handling === "never" || handling === "deferred_honestly" ? detail.reason : null };
+      ...detail, reason: ["never", "deferred_honestly", "to_operator"].includes(handling) ? detail.reason : null };
   });
   // (e) wrong or stale posts: an AI post for a question the script marks unanswerable; a post made after a
   // promo started with an answer written before it, for a price question
@@ -277,7 +281,7 @@ function score(show, run) {
         && promoAt.some((p) => ans.created_at < p && (m.published_at ?? m.created_at) >= p)) stale.push({ group: g.group_id, text: m.text });
   }
   // (d) operator actions needed: every planted error or question group the assistant did not handle
-  const unhandled = errors.filter((e) => !e.alerted).length + questions.filter((q) => q.handling === "never").length;
+  const unhandled = errors.filter((e) => !e.alerted).length + questions.filter((q) => ["never", "to_operator"].includes(q.handling)).length;
   const byKind = {};
   for (const e of errors) {
     const k = (byKind[e.kind] ??= { planted: 0, alerted: 0, within_3s: 0 });
@@ -291,7 +295,7 @@ function score(show, run) {
       lookalikes: { total: lookalikes.length, red: lookalikes.filter((l) => l.red).length, yellow: lookalikes.filter((l) => l.yellow).length },
       questions: { total: questions.length, auto_answered: handled("auto_answered"), host_card: handled("host_card"),
         deferred_honestly: handled("deferred_honestly"), posted: handled("posted"),
-        answered_on_air: handled("answered_on_air"), never: handled("never"),
+        answered_on_air: handled("answered_on_air"), to_operator: handled("to_operator"), never: handled("never"),
         late: questions.filter((q) => q.late).length },
       operator_actions: unhandled, wrong_posts: wrong.length, stale_posts: stale.length,
     },
@@ -320,6 +324,7 @@ function markdown(results) {
     row("questions on a host card", (s) => `${s.questions.host_card}/${s.questions.total}`);
     row("questions deferred honestly", (s) => `${s.questions.deferred_honestly}/${s.questions.total}`);
     row("questions answered on air (not posted)", (s) => `${s.questions.answered_on_air}/${s.questions.total}`);
+    row("questions sent to the operator (solo: count only)", (s) => `${s.questions.to_operator ?? 0}/${s.questions.total}`);
     row("questions never handled", (s) => `${s.questions.never}/${s.questions.total}`);
     row("questions handled late (> 60 s)", (s) => `${s.questions.late}`);
     row("operator actions needed", (s) => `${s.operator_actions}`);

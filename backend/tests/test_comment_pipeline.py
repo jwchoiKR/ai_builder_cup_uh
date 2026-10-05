@@ -159,7 +159,7 @@ async def test_rate_limit_per_author(rt):
 async def test_operator_actions(rt):
     await say(rt, "Tom", "Do you ship to Malaysia?")
     [g] = await groups(rt)
-    assert g.route == "HOST"  # D-140: a solo show; the operator's actions work on any route
+    assert g.route == "OPERATOR"  # D-178: shop policy goes to the operator, solo too; actions work on any route
     with pytest.raises(ActionError, match="verified draft"):
         await ops.approve(rt, g.group_id)
     with pytest.raises(ActionError, match="restricted phrase"):
@@ -390,10 +390,10 @@ async def test_llm_draft_check_keeps_a_failed_draft_for_the_operator(verdict):
         ctx.scheduler.shutdown()
 
 
-@pytest.mark.parametrize("show_mode, route", [("solo", "HOST"), ("team", "OPERATOR")])
-async def test_no_verified_answer_goes_to_the_host_in_a_solo_show(show_mode, route):
-    """D-135: an AUTO question whose draft fails verification. In a solo show nobody watches the operator
-    list, so it waits on the host's list with the honest deferral; in a team show the operator gets it."""
+@pytest.mark.parametrize("show_mode, route", [("solo", "OPERATOR"), ("team", "OPERATOR")])
+async def test_no_verified_answer_goes_to_the_operator_in_both_modes(show_mode, route):
+    """D-178 (user decision, replaces D-135's solo host card): an AUTO question whose draft fails verification goes
+    to the operator list (team) or only to the host's unanswered count (solo); never on the host's list."""
     import json
 
     from app.providers.llm import RawReply
@@ -421,8 +421,9 @@ async def test_no_verified_answer_goes_to_the_host_in_a_solo_show(show_mode, rou
         ctx.scheduler.shutdown()
 
 
-async def test_the_pd_offers_the_honest_deferral_for_a_question_without_an_answer():
-    """D-135: the host's card for a question with no verified answer carries the fixed deferral line."""
+async def test_a_sensitive_question_without_an_answer_goes_to_the_operator():
+    """D-178: a sensitive question the sheet does not answer is no host card (it was D-135's deferral card); only
+    when the operator pushes it to the host does the card carry the fixed deferral line."""
     import json
 
     from app.providers.llm import RawReply
@@ -441,7 +442,9 @@ async def test_the_pd_offers_the_honest_deferral_for_a_question_without_an_answe
     try:
         await say(rt, "Mei", "Can I use the cream on my eczema?")
         [g] = await groups(rt)
-        assert (g.route, g.status) == ("HOST", "needs_review")
+        assert (g.route, g.status) == ("OPERATOR", "needs_review")
+        assert (await rt.load_session()).host_slots == [] and (await rt.pd._state()).questions == []
+        await ops.push_to_host(rt, g.group_id)
         st = await rt.pd._state()
         [q] = [q for q in st.questions if q.group_id == g.group_id]
         assert q.answer == ctx.pack.notices.host_deferrals["sensitive_solo"]
@@ -451,7 +454,7 @@ async def test_the_pd_offers_the_honest_deferral_for_a_question_without_an_answe
 
 
 async def test_a_later_verified_draft_takes_the_intents_route_again():
-    """D-135 (comment-flow CF11): the first draft timed out, so the price group waited on the host's list;
+    """D-135 (comment-flow CF11): the first draft timed out, so the price group went to the operator (D-178);
     when a later asker brings a verified draft, the group is AUTO again and the answer is posted."""
     from .judge_fakes import ScriptedBackend
 
@@ -471,7 +474,7 @@ async def test_a_later_verified_draft_takes_the_intents_route_again():
     try:
         await say(rt, "Lee", "How much is the cream?")
         [g] = await groups(rt)
-        assert (g.route, g.route_reason) == ("HOST", "no_verified_answer")
+        assert (g.route, g.route_reason) == ("OPERATOR", "no_verified_answer")
         await rt.ctx.scheduler.advance(3000)
         await say(rt, "Kumar", "How much is the cream?")
         [g] = await groups(rt)
@@ -504,25 +507,19 @@ async def test_assistant_off_stores_and_shows_but_never_answers():
 
 
 @pytest.mark.parametrize("show_mode", ["solo", "team"])
-async def test_general_questions_wait_on_the_host_list_in_a_solo_show(show_mode):
-    """D-140 (step F): shipping and the like in a solo show wait on the host's list and get the general
-    deferral card at HOST_REPEAT_THRESHOLD askers; in a team show the operator keeps them."""
+async def test_shop_policy_questions_go_to_the_operator_in_both_modes(show_mode):
+    """D-178 (user decision, replaces D-140 step F): shipping and the like never reach the host's list or a card,
+    however many ask; the operator list has them (team), the host's unanswered count (solo)."""
     ctx = make_ctx()
     rt = await live_runtime(ctx, show_mode)
     try:
-        for name in ("Tom", "Amy"):
+        for name in ("Tom", "Amy", "Raj"):
             await say(rt, name, "Do you ship to Malaysia?")
             await rt.ctx.scheduler.advance(3000)
         [g] = await groups(rt)
-        on_host = [sl.group_id for sl in (await rt.load_session()).host_slots]
-        if show_mode == "team":
-            assert g.route == "OPERATOR" and g.group_id not in on_host
-            return
-        assert (g.route, g.route_reason, g.status) == ("HOST", "general", "needs_review") and g.group_id in on_host
-        assert [q for q in (await rt.pd._state()).questions if q.group_id == g.group_id] == []  # 2 askers: no card
-        await say(rt, "Raj", "Do you ship to Malaysia?")
-        [q] = [q for q in (await rt.pd._state()).questions if q.group_id == g.group_id]
-        assert q.answer == ctx.pack.notices.host_deferrals["general_solo"]
+        assert (g.route, g.route_reason, g.status) == ("OPERATOR", "intent", "needs_review")
+        assert (await rt.load_session()).host_slots == [] and (await rt.pd._state()).questions == []
+        assert await messages(rt) == []
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
@@ -817,6 +814,38 @@ async def test_d176_a_triage_failure_is_retried_once():
         await say(rt, "Lee", "How much is the cream?")
         [g] = await groups(rt)
         assert g.route_reason != "ai_unavailable" and g.status == "auto_answered"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+@pytest.mark.parametrize("show_mode", ["solo", "team"])
+async def test_a_switch_moves_the_previous_products_questions_to_the_operator(show_mode):
+    """D-178 (user decision): after a product switch the host sees only questions about the product on air. The
+    previous product's waiting questions, and new ones about it, go to the operator list (team) or the host's
+    unanswered count (solo); an AI-answered one stays answered."""
+    from app.pipelines.utterances import operator_switch
+
+    ctx = make_ctx()
+    rt = await live_runtime(ctx, show_mode)
+    try:
+        await say(rt, "Raj", "Is the cream OK for oily skin?")
+        await say(rt, "Lee", "How much is the cream?")
+        oily = next(g for g in await groups(rt) if g.intent == "skin_type_suitability")
+        price = next(g for g in await groups(rt) if g.intent == "price")
+        assert oily.route == "HOST" and price.status == "auto_answered"
+        assert [sl.group_id for sl in (await rt.load_session()).host_slots] == [oily.group_id]
+        await operator_switch(rt, "ampoule_deep_hydration")
+        oily, price = await rt.get_group(oily.group_id), await rt.get_group(price.group_id)
+        assert (oily.route, oily.route_reason, oily.status) == ("OPERATOR", "previous_product", "ready")
+        assert (price.route, price.status) == ("AUTO", "auto_answered")
+        await say(rt, "Mei", "Can I use the cream in the morning?")
+        later = next(g for g in await groups(rt) if g.intent == "how_to_use")
+        assert (later.product_id, later.route, later.route_reason) == (CREAM, "OPERATOR", "previous_product")
+        await say(rt, "Ann", "Is the ampoule OK for oily skin?")
+        amp = next(g for g in await groups(rt) if g.product_id == "ampoule_deep_hydration")
+        assert amp.route == "HOST"
+        assert [sl.group_id for sl in (await rt.load_session()).host_slots] == [amp.group_id]
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()

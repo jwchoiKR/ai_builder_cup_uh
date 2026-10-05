@@ -409,6 +409,21 @@ describe("audience questions", () => {
     expect(screen.getByTestId(`host-question-${g.group_id}`)).toHaveTextContent("Posting answer…");
   });
 
+  it("D-178: a solo host sees only how many questions wait for the operator; a team host sees nothing", () => {
+    const groups = [
+      group({ group_id: "grp_ship", product_id: null, intent: "shipping", route: "OPERATOR", status: "needs_review" }),
+      group({ group_id: "grp_prev", route: "OPERATOR", route_reason: "previous_product", status: "ready" }),
+      group({ group_id: "grp_done", route: "OPERATOR", status: "answered" }),
+      group({ group_id: "grp_host", route: "HOST", status: "ready" }),
+    ];
+    render(view({ session: session({ show_mode: "solo" }), groups }));
+    expect(screen.getByTestId("host-unanswered")).toHaveTextContent("2 unanswered questions");
+    expect(screen.queryByTestId("host-question-grp_ship")).toBeNull();
+    cleanup();
+    render(view({ session: session({ show_mode: "team" }), groups }));
+    expect(screen.queryByTestId("host-unanswered")).toBeNull();
+  });
+
   it("D-127: empty state is one dim line, not a block", () => {
     render(view());
     expect(screen.getByText("No questions waiting.")).toBeInTheDocument();
