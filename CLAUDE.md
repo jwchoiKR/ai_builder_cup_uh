@@ -62,5 +62,10 @@ Cloud: `live-studio-us` revision 00009-qcf runs 41411fd (deployed 10/6 morning, 
 - Host tester: one real host session with the assistant off/on (correction success, intervention time, alerts per hour), real voice latency.
 - Workflow/performance verifier: owns pool 4+ and reruns; reads `docs/decks/workflow_detail.html` and proof-plan first.
 
+### Next deploy: GCS onboarding store (user-approved 10/6 morning, option A)
+- Why: Cloud Run scales to zero and `ONBOARDING_DIR` lived inside the container, so uploads, releases, law packs and brand packs vanished after idle time or a redeploy. Now they are written through to `gs://separk-cloocus-live-studio-onboarding` (setting `ONBOARDING_GCS_BUCKET`); `VERIFY_MODE` defaults to `lean`.
+- The user deploys from the office PC: `git pull`, `gcloud auth login` (first time), `bash deploy/cloudrun.sh`. The script creates the bucket (private, uniform access, us-central1) and grants `live-studio-run` `roles/storage.objectAdmin` on that bucket only.
+- Cloud check after the deploy (any session can do it): get a token with `bash deploy/iap-token.sh https://live-studio-us-110085173686.us-central1.run.app`; `GET /api/health` shows the bucket; upload one product (any fictional doc set from `data/onboarding_dev/`) with `POST /api/onboarding/jobs`, poll `GET /api/onboarding/jobs/{id}`, approve with `POST /api/onboarding/jobs/{id}/approve`; confirm the objects exist with `gcloud storage ls gs://separk-cloocus-live-studio-onboarding/onboarding/releases/`; force a fresh instance (redeploy, or wait ~15 min idle); then `POST /api/sessions {"release_id": ...}` must succeed and the release must still be listed. Also check the FD context cache on the first fact check (no "context cache creation failed" in Cloud Logging). Report the result to the user in Korean.
+
 ### User-only (never without approval)
 - Deploy (`! bash deploy/cloudrun.sh`), IAM/IAP changes, login removal, new cloud resources, Gemini Live arm timing.
