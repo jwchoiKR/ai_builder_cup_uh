@@ -39,6 +39,13 @@ def product_key(record: ProductRecord) -> str:
     return f"{latin}_{digest}" if latin != "item" else f"p_{digest}"
 
 
+def has_law(rules) -> bool:
+    """D-248: a law or brand rule runs; the test-result qualifier rule alone (it comes with the record) is none."""
+    from ..logic.qualifier import RULE_ID
+
+    return any(r.rule_id != RULE_ID for r in rules.rules)
+
+
 def law_applies(base: DataPack, category: str) -> bool:
     """D-227: the market's law pack covers this product category (its own category or one it lists in `covers`)."""
     m = base.market
@@ -182,8 +189,12 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
         terms = [o.title]
         if o.percent:
             terms.append(f"{o.percent}% off")
-        if o.amount is not None:
-            terms.append(f"amount {money_of(o.amount)}")
+        if o.amount is not None:  # D-248: say what the amount is (a threshold read as a price was missed)
+            label = {"amount_off": "amount off", "fixed_price": "fixed price", "spend_threshold_gift": "minimum spend",
+                     "bundle": "bundle price"}.get(o.kind, "amount")
+            terms.append(f"{label} {money_of(o.amount)}")
+        if o.gift:
+            terms.append(f"gift: {o.gift}")
         if o.buy and o.get:
             terms.append(f"buy {o.buy} get {o.get}")
         if o.starts or o.ends:
@@ -326,6 +337,14 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
         found = lawpack_for(lawpacks, base.market.market, record.category)
         if found is not None:
             rules = rules.model_copy(update={"rules": to_rules(*found), "policy_id": found[0]})
+    from ..logic.qualifier import RULE_ID as QUALIFIER_RULE
+
+    if record.qualified_results and QUALIFIER_RULE not in {x.rule_id for x in rules.rules}:
+        # D-248 (sealed run: a supplement under a law pack built from documents never got the qualifier alert): the
+        # test-result qualifier rule comes with the record's qualified results, whatever law pack the category gets
+        rule = next((x for x in base.rules.rules if x.rule_id == QUALIFIER_RULE), None)
+        if rule is not None:
+            rules = rules.model_copy(update={"rules": [*rules.rules, rule]})
     if lawpacks is not None:
         # D-241: the brand's own approved rules are added on top (restrict only: no law rule is removed or replaced)
         from .lawpack import brandpack_for, to_rules as _to_rules

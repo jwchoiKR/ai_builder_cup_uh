@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from ..context import AppContext, get_ctx
 from ..onboarding.files import MAX_BYTES, UnsupportedFile
 from ..onboarding.pipeline import onboard_files
+from ..onboarding.release import has_law
 from ..pipelines.runtime import ActionError
 
 log = logging.getLogger(__name__)
@@ -113,7 +114,7 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
         pack = release_pack(ctx.pack, record, "rel_check_v1", ctx.settings.onboarding_path, translations)
     except Exception as e:  # noqa: BLE001
         raise ActionError(409, "release_not_buildable", str(e)) from None
-    warnings = [] if pack.rules.rules else [
+    warnings = [] if has_law(pack.rules) else [
         f"no law pack for {record.category} in {ctx.pack.market.market}: only brand-level checks run"]
     for lang, t in translations.items():
         lines = [*t.get("approved_claims", []), *t.get("cautions", []), *t.get("avoid_saying", [])]
@@ -131,7 +132,7 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
 def _live_summary(pack, record) -> dict:
     """D-231/D-234: what the show will get, in plain words."""
     rules = pack.rules
-    law = (f"{len(rules.rules)} rules from {rules.policy_id}" if rules.rules else "no law checks for this category")
+    law = (f"{len(rules.rules)} rules from {rules.policy_id}" if has_law(rules) else "no law checks for this category")
     p = pack.products.products[0]
     return {"law": law, "law_rules": len(rules.rules), "cautions": len(record.cautions),
             "approved_claims": len(record.approved_claims), "not_approved_claims": len(record.not_approved_claims),

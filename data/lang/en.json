@@ -570,6 +570,7 @@
       "before the sale",
       "outside the sale"
     ],
+    "comparison_cues": ["more than", "over", "above", "at least", "exceeds", "exceed", "exceeding", "minimum", "min", "or more", "and above", "or above", "less than", "under", "below", "up to", "at most", "or less", "maximum", "max"],
     "absence_cues": [
       "no",
       "not",
