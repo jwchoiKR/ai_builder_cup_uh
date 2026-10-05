@@ -1,6 +1,7 @@
 """FactChecker agent (DEV_SPEC §7.4): checks product facts in one host sentence against the sheets."""
 from __future__ import annotations
 
+import contextvars
 import logging
 import re
 from decimal import Decimal
@@ -55,11 +56,18 @@ def _from_quote(correct: str, quote: str) -> bool:
     return any(other[i:i + 2] in q for i in range(len(other) - 1))
 
 
+# D-250: the eval collects the drops of one case here (a list set by the caller; tasks inherit it)
+DROPS: contextvars.ContextVar[list | None] = contextvars.ContextVar("fact_drops", default=None)
+
+
 def _drop(c, why: str) -> None:
     """D-248 (sealed FR run: 3 of 4 right model corrections dropped in silence): code may overrule the model, but
     never silently; the reason is logged with the claim."""
     log.info("fact claim dropped by code: %s | field=%s stated=%r correct=%r passage=%s", why, c.field,
              c.stated_value, c.correct_value, c.passage_id)
+    if (sink := DROPS.get()) is not None:
+        sink.append({"reason": why, "field": c.field, "stated": c.stated_value, "correct": c.correct_value,
+                     "passage_id": c.passage_id, "quote": c.quote})
     c.verdict = "not_in_sources"
 
 
@@ -221,12 +229,14 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                                   and not TEST_CITED.search(utterance)):
             _drop(c, "field other, or a test result the line does not cite")
             continue
-        said, right = number_set(c.stated_value or ""), number_set(c.correct_value or "")
+        lex = catalog.lexicon
+        # D-250: numbers in digits or words ("twelve months after opening" states 12)
+        nums = lambda t: number_set(t or "") | lex.spoken_numbers(t or "")  # noqa: E731
+        said, right = nums(c.stated_value), nums(c.correct_value)
         # D-207: the same number in another unit or currency ("12 years" vs "12 months", "RM36" vs "S$36") is a
         # real contradiction, not a restatement
         units_differ = bool(_units(c.stated_value) and _units(c.correct_value)
                             and _units(c.stated_value) != _units(c.correct_value))
-        lex = catalog.lexicon
         host = f"{c.stated_value or ''} {c.span or ''}"
         threshold = _threshold_differs(lex, host, c, said)
         if (((said and said == right and not units_differ)
@@ -257,26 +267,34 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                   and _proven_absent(c.stated_value or "", passages, c.product_id))  # D-207
         elif c.passage_id is not None:
             p = by_id.get(c.passage_id)
-            ok = (p is not None and c.quote is not None and quote_in_passage(c.quote, p.text)
-                  and c.correct_value is not None and number_set(c.correct_value) <= number_set(c.quote)
-                  # D-244 L1: the correction is a value the quote states (a number, or the quote's words);
-                  # "not disclosed" or "not specified" is no source value, so the claim is unverifiable
-                  and (bool(number_set(c.correct_value)) or _from_quote(c.correct_value, c.quote))
-                  # D-244 L1 (sealed FR run): a stated number "corrected" by words is a value SOURCE does not give
-                  # ("lasts 24 months" -> "No period after opening is given"); presence of an ingredient is the
-                  # exception ("2% retinol" -> "free from retinol")
-                  and (c.field == "ingredient" or not number_set(c.stated_value or "")
-                       or bool(number_set(c.correct_value)))
-                  # Claim wording is compliance (the judge's job), never a product fact (D-048).
-                  and p.section != CLAIMS_SECTION)
+            # D-250: each check names itself, so a drop says which one failed
+            checks = (
+                ("unknown passage", lambda: p is not None),
+                ("quote not in the passage", lambda: c.quote is not None and quote_in_passage(c.quote, p.text)),
+                ("a number of the correction is not in the quote",
+                 lambda: c.correct_value is not None and right <= nums(c.quote)),
+                # D-244 L1: the correction is a value the quote states (a number, or the quote's words);
+                # "not disclosed" or "not specified" is no source value, so the claim is unverifiable
+                ("L1: the correction states no value of the quote",
+                 lambda: bool(right) or _from_quote(c.correct_value, c.quote)),
+                # D-244 L1 (sealed FR run): a stated number "corrected" by words is a value SOURCE does not give
+                # ("lasts 24 months" -> "No period after opening is given"); presence of an ingredient is the
+                # exception ("2% retinol" -> "free from retinol")
+                ("L1: a stated number corrected without a number",
+                 lambda: c.field == "ingredient" or not said or bool(right)),
+                # Claim wording is compliance (the judge's job), never a product fact (D-048).
+                ("an approved-claims passage", lambda: p.section != CLAIMS_SECTION),
+            )
+            failed = next((name for name, check in checks if not check()), None)
+            ok = failed is None
         elif c.field in PRICE_FIELDS and promo is not None and promo.changes_prices:
             ok = c.correct_value == catalog.price_display(c.product_id, promo) or (
                 c.field == "promo" and _promo_term(c, promo))
         if not ok and c.field == "promo" and c.passage_id is None:
             ok = any(_offer_threshold(c, o) for o in offers)
         if not ok:
-            _drop(c, "no source check passed (passage, quote, numbers in the quote, L1 source value)")
-        elif c.quote and ((not number_set(c.correct_value or "")
+            _drop(c, (failed if c.passage_id is not None and failed else "no source check passed"))
+        elif c.quote and ((not right
                            and (c.correct_value or "").strip().lower() in host.lower())
                           or (said and said == right and threshold)):
             # D-244 L8: a bare field word the host already said ("fragrance" for "no fragrance") is no line to say;

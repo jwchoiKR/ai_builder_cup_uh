@@ -819,7 +819,8 @@ def test_d247_fd_the_files_are_cached_per_release_with_an_empty_prefix():
     assert len(contents) == 3 and contents[-1] == "line"
 
 
-async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of) -> list[dict]:
+async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of, row_out: dict | None = None
+                        ) -> list[dict]:
     """D-248: one host line through the real pipeline (eval_adversarial.run_case) on a made-up release; the fact
     checker's output is scripted from the release's own passages by `claim_of(pid, passages)`."""
     import sys
@@ -846,6 +847,8 @@ async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+    if row_out is not None:
+        row_out.update(row)
     return [a for a in row["alerts"] if a["kind"] == "fact"]
 
 
@@ -859,9 +862,12 @@ async def test_d248_a_stated_number_corrected_by_no_value_never_reaches_the_host
         return _claim(pid, p, field="shelf_life", stated_value="24 months",
                       correct_value="No period after opening is given")
 
+    row: dict = {}
     alerts = await _release_line(tmp_path, monkeypatch, {"cautions": [{"text": "Patch test first.", "evidence": EV}]},
-                                 "It lasts twenty four months after opening.", claim)
+                                 "It lasts twenty four months after opening.", claim, row)
     assert alerts == []
+    # D-250: the eval row says which code check overruled the model
+    assert [d["reason"] for d in row["dropped"]] == ["L1: the correction states no value of the quote"]
 
 
 async def test_d248_ingredient_presence_both_ways_reaches_the_host(tmp_path, monkeypatch):
@@ -953,3 +959,24 @@ async def test_d249_the_coverage_audit_lists_what_the_record_lacks_and_checks_it
     items = [x for x in check_items(res, "risk", law="15 rules") if x["group"] == "coverage"]
     assert len(items) == 3 and "spec.txt (line 2)" in items[0]["reason"] and "not found" in items[1]["reason"]
     assert len([x for x in check_items(res, "full", law="15 rules") if x["group"] == "coverage"]) == 3
+
+
+async def test_d250_a_correction_in_number_words_is_a_number(tmp_path, monkeypatch):
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text == "Use within twelve months after opening.")
+        return _claim(pid, p, field="shelf_life", stated_value="24 months", correct_value="twelve months after opening")
+
+    [a] = await _release_line(tmp_path, monkeypatch,
+                              {"how_to_use": [{"text": "Use within twelve months after opening.", "evidence": EV}]},
+                              "Use it within twenty-four months after opening.", claim)
+    assert a["correct_value"] == "twelve months after opening"
+
+
+def test_d250_the_panel_or_the_hours_never_name_an_in_house_source(pack):
+    from app.agents.utterance_judge import names_the_source
+
+    line = "hydration was 18% above baseline eight hours after one application in 22 adults"
+    lex = pack.lexicon
+    assert not names_the_source(line, "Hydration up 18% after 8 hours (in our in-house test with 22 adults)", lex)
+    assert not names_the_source(line, "Hydration up 18% after 8 hours (consumer test with 22 adults)", lex)
+    assert names_the_source("Kestrel Dermal Labs found 21 of 24", "21 of 24 (tested by Kestrel Dermal Labs)", lex)
