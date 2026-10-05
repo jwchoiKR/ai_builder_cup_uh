@@ -1384,3 +1384,11 @@ D-259: Pool-2 classes in general form: corrections in the show's language, offer
 - **Unlisted ingredients:** an ingredient is absent from the sheet when any of its words is missing ("pear juice" against "apple juice"). The complete list or "Free from" still has to prove it (D-207).
 - **Negated cautions:** a new fact field `caution`. A line that tells viewers to skip or reverse a caution is contradicted with that caution as the correction, even when the line also breaks a rule. A compliance alert on a line that negates one of the product's cautions gets that caution as its say-instead line, not an unrelated approved claim (`negated_caution`).
 - **Not changed:** usage intervals dropped by D-151 (item 5). The drop records are needed first.
+
+D-260: Live-only fixes for the final pool-2 run: a result said in number words keeps its qualifier alert, compliance drops are logged, opposite polarity is no restatement, a failed compliance call is retried once, and availability is a fact field (candidate aa995d1: pool 1 93.2%; logic, prompt).
+- **Number words in results:** `qualifier.approved_replacement` also reads the line's spoken numbers. "eight hours" matched no result, so the judge's BRAND-TEST-QUALIFIER was dropped as "matches no test result".
+- **Compliance drops logged:** `validate_compliance` logs every violation it drops ("compliance violation dropped by code: <reason>") and adds it to the eval row's `dropped` list with the reason prefixed "compliance:". The reasons are an unknown rule, the line names our own test, it matches no test result, or it names the test's source.
+- **Polarity (D-151):** a negation on only one side ("exactly S$40 qualifies" against "Exactly S$40 does not qualify") makes the same number a different fact.
+- **Compliance retry:** in split3, a compliance call that times out, errors or comes back invalid is made once more, like the fact check (D-203).
+- **Availability:** a new fact field `availability`. Channels (online only, retail counters) and markets with their limits are checkable.
+- **Codes as names (item 4):** no change. `_same_substance` compares only Latin name words of 4 or more letters, so "CI 77491" against "CI 77499" is not dropped as another substance. A code swap reaches the alert.

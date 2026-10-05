@@ -1326,3 +1326,67 @@ def test_d259_a_negated_caution_is_corrected_by_that_caution(pack):
                                                 "stated_value": "no need to stop", "verdict": "contradicted",
                                                 "correct_value": caution, "passage_id": None, "quote": None}],
                                     "reason": "t"})
+
+
+async def test_d260_a_result_said_in_number_words_keeps_its_qualifier_alert(tmp_path, monkeypatch):
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import eval_adversarial
+
+    from app.onboarding.release import product_key, save_release
+
+    from .judge_fakes import violation
+
+    real_sleep = __import__("asyncio").sleep
+    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
+    line = "This tint stays non-transferring for eight hours."
+    result = [{"statement": "Non-transferring for 8 hours", "numbers": ["8"], "provenance": "third_party_lab",
+               "qualifier": "tested by Larkspur Labs, report LL-77", "marker": None, "conditions": None,
+               "evidence": EV}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(qualified_results=result)))
+    rid = save_release(tmp_path, rec, "job")
+    monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
+    backend = ScriptedBackend()
+    backend.judge(line, violations=[violation("BRAND-TEST-QUALIFIER", "stays non-transferring for eight hours",
+                                              severity="MEDIUM")])
+    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
+    case = {"case_id": "Q", "type": "t", "current_product_id": product_key(rec), "utterance": line,
+            "expected": {"risky": True, "kind": "compliance"}}
+    try:
+        row = await eval_adversarial.run_case(ctx, case, 0)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert [a["rule_id"] for a in row["alerts"]] == ["BRAND-TEST-QUALIFIER"] and row["dropped"] == []
+
+
+async def test_d260_opposite_polarity_is_no_restatement_and_availability_is_a_field(tmp_path, monkeypatch):
+    from app.models.agent_io import FactCheckOutput
+
+    facts = [{"text": "Exactly S$40 does not qualify; orders above S$40 get the gift.", "evidence": EV}]
+
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text == facts[0]["text"])
+        return _claim(pid, p, field="promo", stated_value="exactly S$40 qualifies",
+                      correct_value="Exactly S$40 does not qualify.", quote="Exactly S$40 does not qualify")
+
+    assert await _release_line(tmp_path, monkeypatch, {"key_facts": facts}, "Exactly forty dollars qualifies.", claim)
+    FactCheckOutput.model_validate({"claims": [{"span": "x", "field": "availability", "product_id": "p",
+                                                "stated_value": "in stores", "verdict": "contradicted",
+                                                "correct_value": "online only", "passage_id": None, "quote": None}],
+                                    "reason": "t"})
+
+
+async def test_d260_a_failed_compliance_call_is_made_once_more():
+    from app.pipelines.utterances import UtterancePipeline
+    from app.providers.llm import AgentResult
+
+    calls = []
+
+    async def call():
+        calls.append(1)
+        return AgentResult("timeout" if len(calls) == 1 else "ok", None, 10, "c", None, {})
+
+    res = await UtterancePipeline._once_more(call)
+    assert res.status == "ok" and len(calls) == 2

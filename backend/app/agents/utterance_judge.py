@@ -4,6 +4,7 @@ in one call (`JUDGE_MODE=split`). `JUDGE_MODE=single` adds the fact check to the
 the input values, checks and rule-based fallbacks here are shared with it."""
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -18,6 +19,8 @@ from ..models.session import Alert, HostCue, QuestionGroup, SwitchState
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
 from . import arms, fact_checker, inputs
+
+log = logging.getLogger(__name__)
 
 GROUP_REF, ALERT_REF = "@group:", "@alert:"
 STATIC_JUDGE_KEYS = frozenset({"current_product_json", "run_sheet_compact_json",
@@ -68,6 +71,16 @@ def qualified_say(say: str, on_air, catalog: Catalog) -> str:
     r = qualifier.approved_replacement(say, on_air, [p for p in catalog.products if p is not on_air], lex)
     numbers = {w for w in lex.content_words(say) if w.isdigit()}
     return r.say if r is not None and numbers & set(r.numbers) else say
+
+
+def _cdrop(v, why: str) -> None:
+    """D-260: a judge's violation code drops is logged with its reason, and collected for the eval like fact drops."""
+    from .fact_checker import DROPS
+
+    log.info("compliance violation dropped by code: %s | rule=%s span=%r", why, v.rule_id, v.span)
+    if (sink := DROPS.get()) is not None:
+        sink.append({"reason": f"compliance: {why}", "field": v.rule_id, "stated": v.span, "correct": None,
+                     "passage_id": None, "quote": None})
 
 
 _GENERIC_QUALIFIER = frozenset({"test", "tested", "testing", "our", "own", "house", "in-house", "independent", "lab",
@@ -147,6 +160,11 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
     lead_in = (bool(prev) and catalog.lexicon.is_qualified(prev[0]) and not any(ch.isdigit() for ch in prev[0])
                and len(prev[0].split()) <= LEAD_IN_MAX_WORDS)
     qualified = catalog.lexicon.is_qualified(text) or lead_in
+    for v in o.compliance.violations:
+        if v.rule_id not in rules:
+            _cdrop(v, "unknown rule")
+        elif v.rule_id == qualifier.RULE_ID and qualified:
+            _cdrop(v, "the line names our own test")
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
                                and not (v.rule_id == qualifier.RULE_ID and qualified)]
     # D-148 (sealed show replay): STT made "Acne, um, no no," its own final and the judge flagged the word
@@ -179,8 +197,10 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air],
                                                catalog.lexicon)
             if r is None:
+                _cdrop(v, "D-116: the line matches no test result")
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
             if names_the_source(text, r.say, catalog.lexicon):
+                _cdrop(v, "D-244 L7: the line names the test's source")
                 continue  # D-244 L7: the host named who ran the test or certified it: that is the qualifier
             v.say_instead = r.say
         else:

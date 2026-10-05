@@ -300,8 +300,8 @@ class UtterancePipeline:
                 inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
-                comp_task = rt.spawn(self.compliance.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
-                                                         values=values), name=f"compliance:{t.transcript_id}")
+                comp_task = rt.spawn(self._once_more(lambda: self.compliance.run(
+                    inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)), name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
                                                      values=values), name=f"context:{t.transcript_id}")
             else:
@@ -432,6 +432,16 @@ class UtterancePipeline:
         rt.sync_doc_version()
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
+
+    @staticmethod
+    async def _once_more(call):
+        """D-260 (candidate aa995d1: one compliance call failed, so a negated caution got no alert): a compliance call
+        that times out, errors or comes back invalid is made once more, like the fact check (D-203)."""
+        res = await call()
+        if res.status in ("timeout", "error", "invalid"):
+            log.info("compliance check %s: once more", res.status)
+            res = await call()
+        return res
 
     async def warm_facts_cache(self, on_air: str) -> None:
         """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
