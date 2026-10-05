@@ -417,7 +417,8 @@ class UtterancePipeline:
 
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
                          parts: list[str] | None = None) -> AgentResult:
-        passages = await self._fact_passages(text, on_air, judge_input.switch)
+        # D-172: a product the last lines named stays citable ("the ampoule on its own is $32," / "list price 42")
+        passages = await self._fact_passages(" ".join([*judge_input.previous[-1:], text]), on_air, judge_input.switch)
         s = await self.rt.load_session()
         offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
         return await self.facts.run(
