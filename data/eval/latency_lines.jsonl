@@ -79,7 +79,7 @@
 {"text": "This is a massive seventy-five millilitre jar that will last you months.", "product": "cream_hydra_barrier", "kind": "fact", "field": "volume", "correct_value": "50 mL", "src": "H047", "id": "LT079"}
 {"text": "There's two percent squalane in the cream.", "product": "cream_hydra_barrier", "kind": "fact", "field": "ingredient_amount", "correct_value": "3%", "src": "new", "id": "LT080"}
 {"text": "This jar holds eighty milliliters of product.", "product": "cream_hydra_barrier", "kind": "fact", "field": "volume", "correct_value": "50 mL", "src": "AV045", "id": "LT081"}
-{"text": "It contains 5% panthenol and 4% niacinamide.", "product": "cream_hydra_barrier", "kind": "fact", "field": "ingredient", "correct_value": "not in this product", "src": "AV123", "id": "LT082"}
+{"text": "It contains 8% panthenol and 1% ceramide NP.", "product": "cream_hydra_barrier", "kind": "fact", "field": "ingredient_amount", "correct_value": "5% panthenol", "src": "AV123 (rewritten 10/5 night: absence is not provable under D-207)", "id": "LT082"}
 {"text": "The cream's pH is seven.", "product": "cream_hydra_barrier", "kind": "fact", "field": "ph", "correct_value": "5.5 (plus or minus 0.5)", "src": "new", "id": "LT083"}
 {"text": "The ampoule has 4% niacinamide and 3% squalane.", "product": "ampoule_deep_hydration", "kind": "fact", "field": "ingredient", "correct_value": "not in this product", "src": "AV124", "id": "LT084"}
 {"text": "You can use it for twenty-four months after opening.", "product": "cream_hydra_barrier", "kind": "fact", "field": "shelf_life", "correct_value": "12 months after opening", "src": "new", "id": "LT085"}
