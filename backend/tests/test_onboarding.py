@@ -513,7 +513,7 @@ def test_d242_record_mode_gives_the_fact_checker_every_size_market_offer_and_sup
                     "effective_dates": ["2026-09-01", "2026-10-01"], "note": "", "evidence": ev}])))
     ctx = make_ctx()
     try:
-        sheet = release_pack(ctx.pack, rec, "rel_x_v1", None)
+        sheet = release_pack(ctx.pack, rec, "rel_x_v1", None, fact_mode="sheet")
         record = release_pack(ctx.pack, rec, "rel_x_v1", None, fact_mode="record")
         assert not [p for p in sheet.passages if p.section == "Record facts"]
         facts = [p.text for p in record.passages if p.section == "Record facts"]
@@ -584,3 +584,54 @@ async def test_d243_routing_turns_tests_and_certifications_into_qualified_result
     assert r.qualified_results[0].numbers == ["21", "24"] and r.qualified_results[0].evidence == r.key_facts[0].evidence
     assert [c.text for c in r.cautions] == ["Keep the applicator clean.", "Results may vary between users."]
     assert "Keep the applicator clean." in [h.text for h in r.how_to_use]  # kept in the directions too
+
+
+def test_d244_l1_a_contradiction_without_a_source_value_is_unverifiable(pack, catalog):
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    cream = "cream_hydra_barrier"
+    quote = "Live broadcast price: S$36.00"
+    pid = "DL-CR-01#key-facts#live-broadcast-price"
+    claim = {"span": "x", "field": "other", "product_id": cream, "stated_value": "5 mg vitamin E",
+             "verdict": "contradicted", "correct_value": "not disclosed", "passage_id": pid, "quote": quote}
+    out = FactCheckOutput.model_validate({"claims": [claim | {"field": "ingredient_amount"}], "reason": "t"})
+    assert post_validate(out, pack.passages, catalog, None).claims[0].verdict == "not_in_sources"
+
+
+def test_d244_l2_l3_offer_totals_and_written_terms_reach_the_fact_checker():
+    from app.onboarding.release import release_pack
+
+    ev = [{"file": "f", "locator": "l", "quote": "Buy 2 get 1 free; not combinable with other offers"}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(offers=[
+        {"offer_id": "o1", "kind": "buy_x_get_y", "title": "Buy 2 get 1", "variant_ids": [], "percent": None,
+         "amount": None, "buy": 2, "get": 1, "gift": None, "rounding": None, "starts": None, "ends": None,
+         "duration_min": None, "evidence": ev}])))
+    ctx = make_ctx()
+    try:
+        facts = [p.text for p in release_pack(ctx.pack, rec, "rel_x_v1", None).passages if p.section == "Record facts"]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    [offer] = [t for t in facts if t.startswith("Offer:")]
+    assert "pay for 2 = S$72.00 for 3 items" in offer and "not combinable with other offers" in offer
+    assert "Live unit price S$36.00; 2 units S$72.00; 3 units S$108.00" in facts
+
+
+def test_d244_l7_naming_the_lab_is_saying_the_qualifier(pack):
+    from app.agents.utterance_judge import names_the_source
+
+    say = "21 of 24 saw smoother texture (tested by Kestrel Dermal Labs)"
+    assert names_the_source("Kestrel Dermal Labs found 21 of 24 saw smoother texture", say, pack.lexicon)
+    assert not names_the_source("21 of 24 saw smoother texture", say, pack.lexicon)
+    assert not names_the_source("our test: 45% more", "Hydration +45% (in our in-house test)", pack.lexicon)
+
+
+def test_d244_l4_to_l6_and_presence_rules_reach_the_fact_checker():
+    from app.agents import arms
+    from app.config import get_settings
+
+    fr = arms._addenda(str(get_settings().prompts_path))[("FR", "fact_checker")]
+    for rule in ("never with\n  the unit price", "Every number with a unit", "Price terms", "describing an old value",
+                 "Free from", "Only contradict with a value SOURCE states"):
+        assert rule in fr

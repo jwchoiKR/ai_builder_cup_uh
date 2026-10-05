@@ -77,10 +77,25 @@ Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from t
   different term said for that offer is `contradicted` (field `promo`), with the passage's term.
 - Test results: a "Test result" passage says the qualifier the result must be said with; that is compliance, not a
   fact: do not list a missing qualifier here.
+- Offers and totals: when the host states a total for several items, a bundle or an offer ("44 for two", "buy two
+  get one"), compare it with the offer's terms and its computed totals ("pay for 2 = ...", "2 units ..."), never with
+  the unit price. An offer's threshold, its comparison ("more than", "at least"), whether it combines with other offers
+  and which items it covers are checkable terms ("terms as written").
+- Every number with a unit anywhere in SOURCE is checkable, wherever it appears (key facts, how to use, cautions):
+  periods after opening, hours, days, uses, pumps, drops, counts.
+- Price terms in SOURCE (tax included or not, delivery included or not, per unit or per set) are checkable (field
+  `price`).
+- Superseded values: describing an old value as old, previous or discontinued is `supported`; saying it is current,
+  or that it is not discontinued, is `contradicted`.
+- An ingredient the host says the product contains, which a "Free from" statement or a complete ingredient list in
+  SOURCE excludes, is `contradicted` (field `ingredient`), with that statement as the correction.
+- Only contradict with a value SOURCE states. When SOURCE does not give the value ("not disclosed"), the claim is
+  `not_in_sources`.
 
 ## FR: compliance_judge
 
 Fact mode "record" (D-242): QUALIFIED_RESULTS lists the product's test results, each with the qualifier it must be
 said with (an in-house test, a named laboratory, a clinical study: the wording in brackets). A host who states one of
-these results (the same numbers) without that qualifier breaks the test-result rule in RULES, whoever ran the test.
+these results (the same numbers) without that qualifier breaks the test-result rule in RULES, whoever ran the test. Naming
+who ran the test or who certified it (the laboratory or body in the qualifier) is saying the qualifier.
 

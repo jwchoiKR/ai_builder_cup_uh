@@ -70,6 +70,21 @@ def qualified_say(say: str, on_air, catalog: Catalog) -> str:
     return r.say if r is not None and numbers & set(r.numbers) else say
 
 
+_GENERIC_QUALIFIER = frozenset({"test", "tested", "testing", "our", "own", "house", "in-house", "independent", "lab",
+                                "laboratory", "study", "studies", "clinical", "certified", "certification", "results",
+                                "result", "consumer", "panel", "participants", "approved"})
+
+
+def names_the_source(text: str, say: str, lex) -> bool:
+    """D-244 L7: the qualifier of a result names its source ("tested by Kestrel Labs", "certified by the Vegan
+    Society"); a line that names that source carries the qualifier, whatever words it uses around it."""
+    m = re.search(r"\(([^()]*)\)\s*$", say)
+    if m is None:
+        return False
+    source = {w for w in lex.content_words(m.group(1)) if w not in _GENERIC_QUALIFIER and not w.isdigit()}
+    return bool(source) and bool(source & set(lex.content_words(text)))
+
+
 def approved_say(say: str, on_air, catalog: Catalog) -> str:
     """D-209 (full review P2): the say-instead line is approved wording, never the model's own sentence: the on-air
     product's approved claim or "say instead" wording that covers most of what the model suggested (the first
@@ -137,6 +152,8 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                                                catalog.lexicon)
             if r is None:
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
+            if names_the_source(text, r.say, catalog.lexicon):
+                continue  # D-244 L7: the host named who ran the test or certified it: that is the qualifier
             v.say_instead = r.say
         else:
             v.say_instead = approved_say(v.say_instead, on_air_product, catalog)
