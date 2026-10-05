@@ -192,4 +192,5 @@ async def read_product(llm: LLMClient, parts: list[ModelPart], *, hints: str = "
         notes.append(f"cautions: {len(added)} added by the caution pass")
     return OnboardingResult(record=record, method="gemini_whole",
                             models={"read": f"{model} ({thinking})", "cautions": f"{model} ({CAUTION_THINKING})"},
-                            seconds=round(time.perf_counter() - t0, 1), notes=notes)
+                            seconds=round(time.perf_counter() - t0, 1), notes=notes,
+                            caution_pass_added=[c.text for c in added])

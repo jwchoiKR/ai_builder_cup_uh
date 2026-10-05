@@ -51,7 +51,8 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
             _jobs[job_id]["status"] = "reading"
             try:
                 result = await onboard_files(ctx.llm, ctx.settings.onboarding_path, job_id, data,
-                                             hints=hints[:500])
+                                             hints=hints[:500], base_pack=ctx.pack,
+                                             verify_mode=ctx.settings.VERIFY_MODE)
                 out = result.model_dump(mode="json")
                 (ctx.settings.onboarding_path / job_id / "result.json").write_text(
                     json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")

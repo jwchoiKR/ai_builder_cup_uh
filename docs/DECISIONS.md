@@ -1249,3 +1249,9 @@ D-234: A link no longer hides a viewer's question (injection eval v2: a benign q
 - A question with a link but no "?" is still hidden by the prefilter; the operator can unhide it (triage then runs).
 
 D-235: Adversarial scorer: `expected.unverifiable` on a safe line (a fact the sheet cannot settle, e.g. an ingredient the partial sheet does not list, D-207). Silence passes and a soft fact note is not a false alert; a compliance alert still is (a HIGH one is a wrong HIGH). The report counts "unverifiable lines with a soft fact note" on its own.
+
+D-236: VERIFY_MODE arm for onboarding: `full` (default, today) or `risk` (logic; to be measured, dropped if not better).
+- Every job (API and `eval_onboarding.py --verify-mode`) now carries `checks` (each item with its group and reason) and `check_summary` (`to_check`, `by_group`).
+- `full`: every extracted value plus conflicts and missing values.
+- `risk`: only what would reach the live show. 1 product: every conflict, a size without a price, a price or size missing or not a clear number in its quote (0 wrong numbers, D-225). 2 governance: no law pack for the category (or a show that cannot be built), each test result with the qualifier wording it needs. 3 safety: cautions only the caution pass found, unreviewed translated cautions. 4 offers: no amount to compute with, no stated rounding for a price change, an offer kind the show cannot compute. Plus 2 audit samples of unflagged values (stable per record). Prose (how to use, key facts) and full ingredient lists are not checked at onboarding; the live draft verifier covers them when used. The approval screen lists the risk items under "To check".
+- Dev records (offline, same reads): P1 serum full 35 items vs risk 6 (3 price conflicts, 1 qualifier, 2 audit); P2 gummies full 22 vs risk 2 (audit only).
