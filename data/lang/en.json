@@ -14,6 +14,7 @@
         "cure",
         "cures",
         "cured",
+        "heal",
         "heals",
         "eczema",
         "dermatitis",
@@ -49,6 +50,7 @@
       "reflex_phrases": [
         "regenerate",
         "regenerates",
+        "regenerating",
         "cell renewal",
         "rebuilds collagen",
         "cellular level",
