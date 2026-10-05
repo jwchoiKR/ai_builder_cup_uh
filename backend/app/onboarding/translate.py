@@ -23,8 +23,9 @@ class Lines(_Model):
 
 
 async def translate_record(llm: LLMClient, record: ProductRecord, targets: list[str]) -> dict[str, dict]:
-    """{lang: {"approved_claims": [...], "cautions": [...], "avoid_saying": [{"say_not", "say"}], "reviewed": False}}
-    for every target language other than the record's own; a failed or mismatched translation is left out."""
+    """{lang: {"approved_claims": [{"text", "reviewed"}], "cautions": [...], "avoid_saying": [{"say_not", "say",
+    "reviewed"}]}} for every target language other than the record's own; a failed or mismatched translation is left
+    out."""
     src = Lines(approved_claims=[c.text for c in record.approved_claims], cautions=[c.text for c in record.cautions],
                 avoid_saying_not=[a.say_not for a in record.avoid_saying],
                 avoid_saying_say=[a.say for a in record.avoid_saying])
@@ -42,7 +43,9 @@ async def translate_record(llm: LLMClient, record: ProductRecord, targets: list[
         t = res.output
         if res.status != "ok" or t is None or any(len(getattr(t, k)) != len(getattr(src, k)) for k in Lines.model_fields):
             continue
-        out[lang] = {"approved_claims": t.approved_claims, "cautions": t.cautions,
-                     "avoid_saying": [{"say_not": a, "say": b} for a, b in zip(t.avoid_saying_not, t.avoid_saying_say)],
-                     "reviewed": False}
+        # D-233: every line is reviewed on its own; an unreviewed line is shown to the host but never auto-posted
+        out[lang] = {"approved_claims": [{"text": x, "reviewed": False} for x in t.approved_claims],
+                     "cautions": [{"text": x, "reviewed": False} for x in t.cautions],
+                     "avoid_saying": [{"say_not": a, "say": b, "reviewed": False}
+                                      for a, b in zip(t.avoid_saying_not, t.avoid_saying_say)]}
     return out

@@ -119,27 +119,55 @@ def promos_from_offers(record: ProductRecord, pid: str, main_variant: str, live:
     return out
 
 
-def in_language(record: ProductRecord, lang: str, translations: dict | None) -> ProductRecord:
+UNREVIEWED = " (unreviewed translation)"
+UNREVIEWED_DOC = "unreviewed-translation"
+
+
+def _line(x) -> tuple[str, bool]:
+    return (x, False) if isinstance(x, str) else (x.get("text") or x.get("say") or "", bool(x.get("reviewed")))
+
+
+def in_language(record: ProductRecord, lang: str, translations: dict | None) -> tuple[ProductRecord, set[str]]:
     """D-232: the record's host-facing lines in the show's language: its own when it is written in it, else the stored
-    translation, else none (an alert then has no replacement line; nothing is translated live)."""
+    translation, else none (an alert then has no replacement line; nothing is translated live). D-233: also the
+    translated texts not reviewed yet (claims carry a visible mark; cautions are kept out of auto-posts)."""
     if record.language.split("-")[0].lower() == lang.split("-")[0].lower():
-        return record
+        return record, set()
     t = (translations or {}).get(lang)
     ev = lambda items, i: items[i].evidence if i < len(items) else []  # noqa: E731
     if t is None:
-        return record.model_copy(update={"approved_claims": [], "avoid_saying": [], "cautions": []})
-    return record.model_copy(update={
-        "approved_claims": [Text(text=x, evidence=ev(record.approved_claims, i)) for i, x in enumerate(t["approved_claims"])],
-        "cautions": [Text(text=x, evidence=ev(record.cautions, i)) for i, x in enumerate(t["cautions"])],
-        "avoid_saying": [RecordAvoid(say_not=a["say_not"], say=a["say"], evidence=ev(record.avoid_saying, i))
-                         for i, a in enumerate(t["avoid_saying"])]})
+        return record.model_copy(update={"approved_claims": [], "avoid_saying": [], "cautions": []}), set()
+    unreviewed: set[str] = set()
+
+    def text(x) -> str:
+        s, ok = _line(x)
+        if not ok:
+            unreviewed.add(s)
+        return s if ok else s + UNREVIEWED
+
+    claims = [Text(text=text(x), evidence=ev(record.approved_claims, i)) for i, x in enumerate(t["approved_claims"])]
+    cautions = []
+    for i, x in enumerate(t["cautions"]):
+        s, ok = _line(x)
+        if not ok:
+            unreviewed.add(s)
+        cautions.append(Text(text=s, evidence=ev(record.cautions, i)))
+    avoid = [RecordAvoid(say_not=a["say_not"], say=a["say"] + ("" if a.get("reviewed") else UNREVIEWED),
+                         evidence=ev(record.avoid_saying, i)) for i, a in enumerate(t["avoid_saying"])]
+    return record.model_copy(update={"approved_claims": claims, "cautions": cautions, "avoid_saying": avoid}), unreviewed
 
 
 def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None,
                  translations: dict | None = None) -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
     assert base.market is not None
-    record = in_language(record, base.lang, translations)
+    record, unreviewed = in_language(record, base.lang, translations)
+    # D-233: a test result's marker in a claim ("in 4 weeks†") becomes the qualifier the host must say
+    for q in record.qualified_results:
+        if q.marker:
+            for c in record.approved_claims:
+                if q.marker in c.text and q.qualifier not in c.text:
+                    c.text = f"{c.text.replace(q.marker, '').rstrip()} ({q.qualifier})"
     cur, market, sym = base.market.currency.code, base.market.market, base.market.currency.symbol
     priced = [(v, _price(v.prices, "list", cur, market), _price(v.prices, "live", cur, market))
               for v in record.variants]
@@ -156,9 +184,10 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
 
     passages: list[Passage] = []
 
-    def add(section: str, key: str, text: str) -> None:
-        passages.append(Passage(passage_id=f"{code}#{_slug(section)}#{_slug(key)}", product_id=pid, doc=doc,
-                                section=section, text=text))
+    def add(section: str, key: str, text: str, unreviewed_line: bool = False) -> None:
+        # D-233: a passage from an unreviewed translation is marked, so an answer citing it is never auto-posted
+        passages.append(Passage(passage_id=f"{code}#{_slug(section)}#{_slug(key)}", product_id=pid,
+                                doc=UNREVIEWED_DOC if unreviewed_line else doc, section=section, text=text))
 
     add("Product overview", "overview", f"{record.brand} {record.product_name} ({record.category}).")
     add("Key facts", "list-price", f"List price: {money(list_price)}")
@@ -178,11 +207,13 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
     for i, h in enumerate(record.how_to_use):
         add("How to use", f"step-{i + 1}", h.text)
     for i, c in enumerate(record.cautions):
-        add("Cautions", f"caution-{i + 1}", c.text)
+        add("Cautions", f"caution-{i + 1}", c.text, c.text in unreviewed)
     for i, q in enumerate(record.qualified_results):
         add("In-house test results", f"result-{i + 1}", f"{q.statement} ({q.qualifier})")
     if record.approved_claims:
-        add("Approved on-air claims", "approved", "Approved claims: " + " ".join(c.text for c in record.approved_claims))
+        add("Approved on-air claims", "approved",
+            "Approved claims: " + " ".join(c.text.removesuffix(UNREVIEWED) for c in record.approved_claims),
+            any(c.text.endswith(UNREVIEWED) for c in record.approved_claims))
     if record.not_approved_claims:
         add("Approved on-air claims", "not-approved",
             "Claims not approved: " + " ".join(c.text for c in record.not_approved_claims))
@@ -202,7 +233,12 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
         short_name=record.short_names[0] if record.short_names else record.product_name,
         eyebrow="", tagline="", doc=doc, volume=size, list_price=float(list_price), live_price=float(live_price),
         hero_badge="", aliases=list(dict.fromkeys([record.product_name, *record.short_names])),
-        key_facts={}, prompter_points=points, approved_claims=[c.text for c in record.approved_claims],
+        # D-233: the prompter's ingredient panel: the first 4 ingredients with an amount
+        key_facts={_slug(i.name).replace("-", "_"): f"{i.amount_value}{i.amount_unit or ''}".replace("% ", "%")
+                   for i in record.ingredients if i.amount_value}
+        if len([i for i in record.ingredients if i.amount_value]) <= 4 else
+        {_slug(i.name).replace("-", "_"): f"{i.amount_value}{i.amount_unit or ''}"
+         for i in [x for x in record.ingredients if x.amount_value][:4]}, prompter_points=points, approved_claims=[c.text for c in record.approved_claims],
         not_approved_claims=[c.text for c in record.not_approved_claims],
         qualified_results=[QualifiedResult(result_id=f"{pid}-r{i + 1}", numbers=q.numbers,
                                            say=f"{q.statement} ({q.qualifier})")
