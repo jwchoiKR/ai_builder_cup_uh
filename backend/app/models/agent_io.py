@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 # ---- UtteranceJudge (§7.3) -------------------------------------------------------------------
 
@@ -72,6 +72,50 @@ class ContextOutput(BaseModel):
     reason: str
 
 
+# ---- D-187 design arm B: the meaning the model returns, which code only checks ------------------------------
+# Subclasses of the arm-A outputs, used only under DESIGN_ARM B or C. Their extra fields have defaults so a mock
+# reply still validates, but the schema sent to the model lists every field as required.
+
+
+def _all_required(schema: dict) -> None:
+    schema["required"] = list(schema.get("properties", {}))
+
+
+class _ArmB(BaseModel):
+    model_config = ConfigDict(json_schema_extra=_all_required)
+
+
+class CorrectionQuote(_ArmB):
+    alert_id: str
+    quote: str  # the exact words of the utterance that make the correction
+
+
+class CorrectionB(Correction, _ArmB):
+    quotes: list[CorrectionQuote] = []
+
+
+class ViolationB(Violation, _ArmB):
+    qualified_result_id: str | None = None  # BRAND-TEST-QUALIFIER: the in-house result the host stated
+
+
+class ComplianceB(Compliance, _ArmB):
+    violations: list[ViolationB]
+
+
+class ComplianceOutputB(ComplianceOutput, _ArmB):
+    compliance: ComplianceB
+    correction: CorrectionB
+
+
+class AnswerLinkB(AnswerLink, _ArmB):
+    numbers_said: list[str] = []  # every number the host said, as digits, in the suggested answer's unit
+    hedged: bool = False  # the host sounded unsure or took it back
+
+
+class ContextOutputB(ContextOutput, _ArmB):
+    answer: AnswerLinkB
+
+
 # ---- FactChecker (§7.4) ----------------------------------------------------------------------
 
 FactField = Literal[
@@ -133,6 +177,18 @@ class CommentTriageBatchItem(CommentTriageOutput):
 
 class CommentTriageBatchOutput(BaseModel):  # micro-batch triage (PLANNING 5.1.2)
     items: list[CommentTriageBatchItem]
+
+
+class CommentTriageOutputB(CommentTriageOutput, _ArmB):  # D-187 arm B: a shout-out is a label, not a regex
+    shoutout: Literal["purchase", "first_time", "compliment"] | None = None
+
+
+class CommentTriageBatchItemB(CommentTriageOutputB):
+    i: int
+
+
+class CommentTriageBatchOutputB(BaseModel):
+    items: list[CommentTriageBatchItemB]
 
 
 # ---- AnswerComposer (§7.6) -------------------------------------------------------------------

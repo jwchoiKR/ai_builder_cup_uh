@@ -24,6 +24,7 @@ import logging
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from ..agents import arms
 from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
 from ..agents.split_judges import ComplianceJudge, ContextJudge
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values, say_instead_fallback
@@ -33,6 +34,7 @@ from ..logic.corrections import check_correction, says_the_replacement
 from ..logic import publish as publish_logic
 from ..logic import qualifier
 from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view
+from ..logic.reflex import normalise
 from ..logic.segments import classify_switch, expire, names_product, replace_cue, step_switch, withdraw_cue
 from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
@@ -146,6 +148,8 @@ class UtterancePipeline:
             if (self._sequence[later.transcript_id] <= self._sequence[t.transcript_id]
                     or later.segment_id != t.segment_id or (merge and t.transcript_id in merge.chain)):
                 continue
+            if arms.meaning_to_llm(self.rt.settings.DESIGN_ARM):
+                return  # D-187 arm B: only the judge's quoted corrections count
             # D-117 B2: no judge decision here, so only the alert's own replacement or a retraction counts
             check = check_correction(text, a, [], self.rt.reflex)
             if check.ok:
@@ -505,7 +509,8 @@ class UtterancePipeline:
                 self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
             # D-089: an apology alone does not correct a compliance alert
-            await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now)
+            await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
+                                                 quotes=getattr(judge.correction, "quotes", None))
         # §8.4.7 a new HIGH alert resets switch counting and cancels a pending switch
         await self._high_alert_switch_reset_locked(high_before)
 
@@ -539,13 +544,26 @@ class UtterancePipeline:
                                       text=merge.text if merge else t.text)
 
     async def _apply_corrections_locked(self, t: Transcript, text: str, listed: list[str], protected: set[str],
-                                        now: int) -> None:
+                                        now: int, quotes=None) -> None:
         """Alerts the judge listed and the utterance really corrects (D-089), plus active alerts whose
         "Say this instead" wording the host just said, even if the judge missed it (D-098)."""
         rt = self.rt
         earlier = [a for a in await rt.alerts()
                    if self._sequence.get(a.transcript_id, 0) < self._sequence.get(t.transcript_id, 1)]
         correctable = [a for a in earlier if a.transcript_id not in protected]
+        if arms.meaning_to_llm(rt.settings.DESIGN_ARM):
+            # D-187 arm B: the judge says which alert the line corrects and quotes the words; code only checks that
+            # the quote (two words or more) is in what the host said. No word overlap, no replacement match.
+            heard = normalise(text)
+            ids = {a.alert_id for a in correctable if a.kind == "compliance"}
+            accepted = list(dict.fromkeys(q.alert_id for q in (quotes or []) if q.alert_id in ids
+                                          and len(normalise(q.quote).split()) >= 2 and normalise(q.quote) in heard))
+            if accepted:
+                for a in alert_logic.apply_corrections(earlier, accepted, t, now):
+                    rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
+                    await rt.save_alert(a)
+                    await rt.emit("alert.updated", a)
+            return
         accepted = self._substantive_corrections(correctable, listed, text) if listed else []
         for a in correctable:
             if (a.kind == "compliance" and a.status == "active" and a.transcript_id != t.transcript_id
@@ -778,7 +796,7 @@ class UtterancePipeline:
         answer = await rt.get_answer(group.answer_id) if group is not None else None
         decision = publish_logic.decide(judge, offered, group, answer,
                                         high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
-                                        lex=rt.catalog.lexicon,
+                                        lex=rt.catalog.lexicon, by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM),
                                         utterance=merge.text if merge else t.text,
                                         current_key=await answer_key(rt, group) if group is not None else None)
         mine = self._judged.get(t.transcript_id)
@@ -795,12 +813,18 @@ class UtterancePipeline:
                 return  # the fragment's reply is already published: nothing more for this group
             before.publish = None
         if decision.action == "none" and gid is None and offered and t.transcript_id in self._inputs:
-            # D-175: the judge linked nothing, but the line seems to answer one offered draft: ask about that one
-            cand = publish_logic.relink_candidate(merge.text if merge else t.text,
-                                                  {g: a.text for g, a in offered.items() if a is not None},
-                                                  rt.catalog.lexicon)
-            if cand is not None:
-                rt.spawn(self._relink(t, judge, facts, self._inputs[t.transcript_id], cand,
+            if arms.meaning_to_llm(rt.settings.DESIGN_ARM):
+                # D-187 arm B: no code guess of which draft the line answers; the context judge is asked once more
+                # with every offered draft
+                cands = [g for g, a in offered.items() if a is not None]
+            else:
+                # D-175: the judge linked nothing, but the line seems to answer one offered draft: ask about that one
+                cand = publish_logic.relink_candidate(merge.text if merge else t.text,
+                                                      {g: a.text for g, a in offered.items() if a is not None},
+                                                      rt.catalog.lexicon)
+                cands = [cand] if cand is not None else []
+            if cands:
+                rt.spawn(self._relink(t, judge, facts, self._inputs[t.transcript_id], cands,
                                       merge.text if merge else t.text), name=f"relink:{t.transcript_id}")
         if decision.action == "none" or group is None:
             return
@@ -852,7 +876,8 @@ class UtterancePipeline:
             decision = publish_logic.decide(
                 judge, {group_id: answer}, g, answer,
                 high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=early.facts,
-                lex=rt.catalog.lexicon, utterance=early.utterance, current_key=await answer_key(rt, g))
+                lex=rt.catalog.lexicon, utterance=early.utterance, current_key=await answer_key(rt, g),
+                by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM))
             log.info("early spoken answer for %s: %s (%s)", group_id, decision.action, decision.reason)
             if decision.action != "post" or not rt.live:  # D-150: a preview market posts nothing by itself
                 return
@@ -862,29 +887,38 @@ class UtterancePipeline:
             await rt.emit("group.updated", g)
             await rt.recompute_host_queue_locked()
 
-    async def _relink(self, t: Transcript, judge, facts, inp, group_id: str, utterance: str) -> None:
-        """D-175: ask the context judge once more with only the one question the line seems to answer, and post
-        only when it now links the line to it and every usual check passes (numbers, compliance, staleness)."""
+    async def _relink(self, t: Transcript, judge, facts, inp, group_ids: list[str], utterance: str) -> None:
+        """D-175: ask the context judge once more with only the question the line seems to answer (D-187 arm B: with
+        every offered draft), and post only when it now links the line to one of them and every usual check passes
+        (numbers, compliance, staleness)."""
         rt = self.rt
+        shown: dict[str, tuple[QuestionGroup, Answer]] = {}
         async with rt.lock:
-            g = await rt.get_group(group_id)
-            answer = await rt.get_answer(g.answer_id) if g is not None and g.answer_id else None
-            if g is None or answer is None or not answer.verified or g.published_message_id is not None:
-                return
-        agent = self.context if self.split3 else self.judge
-        res = await agent.run(replace(inp, open_questions=[(g, answer.text)], on_screen_group_id=group_id),
-                              deadline_ms=rt.settings.JUDGE_TIMEOUT_MS)
-        if res.status != "ok" or res.output is None:
+            for group_id in group_ids:
+                g = await rt.get_group(group_id)
+                answer = await rt.get_answer(g.answer_id) if g is not None and g.answer_id else None
+                if g is not None and answer is not None and answer.verified and g.published_message_id is None:
+                    shown[group_id] = (g, answer)
+        if not shown:
             return
+        agent = self.context if self.split3 else self.judge
+        res = await agent.run(replace(inp, open_questions=[(g, a.text) for g, a in shown.values()],
+                                      on_screen_group_id=next(iter(shown)) if len(shown) == 1 else None),
+                              deadline_ms=rt.settings.JUDGE_TIMEOUT_MS)
+        if res.status != "ok" or res.output is None or res.output.answer.matched_group_id not in shown:
+            return
+        group_id = res.output.answer.matched_group_id
+        answer = shown[group_id][1]
         second = judge.model_copy(update={"answer": res.output.answer})
         async with rt.lock:
             g = await rt.get_group(group_id)
             if g is None or g.answer_id != answer.answer_id:
                 return
             decision = publish_logic.decide(
-                second, {group_id: answer}, g, answer,
+                second, {gid: a for gid, (_, a) in shown.items()}, g, answer,
                 high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
-                lex=rt.catalog.lexicon, utterance=utterance, current_key=await answer_key(rt, g))
+                lex=rt.catalog.lexicon, utterance=utterance, current_key=await answer_key(rt, g),
+                by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM))
             log.info("relinked spoken answer %s %s: %s (%s)", t.transcript_id, group_id, decision.action, decision.reason)
             if decision.action != "post" or not rt.live:
                 return

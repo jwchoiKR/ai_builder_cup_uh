@@ -111,7 +111,10 @@ def verify_answer(
     multi: bool,
     reflex: Reflex,
     not_approved_claims: Sequence[str],
+    minimal: bool = False,
 ) -> tuple[bool, list[str]]:
+    """D-187 arm B (`minimal`): only the digit-set compare, restricted phrases and the citations; the length and
+    sentence limits, the subject word window (6) and the in-house wording (7) are left to the LLM draft verifier."""
     errors: list[str] = []
     answer = output.answer.strip()
     by_id = {p.passage_id: p for p in passages}
@@ -121,9 +124,9 @@ def verify_answer(
         errors.append("not grounded")
     if not answer:
         errors.append("empty answer")
-    if len(answer) > MAX_ANSWER_CHARS:
+    if not minimal and len(answer) > MAX_ANSWER_CHARS:
         errors.append(f"longer than {MAX_ANSWER_CHARS} characters")
-    if len(reflex.lexicon.split_sentences(answer)) > MAX_SENTENCES:
+    if not minimal and len(reflex.lexicon.split_sentences(answer)) > MAX_SENTENCES:
         errors.append(f"more than {MAX_SENTENCES} sentences")
 
     # 2. citations exist and quote their passages
@@ -155,18 +158,20 @@ def verify_answer(
     for n in sorted(number_set(answer) - quoted_numbers):
         errors.append(f"number {n} not in a cited quote")
 
-    # 6. D-117 B8: a number next to a subject of the quotes must be that subject's value there
-    subjects = quoted_subjects([c.quote for c in output.citations if c.passage_id in by_id], reflex.lexicon.stopwords)
-    for n, subject in misattributed_numbers(answer, subjects):
-        errors.append(f"number {n} is not the value of '{subject}' in the cited quotes")
+    if not minimal:
+        # 6. D-117 B8: a number next to a subject of the quotes must be that subject's value there
+        subjects = quoted_subjects([c.quote for c in output.citations if c.passage_id in by_id],
+                                   reflex.lexicon.stopwords)
+        for n, subject in misattributed_numbers(answer, subjects):
+            errors.append(f"number {n} is not the value of '{subject}' in the cited quotes")
 
-    # 7. D-126: a number from an in-house test result is said with "in-house" / "our test" (D007)
-    test_numbers: set[str] = set()
-    for p in cited:
-        if p.section == IN_HOUSE_SECTION:
-            test_numbers |= number_set(p.text)
-    if test_numbers & number_set(answer) and not reflex.lexicon.is_qualified(answer):
-        errors.append("in-house test result without 'in-house test'")
+        # 7. D-126: a number from an in-house test result is said with "in-house" / "our test" (D007)
+        test_numbers: set[str] = set()
+        for p in cited:
+            if p.section == IN_HOUSE_SECTION:
+                test_numbers |= number_set(p.text)
+        if test_numbers & number_set(answer) and not reflex.lexicon.is_qualified(answer):
+            errors.append("in-house test result without 'in-house test'")
 
     # 5. no restricted wording, even negated
     hits = reflex.scan(answer)

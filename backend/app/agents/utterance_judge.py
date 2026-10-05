@@ -17,7 +17,7 @@ from ..models.data import Passage, Promo, PrompterPoint
 from ..models.session import Alert, HostCue, QuestionGroup, SwitchState
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
-from . import fact_checker, inputs
+from . import arms, fact_checker, inputs
 
 GROUP_REF, ALERT_REF = "@group:", "@alert:"
 STATIC_JUDGE_KEYS = frozenset({"current_product_json", "run_sheet_compact_json",
@@ -121,9 +121,10 @@ def _span_phrase(span: str, text: str, lex) -> str:
     return next((part.strip() for part in re.split(r"[,;:.!?]", text) if span.lower() in part.lower()), span)
 
 
-def validate_compliance(o, catalog: Catalog, values: dict):
+def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
     """In place, on any output with `compliance` and `correction`: drop unknown rules and alert ids
-    that were not in the input; severity comes from the rule."""
+    that were not in the input; severity comes from the rule. D-187 arm B: the qualifier replacement is the
+    in-house result the judge picked by id, and correction quotes of unknown alerts are dropped."""
     rules = catalog.pack.rules_by_id
     text = values.get("utterance_text") or ""
     # D-105: a sentence that names our own test never breaks the test-qualifier rule
@@ -151,7 +152,14 @@ def validate_compliance(o, catalog: Catalog, values: dict):
                 and _is_approved_wording(_span_phrase(v.span, text, catalog.lexicon), on_air_product, catalog.lexicon,
                                          [p for p in catalog.pack.passages if p.product_id == on_air_product.product_id])):
             continue  # D-123: approved product wording is never a violation (the qualifier rule still applies)
-        if v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
+        if v.rule_id == qualifier.RULE_ID and arms.meaning_to_llm(arm):
+            # D-187 arm B: the judge names the in-house result; code only checks the id exists
+            rid = getattr(v, "qualified_result_id", None)
+            r = next((x for p in catalog.products for x in p.qualified_results if x.result_id == rid), None)
+            if r is None:
+                continue
+            v.say_instead = r.say
+        elif v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
             r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air],
                                                catalog.lexicon)
@@ -164,6 +172,8 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     o.compliance.violations = kept
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
     o.correction.corrects_alert_ids = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a in alert_ids]
+    if hasattr(o.correction, "quotes"):  # D-187 arm B
+        o.correction.quotes = [q for q in o.correction.quotes if q.alert_id in alert_ids]
     return o
 
 

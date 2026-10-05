@@ -8,6 +8,7 @@ from typing import Literal
 from ..models.agent_io import FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Answer, QuestionGroup
 from .lexicon import Lexicon
+from .verify import number_set
 
 Action = Literal["post", "confirm_ai", "verbal_not_posted", "none"]
 
@@ -31,6 +32,18 @@ def verbal_check(utterance: str, draft: str, other_drafts: Iterable[str], lex: L
     # D-174: the same duration in other units ("a week later" for "after 7 days") is the same number
     hours = {h for d in (draft, *other_drafts) for _, h in lex.durations(d)}
     said -= {n for n, h in lex.durations(utterance) if n is not None and h in hours}
+    if not said <= allowed:
+        return "a number differs from the verified draft"
+    return None
+
+
+def judged_numbers_check(link, draft: str, other_drafts: Iterable[str]) -> str | None:
+    """D-187 arm B: the same hold as verbal_check, from what the context judge reported (`numbers_said` as digits and
+    `hedged`) instead of parsing the wording: every number said must be in the draft or another offered draft."""
+    if getattr(link, "hedged", False):
+        return "host sounded unsure or took it back"
+    allowed = number_set(draft).union(*(number_set(d) for d in other_drafts))
+    said = number_set(" ".join(getattr(link, "numbers_said", None) or []))
     if not said <= allowed:
         return "a number differs from the verified draft"
     return None
@@ -62,6 +75,7 @@ def decide(
     lex: Lexicon,
     utterance: str = "",
     current_key: str | None = None,
+    by_judge: bool = False,
 ) -> PublishDecision:
     """`offered` maps each question shown to the judge to the verified answer shown with it."""
     a = judge.answer
@@ -75,8 +89,9 @@ def decide(
     # D-110: bound to the answer the host saw, and to the current promo and document state
     stale = (answer is None or shown is None or shown.answer_id != answer.answer_id
              or (current_key is not None and answer.cache_key is not None and answer.cache_key != current_key))
-    held = None if answer is None else verbal_check(
-        utterance, answer.text, [x.text for g, x in offered.items() if g != gid and x is not None], lex)
+    others = [x.text for g, x in offered.items() if g != gid and x is not None]
+    held = (None if answer is None else judged_numbers_check(a, answer.text, others) if by_judge  # D-187 arm B
+            else verbal_check(utterance, answer.text, others, lex))
     consistent = a.consistent_with_suggested and not stale and held is None  # 2.
     if a.consistent_with_suggested and group.status == "auto_answered":  # a mark only: nothing is posted
         return PublishDecision("confirm_ai", gid, "already answered by AI")

@@ -10,11 +10,12 @@ from dataclasses import dataclass, field
 from ..config import Settings
 from ..logic.catalog import Catalog
 from ..logic.grouping import normalise_question
-from ..models.agent_io import SLOT_KEYS, CommentTriageBatchOutput, CommentTriageOutput, ConditionSlots
+from ..models.agent_io import (SLOT_KEYS, CommentTriageBatchOutput, CommentTriageBatchOutputB, CommentTriageOutput,
+                               CommentTriageOutputB, ConditionSlots)
 from ..models.session import QuestionGroup
 from ..providers.llm import MOCK_FIXTURES_DIR, AgentResult, LLMClient, LLMRequest, MockBackend
 from ..providers.prompts import PromptTemplate
-from . import inputs
+from . import arms, inputs
 
 GROUP_REF = "@group:"
 MAX_CANONICAL_FALLBACK = 120
@@ -67,6 +68,7 @@ class CommentTriage:
         self.model = llm.fast.model
         self.catalog = catalog
         self.settings = settings
+        self.b = arms.meaning_to_llm(settings.DESIGN_ARM)  # D-187 arm B: shout-outs are a triage label
 
     def _groups(self, open_groups: list[QuestionGroup]):
         """OPEN_GROUPS for the prompt, their ids, and the fixture encode/decode of group ids."""
@@ -101,8 +103,11 @@ class CommentTriage:
         })
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.triage.model, thinking_level=self.llm.triage.thinking_level,
-            prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
-            user_message=user, output_model=CommentTriageOutput, deadline_ms=deadline_ms,
+            prompt_version=self.prompt_version,
+            system_instruction=arms.system_instruction(self.prompt.system_instruction, self.name,
+                                                       self.settings.DESIGN_ARM, self.settings.prompts_path),
+            user_message=user, output_model=CommentTriageOutputB if self.b else CommentTriageOutput,
+            deadline_ms=deadline_ms,
             session_id=inp.session_id, mock_primary_text=inp.text, mock_scenario=inp.scenario,
             mock_fallback=lambda _: rule_based_triage(inp.text, inp.context_product_id, self.catalog),
             fixture_encode=encode, fixture_decode=decode, preview=inp.text,
@@ -131,8 +136,11 @@ class CommentTriage:
 
         res = await self.llm.call(LLMRequest(
             agent="comment_triage_batch", model=self.llm.triage.model, thinking_level=self.llm.triage.thinking_level,
-            prompt_version=self.batch_prompt.version, system_instruction=self.batch_prompt.system_instruction,
-            user_message=user, output_model=CommentTriageBatchOutput, deadline_ms=deadline_ms,
+            prompt_version=self.batch_prompt.version,
+            system_instruction=arms.system_instruction(self.batch_prompt.system_instruction, "comment_triage_batch",
+                                                       self.settings.DESIGN_ARM, self.settings.prompts_path),
+            user_message=user, output_model=CommentTriageBatchOutputB if self.b else CommentTriageBatchOutput,
+            deadline_ms=deadline_ms,
             session_id=inps[0].session_id, mock_primary_text="\n".join(x.text for x in inps),
             mock_scenario=inps[0].scenario,
             mock_fallback=lambda _: {"items": [{**self._mock_one(x, decode), "i": i} for i, x in enumerate(inps)]},
@@ -146,7 +154,7 @@ class CommentTriage:
             if it is None:
                 out.append(None)
                 continue
-            one = CommentTriageOutput.model_validate(it.model_dump(exclude={"i"}))
+            one = (CommentTriageOutputB if self.b else CommentTriageOutput).model_validate(it.model_dump(exclude={"i"}))
             out.append(AgentResult(res.status, post_validate(one, self.catalog, x.text, group_ids), res.latency_ms,
                                    res.call_id, res.error, res.meta))
         missing = [i for i, r in enumerate(out) if r is None]
