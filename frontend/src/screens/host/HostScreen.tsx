@@ -27,10 +27,10 @@ import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
 import { useCatalog, useNow, useSession } from "../../app/store";
 import { useT } from "../../app/i18n";
-import { useReadingSize } from "../../app/prefs";
+import { HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReadingSize } from "../../app/prefs";
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { Catalog } from "../../app/types";
-import { Countdown, Elapsed, SettingsButton } from "../../components";
+import { Countdown, Elapsed, SettingsButton, Splitter } from "../../components";
 import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchBanner } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
@@ -186,6 +186,7 @@ export function HostView({
   const t = useT();
   const rootRef = useRef<HTMLDivElement>(null);
   const readingSize = useReadingSize(); // D-119: 100 / 125 / 150% from the Settings gear
+  const layout = useHostLayout(); // D-181: the panel sizes, one per browser (Studio's host pane too)
   const scale = useHostScale(rootRef) * readingSize;
   const clientNow = useNow(250);
   const now = clientNow + state.serverOffsetMs;
@@ -264,8 +265,10 @@ export function HostView({
         settings={embedded ? null : <SettingsButton themePref={themePref} onTheme={onSetTheme} host />}
       />
       <div className={styles.content}>
-        <div className={styles.main}>
-          <div className={styles.left}>
+        <div className={styles.main}
+          style={{ gridTemplateColumns: `minmax(0, ${fr(layout.cols)}fr) var(--split-gap) minmax(0, ${fr(1 - layout.cols)}fr)` }}>
+          <div className={styles.left}
+            style={{ gridTemplateRows: `minmax(auto, ${fr(layout.rows)}fr) var(--split-gap) minmax(0, ${fr(1 - layout.rows)}fr)` }}>
             <Prompter
               view={prompter}
               product={prompter.product ?? product}
@@ -292,6 +295,9 @@ export function HostView({
               }
               timing={timing}
             />
+            <Splitter orientation="horizontal" value={layout.rows} onChange={(rows) => setHostLayout({ rows })}
+              onReset={() => setHostLayout({ rows: HOST_LAYOUT_DEFAULT.rows })} label={t("Resize prompter and questions")}
+              testId="host-split-rows" />
             {/* D-107: everything that comes and goes sits here, so the prompter box never moves;
                 D-127: the AI PD card lives inside the questions panel */}
             <div className={styles.leftBottom}>
@@ -299,6 +305,9 @@ export function HostView({
                 unanswered={unansweredCount(state)} />
             </div>
           </div>
+          <Splitter orientation="vertical" value={layout.cols} onChange={(cols) => setHostLayout({ cols })}
+            onReset={() => setHostLayout({ cols: HOST_LAYOUT_DEFAULT.cols })} label={t("Resize prompter and chat")}
+            testId="host-split-cols" />
           <div className={styles.right}>
             <Chat
               items={chatItems(state)}
@@ -312,6 +321,10 @@ export function HostView({
     </div>
   );
 }
+
+/** D-181: a split as whole fr units ("58fr"): when the prompter keeps its minimum height, the other panel's
+ *  share stays at least 1fr, so it still takes all the space left (fractions below 1fr would leave a gap). */
+const fr = (v: number) => Math.round(v * 1000) / 10;
 
 // Render acks are sent once per (session, alert) per page, even with several host views mounted.
 const acked = new Set<string>();

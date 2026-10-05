@@ -666,6 +666,37 @@ describe("chat folding (D-115)", () => {
   });
 });
 
+describe("host panel sizes (D-181)", () => {
+  it("two splitters resize the columns and rows by keyboard; double-click and the gear reset them", async () => {
+    const { resetHostLayout } = await import("../../app/prefs");
+    try {
+      const { container } = render(<HostView state={{ ...reduceSnapshot(snapshot(), "host", now()), serverOffsetMs: 0 }}
+        catalog={cat} connection="connected" theme="dark" themePref="system" onSetTheme={vi.fn()} actions={actions()} />);
+      const cols = screen.getByTestId("host-split-cols");
+      const rows = screen.getByTestId("host-split-rows");
+      expect(cols).toHaveAttribute("role", "separator");
+      expect(cols).toHaveAttribute("aria-orientation", "vertical");
+      expect(rows).toHaveAttribute("aria-orientation", "horizontal");
+      expect(cols).toHaveAttribute("aria-valuenow", "58");
+      const main = cols.parentElement as HTMLElement;
+      fireEvent.keyDown(cols, { key: "ArrowRight" });
+      expect(cols).toHaveAttribute("aria-valuenow", "63");
+      expect(main.style.gridTemplateColumns).toBe("minmax(0, 63fr) var(--split-gap) minmax(0, 37fr)");
+      fireEvent.keyDown(rows, { key: "Home" });
+      expect(rows).toHaveAttribute("aria-valuenow", "25");
+      expect(JSON.parse(window.localStorage.getItem("ls.layout.host")!)).toEqual({ cols: 0.63, rows: 0.25 });
+      fireEvent.doubleClick(cols);
+      expect(cols).toHaveAttribute("aria-valuenow", "58");
+      fireEvent.click(screen.getByTestId("settings-button"));
+      fireEvent.click(screen.getByTestId("settings-reset-layout"));
+      expect(rows).toHaveAttribute("aria-valuenow", "50");
+      expect(container.querySelector('[data-screen="host"]')).not.toBeNull();
+    } finally {
+      act(() => resetHostLayout());
+    }
+  });
+});
+
 describe("host settings: reading size and microphone (D-119)", () => {
   it("reading size scales the host screen and is remembered", async () => {
     const { setReadingSize } = await import("../../app/prefs");

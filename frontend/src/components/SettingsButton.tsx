@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { LANGS, setLang, useLang, useT } from "../app/i18n";
 import { mic } from "../app/mic";
-import { listMicDevices, READING_SIZES, setReadingSize, useMicDevice, useReadingSize } from "../app/prefs";
+import { listMicDevices, READING_SIZES, resetHostLayout, setReadingSize, useMicDevice, useReadingSize } from "../app/prefs";
 import type { ThemePref } from "../app/theme";
 import styles from "./ui.module.css";
 
@@ -107,6 +107,15 @@ export function SettingsButton({
                   </option>
                 ))}
               </select>
+            </fieldset>
+          )}
+          {host && (
+            <fieldset className={styles.settingsGroup}>
+              <legend>{t("Layout")}</legend>
+              {/* D-181: the panel sizes back to the default */}
+              <button type="button" className={styles.settingsAction} onClick={resetHostLayout} data-testid="settings-reset-layout">
+                {t("Reset layout")}
+              </button>
             </fieldset>
           )}
           <fieldset className={styles.settingsGroup}>
