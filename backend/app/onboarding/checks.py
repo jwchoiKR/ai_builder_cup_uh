@@ -53,6 +53,19 @@ def _dropped_items(result) -> list[dict]:
     return out
 
 
+def _coverage_items(result) -> list[dict]:
+    """D-249: what the files state and the record lacks, with where it is; a quote code could not find in the file's
+    text is said so."""
+    out = []
+    for x in result.uncovered:
+        where = f"{x['file']} ({x['locator']}): “{x['quote']}”" if x.get("file") else ""
+        why = "in the files, not in the record" + (f" (record has {x['record_has']})" if x.get("record_has") else "")
+        if x.get("in_file_text") is False:
+            why += "; this quote was not found in the file's text"
+        out.append(_item("coverage", x["text"], f"{why}: {where}" if where else why))
+    return out
+
+
 def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None, caution_pass_only: list[str] = (),
                 translations: dict | None = None) -> list[dict]:
     r = result.record
@@ -69,10 +82,11 @@ def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None,
         out += [_item("other", m, "missing") for m in r.missing if not m.startswith("variants")]
         if law is not None and law.startswith("no law"):
             out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
-        return out
+        return out + _coverage_items(result)
     out = _product_items(r) + _corrected_items(result)
     shown = {x["label"] for x in out}
     out += [x for x in _dropped_items(result) if x["label"] not in shown]
+    out += _coverage_items(result)
     if law is not None and law.startswith("no law"):
         out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
     out += [_item("governance", q.statement, f"say it with “{q.qualifier}”") for q in r.qualified_results]

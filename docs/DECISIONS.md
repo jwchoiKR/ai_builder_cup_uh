@@ -1316,3 +1316,10 @@ D-248: Code may overrule a fact-check verdict, but never in silence; the sealed 
 - **Revisions (FR prompt):** a line that describes the change between versions is supported when each value matches its own version.
 - **FD cache:** the cache now also holds the product and full-sheet blocks. The fact checker gets whole sheets, not search results, so for a one-product release these blocks are the same on every line. The cache is warmed at start with the first product's exact blocks.
 - Pipeline tests on made-up releases (`test_d248_*`), run through eval_adversarial.run_case.
+
+D-249: Onboarding coverage audit: one pass lists what the files state and the record does not hold, and every item goes to the person's check list (logic).
+- **Why:** a value the reader drops or never reads becomes a live miss that no fact check can catch (sealed run: a footnoted claim, a Korean decimal, offer terms). This is the general fix for silent drops (R4, R5) and missed links (R1).
+- **How:** `onboarding_audit` runs after the record is final (read, caution pass, routing, normalising, category). It gets the files and the record JSON. It lists numbers, conditions (offer thresholds and their comparison, eligibility, limits, combinability, validity, markets), claims, test results, certifications and cautions that the record lacks or holds with a different value. Each item comes with file, locator, verbatim quote and the record's different value.
+- **Code:** duplicates are dropped. Each quote is looked up in the file's readable text (`in_file_text`: true, false, or null for an image). A quote that is not found is marked for a closer check, but it is not dropped, because the model may have read it from layout code cannot see.
+- **Checks:** a new group "coverage" in both `risk` and `full` mode. Each item reads "in the files, not in the record (record has X): <file> (<locator>): "<quote>"". If the audit call fails, one item says "coverage audit not run".
+- Cost: one more file-reading call per onboarding (gemini-3.8-flash at MEDIUM thinking).
