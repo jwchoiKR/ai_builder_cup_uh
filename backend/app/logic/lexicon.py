@@ -45,7 +45,8 @@ class Lexicon:
     and_word: str | None = None
     affirmation: re.Pattern | None = None  # D-252
     negation_words: tuple[str, ...] = ()
-    comparison_kinds: dict[str, re.Pattern] = field(default_factory=dict)  # D-259  # D-252: the language's negation cues, to read "I don't agree"
+    comparison_kinds: dict[str, re.Pattern] = field(default_factory=dict)  # D-259
+    multiplicatives: dict[str, int] = field(default_factory=dict)  # D-262  # D-252: the language's negation cues, to read "I don't agree"
 
     @classmethod
     def from_packs(cls, lang: LangPack, market: MarketPack) -> "Lexicon":
@@ -69,6 +70,7 @@ class Lexicon:
             affirmation=(re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.affirmation_cues) + r")\b", re.I)
                          if lx.affirmation_cues else None),
             negation_words=tuple(c.lower() for c in lang.negation_cues),
+            multiplicatives={k.lower(): v for k, v in lx.multiplicatives.items()},
             comparison_kinds={k: re.compile("|".join(r"\b" + re.escape(w) + r"\b" for w in ws), re.I)
                               for k, ws in lx.comparison_kinds.items() if ws},
             phone=re.compile(market.phone_pattern),
@@ -203,6 +205,11 @@ class Lexicon:
             start = m.end()
         parts.append(text[start:].strip())
         return [p for p in parts if p]
+
+    def times_numbers(self, text: str) -> set[str]:
+        """D-262: multiplicative words as numbers ("twice daily" -> {"2"})."""
+        words = set(re.findall(r"\w+", text.lower()))
+        return {str(v) for k, v in self.multiplicatives.items() if k in words}
 
     def comparison_kind(self, text: str) -> str | None:
         """D-259: the kind of threshold a text words ("gt" for "above 40" or "> 40", "ge" for "at least 40")."""
