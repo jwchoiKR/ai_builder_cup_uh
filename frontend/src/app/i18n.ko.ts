@@ -137,6 +137,8 @@ export const KO_HOST: Record<string, string> = {
   "AI answer": "AI 답변",
   "Host answer": "진행자 답변",
   "Brand": "브랜드",
+  "No law checks for this category": "이 품목은 법규 검사 없음",
+  "Onboard a new product →": "새 제품 등록 →",
   Correction: "정정",
   "Also answered:": "함께 답변:",
 };

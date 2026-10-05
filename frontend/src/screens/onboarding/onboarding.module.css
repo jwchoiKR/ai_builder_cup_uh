@@ -1,0 +1,57 @@
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  padding: var(--space-6) var(--space-4);
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.header { display: flex; flex-direction: column; gap: var(--space-2); }
+.title { font-size: var(--fs-28); font-weight: var(--fw-semibold); margin: 0; }
+.muted { color: var(--text-2); font-size: var(--fs-14); margin: 0; }
+.block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.risk { background: var(--risk-bg); border-color: var(--risk-border); }
+.ok { background: var(--ok-bg); border-color: var(--ok-border); }
+.warning { color: var(--risk-text); font-weight: var(--fw-semibold); margin: 0; }
+.blockTitle { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin: 0; }
+.count { color: var(--text-3); font-weight: var(--fw-regular); }
+.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.row { display: flex; flex-direction: column; gap: 2px; }
+.value { font-size: var(--fs-14); white-space: pre-wrap; }
+.evidence { display: flex; flex-direction: column; color: var(--text-3); font-size: var(--fs-12); }
+.evidence span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.summary { display: flex; flex-direction: column; gap: var(--space-2); }
+.product { font-size: var(--fs-22); margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+.status { color: var(--text-2); margin: 0; }
+.error { color: var(--risk-text); margin: 0; }
+.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.editor {
+  width: 100%;
+  font-family: ui-monospace, monospace;
+  font-size: var(--fs-12);
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}

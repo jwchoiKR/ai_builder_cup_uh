@@ -151,6 +151,8 @@ export interface SessionMarket {
   name: string;
   lang: string;
   tier: "live" | "preview";
+  law_checks?: boolean; // D-228: false when no law pack covers the product's category
+  category?: string;
 }
 
 export interface Comment {
