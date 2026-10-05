@@ -1369,3 +1369,8 @@ D-257: Onboarding keeps market limits, test conditions and offer edge terms, kee
 - **Offer edge terms:** `conditions` keep their comparison words and edge cases as written ("exactly S$60 does not qualify", "two small sizes do not count as one large").
 - **Archived values:** values from documents or sections marked archived, superseded or discontinued go only to conflicts with their dates. They never go to cautions, key facts, claims or other current fields, and the caution pass skips them.
 - **Lean:** governance items, and items that share two or more words with a qualified result's statement or qualifier, are never folded. The cap of 10 applies to the rest.
+
+D-258: A word of the result itself, or the qualifier's first word, never names the source (candidate e41fcf4, pool 1: "Testing confirmed SPF50+ PA++++" got no qualifier alert in 3 of 3 runs; logic).
+- **Cause:** `names_the_source` (D-244 L7, D-250) took the qualifier's capitalised words as the source's name. "PA" in "… in SPF and PA protection tests" is capitalised and is also in the result. So any line that said the result "named the source", and the alert was skipped.
+- **Fix:** the words of the result statement are taken out of the source words, along with the qualifier's first word, which is capitalised only because it starts the phrase. "labs", "laboratories", "tests" and "trials" join the generic words.
+- **Tests (pipeline, made-up release):** "Testing confirmed …" and "… according to the protection tests" alert; "Larkspur Labs confirmed …" does not.

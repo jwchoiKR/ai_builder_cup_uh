@@ -72,7 +72,8 @@ def qualified_say(say: str, on_air, catalog: Catalog) -> str:
 
 _GENERIC_QUALIFIER = frozenset({"test", "tested", "testing", "our", "own", "house", "in-house", "independent", "lab",
                                 "laboratory", "study", "studies", "clinical", "certified", "certification", "results",
-                                "result", "consumer", "panel", "participants", "approved"})
+                                "result", "consumer", "panel", "participants", "approved", "labs", "laboratories",
+                                "tests", "trial", "trials"})
 
 
 def names_the_source(text: str, say: str, lex) -> bool:
@@ -87,8 +88,12 @@ def names_the_source(text: str, say: str, lex) -> bool:
     tokens = re.findall(r"\w[\w'-]*", m.group(1))
     if any(ch.lower() != ch.upper() for ch in m.group(1)):
         # D-250: in a script with capitals, the source is a name ("Kestrel Dermal Labs"), not "adults" or "hours"
-        names = set(lex.content_words(" ".join(t for t in tokens if t[0].isupper())))
+        names = set(lex.content_words(" ".join(t for t in tokens[1:] if t[0].isupper())))
         source &= names
+    # D-258 (candidate e41fcf4: "Testing confirmed SPF50+ PA++++" skipped the alert because the qualifier's capitalised
+    # "PA" is also in the result): a word of the result itself never names its source; nor does the qualifier's
+    # first word, capitalised only because it starts the phrase
+    source -= set(lex.content_words(say[:m.start()]))
     return bool(source) and bool(source & set(lex.content_words(text)))
 
 
