@@ -439,12 +439,16 @@ class UtterancePipeline:
         passages = await self._fact_passages(" ".join([*judge_input.previous[-1:], text]), on_air, judge_input.switch)
         s = await self.rt.load_session()
         offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
-        return await self.facts.run(
-            FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
-                      passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario,
-                      offers=offers, parts=parts or []),
-            deadline_ms=self.rt.settings.FACT_LATE_MS,  # D-144: on time is FACT_TIMEOUT_MS
-        )
+        inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
+                        passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario,
+                        offers=offers, parts=parts or [])
+        res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
+        if res.status in ("timeout", "error") and self.rt.catalog.lexicon.spoken_numbers(text):
+            # D-203: a line that states a number posts only after a completed check (D-195): one fresh call with its
+            # own deadline; the publish decision waits for it
+            log.info("fact check %s for %r: once more", res.status, text[:80])
+            res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)
+        return res
 
     async def _apply_compliance_locked(self, t: Transcript, on_air: str, res: AgentResult, hits,
                                        merge: Merge | None = None) -> None:
