@@ -16,7 +16,7 @@ from ..agents import arms, file_tools, inputs
 from ..agents.answer_composer import ComposeInput, gather_passages
 from ..agents.comment_triage import TriageInput
 from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
-from ..logic.grouping import SINGLE_QUESTION_INTENTS, find_group, is_open, join_group, slots_compatible
+from ..logic.grouping import find_group, is_open, join_group, slots_compatible
 from ..logic.prefilter import PrefilterVerdict, prefilter
 from ..logic.product_mapping import attribute_product, set_question
 from ..logic.promos import promo_passage, promo_state
@@ -341,11 +341,15 @@ def _ingredients_named(rt: "SessionRuntime", product_id: str, question: str) -> 
     return sorted(set(out))
 
 
+ONE_ANSWER_INTENTS = frozenset({"price", "set_price", "volume"})
+
+
 async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
     promo = await rt.active_price_promo()
-    # D-152: a single-answer intent (price, set price, volume ...) has one answer per product, slots and state,
-    # however the question was worded, so two groups of it share one draft
-    question = "" if g.intent in SINGLE_QUESTION_INTENTS else g.canonical_question
+    # D-152: a one-value intent (price, set price, volume) has one answer per product, slots and state, however the
+    # question was worded, so two groups of it share one draft. D-214: only those; "shelf life once opened" and
+    # "unopened shelf life" are two answers
+    question = "" if g.intent in ONE_ANSWER_INTENTS else g.canonical_question
     if g.intent == "ingredient_amount" and g.product_id:
         # D-176 (comment flow CF12): "percentage of panthenol in it?" and "… in the ampoule?" drafted twice; the
         # same ingredient's amount is one answer
