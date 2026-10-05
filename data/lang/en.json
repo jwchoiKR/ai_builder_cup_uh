@@ -213,14 +213,21 @@
     "whitening": {
       "unacceptable_examples": [
         "It whitens your skin.",
-        "Your skin tone will change permanently."
+        "Your skin tone will change permanently.",
+        "It lightens your complexion until you look a few shades fairer.",
+        "It strips the pigment out of your skin."
       ],
       "say_instead_hint": "Use: 'Helps skin look more radiant and even-toned with continued use.'",
       "reflex_phrases": [
         "whiten",
         "whitens",
         "whitening",
-        "bleach"
+        "bleach",
+        "bleaches",
+        "bleaching",
+        "lightens your skin",
+        "skin lightening",
+        "fairer skin"
       ]
     },
     "test_qualifier": {
