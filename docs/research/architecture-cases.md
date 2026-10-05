@@ -63,7 +63,9 @@ Lesson for us: Use deterministic orchestration for known dependencies and public
 9. Run the director asynchronously over approved cues and current state; its planning must not delay host alerts or bypass output checks.
 10. Release against sealed product/tenant holdouts and independently checked labels; track field accuracy, violation recall/false alarms, grounding, and audio-to-alert p95/p99-the 3-second target remains unproven.
 
-## 첫 실험: Gemini가 새 제품 문서를 직접 읽기 (10/5 밤, 봉인 코퍼스)
+## 방법 탐색 (우리 앱 로직 아님): Gemini가 새 제품 문서를 직접 읽기 (10/5 밤, 봉인 코퍼스)
+
+이 결과는 스크립트가 Gemini를 직접 부른 방법 탐색이다. 앱의 자동 등록 경로가 생기면 그 경로로 다시 재고, 그 숫자만 결과로 인정한다.
 
 - 6개 가상 브랜드, 10개 파일(PDF 표, 브로슈어, 한국어 워드, HTML, 엑셀 가격표, 글자가 그림 안에 있는 PNG). 정답은 GPT 작성 + Sonnet 블라인드 추출로 확인(가격·용량·함량 숫자는 두 정답이 모두 일치).
 - gemini-3.8-flash에 제품별 파일을 통째로 넣고 정해진 형식으로 뽑게 했다(temperature 0, 1회).
