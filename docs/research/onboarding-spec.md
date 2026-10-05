@@ -65,7 +65,13 @@ Demo target: on stage, a judge's unseen product documents go in, and a few minut
   3. Run the existing live suites (judges, verbal, comments, PD) on sealed lines written for that product.
   4. Count every developer edit as an onboarding failure.
 
-## 4. Order
+## 4. Kill criteria (user: "안되는거 붙잡지마")
+
+- Build onboarding as a NEW path; do not retrofit the old section parser (`setup.py:40-203`), delete it when the new path passes.
+- If an extraction arm misses the pass lines after two fix rounds, drop it; if all arms miss, redesign the step, not patch it.
+- If arm A fails the frozen new-product live test (pass lines in `onboarding-gaps.md` 8), rebuild the live path on the winning design (e.g. F2 with A's post gate) instead of adding per-failure patches.
+
+## 5. Order
 
 1. Schema and identity (variants, offers, per-item prices, generic aliases, brand from data).
 2. Steps 1-3 with `gemini_whole`, and the eval entry point.
