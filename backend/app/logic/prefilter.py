@@ -50,8 +50,9 @@ def _letters(text: str) -> int:
     return sum(1 for ch in text if unicodedata.category(ch).startswith("L"))
 
 
-def prefilter(text: str, lex: "Lexicon") -> PrefilterVerdict:
-    """Phone numbers come from the market pack, reactions from the language pack (D-134)."""
+def prefilter(text: str, lex: "Lexicon", mode: str = "full") -> PrefilterVerdict:
+    """Phone numbers come from the market pack, reactions from the language pack (D-134). D-237: `mode` "pii_only"
+    keeps only what must never be displayed (email, phone, a bare link); profanity and short reactions go to triage."""
     if _EMAIL.search(text):
         return PrefilterVerdict("hide", "personal_info", "email address")
     if lex.phone.search(text):
@@ -63,6 +64,8 @@ def prefilter(text: str, lex: "Lexicon") -> PrefilterVerdict:
         if _letters(rest) < 3:
             return PrefilterVerdict("hide", "link", "a link and nothing else")
         text = rest
+    if mode == "pii_only":
+        return PrefilterVerdict(None)
     if _profanity().search(text):
         return PrefilterVerdict("hide", "profanity", "profanity list")
     letters = _letters(text)
