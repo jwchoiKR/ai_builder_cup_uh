@@ -60,10 +60,11 @@ async def gather_passages(
     top_k: int,
     timeout_ms: int = 2000,
     offers: Sequence[Promo] = (),
+    search: bool = True,
 ) -> list[Passage]:
     """§7.6 retrieval: top-k search filtered to the product (each product for multi), plus Key facts
     for price/volume intents, plus the promo passage while a price promo runs."""
-    pids = [product_id] if product_id else [p.product_id for p in catalog.products]
+    pids = [product_id] if product_id and search else [p.product_id for p in catalog.products] if search else []
     out: dict[str, Passage] = {}
     for pid in pids:
         query = f"{catalog.get_product(pid).name} {canonical_question}"

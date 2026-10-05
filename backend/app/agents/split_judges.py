@@ -9,10 +9,13 @@ Both read the same input values as the UtteranceJudge (`build_judge_values`) and
 """
 from __future__ import annotations
 
+import json
+
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import ComplianceOutput, ComplianceOutputB, ContextOutput, ContextOutputB
+from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
 from . import arms, inputs
@@ -45,7 +48,7 @@ class _SplitJudge:
     def extra_data(self) -> str:
         """D-187: data blocks a design arm adds after the user message (the cached prefix stays the same).
         D-191 arms D and E: the whole product sheets."""
-        if not arms.agents_decide(self.arm):
+        if not arms.whole_facts(self.arm):
             return ""
         return inputs.data_block("PRODUCT_FACTS", inputs.passages_json(inputs.all_passages(self.catalog)))
 
@@ -56,6 +59,10 @@ class _SplitJudge:
         values = values if values is not None else build_judge_values(self.catalog, inp)
         encode, decode = symbolic_ids(values)
         user, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
+        if arms.files(self.arm):  # D-192 arms F1 and F2: the on-air product's file, in the cached prefix
+            doc = LocalDocStore(self.catalog).get_product(inp.on_air)
+            pre = f'<data name="PRODUCT_FILE">{json.dumps(doc, ensure_ascii=False)}</data>\n'
+            user, prefix = pre + user, pre + prefix
         user += self.extra_data()
         b = arms.meaning_to_llm(self.arm)
         res = await self.llm.call(LLMRequest(

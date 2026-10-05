@@ -9,7 +9,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-FAMILY = {"A": "A", "B": "B", "C": "B", "D": "D", "E": "D"}
+FAMILY = {"A": "A", "B": "B", "C": "B", "D": "D", "E": "D", "F1": "D", "F2": "D"}
 
 
 def family(arm: str) -> str:
@@ -17,20 +17,36 @@ def family(arm: str) -> str:
 
 
 def meaning_to_llm(arm: str) -> bool:
-    """Arms B to E: corrections, spoken numbers, hedges, qualifier ids and shout-outs come from the model."""
+    """Arms B to F2: corrections, spoken numbers, hedges, qualifier ids and shout-outs come from the model."""
     return family(arm) in ("B", "D")
 
 
 def no_reflex(arm: str) -> bool:
-    """Arms C, D and E: no reflex pre-scan (no provisional chip, no fallback alert when the judge fails)."""
-    return arm in ("C", "D", "E")
+    """Arms C to F2: no reflex pre-scan (no provisional chip, no fallback alert when the judge fails)."""
+    return arm in ("C", "D", "E", "F1", "F2")
 
 
 def agents_decide(arm: str) -> bool:
-    """Arms D and E (D-191): the rules and the product facts go whole into the prompts and the agents decide; code
+    """Arms D to F2 (D-191): the rules and the product facts go whole into the prompts and the agents decide; code
     keeps deadlines, retries, the state machines, routing permissions and post idempotency only (no comment prefilter
     beyond Model Armor, no code number gate on a post, no code check of a draft before the LLM draft verifier)."""
     return family(arm) == "D"
+
+
+def whole_facts(arm: str) -> bool:
+    """Arms D and E: every product sheet in the judges' prompts, and search plus the whole sheet for the composer."""
+    return arm in ("D", "E")
+
+
+def files(arm: str) -> bool:
+    """Arms F1 and F2 (D-192): whole files from the document store. The judges get the on-air product's file in the
+    cached prefix, loaded at session start and at each switch; the composer does no search."""
+    return arm in ("F1", "F2")
+
+
+def tools(arm: str) -> bool:
+    """Arm F1 (D-192): the composer asks for the files it needs (list_documents, get_product, get_rules)."""
+    return arm == "F1"
 
 
 LAYERS = {"A": (), "B": ("B",), "D": ("B", "D")}  # D builds on B's model fields

@@ -530,10 +530,10 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     passages = await gather_passages(
         rt.ctx.retriever, rt.catalog, rt.prefetched, product_id=product_id, intent=g.intent,
         canonical_question=g.canonical_question, promo=promo, top_k=rt.settings.COMPOSER_TOP_K,
-        offers=await rt.active_offers(),
+        offers=await rt.active_offers(), search=not arms.files(rt.settings.DESIGN_ARM),  # D-192: F arms do not search
     )
     decide = arms.agents_decide(rt.settings.DESIGN_ARM)
-    if decide:  # D-191 arms D and E: the whole sheet of the product (of every product for multi), not a search
+    if decide:  # D-191 arms D to F2: the whole sheet of the product (of every product for multi)
         passages = list({p.passage_id: p for p in [*inputs.all_passages(rt.catalog, product_id), *passages]}.values())
     inp = ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
                        canonical_question=g.canonical_question, promo=promo, passages=passages,

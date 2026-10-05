@@ -239,3 +239,50 @@ async def test_arm_d_has_no_comment_prefilter(arm, kind):
         await rt.ctx.scheduler.idle()
     finally:
         await close_env(rt)
+
+
+def test_arm_f_document_store_serves_whole_files(catalog):
+    from app.providers.docstore import LocalDocStore
+
+    store = LocalDocStore(catalog)
+    market, category = store.market
+    paths = [d["path"] for d in store.list_documents()]
+    assert f"products/{CREAM}.md" in paths and f"rules/{market}/{category}.md" in paths
+    doc = store.get_product(CREAM)
+    assert doc.startswith("# ") and "\n## Key facts\n" in doc and store.get_product("nope") is None
+    rules = store.get_rules(market, category)
+    assert all(r.rule_id in rules for r in catalog.pack.rules.rules) and store.get_rules("XX", category) is None
+
+
+async def test_arm_f2_preloads_the_on_air_file_in_the_cached_prefix():
+    rt, llm = await make_env(DESIGN_ARM="F2")
+    seen = []
+    original = llm.generate
+
+    async def capture(req, timeout_ms):
+        seen.append(req)
+        return await original(req, timeout_ms)
+
+    llm.generate = capture
+    try:
+        await speak(rt, "This cream feels so light.")
+        judges = [r for r in seen if r.agent in ("compliance_judge", "context_judge")]
+        assert judges and all(r.cache_prefix.startswith('<data name="PRODUCT_FILE">')
+                              and r.user_message.startswith(r.cache_prefix) for r in judges)
+        assert all("PRODUCT_FACTS" not in r.user_message for r in judges)
+    finally:
+        await close_env(rt)
+
+
+async def test_arm_f_composer_does_no_search(catalog):
+    from app.agents.answer_composer import gather_passages
+
+    class NoSearch:
+        async def search(self, *a, **k):
+            raise AssertionError("searched")
+
+        async def prefetch(self, pid):
+            raise AssertionError("prefetched")
+
+    assert await gather_passages(NoSearch(), catalog, {}, product_id=CREAM, intent="price", canonical_question="How much?",
+                                 promo=None, top_k=4, search=False) == []
