@@ -45,6 +45,10 @@ _FRAME = frozenset({"does", "contain", "includes", "include", "included", "made"
                     "states", "listed", "there", "have", "from", "that", "which", "only", "also", "said", "says"})
 
 
+def _latin(text: str | None) -> bool:
+    return bool(re.search(r"[a-z]{2}", (text or "").lower()))
+
+
 def _same_substance(stated: str | None, correct: str | None) -> bool:
     """Every name word the host gave for the substance is in the correction ("zinc gluconate" vs "zinc": no)."""
     said = set(_NAME.findall((stated or "").lower())) - _NOT_NAMES - _UNIT_WORDS
@@ -81,17 +85,23 @@ def _drop(c, why: str) -> None:
 
 
 def _threshold_differs(lex, host: str, c, said: set) -> bool:
-    """D-248: "> SGD 90" or "exceeds S$90" is a threshold; "exactly S$90" is not the same value. True when the
-    correction or the quote words the number as a threshold and the host does not."""
-    if lex.comparison.search(host):
+    """D-248: "> SGD 90" or "exceeds S$90" is a threshold; "exactly S$90" is not the same value. D-259: the kind of
+    threshold counts too ("at least S$40" is not "above S$40"). True when the correction or the quote words the number
+    as a threshold of another kind than the host's (no word: exact)."""
+    kind = lex.comparison_kind(c.correct_value or "")
+    if kind is None:
+        q = c.quote or ""
+        for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", q):
+            if number_set(m.group()) & said:
+                kind = lex.comparison_kind(q[max(0, m.start() - 20):m.end() + 15])
+                if kind is not None:
+                    break
+    if kind is None:
         return False
-    if lex.comparison.search(c.correct_value or ""):
-        return True
-    q = c.quote or ""
-    for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", q):
-        if number_set(m.group()) & said and lex.comparison.search(q[max(0, m.start() - 20):m.end() + 15]):
-            return True
-    return False
+    host_kind = lex.comparison_kind(host)
+    if host_kind is None and lex.comparison.search(host):
+        return False  # a language without kinds: any threshold word is the same threshold (D-248)
+    return host_kind != kind
 
 
 def _term_dispute(c, p, said: set, passages: Sequence[Passage]) -> bool:
@@ -167,7 +177,9 @@ def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str
     names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
     mine = [p.text.lower() for p in passages if p.product_id == product_id]
     sheet = " ".join(t for t in mine if not _FREE_FROM.match(t))
-    return bool(names) and bool(mine) and not any(n in sheet for n in names)
+    # D-259 (sealed pool 2: "pear juice" was not absent because "juice" was on the sheet): absent when any of
+    # its words is missing; the complete list or "Free from" still has to prove it (D-207)
+    return bool(names) and bool(mine) and not all(n in sheet for n in names)
 PRICE_FIELDS = ("price", "set_price", "promo")
 # D-100: a test result is checked only when the host cites a test. A time or number inside a benefit
 # claim ("it whitens your skin in two weeks") is compliance wording, not a test result.
@@ -298,7 +310,10 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                 # D-244 L1: the correction is a value the quote states (a number, or the quote's words);
                 # "not disclosed" or "not specified" is no source value, so the claim is unverifiable
                 ("L1: the correction states no value of the quote",
-                 lambda: bool(right) or _from_quote(c.correct_value, c.quote)),
+                 lambda: bool(right) or _from_quote(c.correct_value, c.quote)
+                 # D-259: a correction translated from a quote in another script is not compared word by word; an
+                 # absence-worded one still needs its absence in the quote (below)
+                 or (_latin(c.correct_value) != _latin(c.quote) and not lex.absence.search(c.correct_value or ""))),
                 # D-244 L1 (sealed FR run): a stated number "corrected" by words is a value SOURCE does not give
                 # ("lasts 24 months" -> "No period after opening is given"); presence of an ingredient is the
                 # exception ("2% retinol" -> "free from retinol")
@@ -352,6 +367,10 @@ class FactChecker:
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
+        lang = getattr(getattr(catalog, "pack", None), "lang", None)
+        if lang:  # D-259: the host reads the correction aloud in the show's language
+            self.system_instruction += (f"\n\nThe show's language is {lang}. Write `correct_value` in it (translate a "
+                                        "value SOURCE writes in another language); keep `quote` verbatim.")
         self.file_parts: tuple = ()
         self.file_passages: tuple = ()
         release_id = getattr(getattr(catalog, "runsheet", None), "runsheet_id", "")

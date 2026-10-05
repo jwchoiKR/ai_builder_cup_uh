@@ -97,6 +97,17 @@ def names_the_source(text: str, say: str, lex) -> bool:
     return bool(source) and bool(source & set(lex.content_words(text)))
 
 
+def negated_caution(text: str, product, lex) -> str | None:
+    """D-259 (sealed: "no need to stop using it when irritation occurs" got an unrelated approved claim to say): the
+    product caution a line negates (most of the caution's words heard, and a negation in the line)."""
+    if product is None or not product.cautions or not any(
+            re.search(rf"(?<!\w){re.escape(n)}(?!\w)", text.lower()) for n in lex.negation_words):
+        return None
+    heard = lex.content_words(text)
+    best = max(product.cautions, key=lambda c: lex.coverage(lex.claim_words(c), heard))
+    return best if lex.coverage(lex.claim_words(best), heard) >= 0.5 else None
+
+
 def approved_say(say: str, on_air, catalog: Catalog) -> str:
     """D-209 (full review P2): the say-instead line is approved wording, never the model's own sentence: the on-air
     product's approved claim or "say instead" wording that covers most of what the model suggested (the first
@@ -173,7 +184,10 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                 continue  # D-244 L7: the host named who ran the test or certified it: that is the qualifier
             v.say_instead = r.say
         else:
-            v.say_instead = approved_say(v.say_instead, on_air_product, catalog)
+            # D-259: a line that negates one of the product's cautions is corrected by that caution, not by an
+            # unrelated approved claim
+            v.say_instead = (negated_caution(text, on_air_product, lex)
+                             or approved_say(v.say_instead, on_air_product, catalog))
         kept.append(v)
     o.compliance.violations = kept
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}

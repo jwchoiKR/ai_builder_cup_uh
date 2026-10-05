@@ -249,7 +249,8 @@ class LexiconData(BaseModel):
     price_contrast_cues: list[str]  # D-148: "normally $36": the live price named as not the price now
     absence_cues: list[str]  # D-151: "no retinol", "retinol-free": the host says an ingredient is absent
     comparison_cues: list[str] = []  # D-248: "more than", "at least": a threshold, not the number alone
-    affirmation_cues: list[str] = []  # D-252: "and yes", "I agree": the host endorses what they just quoted
+    affirmation_cues: list[str] = []
+    comparison_kinds: dict[str, list[str]] = {}  # D-259: gt, ge, lt, le, eq: "above 40" is not "at least 40"  # D-252: "and yes", "I agree": the host endorses what they just quoted
     duration_hours: dict[str, float] = {}  # D-174: "day": 24, "week": 168: "a day later" is "24 hours after"
 
 

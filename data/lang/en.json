@@ -572,6 +572,7 @@
     ],
     "comparison_cues": ["more than", "over", "above", "at least", "exceeds", "exceed", "exceeding", "minimum", "min", "or more", "and above", "or above", "less than", "under", "below", "up to", "at most", "or less", "maximum", "max"],
     "affirmation_cues": ["and yes", "yes, that's", "yes, it does", "yes it does", "i agree", "i fully agree", "i totally agree", "agree with", "that's true", "that is true", "it's true", "so true", "exactly", "absolutely", "that's right", "that is right", "that's what it does", "that is what it does", "i'm with", "i'd say the same", "no exaggeration", "i believe", "i can confirm", "same happened to me", "every word"],
+    "comparison_kinds": {"gt": ["more than", "over", "above", "exceeds", "exceed", "exceeding", "greater than"], "ge": ["at least", "minimum", "min", "or more", "and above", "or above"], "lt": ["less than", "under", "below"], "le": ["up to", "at most", "or less", "maximum", "max"], "eq": ["exactly"]},
     "absence_cues": [
       "no",
       "not",
