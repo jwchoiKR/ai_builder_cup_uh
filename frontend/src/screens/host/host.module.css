@@ -1346,3 +1346,6 @@
     scroll-behavior: auto;
   }
 }
+
+/* D-239: the source of an AI reply */
+.cite { display: block; color: var(--text-3); font-size: var(--fs-12); margin-top: 2px; }
