@@ -216,7 +216,7 @@ class UtterancePipeline:
         if merge:
             t.merged_from_transcript_id, t.judged_text = merge.prev.transcript_id, text
         self._remember(t, merge, text)
-        if self._qualifier_addendum(text):
+        if self._qualifier_addendum(t.text):  # D-155: the final itself, also when it is merged with a fragment
             self._addenda[t.transcript_id] = t  # D-151: "That's from our in-house test." after a number
         # 1. store, emit
         await rt.ctx.store.put(rt.path("transcripts"), t.transcript_id, t)
@@ -514,8 +514,9 @@ class UtterancePipeline:
         """Alerts the judge listed and the utterance really corrects (D-089), plus active alerts whose
         "Say this instead" wording the host just said, even if the judge missed it (D-098)."""
         rt = self.rt
-        correctable = [a for a in await rt.alerts() if a.transcript_id not in protected
-                       and self._sequence.get(a.transcript_id, 0) < self._sequence.get(t.transcript_id, 1)]
+        earlier = [a for a in await rt.alerts()
+                   if self._sequence.get(a.transcript_id, 0) < self._sequence.get(t.transcript_id, 1)]
+        correctable = [a for a in earlier if a.transcript_id not in protected]
         accepted = self._substantive_corrections(correctable, listed, text) if listed else []
         for a in correctable:
             if (a.kind == "compliance" and a.status == "active" and a.transcript_id != t.transcript_id
@@ -523,17 +524,19 @@ class UtterancePipeline:
                     and a.alert_id not in accepted and says_the_replacement(text, a, rt.reflex)):
                 log.info("correction of %s by its replacement wording: %r", a.alert_id, text)
                 accepted.append(a.alert_id)
-        if self._qualifier_addendum(text):
+        if self._qualifier_addendum(t.text):
             # D-151 (sealed round 3): "Redness went down 30% after two weeks." then "That's from our in-house
-            # test." The judge saw the fix but listed nothing; the add-on corrects the qualifier alert just before
-            for a in correctable:
+            # test." The judge saw the fix but listed nothing; the add-on corrects the qualifier alert just before.
+            # D-155 (00007 show replays): also the alert of the fragment it completes ("... one application," then
+            # "in our in-house test."), although a merged judgment never resolves its fragments' alerts otherwise
+            for a in earlier:
                 if (a.kind == "compliance" and a.rule_id == qualifier.RULE_ID and a.status in ("active", "provisional")
                         and a.alert_id not in accepted and self._segments.get(a.transcript_id) == t.segment_id
                         and now - a.created_at <= LATE_QUALIFIER_MS):
                     accepted.append(a.alert_id)
         if not accepted:
             return
-        for a in alert_logic.apply_corrections(correctable, accepted, t, now):
+        for a in alert_logic.apply_corrections(earlier, accepted, t, now):
             rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
