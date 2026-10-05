@@ -633,6 +633,10 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
         pack, _ = ctx.pack_for(market, lang)  # D-142: fails when the market does not offer the language
     except (DataPackError, FileNotFoundError) as e:
         raise ActionError(400, "unknown_market_language", f"{market}/{lang}: {e}") from None
+    if pack.products.currency_symbol != ctx.pack.products.currency_symbol:
+        # D-179: the sheets' index and /catalog are the server's market's; another currency needs MARKET=<it>
+        raise ActionError(400, "market_needs_own_server",
+                          f"{market} prices are in {pack.products.currency_symbol}; run the server with MARKET={market}")
     try:
         runsheet = pack.runsheet(runsheet_id)
     except DataPackError as e:

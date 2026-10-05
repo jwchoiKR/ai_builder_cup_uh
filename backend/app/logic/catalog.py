@@ -6,6 +6,7 @@ never computed.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -51,6 +52,72 @@ def claim_rules(market: MarketPack, lang: LangPack) -> ClaimRulesFile:
                for r in market.rules],
         negation_cues=lang.negation_cues, quote_cues=lang.quote_cues,
     )
+
+
+log = logging.getLogger(__name__)
+
+
+def _priced_for(market: str, products: ProductsFile, promos: PromosFile, passages: list[Passage],
+                runsheets: dict[str, Runsheet]):
+    """D-179: the pack in another market's prices (`products.json` `market_prices`). Every amount the products file
+    and the sheets write in the default currency ("S$36.00", "S$36") becomes that market's price of the same item
+    ("RM119.00", "RM119"). An amount with no price there is an error. A promo with promo prices, a spend threshold
+    or an amount the market has no value for is left out of that market; prices are never computed."""
+    mp = products.market_prices[market]
+    old: dict[float, float] = {}
+
+    def price(was: float, now: float, what: str) -> None:
+        if old.setdefault(was, now) != now:
+            raise DataPackError(f"{market} prices: {what} shares {was} with another item at another price")
+
+    for p in products.products:
+        if p.product_id not in mp.products:
+            raise DataPackError(f"{market} prices: none for {p.product_id}")
+        price(p.list_price, mp.products[p.product_id]["list_price"], p.product_id)
+        price(p.live_price, mp.products[p.product_id]["live_price"], p.product_id)
+    for s in products.set_offers:
+        if s.set_id not in mp.set_offers:
+            raise DataPackError(f"{market} prices: none for {s.set_id}")
+        price(s.live_price, mp.set_offers[s.set_id], s.set_id)
+    amount = re.compile(re.escape(products.currency_symbol) + r"(\d+(?:\.\d+)?)")
+
+    def convert(text: str) -> tuple[str, list[str]]:
+        unknown: list[str] = []
+
+        def one(m: re.Match) -> str:
+            v = old.get(float(m.group(1)))
+            if v is None:
+                unknown.append(m.group(0))
+                return m.group(0)
+            return mp.currency_symbol + (f"{v:.2f}" if "." in m.group(1) else f"{v:g}")
+        return amount.sub(one, text), unknown
+
+    text, unknown = convert(products.model_dump_json())
+    if unknown:
+        raise DataPackError(f"{market} prices: no price for {sorted(set(unknown))} in products.json")
+    priced = ProductsFile.model_validate_json(text)
+    priced.currency, priced.currency_symbol = mp.currency, mp.currency_symbol
+    for p in priced.products:
+        p.list_price, p.live_price = mp.products[p.product_id]["list_price"], mp.products[p.product_id]["live_price"]
+    for s in priced.set_offers:
+        s.live_price = mp.set_offers[s.set_id]
+    out_passages = []
+    for p in passages:
+        text, unknown = convert(p.text)
+        if unknown:
+            raise DataPackError(f"{market} prices: no price for {sorted(set(unknown))} in passage {p.passage_id}")
+        out_passages.append(p.model_copy(update={"text": text}))
+    kept = []
+    for promo in promos.promos:
+        texts = [convert(t) for t in (promo.title, promo.viewer_text, promo.host_text)]
+        if promo.promo_prices or promo.min_spend is not None or any(u for _, u in texts):
+            log.warning("promo %s is left out of market %s: no %s values for it", promo.promo_id, market, market)
+            continue
+        kept.append(promo.model_copy(update={"title": texts[0][0], "viewer_text": texts[1][0], "host_text": texts[2][0]}))
+    ids = {p.promo_id for p in kept}
+    out_runsheets = {k: rs.model_copy(update={"promo_ids": [i for i in rs.promo_ids if i in ids]})
+                     for k, rs in runsheets.items()}
+    return priced, promos.model_copy(update={"promos": kept}), out_passages, out_runsheets
 
 
 class DataPackError(ValueError):
@@ -102,10 +169,15 @@ class DataPack:
                     passages.append(Passage.model_validate_json(line))
         market_pack = MarketPack.model_validate(_read_json(data_dir / "markets" / f"{market.lower()}.json"))
         lang_pack = LangPack.model_validate(_read_json(data_dir / "lang" / f"{lang}.json"))
+        products = ProductsFile.model_validate(_read_json(data_dir / "products" / "products.json"))
+        promos = PromosFile.model_validate(_read_json(data_dir / "promos" / "promos.json"))
+        if (products.currency_symbol != market_pack.currency.symbol
+                and market_pack.market in products.market_prices):
+            products, promos, passages, runsheets = _priced_for(market_pack.market, products, promos, passages, runsheets)
         pack = cls(
-            products=ProductsFile.model_validate(_read_json(data_dir / "products" / "products.json")),
+            products=products,
             runsheets=runsheets,
-            promos=PromosFile.model_validate(_read_json(data_dir / "promos" / "promos.json")),
+            promos=promos,
             rules=claim_rules(market_pack, lang_pack),
             intents=IntentsFile.model_validate(_read_json(data_dir / "policy" / "intents.json")),
             notices=NoticesFile.model_validate(_read_json(data_dir / "templates" / "notices.json")),

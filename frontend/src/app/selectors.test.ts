@@ -65,9 +65,9 @@ describe("prices", () => {
   it("switches to promo prices during a price promo", () => {
     const live = reduceSnapshot(snapshot(), "viewer");
     const product = catalog.products[0];
-    expect(priceView(live, catalog, product)).toEqual({ label: "LIVE PRICE", current: "S$36.00", struck: "S$48.00", set: "S$62.00" });
+    expect(priceView(live, catalog, product)).toEqual({ label: "LIVE PRICE", current: "S$36.00", struck: "S$48.00", set: "S$62.00", symbol: "S$" });
     const sale = reduceSnapshot(snapshot({ session: { ...snapshot().session, active_promo_id: "promo_time_sale_10", active_promos: [{ promo_id: "promo_time_sale_10", started_at: T0, ends_at: T0 + 600_000 }] } }), "viewer");
-    expect(priceView(sale, catalog, product)).toEqual({ label: "TIME SALE", current: "S$32.40", struck: "S$36.00", set: "S$55.80" });
+    expect(priceView(sale, catalog, product)).toEqual({ label: "TIME SALE", current: "S$32.40", struck: "S$36.00", set: "S$55.80", symbol: "S$" });
     expect(activePromos(sale, catalog, T0 + 60_000)[0].remainingMs).toBe(540_000);
   });
 });

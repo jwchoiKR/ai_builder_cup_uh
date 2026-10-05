@@ -57,12 +57,21 @@ class SetOffer(BaseModel):
     live_price: float
 
 
+class MarketPrices(BaseModel):
+    """D-179: the same products' prices in another market's currency (MY: demo values, user decision 10/5)."""
+    currency: str
+    currency_symbol: str
+    products: dict[str, dict[Literal["list_price", "live_price"], float]]
+    set_offers: dict[str, float]
+
+
 class ProductsFile(BaseModel):
     brand: str
     currency: str
     currency_symbol: str
     set_offers: list[SetOffer]
     products: list[Product]
+    market_prices: dict[str, MarketPrices] = {}  # D-179: by market code; used when the market's currency differs
 
 
 # ---- data/products/passages.jsonl (also the retriever's Passage, §9.1) -----------------------

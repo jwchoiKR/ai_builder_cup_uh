@@ -299,5 +299,24 @@
         }
       ]
     }
-  ]
+  ],
+  "market_prices": {
+    "MY": {
+      "currency": "MYR",
+      "currency_symbol": "RM",
+      "products": {
+        "cream_hydra_barrier": {
+          "list_price": 159.0,
+          "live_price": 119.0
+        },
+        "ampoule_deep_hydration": {
+          "list_price": 139.0,
+          "live_price": 105.0
+        }
+      },
+      "set_offers": {
+        "set_cream_ampoule": 205.0
+      }
+    }
+  }
 }
