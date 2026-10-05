@@ -32,6 +32,7 @@ from ..models.session import (
     Answer,
     Comment,
     CommentAnalysis,
+    Event,
     Message,
     QuestionGroup,
     Segment,
@@ -569,10 +570,42 @@ class SessionRuntime:
 
     # ---- snapshot (§11.1 /state) ---------------------------------------------------------------
 
+    async def impact(self) -> dict[str, Any]:
+        """D-240: live impact counters from logged state, each with its denominator."""
+        store = self.ctx.store
+        finals = [t for t in await store.query(self.path("transcripts"), Transcript) if t.is_final]
+        alerted = {a.transcript_id for a in await self.alerts()
+                   if a.kind == "compliance" and a.shown_at is not None and a.status != "dismissed"}
+        groups = await self.groups()
+        asked = sum(len(g.member_comment_ids) for g in groups)
+
+        def askers(pred) -> int:
+            return sum(len(g.member_comment_ids) for g in groups if pred(g))
+
+        events = await store.query(self.path("events"), Event)
+        calls = await store.query(self.path("agent_calls"), AgentCall)
+        tokens = sum((c.usage or {}).get("prompt", 0) or 0 for c in calls) + sum(
+            (c.usage or {}).get("output", 0) or 0 for c in calls)
+        s = await self.load_session()
+        hours = max((self.now() - s.started_at) / 3_600_000, 1 / 60) if s.started_at else None
+        return {
+            "risky_lines": {"alerted": len(alerted), "of_lines": len(finals)},
+            "questions": {"ai": askers(lambda g: g.status == "auto_answered"),
+                          "host": askers(lambda g: g.route == "HOST"),
+                          "operator": askers(lambda g: g.route == "OPERATOR"),
+                          "of_askers": asked},
+            "operator_actions": sum(1 for e in events if e.type == "operator.action"
+                                    and e.payload.get("actor") == "operator"),
+            "llm": {"calls": len(calls), "tokens": tokens,
+                    "tokens_per_hour": round(tokens / hours) if hours else None},
+        }
+
     async def compute_metrics(self) -> dict[str, Any]:
+        return {**await self._metrics(self.ctx.store), "impact": await self.impact()}  # D-240
+
+    async def _metrics(self, store) -> dict[str, Any]:
         from ..logic.metrics import compute_metrics
 
-        store = self.ctx.store
         return compute_metrics(
             alerts=await self.alerts(),
             transcripts=await store.query(self.path("transcripts"), Transcript),

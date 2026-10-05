@@ -59,7 +59,6 @@ def scene(rt) -> list[tuple[float, str, str, str]]:
     p = cat.get_product(cat.order[0])
     word = p.name.split()[-1].lower() if p.name else "product"
     claim = (p.approved_claims[0] if p.approved_claims else "it feels light on the skin").rstrip(".*†")
-    caution = p.cautions[0] if p.cautions else "please check with your doctor first."
     return [
         (0.0, "host", "Host", f"Hi everyone, welcome! Today we are looking at the {p.name}."),
         (5.0, "host", "Host", f"Honestly, this {word} erases wrinkles completely, guaranteed for everyone."),
@@ -68,7 +67,7 @@ def scene(rt) -> list[tuple[float, str, str, str]]:
         (17.8, "comment", "Raj", "price pls"),
         (18.6, "comment", "Ana", "how much is this one?"),
         (21.0, "comment", "Siti", "can I use it while pregnant?"),
-        (38.0, "host", "Host", f"Siti asked about pregnancy. {caution}"),
+        (38.0, "host_answer", "Host", "Siti asked about pregnancy."),  # then the verified draft, read aloud
         (46.0, "comment", "Tom", "Just bought two, so excited!!"),
         (75.0, "end", "", ""),
     ]
@@ -87,6 +86,16 @@ async def play(rt) -> None:
                 await asyncio.sleep(wait)
             if kind == "host":
                 await rt.inject_transcript(text, scenario="testdrive")
+            elif kind == "host_answer":
+                # the host answers the waiting question aloud with its verified draft, so the answer is posted
+                draft = None
+                for g in await rt.groups():
+                    if g.route == "HOST" and g.answer_id and g.published_message_id is None:
+                        a = await rt.get_answer(g.answer_id)
+                        if a is not None and a.verified:
+                            draft = a.text
+                            break
+                await rt.inject_transcript(f"{text} {draft}" if draft else text, scenario="testdrive")
             elif kind == "comment":
                 await submit_comment(rt, author_id=f"td_{author.lower()}", author_name=author, text=text,
                                      source="script", scenario="testdrive")

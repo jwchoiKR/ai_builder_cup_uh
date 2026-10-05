@@ -43,6 +43,27 @@ export function metricChips(
   };
 }
 
+type Impact = {
+  risky_lines: { alerted: number; of_lines: number };
+  questions: { ai: number; host: number; operator: number; of_askers: number };
+  operator_actions: number;
+  llm: { calls: number; tokens: number; tokens_per_hour: number | null };
+};
+
+/** D-240: live impact from logged state, each count with its denominator. */
+export function impactChips(metrics: { impact?: Impact } | undefined, t: Translate = (en, vars) => translate("en", en, vars)) {
+  const i = metrics?.impact;
+  if (!i) return [];
+  const q = i.questions;
+  return [
+    t("Risky lines alerted {a}/{n}", { a: String(i.risky_lines.alerted), n: String(i.risky_lines.of_lines) }),
+    t("Askers answered: AI {a} · host {h} · operator {o} of {n}",
+      { a: String(q.ai), h: String(q.host), o: String(q.operator), n: String(q.of_askers) }),
+    t("Operator actions {n}", { n: String(i.operator_actions) }),
+    t("LLM {k}k tokens/h", { k: i.llm.tokens_per_hour === null ? NO_VALUE : String(Math.round(i.llm.tokens_per_hour / 1000)) }),
+  ];
+}
+
 export function OperatorHeader({
   connection,
   themePref,
@@ -96,6 +117,11 @@ export function OperatorHeader({
           {shown.alert && <Chip className="tabular">{chips.alert}</Chip>}
           {shown.judge && <Chip className="tabular">{chips.judge}</Chip>}
           <Chip className="tabular">{chips.instant}</Chip>
+        </div>
+        <div className={styles.metricChips} data-testid="op-impact">
+          {impactChips(state.metrics as { impact?: Impact }, t).map((x) => (
+            <Chip key={x} className="tabular">{x}</Chip>
+          ))}
         </div>
         {s?.status === "live" && s.started_at !== null ? (
           <span className={styles.live}>

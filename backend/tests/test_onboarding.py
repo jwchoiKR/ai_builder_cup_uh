@@ -450,3 +450,24 @@ def test_d238_test_drive_reads_the_sample_approves_and_starts_a_live_show(tmp_pa
         monkeypatch.setattr(td, "_starts", [])
         again = c.post("/api/testdrive/start").json()
         assert again["cached"] and again["status"] == "done"  # the sample is read once, then reused
+
+
+async def test_d240_impact_counts_come_with_their_denominators():
+    from .helpers import live_runtime, say
+    from .judge_fakes import speak, violation
+
+    llm = ScriptedBackend()
+    ctx = make_ctx(backend=llm)
+    rt = await live_runtime(ctx)
+    try:
+        llm.judge("It cures eczema.", violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
+        await speak(rt, "It cures eczema.")
+        await speak(rt, "It feels light.")
+        await say(rt, "Lee", "How much is the cream?")
+        i = (await rt.compute_metrics())["impact"]
+        assert i["risky_lines"] == {"alerted": 1, "of_lines": 2}
+        assert i["questions"]["of_askers"] == 1 and i["questions"]["ai"] + i["questions"]["host"] + i["questions"]["operator"] >= 1
+        assert i["operator_actions"] == 0 and i["llm"]["calls"] > 0
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
