@@ -31,7 +31,7 @@ function actions(): HostActions {
 }
 
 function view(over: Partial<StateSnapshot> = {}, acts: HostActions = actions()) {
-  // D-161: a red alert is on the prompter only while fresh, so alerts are dated near "now" (spacing kept)
+  // D-161: a red alert blocks cards only while fresh, so alerts are dated near "now" (spacing kept)
   const shift = Date.now() - T0;
   const alerts = over.alerts?.map((a) => ({ ...a, created_at: a.created_at + shift }));
   const state = reduceSnapshot(snapshot(alerts ? { ...over, alerts } : over), "host", Date.now());
@@ -555,18 +555,19 @@ describe("AI PD card", () => {
     expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("take the top one now");
   });
 
-  it("D-161: a red not corrected within 20 s waits as a header chip and the card returns", () => {
+  it("D-177: a red not corrected within 20 s stays full size and the card shows below it", () => {
     const card = pdCard({ card_id: "card_ai_5", status: "active" });
-    const old = alert({ alert_id: "al_old", span: "erases wrinkles", created_at: T0 - RED_BLOCK_MS - 1000 });
+    const old = alert({ alert_id: "al_old", span: "erases wrinkles", created_at: T0 - RED_BLOCK_MS - 1000,
+      escalated_at: T0 - RED_BLOCK_MS + 4000 });
     render(view({ session: session({ pd_card: card }), alerts: [old] }));
-    expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
-    expect(screen.getByTestId("host-red-chip")).toHaveTextContent("1 uncorrected");
+    expect(screen.getByTestId("host-compliance-overlay")).toHaveAttribute("data-fresh", "false");
     expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
+    expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("take the top one now");
     cleanup();
-    // an escalation (or a new red) takes the prompter again for 20 s
-    render(view({ session: session({ pd_card: card }), alerts: [{ ...old, escalated_at: now() - 1000 }] }));
-    expect(screen.getByTestId("host-compliance-overlay")).toBeInTheDocument();
-    expect(screen.queryByTestId("host-red-chip")).toBeNull();
+    // the same claim said again is a new alert: highlighted, and cards wait 20 s again
+    const again = alert({ alert_id: "al_again", span: "erases wrinkles", created_at: T0 - 1000 });
+    render(view({ session: session({ pd_card: card }), alerts: [old, again] }));
+    expect(screen.getByTestId("host-compliance-overlay")).toHaveAttribute("data-fresh", "true");
     expect(screen.queryByTestId("host-pd-card")).toBeNull();
   });
 

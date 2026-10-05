@@ -109,7 +109,6 @@ export const KO_HOST: Record<string, string> = {
   "Finish the correction first": "먼저 정정을 마치세요",
   "AI check slow": "AI 확인 지연",
   PREVIEW: "미리보기",
-  "{n} uncorrected": "미정정 {n}건",
   "Preview: nothing is posted automatically": "미리보기: 자동 게시 없음",
   "AI check slow: alerts may be missing": "AI 확인 지연: 경고가 빠질 수 있습니다",
   "AI checks running": "AI 확인 정상",

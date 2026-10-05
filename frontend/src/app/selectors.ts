@@ -235,22 +235,20 @@ export interface HighAlertView {
   total: number;
 }
 
-/** D-161: a red alert takes the prompter (and blocks AI PD cards) this long after it was created or escalated;
- *  then it waits as a chip in the header until it is corrected or dismissed. Same value as the server's. */
+/** D-161, D-177: a red alert blocks AI PD cards this long after it was created; it stays full size on the
+ *  prompter until it is corrected or dismissed, and cards show below it after the block. Same value as the server's. */
 export const RED_BLOCK_MS = 20_000;
 
-const redAt = (a: Alert) => Math.max(a.created_at, a.escalated_at ?? 0);
-
-/** The red alert on the prompter; with `now` (server time) only one still fresh (D-161). */
-export function activeHighAlert(state: ClientState, now?: number): HighAlertView | null {
-  const high = activeComplianceAlerts(state).filter(
-    (a) => a.severity === "HIGH" && (now === undefined || now - redAt(a) < RED_BLOCK_MS));
+/** The red alert on the prompter: the newest active one, until corrected or dismissed (D-177). */
+export function activeHighAlert(state: ClientState): HighAlertView | null {
+  const high = activeComplianceAlerts(state).filter((a) => a.severity === "HIGH");
   return high.length ? { alert: high[0], position: 1, total: high.length } : null;
 }
 
-/** D-161: red alerts past their block, still waiting for a correction (the header chip). */
-export function waitingHighAlerts(state: ClientState, now: number): Alert[] {
-  return activeComplianceAlerts(state).filter((a) => a.severity === "HIGH" && now - redAt(a) >= RED_BLOCK_MS);
+/** D-161, D-177: a red alert created less than RED_BLOCK_MS ago (server time): it is highlighted and blocks cards.
+ *  The same claim said again is a new alert, so it highlights and blocks again. */
+export function redBlocking(state: ClientState, now: number): boolean {
+  return activeComplianceAlerts(state).some((a) => a.severity === "HIGH" && now - a.created_at < RED_BLOCK_MS);
 }
 
 export function activeMediumAlerts(state: ClientState): Alert[] {

@@ -13,11 +13,14 @@ import styles from "./host.module.css";
 
 export function ComplianceOverlay({
   view,
+  fresh = false,
   catalog,
   serverOffsetMs,
   onRendered,
 }: {
   view: HighAlertView;
+  /** D-177: within RED_BLOCK_MS of the alert: highlighted (a repeat is a new alert, so it highlights again) */
+  fresh?: boolean;
   catalog: Catalog | null;
   serverOffsetMs: number;
   onRendered: (alertId: string) => void;
@@ -31,7 +34,8 @@ export function ComplianceOverlay({
   }, [alert.alert_id, onRendered]);
 
   return (
-    <div className={`${styles.alertBlock} ${styles.alertHigh}`} data-testid="host-compliance-overlay" role="alert"
+    <div className={`${styles.alertBlock} ${styles.alertHigh} ${fresh ? styles.alertHighFresh : ""}`}
+      data-testid="host-compliance-overlay" data-fresh={fresh} role="alert"
       aria-live="assertive" aria-label={t("High-risk claim")}>
       <div className={styles.alertTop}>
         <span className={styles.riskBadge}>
