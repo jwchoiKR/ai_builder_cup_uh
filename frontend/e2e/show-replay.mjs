@@ -211,7 +211,9 @@ function score(show, run) {
   // (a) planted errors alerted within 3 s of the end of speech, by kind
   const errors = (show.planted_errors ?? []).map((pe) => {
     const fl = lineFor(byLine, pe.t_s);
-    const hits = alertsOn(run, fl).filter((a) => kindOf(a) === pe.kind);
+    // the test-qualifier rule is a compliance rule: its alert also counts for a planted "compliance" error
+    const hits = alertsOn(run, fl).filter((a) => kindOf(a) === pe.kind
+      || (pe.kind === "compliance" && kindOf(a) === "qualifier"));
     const times = hits.map((a) => {
       const t = run.seen.transcripts[a.transcript_id];
       const shown = a.host_rendered_at ?? a.shown_at;
