@@ -108,13 +108,25 @@
   display: flex;
   flex-direction: column;
 }
+/* the group sits a little above the middle: top space : bottom space = 2 : 3 */
+.hubBody::before,
+.hubBody::after {
+  content: "";
+  flex: 2 1 0;
+}
+.hubBody::after {
+  flex-grow: 3;
+}
 .hubContent {
-  margin: auto;
+  flex: none;
+  margin: 0 auto;
   width: 100%;
   max-width: 1240px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: var(--space-6);
+  word-break: keep-all; /* Korean breaks between words */
+  overflow-wrap: break-word;
 }
 .hubHero {
   display: flex;
