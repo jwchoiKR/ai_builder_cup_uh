@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
-from ..logic.verify import number_set, quote_in_passage
+from ..logic.verify import number_set, quote_in_file, quote_in_passage
 from ..models.agent_io import FactCheckOutput
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
@@ -22,6 +22,7 @@ from . import inputs
 log = logging.getLogger(__name__)
 
 CLAIMS_SECTION = "Approved on-air claims"
+SOURCE_FILE = "Source file"  # D-247/D-253: a release file's passage (onboarding/sources.py), checked tolerantly
 ABSENT = "not in this product"  # D-121: correct_value of an ingredient the sheet never names
 _NAME = re.compile(r"[a-z][a-z-]{3,}")
 _NOT_NAMES = frozenset({"percent", "with", "and", "contains", "has", "the", "this", "ampoule", "cream", "product"})
@@ -283,7 +284,8 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             # D-250: each check names itself, so a drop says which one failed
             checks = (
                 ("unknown passage", lambda: p is not None),
-                ("quote not in the passage", lambda: c.quote is not None and quote_in_passage(c.quote, p.text)),
+                ("quote not in the passage", lambda: c.quote is not None and (
+                    quote_in_file(c.quote, p.text) if p.section == SOURCE_FILE else quote_in_passage(c.quote, p.text))),
                 ("a number of the correction is not in the quote",
                  lambda: c.correct_value is not None and right <= nums(c.quote)),
                 # D-244 L1: the correction is a value the quote states (a number, or the quote's words);
