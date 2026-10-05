@@ -425,3 +425,22 @@ def test_d156_an_ingredient_the_sheet_lists_as_free_from_is_contradicted(pack, c
     out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
     sheet = [p for p in pack.passages if p.product_id == CREAM]
     assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"I think it has {stated}.").claims] == [verdict]
+
+
+@pytest.mark.parametrize("stated, span, verdict", [
+    ("niacinamide", "The main ingredient is niacinamide", "not_in_sources"),  # on the sheet: "main" is not settled
+    ("retinol", "The main ingredient is retinol", "contradicted"),  # not on the sheet at all
+    ("no niacinamide", "There is no niacinamide in it", "contradicted"),  # an absence it does contain
+])
+def test_d165_a_present_ingredient_is_not_contradicted_by_another_one(pack, catalog, stated, span, verdict):
+    """D-165 (local SEED1 replay): "The main ingredient is Niacinamide." got a note "Centella Asiatica Leaf Water"."""
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    q = "Centella Asiatica Leaf Water: 50% (formula base)."
+    c = claim("ingredient", "contradicted", stated=stated, correct="Centella Asiatica Leaf Water",
+              passage_id="DL-AM-01#key-ingredients#centella-asiatica-leaf-water", quote=q) | {
+        "product_id": "ampoule_deep_hydration", "span": span}
+    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
+    sheet = [p for p in pack.passages if p.product_id == "ampoule_deep_hydration"]
+    assert [x.verdict for x in post_validate(out, sheet, catalog, None, span + ".").claims] == [verdict]
