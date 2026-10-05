@@ -682,6 +682,9 @@ class UtterancePipeline:
         rt = self.rt
         if not self._claim_application(t, "facts"):
             return
+        for c in facts.claims:  # D-158: the only trace of a cloud replay (no session data is kept)
+            log.info("facts %s t=%s: %s %s said=%r verdict=%s correct=%r", rt.sid, t.transcript_id, c.product_id,
+                     c.field, c.stated_value, c.verdict, c.correct_value)
         seq = self._sequence.get(t.transcript_id, 0)
         claims = []
         for claim in facts.claims:
