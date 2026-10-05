@@ -168,3 +168,34 @@ async def test_the_old_stream_reports_no_fragment_after_the_switch(monkeypatch):
     await reader
     assert stream.restarts >= 1
     assert sum(t.startswith("fragment") for t in texts) <= 1  # only the very last stream's, at close
+
+
+async def test_the_standby_takes_over_only_after_it_returned_a_result(monkeypatch, caplog):
+    """D-160 (local show replay on c1cf35c): a standby that took over got its first result 4.5 s later while the
+    host was mid-line. It takes over at a final once it has returned something, else the live stream goes on."""
+    import logging
+
+    monkeypatch.setattr(stt_mod, "PREWARM_MS", 4_800)  # 200 ms of audio at the first final past the soft limit
+    monkeypatch.setattr(stt_mod, "SOFT_RESTART_MS", 5_000)
+    monkeypatch.setattr(stt_mod, "STREAM_LIMIT_MS", 9_000)
+    fake = FakeStt()
+    stream = GoogleV2Stream(fake, [])
+    finals: list[int] = []
+
+    async def read():
+        async for r in stream.results():
+            if r.is_final:
+                finals.append(r.speech_end_at)
+    reader = asyncio.create_task(read())
+    with caplog.at_level(logging.INFO, logger="app.providers.stt"):
+        for _ in range(80):  # 8 s of audio
+            fake.clock.t += 100
+            await stream.write(FRAME)
+            await asyncio.sleep(0)
+        await asyncio.sleep(0.05)
+        await stream.close()
+        await reader
+    switches = [r.getMessage() for r in caplog.records if "speech stream switch" in r.getMessage()]
+    assert switches and all(" 0 results" not in m for m in switches)
+    assert fake.speech.streams == 2  # no bridged restart while waiting for the standby
+    assert finals == sorted(finals) and len(set(finals)) == len(finals)

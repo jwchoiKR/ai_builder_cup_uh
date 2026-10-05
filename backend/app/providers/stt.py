@@ -150,7 +150,14 @@ class GoogleV2Stream:
                 soft = st.audio_ms >= SOFT_RESTART_MS and st.last_final_ms >= SOFT_RESTART_MS
                 if soft or st.audio_ms >= STREAM_LIMIT_MS:
                     switch_at = st.time_at(st.last_final_ms)
-                    if nxt is not None and soft and switch_at is not None and nxt.started_at <= switch_at:
+                    if (nxt is not None and soft and not nxt.results and st.audio_ms < STREAM_LIMIT_MS):
+                        # D-160 (local show replay): a standby that has returned nothing yet took 4.5 s for its
+                        # first result after taking over; the live stream goes on until the next final
+                        if not nxt.waited:
+                            nxt.waited = True
+                            log.info("speech stream switch waits: the standby has returned no result after %.0f s",
+                                     nxt.state.audio_ms / 1000)
+                    elif nxt is not None and soft and switch_at is not None and nxt.started_at <= switch_at:
                         nxt.emit_after, nxt.active, nxt.activated = switch_at, True, time.monotonic()
                         cur.emit_before = switch_at  # its audio is cut here: a fragment it finalizes later is not reported
                         cur.feed.put_nowait(None)
@@ -264,6 +271,7 @@ class _Lane:
     reported: bool = False
     number: int = 0  # D-157: restarts count when it took over, for the per-final log
     results: int = 0  # D-157: results it returned, also while standing by
+    waited: bool = False  # D-160: a switch already waited for its first result (logged once)
 
 
 def _is_speech(pcm: bytes) -> bool:
