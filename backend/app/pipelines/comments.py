@@ -570,8 +570,9 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
                                  not_approved=not_approved)
     if ok:
+        asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
         ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario,
-                                      whole=decide)
+                                      whole=decide, comments=asked)
     by_id = {p.passage_id: p for p in passages}
     citations = [{"passage_id": c.passage_id, "quote": c.quote,
                   "section": by_id[c.passage_id].section if c.passage_id in by_id else None,
@@ -597,13 +598,14 @@ def draft_code_gate(out, passages, product_id, *, arm: str, reflex, not_approved
 UNCHECKED = frozenset({"draft_check_timeout", "draft_check_error", "draft_check_invalid"})
 
 
-async def _llm_check(rt, question, out, passages, product_id, promo, scenario, whole=False) -> tuple[bool, list[str]]:
+async def _llm_check(rt, question, out, passages, product_id, promo, scenario, whole=False,
+                     comments=()) -> tuple[bool, list[str]]:
     """D-126: the LLM draft verifier after the code checks. A fail, a timeout or an error keeps the draft
     unverified, so it goes to the operator instead of being posted or cached."""
     inp = DraftCheckInput(product_id=product_id, question=question, answer=out.answer.strip(), promo=promo,
                           passages=passages if whole else cited_passages([c.passage_id for c in out.citations],
                                                                          passages),
-                          session_id=rt.sid, scenario=scenario)
+                          session_id=rt.sid, scenario=scenario, comments=list(comments))
     res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
     if res.status == "timeout":  # D-152 (comment-flow CF09): a timeout is not a block; once more
         res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
@@ -749,7 +751,9 @@ async def _check_operator_reply(rt: "SessionRuntime", gid: str, text: str, origi
     if origin == "operator_edit" and not problems:
         res = await rt.draft_verifier.run(DraftCheckInput(
             product_id=g.product_id, question=g.canonical_question, answer=text, promo=promo, passages=sheet,
-            session_id=rt.sid), deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
+            session_id=rt.sid, comments=[c.text for cid in g.member_comment_ids[:5]
+                                         if (c := await rt.get_comment(cid)) is not None]),
+            deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
         if res.status != "ok" or res.output is None:
             problems.append(f"draft check {res.status}")
         elif res.output.verdict == "fail":
