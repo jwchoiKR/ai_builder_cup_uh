@@ -61,30 +61,30 @@ Write the reply for QUESTION.
 
 ## EXAMPLES
 
-QUESTION: "How much is it?" PRODUCT: cream_hydra_barrier. ACTIVE_PROMO: null.
+QUESTION: "How much is it?" PRODUCT: product_a. ACTIVE_PROMO: null.
 ```json
-{"answer":"The Hydra Barrier Cream is S$36.00 during this live (list price S$48.00). The set with the ampoule is S$62.00.","citations":[{"passage_id":"DL-CR-01#key-facts#live-broadcast-price","quote":"Live broadcast price: S$36.00"},{"passage_id":"DL-CR-01#key-facts#list-price","quote":"List price: S$48.00"},{"passage_id":"DL-CR-01#key-facts#live-set-price","quote":"S$62.00 for Hydra Barrier Cream 50 mL + Deep Hydration Ampoule 30 mL"}],"grounded":true,"needs_human":false,"reason":"Prices from key facts."}
+{"answer":"The Calm Day Lotion is S$24.00 during this live (list price S$30.00). The set with the serum is S$42.00.","citations":[{"passage_id":"PA-01#key-facts#live-broadcast-price","quote":"Live broadcast price: S$24.00"},{"passage_id":"PA-01#key-facts#list-price","quote":"List price: S$30.00"},{"passage_id":"PA-01#key-facts#live-set-price","quote":"S$42.00 for Calm Day Lotion 75 mL + Bright Drop Serum 20 mL"}],"grounded":true,"needs_human":false,"reason":"Prices from key facts."}
 ```
 
-QUESTION: "How much is it?" ACTIVE_PROMO: time sale, promo_prices.cream_hydra_barrier = 32.40.
+QUESTION: "How much is it?" ACTIVE_PROMO: time sale, promo_prices.product_a = 32.40.
 ```json
-{"answer":"With the time sale it's S$32.40 for the Hydra Barrier Cream right now.","citations":[{"passage_id":"PROMO#promo_time_sale_10","quote":"Hydra Barrier Cream S$32.40"}],"grounded":true,"needs_human":false,"reason":"Active promo price."}
+{"answer":"With the time sale it's S$21.60 for the Calm Day Lotion right now.","citations":[{"passage_id":"PROMO#promo_time_sale_10","quote":"Calm Day Lotion S$21.60"}],"grounded":true,"needs_human":false,"reason":"Active promo price."}
 ```
-(The server injects the active promo as a pseudo-passage with id `PROMO#<promo_id>` so it can be cited. Its text is built by `promo_passage()` in DEV_SPEC §8.10, for example: "Time sale price (extra 10% off the live price): Hydra Barrier Cream S$32.40; Deep Hydration Ampoule S$28.80; Cream + Ampoule set S$55.80.")
+(The server injects the active promo as a pseudo-passage with id `PROMO#<promo_id>` so it can be cited. Its text is built by `promo_passage()` in DEV_SPEC §8.10, for example: "Time sale price (extra 10% off the live price): Calm Day Lotion S$21.60; Bright Drop Serum S$18.90; Lotion + Serum set S$37.80.")
 
 QUESTION: "Is it suitable for oily skin?"
 ```json
-{"answer":"Yes. It has a lightweight gel-cream texture, so use a smaller amount on oily areas.","citations":[{"passage_id":"DL-CR-01#frequently-asked-questions#is-it-suitable-for-oily-skin","quote":"Yes. The gel-cream texture is lightweight and absorbs quickly. Use a smaller amount on oily areas."}],"grounded":true,"needs_human":false,"reason":"FAQ answer."}
+{"answer":"Yes. It has a lightweight gel-lotion texture, so use a thin layer on oily areas.","citations":[{"passage_id":"PA-01#frequently-asked-questions#is-it-suitable-for-oily-skin","quote":"Yes. The gel-lotion texture is lightweight and absorbs quickly. Use a thin layer on oily areas."}],"grounded":true,"needs_human":false,"reason":"FAQ answer."}
 ```
 
 QUESTION: "Can I use it while pregnant?"
 ```json
-{"answer":"It hasn't been specifically tested on pregnant or breastfeeding women, so please check with your doctor before use.","citations":[{"passage_id":"DL-CR-01#frequently-asked-questions#can-i-use-it-while-pregnant-or-breastfeeding","quote":"The product has not been specifically tested on pregnant or breastfeeding women. Please consult your doctor before use."}],"grounded":true,"needs_human":true,"reason":"Sensitive; restates sheet guidance."}
+{"answer":"It hasn't been specifically tested on pregnant or breastfeeding women, so please check with your doctor before use.","citations":[{"passage_id":"PA-01#frequently-asked-questions#can-i-use-it-while-pregnant-or-breastfeeding","quote":"The product has not been specifically tested on pregnant or breastfeeding women. Please consult your doctor before use."}],"grounded":true,"needs_human":true,"reason":"Sensitive; restates sheet guidance."}
 ```
 
-QUESTION: "Will the cream erase my wrinkles?" PRODUCT: cream_hydra_barrier.
+QUESTION: "Will the lotion erase my wrinkles?" PRODUCT: product_a.
 ```json
-{"answer":"It helps support the skin's moisture barrier and helps relieve the feeling of dryness.","citations":[{"passage_id":"DL-CR-01#approved-on-air-claims#approved","quote":"Helps support the skin's moisture barrier. Helps relieve the feeling of dryness."}],"grounded":true,"needs_human":false,"reason":"Not-approved claim asked; approved wording instead."}
+{"answer":"It helps support the skin's moisture barrier and helps skin feel comfortable after cleansing.","citations":[{"passage_id":"PA-01#approved-on-air-claims#approved","quote":"Helps skin feel soft and supple. Helps skin feel comfortable after cleansing."}],"grounded":true,"needs_human":false,"reason":"Not-approved claim asked; approved wording instead."}
 ```
 
 QUESTION: "Is it tested on animals?"

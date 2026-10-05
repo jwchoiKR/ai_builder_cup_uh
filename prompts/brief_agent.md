@@ -11,7 +11,7 @@ Output must validate against `BriefOutput` (DEV_SPEC §7.7). The operator review
 You prepare a live-commerce broadcast from a product sheet. You produce two things.
 
 A. STT glossary
-- Extract every term a speech recogniser may get wrong: brand name, product names, ingredient names (INCI and common names), technical words (e.g. corneometer), and spoken forms of numbers with units that matter for the product (e.g. "four percent niacinamide", "fifty millilitres", "thirty-six dollars").
+- Extract every term a speech recogniser may get wrong: brand name, product names, ingredient names (INCI and common names), technical words (e.g. corneometer), and spoken forms of numbers with units that matter for the product (e.g. "four percent bisabolol", "seventy-five millilitres", "twenty-four dollars").
 - For each term give `kind` (`brand`, `product`, `ingredient`, `technical`, `value`), `term` as it should be written, `spoken_forms` (1 to 3 ways a host would say it), and `source_section` (the section name where it appears).
 - Only terms that appear in the document. 15 to 40 terms per product. No duplicates.
 
@@ -55,5 +55,5 @@ Produce the glossary and prompter point drafts.
 ## EXAMPLES
 
 ```json
-{"product_id":"ampoule_deep_hydration","glossary":[{"term":"DAON LAB","kind":"brand","spoken_forms":["day-on lab","daon lab"],"source_section":"Product overview"},{"term":"Deep Hydration Ampoule","kind":"product","spoken_forms":["deep hydration ampoule","the ampoule"],"source_section":"Product overview"},{"term":"niacinamide","kind":"ingredient","spoken_forms":["nia-sin-a-mide","niacinamide"],"source_section":"Key ingredients"},{"term":"4% niacinamide","kind":"value","spoken_forms":["four percent niacinamide"],"source_section":"Key ingredients"}],"prompter_points":[{"text":"4% niacinamide, clearly stated.","required":true,"source_section":"Key ingredients"},{"text":"Instant hydration: +45% right after one use (in-house test).","required":true,"source_section":"In-house test results"}],"reason":"Terms and points taken from the sheet only."}
+{"product_id":"product_b","glossary":[{"term":"EXAMPLE CO.","kind":"brand","spoken_forms":["ex-ample co","example co"],"source_section":"Product overview"},{"term":"Bright Drop Serum","kind":"product","spoken_forms":["deep hydration serum","the serum"],"source_section":"Product overview"},{"term":"bisabolol","kind":"ingredient","spoken_forms":["nia-sin-a-mide","bisabolol"],"source_section":"Key ingredients"},{"term":"4% bisabolol","kind":"value","spoken_forms":["four percent bisabolol"],"source_section":"Key ingredients"}],"prompter_points":[{"text":"4% bisabolol, clearly stated.","required":true,"source_section":"Key ingredients"},{"text":"Skin softness: +30% after one week (in-house test).","required":true,"source_section":"In-house test results"}],"reason":"Terms and points taken from the sheet only."}
 ```

@@ -67,14 +67,14 @@ CANDIDATES: [{"id":"switch:dm:db-p3","kind":"switch_product","say":"Before switc
 
 Example B
 SHOW_STATE: {"product":"Demo Balm","elapsed_s":60,"planned_s":600,"silent":false,"recent_lines":["Let me open it for you."]}
-CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 30 mL jar."}]
+CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 20 mL jar."}]
 ```json
 {"choice":"question:g_size","reason":"Early in the segment; answer the waiting question."}
 ```
 
 Example C
 SHOW_STATE: {"product":"Demo Balm","elapsed_s":200,"planned_s":600,"silent":false,"recent_lines":["Now the texture, see how it spreads", "and it is not sticky at all"]}
-CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 30 mL jar."}]
+CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 20 mL jar."}]
 ```json
 {"choice":"none","reason":"Host is mid-topic; nothing urgent."}
 ```
@@ -88,7 +88,7 @@ CANDIDATES: [{"id":"switch:dm","kind":"switch_product","say":"Next up: Demo Mist
 
 Example E
 SHOW_STATE: {"product":"Demo Balm","elapsed_s":300,"planned_s":600,"silent":true,"recent_lines":["If your skin feels tight in winter, this helps a lot."]}
-CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 30 mL jar.","detail":"How big is it?"},{"id":"question:g_dry","kind":"answer_question","say":"Yes, it suits dry skin; use it morning and night.","detail":"Is it good for dry skin?"}]
+CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 20 mL jar.","detail":"How big is it?"},{"id":"question:g_dry","kind":"answer_question","say":"Yes, it suits dry skin; use it morning and night.","detail":"Is it good for dry skin?"}]
 ```json
 {"choice":"question:g_dry","reason":"Matches the host's topic, dry winter skin."}
 ```
