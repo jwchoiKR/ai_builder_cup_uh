@@ -1265,3 +1265,64 @@ async def test_d258_a_capitalised_word_is_no_named_source(tmp_path, monkeypatch,
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
     assert bool([a for a in row["alerts"] if a["rule_id"] == "BRAND-TEST-QUALIFIER"]) is alert
+
+
+@pytest.mark.parametrize("line, stated, alert", [
+    ("At least forty dollars qualifies.", "at least S$40", True),  # "above" is not "at least"
+    ("Anything over forty dollars qualifies.", "over S$40", False),  # the same threshold: a restatement
+])
+async def test_d259_the_kind_of_threshold_is_compared(tmp_path, monkeypatch, line, stated, alert):
+    facts = [{"text": "Free gift on orders above S$40.", "evidence": EV}]
+
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text == facts[0]["text"])
+        return _claim(pid, p, field="promo", stated_value=stated, correct_value="S$40")
+
+    assert bool(await _release_line(tmp_path, monkeypatch, {"key_facts": facts}, line, claim)) is alert
+
+
+def test_d259_offer_mixes_versions_and_unlisted_ingredients():
+    from app.agents.fact_checker import _absent_from_sheet
+    from app.models.data import Passage
+    from app.onboarding.release import release_pack
+
+    ev = [{"file": "f", "locator": "l", "quote": "3 for S$60"}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(
+        offers=[{"offer_id": "o1", "kind": "fixed_price", "title": "3 for S$60", "variant_ids": [], "percent": None,
+                 "amount": {"currency": "SGD", "minor": 6000, "kind": "promo", "market": "SG", "evidence": ev},
+                 "buy": 3, "get": None, "gift": None, "rounding": None, "starts": None, "ends": None,
+                 "duration_min": None, "evidence": ev}],
+        conflicts=[{"field": "variants[0].size_value", "values": ["30", "35"], "evidence": EV,
+                    "effective_dates": [None, None], "note": "the 30 ml sheet is archived"}])))
+    ctx = make_ctx()
+    try:
+        pack = release_pack(ctx.pack, rec, "rel_x_v1", None)
+        texts = [p.text for p in pack.passages]
+        from app.agents.fact_checker import FactChecker
+        from app.logic.catalog import Catalog
+
+        fc = FactChecker(ctx.llm, ctx.prompts["fact_checker"], Catalog(pack, "rel_x_v1"))
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    [offer] = [t for t in texts if t.startswith("Offer: 3 for S$60")]
+    assert "best price for 2 = S$72.00, 3 = S$60.00, 4 = S$96.00, 5 = S$132.00" in offer
+    assert any(t.startswith("Versions of variants[0].size_value: 30 / 35 (the 30 ml sheet is archived)") for t in texts)
+    assert "The show's language is en" in fc.system_instruction
+    sheet = [Passage(passage_id="x", product_id="p", doc="d", section="Ingredients", text="Water, apple juice")]
+    assert _absent_from_sheet("pear juice", sheet, "p") and not _absent_from_sheet("apple juice", sheet, "p")
+
+
+def test_d259_a_negated_caution_is_corrected_by_that_caution(pack):
+    from app.agents.utterance_judge import negated_caution
+    from app.models.agent_io import FactCheckOutput
+
+    p = next(x for x in pack.products.products if x.cautions)
+    lex = pack.lexicon
+    caution = p.cautions[0]
+    assert negated_caution(f"No need to worry, {caution.lower()} is not something you must follow", p, lex) == caution
+    assert negated_caution("It feels light and fresh on the skin.", p, lex) is None
+    FactCheckOutput.model_validate({"claims": [{"span": "x", "field": "caution", "product_id": p.product_id,
+                                                "stated_value": "no need to stop", "verdict": "contradicted",
+                                                "correct_value": caution, "passage_id": None, "quote": None}],
+                                    "reason": "t"})

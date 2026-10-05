@@ -22,6 +22,7 @@ Rules:
   when they do not say); `conditions` lists every other term as written (exclusions, limits per order or customer,
   eligibility, which sizes or variants count), with their comparison words and edge cases as written ("more than
   S$60; exactly S$60 does not qualify", "two small sizes do not count as one large").
+- A multi-buy price ("3 for S$60") is kind `fixed_price` with `buy` the count and `amount` the price.
 - Offers: percent off, amount off, fixed price, buy X get Y, a gift over a spend, a bundle of variants. Copy the
   stated terms, rounding rule, dates and duration; do not compute prices that are not written.
 - Ingredients: name, amount and unit as written, and `per`: what the amount is for as written ("bottle", "capsule",

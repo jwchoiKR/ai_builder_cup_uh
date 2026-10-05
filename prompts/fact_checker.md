@@ -34,7 +34,8 @@ How to decide
 - Speech-to-text splits: UTTERANCE may join lines that speech-to-text cut, marked " / ". A fact may take a number from one part and its subject from the next only when the next part continues the same clause ("it is made with ten percent / bisabolol."). When the next part starts a new sentence or topic ("the base is about half aloe water, no plain water / Ceramides"), each part is its own statement: never pair the earlier number with the later subject.
 
 Output rules
-- `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, ph, other.
+- `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, ph, caution, other.
+- A line that tells viewers to skip, ignore or reverse a caution in SOURCE ("no need to stop if irritation occurs", "take double the next day") is `contradicted` with field `caution`: `correct_value` is the caution's instruction, `quote` the caution as SOURCE writes it. It is a fact note even when the line also breaks a rule.
 - A set's price or promotion price is about the set, not one product: use the set's `set_id` from SET_OFFERS as `product_id`.
 - `stated_value` and `correct_value` are short display strings, e.g. "S$21", "S$24.00", "10% bisabolol", "4% bisabolol", "100 mL", "75 mL".
 - The host reads `correct_value` aloud. For a value without a number it is a short statement of the right fact in the passage's words ("contains fragrance", "airless pump tube"), never the field word alone.

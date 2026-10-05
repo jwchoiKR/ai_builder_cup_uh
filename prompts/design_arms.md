@@ -83,6 +83,13 @@ Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from t
   and which items it covers are checkable terms ("terms as written").
 - Packaging, form and texture stated in any passage (key facts included: "the current pack contains 50 mL in an
   airless pump") are checkable: a different one ("a screw-top jar") is `contradicted` (field `packaging`, `texture`).
+- Versions: "same as before", "unchanged" or "the original formula" is checkable against "Superseded" and "Versions"
+  passages: a value that changed between versions contradicts it.
+- Thresholds: "above S$40" means S$40 itself does not qualify; "at least S$40" means it does. A host who says S$44
+  qualifies and S$40 does not, against "above S$40", is right (`supported`).
+- A line that quotes someone else's wrong idea and rejects it ("someone says double up; please don't, follow the daily
+  portion") states the rejection and the instruction; the quoted words are not the host's claim.
+- Offer totals: "best price for N" in an Offer passage is the cheapest mix of the offer and single units.
 - Totals: "Computed" passages give per-pack totals worked out in code (amount per unit × units in the pack). A total
   the host states for a pack is checked against them, never against the amount per unit.
 - Substances: a compound and its element are different substances ("zinc gluconate" is not "zinc"; "2.5 mg zinc (as

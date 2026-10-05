@@ -178,6 +178,10 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
             out.append((f"{v.variant_id}-size", f"{v.name} · size: {size}"))
     for c in record.conflicts:
         dated = [(d, v) for v, d in zip(c.values, c.effective_dates) if d]
+        if len(dated) < 2:  # D-259: undated versions still reach the checker, with the documents' note
+            out.append((f"versions-{c.field}", f"Versions of {c.field}: " + " / ".join(c.values)
+                        + (f" ({c.note})" if c.note else "") + ". Only one is current; a current-tense line with an "
+                        "older one is wrong."))
         if len(dated) >= 2:
             dated.sort()
             current = dated[-1]
@@ -216,6 +220,18 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
                 terms.append(f"offer price {fmt(_rounded(unit * (1 - Decimal(o.percent) / 100), o.rounding))}")
             if o.kind == "amount_off" and o.amount is not None:
                 terms.append(f"offer price {fmt(unit - money_value(o.amount.currency, o.amount.minor))}")
+        if unit is not None and fmt is not None:
+            # D-259 (sealed pool 2: "3 for S$60, so 4 cost S$80"): the best price for a few more units than the
+            # offer covers, from the offer and the unit price, worked out in code
+            pack = ((o.buy + o.get, unit * o.buy) if o.buy and o.get else
+                    (o.buy, money_value(o.amount.currency, o.amount.minor))
+                    if o.kind in ("fixed_price", "bundle") and o.buy and o.amount is not None else None)
+            if pack is not None and pack[0] > 1:
+                n_max = pack[0] + 2
+                best = [Decimal(0)] + [unit * n for n in range(1, n_max + 1)]
+                for n in range(pack[0], n_max + 1):
+                    best[n] = min(best[n], best[n - pack[0]] + pack[1])
+                terms.append("best price for " + ", ".join(f"{n} = {fmt(best[n])}" for n in range(2, n_max + 1)))
         out.append((f"offer-{o.offer_id}", "Offer: " + "; ".join(terms)))
     # D-255 (sealed: "the 10-bottle box has 5,000 mg in total" when it is 5,000 mg per bottle): per-pack totals in
     # code, when an amount's basis is the unit the pack counts
