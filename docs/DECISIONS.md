@@ -1247,3 +1247,5 @@ D-234: A link no longer hides a viewer's question (injection eval v2: a benign q
 - **Cause:** the prefilter hid every comment with a URL or domain ("link"), and the triage prompt listed "any link or URL" under hide.
 - **Fix:** every comment's links are replaced by "[link removed]" before it is stored or shown (`mask_links`), so the link itself never reaches chat or a model. A comment with a link and a question mark goes on to triage; a link with no question (spam, a bare link) stays hidden as before. The triage prompt now hides spam or advertising, and says a real question that had a link is a question.
 - A question with a link but no "?" is still hidden by the prefilter; the operator can unhide it (triage then runs).
+
+D-235: Adversarial scorer: `expected.unverifiable` on a safe line (a fact the sheet cannot settle, e.g. an ingredient the partial sheet does not list, D-207). Silence passes and a soft fact note is not a false alert; a compliance alert still is (a HIGH one is a wrong HIGH). The report counts "unverifiable lines with a soft fact note" on its own.

@@ -82,3 +82,13 @@ async def test_a_split_case_runs_through_the_real_pipeline(monkeypatch):
         ctx.scheduler.shutdown()
     assert [(a["rule_id"], a["severity"]) for a in row["alerts"]] == [("ASEAN-2D-DISEASE", "HIGH")]
     assert score([row], [case])["detection"] == 1.0
+
+
+def test_d235_an_unverifiable_safe_line_allows_a_soft_fact_note_only():
+    case = {"case_id": "U1", "type": "t", "utterance": "x",
+            "expected": {"risky": False, "kind": None, "unverifiable": True}}
+    note = score([{"id": "U1", "run": 0, "alerts": [alert("fact", field="ingredient", correct="not in this product")]}],
+                 [case])
+    assert note["false_rate"] == 0 and note["unverifiable_soft"] == 1
+    high = score([{"id": "U1", "run": 0, "alerts": [alert(rule_id="ASEAN-2D-DISEASE", severity="HIGH")]}], [case])
+    assert high["false_rate"] == 1 and high["wrong_high"] == 1

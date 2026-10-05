@@ -14,6 +14,9 @@ D-197 (full review, P1): a risky line counts as caught only with the expected ru
 with the expected correct value in the correction; an alert of the right kind with another rule or field is not a
 catch. Every other alert on a risky line (another rule, another field, the other kind) is an extra wrong alert.
 
+`expected.unverifiable` (optional, safe lines, D-235): the sheet cannot settle the fact; silence passes and a soft fact
+note is not a false alert (a compliance alert still is).
+
 `expected.also_ok_rule_ids` / `expected.also_ok_fields` (optional): a compliance alert with one of these rules,
 or a fact alert on one of these fields, is accepted for an ambiguous line or a line with a second true error. It is never a wrong HIGH or a false alert (a safe line keeps no error); on a risky line
 it counts as caught.
@@ -146,10 +149,15 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
             # a red alert is wrong when the line's risk is not a HIGH compliance claim
             row["wrong_high"] = any(a["severity"] == "HIGH" for a in alerts) and exp["kind"] != "compliance"
         else:
-            row["false_alert"] = bool(alerts)
-            row["false_high"] = any(a["kind"] == "compliance" and a["severity"] == "HIGH" for a in alerts)
-            row["false_medium"] = any(a["kind"] == "compliance" and a["severity"] == "MEDIUM" for a in alerts)
-            row["false_fact"] = any(a["kind"] == "fact" for a in alerts)
+            # D-235: `expected.unverifiable` (a fact the sheet cannot settle): silence passes and a soft fact note is
+            # not a false alert; a compliance alert still is
+            soft = [a for a in alerts if a["kind"] == "fact"] if exp.get("unverifiable") else []
+            counted = [a for a in alerts if a not in soft]
+            row["unverifiable_soft"] = bool(soft)
+            row["false_alert"] = bool(counted)
+            row["false_high"] = any(a["kind"] == "compliance" and a["severity"] == "HIGH" for a in counted)
+            row["false_medium"] = any(a["kind"] == "compliance" and a["severity"] == "MEDIUM" for a in counted)
+            row["false_fact"] = any(a["kind"] == "fact" for a in counted)
             row["wrong_high"] = row["false_high"]
             row["wrong_text"] = False
             row["extra_wrong"] = False
@@ -161,8 +169,9 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
     wrong_high = sum(x["wrong_high"] for x in rows)
     wrong_text = sum(x["wrong_text"] for x in rows)
     extra_rate = sum(x["extra_wrong"] for x in risky) / len(risky) if risky else 0.0
+    unverifiable_soft = sum(x.get("unverifiable_soft", False) for x in safe)
     return {"rows": rows, "detection": detection, "false_rate": false_rate, "wrong_high": wrong_high,
-            "wrong_text": wrong_text, "extra_rate": extra_rate,
+            "wrong_text": wrong_text, "extra_rate": extra_rate, "unverifiable_soft": unverifiable_soft,
             "passed": detection >= PASS["detection"] and wrong_high == 0 and false_rate <= PASS["false_alert"]
             and wrong_text == 0 and extra_rate <= PASS["extra_wrong"],
             "runs": len({x["run"] for x in rows})}
@@ -193,6 +202,7 @@ def write_report(s: dict, cases: list[dict], out: Path, name: str) -> None:
         f"**{'PASS' if s['passed'] else 'FAIL'}** · detection {s['detection']:.1%} (≥ 95%) · wrong HIGH "
         f"{s['wrong_high']} (0) · false alerts {s['false_rate']:.1%} (≤ 5%) · wrong correction texts "
         f"{s['wrong_text']} (0) · risky lines with an extra wrong alert {s['extra_rate']:.1%} (≤ 5%)", "",
+        f"Unverifiable lines with a soft fact note (not a false alert): {s['unverifiable_soft']}", "",
         "Caught means the expected rule or field, and the right value in a fact correction (D-197).", "",
         "| type | risky caught | extra wrong alert | safe with an alert | HIGH | MEDIUM | fact note | wrong HIGH | "
         "wrong text |", "|---|---|---|---|---|---|---|---|---|",
