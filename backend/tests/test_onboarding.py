@@ -1066,3 +1066,29 @@ async def test_d252_an_absence_the_quote_does_not_state_is_no_correction(tmp_pat
     assert await _release_line(tmp_path, monkeypatch, {"key_facts": facts},
                                "Reapply after swimming, and also every two hours.", claim, row) == []
     assert [d["reason"] for d in row["dropped"]] == ["L1: an absence the quote does not state"]
+
+
+def test_d253_a_file_quote_survives_pdf_table_text():
+    from app.logic.verify import quote_in_file
+
+    pdf = ("[page 1] Protection | SPF 50 +\nPA + + + +\n│ Water\nresistance │ 80 min-\nutes †\n"
+           "Tested by Larkspur\nLabs, report LL-77 ─────")
+    assert quote_in_file("SPF50+ PA++++", pdf)
+    assert quote_in_file("Water resistance 80 minutes †", pdf)  # a line break inside a word
+    assert quote_in_file("Tested by Larkspur Labs, report LL-77", pdf)
+    assert not quote_in_file("Water resistance 40 minutes", pdf)  # every number of the quote must be there
+    assert not quote_in_file("Clinically proven to cure acne", pdf)
+
+
+def test_d253_fd_sends_the_qualified_results_to_the_compliance_judge():
+    from app.agents.split_judges import ComplianceJudge
+
+    from app.logic.catalog import Catalog
+
+    ctx = make_ctx(FACT_MODE="docs")
+    try:
+        judge = ComplianceJudge(ctx.llm, ctx.prompts, Catalog(ctx.pack), ctx.reflex)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert judge.fact_record and "QUALIFIED_RESULTS" in judge.system_instruction + judge.extra_data()

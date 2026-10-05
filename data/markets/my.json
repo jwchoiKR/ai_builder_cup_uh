@@ -205,8 +205,8 @@
       "category": "test_qualifier",
       "source_id": "PRODUCT_SHEET",
       "source_ref": "5 and 7",
-      "title": "Missing in-house qualifier",
-      "description": "same; exact spoken qualifier is brand policy.",
+      "title": "Test result without its qualifier",
+      "description": "Brand policy: a result of a test, study or certification must be said together with its qualifier from the product's data (who ran or certified it); the exact spoken qualifier is brand policy. This applies whoever ran the test: in-house, an independent laboratory, a clinical study, a consumer panel or a certification body. A generic mention that names no one ('testing confirmed', 'according to the tests', 'clinically proven', 'lab-tested') is not the qualifier.",
       "severity": "MEDIUM"
     },
     {

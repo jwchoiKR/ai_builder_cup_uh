@@ -114,5 +114,6 @@ Fact mode "docs" (D-247): the product's original files come before this message,
 Fact mode "record" (D-242): QUALIFIED_RESULTS lists the product's test results, each with the qualifier it must be
 said with (an in-house test, a named laboratory, a clinical study: the wording in brackets). A host who states one of
 these results (the same numbers) without that qualifier breaks the test-result rule in RULES, whoever ran the test. Naming
-who ran the test or who certified it (the laboratory or body in the qualifier) is saying the qualifier.
+who ran the test or who certified it (the laboratory or body in the qualifier) is saying the qualifier. A generic mention
+that names no one ("testing confirmed", "according to the tests", "clinically proven") is not the qualifier.
 
