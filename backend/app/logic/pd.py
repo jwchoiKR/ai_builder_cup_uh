@@ -27,6 +27,9 @@ CEILING_MS = 90_000
 URGENT_CEILING_MS = 30_000  # sensitive questions and questions with 3+ askers
 BREAK_MS = 2_000  # a natural break: right after a final
 DUE_GAP_MS = 20_000  # a due card still waits this long after the last question card
+# D-161 (local SEED1 replay: a red nobody corrected blocked every card for the rest of the show): a red alert
+# blocks cards this long after it was created or escalated; then it waits as a chip and cards resume
+RED_BLOCK_MS = 20_000
 PROMO_JUST_STARTED_MS = 30_000
 PROMO_ENDING_MS = 60_000
 
@@ -111,6 +114,12 @@ class Candidate:
     priority: int  # rule fallback order, lower first
     askers: int | None = None
     forced: bool = False  # D-153: a pulled, pushed or due question: the model may not answer "none" to it
+
+
+def red_blocks(alerts, now: int) -> bool:
+    """D-161: an active HIGH compliance alert created or escalated less than RED_BLOCK_MS ago."""
+    return any(a.kind == "compliance" and a.status == "active" and a.severity == "HIGH"
+               and now - max(a.created_at, a.escalated_at or 0) < RED_BLOCK_MS for a in alerts)
 
 
 def candidates(st: PdState) -> list[Candidate]:

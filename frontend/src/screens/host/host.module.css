@@ -1233,6 +1233,25 @@
   min-height: 0;
   overflow: hidden;
 }
+/* D-161: red alerts past their block, still waiting for a correction */
+.redChip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--hs));
+  padding: calc(2px * var(--hs)) calc(10px * var(--hs));
+  border: 1px solid var(--risk-strong);
+  border-radius: var(--radius-chip);
+  background: var(--risk-bg);
+  color: var(--risk-text);
+  font-size: calc(13px * var(--hs));
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.redChip svg {
+  width: calc(14px * var(--hs));
+  height: calc(14px * var(--hs));
+}
 /* D-150: preview market or language */
 .previewTag {
   flex: none;

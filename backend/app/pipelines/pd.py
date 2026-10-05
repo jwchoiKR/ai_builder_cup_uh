@@ -146,7 +146,7 @@ class PdDirector:
             p = rt.promo(ap.promo_id)
             if p is not None:
                 promos.append(pdl.PromoState(ap.promo_id, p.viewer_text, ap.started_at, ap.ends_at))
-        high = any(a.kind == "compliance" and a.status == "active" and a.severity == "HIGH" for a in await rt.alerts())
+        high = pdl.red_blocks(await rt.alerts(), now)
         nxt = rt.catalog.next_product(seg.product_id)
         return pdl.PdState(
             now=now, segment_id=seg.segment_id, product_id=seg.product_id,
