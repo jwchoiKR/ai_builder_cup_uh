@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState, type ComponentType } from "react";
 
 import { Host } from "../screens/Host";
 import { Hub } from "../screens/Hub";
+import { Onboarding } from "../screens/Onboarding";
 import { Operator } from "../screens/Operator";
 import { Setup } from "../screens/Setup";
 import { Studio } from "../screens/Studio";
@@ -21,6 +22,7 @@ export const ROUTES: Record<string, ComponentType<ScreenProps>> = {
   "/viewer": Viewer,
   "/setup": Setup,
   "/summary": Summary,
+  "/onboarding": Onboarding,
 };
 
 export function useSessionId(): {

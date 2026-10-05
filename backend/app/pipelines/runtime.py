@@ -612,7 +612,9 @@ class SessionRuntime:
             "feed": self.feed.state(),
             "judge_health": {"degraded": list(self.utterances.degraded)},  # D-137
             "market": {"market": self.pack.market.market, "name": self.pack.market.name, "lang": self.pack.lang,
-                       "tier": self.tier},  # D-150
+                       "tier": self.tier,  # D-150
+                       # D-228: no law pack covers this release's category: no compliance checks run
+                       "law_checks": bool(self.pack.rules.rules), "category": self.pack.rules.category},
         }
         if role == "operator":
             ids = {c.comment_id for c in shown}

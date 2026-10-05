@@ -124,6 +124,12 @@ function TopBar({
           {t("PREVIEW")} · {state.market.name}
         </span>
       )}
+      {state.market?.law_checks === false && (
+        // D-228: a category no law pack covers (apparel, supplements for now): no compliance alerts will come
+        <span className={styles.previewTag} data-testid="host-no-law" title={t("No law checks for this category")}>
+          {t("No law checks for this category")} · {state.market.category}
+        </span>
+      )}
       <div className={styles.nowNext}>
         <span className={styles.nnLabel}>{t("NOW")}</span>
         <span className={styles.nowName} data-testid="host-now">

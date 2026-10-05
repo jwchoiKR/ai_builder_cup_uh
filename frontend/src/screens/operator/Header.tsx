@@ -87,6 +87,11 @@ export function OperatorHeader({
             {t("PREVIEW")} · {state.market.name}
           </Chip>
         )}
+        {state.market?.law_checks === false && (
+          <Chip tone="risk" data-testid="op-no-law">
+            {t("No law checks for this category")} · {state.market.category}
+          </Chip>
+        )}
         <div className={styles.metricChips} data-testid="op-metrics">
           {shown.alert && <Chip className="tabular">{chips.alert}</Chip>}
           {shown.judge && <Chip className="tabular">{chips.judge}</Chip>}

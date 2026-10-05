@@ -110,6 +110,9 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
                 {t("Open Studio (demo) →")}
               </a>
               <span className={styles.hubStudioNote}>{t("Host, operator and viewer side by side, with prepared demo scenes.")}</span>
+              <a className={styles.hubStudioNote} href="/onboarding" onClick={go("/onboarding")} data-testid="hub-onboarding">
+                {t("Onboard a new product →")}
+              </a>
             </div>
           </section>
           <div className={styles.hubPhases}>
