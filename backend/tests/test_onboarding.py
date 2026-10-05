@@ -1558,18 +1558,66 @@ def test_d265_approval_briefs_the_release_for_stt_and_the_prompter(tmp_path, bri
                 break
             time.sleep(0.02)
         approved = c.post(f"/api/onboarding/jobs/{job}/approve", json={}).json()
-        assert approved["release_id"] == rid
+        assert approved["release_id"] == rid and approved["live"]["brief"] == {"status": "running"}  # D-266
+        for _ in range(100):
+            status = c.get(f"/api/onboarding/releases/{rid}/brief").json()["status"]
+            if status != "running":
+                break
+            time.sleep(0.02)
+        assert status == ("done" if brief_ok else "failed (error)")
+        assert c.get("/api/onboarding/releases").json()[0]["brief"] == status
         sid = c.post("/api/sessions", json={"release_id": rid}).json()["session_id"]
         state = c.post(f"/api/sessions/{sid}/start") and c.get(f"/api/sessions/{sid}/state?role=host").json()
         ctx = c.app.state.ctx
         phrases = release_phrases(ctx, Catalog(ctx.pack_for("SG", ctx.pack.lang, rid)[0], rid), rid)
     points = [(p["text"], p["required"]) for p in state["prompter"]["points"]]
     if brief_ok:
-        assert (tmp_path / "briefs" / f"{rid}.json").is_file() and approved["live"]["brief"] == {"glossary": 2, "points": 2}
+        assert (tmp_path / "briefs" / f"{rid}.json").is_file()
         assert points == [("Patch test first.", True), ("Helps skin look smoother by morning.", False)]
         assert phrases[:4] == ["Quillon", "kwil-on", "quill on", "Kelpa"] and "Invented" not in phrases
     else:
         assert not (tmp_path / "briefs").exists()
-        assert any(w.startswith("the brief did not run") for w in approved["warnings"])
         assert points == [("Helps skin look smoother by morning.", True)]  # today's behaviour
         assert phrases[0] == "Quillon"
+
+
+def test_d266_a_show_started_before_the_brief_lands_keeps_todays_points_and_the_next_gets_the_brief(tmp_path):
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    from app.onboarding.release import product_key
+
+    from .helpers import make_settings
+
+    record = _record(approved_claims=[{"text": "Helps skin look smoother by morning.", "evidence": EV}])
+    rid = f"rel_{product_key(normalise(ProductRecord.model_validate(record))[0])}_v1"
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = record
+    backend.outputs[("brief_agent", rid)] = {"product_id": rid, "reason": "t", "glossary": [], "prompter_points": [
+        {"text": "Patch test first.", "required": True, "source_section": "Cautions"}]}
+    backend.delays[("brief_agent", rid)] = 0.5
+
+    def points(c, sid):
+        c.post(f"/api/sessions/{sid}/start")
+        return [p["text"] for p in c.get(f"/api/sessions/{sid}/state?role=host").json()["prompter"]["points"]]
+
+    with TestClient(create_app(make_settings(ONBOARDING_DIR=str(tmp_path)), llm_backend=backend)) as c:
+        job = c.post("/api/onboarding/jobs", files=[("files", ("spec.txt", b"hello", "text/plain"))]).json()["job_id"]
+        for _ in range(100):
+            if c.get(f"/api/onboarding/jobs/{job}").json()["status"] == "done":
+                break
+            time.sleep(0.02)
+        t0 = time.perf_counter()
+        c.post(f"/api/onboarding/jobs/{job}/approve", json={})
+        assert time.perf_counter() - t0 < 0.5  # the approval does not wait for the brief
+        early = c.post("/api/sessions", json={"release_id": rid}).json()["session_id"]
+        assert c.get(f"/api/onboarding/releases/{rid}/brief").json()["status"] == "running"
+        assert points(c, early) == ["Helps skin look smoother by morning."]
+        for _ in range(100):
+            if c.get(f"/api/onboarding/releases/{rid}/brief").json()["status"] == "done":
+                break
+            time.sleep(0.02)
+        late = c.post("/api/sessions", json={"release_id": rid}).json()["session_id"]
+        assert points(c, late) == ["Patch test first."]

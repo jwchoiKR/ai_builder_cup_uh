@@ -57,7 +57,7 @@ export const onboardingApi = {
   job: (jobId: string) => request<Job>("GET", `/onboarding/jobs/${encodeURIComponent(jobId)}`),
   approve: (jobId: string, record?: ProductRecord, translations?: Translations) =>
     request<{ release_id: string; warnings: string[]; live?: { law: string; price: string; cautions: number;
-      approved_claims: number; not_approved_claims: number; promos: number };
+      approved_claims: number; not_approved_claims: number; promos: number; brief?: { status: string } };
       translations?: Translations }>(
       "POST", `/onboarding/jobs/${encodeURIComponent(jobId)}/approve`,
       { ...(record ? { record } : {}), ...(translations ? { translations } : {}) }),
@@ -68,6 +68,11 @@ export const onboardingApi = {
   startShow: (releaseId: string) => request<Session>("POST", "/sessions", { release_id: releaseId }),
   // D-264: approved products a show can start from, newest first (also after a cold start)
   releases: () => request<ReleaseRow[]>("GET", "/onboarding/releases"),
+  // D-266: the release's brief (STT names, prompter points) runs after approval: done, running, failed (...), none
+  briefStatus: (releaseId: string) =>
+    request<{ status: string }>("GET", `/onboarding/releases/${encodeURIComponent(releaseId)}/brief`),
 };
 export type ReleaseRow = { release_id: string; product_name: string; brand: string; category: string;
-  markets: string[]; approved_at: number; version: number };
+  markets: string[]; approved_at: number; version: number; brief: string };
+export const BRIEF_RUNNING_NOTE = "The brief (speech-recognition names, prompter points) is still running, about 30 s. "
+  + "A show started now uses the approved claims as points; wait for the full prompter.";
