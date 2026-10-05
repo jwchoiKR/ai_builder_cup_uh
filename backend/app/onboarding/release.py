@@ -12,12 +12,13 @@ import dataclasses
 import json
 import re
 import time
-from decimal import Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, ROUND_UP, Decimal
 from pathlib import Path
 
 from ..logic.catalog import DataPack, DataPackError
 from ..models.data import (
-    AvoidSaying, Passage, PrompterPoint, Product, ProductsFile, PromosFile, QualifiedResult, Runsheet, RunsheetItem,
+    AvoidSaying, Passage, PrompterPoint, Product, ProductsFile, Promo, PromosFile, QualifiedResult, Runsheet,
+    RunsheetItem,
 )
 from .record import Money, ProductRecord
 
@@ -53,6 +54,45 @@ def _price(prices: list[Money], kind: str, currency: str, market: str) -> Decima
         if m.kind == kind and m.currency == currency and m.market in (None, market):
             return Decimal(m.minor) / 100
     return None
+
+
+def _rounded(value: Decimal, rule: str | None) -> Decimal:
+    """D-223: the stated rounding rule ("nearest 10 cents", "rounded down to the dollar"); 2 decimals, half up when
+    none is stated."""
+    text = (rule or "").lower()
+    quantum = (Decimal("0.1") if re.search(r"10 ?(cents|sen)|0\.1\b", text) else
+               Decimal("1") if re.search(r"dollar|ringgit|whole|nearest 1\b|integer", text) else Decimal("0.01"))
+    mode = (ROUND_DOWN if re.search(r"\bdown\b|floor", text) else ROUND_UP if re.search(r"\bup\b|ceil", text)
+            else ROUND_HALF_UP)
+    return (value / quantum).quantize(Decimal("1"), rounding=mode) * quantum
+
+
+def promos_from_offers(record: ProductRecord, pid: str, main_variant: str, live: Decimal, cur: str,
+                       market: str) -> list[Promo]:
+    """D-223 (P0 step 4): the record's offers as promos, with every promo price computed in code from the stated
+    terms (never by a model): percent off, amount off and a fixed price change the price; a gift over a spend and
+    buy-X-get-Y do not (their terms are said as written)."""
+    out = []
+    for i, o in enumerate(record.offers):
+        if o.variant_ids and main_variant not in o.variant_ids:
+            continue
+        amount = (Decimal(o.amount.minor) / 100 if o.amount is not None and o.amount.currency == cur
+                  and o.amount.market in (None, market) else None)
+        pct = Decimal(o.percent) if o.percent else None
+        price = (live * (1 - pct / 100) if o.kind == "percent_off" and pct is not None else
+                 live - amount if o.kind == "amount_off" and amount is not None else
+                 amount if o.kind == "fixed_price" and amount is not None else None)
+        duration = (o.duration_min or 0) * 60 or SEGMENT_SEC
+        common = dict(promo_id=f"{pid}_offer_{i + 1}", kind=o.kind, title=o.title, duration_sec=duration,
+                      applies_to=[pid], viewer_text=o.title, host_text=o.title)
+        if price is not None and price > 0:
+            out.append(Promo(**common, changes_prices=True, promo_prices={pid: float(_rounded(price, o.rounding))},
+                             discount_pct_off_live_price=float(pct) if pct is not None else None))
+        elif o.kind == "spend_threshold_gift" and amount is not None:
+            out.append(Promo(**common, changes_prices=False, min_spend=float(amount)))
+        elif o.kind in ("buy_x_get_y", "bundle", "other"):
+            out.append(Promo(**common, changes_prices=False))
+    return out
 
 
 def release_pack(base: DataPack, record: ProductRecord, release_id: str) -> DataPack:
@@ -128,11 +168,12 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str) -> Data
         cautions=[c.text for c in record.cautions],
         avoid_saying=[AvoidSaying(say_not=a.say_not, say=a.say) for a in record.avoid_saying],
     )
+    promos = promos_from_offers(record, pid, main.variant_id, live_price, cur, market)
     runsheet = Runsheet(runsheet_id=release_id, title=f"{record.brand} · {record.product_name}", brand=record.brand,
                         language=record.language, market=market,
                         items=[RunsheetItem(order=1, product_id=pid, planned_duration_sec=SEGMENT_SEC,
                                             required_point_ids=[points[0].point_id] if points else [])],
-                        promo_ids=[])
+                        promo_ids=[p.promo_id for p in promos])
     products = ProductsFile(brand=record.brand, currency=cur, currency_symbol=sym, set_offers=[], products=[product])
     return dataclasses.replace(base, products=products, runsheets={release_id: runsheet},
-                               promos=PromosFile(promos=[], rules=base.promos.rules), passages=unique)
+                               promos=PromosFile(promos=promos, rules=base.promos.rules), passages=unique)
