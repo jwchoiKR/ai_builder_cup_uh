@@ -116,12 +116,14 @@ async def run_scenario(ctx, case: dict, run_no: int) -> dict:
             elif kind == "host_confirm":
                 gold_ids = [cid for cid, g, _ in comment_ids if g.get("cluster") == e["cluster"]]
                 groups = {g.group_id for g in await rt.groups() if set(g.member_comment_ids) & set(gold_ids)}
+                # the confirmation time is when the host pressed, before approve() posts (it took 16 ms once,
+                # and the post then counted as "before the host confirmed")
+                confirms[e["cluster"]] = rt.now()
                 for gid in groups:
                     try:
                         await ops.approve(rt, gid)
                     except Exception as err:  # noqa: BLE001 - recorded, the eval goes on
                         print(f"{case['scenario_id']}: approve {gid} failed: {err}")
-                confirms[e["cluster"]] = rt.now()
         await _settle(rt)
         store, path = rt.ctx.store, rt.path
         comments = {c.comment_id: c for c in await store.query(path("comments"), Comment)}
