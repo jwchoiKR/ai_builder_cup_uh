@@ -715,3 +715,28 @@ def test_d245_r3_a_certification_body_is_a_certifier():
     q = QualifiedResult.model_validate({"statement": "Certified vegan", "provenance": "certifier",
                                         "qualifier": "certified by the Vegan Society", "evidence": []})
     assert q.provenance == "certifier"
+
+
+@pytest.mark.parametrize("text, values", [
+    ("영 점 오 퍼센트", {"0.5"}), ("영점오", {"0.5"}), ("일 점 이 ml", {"1.2"}), ("零点五", {"0.5"}),
+    ("2만 9천 원", {"29000"}), ("1.5만", {"15000"}),  # the digits are part of the numeral, not numbers of their own
+    ("5 이하", {"5"}), ("단점이 없다", set()),  # a digit then a word, a word with 점
+])
+def test_d245_r4_korean_and_chinese_decimals(text, values):
+    from app.onboarding.numwords import numbers_in_text, plain
+
+    assert {plain(v) for v in numbers_in_text(text)} == values
+
+
+def test_d245_r4_r5_a_word_decimal_is_kept_and_a_dropped_amount_reaches_the_check_list():
+    from app.onboarding.checks import check_items
+    from app.onboarding.record import OnboardingResult
+
+    ing = [{"name": "Zinc", "amount_value": "0.5", "amount_unit": "%", "purpose": None,
+            "evidence": [{"file": "f", "locator": "l", "quote": "아연 영 점 오 퍼센트"}]},
+           {"name": "Panthenol", "amount_value": "2", "amount_unit": "%", "purpose": None,
+            "evidence": [{"file": "f", "locator": "l", "quote": "판테놀 함유"}]}]
+    rec, notes = normalise(ProductRecord.model_validate(_record(ingredients=ing)))
+    assert [i.amount_value for i in rec.ingredients] == ["0.5", None]
+    risk = check_items(OnboardingResult(record=rec, method="gemini_whole", seconds=1, notes=notes), "risk", law="15 rules")
+    assert [x["group"] for x in risk if x["label"] == "ingredients[Panthenol].amount"] == ["product"]

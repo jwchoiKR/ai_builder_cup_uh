@@ -42,6 +42,17 @@ def _corrected_items(result) -> list[dict]:
             if n.startswith("corrected: ") and n.count(": ") >= 2]
 
 
+def _dropped_items(result) -> list[dict]:
+    """D-245 R5: every value the evidence check dropped (ingredient amounts, offer terms, sizes, prices), so a person
+    sees it before approval instead of a note nobody reads."""
+    out = []
+    for n in result.notes:
+        if n.endswith("is not a clear number in its evidence quote; dropped") and ": " in n:
+            where, why = n.split(": ", 1)
+            out.append(_item("offers" if where.startswith("offers") else "product", where, why))
+    return out
+
+
 def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None, caution_pass_only: list[str] = (),
                 translations: dict | None = None) -> list[dict]:
     r = result.record
@@ -60,6 +71,8 @@ def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None,
             out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
         return out
     out = _product_items(r) + _corrected_items(result)
+    shown = {x["label"] for x in out}
+    out += [x for x in _dropped_items(result) if x["label"] not in shown]
     if law is not None and law.startswith("no law"):
         out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
     out += [_item("governance", q.statement, f"say it with “{q.qualifier}”") for q in r.qualified_results]
