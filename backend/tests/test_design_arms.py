@@ -286,3 +286,30 @@ async def test_arm_f_composer_does_no_search(catalog):
 
     assert await gather_passages(NoSearch(), catalog, {}, product_id=CREAM, intent="price", canonical_question="How much?",
                                  promo=None, top_k=4, search=False) == []
+
+
+async def test_arm_f1_composer_answers_from_the_files_its_tool_step_asked_for():
+    rt, llm = await make_env(DESIGN_ARM="F1")
+    seen = []
+    original = llm.generate
+
+    async def capture(req, timeout_ms):
+        seen.append(req)
+        return await original(req, timeout_ms)
+
+    llm.generate = capture
+    text = "How do I use the cream?"
+    llm.outputs[("comment_triage", text)] = {
+        "kind": "question", "hide_category": None, "product_id": CREAM, "product_basis": "explicit",
+        "intent": "how_to_use", "condition_slots": {k: None for k in ("skin_type", "age_group", "life_stage", "condition",
+                                                                     "combined_with", "time_of_day")},
+        "canonical_question": text, "group_candidate_id": None, "reason": "scripted", "shoutout": None}
+    try:
+        await say(rt, "Mei", text)
+        agents = [r.agent for r in seen]
+        assert "file_tools" in agents and "answer_composer" in agents
+        assert agents.index("file_tools") < agents.index("answer_composer")
+        composer = next(r for r in seen if r.agent == "answer_composer")
+        assert "Key facts" in composer.user_message and '<data name="RULES">' not in composer.user_message
+    finally:
+        await close_env(rt)
