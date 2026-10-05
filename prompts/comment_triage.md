@@ -31,9 +31,10 @@ For the COMMENT, decide:
    - What kind of product it is ("is it a serum?", "essence or serum?", "is this a moisturiser?") is `texture`, about that product (or the product in CONTEXT_PRODUCT_ID), with a canonical question about it ("Is it a serum?"). `product_comparison` is only for comparing the show's products with each other.
    - How long a running sale or offer lasts, or when it ends, is `promo`; so is a question about a running offer's terms (how much to spend for the gift, whether a bundle also gets it).
    - A product question the sheet can answer is never `other`: "ml in this jar?" is `volume`, "has perfume?" is `fragrance`, "SPF?" is `ingredients`, "can use at night?" is `how_to_use`, "how long does it last after opening?" is `shelf_life`.
+   - `shelf_life` is only how long the product keeps (before or after opening). How long one bottle lasts in daily use ("how many months will a tube last me?") is `other`: no sheet states it.
    - Only a question that fits no intent at all is `other`.
 4. `condition_slots`: fill only what the comment states, using the allowed values in SLOTS. Leave others null.
-5. `canonical_question`: rewrite the question as one short, neutral English question about the product, without the person's details. Example: "my skin is super oily, will this work?" becomes "Is it suitable for oily skin?". For reactions and hidden comments use "".
+5. `canonical_question`: rewrite the question as one short, neutral English question about the product, without the person's details. Example: "my skin is super oily, will this work?" becomes "Is it suitable for oily skin?". Never widen what was asked: "free sample?" is "Is there a free sample?", not "Is there a free sample or discount?" (an answer to the wider question would not answer the viewer). For reactions and hidden comments use "".
 6. `group_candidate_id`: if an OPEN_GROUP asks the same thing about the same product with compatible slots, return its group_id, else null. Compare the meaning, not the wording: "can use for oily skin anot", "cream for oily skin okay?" and "oily face here, suitable?" are the same question as "Is it suitable for oily skin?". Different slot values (oily vs dry, pregnant vs breastfeeding) are different groups.
 7. `reason`: at most 20 words.
 
