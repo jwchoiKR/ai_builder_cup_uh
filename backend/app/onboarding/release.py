@@ -22,7 +22,7 @@ from ..models.data import (
     RunsheetItem,
 )
 from .record import AvoidSaying as RecordAvoid
-from .record import Money, ProductRecord, Text
+from .record import Money, ProductRecord, Text, money_value
 
 SEGMENT_SEC = 600
 
@@ -76,7 +76,7 @@ def load_release_full(root: Path, release_id: str) -> tuple[ProductRecord, dict]
 def _price(prices: list[Money], kind: str, currency: str, market: str) -> Decimal | None:
     for m in prices:
         if m.kind == kind and m.currency == currency and m.market in (None, market):
-            return Decimal(m.minor) / 100
+            return money_value(m.currency, m.minor)
     return None
 
 
@@ -100,7 +100,7 @@ def promos_from_offers(record: ProductRecord, pid: str, main_variant: str, live:
     for i, o in enumerate(record.offers):
         if o.variant_ids and main_variant not in o.variant_ids:
             continue
-        amount = (Decimal(o.amount.minor) / 100 if o.amount is not None and o.amount.currency == cur
+        amount = (money_value(o.amount.currency, o.amount.minor) if o.amount is not None and o.amount.currency == cur
                   and o.amount.market in (None, market) else None)
         pct = Decimal(o.percent) if o.percent else None
         price = (live * (1 - pct / 100) if o.kind == "percent_off" and pct is not None else
@@ -242,7 +242,7 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
         add("Key facts", f"fact-{i + 1}-{f.text[:30]}", f.text)
     if fact_mode == "record":
         def fact_money(m) -> str:  # this market's currency as shown on air, another one by its code
-            amount = Decimal(m.minor) / 100
+            amount = money_value(m.currency, m.minor)
             return f"{sym}{amount:.2f}" if m.currency == cur else f"{m.currency} {amount:.2f}"
 
         for key, text in record_facts(record, fact_money):

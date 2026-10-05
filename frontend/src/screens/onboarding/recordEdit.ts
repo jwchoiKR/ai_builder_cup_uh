@@ -98,7 +98,11 @@ export function newestIndex(dates: (string | null)[]): number {
   return best;
 }
 
-export const money = (m: { currency: string; minor: number }) => `${m.currency} ${(m.minor / 100).toFixed(2)}`;
+// D-243: currencies without a minor unit (KRW, JPY, VND, ...) store the whole amount
+const ZERO_DECIMAL = new Set(["BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG", "RWF", "UGX", "UYI", "VND",
+  "VUV", "XAF", "XOF", "XPF"]);
+export const money = (m: { currency: string; minor: number }) =>
+  ZERO_DECIMAL.has(m.currency) ? `${m.currency} ${m.minor.toLocaleString("en")}` : `${m.currency} ${(m.minor / 100).toFixed(2)}`;
 
 /** A conflict value in words: a money path's minor units as an amount in its currency ("4600" -> "SGD 46.00"). */
 export function conflictValue(record: ProductRecord, path: string, value: string): string {

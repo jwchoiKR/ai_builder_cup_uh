@@ -7,6 +7,7 @@ import { request } from "../app/api";
 import { navigate } from "../app/nav";
 import { Button, Chip, Eyebrow, HubLink } from "../components";
 import { onboardingApi, type Job } from "./onboarding/onboardingApi";
+import { money } from "./onboarding/recordEdit";
 import styles from "./onboarding/onboarding.module.css";
 
 type Start = { job_id: string; status: string; files: string[]; cached: boolean };
@@ -36,7 +37,7 @@ export function TestDrive() {
     }
   };
   const rec = job?.status === "done" ? job.result?.record ?? null : null;
-  const live = rec?.variants.flatMap((v) => v.prices.filter((m) => m.kind === "live").map((m) => `${v.name} ${m.currency} ${(m.minor / 100).toFixed(2)}`)) ?? [];
+  const live = rec?.variants.flatMap((v) => v.prices.filter((m) => m.kind === "live").map((m) => `${v.name} ${money(m)}`)) ?? [];
 
   return (
     <div className={styles.page} data-testid="testdrive">

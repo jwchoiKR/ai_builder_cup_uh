@@ -35,9 +35,27 @@ class Text(_Model):
     evidence: list[Evidence]
 
 
+# D-243: ISO 4217 currencies without a minor unit: their "minor" amount is the whole amount (29,000 won is 29000)
+ZERO_DECIMAL = frozenset({"BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW", "PYG", "RWF", "UGX", "UYI", "VND",
+                          "VUV", "XAF", "XOF", "XPF"})
+
+
+def money_value(currency: str, minor: int):
+    """The amount of a Money in its currency (3600 SGD minor -> 36, 29000 KRW -> 29000)."""
+    from decimal import Decimal
+
+    return Decimal(minor) if currency.upper() in ZERO_DECIMAL else Decimal(minor) / 100
+
+
+def to_minor(currency: str, amount) -> int:
+    from decimal import Decimal
+
+    return int(Decimal(amount) if currency.upper() in ZERO_DECIMAL else Decimal(amount) * 100)
+
+
 class Money(_Model):
     currency: str  # ISO 4217, e.g. "SGD", "MYR"
-    minor: int  # 3600 for S$36.00
+    minor: int  # 3600 for S$36.00; 29000 for 29,000 won (a currency without a minor unit, D-243)
     kind: Literal["list", "live", "promo", "other"]
     market: str | None = None  # "SG", "MY"; None when the document does not say
     evidence: list[Evidence]
