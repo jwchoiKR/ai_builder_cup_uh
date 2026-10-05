@@ -60,7 +60,7 @@ async function replay(page, show, assistant) {
 
   // state history: first time each group was on the host list, on a card, answered; all transcripts and alerts
   const seen = { onList: {}, onCard: {}, cardKind: {}, posted: {}, transcripts: {}, alerts: {}, groups: {}, messages: {}, answers: {},
-    promoStarts: {}, comments: {}, analyses: {} };
+    promoStarts: {}, comments: {}, analyses: {}, alertLinks: {} };
   const catalog = await api("GET", "/catalog");
   const priceChanging = new Set((catalog.promos ?? []).filter((p) => p.changes_prices).map((p) => p.promo_id));
   let polling = true;
@@ -70,7 +70,11 @@ async function replay(page, show, assistant) {
         const st = await api("GET", `/sessions/${sid}/state?role=operator`);
         const now = Date.now();
         for (const t of st.transcripts ?? []) seen.transcripts[t.transcript_id] = t;
-        for (const a of st.alerts ?? []) seen.alerts[a.alert_id] = a;
+        for (const a of st.alerts ?? []) {
+          seen.alerts[a.alert_id] = a;
+          // a fact note re-shown for a later claim moves to that transcript: keep each transcript it was shown on
+          seen.alertLinks[`${a.alert_id}|${a.transcript_id}`] = a;
+        }
         for (const g of st.groups ?? []) seen.groups[g.group_id] = g;
         for (const m of st.messages ?? []) seen.messages[m.message_id] = m;
         for (const c of st.comments ?? []) seen.comments[c.comment_id] = c;
@@ -195,7 +199,7 @@ function finalsByLine(run) {
 
 function alertsOn(run, finalsOfLine) {
   const ids = new Set(finalsOfLine.map((f) => f.transcript_id));
-  return Object.values(run.seen.alerts).filter((a) => ids.has(a.transcript_id) && a.shown_at);
+  return Object.values(run.seen.alertLinks ?? run.seen.alerts).filter((a) => ids.has(a.transcript_id) && a.shown_at);
 }
 
 function lineFor(byLine, ts) {
