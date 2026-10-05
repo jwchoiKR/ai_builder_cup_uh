@@ -82,12 +82,12 @@ async def _settle(rt) -> None:
 
 
 async def run_scenario(ctx, case: dict, run_no: int) -> dict:
-    s = await create_session(ctx, next(iter(ctx.pack.runsheets)), case.get("show_mode", "solo"))
+    s = await create_session(ctx, next(iter(ctx.pack.runsheets)), case.get("show_mode", "solo"), release_id=RELEASE)
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None
     try:
         await rt.start()
-        if (await rt.current_segment()).product_id != case["current_product_id"]:
+        if RELEASE is None and (await rt.current_segment()).product_id != case["current_product_id"]:
             await operator_switch(rt, case["current_product_id"])
         for pid in case.get("active_promos", []):
             await rt.start_promo(pid if isinstance(pid, str) else pid["promo_id"])
@@ -153,6 +153,11 @@ async def run_scenario(ctx, case: dict, run_no: int) -> dict:
 
 def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text.lower())
+
+
+# D-222: --release <release_id> runs every case on that onboarded product's show (one product, so the case's
+# current_product_id is ignored and cases may name the product by role)
+RELEASE: str | None = None
 
 
 def _includes(text: str, want: str) -> bool:
@@ -376,11 +381,14 @@ async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=1)
     ap.add_argument("--cases", default="comment_flow_cases.jsonl")
+    ap.add_argument("--release", default=None, help="an onboarded release id (ONBOARDING_DIR/releases)")
     ap.add_argument("--out", type=Path, default=REPO_DIR / "docs/eval/comment-flow.md")
     ap.add_argument("--concurrency", type=int, default=4, help="scenarios at a time")
     ap.add_argument("--from-json", type=Path, default=None)
     args = ap.parse_args()
     cases = load_cases(args.cases)
+    global RELEASE
+    RELEASE = args.release
     if args.from_json:
         raw = refresh_gold(json.loads(args.from_json.read_text(encoding="utf-8")), cases)
     else:

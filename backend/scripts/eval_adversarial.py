@@ -42,6 +42,9 @@ from app.pipelines.utterances import operator_switch  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
 
 PART_GAP_S = 0.4
+# D-222: --release <release_id> runs every case on that onboarded product's show (one product, so the case's
+# current_product_id is ignored and cases may name the product by role)
+RELEASE: str | None = None
 # D-197: the labels name a fact by what the host said ("live_price", "panthenol"); the fact checker's fields are
 # app.models.agent_io.FactField
 LABEL_FIELDS = {"live_price": "price", "list_price": "price", "panthenol": "ingredient_amount",
@@ -60,12 +63,12 @@ def load_cases(name: str) -> list[dict]:
 
 async def run_case(ctx, case: dict, run_no: int) -> dict:
     """The alerts the host would see for this case: every compliance or fact alert that became active."""
-    s = await create_session(ctx, next(iter(ctx.pack.runsheets)))
+    s = await create_session(ctx, next(iter(ctx.pack.runsheets)), release_id=RELEASE)
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None  # this eval isolates the utterance pipeline
     try:
         await rt.start()
-        if (await rt.current_segment()).product_id != case["current_product_id"]:
+        if RELEASE is None and (await rt.current_segment()).product_id != case["current_product_id"]:
             await operator_switch(rt, case["current_product_id"])
         parts = case.get("parts") or [case["utterance"]]
         for i, text in enumerate(parts):
@@ -217,11 +220,14 @@ async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--cases", default="adversarial_cases.jsonl")
+    ap.add_argument("--release", default=None, help="an onboarded release id (ONBOARDING_DIR/releases)")
     ap.add_argument("--out", type=Path, default=REPO_DIR / "docs/eval/adversarial.md")
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--from-json", type=Path, default=None, help="re-score saved outputs without calling the models")
     args = ap.parse_args()
     cases = load_cases(args.cases)
+    global RELEASE
+    RELEASE = args.release
     if args.from_json:
         raw = json.loads(args.from_json.read_text(encoding="utf-8"))
     else:
