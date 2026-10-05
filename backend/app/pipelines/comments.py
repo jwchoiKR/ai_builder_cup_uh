@@ -6,7 +6,9 @@ answering and the host queue run under the session lock.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 import logging
+import re
 import time
 from typing import TYPE_CHECKING
 
@@ -146,9 +148,12 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
         if attempt == 1 and cached is not None:
             output, source, seen = CommentTriageOutput.model_validate(cached), "cache", set()
         else:
-            res, seen = await rt.triage_queue.classify(
-                TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario,
-                            host_line=host_line))
+            inp = TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario,
+                              host_line=host_line)
+            res, seen = await rt.triage_queue.classify(inp)
+            if res.status != "ok" or res.output is None:
+                # D-176 (comment flow CF11): one triage timeout lost an answerable question; once more
+                res, seen = await rt.triage_queue.classify(replace(inp, open_groups=[]))
             if res.status == "ok" and res.output is not None:
                 output, source = res.output, "llm"
                 rt.triage_cache.put(key, output.model_dump(mode="json"))
@@ -302,11 +307,34 @@ async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pi
 # ---- answering (§8.9.3) ----------------------------------------------------------------------------
 
 
+def _ingredients_named(rt: "SessionRuntime", product_id: str, question: str) -> list[str]:
+    """D-176: the product's key ingredients (its sheet, "Name: amount") the question names, matched by the first five
+    letters of each name's longest word ("hyaluronic" for "Sodium Hyaluronate")."""
+    passages_of = getattr(rt.ctx.retriever, "passages_of", None)
+    passages = passages_of(product_id) if callable(passages_of) else [p for p in rt.ctx.pack.passages
+                                                                       if p.product_id == product_id]
+    words = re.findall(r"[a-z]+", question.lower())
+    out = []
+    for p in passages:
+        if p.section != "Key ingredients" or ":" not in p.text:
+            continue
+        name = re.sub(r"\(.*?\)", "", p.text.split(":", 1)[0]).strip().lower()
+        stem = max(re.findall(r"[a-z]+", name), key=len, default="")[:5]
+        if len(stem) == 5 and any(w.startswith(stem) for w in words):
+            out.append(name)
+    return sorted(set(out))
+
+
 async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
     promo = await rt.active_price_promo()
     # D-152: a single-answer intent (price, set price, volume ...) has one answer per product, slots and state,
     # however the question was worded, so two groups of it share one draft
     question = "" if g.intent in SINGLE_QUESTION_INTENTS else g.canonical_question
+    if g.intent == "ingredient_amount" and g.product_id:
+        # D-176 (comment flow CF12): "percentage of panthenol in it?" and "… in the ampoule?" drafted twice; the
+        # same ingredient's amount is one answer
+        named = _ingredients_named(rt, g.product_id, g.canonical_question)
+        question = "ingredient:" + ",".join(named) if named else question
     state = promo_state(promo)
     if g.intent == "promo":  # D-168: an offer's answer holds while that offer runs
         state += "".join(f"+{o.promo_id}" for o in sorted(await rt.active_offers(), key=lambda o: o.promo_id))

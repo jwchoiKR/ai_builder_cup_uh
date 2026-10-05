@@ -778,3 +778,45 @@ async def test_d168_a_promo_answer_belongs_to_the_offers_running(rt):
     await rt.start_promo("promo_gift_pouch")
     assert await ops.answer_key(rt, g) != before
     assert await ops.answer_key(rt, price) == price_before  # a gift changes no price answer
+
+
+async def test_d176_one_draft_per_ingredient_amount(rt):
+    """D-176 (comment flow CF12): two groups about panthenol's amount drafted twice."""
+    AM = "ampoule_deep_hydration"
+    g = QuestionGroup(group_id="g1", product_id=AM, intent="ingredient_amount", condition_slots={}, status="new",
+                      canonical_question="What is the percentage of panthenol in it?", member_comment_ids=[],
+                      unique_author_ids=[], first_at=0, last_at=0, route="AUTO", route_reason="intent")
+    same = g.model_copy(update={"group_id": "g2", "canonical_question": "How much panthenol is in the ampoule?"})
+    other = g.model_copy(update={"group_id": "g3", "canonical_question": "How much niacinamide is in it?"})
+    hya = g.model_copy(update={"group_id": "g4", "canonical_question": "How much hyaluronic acid is there?"})
+    assert await ops.answer_key(rt, g) == await ops.answer_key(rt, same)
+    assert await ops.answer_key(rt, g) != await ops.answer_key(rt, other)
+    assert ops._ingredients_named(rt, AM, hya.canonical_question) == ["sodium hyaluronate"]
+
+
+async def test_d176_a_triage_failure_is_retried_once():
+    """D-176 (comment flow CF11): one triage timeout lost an answerable price question."""
+    from app.providers.llm import LLMTimeout
+
+    from .judge_fakes import ScriptedBackend
+
+    class FirstTriageFails(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.left = 1
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "comment_triage" and self.left:
+                self.left -= 1
+                raise LLMTimeout("deadline")
+            return await super().generate(req, timeout_ms)
+
+    ctx = make_ctx(backend=FirstTriageFails())
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        assert g.route_reason != "ai_unavailable" and g.status == "auto_answered"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
