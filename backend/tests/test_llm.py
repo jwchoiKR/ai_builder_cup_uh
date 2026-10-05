@@ -246,3 +246,24 @@ async def test_d184_hedging_off(make_hedged):
     backend = FakeBackend(("sleep", 5), '{"answer":"x","n":1}')
     res = await make_hedged(backend, hedge_ms=0).call(_req(agent="compliance_judge", deadline_ms=200))
     assert res.status == "timeout" and len(backend.calls) == 1
+
+
+async def test_d187_tokens_are_audited_and_summed_per_agent(make_client, store, tmp_path):
+    from app.providers import llm as llm_mod
+
+    class WithUsage(FakeBackend):
+        async def generate(self, req, timeout_ms):
+            self.calls.append(timeout_ms)
+            return RawReply('{"answer":"x","n":1}', "fake-1", {"prompt": 900, "output": 20, "thoughts": 5, "cached": 600})
+
+    llm_mod.USAGE.clear()
+    client = make_client(WithUsage())
+    res = await client.call(_req(agent="compliance_judge"))
+    await client.call(_req(agent="compliance_judge"))
+    call = await store.get(sub("ses_1", "agent_calls"), res.call_id, AgentCall)
+    assert call.usage == {"prompt": 900, "output": 20, "thoughts": 5, "cached": 600}
+    assert llm_mod.USAGE["compliance_judge"] == {"calls": 2, "prompt": 1800, "output": 40, "thoughts": 10, "cached": 1200}
+    out = tmp_path / "usage.json"
+    llm_mod.write_usage_report(str(out))
+    assert json.loads(out.read_text(encoding="utf-8"))["total"]["calls"] == 2
+    llm_mod.USAGE.clear()

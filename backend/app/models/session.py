@@ -238,6 +238,7 @@ class AgentCall(BaseModel):  # [sessions/{sid}/agent_calls/{id}] audit
     input_preview: str
     output: dict | None = None
     error: str | None = None
+    usage: dict | None = None  # D-187: tokens {prompt, output, thoughts, cached} as the model reported them
 
 
 class Event(BaseModel):  # [sessions/{sid}/events/{seq}]
