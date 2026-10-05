@@ -155,8 +155,10 @@ class GoogleV2Stream:
                         cur.emit_before = switch_at  # its audio is cut here: a fragment it finalizes later is not reported
                         cur.feed.put_nowait(None)
                         self.restarts += 1
+                        nxt.number = self.restarts
                         log.info("speech stream switch #%d to the warm stream after %.0f s of audio "
-                                 "(standby had %.0f s)", self.restarts, st.audio_ms / 1000, nxt.state.audio_ms / 1000)
+                                 "(standby had %.0f s, %d results)", self.restarts, st.audio_ms / 1000,
+                                 nxt.state.audio_ms / 1000, nxt.results)
                         cur, nxt = nxt, None
                     else:
                         cur = self._restart(cur, "limit")
@@ -181,6 +183,7 @@ class GoogleV2Stream:
                  self.restarts, why, cur.state.audio_ms / 1000, sum(c.duration_ms for c in bridge))
         lane = self._lane(bridge, active=True)
         lane.activated = time.monotonic()
+        lane.number = self.restarts
         return lane
 
     async def _one_stream(self, lane: "_Lane", bridge: list[_Chunk]) -> str:
@@ -211,6 +214,7 @@ class GoogleV2Stream:
             responses = await self._stt.client().streaming_recognize(requests=requests())
             async for resp in responses:
                 for r in resp.results:
+                    lane.results += 1
                     alt = r.alternatives[0].transcript.strip() if r.alternatives else ""
                     end_ms = r.result_end_offset.total_seconds() * 1000 if r.result_end_offset else None
                     end_at = state.time_at(end_ms) if end_ms is not None else None
@@ -233,7 +237,10 @@ class GoogleV2Stream:
                         log.info("speech stream #%d first result %.0f ms after it took over%s", self.restarts,
                                  (time.monotonic() - lane.activated) * 1000, speech)
                     if r.is_final:
-                        await self._results.put(SttResult(alt, True, end_at, self._stt.clock.now_ms()))
+                        now = self._stt.clock.now_ms()
+                        if end_at is not None:  # D-157: a slow final, matched to its stream and a switch
+                            log.info("stt final %d ms after speech end, stream #%d", now - end_at, lane.number)
+                        await self._results.put(SttResult(alt, True, end_at, now))
                     else:
                         await self._results.put(SttResult(alt, False, None, self._stt.clock.now_ms()))
         except (gexc.GoogleAPICallError, gexc.RetryError) as e:
@@ -255,6 +262,8 @@ class _Lane:
     activated: float | None = None  # monotonic time it took over
     first_speech: float | None = None
     reported: bool = False
+    number: int = 0  # D-157: restarts count when it took over, for the per-final log
+    results: int = 0  # D-157: results it returned, also while standing by
 
 
 def _is_speech(pcm: bytes) -> bool:
