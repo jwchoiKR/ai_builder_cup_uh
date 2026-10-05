@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     ONBOARDING_DIR: str = "../data/onboarding"  # D-217: uploaded product files, immutable, git-ignored
     VERIFY_MODE: Literal["full", "risk"] = "full"  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"
-    FACT_MODE: Literal["sheet", "record"] = "sheet"  # D-242 arm FR: a release's live fact checks read its record  # D-237: pii_only leaves profanity and short reactions to triage
+    FACT_MODE: Literal["sheet", "record"] = "record"  # D-242/D-244: a release's live fact checks read its record  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
     RETRIEVER: Literal["local", "vertex_search"] = "local"

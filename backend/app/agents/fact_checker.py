@@ -209,6 +209,9 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             p = by_id.get(c.passage_id)
             ok = (p is not None and c.quote is not None and quote_in_passage(c.quote, p.text)
                   and c.correct_value is not None and number_set(c.correct_value) <= number_set(c.quote)
+                  # D-244 L1: the correction is a value the quote states (a number, or the quote's own words);
+                  # "not disclosed" or "not specified" is no source value, so the claim is unverifiable
+                  and (bool(number_set(c.correct_value)) or _words_within(c.correct_value, c.quote))
                   # Claim wording is compliance (the judge's job), never a product fact (D-048).
                   and p.section != CLAIMS_SECTION)
         elif c.field in PRICE_FIELDS and promo is not None and promo.changes_prices:

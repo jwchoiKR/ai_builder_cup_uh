@@ -157,7 +157,7 @@ def in_language(record: ProductRecord, lang: str, translations: dict | None) -> 
     return record.model_copy(update={"approved_claims": claims, "cautions": cautions, "avoid_saying": avoid}), unreviewed
 
 
-def record_facts(record: ProductRecord, money_of) -> list[tuple[str, str]]:
+def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, fmt=None) -> list[tuple[str, str]]:
     """D-242 arm FR: the record's facts as (key, text) lines the fact checker can quote: every size's price in every
     market, superseded values (the documents' older dated version), offer terms, and each test result's qualifier."""
     out: list[tuple[str, str]] = []
@@ -190,14 +190,28 @@ def record_facts(record: ProductRecord, money_of) -> list[tuple[str, str]]:
             terms.append(f"from {o.starts or '?'} to {o.ends or '?'}")
         if o.duration_min:
             terms.append(f"{o.duration_min} minutes")
+        # D-244 L3: the terms as the documents write them (threshold and its comparison, combinability, eligibility)
+        written = " | ".join(dict.fromkeys(e.quote for e in o.evidence if e.quote))
+        if written:
+            terms.append(f"terms as written: {written}")
+        # D-244 L2: totals computed in code, so an offer total is never compared with the unit price
+        if unit is not None and fmt is not None:
+            if o.buy and o.get:
+                terms.append(f"pay for {o.buy} = {fmt(unit * o.buy)} for {o.buy + o.get} items")
+            if o.kind == "percent_off" and o.percent:
+                terms.append(f"offer price {fmt(_rounded(unit * (1 - Decimal(o.percent) / 100), o.rounding))}")
+            if o.kind == "amount_off" and o.amount is not None:
+                terms.append(f"offer price {fmt(unit - money_value(o.amount.currency, o.amount.minor))}")
         out.append((f"offer-{o.offer_id}", "Offer: " + "; ".join(terms)))
+    if unit is not None and fmt is not None:
+        out.append(("unit-totals", f"Live unit price {fmt(unit)}; 2 units {fmt(unit * 2)}; 3 units {fmt(unit * 3)}"))
     for i, q in enumerate(record.qualified_results):
         out.append((f"result-{i + 1}", f"Test result: {q.statement}. Must be said with: {q.qualifier} ({q.provenance})."))
     return out
 
 
 def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None,
-                 translations: dict | None = None, fact_mode: str = "sheet") -> DataPack:
+                 translations: dict | None = None, fact_mode: str = "record") -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
     assert base.market is not None
     record, unreviewed = in_language(record, base.lang, translations)
@@ -245,7 +259,7 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
             amount = money_value(m.currency, m.minor)
             return f"{sym}{amount:.2f}" if m.currency == cur else f"{m.currency} {amount:.2f}"
 
-        for key, text in record_facts(record, fact_money):
+        for key, text in record_facts(record, fact_money, live_price, lambda d: f"{sym}{d:.2f}"):
             add("Record facts", key, text)
     for ing in record.ingredients:
         amount = f": {ing.amount_value}{ing.amount_unit or ''}" if ing.amount_value else ""
