@@ -317,7 +317,7 @@ export function HostView({
 const acked = new Set<string>();
 
 export function HostScreen(props: ScreenProps) {
-  const [ownTheme, toggle, setTheme, themePref] = useTheme("host");
+  const [ownTheme, toggle, setTheme, themePref] = useTheme();
   const theme = props.theme ?? ownTheme;
   const { state, connection } = useSession(props.sessionId, "host");
   const catalog = useCatalog();

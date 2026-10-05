@@ -62,7 +62,7 @@ function Pane({
   recording: boolean;
   onSessionChange?: (sid: string) => void;
 }) {
-  const [theme, toggle] = useTheme(screen);
+  const [theme, toggle] = useTheme();
   const Screen = PANE_COMPONENT[screen];
   return (
     <section className={styles.pane} style={{ flexBasis: `${width}%`, flexGrow: 0, flexShrink: 0 }} aria-label={PANE_LABEL[screen]}>
@@ -80,7 +80,7 @@ function Pane({
 }
 
 export function Studio({ sessionId, onSessionChange }: ScreenProps) {
-  const [chrome] = useTheme("studio");
+  const [chrome] = useTheme();
   const health = useHealth();
   const demoTools = health?.demo_tools_enabled ?? false;
   const [preset, setPreset] = useState<PresetKey>(readPreset);

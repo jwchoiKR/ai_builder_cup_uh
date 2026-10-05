@@ -6,7 +6,7 @@ import { setupApi } from "./setup/setupApi";
 import { SetupView } from "./setup/SetupView";
 
 export function Setup(props: ScreenProps) {
-  const [ownTheme, toggle] = useTheme("setup");
+  const [ownTheme, toggle] = useTheme();
   const theme = props.theme ?? ownTheme;
   const catalog = useCatalog();
   return (

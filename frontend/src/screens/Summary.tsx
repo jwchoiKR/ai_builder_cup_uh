@@ -14,7 +14,7 @@ const POLL_COMPUTING_MS = 2000;
 const POLL_LIVE_MS = 5000;
 
 export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps) {
-  const [ownTheme, toggle] = useTheme("summary");
+  const [ownTheme, toggle] = useTheme();
   const theme = forcedTheme ?? ownTheme;
   const [data, setData] = useState<SummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
