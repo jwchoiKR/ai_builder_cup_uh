@@ -67,6 +67,7 @@ class LLMRequest(Generic[T]):
     preview: str | None = None  # human-readable input for the audit log
     cache_prefix: str = ""  # exact static prefix of user_message; retain full text for fallback
     cache_ttl_sec: int | None = None
+    parts: tuple = ()  # P0 onboarding: (bytes, mime type) files sent before user_message (Vertex only)
 
 
 @dataclass
@@ -297,7 +298,7 @@ class VertexBackend:
 
     async def generate(self, req: LLMRequest, timeout_ms: int) -> RawReply:
         import httpx
-        from google.genai import errors
+        from google.genai import errors, types
 
         config = vertex_config(req, timeout_ms, self._schema(req.output_model))
         entry = self._cache_entry(req)
@@ -329,6 +330,11 @@ class VertexBackend:
                     resp = await self._client.aio.models.generate_content(
                         model=req.model, contents=req.user_message, config=config,
                     )
+            elif req.parts:  # P0 onboarding: whole files (PDF, images, text) read by the model
+                contents = [types.Part.from_bytes(data=data, mime_type=mime) for data, mime in req.parts]
+                resp = await self._client.aio.models.generate_content(
+                    model=req.model, contents=[*contents, req.user_message], config=config
+                )
             else:
                 resp = await self._client.aio.models.generate_content(
                     model=req.model, contents=req.user_message, config=config

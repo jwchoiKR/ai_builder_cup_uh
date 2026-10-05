@@ -1,0 +1,27 @@
+{
+ "p1_lumen_serum": {
+  "category": "cosmetic",
+  "prices_minor": {
+   "LMN-ORS-30 SG list": 5800,
+   "LMN-ORS-30 SG live": 4400,
+   "LMN-ORS-50 SG live": 6200,
+   "LMN-ORS-30 MY live": 14500
+  },
+  "cautions_min": 4,
+  "not_approved_min": 3,
+  "conflict": "live price Sep vs Oct",
+  "ingredient_list_complete": true,
+  "qualified_provenance": "third_party_lab"
+ },
+ "p2_mareva_gummies": {
+  "category": "food_supplement",
+  "prices_minor": {
+   "MRV-VC60 MY live": 2990,
+   "MRV-VC120 MY list": 6990
+  },
+  "cautions_min": 2,
+  "not_approved_min": 2,
+  "ingredient_list_complete": true,
+  "offer": "spend_threshold_gift RM80"
+ }
+}

@@ -14,10 +14,13 @@ dependencies = [
     "pypdf>=5.0",
     "google-cloud-speech>=2.37",
     "google-adk>=2.11,<2.12",
+    "python-docx>=1.2.0",
+    "openpyxl>=3.1.5",
 ]
 
 [dependency-groups]
 dev = [
+    "pillow>=12.3.0",
     "pytest>=9.1",
     "pytest-asyncio>=1.4",
 ]
