@@ -217,6 +217,19 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
             if o.kind == "amount_off" and o.amount is not None:
                 terms.append(f"offer price {fmt(unit - money_value(o.amount.currency, o.amount.minor))}")
         out.append((f"offer-{o.offer_id}", "Offer: " + "; ".join(terms)))
+    # D-255 (sealed: "the 10-bottle box has 5,000 mg in total" when it is 5,000 mg per bottle): per-pack totals in
+    # code, when an amount's basis is the unit the pack counts
+    norm = lambda u: (u or "").strip().lower().rstrip("s")  # noqa: E731
+    for v in record.variants:
+        if not (v.pack_count and v.pack_unit):
+            continue
+        for ing in record.ingredients:
+            if ing.amount_value and ing.per and norm(ing.per) == norm(v.pack_unit):
+                total = Decimal(ing.amount_value) * v.pack_count
+                out.append((f"pack-{v.variant_id}-{ing.name}",
+                            f"Computed: {v.name} ({v.pack_count} × {v.pack_unit}): {ing.name} "
+                            f"{ing.amount_value} {ing.amount_unit or ''} per {ing.per}, "
+                            f"{format(total.normalize(), 'f')} {ing.amount_unit or ''} in the whole pack"))
     if unit is not None and fmt is not None:
         out.append(("unit-totals", f"Live unit price {fmt(unit)}; 2 units {fmt(unit * 2)}; 3 units {fmt(unit * 3)}"))
     for i, q in enumerate(record.qualified_results):
@@ -225,7 +238,7 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
 
 
 def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None,
-                 translations: dict | None = None, fact_mode: str = "record") -> DataPack:
+                 translations: dict | None = None, fact_mode: str = "docs") -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
     assert base.market is not None
     record, unreviewed = in_language(record, base.lang, translations)

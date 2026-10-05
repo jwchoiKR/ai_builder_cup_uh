@@ -67,6 +67,8 @@ class Variant(_Model):
     size_value: str | None = None  # "30"
     size_unit: str | None = None  # "ml", "g", "pcs"
     market: str | None = None  # where this variant is sold ("SG"); None when the documents do not say
+    pack_count: int | None = None  # D-255: units in the pack as written ("box of 10 bottles" -> 10)
+    pack_unit: str | None = None  # D-255: the unit counted ("bottle", "capsule", "sachet")
     prices: list[Money] = []
     evidence: list[Evidence]
 
@@ -94,6 +96,7 @@ class Ingredient(_Model):
     name: str
     amount_value: str | None = None  # "0.2"
     amount_unit: str | None = None  # "%", "mg"
+    per: str | None = None  # D-255: the amount's basis as written ("bottle", "capsule", "serving", "100 g")
     purpose: str | None = None
     evidence: list[Evidence]
 

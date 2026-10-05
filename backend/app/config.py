@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     ONBOARDING_DIR: str = "../data/onboarding"  # D-217: uploaded product files, immutable, git-ignored
     VERIFY_MODE: Literal["full", "risk", "lean"] = "full"  # D-254 lean: risk, at most 10 items  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"
-    FACT_MODE: Literal["sheet", "record", "docs"] = "record"  # D-242/D-244: a release's live fact checks read its record  # D-237: pii_only leaves profanity and short reactions to triage
+    FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
     RETRIEVER: Literal["local", "vertex_search"] = "local"
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # D-128: per-agent overrides of LLM_FAST_THINKING (thinking-level comparison, docs/eval/models/README.md)
     COMPLIANCE_THINKING: ThinkingLevel = "LOW"
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
-    FACTS_THINKING: ThinkingLevel = "MINIMAL"
+    FACTS_THINKING: ThinkingLevel = "LOW"  # D-255: sealed unseen products, 5 s budget
     FACTS_MODEL: str = ""  # D-246: the fact checker's model (base and FR); empty = LLM_FAST_MODEL
     TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1
@@ -68,8 +68,10 @@ class Settings(BaseSettings):
     # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
     JUDGE_HEDGE_MS: int = 1500
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
-    FACT_TIMEOUT_MS: int = 3000  # the "on time" line: a slower fact call counts as a timeout for the health dot
-    FACT_LATE_MS: int = 6000  # D-144: a fact call may still answer until here; a late wrong-fact note beats none
+    # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
+    # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more
+    FACT_TIMEOUT_MS: int = 5000
+    FACT_LATE_MS: int = 5000  # D-144: a fact call may still answer until here; a late wrong-fact note beats none
     FACT_SEARCH_TIMEOUT_MS: int = 600
     TRIAGE_TIMEOUT_MS: int = 2500
     MODEL_ARMOR_ENABLED: bool = False  # D-125: screen comments before triage (needs a template)

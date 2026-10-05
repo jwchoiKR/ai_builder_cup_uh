@@ -119,6 +119,9 @@ def normalise(rec: ProductRecord) -> tuple[ProductRecord, list[str]]:
             vid += "_2"
         v.variant_id, v.size_unit = vid, _unit(v.size_unit)
         v.size_value = checked(v.size_value, v.evidence, f"variants[{vid}].size_value")
+        if v.pack_count is not None:  # D-255: the count must be what its quote states, like every number
+            got = checked(str(v.pack_count), v.evidence, f"variants[{vid}].pack_count")
+            v.pack_count = int(Decimal(got)) if got is not None and Decimal(got) == Decimal(got).to_integral() else None
         if v.market:
             v.market = v.market.strip().upper()
         v.prices = [m for m in v.prices if m.evidence and _money_ok(m, notes, f"variants[{i}].prices")

@@ -348,7 +348,7 @@ async def test_a_fact_call_slower_than_the_on_time_line_counts_for_the_health_do
     """D-144: the fact call may answer until FACT_LATE_MS (its note still shows), but past FACT_TIMEOUT_MS
     it counts as a timeout for the dot."""
     rt, llm = env
-    assert rt.settings.FACT_LATE_MS > rt.settings.FACT_TIMEOUT_MS
+    assert rt.settings.FACT_LATE_MS >= rt.settings.FACT_TIMEOUT_MS  # D-255: both 5 s by default
     await rt.utterances._note_health("fact_checker", "timeout")
     await advance(rt, 1000)
     await rt.utterances._note_health("fact_checker", "timeout")

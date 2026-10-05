@@ -23,7 +23,9 @@ Rules:
   eligibility, which sizes or variants count).
 - Offers: percent off, amount off, fixed price, buy X get Y, a gift over a spend, a bundle of variants. Copy the
   stated terms, rounding rule, dates and duration; do not compute prices that are not written.
-- Ingredients: name, amount and unit as written. `ingredient_list_complete` is true only when a file gives the full
+- Ingredients: name, amount and unit as written, and `per`: what the amount is for as written ("bottle", "capsule",
+  "serving", "100 g"; null when the files do not say). Variants: `pack_count` and `pack_unit` when a pack holds several
+  units ("box of 10 bottles": 10, "bottle"; else null). Do not multiply anything yourself. `ingredient_list_complete` is true only when a file gives the full
   ingredient list (an "Ingredients:"/INCI list of everything in the product). A key-ingredient table, or a note
   that the full list is elsewhere (on the carton), is not complete.
 - `approved_claims`: claims the files say may be used (approved, allowed, OK to say). `not_approved_claims`:
