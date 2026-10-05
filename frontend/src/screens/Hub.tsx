@@ -2,10 +2,11 @@ import { ChartColumn, ChevronRight, FileUp, Headset, Mic, Smartphone, type Lucid
 import { useState, type CSSProperties, type MouseEvent } from "react";
 
 import { api } from "../app/api";
+import { useT } from "../app/i18n";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useHealth } from "../app/store";
 import { useTheme } from "../app/theme";
-import { Button, ThemeToggle } from "../components";
+import { Button, SettingsButton } from "../components";
 import styles from "./screens.module.css";
 
 interface Screen {
@@ -42,6 +43,9 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
   },
 ];
 
+const LEAD = "An AI assistant beside the live host. It checks what the host says, answers viewer questions from the "
+  + "product documents and cues the next move.";
+
 /** In-app navigation for a plain left click; a modified click opens a new tab as usual. */
 const go = (href: string) => (e: MouseEvent) => {
   if (e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -50,7 +54,8 @@ const go = (href: string) => (e: MouseEvent) => {
 };
 
 export function Hub({ sessionId, onSessionChange }: ScreenProps) {
-  const [theme, toggle] = useTheme("hub");
+  const [theme, , setTheme, themePref] = useTheme("hub");
+  const t = useT();
   const health = useHealth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,19 +78,19 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
   return (
     <div className={styles.root} data-theme={theme}>
       <header className={`${styles.header} ${styles.hubHeader}`}>
-        <span className={`${styles.subtitle} tabular`}>Session {sessionId ?? "…"}</span>
+        <span className={`${styles.subtitle} tabular`}>{t("Session {id}", { id: sessionId ?? "…" })}</span>
         <div className={styles.headerActions}>
           <Button variant="primary" disabled={busy} onClick={() => run(() => api.createSession())}>
-            New demo session
+            {t("New demo session")}
           </Button>
           <Button
             disabled={busy || !demoTools}
-            title={demoTools ? undefined : "Demo tools are disabled"}
+            title={demoTools ? undefined : t("Demo tools are disabled")}
             onClick={() => run(() => api.demoReset())}
           >
-            Reset demo
+            {t("Reset demo")}
           </Button>
-          <ThemeToggle theme={theme} onToggle={toggle} />
+          <SettingsButton themePref={themePref} onTheme={setTheme} />
         </div>
       </header>
       <main className={`${styles.body} ${styles.hubBody}`}>
@@ -93,24 +98,21 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
           {error && <p className={styles.error}>{error}</p>}
           <section className={styles.hubHero}>
             <span className="eyebrow">LIVE / STUDIO</span>
-            <h1 className={styles.hubTitle}>Broadcast hub</h1>
-            <p className={styles.hubLead}>
-              An AI assistant beside the live host. It checks what the host says, answers viewer questions from the
-              product documents and cues the next move.
-            </p>
+            <h1 className={styles.hubTitle}>{t("Broadcast hub")}</h1>
+            <p className={styles.hubLead}>{t(LEAD)}</p>
             <div className={styles.hubStudio}>
               <a className={styles.hubStudioButton} href={studio} onClick={go(studio)} data-testid="hub-open-studio">
-                Open Studio (demo) →
+                {t("Open Studio (demo) →")}
               </a>
-              <span className={styles.hubStudioNote}>Host, operator and viewer side by side, with prepared demo scenes.</span>
+              <span className={styles.hubStudioNote}>{t("Host, operator and viewer side by side, with prepared demo scenes.")}</span>
             </div>
           </section>
           <div className={styles.hubPhases}>
             {PHASES.map((phase, i) => (
               <div key={phase.label} className={styles.hubPhaseSlot} data-phase={i}>
                 {i > 0 && <ChevronRight className={styles.hubChevron} aria-hidden />}
-                <section className={`${styles.hubPhase} ${phase.live ? styles.hubPhaseLive : ""}`} aria-label={phase.label}>
-                  <h2 className={styles.hubPhaseLabel}>{phase.label}</h2>
+                <section className={`${styles.hubPhase} ${phase.live ? styles.hubPhaseLive : ""}`} aria-label={t(phase.label)}>
+                  <h2 className={styles.hubPhaseLabel}>{t(phase.label)}</h2>
                   <div className={styles.hubPhaseCards} style={{ "--cards": phase.screens.length } as CSSProperties}>
                     {phase.screens.map((s) => {
                       const href = withSession(s.path, sessionId);
@@ -121,9 +123,9 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
                           <span className={styles.hubIcon}>
                             <Icon aria-hidden />
                           </span>
-                          <span className={styles.hubCardTitle}>{s.title}</span>
-                          <span className={styles.hubWho}>{s.who}</span>
-                          <span className={styles.hubText}>{s.text}</span>
+                          <span className={styles.hubCardTitle}>{t(s.title)}</span>
+                          <span className={styles.hubWho}>{t(s.who)}</span>
+                          <span className={styles.hubText}>{t(s.text)}</span>
                         </a>
                       );
                     })}

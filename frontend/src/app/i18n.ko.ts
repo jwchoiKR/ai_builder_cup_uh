@@ -132,4 +132,35 @@ export const KO_HOST: Record<string, string> = {
   "Also answered:": "함께 답변:",
 };
 
-export const KO: Record<string, string> = { ...KO_OPERATOR, ...KO_HOST };
+/** The Hub (home screen). */
+export const KO_HUB: Record<string, string> = {
+  "Session {id}": "세션 {id}",
+  "New demo session": "새 데모 세션",
+  "Reset demo": "데모 초기화",
+  "Demo tools are disabled": "데모 도구가 꺼져 있습니다",
+  "Broadcast hub": "방송 허브",
+  "An AI assistant beside the live host. It checks what the host says, answers viewer questions from the product documents and cues the next move.":
+    "라이브 진행자 옆에서 돕는 AI입니다. 진행자의 말을 확인하고, 제품 문서로 시청자 질문에 답하고, 다음 할 일을 알려 줍니다.",
+  "Open Studio (demo) →": "스튜디오 열기 (데모) →",
+  "Host, operator and viewer side by side, with prepared demo scenes.":
+    "진행자·운영자·시청자 화면을 나란히 놓고, 준비된 데모 장면을 재생합니다.",
+  "Before the show": "방송 전",
+  "During the show": "방송 중",
+  "After the show": "방송 후",
+  Setup: "준비",
+  "For the operator": "운영자용",
+  "Upload product documents. The AI drafts the host's talking points.": "제품 문서를 올리면 AI가 진행자가 말할 내용을 정리합니다.",
+  "Host screen": "진행자 화면",
+  "For the host": "진행자용",
+  "Prompter, instant correction alerts and viewer questions to read out.": "프롬프터, 즉시 정정 경고, 읽어 줄 시청자 질문.",
+  Operator: "운영자 화면",
+  "Show schedule, product switch and the question desk.": "방송 순서, 제품 전환, 질문 데스크.",
+  Viewer: "시청자 화면",
+  "What viewers see": "시청자가 보는 화면",
+  "Live video, product strip and chat with checked AI answers.": "라이브 영상, 제품 띠, 확인된 AI 답변이 달리는 채팅.",
+  Summary: "요약",
+  "For the team": "팀용",
+  "Alerts, corrections, answered questions and an AI recap.": "경고, 정정, 답한 질문, AI가 쓴 방송 요약.",
+};
+
+export const KO: Record<string, string> = { ...KO_OPERATOR, ...KO_HOST, ...KO_HUB };
