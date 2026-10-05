@@ -129,7 +129,26 @@ document.fonts.ready.then(()=>{const out=autofit();if(location.search.includes('
             head.setAttribute('stroke-linecap', 'round'); head.setAttribute('stroke-linejoin', 'round'); sv.appendChild(head);
           }
         } } });
-    bd.querySelectorAll('div').forEach(g => { if (getComputedStyle(g).display === 'grid' && g.querySelector('.an-arrow')) g.style.alignItems = 'center'; });
+    // scene rows: every box in a row gets the same height (rows too, when the grid has no label rows), so arrows meet box centres
+    bd.querySelectorAll('div').forEach(g => { if (getComputedStyle(g).display !== 'grid' || !g.querySelector('.an-arrow')) return;
+      const cells = [...g.children];
+      const labelRows = cells.some(c => (c.style.gridColumn || '').replace(/\s/g, '') === '1/-1');
+      g.style.alignItems = 'stretch';
+      cells.forEach(cell => {
+        if ((cell.style.gridColumn || '').replace(/\s/g, '') === '1/-1') return;
+        if (cell.querySelector('.an-arrow')) { Object.assign(cell.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '0' }); return; }
+        Object.assign(cell.style, { display: 'flex', alignItems: 'stretch' });
+        const comp = cell.firstElementChild; if (!comp) return;
+        comp.style.flex = '1'; comp.style.alignSelf = 'stretch';
+        const isBox = BOX(comp);
+        const boxes = isBox ? [comp] : [...comp.children].filter(k => k.tagName === 'DIV' && BOX(k));
+        if (!isBox) { comp.style.display = 'flex'; comp.style.alignItems = 'stretch';
+          [...comp.children].forEach(k => { if (!boxes.includes(k)) k.style.alignSelf = 'center'; }); }
+        boxes.forEach(bx => { bx.style.alignSelf = 'stretch';
+          if (getComputedStyle(bx).display === 'flex' && getComputedStyle(bx).flexDirection === 'row') bx.style.alignItems = 'center';
+          else Object.assign(bx.style, { display: 'flex', flexDirection: 'column', justifyContent: 'center' }); });
+      });
+    });
     bd.querySelectorAll('div').forEach(el => { const cs = getComputedStyle(el);
       if (cs.backgroundColor === 'rgb(232, 240, 254)' && cs.borderRadius && parseFloat(cs.width) <= 90 && parseFloat(cs.width) >= 40 && Math.abs(parseFloat(cs.width) - parseFloat(cs.height)) < 4) el.classList.add('an-ai'); });
     bd.querySelectorAll('div').forEach(row => { const kids = [...row.children];
