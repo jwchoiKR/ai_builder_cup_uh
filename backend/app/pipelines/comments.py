@@ -54,7 +54,8 @@ async def submit_comment(
     rt.check_rate(author_id, now)
     # D-191 arms D and E: no prefilter beyond Model Armor; triage decides every comment
     text = mask_links(text)  # D-234: the link itself never shows in chat or reaches a model; the question does
-    verdict = PrefilterVerdict(None) if arms.agents_decide(rt.settings.DESIGN_ARM) else prefilter(text, rt.catalog.lexicon)
+    verdict = (PrefilterVerdict(None) if arms.agents_decide(rt.settings.DESIGN_ARM)
+               else prefilter(text, rt.catalog.lexicon, rt.settings.PREFILTER))
     comment = Comment(
         comment_id=rt.new_id("cm_"), author_id=author_id, author_name=author_name.strip() or "Viewer",
         text=text, received_at=now, source=source,

@@ -59,3 +59,9 @@ def test_reaction_without_llm(text):
 ])
 def test_needs_llm(text):
     assert prefilter(text, LEX).kind is None
+
+
+@pytest.mark.parametrize("text, kind", [("what the fuck is this", None), ("ml", None), ("ok", None), ("가격", None),
+                                        ("call me 9123 4567 for wholesale", "hide"), ("https://x.y/z", "hide")])
+def test_d237_pii_only_keeps_only_what_must_never_show(text, kind):
+    assert prefilter(text, LEX, "pii_only").kind == kind
