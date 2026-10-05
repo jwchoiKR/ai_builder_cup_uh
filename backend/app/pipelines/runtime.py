@@ -416,6 +416,15 @@ class SessionRuntime:
             s.host_slots = new_slots
             await self.save_session(s)
             await self.emit("hostqueue.updated", {"slots": [sl.model_dump() for sl in new_slots]})
+            # D-163: what is on the host's list and what waits outside it (a full list, or another product on air)
+            params = self.queue_params()
+            outside = [g for g in groups.values() if g.group_id not in on_host and hq.is_candidate(
+                g, on_air=on_air, scope=self.intent(g.intent).product_scope, now=now,
+                repeat_threshold=params.repeat_threshold)]
+            log.info("hostqueue %s on_air=%s list=[%s] outside=[%s]", self.sid, on_air,
+                     ", ".join(f"{sl.group_id}:{groups[sl.group_id].intent}:{scores.get(sl.group_id, 0):.2f}"
+                               for sl in new_slots if sl.group_id in groups),
+                     ", ".join(f"{g.group_id}:{g.intent}:{scores.get(g.group_id, 0):.2f}" for g in outside))
 
     # ---- messages ------------------------------------------------------------------------------
 
