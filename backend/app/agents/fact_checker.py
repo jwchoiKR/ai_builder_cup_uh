@@ -45,6 +45,13 @@ _FRAME = frozenset({"does", "contain", "includes", "include", "included", "made"
                     "states", "listed", "there", "have", "from", "that", "which", "only", "also", "said", "says"})
 
 
+def _polarity_differs(lex, host: str, correct: str | None) -> bool:
+    """D-260: "exactly S$40 qualifies" against "Exactly S$40 does not qualify": the same number, the opposite fact."""
+    neg = lambda t: any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", (t or "").lower())  # noqa: E731
+                        for n in lex.negation_words)
+    return neg(host) != neg(correct)
+
+
 def _latin(text: str | None) -> bool:
     return bool(re.search(r"[a-z]{2}", (text or "").lower()))
 
@@ -271,7 +278,7 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         units_differ = bool(_units(c.stated_value) and _units(c.correct_value)
                             and _units(c.stated_value) != _units(c.correct_value))
         host = f"{c.stated_value or ''} {c.span or ''}"
-        threshold = _threshold_differs(lex, host, c, said)
+        threshold = _threshold_differs(lex, host, c, said) or _polarity_differs(lex, host, c.correct_value)
         if (((said and said == right and not units_differ)
                 or (c.stated_value or "").strip().lower() == (c.correct_value or "").strip().lower())
                 and not threshold):

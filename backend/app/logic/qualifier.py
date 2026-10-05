@@ -21,7 +21,8 @@ def approved_replacement(text: str, on_air: Product, others: Sequence[Product], 
     """The approved result the sentence is about: most matching numbers, then the product on air,
     then most matching words. None when nothing matches well enough (no wording is invented)."""
     heard = lex.content_words(text)
-    numbers = {w for w in heard if w.isdigit()}
+    # D-260 (candidate aa995d1: "non-transferring for eight hours" matched no result, so the judge's alert was dropped)
+    numbers = {w for w in heard if w.isdigit()} | lex.spoken_numbers(text)
     best, best_key = None, None
     for rank, product in enumerate([on_air, *others]):
         for r in product.qualified_results:

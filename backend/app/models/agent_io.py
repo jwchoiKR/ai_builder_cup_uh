@@ -122,7 +122,7 @@ class ContextOutputB(ContextOutput, _ArmB):
 
 FactField = Literal[
     "price", "set_price", "promo", "volume", "ingredient", "ingredient_amount", "test_result",
-    "usage", "texture", "fragrance", "packaging", "origin", "shelf_life", "ph", "caution", "other",
+    "usage", "texture", "fragrance", "packaging", "origin", "shelf_life", "ph", "caution", "availability", "other",
 ]
 
 
