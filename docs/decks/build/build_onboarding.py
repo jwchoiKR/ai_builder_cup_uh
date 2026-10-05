@@ -7,6 +7,39 @@ from deck import *  # noqa: E402,F403
 
 OUT = Path(__file__).parent.parent / "onboarding_flow.html"
 
+# ---- 0 user flow
+slide("userflow", "사용자 흐름", "운영자는 문서를 올리고, 확인하고, 방송을 시작한다", col(
+    chain4(step4(1, "book", BLUE, BLUEBG, "문서 올리기", "준비 화면에 파일을 끌어다 놓음 · 형식 상관없음"),
+           step4(2, "ai", BLUE, BLUEBG, "자동 정리 (1~4분)", "진행 상태 표시: 읽는 중 → 정리 중 → 검사 중"),
+           step4(3, "check", "#B06000", YELBG, "확인·승인", "값마다 원문, 충돌·빠진 값만 손봄 → 승인"),
+           step4(4, "play", GRN, GRNBG, "방송 시작", "진행자 화면·시청자 채팅이 이 제품으로 바로 동작")),
+    tags("사람이 하는 일", chip("파일 올리기", "grey"), chip("노란 표시만 확인", "grey"), chip("승인 버튼", "grey"),
+         chip("방송 시작 버튼", "grey")), gap=30),
+    notes="①②④는 동작(D-217, D-218, 방송은 release_id로 시작). ③ 승인 화면은 개발 중(spec 6단계). 사람은 입력하지 않고 확인과 승인만 한다.")
+
+# ---- 0b real screen
+import base64
+def img(path, maxh=560):
+    b = base64.b64encode(Path(path).read_bytes()).decode()
+    return (f'<img src="data:image/png;base64,{b}" alt="" style="display:block; max-width:100%; max-height:{maxh}px; '
+            f'border:2px solid {LINE}; border-radius:16px; margin:0 auto">')
+IMG = Path(__file__).parent.parent / "img"
+slide("approve", "사용자 흐름", "확인 화면은 충돌과 빠진 값을 맨 위에 보여 준다", col(
+    img(IMG / "onb-3-review.png", 600),
+    t("실제 화면 (0dac8c7, 실제 Gemini, 개발용 가상 제품 문서 4개, 읽기 122초). 9월·10월 가격표가 달라 충돌 3개를 날짜와 원문 위치로 표시했다.", 23, SUB), gap=16),
+    notes="개발용 가상 제품(p1_lumen_serum)이다. 봉인 시험 제품이 아니다.")
+
+# ---- 0c flow status
+slide("flowstatus", "사용자 흐름", "실제로 끝까지 돌려 보니 마지막 단계가 끊겼다", col(
+    table(["단계", "결과", "고칠 것"], [
+        ["홈 → '새 제품 등록'", "<span style='color:#1E8E3E'>동작</span>", ""],
+        ["파일 4개 올리기 (워드·엑셀 2개·라벨 사진)", "<span style='color:#1E8E3E'>동작</span>", ""],
+        ["읽기 (122초)", "<span style='color:#1E8E3E'>동작</span>", "진행 상태 표시 있음"],
+        ["확인 화면", "<span style='color:#B06000'>동작, 쓰기 어려움</span>", "충돌이 내부 경로 이름(variants[0]…)으로 보임 → 쉬운 말과 선택 버튼, JSON 편집 대신 칸별 수정"],
+        ["승인", "<span style='color:#1E8E3E'>동작</span>", "승인 뒤 라이브에서 무엇이 적용되는지 요약"],
+        ["'이 제품으로 방송 시작'", "<span style='color:#D93025'>끊김</span>", "새 제품이 아니라 기존 데모 제품이 열림 → 최우선 수정"]], [30, 18, 52], 24),
+    gap=16), notes="10/5 밤 사용자 흐름 점검. 개발 세션에 넘김. 심사위원 데모의 핵심 장면이라 최우선.")
+
 # ---- 1 overview
 slide("overview", "자동 등록", "제품 문서를 이 순서로 읽어 제품 정보를 만든다", col(
     howline(("① 저장", "내용 해시, 바꾸지 않음"), ("② 형식 맞추기", "코드 · 워드·엑셀 → 글자·표"),
