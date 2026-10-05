@@ -22,6 +22,32 @@ def promo_passage(promo: Promo, catalog: Catalog) -> Passage:
                    text=f"{label}: {prices}.{runs}")
 
 
+def _left(ms: int) -> str:
+    return f"{-(-ms // 60_000)} min" if ms >= 60_000 else f"{max(0, ms) // 1000} s"
+
+
+def promo_cue(promo: Promo, catalog: Catalog, active_price: Promo | None, ends_at: int, now: int,
+              offers: list[Promo] | tuple = ()) -> str | None:
+    """D-210 (full review P2): the AI PD's promo card text, built from the live state every time: the promo's own
+    prices and the time left, never the stored "for the next 10 minutes". Any other promo text (a notice) is shown
+    only when every number in it is a current price or offer term; "Set: S$62" during a time sale is dropped."""
+    from .verify import number_set
+
+    left = _left(ends_at - now)
+    if promo.changes_prices:
+        names = {p.product_id: p.name for p in catalog.products} | {s.set_id: s.name for s in catalog.set_offers}
+        prices = "; ".join(f"{names[pid]} {catalog.money(v)}" for pid, v in promo.promo_prices.items() if pid in names)
+        pct = (f"extra {promo.discount_pct_off_live_price:g}% off now: "
+               if promo.discount_pct_off_live_price is not None else "now: ")
+        return f"{promo.title}: {pct}{prices}. {left} left."
+    if promo.min_spend is not None:
+        return f"{promo.viewer_text}. {left} left."
+    ids = [p.product_id for p in catalog.products] + [s.set_id for s in catalog.set_offers]
+    allowed = set().union(*(number_set(catalog.price_display(pid, active_price)) for pid in ids),
+                          *(number_set(f"{o.min_spend}") for o in offers if o.min_spend is not None))
+    return promo.viewer_text if number_set(promo.viewer_text) <= allowed else None
+
+
 def price_promo(promo: Promo | None) -> Promo | None:
     return promo if promo is not None and promo.changes_prices else None
 

@@ -15,6 +15,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from ..logic import pd as pdl
+from ..logic.promos import promo_cue
 from ..logic.prompter import points_of, required_ids
 from ..models.session import PdCard
 
@@ -137,10 +138,13 @@ class PdDirector:
                 questions.append(pdl.Question(g.group_id, g.canonical_question, a.text, "answer", askers,
                                               slot.pinned, **extra))
         promos = []
+        price, offers = await rt.active_price_promo(), await rt.active_offers()
         for ap in s.active_promos:
             p = rt.promo(ap.promo_id)
-            if p is not None:
-                promos.append(pdl.PromoState(ap.promo_id, p.viewer_text, ap.started_at, ap.ends_at))
+            # D-210: the card text is built from the live state (prices, time left); a stale notice is not shown
+            text = promo_cue(p, rt.catalog, price, ap.ends_at, now, offers) if p is not None else None
+            if text is not None:
+                promos.append(pdl.PromoState(ap.promo_id, text, ap.started_at, ap.ends_at))
         high = pdl.red_blocks(await rt.alerts(), now)
         nxt = rt.catalog.next_product(seg.product_id)
         return pdl.PdState(
