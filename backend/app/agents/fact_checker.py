@@ -249,11 +249,36 @@ class FactChecker:
         self.prompt_version = prompt.version
         self.model = llm.facts.model
         self.catalog = catalog
-        # D-242 arm FR: how to read a release's record facts
+        # D-242 arm FR: how to read a release's record facts; D-247 arm FD: the release's files on top
         from . import arms
-        record = getattr(getattr(llm, "settings", None), "FACT_MODE", "sheet") == "record"
-        extra = arms._addenda(str(llm.prompts_path)).get(("FR", self.name)) if record else None
-        self.system_instruction = f"{prompt.system_instruction}\n\n{extra}" if extra else prompt.system_instruction
+        settings = getattr(llm, "settings", None)
+        mode = getattr(settings, "FACT_MODE", "sheet")
+        layers = {"record": ["FR"], "docs": ["FR", "FD"]}.get(mode, [])
+        addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
+        extras = [addenda.get((layer, self.name)) for layer in layers]
+        self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
+        self.file_parts: tuple = ()
+        self.file_passages: tuple = ()
+        release_id = getattr(getattr(catalog, "runsheet", None), "runsheet_id", "")
+        if mode == "docs" and release_id.startswith("rel_"):
+            from ..onboarding.sources import release_sources
+
+            self.file_parts, self.file_passages = release_sources(str(settings.onboarding_path), release_id)
+
+    def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None, **mock) -> LLMRequest:
+        # D-247: with files, the cache holds the system instruction and the files only (stable for the release);
+        # the product and passages blocks stay in the message, since the retrieved passages change per line
+        return LLMRequest(
+            agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
+            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
+            user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=session_id,
+            cache_prefix="" if self.file_parts else prefix, cache_parts=self.file_parts,
+            cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
+
+    async def warm_cache(self, session_id: str) -> None:
+        """D-247: the files' context cache is made at session start, not on the first line."""
+        if self.file_parts:
+            await self.llm.warm_cache(self._request("", "", 60_000, session_id))
 
     async def run(self, inp: FactInput, *, deadline_ms: int) -> AgentResult[FactCheckOutput]:
         user, prefix = self.prompt.render_cached({
@@ -267,14 +292,14 @@ class FactChecker:
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
         }, {"current_product_compact_json", "passages_json"})
-        res = await self.llm.call(LLMRequest(
-            agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
-            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
-            user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=inp.session_id,
-            cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
-            mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
+        res = await self.llm.call(self._request(
+            user, prefix, deadline_ms, inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: {"claims": [], "reason": "rule-based: no fact check"}, preview=inp.utterance,
         ))
         if res.output is not None:
-            res.output = post_validate(res.output, inp.passages, self.catalog, inp.promo, inp.utterance, inp.offers)
+            for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it
+                if c.passage_id and c.passage_id.startswith("file:"):
+                    c.passage_id = c.passage_id.split("#", 1)[0]
+            res.output = post_validate(res.output, [*inp.passages, *self.file_passages], self.catalog, inp.promo,
+                                       inp.utterance, inp.offers)
         return res

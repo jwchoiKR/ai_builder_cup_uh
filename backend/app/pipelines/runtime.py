@@ -272,6 +272,7 @@ class SessionRuntime:
         await self.prefetch(first)
         await self.prefetch(self.catalog.next_product(first))
         self.spawn(self.ctx.llm.warm_up(), name="warm-up")
+        self.spawn(self.utterances.facts.warm_cache(self.sid), name="facts-files-cache")  # D-247 arm FD
         self.ctx.scheduler.call_later(self.key("tick"), TICK_MS, self._tick)
         return s
 
