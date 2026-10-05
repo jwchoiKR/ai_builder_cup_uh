@@ -79,7 +79,7 @@ def _example_outputs(system: str) -> list[dict]:
 
 
 EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 3, "context_judge": 4,
-                  "fact_checker": 4, "comment_triage": 6, "answer_composer": 5, "draft_verifier": 4,
+                  "fact_checker": 4, "comment_triage": 7, "answer_composer": 5, "draft_verifier": 4,
                   "brief_agent": 1}
 
 
@@ -118,6 +118,7 @@ def test_render_escapes_data_close_and_never_reexpands(prompts, catalog):
     msg = t.render({
         "products_compact_json": inputs.products_compact_json(catalog),
         "product_id_at_comment_time_minus_grace": None,
+        "recent_host_line_json_or_null": None,
         "intent_names_json": inputs.intent_names_json(catalog),
         "condition_slots_json": catalog.pack.intents.condition_slots,
         "open_groups_json": [],

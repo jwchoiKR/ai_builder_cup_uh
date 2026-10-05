@@ -11,8 +11,8 @@ Output must validate against `CommentTriageBatchOutput`.
 
 ### Several comments in one request
 
-This request carries COMMENTS instead of one COMMENT: a list of `{i, context_product_id, comment}`.
-- Classify every item on its own with the rules above. `context_product_id` is that item's CONTEXT_PRODUCT_ID.
+This request carries COMMENTS instead of one COMMENT: a list of `{i, context_product_id, recent_host_line, comment}`.
+- Classify every item on its own with the rules above. `context_product_id` is that item's CONTEXT_PRODUCT_ID and `recent_host_line` its RECENT_HOST_LINE.
 - Items never influence each other. Two items asking the same thing both get the same OPEN_GROUP id if one fits, else both null.
 - Return `{"items": [...]}` with exactly one object per item, in any order. Each object is the single-comment output plus `"i"`, the item's index.
 - The examples below show one comment each; in this request wrap the objects in `items`.
@@ -30,7 +30,7 @@ This request carries COMMENTS instead of one COMMENT: a list of `{i, context_pro
 Classify every item of COMMENTS.
 ```
 
-`comments_json`: `[{i, context_product_id, comment}]`, each comment truncated to `MAX_COMMENT_CHARS`.
+`comments_json`: `[{i, context_product_id, recent_host_line, comment}]`, each comment truncated to `MAX_COMMENT_CHARS`; `recent_host_line` as in `comment_triage.md`.
 
 ---
 

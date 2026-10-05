@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from .runtime import SessionRuntime
 
 log = logging.getLogger(__name__)
+SHORT_COMMENT_WORDS = 5  # D-157: a comment this short is triaged with the host's last line
+HOST_LINE_MAX_AGE_MS = 30_000
 
 
 # ---- intake ----------------------------------------------------------------------------------------
@@ -133,15 +135,20 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
     if seg is None:
         seg = await rt.current_segment()
     context_pid = seg.product_id if seg else (rt.catalog.order[0] if rt.catalog.order else None)
+    # D-157 (00007 show replays): "Over 60 how", "Pouch for set?" and "Tingling?" answer what the host just said;
+    # a short comment is triaged with the host's last line
+    host_line = (rt.utterances.recent_host_line(comment.received_at, HOST_LINE_MAX_AGE_MS, seg.segment_id if seg else None)
+                 if len(comment.text.split()) <= SHORT_COMMENT_WORDS else None)
 
-    key = triage_cache_key(comment.text, context_pid)
+    key = triage_cache_key(comment.text, context_pid, host_line)
     cached = rt.triage_cache.get(key)
     for attempt in (1, 2):
         if attempt == 1 and cached is not None:
             output, source, seen = CommentTriageOutput.model_validate(cached), "cache", set()
         else:
             res, seen = await rt.triage_queue.classify(
-                TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario))
+                TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario,
+                            host_line=host_line))
             if res.status == "ok" and res.output is not None:
                 output, source = res.output, "llm"
                 rt.triage_cache.put(key, output.model_dump(mode="json"))
@@ -473,12 +480,13 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
         rt.ctx.retriever, rt.catalog, rt.prefetched, product_id=product_id, intent=g.intent,
         canonical_question=g.canonical_question, promo=promo, top_k=rt.settings.COMPOSER_TOP_K,
     )
-    res = await rt.composer.run(
-        ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
-                     canonical_question=g.canonical_question, promo=promo, passages=passages,
-                     session_id=rt.sid, scenario=scenario, sensitive=intent.sensitive),
-        deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS,
-    )
+    inp = ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
+                       canonical_question=g.canonical_question, promo=promo, passages=passages,
+                       session_id=rt.sid, scenario=scenario, sensitive=intent.sensitive)
+    res = await rt.composer.run(inp, deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
+    if res.status != "ok" or res.output is None:
+        # D-157 (comment-flow CF01): every asker had joined while the only draft timed out; draft once more
+        res = await rt.composer.run(inp, deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
     if res.status != "ok" or res.output is None:
         return None
     out = res.output
