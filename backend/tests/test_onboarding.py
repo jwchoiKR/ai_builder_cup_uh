@@ -273,3 +273,30 @@ async def test_d227_a_category_without_a_law_pack_gets_no_law_rules(tmp_path):
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+async def test_d229_an_approved_law_pack_covers_a_category_the_market_pack_does_not(tmp_path):
+    from app.onboarding.lawpack import LawPackRecord, normalise_pack, save_lawpack
+    from app.onboarding.release import save_release
+    from app.pipelines.runtime import create_session
+
+    law, notes = normalise_pack(LawPackRecord.model_validate({
+        "name": "Supplement advertising", "regulator": "Example authority", "covers": ["Food Supplement"],
+        "language": "en", "rules": [
+            {"rule_id": "supp disease", "title": "No disease claims", "description": "No cure or treatment claims.",
+             "severity": "HIGH", "rule_category": "Disease", "unacceptable_examples": ["It cures arthritis."],
+             "say_instead_hint": "Describe the nutrient's normal function.", "evidence": EV},
+            {"rule_id": "X", "title": "t", "description": "d", "severity": "MEDIUM", "rule_category": "c",
+             "unacceptable_examples": [], "say_instead_hint": "", "evidence": []}]}))
+    assert [r.rule_id for r in law.rules] == ["SUPP-DISEASE"] and law.covers == ["food_supplement"] and notes
+    save_lawpack(tmp_path, "SG", law, "j")
+    rec, _ = normalise(ProductRecord.model_validate(_record(category="food_supplement")))
+    rid = save_release(tmp_path, rec, "j")
+    ctx = make_ctx(ONBOARDING_DIR=str(tmp_path))
+    try:
+        rt = await ctx.runtimes.get((await create_session(ctx, "x", release_id=rid)).session_id)
+        assert [r.rule_id for r in rt.pack.rules.rules] == ["SUPP-DISEASE"]
+        assert rt.pack.rules_by_id["SUPP-DISEASE"].severity == "HIGH"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
