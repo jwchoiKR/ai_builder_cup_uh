@@ -61,12 +61,16 @@ class ModelArmorClient:
                                   headers={"Authorization": f"Bearer {await self._token()}"})
         r.raise_for_status()
         result = r.json().get("sanitizationResult", {})
-        if result.get("filterMatchState") == "MATCH_FOUND":
+        state = result.get("filterMatchState")
+        if state == "MATCH_FOUND":
             # "NO_MATCH_FOUND" contains "MATCH_FOUND": compare the whole matchState value
             found = [name for name, f in (result.get("filterResults") or {}).items()
                      if '"matchState": "MATCH_FOUND"' in json.dumps(f)]
             return "blocked", ", ".join(found) or "match found"
-        return "pass", "no match"
+        if state == "NO_MATCH_FOUND":
+            return "pass", "no match"
+        # D-206: only an explicit clean result passes; a missing or unknown state is no screening at all
+        return "unscreened", f"unknown result {state!r}"
 
     async def warm_up(self) -> None:
         """At startup: the first call fetches a token and opens the connection, which can take longer than
