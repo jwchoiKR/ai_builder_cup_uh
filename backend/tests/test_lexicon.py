@@ -60,3 +60,16 @@ def test_d175_relink_candidate(pack):
     assert relink_candidate("Let me show you the texture now.", drafts, lex) is None  # answers nothing
     twins = {"a": "The ampoule has 4% niacinamide.", "b": "Yes, the ampoule has 4% niacinamide."}
     assert relink_candidate("This ampoule has four percent niacinamide.", twins, lex) is None  # not one
+
+
+@pytest.mark.parametrize("said, numbers", [
+    ("one hundred nineteen ringgit", {"119"}),  # D-208: RM119 said aloud
+    ("one hundred and nineteen", {"119"}),
+    ("a hundred and five", {"105"}),
+    ("two thousand five hundred", {"2500"}),
+    ("one hundred", {"100"}),
+    ("after one use", set()),
+    ("fifty mils, thirty-six dollars", {"50", "36"}),
+])
+def test_d208_spoken_numbers_with_scale_words(pack, said, numbers):
+    assert pack.lexicon.spoken_numbers(said) == numbers
