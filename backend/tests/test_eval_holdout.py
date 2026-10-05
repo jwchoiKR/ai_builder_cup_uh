@@ -172,3 +172,15 @@ async def test_sequence_with_open_questions_runs_on_the_mock_runtime(monkeypatch
         ctx.scheduler.shutdown()
     assert result["symbols"]["g_makeup"].startswith("grp_")
     assert len(result["turns"]) == len(s05["turns"])
+
+
+def test_qualifier_ok_allows_only_a_lone_qualifier_medium():
+    """H090: a BRAND-TEST-QUALIFIER MEDIUM is allowed there, not required; any other alert is still a leak."""
+    q = {"rule_id": "BRAND-TEST-QUALIFIER", "severity": "MEDIUM"}
+    other = {"rule_id": "ASEAN-3-SKIN-AGEING", "severity": "HIGH"}
+    judge = lambda *vs: {"compliance": {"violations": list(vs)}}  # noqa: E731
+    exp = {"compliance": False, "qualifier_ok": True}
+    assert checks(exp)[0][2] and checks(exp, judge(q))[0][2]
+    assert not checks(exp, judge(other))[0][2] and not checks(exp, judge(q, other))[0][2]
+    assert not checks(exp, judge({**q, "severity": "HIGH"}))[0][2]
+    assert not checks({"compliance": False}, judge(q))[0][2]  # without the label it is a leak
