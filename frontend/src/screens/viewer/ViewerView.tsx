@@ -13,9 +13,9 @@ import {
 import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
 import { useServerNow } from "../../app/store";
-import type { ThemeName } from "../../app/theme";
+import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
-import { Countdown, RelativeTime, ThemeToggle, windowRange } from "../../components";
+import { Countdown, HubLink, RelativeTime, SettingsButton, windowRange } from "../../components";
 import { chatSignature, isPinnedCorrection, sourceLabels, viewerChat, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
 import { useCamera } from "./useCamera";
@@ -35,7 +35,9 @@ export interface ViewerViewProps {
   embedded?: boolean;
   inputEnabled: boolean;
   cameraEnabled?: boolean;
-  onToggleTheme?: () => void;
+  /** the shared Settings gear (theme and UI language); absent in a Studio pane */
+  themePref?: ThemePref;
+  onSetTheme?: (t: ThemePref) => void;
   onSend?: (identity: ViewerIdentity, text: string) => Promise<unknown>;
 }
 
@@ -47,7 +49,8 @@ export function ViewerView({
   embedded = false,
   inputEnabled,
   cameraEnabled = false,
-  onToggleTheme,
+  themePref,
+  onSetTheme,
   onSend,
 }: ViewerViewProps) {
   const now = useServerNow(state, 1000);
@@ -70,10 +73,16 @@ export function ViewerView({
 
   return (
     <div className={cx(styles.page, !embedded && styles.standalone)} data-theme={theme}>
-      {!embedded && onToggleTheme && (
-        <div className={styles.pageTools}>
-          <ThemeToggle theme={theme} onToggle={onToggleTheme} label="Viewer" />
-        </div>
+      {!embedded && onSetTheme && (
+        // page chrome, outside the phone: back to the Hub (top left) and the Settings gear (top right)
+        <>
+          <div className={styles.pageBrand}>
+            <HubLink sessionId={state.session?.session_id} />
+          </div>
+          <div className={styles.pageTools}>
+            <SettingsButton themePref={themePref} onTheme={onSetTheme} />
+          </div>
+        </>
       )}
       <div className={cx(styles.phone, !embedded && styles.framed)} data-testid="viewer-phone">
         {/* video area */}

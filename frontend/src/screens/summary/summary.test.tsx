@@ -95,6 +95,14 @@ function renderView(d: SummaryData, extra: Partial<Parameters<typeof SummaryView
 
 afterEach(() => vi.restoreAllMocks());
 
+describe("SummaryView: back to the hub", () => {
+  it("links to the hub with its session and offers the Settings gear", () => {
+    renderView(data(), { onSetTheme: vi.fn(), themePref: "system" });
+    expect(screen.getByTestId("hub-link").getAttribute("href")).toMatch(/^\/\?session=/);
+    expect(screen.getByTestId("settings-button")).toBeInTheDocument();
+  });
+});
+
 describe("SummaryView", () => {
   it("renders the computed numbers", () => {
     renderView(data());

@@ -1,6 +1,6 @@
 // Post-broadcast summary page body (DEV_SPEC §12.8). Pure: renders the data it is given.
-import { Button, Chip, Eyebrow, ThemeToggle } from "../../components";
-import type { ThemeName } from "../../app/theme";
+import { Button, Chip, Eyebrow, HubLink, SettingsButton } from "../../components";
+import type { ThemeName, ThemePref } from "../../app/theme";
 import {
   agentLabel,
   correctedIn,
@@ -22,7 +22,9 @@ const ANSWER_KIND_LABEL: Record<string, string> = {
 export interface SummaryViewProps {
   data: SummaryData;
   theme: ThemeName;
-  onToggleTheme?: () => void;
+  /** the shared Settings gear (theme and UI language); absent in a Studio pane */
+  themePref?: ThemePref;
+  onSetTheme?: (t: ThemePref) => void;
   onExport: () => void;
   /** D-097: PDF report through the print dialog */
   onExportPdf?: () => void;
@@ -152,14 +154,21 @@ function RecapBlock({ recap, status, error }: { recap: Recap | null; status: Sum
   );
 }
 
-export function SummaryView({ data, theme, onToggleTheme, onExport, onExportPdf, onBack, embedded }: SummaryViewProps) {
+export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onExportPdf, onBack, embedded }: SummaryViewProps) {
   const s = data.stats;
   const start = s.started_at;
   return (
     <div className={styles.root} data-theme={theme} data-testid="summary">
       <header className={styles.header}>
         <div>
-          <Eyebrow>Broadcast summary</Eyebrow>
+          <Eyebrow>
+            {!embedded && (
+              <>
+                <HubLink sessionId={s.session_id} /> ·{" "}
+              </>
+            )}
+            Broadcast summary
+          </Eyebrow>
           <h1 className={styles.title}>{s.title}</h1>
           <p className={styles.subtitle}>
             {formatDate(s.started_at)} · <span className="tabular">{formatDuration(s.duration_sec)}</span> total
@@ -180,7 +189,7 @@ export function SummaryView({ data, theme, onToggleTheme, onExport, onExportPdf,
           <Button variant="primary" onClick={onBack}>
             Back to hub
           </Button>
-          {!embedded && onToggleTheme && <ThemeToggle theme={theme} onToggle={onToggleTheme} />}
+          {!embedded && onSetTheme && <SettingsButton themePref={themePref} onTheme={onSetTheme} />}
         </div>
       </header>
 

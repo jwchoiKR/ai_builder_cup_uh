@@ -17,6 +17,14 @@
   padding: var(--space-6);
 }
 
+.pageBrand {
+  position: absolute;
+  top: var(--space-4);
+  left: var(--space-5);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
 .pageTools {
   position: absolute;
   top: var(--space-4);

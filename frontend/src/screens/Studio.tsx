@@ -5,7 +5,7 @@ import { useEffect, useState, type ComponentType } from "react";
 import type { ScreenProps } from "../app/nav";
 import { useHealth } from "../app/store";
 import { useTheme, type ScreenKey } from "../app/theme";
-import { Eyebrow, ThemeToggle } from "../components";
+import { Eyebrow, HubLink, SettingsButton } from "../components";
 import { DemoConsole } from "./DemoConsole";
 import { Host } from "./Host";
 import { Operator } from "./Operator";
@@ -62,14 +62,13 @@ function Pane({
   recording: boolean;
   onSessionChange?: (sid: string) => void;
 }) {
-  const [theme, toggle] = useTheme();
+  const [theme] = useTheme(); // D-180: one theme; the Settings gear in the Studio header sets it
   const Screen = PANE_COMPONENT[screen];
   return (
     <section className={styles.pane} style={{ flexBasis: `${width}%`, flexGrow: 0, flexShrink: 0 }} aria-label={PANE_LABEL[screen]}>
       {!recording && (
         <div className={styles.paneLabel}>
           <Eyebrow>{PANE_LABEL[screen]}</Eyebrow>
-          <ThemeToggle theme={theme} onToggle={toggle} label={PANE_LABEL[screen]} />
         </div>
       )}
       <div className={styles.paneBody}>
@@ -80,7 +79,7 @@ function Pane({
 }
 
 export function Studio({ sessionId, onSessionChange }: ScreenProps) {
-  const [chrome] = useTheme();
+  const [chrome, , setTheme, themePref] = useTheme();
   const health = useHealth();
   const demoTools = health?.demo_tools_enabled ?? false;
   const [preset, setPreset] = useState<PresetKey>(readPreset);
@@ -110,7 +109,9 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
       {!recording && (
         <div className={styles.topbar}>
           <div className={styles.brand}>
-            <Eyebrow>LIVE / Studio</Eyebrow>
+            <Eyebrow>
+              <HubLink sessionId={sessionId} />
+            </Eyebrow>
             <span className="tabular">{sessionId ?? "…"}</span>
             <span className={styles.hint}>R recording mode{demoTools ? " · D demo console" : ""}</span>
           </div>
@@ -128,6 +129,7 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
               </button>
             ))}
           </div>
+          <SettingsButton themePref={themePref} onTheme={setTheme} />
         </div>
       )}
       <div className={styles.panes}>

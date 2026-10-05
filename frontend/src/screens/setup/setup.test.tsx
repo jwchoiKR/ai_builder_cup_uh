@@ -94,6 +94,15 @@ function client(over: Partial<SetupClient> = {}): SetupClient {
 
 const renderView = (c: SetupClient) => render(<SetupView products={[cream]} brand="DAON LAB" client={c} theme="light" />);
 
+describe("Setup page: back to the hub", () => {
+  it("links to the hub with the session and offers the Settings gear", () => {
+    render(<SetupView products={[cream]} brand="DAON LAB" client={client()} theme="light" sessionId="ses_9"
+      themePref="system" onSetTheme={vi.fn()} />);
+    expect(screen.getByTestId("hub-link")).toHaveAttribute("href", "/?session=ses_9");
+    expect(screen.getByTestId("settings-button")).toBeInTheDocument();
+  });
+});
+
 describe("Setup page", () => {
   it("lists the shipped documents as indexed locally", async () => {
     renderView(client());

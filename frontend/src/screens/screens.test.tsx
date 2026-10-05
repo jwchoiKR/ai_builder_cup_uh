@@ -91,6 +91,14 @@ describe("screens", () => {
     vi.restoreAllMocks();
   });
 
+  it("Studio has one link back to the hub, in its header; the panes have none", async () => {
+    render(<Studio sessionId="ses_000001" />);
+    const links = await screen.findAllByTestId("hub-link");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/?session=ses_000001");
+    expect(screen.getAllByTestId("settings-button")).toHaveLength(1);
+  });
+
   it("Hub links every screen", async () => {
     render(<Hub sessionId="ses_000001" />);
     for (const name of ["Host screen", "Operator", "Viewer", "Setup", "Summary"]) {

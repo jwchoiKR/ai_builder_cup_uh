@@ -1,7 +1,7 @@
 // Host screen (§12.3): the calm view in front of the host. No required clicks, no sounds; only the
 // HIGH-risk compliance overlay covers the screen. Keyboard: Esc cancels a pending switch, M toggles
 // the mic, T the theme (§12.3.10).
-import { Menu, Timer } from "lucide-react";
+import { LayoutGrid, Timer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { api } from "../../app/api";
@@ -30,7 +30,7 @@ import { useT } from "../../app/i18n";
 import { COLS_MAX, HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReadingSize } from "../../app/prefs";
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { Catalog } from "../../app/types";
-import { Countdown, Elapsed, SettingsButton, Splitter } from "../../components";
+import { Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
 import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchBanner } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
@@ -73,12 +73,15 @@ function TopBar({
   now,
   mic,
   settings,
+  embedded = false,
 }: {
   state: ClientState;
   catalog: Catalog | null;
   now: number;
   mic: Pick<MicSnapshot, "state" | "level" | "message">;
   settings?: ReactNode;
+  /** Studio pane: no link back to the Hub (Studio has its own) */
+  embedded?: boolean;
 }) {
   const t = useT();
   const s = state.session;
@@ -88,10 +91,15 @@ function TopBar({
   const ended = s?.status === "ended" && s.started_at !== null;
   return (
     <header className={styles.topbar} data-testid="host-topbar">
-      <span className={styles.brand}>
-        <Menu className={styles.brandIcon} aria-hidden />
-        LIVE / Studio
-      </span>
+      {embedded ? (
+        <span className={styles.brand}>LIVE / Studio</span>
+      ) : (
+        // back to the Hub; during a live show it asks first
+        <HubLink sessionId={s?.session_id} live={s?.status === "live"} className={styles.brand}>
+          <LayoutGrid className={styles.brandIcon} aria-hidden />
+          LIVE / Studio
+        </HubLink>
+      )}
       <span className={cx(styles.live, live && styles.liveOn)} data-testid="host-live">
         {live || ended ? (
           <>
@@ -263,6 +271,7 @@ export function HostView({
         now={now}
         mic={mic}
         settings={embedded ? null : <SettingsButton themePref={themePref} onTheme={onSetTheme} host />}
+        embedded={embedded}
       />
       <div className={styles.content}>
         <div className={styles.main}
