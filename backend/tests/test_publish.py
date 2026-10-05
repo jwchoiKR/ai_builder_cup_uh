@@ -507,3 +507,31 @@ async def test_d196_the_pipeline_posts_every_group_one_line_answers(env, linked_
     posted = await messages(rt, "host_answer")
     expected = (g1.group_id, g2.group_id) if linked_both else (g1.group_id,)
     assert sorted(m.idempotency_key for m in posted) == sorted(f"host_answer:{g}" for g in expected)
+
+
+class _FactsFailOnce(__import__("tests.judge_fakes", fromlist=["ScriptedBackend"]).ScriptedBackend):
+    def __init__(self):
+        super().__init__()
+        self.failed: set[str] = set()
+
+    async def generate(self, req, timeout_ms):
+        if req.agent == "fact_checker" and req.mock_primary_text not in self.failed:
+            self.failed.add(req.mock_primary_text)
+            self.calls.append((req.agent, req.mock_primary_text))
+            from app.providers.llm import LLMError
+            raise LLMError("scripted failure")
+        return await super().generate(req, timeout_ms)
+
+
+@pytest.mark.parametrize("line, calls", [("It's thirty-six dollars today.", 2), ("It feels so light.", 1)])
+async def test_d203_a_failed_fact_check_on_a_number_line_runs_once_more(line, calls):
+    from .helpers import live_runtime, make_ctx
+
+    backend = _FactsFailOnce()
+    backend.facts(line)
+    rt = await live_runtime(make_ctx(backend=backend))
+    try:
+        await speak(rt, line)
+        assert [a for a, _ in backend.calls].count("fact_checker") == calls
+    finally:
+        await close_env(rt)
