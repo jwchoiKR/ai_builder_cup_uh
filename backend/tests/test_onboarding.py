@@ -753,3 +753,63 @@ def test_d246_facts_model_is_the_fact_checkers_own():
         finally:
             ctx.runtimes.shutdown()
             ctx.scheduler.shutdown()
+
+
+async def test_d247_fd_the_fact_checker_reads_the_release_files_and_code_checks_the_quote(tmp_path):
+    from app.agents.fact_checker import FactChecker, FactInput
+    from app.logic.catalog import Catalog
+    from app.onboarding.files import store
+    from app.onboarding.release import save_release
+    from app.models.session import SwitchState
+    from app.onboarding.sources import release_sources
+
+    rec, _ = normalise(ProductRecord.model_validate(_record()))
+    spec = b"Contains a light citrus fragrance.\nUse within 12 months of opening."
+    store(tmp_path, "job1", "spec.txt", spec)
+    store(tmp_path, "job1", "label.png", b"\x89PNG not really")
+    rid = save_release(tmp_path, rec, "job1")
+    parts, passages = release_sources(str(tmp_path), rid)
+    assert [m for _, m in parts] == ["text/plain", "text/plain", "text/plain", "image/png"]
+    by_id = {p.passage_id: p for p in passages}
+    assert "12 months of opening" in by_id["file:spec.txt"].text and by_id["file:label.png"].section == "Source file"
+
+    backend = ScriptedBackend()
+    good = {"span": "use it within 24 months", "field": "shelf_life", "stated_value": "24 months",
+            "verdict": "contradicted", "correct_value": "12 months", "passage_id": "file:spec.txt#line 2",
+            "quote": "Use within 12 months of opening."}
+    made_up = good | {"quote": "Use within 12 months, always.", "span": "within 24 months, no rush"}
+    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path), FACT_MODE="docs")
+    try:
+        pack, _ = ctx.pack_for(ctx.pack.market.market, ctx.pack.lang, rid)
+        catalog = Catalog(pack, rid)
+        pid = catalog.order[0]
+        fc = FactChecker(ctx.llm, ctx.prompts["fact_checker"], catalog)
+        assert fc.file_parts == parts and "Fact mode \"docs\"" in fc.system_instruction
+        assert "Fact mode \"record\"" in fc.system_instruction  # FD is FR plus the files
+        out = []
+        for claim in (good, made_up):
+            backend.facts(claim["span"], claim | {"product_id": pid})
+            res = await fc.run(FactInput(utterance=claim["span"], on_air=pid, switch=SwitchState(), promo=None, passages=[],
+                                         session_id="s1"), deadline_ms=3000)
+            out.append((res.output.claims[0].verdict, res.output.claims[0].passage_id))
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert out == [("contradicted", "file:spec.txt"), ("not_in_sources", "file:spec.txt")]
+
+
+def test_d247_fd_the_files_are_cached_per_release_with_an_empty_prefix():
+    from app.models.agent_io import FactCheckOutput
+    from app.providers.llm import LLMRequest, VertexBackend
+
+    vb = VertexBackend.__new__(VertexBackend)
+    vb._context_cache, vb._caches = True, {}
+    req = lambda files, prefix="": LLMRequest(  # noqa: E731
+        agent="fact_checker", model="gemini-3.5-flash-lite", thinking_level="MINIMAL", prompt_version="v",
+        system_instruction="s", user_message=prefix + "line", output_model=FactCheckOutput, deadline_ms=1000,
+        session_id="s1", cache_prefix=prefix, cache_parts=files)
+    a, b = ((b"FILE a", "text/plain"), (b"one", "text/plain")), ((b"FILE a", "text/plain"), (b"two", "text/plain"))
+    assert vb._cache_entry(req(a)) is vb._cache_entry(req(a)) and vb._cache_entry(req(a)) is not vb._cache_entry(req(b))
+    assert vb._cache_entry(req(())) is None  # no files and no prefix: nothing to cache
+    contents = VertexBackend._contents(req(a), "line")
+    assert len(contents) == 3 and contents[-1] == "line"

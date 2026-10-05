@@ -68,6 +68,9 @@ class LLMRequest(Generic[T]):
     cache_prefix: str = ""  # exact static prefix of user_message; retain full text for fallback
     cache_ttl_sec: int | None = None
     parts: tuple = ()  # P0 onboarding: (bytes, mime type) files sent before user_message (Vertex only)
+    # D-247 arm FD: (bytes, mime type) files cached with the system instruction (before cache_prefix); sent
+    # uncached before user_message while the cache is not ready
+    cache_parts: tuple = ()
 
 
 @dataclass
@@ -225,7 +228,7 @@ class VertexBackend:
         self._caches: dict[str, _ContextCache] = {}
 
     def _cache_entry(self, req: LLMRequest) -> _ContextCache | None:
-        if (not self._context_cache or not req.session_id or not req.cache_prefix
+        if (not self._context_cache or not req.session_id or not (req.cache_prefix or req.cache_parts)
                 or not req.user_message.startswith(req.cache_prefix)):
             return None
         # Vertex documents 4,096 tokens for Gemini 3, 2,048 for Gemini 2.
@@ -235,6 +238,7 @@ class VertexBackend:
         # the key, so every new session, e.g. each eval case, created its own).
         key = hashlib.sha256(json.dumps([
             req.agent, req.model, req.prompt_version, req.system_instruction, req.cache_prefix,
+            [hashlib.sha256(data).hexdigest() for data, _ in req.cache_parts],
         ], ensure_ascii=False).encode()).hexdigest()
         if key not in self._caches:
             # Bound local state without evicting an entry whose creation is in flight.
@@ -256,6 +260,23 @@ class VertexBackend:
             entry.task.add_done_callback(lambda t, agent=req.agent: _log_cache_failure(t, agent))
         return entry.task
 
+    @staticmethod
+    def _contents(req: LLMRequest, text: str):
+        """The files (onboarding parts or cached parts), then the text."""
+        from google.genai import types
+
+        files = req.parts or req.cache_parts
+        if not files:
+            return text
+        return [*(types.Part.from_bytes(data=data, mime_type=mime) for data, mime in files), *([text] if text else [])]
+
+    async def warm_cache(self, req: LLMRequest) -> None:
+        """D-247: create this request's context cache now (session start), so the first live call is cached."""
+        entry = self._cache_entry(req)
+        task = self._cache_task(req, entry) if entry is not None else None
+        if task is not None:
+            await asyncio.shield(task)
+
     async def _create_cache(self, req: LLMRequest, entry: _ContextCache) -> str | None:
         from google.genai import types
 
@@ -264,7 +285,7 @@ class VertexBackend:
         try:
             if entry.eligible is None:
                 count = await self._client.aio.models.count_tokens(
-                    model=req.model, contents=req.cache_prefix,
+                    model=req.model, contents=self._contents(req, req.cache_prefix),
                     config=types.CountTokensConfig(system_instruction=req.system_instruction),
                 )
                 minimum = 4096 if req.model.startswith("gemini-3.") else 2048
@@ -278,7 +299,7 @@ class VertexBackend:
             cached = await self._client.aio.caches.create(
                 model=req.model,
                 config=types.CreateCachedContentConfig(
-                    system_instruction=req.system_instruction, contents=req.cache_prefix,
+                    system_instruction=req.system_instruction, contents=self._contents(req, req.cache_prefix),
                     ttl=f"{ttl}s",
                 ),
             )
@@ -328,12 +349,11 @@ class VertexBackend:
                     entry.name, entry.expires_at = None, time.monotonic() + 60
                     log.warning("context cache use failed for %s", req.agent)
                     resp = await self._client.aio.models.generate_content(
-                        model=req.model, contents=req.user_message, config=config,
+                        model=req.model, contents=self._contents(req, req.user_message), config=config,
                     )
-            elif req.parts:  # P0 onboarding: whole files (PDF, images, text) read by the model
-                contents = [types.Part.from_bytes(data=data, mime_type=mime) for data, mime in req.parts]
+            elif req.parts or req.cache_parts:  # P0 onboarding / D-247: whole files (PDF, images, text)
                 resp = await self._client.aio.models.generate_content(
-                    model=req.model, contents=[*contents, req.user_message], config=config
+                    model=req.model, contents=self._contents(req, req.user_message), config=config
                 )
             else:
                 resp = await self._client.aio.models.generate_content(
@@ -554,6 +574,15 @@ class LLMClient:
             for task in (first, second):
                 if not task.done():
                     task.cancel()
+
+    async def warm_cache(self, req: LLMRequest) -> None:
+        """D-247: create a request's context cache ahead of its first call (backends without caches: nothing)."""
+        warm = getattr(self.backend, "warm_cache", None)
+        if warm is not None:
+            try:
+                await warm(req)
+            except Exception as e:  # noqa: BLE001 - the calls still run, uncached
+                log.warning("context cache warm-up for %s failed: %s: %s", req.agent, type(e).__name__, e)
 
     async def warm_up(self) -> dict[str, str]:
         """One tiny call per model so the first real call is not a cold start. Not audited."""

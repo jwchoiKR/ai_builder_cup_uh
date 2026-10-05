@@ -244,7 +244,7 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
 
     add("Product overview", "overview", f"{record.brand} {record.product_name} ({record.category}).")
     # D-242 arm FR: the price passages name their size, so a second size's price is never read as this one's
-    sized = f" ({size})" if fact_mode == "record" and size else ""
+    sized = f" ({size})" if fact_mode in ("record", "docs") and size else ""
     add("Key facts", "list-price", f"List price{sized}: {money(list_price)}")
     add("Key facts", "live-broadcast-price", f"Live broadcast price{sized}: {money(live_price)}")
     if size:
@@ -254,7 +254,7 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
             f"{v.name}: list price {money(lp or live)}, live broadcast price {money(live or lp)}")
     for i, f in enumerate(record.key_facts):
         add("Key facts", f"fact-{i + 1}-{f.text[:30]}", f.text)
-    if fact_mode == "record":
+    if fact_mode in ("record", "docs"):  # D-247 arm FD: the record facts plus the files (sources.py)
         def fact_money(m) -> str:  # this market's currency as shown on air, another one by its code
             amount = money_value(m.currency, m.minor)
             return f"{sym}{amount:.2f}" if m.currency == cur else f"{m.currency} {amount:.2f}"
