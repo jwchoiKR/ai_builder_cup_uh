@@ -113,6 +113,14 @@ def _is_approved_wording(span: str, product, lex, passages=()) -> bool:
     return False
 
 
+def _span_phrase(span: str, text: str, lex) -> str:
+    """D-174: a span too short to compare ("all users") is compared with the phrase around it in the utterance
+    (between commas or sentence marks): "all skin types and all users" is the sheet's own wording."""
+    if len(lex.content_words(span)) >= 3:
+        return span
+    return next((part.strip() for part in re.split(r"[,;:.!?]", text) if span.lower() in part.lower()), span)
+
+
 def validate_compliance(o, catalog: Catalog, values: dict):
     """In place, on any output with `compliance` and `correction`: drop unknown rules and alert ids
     that were not in the input; severity comes from the rule."""
@@ -140,7 +148,7 @@ def validate_compliance(o, catalog: Catalog, values: dict):
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
         if (on_air_product is not None and v.rule_id != qualifier.RULE_ID
-                and _is_approved_wording(v.span, on_air_product, catalog.lexicon,
+                and _is_approved_wording(_span_phrase(v.span, text, catalog.lexicon), on_air_product, catalog.lexicon,
                                          [p for p in catalog.pack.passages if p.product_id == on_air_product.product_id])):
             continue  # D-123: approved product wording is never a violation (the qualifier rule still applies)
         if v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)

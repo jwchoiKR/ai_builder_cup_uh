@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from dataclasses import replace
 
+import pytest
+
 from app.logic.prefilter import prefilter
 from app.logic.publish import verbal_check
 
@@ -30,3 +32,16 @@ def test_guards_use_the_lexicon_they_are_handed(pack):
     assert prefilter("call +601234567890", other).hide_category == "personal_info"
     assert prefilter("call +601234567890", lex).kind != "hide"
     assert prefilter("cantik", other).kind == "reaction"
+
+
+@pytest.mark.parametrize("said, draft, held", [
+    # D-174 (sealed verbal set): "twenty-one" was read as 20, and a duration in other units counted as a new number
+    ("It's still twenty-one percent higher a day later.", "It is still 21% higher 24 hours after one application.", False),
+    ("A week later it was twelve percent better.", "After 7 days it was 12% better.", False),
+    ("After seven days it was twelve percent better.", "One week later it was 12% better.", False),
+    ("Two weeks in, most people saw it.", "After 14 days, 26 of 30 participants saw it.", False),
+    ("It's still twenty-two percent higher a day later.", "It is still 21% higher 24 hours after one application.", True),
+    ("After three days it was twelve percent better.", "After 7 days it was 12% better.", True),
+])
+def test_d174_compound_numbers_and_equal_durations(pack, said, draft, held):
+    assert (verbal_check(said, draft, [], pack.lexicon) is not None) is held

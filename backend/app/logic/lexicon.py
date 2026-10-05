@@ -37,6 +37,7 @@ class Lexicon:
     fillers: frozenset[str]
     price_contrast: re.Pattern
     absence: re.Pattern
+    duration_hours: dict[str, float]  # D-174
     phone: re.Pattern  # from the market
 
     @classmethod
@@ -53,6 +54,7 @@ class Lexicon:
             fillers=frozenset(lx.fillers),
             absence=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.absence_cues) + r")\b|\w-free\b", re.I),
             price_contrast=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.price_contrast_cues) + r")\b", re.I),
+            duration_hours=dict(lx.duration_hours),
             exclusion=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.exclusion_cues) + r")\s+(?:the\s+)?$"),
             phone=re.compile(market.phone_pattern),
         )
@@ -107,7 +109,9 @@ class Lexicon:
     def spoken_numbers(self, text: str) -> set[str]:
         """Numbers as said or written: "fifty mils" -> {"50"}, "S$36.00" -> {"36"}, "4%" -> {"4"},
         "zero point two" -> {"0.2"}. A lone skip word ("one") is ignored."""
-        tokens = [w for w in normalise(text).replace("$", " ").split() if w not in self.skip_alone]
+        raw = normalise(text).replace("$", " ").split()
+        # D-174: "twenty-one" kept its "one": a skip word is dropped only when it stands alone
+        tokens = [w for i, w in enumerate(raw) if w not in self.skip_alone or (i > 0 and raw[i - 1] in self.tens)]
         words = self.numbers(tokens)
         merged: list[str] = []  # D-116: spoken decimals, "five point five" -> "5.5"
         i = 0
@@ -123,6 +127,22 @@ class Lexicon:
         for w in merged:
             if re.fullmatch(r"\d+(\.\d+)?", w):
                 out.add(w.rstrip("0").rstrip(".") if "." in w else w)
+        return out
+
+    def durations(self, text: str) -> list[tuple[str | None, float]]:
+        """D-174: each duration said, as (its number as said, or None for "a day", hours): "24 hours" ->
+        ("24", 24), "a day" -> (None, 24), "two weeks" -> ("2", 336)."""
+        words = self.numbers(normalise(text).split())
+        out = []
+        for i in range(len(words) - 1):
+            unit = self.duration_hours.get(words[i + 1])
+            if unit is None:
+                continue
+            w = words[i]
+            if re.fullmatch(r"\d+(\.\d+)?", w):
+                out.append((w, float(w) * unit))
+            elif w in ("a", "an"):
+                out.append((None, unit))
         return out
 
     # ---- sentences and cues ---------------------------------------------------------------------
