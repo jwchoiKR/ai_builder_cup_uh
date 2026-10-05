@@ -958,3 +958,10 @@ D-169: A routine-order question names both products (planning session's local SE
 - The triage prompt now says the order in which to apply the show's products is `routine_order`, its canonical question names both products with "it" resolved, and which one to buy (first) is `product_comparison` (the first wording pulled the eval's C26 "which one should I buy first" into `routine_order` in both runs; the narrowed wording passes). Real models: "Should it be used before the cream?" with either product on air and "cream first or ampoule first?" answered 6/6.
 - "How long does it take to see results?" stays without a draft: the sheets give no timeframe; only in-house test results carry times, which are test results, not a promise.
 - Comments eval ×2: targets met in both runs, only C09 and C33 differ, as before.
+
+D-170: The AI PD prompt defines "time nearly up" and puts a waiting question before "Next up" (planning session's 24 sealed PD situations on D-166: gemini-3.8-flash LOW 62/72; misses: "Next up" or a plain wrap-up chosen over a waiting question near the end, "Next up" chosen at ~70% elapsed, and the question off the host's topic chosen at a pause).
+- "Time is nearly up" is now one minute or less left (`planned_s - elapsed_s <= 60`), from the fields SHOW_STATE already has.
+- Priority 2 is only a switch or wrap-up card naming missing required points; a card with no missing point ("Next up", "Wrap up", "Required points done") is priority 4: only when no question waits and time is nearly up, else "none"; a waiting question always comes first.
+- Same priority: the card on what the host is talking about in RECENT_LINES (two questions at a pause: the one on the host's topic), else the first.
+- Two new few-shot examples of my own (Demo Balm): a waiting question before "Next up" at 35 s left; of two questions at a pause, the one on the host's topic. The sealed cases were not used.
+- My 12 cases, gemini-3.8-flash LOW through ADK ×3 (`docs/eval/ai-pd-prompt-d170.md`): 34/36, p50 2.1 s, p95 2.9 s, none over 4 s; the two misses are the shout-out case, as in the first arms run.
