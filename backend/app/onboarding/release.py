@@ -21,7 +21,8 @@ from ..models.data import (
     AvoidSaying, Passage, PrompterPoint, Product, ProductsFile, Promo, PromosFile, QualifiedResult, Runsheet,
     RunsheetItem,
 )
-from .record import Money, ProductRecord
+from .record import AvoidSaying as RecordAvoid
+from .record import Money, ProductRecord, Text
 
 SEGMENT_SEC = 600
 
@@ -45,7 +46,7 @@ def law_applies(base: DataPack, category: str) -> bool:
     return m is not None and norm(category) in {norm(m.category), *(norm(c) for c in m.covers)}
 
 
-def save_release(root: Path, record: ProductRecord, job_id: str) -> str:
+def save_release(root: Path, record: ProductRecord, job_id: str, translations: dict | None = None) -> str:
     """Immutable: releases/<release_id>.json, a new id per approval."""
     folder = root / "releases"
     folder.mkdir(parents=True, exist_ok=True)
@@ -54,15 +55,22 @@ def save_release(root: Path, record: ProductRecord, job_id: str) -> str:
     release_id = f"{base}_v{n}"
     (folder / f"{release_id}.json").write_text(json.dumps(
         {"release_id": release_id, "job_id": job_id, "approved_at": int(time.time() * 1000),
-         "record": record.model_dump(mode="json")}, ensure_ascii=False, indent=1), encoding="utf-8")
+         "record": record.model_dump(mode="json"), "translations": translations or {}},
+        ensure_ascii=False, indent=1), encoding="utf-8")
     return release_id
 
 
 def load_release(root: Path, release_id: str) -> ProductRecord:
+    return load_release_full(root, release_id)[0]
+
+
+def load_release_full(root: Path, release_id: str) -> tuple[ProductRecord, dict]:
+    """The record and its stored translations per language (D-232)."""
     path = root / "releases" / f"{release_id}.json"
     if not re.fullmatch(r"rel_[a-z0-9_]+_v\d+", release_id) or not path.is_file():
         raise DataPackError(f"unknown release {release_id!r}")
-    return ProductRecord.model_validate(json.loads(path.read_text(encoding="utf-8"))["record"])
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return ProductRecord.model_validate(data["record"]), data.get("translations") or {}
 
 
 def _price(prices: list[Money], kind: str, currency: str, market: str) -> Decimal | None:
@@ -111,9 +119,27 @@ def promos_from_offers(record: ProductRecord, pid: str, main_variant: str, live:
     return out
 
 
-def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None) -> DataPack:
+def in_language(record: ProductRecord, lang: str, translations: dict | None) -> ProductRecord:
+    """D-232: the record's host-facing lines in the show's language: its own when it is written in it, else the stored
+    translation, else none (an alert then has no replacement line; nothing is translated live)."""
+    if record.language.split("-")[0].lower() == lang.split("-")[0].lower():
+        return record
+    t = (translations or {}).get(lang)
+    ev = lambda items, i: items[i].evidence if i < len(items) else []  # noqa: E731
+    if t is None:
+        return record.model_copy(update={"approved_claims": [], "avoid_saying": [], "cautions": []})
+    return record.model_copy(update={
+        "approved_claims": [Text(text=x, evidence=ev(record.approved_claims, i)) for i, x in enumerate(t["approved_claims"])],
+        "cautions": [Text(text=x, evidence=ev(record.cautions, i)) for i, x in enumerate(t["cautions"])],
+        "avoid_saying": [RecordAvoid(say_not=a["say_not"], say=a["say"], evidence=ev(record.avoid_saying, i))
+                         for i, a in enumerate(t["avoid_saying"])]})
+
+
+def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None,
+                 translations: dict | None = None) -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
     assert base.market is not None
+    record = in_language(record, base.lang, translations)
     cur, market, sym = base.market.currency.code, base.market.market, base.market.currency.symbol
     priced = [(v, _price(v.prices, "list", cur, market), _price(v.prices, "live", cur, market))
               for v in record.variants]

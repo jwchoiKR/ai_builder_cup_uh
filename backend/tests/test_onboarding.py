@@ -336,3 +336,28 @@ def test_d230_upload_approve_start_shows_the_new_product_on_the_session(tmp_path
         # the host prompter is on the new product (its name comes from the session's catalog above)
         assert state["prompter"]["product_id"] == cat["products"][0]["product_id"]
         assert [p["text"] for p in state["prompter"]["points"]] == ["Helps skin look smoother by morning."]
+
+
+async def test_d232_host_lines_come_in_the_show_language_or_not_at_all(tmp_path):
+    from app.onboarding.release import save_release
+    from app.pipelines.runtime import create_session
+
+    from .judge_fakes import speak, violation
+
+    rec, _ = normalise(ProductRecord.model_validate(_record(
+        language="ms", approved_claims=[{"text": "Membantu kulit kelihatan licin.", "evidence": EV}])))
+    with_t = save_release(tmp_path, rec, "j", {"en": {"approved_claims": ["Helps skin look smooth."], "cautions": [],
+                                                      "avoid_saying": [], "reviewed": False}})
+    without = save_release(tmp_path, rec, "j2")
+    llm = ScriptedBackend()
+    llm.judge("It cures eczema.", violations=[violation("ASEAN-2D-DISEASE", "cures eczema", say="Model's own line.")])
+    ctx = make_ctx(backend=llm, ONBOARDING_DIR=str(tmp_path))
+    try:
+        for rid, say in [(with_t, "Helps skin look smooth."), (without, "(no approved wording in en)")]:
+            rt = await ctx.runtimes.get((await create_session(ctx, "x", release_id=rid)).session_id)
+            await rt.start()
+            await speak(rt, "It cures eczema.")
+            assert [a.say_instead for a in await rt.alerts() if a.kind == "compliance"] == [say]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

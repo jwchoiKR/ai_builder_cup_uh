@@ -1233,3 +1233,8 @@ D-231: The approval screen speaks the operator's language (onboarding user-flow 
 - Values are edited in place ("Edit" next to sizes, prices, cautions, claims, how-to-use and key facts); the JSON editor stays as "Advanced: edit as JSON".
 - Missing fields use plain labels ("Short names viewers use", "Product category", "<variant> · size").
 - After approval the screen says what happens live: the price, the compliance rules applied (or "no law checks for this category"), and how many cautions, approved claims, not-approved claims and offers the show gets (`live` in the approve response).
+
+D-232: Host lines in the show's language, translated at approval and never live (logic; the planning session's language rule).
+- At approval, a record written in another language than a market language gets its approved claims, cautions and avoid-saying pairs machine-translated (`onboarding_translate`, faithful: same meaning, strength, numbers, names) into each language the market offers; the translations are stored with the release (the original lines stay as evidence), marked not reviewed, listed on the approval screen ("Machine translation into en (review before going live)") and named in the warnings.
+- At run time a release show uses the record's own lines when it is written in the show's language, else the stored translation, else none: the alert still shows and its say-instead reads "(no approved wording in <lang>)". The say-instead picker (D-209) never falls back to the judge's sentence.
+- Real models: the Malay gummies record translated into English in one call ("Vitamin C supports the normal function of the immune system.", 4 cautions).

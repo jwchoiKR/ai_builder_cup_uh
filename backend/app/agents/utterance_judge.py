@@ -78,8 +78,8 @@ def approved_say(say: str, on_air, catalog: Catalog) -> str:
         return qualified_say(say, on_air, catalog)
     lex = catalog.lexicon
     cands = [spoken_claim(c) for c in catalog.approved_claims(on_air.product_id)] + [a.say for a in on_air.avoid_saying]
-    if not cands:
-        return qualified_say(say, on_air, catalog)
+    if not cands:  # D-232: no approved wording in the show's language; never the model's own sentence
+        return f"(no approved wording in {catalog.pack.lang})"
     said = lex.content_words(say or "")
     best = max(cands, key=lambda c: lex.coverage(lex.claim_words(c), said))
     words = lex.claim_words(best)
