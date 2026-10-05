@@ -216,6 +216,13 @@
   text-transform: uppercase;
   color: var(--text-2);
 }
+/* Korean: no letter-spacing ("방송 전", not "방 송 전") */
+.root[lang="ko"] .hubPhaseLabel,
+.root[lang="ko"] :global(.eyebrow),
+.root[lang="ko"] button,
+.root[lang="ko"] .hubStudioButton {
+  letter-spacing: 0;
+}
 .hubPhaseCards {
   flex: 1;
   display: grid;

@@ -2,7 +2,7 @@ import { ChartColumn, ChevronRight, FileUp, Headset, Mic, Smartphone, type Lucid
 import { useState, type CSSProperties, type MouseEvent } from "react";
 
 import { api } from "../app/api";
-import { useT } from "../app/i18n";
+import { useLang, useT } from "../app/i18n";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useHealth } from "../app/store";
 import { useTheme } from "../app/theme";
@@ -56,6 +56,7 @@ const go = (href: string) => (e: MouseEvent) => {
 export function Hub({ sessionId, onSessionChange }: ScreenProps) {
   const [theme, , setTheme, themePref] = useTheme("hub");
   const t = useT();
+  const lang = useLang();
   const health = useHealth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
   };
 
   return (
-    <div className={styles.root} data-theme={theme}>
+    <div className={styles.root} data-theme={theme} lang={lang}>
       <header className={`${styles.header} ${styles.hubHeader}`}>
         <span className={`${styles.subtitle} tabular`}>{t("Session {id}", { id: sessionId ?? "…" })}</span>
         <div className={styles.headerActions}>
