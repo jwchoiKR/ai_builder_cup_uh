@@ -101,8 +101,9 @@ async def test_read_product_sends_every_file_and_normalises(tmp_path):
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-    [req] = seen
+    [req] = [r for r in seen if r.agent == "onboarding_read"]
     assert [m for _, m in req.parts] == ["text/plain", "text/plain", "text/plain", "image/jpeg"]
+    assert [r.agent for r in seen if r.agent != "onboarding_read"] == ["onboarding_cautions"]  # D-226
     assert res.method == "gemini_whole" and res.record.variants[0].prices[0].currency == "SGD"
 
 
@@ -229,3 +230,19 @@ def test_d225_a_decimal_comma_language_reads_commas_as_decimals():
     rec = ProductRecord.model_validate(_record(language="de", ingredients=[
         {"name": "Zink", "amount_value": "0,5", "amount_unit": "mg", "purpose": None, "evidence": ev}]))
     assert normalise(rec)[0].ingredients[0].amount_value == "0.5"
+
+
+async def test_d226_the_caution_pass_adds_what_the_full_read_missed():
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = _record(cautions=[{"text": "Patch test first.", "evidence": EV}])
+    backend.outputs[("onboarding_cautions", "cautions")] = {"cautions": [
+        {"text": "patch test first", "evidence": EV},  # already there
+        {"text": "Avoid the eye area.", "evidence": EV},
+        {"text": "Use sunscreen during the day.", "evidence": []}]}  # no evidence: dropped
+    ctx = make_ctx(backend=backend)
+    try:
+        res = await read_product(ctx.llm, [model_part("spec.txt", b"hello")])
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert [c.text for c in res.record.cautions] == ["Patch test first.", "Avoid the eye area."]
