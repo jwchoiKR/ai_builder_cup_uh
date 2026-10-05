@@ -494,3 +494,32 @@ async def test_d241_brand_rules_only_add_restrictions(tmp_path):
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+def test_d242_record_mode_gives_the_fact_checker_every_size_market_offer_and_superseded_value():
+    from app.onboarding.release import release_pack
+
+    ev = EV
+    rec, _ = normalise(ProductRecord.model_validate(_record(
+        variants=[{"variant_id": "A", "name": "P 30", "size_value": "30", "size_unit": "ml", "market": None,
+                   "prices": [{"currency": "SGD", "minor": 3600, "kind": "live", "market": "SG", "evidence": ev},
+                              {"currency": "MYR", "minor": 11900, "kind": "live", "market": "MY",
+                               "evidence": [{"file": "f", "locator": "l", "quote": "RM119"}]}], "evidence": ev}],
+        offers=[{"offer_id": "o1", "kind": "buy_x_get_y", "title": "Buy 2 get 1", "variant_ids": [], "percent": None,
+                 "amount": None, "buy": 2, "get": 1, "gift": None, "rounding": None, "starts": None, "ends": None,
+                 "duration_min": None, "evidence": ev}],
+        conflicts=[{"field": "P 30 live price", "values": ["S$38.00", "S$36.00"],
+                    "effective_dates": ["2026-09-01", "2026-10-01"], "note": "", "evidence": ev}])))
+    ctx = make_ctx()
+    try:
+        sheet = release_pack(ctx.pack, rec, "rel_x_v1", None)
+        record = release_pack(ctx.pack, rec, "rel_x_v1", None, fact_mode="record")
+        assert not [p for p in sheet.passages if p.section == "Record facts"]
+        facts = [p.text for p in record.passages if p.section == "Record facts"]
+        assert "P 30 (30 ml) · MY live price: MYR 119.00" in facts and "P 30 (30 ml) · SG live price: S$36.00" in facts
+        assert any(t.startswith("Superseded: P 30 live price was S$38.00") for t in facts)
+        assert any(t.startswith("Offer: Buy 2 get 1") and "buy 2 get 1" in t for t in facts)
+        assert "Live broadcast price (30 ml): S$36.00" in [p.text for p in record.passages]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

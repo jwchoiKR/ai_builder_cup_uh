@@ -62,3 +62,25 @@ you use, and follow RULES. When SOURCE does not answer the question, set `ground
 Design arm D: you are the only check before the reply is posted. SOURCE is the whole sheet of the product and RULES
 is every advertising rule. Fail the REPLY when any number, price, amount or claim in it is not in SOURCE as
 written, when it breaks a rule in RULES, or when it does not answer the question.
+
+## FR: fact_checker
+
+Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from the product's approved record.
+- Sizes: a price belongs to the size it names ("(50 ml)"). When the host names a size, check the price against that
+  size's passage; a price that is right for another size is `contradicted`, with that size's price as the correction.
+  When the host names no size, a price that matches any size is `supported`.
+- Markets: a price passage names its market ("SG live price"). A price said on this show that is another market's
+  price (another currency, or the amount of another market) is `contradicted`, with this market's price.
+- Superseded: a "Superseded" passage is an older version's value. Saying it as current is `contradicted`, with the
+  current value from that passage.
+- Offers: an "Offer" passage gives the offer's terms (percent, amount or threshold, buy X get Y, dates, minutes). A
+  different term said for that offer is `contradicted` (field `promo`), with the passage's term.
+- Test results: a "Test result" passage says the qualifier the result must be said with; that is compliance, not a
+  fact: do not list a missing qualifier here.
+
+## FR: compliance_judge
+
+Fact mode "record" (D-242): QUALIFIED_RESULTS lists the product's test results, each with the qualifier it must be
+said with (an in-house test, a named laboratory, a clinical study: the wording in brackets). A host who states one of
+these results (the same numbers) without that qualifier breaks the test-result rule in RULES, whoever ran the test.
+
