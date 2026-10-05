@@ -66,16 +66,22 @@ async def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--out", type=Path, default=REPO_DIR / "docs" / "eval" / "ai-pd-arms.md")
+    ap.add_argument("--cases", type=Path, default=None, help="a case file of the same format (default pd_cases.jsonl)")
+    ap.add_argument("--arms", nargs="+", default=None, help="model:THINKING pairs, e.g. gemini-3.8-flash:LOW")
+    ap.add_argument("--paths", nargs="+", choices=["adk", "direct"], default=["adk", "direct"])
     args = ap.parse_args()
     st = get_settings()
-    cases = [json.loads(x) for x in (st.data_path / "eval" / "pd_cases.jsonl").read_text(encoding="utf-8").splitlines()
-             if x.strip()]
+    cases_path = args.cases or st.data_path / "eval" / "pd_cases.jsonl"
+    cases = [json.loads(x) for x in cases_path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    arms = [tuple(a.split(":")) for a in args.arms] if args.arms else ARMS
     rows = []
-    for model, thinking in ARMS:
+    for model, thinking in arms:
         adk = AiPd(project=st.GCP_PROJECT, location=st.LLM_LOCATION, model=model, thinking_level=thinking,
                    prompts_dir=st.prompts_path)
         paths = {"adk": adk, "direct": Direct(st.GCP_PROJECT, st.LLM_LOCATION, model, thinking, adk.template)}
         for path, agent in paths.items():
+            if path not in args.paths:
+                continue
             await agent.choose(cases[0]["state"], cases[0]["candidates"], NO_DEADLINE_MS)  # warm-up
             for run in range(args.runs):
                 for c in cases:
@@ -87,7 +93,7 @@ async def main() -> None:
     args.out.with_suffix(".json").write_text(json.dumps(rows, indent=1), encoding="utf-8")
 
     lines = ["# AI PD arms: latency and agreement", "",
-             f"{len(cases)} cases (`data/eval/pd_cases.jsonl`) × {args.runs} runs per arm and path; no deadline while "
+             f"{len(cases)} cases (`{cases_path.name}`) × {args.runs} runs per arm and path; no deadline while "
              f"measuring; deadline in production {PD_DEADLINE_MS} ms.", "",
              "| model | thinking | path | p50 | p95 | over deadline | gold | rule (gold is a card) | invalid/failed |",
              "|---|---|---|---|---|---|---|---|---|"]
