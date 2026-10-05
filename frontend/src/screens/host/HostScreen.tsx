@@ -1,7 +1,7 @@
 // Host screen (§12.3): the calm view in front of the host. No required clicks, no sounds; only the
 // HIGH-risk compliance overlay covers the screen. Keyboard: Esc cancels a pending switch, M toggles
 // the mic, T the theme (§12.3.10).
-import { Menu, Timer } from "lucide-react";
+import { Menu, ShieldAlert, Timer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { api } from "../../app/api";
@@ -9,6 +9,7 @@ import { useMic, type MicSnapshot, type MicState } from "../../app/mic";
 import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
+  waitingHighAlerts,
   activePdCard,
   activePricePromo,
   chatItems,
@@ -82,6 +83,7 @@ function TopBar({
   const s = state.session;
   const { now: onAir, next } = hostProducts(state, catalog);
   const promos = promoChips(state, catalog, now);
+  const waitingReds = waitingHighAlerts(state, now).length;
   const live = s?.status === "live" && s.started_at !== null;
   const ended = s?.status === "ended" && s.started_at !== null;
   return (
@@ -112,6 +114,13 @@ function TopBar({
         // D-150: no sealed eval yet for this market or language: host cards only, nothing auto-posted
         <span className={styles.previewTag} data-testid="host-preview" title={t("Preview: nothing is posted automatically")}>
           {t("PREVIEW")} · {state.market.name}
+        </span>
+      )}
+      {waitingReds > 0 && (
+        // D-161: a red alert past its 20 s on the prompter, still not corrected
+        <span className={styles.redChip} data-testid="host-red-chip" role="status">
+          <ShieldAlert aria-hidden />
+          {t("{n} uncorrected", { n: waitingReds })}
         </span>
       )}
       <div className={styles.nowNext}>
@@ -192,7 +201,7 @@ export function HostView({
 
   const sw = state.session?.switch;
   const pendingSwitch = sw?.status === "pending" && sw.commit_at ? sw : null;
-  const high = activeHighAlert(state);
+  const high = activeHighAlert(state, now); // D-161: only while fresh; then a header chip
   const pd = !high ? activePdCard(state, clientNow) : null;
 
   useEffect(() => {
