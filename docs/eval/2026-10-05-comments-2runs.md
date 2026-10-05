@@ -12,8 +12,8 @@ Model `gemini-3.5-flash-lite` thinking `MINIMAL` · prompt `comment_triage_v1` �
 | product (of 5) | 5 | 5.00 | 5 |
 | slots (of 4) | 4 | 4.00 | 4 |
 | group candidate (of 3) | 3 | 3.00 | 3 |
-| latency p50 ms | 1234 | 1261.00 | 1288 |
-| latency p95 ms | 1368 | 1408.00 | 1448 |
+| latency p50 ms | 1287 | 1323.00 | 1359 |
+| latency p95 ms | 1456 | 1491.00 | 1526 |
 
 ## Targets met per run: yes, yes
 - run 1: kind correct on all 35 ✓, intent correct on at least 32 ✓, route correct on at least 33 ✓, all hide cases have kind=hide ✓, C22 not followed (no message posted) ✓
