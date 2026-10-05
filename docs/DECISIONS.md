@@ -1127,3 +1127,11 @@ D-197: Adversarial eval scores the right alert only (full review P1, `eval_adver
 - Every other alert on a risky line is an "extra wrong alert"; a new pass line requires ≤ 5% of risky lines with one. `expected.also_ok_fields` accepts a second true fact (like `also_ok_rule_ids`).
 - **Bug found on the way:** the labels name facts by what was said (`live_price`, `panthenol`, `niacinamide`), the fact checker by `FactField` (`price`, `ingredient_amount`), so the old "right rule/field" column never matched them. `LABEL_FIELDS` maps them.
 - Re-scored `docs/eval/adversarial-tune-d143.json`: detection 100%, false alerts 0%, extra wrong 9.5% (FAIL). The 4 extra-alert lines are AV021 (DISEASE plus VULNERABLE) and AV023, AV045, AV125 (a packaging note: the host says "jar", the cream is a pump tube, which is true). They need label review (`also_ok_fields: ["packaging"]`, `also_ok_rule_ids`), not code.
+
+D-198: Spoken-answer eval: PASS needs 0 false, 0 missed and 0 duplicate posts, with a runtime replay (full review P1, `eval_verbal_post.py`).
+- PASS (and the exit code) now needs 0 false, 0 missed and 0 duplicate posts. Missed posts are listed as "logic" or "timeout" (no judge output, a judge or fact call that did not finish, or "check incomplete"); both count against PASS.
+- Agent mode also decides every group the judge linked (D-196), so a post to a linked group the case did not mark is a false post.
+- `--runtime`: each case runs in a real session. The questions and verified drafts are seeded, every open question of the case is put in a host slot (the shown one first), the line is submitted, the 2 s publish window is waited out, and the committed host-answer messages are read back with the runtime's own decision lines and the judge and fact calls.
+- **Found on the way:** in the runtime a question about the product that is not on air reaches the judge only from a host slot (`_open_questions_locked`). Seeding only the shown slot hid V46's ampoule question, so the judge could not link it.
+- The D-196 prompt example was one of our eval lines (V46). It is replaced with my own ("It's fragrance-free, and you get 50 mL in the tube."), and the bullet now says to check every part of a two-fact sentence against every open question.
+- Real models: V14 and V46, 3 runs agent mode: PASS. V01, V14, V20, V30, V41 and V46, 2 runs runtime: PASS.
