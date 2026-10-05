@@ -55,7 +55,7 @@ export function ViewerView({
 }: ViewerViewProps) {
   const now = useServerNow(state, 1000);
   const offset = state.serverOffsetMs;
-  const brand = catalog?.brand ?? "DAON LAB";
+  const brand = catalog?.brand ?? "";
   const live = state.session?.status === "live";
   const product = onAirProduct(state, catalog) ?? (state.session?.status === "ended" ? null : nextProduct(state, catalog));
   const price = priceView(state, catalog, product);
@@ -231,8 +231,8 @@ function useTimeSalePopup(state: ClientState): string | null {
 const BADGE: Record<MessageKind, { label: string; icon: "ai" | "host" | "brand" | null }> = {
   ai_answer: { label: "AI answer", icon: "ai" },
   host_answer: { label: "Host answer", icon: "host" },
-  brand_answer: { label: "DAON LAB", icon: "brand" },
-  notice: { label: "DAON LAB", icon: "brand" },
+  brand_answer: { label: "Brand", icon: "brand" },  // the label is the catalog's brand (Badge)
+  notice: { label: "Brand", icon: "brand" },
   correction_notice: { label: "Correction", icon: null },
 };
 

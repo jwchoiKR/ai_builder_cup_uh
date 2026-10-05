@@ -16,7 +16,7 @@ import styles from "./summary.module.css";
 const ANSWER_KIND_LABEL: Record<string, string> = {
   ai_answer: "AI answer",
   host_answer: "Host answer",
-  brand_answer: "DAON LAB",
+  brand_answer: "Brand answer",
 };
 
 export interface SummaryViewProps {
