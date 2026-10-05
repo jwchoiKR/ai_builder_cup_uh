@@ -92,39 +92,24 @@ describe("screens", () => {
 
   it("Hub links every screen", async () => {
     render(<Hub sessionId="ses_000001" />);
-    for (const name of ["Studio", "Host screen", "Operator", "Viewer", "Setup", "Summary"]) {
+    for (const name of ["Host screen", "Operator", "Viewer", "Setup", "Summary"]) {
       expect(screen.getByText(name)).toBeInTheDocument();
     }
+    expect(screen.getByTestId("hub-open-studio")).toHaveAttribute("href", expect.stringContaining("/studio"));
     expect(screen.getByText("New demo session")).toBeInTheDocument();
     expect(screen.getByText(/ses_000001/)).toBeInTheDocument();
   });
 
-  it("Hub cards are in the order of use, each with its phase, who and visible points; terms explain on focus", () => {
+  it("Hub shows the screens in the order of a show, under their phase, each card one link", () => {
     render(<Hub sessionId="ses_000001" />);
-    const cards = screen.getAllByRole("article");
-    expect(cards.map((c) => c.dataset.testid)).toEqual(
-      ["hub-card-setup", "hub-card-host", "hub-card-operator", "hub-card-viewer", "hub-card-studio", "hub-card-summary"]);
-    const host = within(screen.getByTestId("hub-card-host"));
-    expect(host.getByText("During the show")).toBeInTheDocument();
-    expect(host.getByText("For the host.")).toBeVisible();
-    expect(host.getByRole("link", { name: "Host screen" })).toHaveAttribute("href", expect.stringContaining("/host"));
-    expect(host.getAllByRole("listitem")).toHaveLength(3);
-    const term = screen.getByText("question desk");
-    expect(term).toHaveAttribute("tabindex", "0");
-    const tip = document.getElementById(term.getAttribute("aria-describedby")!)!;
-    expect(tip).toHaveTextContent("The operator's list");
-    expect(tip).toHaveAttribute("data-open", "false");
-    fireEvent.focus(term);
-    expect(tip).toHaveAttribute("data-open", "true");
-    fireEvent.keyDown(term, { key: "Escape" });
-    expect(tip).toHaveAttribute("data-open", "false");
-    fireEvent.pointerDown(term, { pointerType: "touch" });
-    fireEvent.click(term); // a tap toggles it on touch screens
-    expect(tip).toHaveAttribute("data-open", "true");
-    fireEvent.click(term);
-    expect(tip).toHaveAttribute("data-open", "false");
-    expect(screen.getByText("Brief Agent")).toHaveAttribute("aria-describedby");
-    expect(screen.getByText("Demo Console")).toHaveAttribute("aria-describedby");
-    expect(screen.getByText("glossary")).toHaveAttribute("aria-describedby");
+    const phases = screen.getAllByRole("region");
+    expect(phases.map((r) => r.getAttribute("aria-label"))).toEqual(["Before the show", "During the show", "After the show"]);
+    expect(within(phases[1]).getAllByRole("link").map((a) => a.dataset.testid))
+      .toEqual(["hub-card-host", "hub-card-operator", "hub-card-viewer"]);
+    const host = screen.getByTestId("hub-card-host");
+    expect(host).toHaveAttribute("href", expect.stringContaining("/host"));
+    expect(host).toHaveTextContent("For the host");
+    expect(host).toHaveTextContent("Prompter, instant correction alerts and viewer questions to read out.");
+    expect(document.querySelector("[role=tooltip]")).toBeNull();
   });
 });
