@@ -1,5 +1,5 @@
 import { ChartColumn, ChevronRight, FileUp, Headset, Mic, Smartphone, type LucideIcon } from "lucide-react";
-import { useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 
 import { api } from "../app/api";
 import { useLang, useT } from "../app/i18n";
@@ -7,6 +7,7 @@ import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useHealth } from "../app/store";
 import { useTheme } from "../app/theme";
 import { Button, SettingsButton } from "../components";
+import { onboardingApi, type ReleaseRow } from "./onboarding/onboardingApi";
 import styles from "./screens.module.css";
 
 interface Screen {
@@ -52,6 +53,53 @@ const go = (href: string) => (e: MouseEvent) => {
   e.preventDefault();
   navigate(href);
 };
+
+/** D-264: start a show from a product approved earlier (the list survives a cold start, D-263). */
+function ReleasePicker() {
+  const t = useT();
+  const [rows, setRows] = useState<ReleaseRow[] | null>(null);
+  const [picked, setPicked] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    onboardingApi.releases().then((r) => {
+      setRows(r);
+      setPicked(r[0]?.release_id ?? "");
+    }, () => setRows([]));
+  }, []);
+  if (!rows?.length) return null;
+  const start = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const s = await onboardingApi.startShow(picked);
+      navigate(`/studio?session=${encodeURIComponent(s.session_id)}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className={styles.hubStudio} data-testid="hub-releases">
+      <label className={styles.hubStudioNote}>
+        {t("Previously approved products")}{" "}
+        <select value={picked} onChange={(e) => setPicked(e.target.value)} data-testid="hub-release-select">
+          {rows.map((r) => (
+            <option key={r.release_id} value={r.release_id}>
+              {r.brand} · {r.product_name} (v{r.version}{r.markets.length ? `, ${r.markets.join("/")}` : ""},{" "}
+              {new Date(r.approved_at).toLocaleDateString()})
+            </option>
+          ))}
+        </select>
+      </label>
+      <Button disabled={busy || !picked} onClick={start} data-testid="hub-release-start">
+        {t("Start a show")}
+      </Button>
+      {error && <span className={styles.error}>{error}</span>}
+    </div>
+  );
+}
 
 export function Hub({ sessionId, onSessionChange }: ScreenProps) {
   const [theme, , setTheme, themePref] = useTheme();
@@ -117,6 +165,7 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
                 {t("Onboard a new product →")}
               </a>
             </div>
+            <ReleasePicker />
           </section>
           <div className={styles.hubPhases}>
             {PHASES.map((phase, i) => (

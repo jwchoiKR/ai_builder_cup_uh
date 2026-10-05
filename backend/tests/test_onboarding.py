@@ -1510,7 +1510,10 @@ def test_d263_onboard_approve_restart_and_start_a_show_from_the_release(tmp_path
         # a new instance after scale-to-zero: another (empty) disk, the same bucket
         with TestClient(create_app(make_settings(ONBOARDING_DIR=str(second), ONBOARDING_GCS_BUCKET="fake"),
                                    llm_backend=backend)) as c:
-            r = c.post("/api/sessions", json={"release_id": rid})
+            listed = c.get("/api/onboarding/releases").json()  # D-264: the cold instance lists it
+            assert [(x["release_id"], x["product_name"], x["brand"], x["version"]) for x in listed] == [
+                (rid, "Night Serum", "Lumen", 1)]
+            r = c.post("/api/sessions", json={"release_id": listed[0]["release_id"]})
             assert r.status_code == 201
             cat = c.get(f"/api/catalog?session={r.json()['session_id']}").json()
             assert [p["name"] for p in cat["products"]] == ["Night Serum"]

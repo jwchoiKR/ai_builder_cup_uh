@@ -66,4 +66,8 @@ export const onboardingApi = {
     request<{ translations: Translations; live: { law?: string; price?: string; error?: string } }>(
       "POST", `/onboarding/jobs/${encodeURIComponent(jobId)}/preview`, record ? { record } : {}),
   startShow: (releaseId: string) => request<Session>("POST", "/sessions", { release_id: releaseId }),
+  // D-264: approved products a show can start from, newest first (also after a cold start)
+  releases: () => request<ReleaseRow[]>("GET", "/onboarding/releases"),
 };
+export type ReleaseRow = { release_id: string; product_name: string; brand: string; category: string;
+  markets: string[]; approved_at: number; version: number };

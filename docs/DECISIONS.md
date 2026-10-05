@@ -1409,3 +1409,8 @@ D-263: Onboarding state lives in Cloud Storage when `ONBOARDING_GCS_BUCKET` is s
 - **Without a bucket** (tests, local evals) nothing changes.
 - **Deploy (`deploy/cloudrun.sh`, idempotent; the user runs it):** the script creates `gs://separk-cloocus-live-studio-onboarding` in us-central1 if missing, enforces uniform bucket-level access and public access prevention, grants `roles/storage.objectAdmin` to `live-studio-run` on that bucket only (not project-wide), and adds `ONBOARDING_GCS_BUCKET` and `VERIFY_MODE=lean` to the env vars. `google-cloud-storage` is now a direct dependency.
 - **Tests:** a memory bucket covers write-through, read-back on a new disk, listings, read-back on a miss, write-once and versions that continue. A pipeline test runs onboard, approve, a new app on an empty disk with the same bucket, then `POST /api/sessions {release_id}`.
+
+D-264: The approved products are listed, so a show can start from one after a cold start (follow-up to D-263; logic and screen).
+- **API:** `GET /api/onboarding/releases` reads the releases on disk (in the cloud, read back from the bucket at start). It gives one row per release: release_id, product name, brand, category, markets, approved_at and version, newest first.
+- **Screen:** the hub's hero shows a "Previously approved products" picker with a "Start a show" button. It creates the session from the picked release and opens the Studio. The picker is hidden when there are no releases.
+- **Tests:** the D-263 pipeline test now lists the release on the cold instance and starts the session from the listed id; a hub test picks a release and lands on the Studio.

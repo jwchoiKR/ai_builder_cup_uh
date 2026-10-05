@@ -119,6 +119,23 @@ describe("screens", () => {
     expect(screen.getByText(/ses_000001/)).toBeInTheDocument();
   });
 
+  it("D-264: Hub starts a show from a product approved earlier", async () => {
+    responses["/api/onboarding/releases"] = [{ release_id: "rel_lumen_v2", product_name: "Night Serum", brand: "Lumen",
+      category: "skincare", markets: ["SG"], approved_at: 1790000000000, version: 2 }];
+    responses["/api/sessions"] = { session_id: "ses_rel" };
+    try {
+      render(<Hub sessionId="ses_000001" />);
+      const select = await screen.findByTestId("hub-release-select");
+      expect(select).toHaveTextContent("Lumen · Night Serum (v2, SG");
+      fireEvent.click(screen.getByTestId("hub-release-start"));
+      await waitFor(() => expect(window.location.search).toContain("session=ses_rel"));
+      expect(window.location.pathname).toBe("/studio");
+    } finally {
+      delete responses["/api/onboarding/releases"];
+      delete responses["/api/sessions"];
+    }
+  });
+
   it("Hub shows the screens in the order of a show, under their phase, each card one link", () => {
     render(<Hub sessionId="ses_000001" />);
     const phases = screen.getAllByRole("region");
