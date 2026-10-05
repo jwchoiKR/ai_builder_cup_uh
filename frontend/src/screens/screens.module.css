@@ -93,18 +93,145 @@
   font-size: var(--fs-14);
 }
 
-.linkCard {
+/* Hub: six cards fill the body, 3 x 2 on desktop, in the order they are used */
+.hubBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.hubGrid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(min-content, 1fr));
+  gap: var(--space-5);
+}
+@media (max-width: 899px) {
+  .hubGrid {
+    flex: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: none;
+  }
+}
+@media (max-width: 599px) {
+  .hubGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.hubCard {
+  position: relative; /* the title link covers the card */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
+  transition: border-color var(--motion-fast) var(--ease);
+}
+.hubCard:hover {
+  border-color: var(--accent);
+}
+.hubCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.hubIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+.hubIcon svg {
+  width: 24px;
+  height: 24px;
+}
+.hubCardLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 24px;
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  text-decoration: none;
+}
+.hubCardLink svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-2);
+}
+.hubCardLink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+}
+.hubCardLink:focus-visible {
+  outline: none;
+}
+.hubCardLink:focus-visible::after {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.hubWho {
+  margin: 0;
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+.hubPoints {
+  margin: 0;
+  padding-left: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  text-decoration: none;
+  font-size: var(--fs-16);
+  line-height: 1.45;
   color: var(--text);
-  transition: border-color var(--motion-fast) var(--ease);
 }
-.linkCard:hover {
-  border-color: var(--accent);
+/* a term with a tooltip: above the card link, so hover and focus reach it */
+.term {
+  position: relative;
+  z-index: 1;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
 }
-.linkCardTitle {
-  font-size: var(--fs-18);
-  font-weight: var(--fw-semibold);
+.term:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.termTip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 2;
+  width: max-content;
+  max-width: 260px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--text);
+  color: var(--surface);
+  font-size: var(--fs-14);
+  font-weight: normal;
+  line-height: 1.4;
+  box-shadow: var(--shadow);
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--ease);
+  pointer-events: none;
+}
+.term:hover .termTip,
+.term:focus .termTip {
+  visibility: visible;
+  opacity: 1;
 }
