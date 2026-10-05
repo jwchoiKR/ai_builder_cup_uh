@@ -79,7 +79,13 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
   return (
     <div className={styles.root} data-theme={theme} lang={lang}>
       <header className={`${styles.header} ${styles.hubHeader}`}>
-        <span className={`${styles.subtitle} tabular`}>{t("Session {id}", { id: sessionId ?? "…" })}</span>
+        <div className={styles.hubBrand}>
+          <span className="eyebrow">LIVE / STUDIO</span>
+          <div className={styles.hubBrandLine}>
+            <h1 className={styles.hubTitle}>{t("Broadcast hub")}</h1>
+            <span className={`${styles.subtitle} tabular`}>{t("Session {id}", { id: sessionId ?? "…" })}</span>
+          </div>
+        </div>
         <div className={styles.headerActions}>
           <Button variant="primary" disabled={busy} onClick={() => run(() => api.createSession())}>
             {t("New demo session")}
@@ -98,8 +104,6 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
         <div className={styles.hubContent}>
           {error && <p className={styles.error}>{error}</p>}
           <section className={styles.hubHero}>
-            <span className="eyebrow">LIVE / STUDIO</span>
-            <h1 className={styles.hubTitle}>{t("Broadcast hub")}</h1>
             <p className={styles.hubLead}>{t(LEAD)}</p>
             <div className={styles.hubStudio}>
               <a className={styles.hubStudioButton} href={studio} onClick={go(studio)} data-testid="hub-open-studio">
