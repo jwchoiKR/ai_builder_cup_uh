@@ -210,7 +210,8 @@ _MARK = re.compile(r"[†‡*※§¹²³⁴⁵⁶⁷⁸⁹⁰]|\[\d{1,2}\]")
 
 
 async def route_fields(llm: LLMClient, record: ProductRecord, session_id: str | None, model: str,
-                       payload: list[tuple[bytes, str]] = (), names: list[str] = ()) -> list[str]:
+                       payload: list[tuple[bytes, str]] = (), names: list[str] = (),
+                       thinking: str = CAUTION_THINKING) -> list[str]:
     """D-243 (sealed onboarding: a lab test and a certification stored as a key fact and an approved claim, so the
     qualifier rule never fired): one pass over key facts, approved claims and directions that turns test results and
     certifications into qualified results, and copies limitations into cautions. Evidence stays the source item's."""
@@ -222,7 +223,7 @@ async def route_fields(llm: LLMClient, record: ProductRecord, session_id: str | 
     # carries a footnote mark, the files go along so the footnote can be found even where the record did not keep it
     marked = any(_MARK.search(v.text) for v in sources.values())
     res = await llm.call(LLMRequest(
-        agent="onboarding_route", model=model, thinking_level=CAUTION_THINKING, prompt_version="onboarding_route-1",
+        agent="onboarding_route", model=model, thinking_level=thinking, prompt_version="onboarding_route-1",
         system_instruction=ROUTE_PROMPT, output_model=RoutedList, deadline_ms=READ_DEADLINE_MS, session_id=session_id,
         user_message='<data name="ITEMS">' + json.dumps([{"id": k, "text": v.text} for k, v in sources.items()],
                                                          ensure_ascii=False) + "</data>",
@@ -304,9 +305,9 @@ _NONE = "none of these"
 
 
 async def _pick(llm: LLMClient, record: ProductRecord, read_as: str, options: list[str], session_id, model,
-                extra: str = "", tag: str = "category") -> str | None:
+                extra: str = "", tag: str = "category", thinking: str = "LOW") -> str | None:
     res = await llm.call(LLMRequest(
-        agent="onboarding_category", model=model, thinking_level="LOW", prompt_version="onboarding_category-2",
+        agent="onboarding_category", model=model, thinking_level=thinking, prompt_version="onboarding_category-2",
         system_instruction=_PICK_PROMPT + extra,
         user_message=f'<data name="CATEGORIES">{", ".join(options)}</data>\n<data name="PRODUCT">'
                      + json.dumps({"category_as_read": read_as, "name": record.product_name,
@@ -320,7 +321,7 @@ async def _pick(llm: LLMClient, record: ProductRecord, read_as: str, options: li
 
 
 async def closed_category(llm: LLMClient, record: ProductRecord, categories: list[str], session_id: str | None,
-                          model: str, covered: list[str] = ()) -> list[str]:
+                          model: str, covered: list[str] = (), thinking: str = "LOW") -> list[str]:
     """D-245 R2: a category outside the list is mapped to the nearest entry by one small call; the word as read stays
     in `category_evidence`. D-256 (second sealed pool: a baby body wash read as "baby" ran with 1 rule instead of
     15): a category no law pack covers is mapped to a covered one when the product is of that type, and flagged."""
@@ -332,7 +333,7 @@ async def closed_category(llm: LLMClient, record: ProductRecord, categories: lis
     if _norm_category(record.category) in by_norm:
         record.category = by_norm[_norm_category(record.category)]
     else:
-        picked = await _pick(llm, record, read_as, list(categories), session_id, model)
+        picked = await _pick(llm, record, read_as, list(categories), session_id, model, thinking=thinking)
         if picked is None or picked == _NONE:
             return [f"category: {read_as} is not in the list and could not be mapped"]
         record.category = picked
@@ -341,7 +342,8 @@ async def closed_category(llm: LLMClient, record: ProductRecord, categories: lis
     if covered and _norm_category(record.category) not in covered_norm:
         options = list(dict.fromkeys(c.strip().lower().replace(" ", "_") for c in covered)) + [_NONE]
         broader = await _pick(llm, record, record.category, options, session_id, model,
-                              f' When the product is not a kind of any entry, pick "{_NONE}".', tag="covered")
+                              f' When the product is not a kind of any entry, pick "{_NONE}".', tag="covered",
+                              thinking=thinking)
         if broader is not None and broader != _NONE:
             notes.append(f"category: {record.category} has no law pack; mapped to the covered type {broader}")
             record.category = broader
@@ -378,14 +380,15 @@ class AuditList(_Model):
 
 
 async def audit_coverage(llm: LLMClient, record: ProductRecord, parts: list[ModelPart],
-                         payload: list[tuple[bytes, str]], session_id: str | None, model: str) -> list[dict]:
+                         payload: list[tuple[bytes, str]], session_id: str | None, model: str,
+                         thinking: str = CAUTION_THINKING) -> list[dict]:
     """D-249 (sealed onboarding: values dropped or never read became live misses no check could catch): one pass over
     the files and the finished record that lists what the files state and the record lacks. Each item goes to the
     person's check list with its evidence; code marks whether the quote is in the file's readable text."""
     from .sources import _code_text
 
     res = await llm.call(LLMRequest(
-        agent="onboarding_audit", model=model, thinking_level=CAUTION_THINKING, prompt_version="onboarding_audit-1",
+        agent="onboarding_audit", model=model, thinking_level=thinking, prompt_version="onboarding_audit-1",
         system_instruction=AUDIT_PROMPT, output_model=AuditList, deadline_ms=READ_DEADLINE_MS, session_id=session_id,
         user_message='<data name="RECORD">' + record.model_dump_json(exclude={"category_evidence"}) + "</data>\n"
                      "List what the FILES state and the RECORD lacks, as JSON.",
@@ -419,11 +422,11 @@ def _same_caution(a: str, b: str) -> bool:
 
 
 async def read_cautions(llm: LLMClient, payload: list[tuple[bytes, str]], session_id: str | None,
-                        model: str) -> list[Text]:
+                        model: str, thinking: str = CAUTION_THINKING) -> list[Text]:
     """D-226 (sealed pool: 4 of 5 and 3 of 4 cautions): a second, focused pass over every file that lists only safety
     cautions; its cautions are merged into the record's."""
     res = await llm.call(LLMRequest(
-        agent="onboarding_cautions", model=model, thinking_level=CAUTION_THINKING, prompt_version="onboarding_cautions-1",
+        agent="onboarding_cautions", model=model, thinking_level=thinking, prompt_version="onboarding_cautions-1",
         system_instruction=CAUTION_PROMPT, user_message="Return every safety caution as JSON.", output_model=CautionList,
         deadline_ms=READ_DEADLINE_MS, session_id=session_id, mock_primary_text="cautions", parts=tuple(payload),
         mock_fallback=lambda _: {"cautions": []},
@@ -433,8 +436,12 @@ async def read_cautions(llm: LLMClient, payload: list[tuple[bytes, str]], sessio
 
 async def read_product(llm: LLMClient, parts: list[ModelPart], *, hints: str = "", session_id: str | None = None,
                        model: str = READ_MODEL, thinking: str = READ_THINKING,
-                       categories: list[str] = (), covered: list[str] = ()) -> OnboardingResult:
+                       categories: list[str] = (), covered: list[str] = (), pass_model: str | None = None,
+                       pass_thinking: str | None = None) -> OnboardingResult:
+    """D-267: `model`/`thinking` for the read; the caution pass, routing, category and audit run on `pass_model`
+    (default `model`) at `pass_thinking` (default their own levels: MEDIUM, LOW for the category)."""
     t0 = time.perf_counter()
+    pm, pt, ct = pass_model or model, pass_thinking or CAUTION_THINKING, pass_thinking or "LOW"
     payload: list[tuple[bytes, str]] = []
     for p in parts:
         payload.append((f"FILE {p.name}".encode(), "text/plain"))
@@ -448,7 +455,7 @@ async def read_product(llm: LLMClient, parts: list[ModelPart], *, hints: str = "
         session_id=session_id, mock_primary_text="|".join(p.name for p in parts), parts=tuple(payload),
         preview=", ".join(p.name for p in parts),
     )))
-    extra = await read_cautions(llm, payload, session_id, model)  # runs while the full read runs
+    extra = await read_cautions(llm, payload, session_id, pm, pt)  # runs while the full read runs
     res = await read_task
     if res.status != "ok" or res.output is None:
         raise RuntimeError(f"onboarding read {res.status}: {res.error}")
@@ -456,15 +463,15 @@ async def read_product(llm: LLMClient, parts: list[ModelPart], *, hints: str = "
     added = [c for c in extra if c.evidence and not any(_same_caution(c.text, k.text) for k in merged.cautions)]
     merged.cautions += added
     names = [p.name for p in parts]
-    routed = await route_fields(llm, merged, session_id, model, payload, names)  # D-243/D-245
+    routed = await route_fields(llm, merged, session_id, pm, payload, names, pt)  # D-243/D-245
     record, notes = normalise(merged)
     notes += routed
-    notes += await closed_category(llm, record, categories, session_id, model, covered)
-    uncovered = await audit_coverage(llm, record, parts, payload, session_id, model)  # D-249
+    notes += await closed_category(llm, record, categories, session_id, pm, covered, ct)
+    uncovered = await audit_coverage(llm, record, parts, payload, session_id, pm, pt)  # D-249
     if added:
         notes.append(f"cautions: {len(added)} added by the caution pass")
     return OnboardingResult(record=record, method="gemini_whole",
-                            models={"read": f"{model} ({thinking})", "cautions": f"{model} ({CAUTION_THINKING})",
-                                    "route": f"{model} ({CAUTION_THINKING})", "audit": f"{model} ({CAUTION_THINKING})"},
+                            models={"read": f"{model} ({thinking})", "cautions": f"{pm} ({pt})",
+                                    "route": f"{pm} ({pt})", "category": f"{pm} ({ct})", "audit": f"{pm} ({pt})"},
                             seconds=round(time.perf_counter() - t0, 1), notes=notes,
                             caution_pass_added=[c.text for c in added], uncovered=uncovered)

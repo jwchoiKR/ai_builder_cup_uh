@@ -87,13 +87,14 @@ def normalise_pack(rec: LawPackRecord) -> tuple[LawPackRecord, list[str]]:
 
 
 async def read_lawpack(llm: LLMClient, parts: list[ModelPart], *, market: str, category: str,
-                       session_id: str | None = None) -> tuple[LawPackRecord, list[str], float]:
+                       session_id: str | None = None, model: str = READ_MODEL,
+                       thinking: str = READ_THINKING) -> tuple[LawPackRecord, list[str], float]:
     t0 = time.perf_counter()
     payload: list[tuple[bytes, str]] = []
     for p in parts:
         payload += [(f"FILE {p.name}".encode(), "text/plain"), (p.data, p.mime)]
     res = await llm.call(LLMRequest(
-        agent="lawpack_read", model=READ_MODEL, thinking_level=READ_THINKING, prompt_version=PROMPT_VERSION,
+        agent="lawpack_read", model=model, thinking_level=thinking, prompt_version=PROMPT_VERSION,
         system_instruction=PROMPT, deadline_ms=READ_DEADLINE_MS, session_id=session_id, output_model=LawPackRecord,
         user_message=f'<data name="MARKET">{market}</data>\n<data name="CATEGORY">{category}</data>\n'
                      "Return the rule records JSON.",

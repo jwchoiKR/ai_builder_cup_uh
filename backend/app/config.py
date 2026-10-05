@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     ONBOARDING_DIR: str = "../data/onboarding"  # D-217: uploaded product files, immutable, git-ignored
     # D-263: the bucket that holds onboarding state in the cloud (uploads, releases, packs); empty = local disk only
     ONBOARDING_GCS_BUCKET: str = ""
+    # D-267: the offline onboarding reads (product, law and brand packs); gemini-3.1-pro-preview is the Pro arm
+    ONBOARDING_MODEL: str = "gemini-3.8-flash"
+    ONBOARDING_THINKING: ThinkingLevel = "HIGH"
+    # D-267: the caution pass, routing, category pick and coverage audit; empty = ONBOARDING_MODEL, and their own
+    # thinking levels (MEDIUM; LOW for the category pick)
+    ONBOARDING_PASS_MODEL: str = ""
+    ONBOARDING_PASS_THINKING: str = ""
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
