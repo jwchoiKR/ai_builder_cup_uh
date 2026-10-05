@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { catalog, snapshot } from "../test/fixtures";
@@ -97,5 +97,23 @@ describe("screens", () => {
     }
     expect(screen.getByText("New demo session")).toBeInTheDocument();
     expect(screen.getByText(/ses_000001/)).toBeInTheDocument();
+  });
+
+  it("Hub cards are in the order of use, each with its phase, who and visible points; terms explain on focus", () => {
+    render(<Hub sessionId="ses_000001" />);
+    const cards = screen.getAllByRole("article");
+    expect(cards.map((c) => c.dataset.testid)).toEqual(
+      ["hub-card-setup", "hub-card-host", "hub-card-operator", "hub-card-viewer", "hub-card-studio", "hub-card-summary"]);
+    const host = within(screen.getByTestId("hub-card-host"));
+    expect(host.getByText("During the show")).toBeInTheDocument();
+    expect(host.getByText("For the host.")).toBeVisible();
+    expect(host.getByRole("link", { name: "Host screen" })).toHaveAttribute("href", expect.stringContaining("/host"));
+    expect(host.getAllByRole("listitem")).toHaveLength(3);
+    const term = screen.getByText("question desk");
+    expect(term).toHaveAttribute("tabindex", "0");
+    expect(document.getElementById(term.getAttribute("aria-describedby")!)).toHaveTextContent("The operator's list");
+    expect(screen.getByText("Brief Agent")).toHaveAttribute("aria-describedby");
+    expect(screen.getByText("Demo Console")).toHaveAttribute("aria-describedby");
+    expect(screen.getByText("glossary")).toHaveAttribute("aria-describedby");
   });
 });
