@@ -45,7 +45,14 @@ _FRAME = frozenset({"does", "contain", "includes", "include", "included", "made"
                     "states", "listed", "there", "have", "from", "that", "which", "only", "also", "said", "says"})
 
 
-def _from_quote(correct: str, quote: str) -> bool:
+def _same_substance(stated: str | None, correct: str | None) -> bool:
+    """Every name word the host gave for the substance is in the correction ("zinc gluconate" vs "zinc": no)."""
+    said = set(_NAME.findall((stated or "").lower())) - _NOT_NAMES - _UNIT_WORDS
+    right = set(_NAME.findall((correct or "").lower()))
+    return not said or not right or said <= right
+
+
+def _from_quote(correct: str, quote: str, share: float = 0.5) -> bool:
     """D-244 L1/L8: the correction rests on the quote. Latin script: at least half of its value words are in the
     quote (by their first five letters, so "resistant" meets "resistance"); other scripts: two letters in a row.
     "not disclosed" or "No expiry period is given" states no value the quote holds, so it is no correction."""
@@ -53,7 +60,7 @@ def _from_quote(correct: str, quote: str) -> bool:
     latin = set(_NAME.findall(correct.lower())) - _NOT_NAMES - _FRAME
     if latin:
         stems = {w[:5] for w in _NAME.findall(q)}
-        return 2 * sum(w[:5] in stems for w in latin) >= len(latin)
+        return sum(w[:5] in stems for w in latin) >= share * len(latin)
     other = re.sub(r"[\W\d_a-z]", "", correct.lower())
     return any(other[i:i + 2] in q for i in range(len(other) - 1))
 
@@ -300,7 +307,11 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                 # a complete list
                 ("L1: an absence the quote does not state",
                  lambda: c.field in ("ingredient", "fragrance") or not lex.absence.search(c.correct_value or "")
-                 or bool(lex.absence.search(c.quote or ""))),
+                 or (bool(lex.absence.search(c.quote or "")) and _from_quote(c.correct_value, c.quote, 0.75))),
+                # D-255 (sealed FD: "3 mg zinc gluconate" contradicted by "2.5 mg zinc"): a salt is not its element;
+                # the correction must be about the substance the host named
+                ("another substance than the host named",
+                 lambda: c.field != "ingredient_amount" or _same_substance(c.stated_value, c.correct_value)),
                 ("L1: a stated number corrected without a number",
                  lambda: c.field == "ingredient" or not said or bool(right) or _term_dispute(c, p, said, passages)),
                 # Claim wording is compliance (the judge's job), never a product fact (D-048).

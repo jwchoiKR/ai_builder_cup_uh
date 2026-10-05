@@ -1122,3 +1122,48 @@ def test_d254_lean_checks_at_most_ten_and_folds_or_accepts_the_rest():
     product = [x for x in checks if x["group"] == "product"]
     assert [x["label"] for x in product if "variants" in x["label"]] == ["8 variants: no price for this size"]
     assert [x["group"] for x in checks + folded].count("audit") <= 1
+
+
+def test_d255_pack_totals_are_computed_in_code():
+    from app.onboarding.release import release_pack
+
+    ev = [{"file": "f", "locator": "l", "quote": "Box of 10 bottles; collagen 5,000 mg per bottle"}]
+    rec, notes = normalise(ProductRecord.model_validate(_record(
+        variants=[{"variant_id": "BOX", "name": "Collagen box", "size_value": None, "size_unit": None, "market": None,
+                   "pack_count": 10, "pack_unit": "bottles",
+                   "prices": [{"currency": "SGD", "minor": 3600, "kind": "live", "market": "SG", "evidence": EV}],
+                   "evidence": ev}],
+        ingredients=[{"name": "Collagen", "amount_value": "5000", "amount_unit": "mg", "per": "bottle",
+                      "purpose": None, "evidence": ev}])))
+    assert rec.variants[0].pack_count == 10
+    ctx = make_ctx()
+    try:
+        facts = [p.text for p in release_pack(ctx.pack, rec, "rel_x_v1", None).passages if p.text.startswith("Computed")]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert facts == ["Computed: Collagen box (10 × bottles): Collagen 5000 mg per bottle, 50000 mg in the whole pack"]
+
+
+async def test_d255_an_absence_note_and_another_substance_are_no_corrections(tmp_path, monkeypatch):
+    facts = [{"text": "Do not towel off after swimming or water exposure.", "evidence": EV},
+             {"text": "Zinc 2.5 mg (as zinc gluconate) per bottle.", "evidence": EV}]
+
+    def note(pid, ps):
+        p = next(p for p in ps if p.text == facts[0]["text"])
+        return _claim(pid, p, field="usage", stated_value="reapply after swimming",
+                      correct_value="Not water-resistant, reapply hourly after swimming")
+
+    row: dict = {}
+    assert await _release_line(tmp_path / "a", monkeypatch, {"key_facts": facts},
+                               "Reapply after swimming, and also every two hours.", note, row) == []
+    assert [d["reason"] for d in row["dropped"]] == ["L1: an absence the quote does not state"]
+
+    def salt(pid, ps):
+        p = next(p for p in ps if p.text == facts[1]["text"])
+        return _claim(pid, p, field="ingredient_amount", stated_value="3 mg zinc gluconate", correct_value="2.5 mg zinc")
+
+    row = {}
+    assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
+                               "Each bottle has three mg zinc gluconate.", salt, row) == []
+    assert [d["reason"] for d in row["dropped"]] == ["another substance than the host named"]
