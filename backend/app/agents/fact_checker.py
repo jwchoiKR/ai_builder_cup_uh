@@ -135,13 +135,20 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                                   and not TEST_CITED.search(utterance)):
             c.verdict = "not_in_sources"
             continue
+        said, right = number_set(c.stated_value or ""), number_set(c.correct_value or "")
+        if (said and said == right) or (c.stated_value or "").strip().lower() == (c.correct_value or "").strip().lower():
+            c.verdict = "not_in_sources"  # D-151: the "correction" restates what the host said
+            continue
         if c.field in WORD_FIELDS and _words_within(c.stated_value, c.correct_value):
             c.verdict = "not_in_sources"  # D-123: "tube" is the "Airless pump tube", only less specific
             continue
         ok = False
         if (c.field in ("ingredient", "ingredient_amount") and c.passage_id is None
                 and (c.correct_value or "").strip().lower() == ABSENT):
-            ok = _absent_from_sheet(c.stated_value, passages, c.product_id)  # code verifies the absence
+            # D-151 (sealed round 3): "No retinol in this one" came back contradicted with "not in this product":
+            # the same thing. A stated absence is never contradicted by an absence.
+            said_absent = catalog.lexicon.absence.search(f"{c.stated_value or ''} {c.span or ''}")
+            ok = not said_absent and _absent_from_sheet(c.stated_value, passages, c.product_id)
         elif c.passage_id is not None:
             p = by_id.get(c.passage_id)
             ok = (p is not None and c.quote is not None and quote_in_passage(c.quote, p.text)

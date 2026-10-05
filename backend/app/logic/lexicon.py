@@ -36,6 +36,7 @@ class Lexicon:
     exclusion: re.Pattern  # matches when a text ends with an exclusion cue ("..., not")
     fillers: frozenset[str]
     price_contrast: re.Pattern
+    absence: re.Pattern
     phone: re.Pattern  # from the market
 
     @classmethod
@@ -50,6 +51,7 @@ class Lexicon:
             sentence_end=re.compile(p.sentence_end), sentence_split=re.compile(p.sentence_split),
             clause_split=re.compile(p.clause_split), reactions=frozenset(lx.reactions),
             fillers=frozenset(lx.fillers),
+            absence=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.absence_cues) + r")\b|\w-free\b", re.I),
             price_contrast=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.price_contrast_cues) + r")\b", re.I),
             exclusion=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.exclusion_cues) + r")\s+(?:the\s+)?$"),
             phone=re.compile(market.phone_pattern),

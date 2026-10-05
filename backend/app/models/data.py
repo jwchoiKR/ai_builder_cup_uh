@@ -227,6 +227,7 @@ class LexiconData(BaseModel):
     exclusion_cues: list[str]  # "not cream", "without the ampoule": the product is excluded, not meant
     fillers: list[str]  # D-148: hesitation and yes/no words that carry no claim ("um", "no no")
     price_contrast_cues: list[str]  # D-148: "normally $36": the live price named as not the price now
+    absence_cues: list[str]  # D-151: "no retinol", "retinol-free": the host says an ingredient is absent
 
 
 class LangPack(BaseModel):
