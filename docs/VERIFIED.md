@@ -61,8 +61,10 @@ Sources:
   |---|---|---|---|---|---|
   | gemini-3.5-flash-lite | ok | ok | ok | ok | MINIMAL |
   | gemini-3.8-flash | **400 INVALID_ARGUMENT** "Thinking level is unsupported: THINKING_LEVEL_MINIMAL" | ok | ok | ok | MEDIUM |
+  | gemini-3.1-pro-preview (10/6, global) | **400 INVALID_ARGUMENT** "thinking_level MINIMAL is not supported by this model" | ok | ok | ok | |
 
   The configured values (`MINIMAL` for fast, `MEDIUM` for quality) are valid. **Never set `LLM_QUALITY_THINKING=MINIMAL`** while the quality model is `gemini-3.8-flash`.
+- gemini-3.1-pro on the global endpoint (10/6 probe, dev session): the id `gemini-3.1-pro` returns 404 NOT_FOUND; `gemini-3.1-pro-preview` works with JSON mode (`response_json_schema`) and text, PDF and JPEG parts. Times: a text part with JSON 3.7-4.3 s, a 2.7k-token PDF at HIGH 10.3 s (788 thinking tokens), a JPEG 2.7 s. Offline onboarding only (settings `ONBOARDING_MODEL`, D-267). [live]
 - Thinking tokens count toward `max_output_tokens`. [live]
   - Example: `gemini-3.8-flash` with a 64-token cap spent 59 tokens thinking and stopped with `MAX_TOKENS`.
   - So we do not set `max_output_tokens`.
