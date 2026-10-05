@@ -1,57 +1,124 @@
-# 개발 인계 (10/5)
+# 세션 인계 (10/5 밤 기준)
 
-10/5부터 역할을 나눈다.
-- **개발**: 새 Claude 세션
-- **기획 세션(Claude)**: 기획, 데이터, 문서 검색, codex·agy 호출
-- 기획과 결정은 `docs/PLANNING.md`, 기술 결정은 `docs/DECISIONS.md`에 기록한다.
+새 세션은 이 문서부터 읽는다. 결정 기록은 `docs/PLANNING.md` 8장, 기술 결정은 `docs/DECISIONS.md`(D-번호), 측정값은 `docs/eval/proof-plan.md`에 있다.
 
-브랜치는 `multi_agent_test`이다. 아래 변경은 아직 **커밋하지 않았다**.
+## 1. 누가 무엇을 하나
 
-## 1. 지금 작업 트리의 변경 (누가, 상태)
-
-| 묶음 | 파일 | 만든 사람 | 상태 |
+| 역할 | 누구 | 하는 일 | 하지 않는 일 |
 |---|---|---|---|
-| 라우터 실험 (Jev, Gemini) | `backend/scripts/eval_routing.py`, `backend/scripts/experiments/{jev_router,gemini_router}.py`, `experiments/prompts/router_purpose.md`, `backend/scripts/eval_agents.py`(jev/gemini 구조), `tests/test_{jev_router,gemini_router,eval_agents_jev,eval_routing_experiments}.py`, `docs/eval/routing-accuracy.*` | codex, Claude | 검증 완료. 운영 경로에는 쓰지 않는다 (PLANNING 3.1). 커밋 여부는 결정 필요 |
-| 평가 데이터 | `data/eval/route_cases.jsonl`(40), `holdout_cases.jsonl`(100), `holdout_sequences.jsonl`(12 시나리오, 34턴) | agy, Claude가 라벨 수정·검증 | 검증 완료 (ID·규칙·팩트 값·기존 문장 유사도) |
-| 연속 발화 동시 처리 (D-101) | `backend/app/pipelines/utterances.py`, `tests/test_utterance_concurrency.py`, `tests/test_utterance_pipeline.py` | codex, Claude가 테스트 기대값 2개 수정 | 검증 완료: AI PD 연결 전 전체 435개 통과, 동시성 테스트 5회 반복 통과 |
-| ADK 의존성 | `backend/pyproject.toml`, `backend/uv.lock` | Claude | google-adk 2.11. ADK 2.x가 OpenTelemetry 1.42 이하를 요구해 FastAPI를 `>=0.133,<0.142`(0.141.1)로 고정, websockets 16.1 → 15.0.1. 435개 통과 확인 |
-| AI PD 백엔드 | `backend/app/logic/pd.py`, `backend/app/agents/ai_pd.py`, `backend/app/pipelines/pd.py`, `prompts/ai_pd.md`, `backend/app/models/session.py`(`PdCard`, `Session.pd_card`), `backend/app/pipelines/runtime.py`(`self.pd`, `emit` 훅, `tick_locked` 훅), `backend/app/api/operator.py`(`POST /pd/dismiss`), `backend/app/ids.py`(`pd_` 접두어), `tests/test_pd.py` | Claude | **버그 있음 (2장).** `tests/test_pd.py` 단독은 통과했으나 연결 후 전체 테스트가 끝나지 않음 |
-| AI PD 진행자 카드 | `frontend/src/app/{types,sse,state,selectors,api}.ts`, `state.test.ts`, `screens/host/{PdCard.tsx,HostScreen.tsx,host.module.css,host.test.tsx}`, `src/test/fixtures.ts` | agy | **미검증.** `npm test`, `npm run build` 필요 |
-| 명시적 캐싱, 제품 문서 통째로, 처음 보는 문장 채점기 | `backend/app/providers/{llm,prompts}.py`, `backend/app/agents/{fact_checker,split_judges,utterance_judge}.py`, `backend/app/config.py`, `backend/scripts/{run_eval,eval_expectations,eval_holdout_sequences}.py`, `tests/test_{context_cache,full_sheet_facts,eval_holdout}.py` | codex | **구현 완료, 미검증** (codex 샌드박스는 Python을 못 돌림). 캐싱 기본값은 꺼짐(`LLM_CONTEXT_CACHE=false`), 측정 후 켠다. 공식 문서상 Gemini 3 계열 캐시 최소 길이는 4,096토큰이라, 고정 부분이 짧은 에이전트는 캐시되지 않는다. 캐시 TTL은 런시트 계획 시간. 실행: `uv run python scripts/eval_agents.py --cases holdout --structure split3 --runs 1`, `uv run python scripts/eval_holdout_sequences.py --runs 1` (보고서 `docs/eval/holdout-*`). 연속 시나리오의 지연은 STT와 화면 렌더링을 뺀 값이다 |
-| 기획 문서 | `docs/PLANNING.md`, `docs/DECISIONS.md`(D-101), `docs/HANDOFF.md` | Claude | |
+| 결정 | 사용자 | 설계·범위 결정, 배포 승인 | |
+| 기획·평가 | Claude 세션 (ai-builder-cup-uh-d3) | 기획, 시험 데이터, 봉인 세트, 평가 실행, 문서, 덱, 모델 토론 조율 | 앱 코드 작성 |
+| 개발 | Claude 세션 (ai-builder-cup-uh-00) | 앱 코드 전부, 테스트, 커밋 | push (사용자가 직접 지시할 때만), 봉인 세트 열람 |
+| 비평 | Claude Sonnet 5.5 세션 (ai-builder-cup-uh-38) | 읽기 전용 반박, 블라인드 정답 매기기 | 코드 수정 |
+| 토론 | codex, agy | 설계 반박, 시험 문장 작성, 화면 검토 | |
 
-## 2. 알려진 문제
+**codex와 agy는 모델을 명시해서 부른다.** 설정 파일 기본값이 바뀐 적이 있다(10/5, `gpt-6.1-sol` low).
+- `codex exec -m gpt-6-astra -c model_reasoning_effort=high -s read-only - < brief.md`
+- `agy --model gemini-3.8-flash-high -p "$(cat brief.md)"` (agy는 파일 읽기가 막히니 내용을 프롬프트에 넣는다)
+- codex 결과를 쓰기 전에 stderr 첫 줄의 `model:`과 `reasoning effort:`를 확인한다.
 
-**AI PD 연결 후 `uv run pytest -q`가 끝나지 않는다** (평소 약 10초, 10분 넘게 멈춰 중단함).
-- 가장 유력한 원인: `backend/app/pipelines/pd.py`의 `_decide`.
-  - `st.now - self._last_decision_at < MIN_GAP_MS`이면 `self._again = True`로 두고 반환한다.
-  - `_loop`는 `_again`이 켜져 있으면 바로 다시 `_decide`를 부른다.
-  - 테스트의 `ManualClock`은 시간이 흐르지 않으므로 무한 반복한다. `scheduler.idle()`도 영원히 기다린다.
-- 고치는 방향: MIN_GAP에 걸리면 `_again`을 켜지 말고 그냥 반환한다. 실제 운영에서는 1초 타이머(`tick_locked` → `pd.on_tick`)가 다시 부른다.
-- 같은 시각에 codex가 위 1장의 파일을 수정 중이었으므로, 고친 뒤에도 멈추면 codex 변경 쪽도 확인한다.
+## 2. 사용자 규칙 (꼭 지킨다)
 
-## 3. AI PD 설계 요약 (상세는 PLANNING 5.1, 5.1.1)
+- 답은 한국어로 한다. 모델이나 다른 세션이 영어로 써도 마찬가지다.
+- 내부 시험은 100%가 목표다. 음성 게시 기준은 "모든 실행에서 잘못 게시 0, 놓친 게시 0, 중복 게시 0"이다.
+- 봉인 세트는 라운드마다 새로 만들고 개발 쪽에 보여 주지 않는다(5장).
+- 설계는 의견으로 정하지 않는다. 방향이 여럿이면 전부 만들어 같은 시험으로 비교하고 고른다. 사용자 제안도 후보 하나로 넣는다.
+- 사용자 아이디어는 의견 하나로 본다. 목표는 지키고, 방법은 결과가 좋은 쪽으로 고른다.
+- 시청자 질문은 제품 정보에 답이 있으면 게시(종류에 따라 진행자 카드)하고, 없으면 운영자에게 보낸다. 이 원칙으로 풀리는 일은 사용자에게 묻지 않는다.
+- 커밋과 push는 작업이 끝날 때마다 한다. push 전에 키 패턴을 검사하고(`sk-or-`, `AIza`, `PRIVATE KEY`, `"private_key"`, `ya29.`), 강제 push는 하지 않는다.
+- 덱과 설명용 HTML은 `docs/decks/`에 둔다(빌드 스크립트는 `build/`, 이미지는 `img/`). 사용자가 요청하지 않으면 Artifact로 올리지 않는다.
+- 배포는 사용자 승인 뒤에만 한다. Claude Code 자동 권한 검사가 세션의 배포를 막으므로, 사용자가 `! bash deploy/cloudrun.sh`로 직접 실행한다.
+- 크롬은 사용자가 쓰고 있으니 건드리지 않는다. 화면 캡처는 Playwright(Edge, headless)로 한다.
+- `.env`와 키는 커밋하지 않는다. OpenRouter 키는 지웠고 다시 넣지 않는다. 에이전트 권한·설정 파일은 고치지 않는다.
+- 일정·영상·덱 마감 이야기는 사용자가 먼저 꺼내기 전에는 하지 않는다.
 
-- 판정 에이전트 3개(법률·팩트·맥락)는 STT 최종 문장마다 항상 동시에 호출한다. 빨간 경고와 팩트 메모는 AI PD를 거치지 않는다.
-- AI PD는 이벤트(`transcript.final`, `prompter.updated`, `hostqueue.updated`, `group.updated`, `promo.*`, `segment.started`, `alert.*`)와 1초 타이머로 판단한다.
-- 후보 카드는 `logic/pd.py`의 `candidates()`가 만든다. 문장은 검증된 것만 쓴다(추천 답변, 프롬프터 포인트, 프로모션 문구). LLM은 후보 id 하나 또는 "none"만 고른다.
-- 실제 모드(`LLM_PROVIDER=vertex`)에서는 ADK `LlmAgent`(`agents/ai_pd.py`, 지시문은 callable로 넘겨 JSON 중괄호 치환을 막음)가 고르고, 실패하면 규칙(`rule_pick`)으로 고른다. mock 모드는 규칙만 쓴다.
-- 카드는 15초 고정, 빨간 경고 중에는 새 카드를 만들지 않는다. 완료 조건은 포인트 언급·질문 답변·프로모션 종료·제품 전환이다. 진행자는 N 키로 넘기고(`POST /api/sessions/{sid}/pd/dismiss`), 넘긴 주제는 그 제품에서 다시 나오지 않는다.
-- 프론트 계약: SSE `pd.card`(카드 또는 null), `/state`의 `session.pd_card`.
-- 아직 안 한 것: 세 판정 에이전트를 ADK `ParallelAgent`로 감싸 루트 오케스트레이터 아래에 두기 (PLANNING 5.1.1).
+## 3. 지금 상태
 
-## 4. 남은 개발 작업 (우선순위 순, 상세는 PLANNING 5.2)
+- 브랜치 `multi_agent_test` (origin에 push됨). 코드 최신은 개발 세션의 D-194(bd21b67)까지다.
+- **클라우드:** Cloud Run `live-studio-us` 00008 = 이미지 2600ed8 = 코드 0d5565a. 그 뒤의 D-177~194는 배포되지 않았다.
+- **00008 결과(10/5):**
+  - 심은 실수 18/18
+  - 운영자 일 -76%
+  - 사실 경고 p95 2.50초
+  - 지연 시험 100줄에서 2줄 놓침(판정 시간 초과). 시간 초과 대책으로 D-184를 넣었다(1.5초에 같은 요청 한 번 더).
+- **D-177~183 (사용자 결정 반영):**
+  - 빨간 경고는 정정 전까지 유지
+  - 답 없는 질문, 배송·반품 질문, 이전 제품 질문은 운영자에게
+  - 말레이시아 RM 가격
+  - 홈 화면 개편
+  - 테마 하나로 통일
+  - 진행자 패널 크기 조절
+  - 모든 화면에 홈 링크
+- **D-184~186:** 시간 초과 때 같은 요청 한 번 더, 미백 규칙 보강, STT 위험 단어 힌트(기본 꺼짐, `STT_RISK_HINTS`)
+- **D-187~194:** 설계 후보(`DESIGN_ARM`)와 AI 호출·토큰 기록(`LLM_USAGE_REPORT=<path>`)
+- **D-190:** 주름 질문에 승인된 표현으로 답
 
-1. 2장 버그 수정 → 백엔드 전체 테스트, 프론트 `npm test`·`npm run build`, `npm run e2e`
-2. codex의 캐싱·채점기 결과 검증 (기획 세션이 codex 결과를 받아 전달)
-3. 1인 모드: 운영자에게만 가던 민감 질문·미검증 답변 초안을 "보류"로 표시, 진행자 화면에서 방송 시작·종료, 프로모션 켜기, 제품 전환 수락
-4. 세 판정 에이전트를 ADK 루트 오케스트레이터 아래로 (ParallelAgent 또는 ADK 2.x 워크플로)
-5. 처음 보는 문장 평가 실행(기획 세션이 실행·기록), 업무량 집계, 실측 비용표
-6. Vertex AI Search: PDF 파싱만. pypdf와 표 추출 품질 비교 후 결정. 데이터 스토어 `daon-product-sheets`(separk-cloocus, global)는 만들어 두었다
-7. Cloud Run 배포, Firestore 전환
+## 4. 설계 후보 비교 (진행 중)
 
-## 5. 실행 환경 메모
+사용자가 룰베이스 코드를 문제 삼았다("규정·문서는 각자 준비하고 에이전트가 판단하면 되는데 왜 코드로 미리 처리하나"). 세 모델 합의 원칙은 "뜻은 AI가 판단하고, 코드는 실행만 통제한다"이다. 그 위에서 후보를 전부 만들어 비교한다. 설정은 `DESIGN_ARM`(기본 A)이다.
 
-- `.env`(git 제외): `GCP_PROJECT=separk-cloocus`. Jev를 쓰지 않기로 해서 `OPENROUTER_API_KEY`는 10/5에 모든 `.env` 사본에서 지웠다. Jev 실험 코드(`backend/scripts/experiments/jev_router.py`)는 측정 근거로 남기며, 키가 없으면 오류로 처리된다.
-- 데모 서버: 기획 세션이 마지막 커밋(HEAD)을 별도 worktree에 꺼내 `http://localhost:8000`에 띄워 두었다 (작업 트리 변경과 무관).
-- Windows PowerShell 5의 `Set-Content -Encoding utf8`은 BOM을 붙인다. Python 파일 수정에는 쓰지 않는다.
+| 후보 | 내용 | 커밋 |
+|---|---|---|
+| A | 지금 그대로 | 기본값 |
+| B | 뜻 판단(정정, 숫자 해석, 사내 시험 문구, 구매 댓글, 답변 의미 검사)을 AI 출력으로 | afbf15e |
+| C | B에서 키워드 사전 감지 뺌 | aff7500 |
+| D | 사용자 안. 두 제품 문서와 규정 전체를 프롬프트에, 코드 확인 대부분 뺌 | ce065b4 |
+| E | D + 규정을 Vertex AI Search로 문장마다 검색 | bd21b67 |
+| F2 | 방송 중 제품 파일과 규정 파일을 미리 프롬프트에(문서 저장소) | 7897ddc |
+| F1 | F2 + 답변 작성 전에 AI가 필요한 파일을 도구로 요청 | 6eb42eb |
+
+- 결과는 `docs/eval/design-arms.md`에 정리한다(작성 예정).
+- 10/5 중간 결과:
+  - **D와 E:** 말로 한 답의 잘못 게시가 나와 탈락. 공개 게시 직전의 코드 숫자 확인은 남겨야 한다.
+  - **F2:** 새 봉인 세트 탐지 99.3%로 A와 같고, 오경고는 1.5%로 A의 3.0%보다 낮았다.
+  - **조정 세트:** A가 맞춰 온 세트라 A만 100%가 나온다. 공정한 비교는 봉인 세트로 한다.
+- astra high 재토론(10/5 밤)도 같은 원칙이다. 덧붙인 점: 시간 초과 때는 "확인 못 함"을 보이고 자동 게시를 막는다. 규정은 방송 중 제품만이 아니라 언급된 제품의 카테고리까지 고른다.
+
+## 5. 봉인 세트와 시험 실행
+
+- **봉인 세트:** `D:\code_test\study\ai_builder_cup_git\sealed_sets\` (레포 밖, README 있음). 개발 세션에 보여 주지 않는다.
+- **시험은 별도 worktree에서 돌린다.** 기본 작업 트리를 건드리지 않기 위해서다.
+  - `injtree`: A·B·C 평가용
+  - `armtree`~`armtree4`: D, F2, F1, E 평가용
+  - `demotree`: mock 서버 :8002, 화면 확인용 vite :5180
+  - `deploy158`: 개발 세션용. 건드리지 않는다.
+  - 새 worktree를 만들면 `.env`를 다른 worktree에서 복사한다(OpenRouter 키 없음 확인).
+- **한 후보 전체 시험:** `injtree/run_arms.ps1 -Arms A,B` (backend에서 `uv run python scripts/...`)
+  - `eval_adversarial.py --runs 3 --cases <봉인 절대경로>`: 진행자 말 판정. 합격선은 탐지 99% 이상, 오경고 4.2% 이하, 안전 문장 빨간 경고 0
+  - `eval_verbal_post.py --runs 3 [--cases ...]`: 말로 한 답 게시. 잘못 0, 놓침 0
+  - `eval_draft_verifier.py --cases <봉인> --llm --runs 3`: 나쁜 답 게시 0, 좋은 답 차단 3% 이하
+  - `run_eval.py comments --runs 2`, `eval_comment_flow.py --runs 2 --cases comment_flow_cases.jsonl`: 댓글 분류·흐름 100%
+  - `eval_ai_pd.py --cases <봉인> --arms gemini-3.8-flash:LOW --paths adk --runs 3`
+- **클라우드 리플레이:** `frontend/e2e/show-replay.mjs <SEED.json> --assistant on|off`(IAP 토큰 `deploy/iap-token.sh`, BASE는 Cloud Run 주소), 지연 시험은 `frontend/e2e/rehearsal-voice.mjs lines ../data/eval/latency_lines.jsonl 1`.
+- **한글 출력이 깨지면** `PYTHONIOENCODING=utf-8`을 붙인다.
+
+## 6. 클라우드 자원 (프로젝트 separk-cloocus만)
+
+- **Cloud Run** `live-studio-us`(us-central1, min-instances 0, max 1, IAP는 jaewoo@cloocus.com만). 배포 스크립트는 `deploy/cloudrun.sh`.
+- **STT** chirp_3, region `us`. 아시아 리전에서는 쓸 수 없다.
+- **Gemini:** global 엔드포인트만 된다.
+- **Model Armor** 템플릿 `live-studio-comments`(us-central1).
+- **Firestore** `live-studio`(us-central1): 비어 있다. 배포가 `STORE=memory`라 방송 데이터는 메모리에만 있다. 기록은 Cloud Logging에서 읽는다.
+- **Vertex AI Search** (10/5 사용자 승인, 후보 E용): 데이터 저장소 `live-studio-rules`(규칙 38개), 엔진 `live-studio-rules-engine`.
+  - 설정: `relevanceThreshold LOWEST`, `pageSize` 5~10, `market` 필터, 연결 재사용
+  - 만들기·조정 스크립트: `D:\code_test\study\ai_builder_cup_git\ops_scripts\`
+  - 배포된 E를 쓰려면 Cloud Run 서비스 계정에 Discovery Engine 뷰어 권한이 필요하다(사용자 승인 필요).
+- **gcloud:** 로그인이 만료되면 사용자가 `! gcloud auth login`을 실행한다.
+
+## 7. 남은 일
+
+1. 설계 후보 비교 마무리 → `docs/eval/design-arms.md` → 기본 구조 결정(사용자)
+2. 크림이 두 개일 때 제품 구분: 방송 중 제품 우선, 아니면 진행자가 묻기. 시험용 가짜 두 번째 크림 추가. 개발 세션이 비교 뒤에 시작
+3. 규정 3층(법·플랫폼·브랜드)과 제품 카테고리로 규정 고르기. BRAND 규칙을 `sg.json`에서 분리
+4. STT 힌트 비교: 힌트 끔 / 제품 단어만 / 제품+위험 단어. 배포 뒤 클라우드 지연 시험으로
+5. D-177 이후 배포(사용자 승인), 그 뒤 리플레이 3개와 지연 시험
+6. 공개 대회 레포 재채점(서비스 자체만, 배포·영상·README 제외). 10/5 이후 새 레포 5개를 받아 둠
+7. 10/6 팀 공유 덱: 빌드 스크립트 `docs/decks/build/build_1006.py`, 역할 분담 슬라이드 포함
+8. 사람 진행자 녹음 시험(팀원 담당 예정)
+
+## 8. 팀 역할 분담 (사용자 안, 10/5)
+
+- **개발 리드(사용자):** 설계 결정, 개발 AI 지휘, 병합, 배포 승인
+- **진행자 테스트(팀원 1):** 직접 방송하며 실수를 섞어 말하고 경고·시간·사용성을 기록, 녹음 남기기
+- **워크플로·성능 검증(팀원 2):** 봉인 세트 작성·검수, 후보 비교·클라우드 시험, 결과 기록, 녹음을 재생 시험으로 만들기
+- 봉인 세트는 검증 담당만 본다. 개발 AI 지시는 개발 리드 한 창구로 모은다.
