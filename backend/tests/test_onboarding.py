@@ -12,7 +12,7 @@ from app.onboarding.record import ProductRecord
 from .helpers import make_ctx
 from .judge_fakes import ScriptedBackend
 
-EV = [{"file": "spec.docx", "locator": "paragraph 1", "quote": "x"}]
+EV = [{"file": "spec.docx", "locator": "paragraph 1", "quote": "P 30 ml, S$36.00; Zinc 0.5 mg"}]
 
 
 def test_store_is_content_addressed_and_never_overwrites(tmp_path):
@@ -59,7 +59,7 @@ def _record(**kw) -> dict:
                           "prices": [], "evidence": EV},
                          {"variant_id": "Z", "name": "made up", "size_value": None, "size_unit": None, "market": None,
                           "prices": [], "evidence": []}],
-            "offers": [], "ingredients": [{"name": "Zinc", "amount_value": "0,50", "amount_unit": "MG", "purpose": None,
+            "offers": [], "ingredients": [{"name": "Zinc", "amount_value": "0.50", "amount_unit": "MG", "purpose": None,
                                            "evidence": EV}],
             "ingredient_list_complete": False, "approved_claims": [], "not_approved_claims": [],
             "avoid_saying": [], "qualified_results": [], "cautions": [{"text": "Patch test.", "evidence": []}],
@@ -208,3 +208,24 @@ def test_d223_promo_prices_are_computed_in_code_from_the_stated_terms():
     assert sale.changes_prices and sale.promo_prices == {"p": 30.6} and sale.duration_sec == 600  # 30.60 to 10 cents
     assert not gift.changes_prices and gift.min_spend == 60.0
     assert _rounded(Decimal("30.66"), None) == Decimal("30.66") and _rounded(Decimal("30.66"), "round down to the dollar") == 30
+
+
+@pytest.mark.parametrize("written, quote, kept", [
+    ("5,000 mg", "Vitamin C 5,000 mg per serving", "5000"),  # D-225: thousands separator, not "5"
+    ("5", "Vitamin C 5,000 mg per serving", None),  # a number not in its own quote is dropped
+    ("0,5", "Vitamin C 0,5 mg", None),  # a decimal comma in an English record is not guessed
+])
+def test_d225_numbers_must_match_their_evidence(written, quote, kept):
+    ev = [{"file": "f", "locator": "l", "quote": quote}]
+    rec = ProductRecord.model_validate(_record(ingredients=[{"name": "Vitamin C", "amount_value": written,
+                                                             "amount_unit": "mg", "purpose": None, "evidence": ev}]))
+    r, notes = normalise(rec)
+    assert r.ingredients[0].amount_value == kept
+    assert (kept is None) == any("Vitamin C" in m for m in r.missing)
+
+
+def test_d225_a_decimal_comma_language_reads_commas_as_decimals():
+    ev = [{"file": "f", "locator": "l", "quote": "Zink 0,5 mg"}]
+    rec = ProductRecord.model_validate(_record(language="de", ingredients=[
+        {"name": "Zink", "amount_value": "0,5", "amount_unit": "mg", "purpose": None, "evidence": ev}]))
+    assert normalise(rec)[0].ingredients[0].amount_value == "0.5"

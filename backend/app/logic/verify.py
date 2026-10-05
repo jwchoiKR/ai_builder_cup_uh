@@ -14,7 +14,8 @@ MAX_SENTENCES = 2
 SET_PRICE_SUFFIX = "#key-facts#live-set-price"
 
 # A sentence ends at . ! ? followed by whitespace or the end of the text; "S$36.00" is one token.
-_NUMBER = re.compile(r"\d+(?:\.\d+)?")
+# D-225: "5,000" and "1,250.00" are one number (thousands separators), never "5" and "000"
+_NUMBER = re.compile(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d,])|\d+(?:\.\d+)?")
 
 
 def _ws(text: str) -> str:
@@ -31,7 +32,7 @@ def number_set(text: str) -> set[str]:
     out = set()
     for raw in _NUMBER.findall(text):
         try:
-            d = Decimal(raw).normalize()
+            d = Decimal(raw.replace(",", "")).normalize()
         except InvalidOperation:
             continue
         out.add(format(d, "f"))
