@@ -700,6 +700,32 @@ describe("host panel sizes (D-181)", () => {
   });
 });
 
+describe("back to the hub", () => {
+  it("the brand links to the hub with the session; while live it asks once, Ctrl-click and a ready show do not", () => {
+    window.history.pushState(null, "", "/host?session=ses_000001");
+    const { unmount } = render(view({ session: session({ status: "live" }) }));
+    const link = screen.getByTestId("hub-link");
+    expect(link).toHaveAttribute("href", "/?session=ses_000001");
+    expect(link).toHaveAccessibleName("Back to hub");
+    fireEvent.click(link, { ctrlKey: true }); // a new tab: no question
+    expect(screen.queryByTestId("hub-link-confirm")).toBeNull();
+    fireEvent.click(link);
+    expect(screen.getByTestId("hub-link-confirm")).toHaveTextContent("Leave this screen? The show keeps running.");
+    fireEvent.click(screen.getByText("Stay"));
+    expect(screen.queryByTestId("hub-link-confirm")).toBeNull();
+    expect(window.location.pathname).toBe("/host");
+    fireEvent.click(link);
+    fireEvent.click(screen.getByText("Leave"));
+    expect(window.location.pathname + window.location.search).toBe("/?session=ses_000001");
+    unmount();
+    window.history.pushState(null, "", "/host?session=ses_000001");
+    render(view({ session: session({ status: "ready", started_at: null }) }));
+    fireEvent.click(screen.getByTestId("hub-link"));
+    expect(screen.queryByTestId("hub-link-confirm")).toBeNull();
+    expect(window.location.pathname).toBe("/");
+  });
+});
+
 describe("host settings: reading size and microphone (D-119)", () => {
   it("reading size scales the host screen and is remembered", async () => {
     const { setReadingSize } = await import("../../app/prefs");

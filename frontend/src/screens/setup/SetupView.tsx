@@ -1,9 +1,9 @@
 // Pre-broadcast setup page (DEV_SPEC §12.7): documents, Brief Agent results, glossary confirmation.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { ThemeName } from "../../app/theme";
+import type { ThemeName, ThemePref } from "../../app/theme";
 import type { PrompterPoint, Product } from "../../app/types";
-import { Button, Chip, Eyebrow, Panel, ThemeToggle } from "../../components";
+import { Button, Chip, Eyebrow, HubLink, Panel, SettingsButton } from "../../components";
 import { GlossaryTable, type TermRow } from "./GlossaryTable";
 import type {
   BriefRecord,
@@ -43,10 +43,13 @@ export interface SetupViewProps {
   brand: string;
   client: SetupClient;
   theme: ThemeName;
-  onToggleTheme?: () => void;
+  /** the shared Settings gear (theme and UI language); absent in a Studio pane */
+  themePref?: ThemePref;
+  onSetTheme?: (t: ThemePref) => void;
+  sessionId?: string | null;
 }
 
-export function SetupView({ products, brand, client, theme, onToggleTheme }: SetupViewProps) {
+export function SetupView({ products, brand, client, theme, themePref, onSetTheme, sessionId = null }: SetupViewProps) {
   const [docs, setDocs] = useState<SetupDocument[]>([]);
   const [docMessage, setDocMessage] = useState<{ tone: "ok" | "risk"; text: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -204,7 +207,14 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
     <div className={styles.root} data-theme={theme}>
       <header className={styles.header}>
         <div className={styles.headerTitle}>
-          <Eyebrow>Pre-broadcast</Eyebrow>
+          <Eyebrow>
+            {onSetTheme && (
+              <>
+                <HubLink sessionId={sessionId} /> ·{" "}
+              </>
+            )}
+            Pre-broadcast
+          </Eyebrow>
           <span className={styles.title}>Setup</span>
           <span className={styles.subtitle}>{brand} · Product documents, Brief Agent and glossary</span>
         </div>
@@ -221,7 +231,7 @@ export function SetupView({ products, brand, client, theme, onToggleTheme }: Set
                 : "Default glossary (version 0)"
               : "Glossary"}
           </Chip>
-          {onToggleTheme && <ThemeToggle theme={theme} onToggle={onToggleTheme} />}
+          {onSetTheme && <SettingsButton themePref={themePref} onTheme={onSetTheme} />}
         </div>
       </header>
 

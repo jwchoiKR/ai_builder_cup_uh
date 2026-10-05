@@ -14,7 +14,7 @@ const POLL_COMPUTING_MS = 2000;
 const POLL_LIVE_MS = 5000;
 
 export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps) {
-  const [ownTheme, toggle] = useTheme();
+  const [ownTheme, , setTheme, themePref] = useTheme();
   const theme = forcedTheme ?? ownTheme;
   const [data, setData] = useState<SummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,8 @@ export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps
       data={data}
       theme={printing ? "light" : theme}
       embedded={embedded}
-      onToggleTheme={forcedTheme ? undefined : toggle}
+      themePref={themePref}
+      onSetTheme={forcedTheme ? undefined : setTheme}
       onExport={() => exportSummaryJson(data)}
       onExportPdf={() => setPrinting(true)}
       onBack={() => navigate(withSession("/", sessionId))}

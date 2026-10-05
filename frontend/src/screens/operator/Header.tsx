@@ -6,7 +6,7 @@ import { translate, useT, type Translate } from "../../app/i18n";
 import { formatClock, runsheetOf } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
 import type { ThemePref } from "../../app/theme";
-import { Button, Chip, ConnectionLabel, Eyebrow, SettingsButton, StatusDot } from "../../components";
+import { Button, Chip, ConnectionLabel, Eyebrow, HubLink, SettingsButton, StatusDot } from "../../components";
 import { useAction, useOperator } from "./context";
 import { ConfirmDialog } from "./Dialogs";
 import styles from "./operator.module.css";
@@ -69,7 +69,15 @@ export function OperatorHeader({
   return (
     <header className={styles.header} data-testid="op-header">
       <div className={styles.headerTitle}>
-        <Eyebrow>{t("BROADCAST WORKSPACE")}</Eyebrow>
+        <Eyebrow>
+          {showSettings && (
+            // back to the Hub (not in a Studio pane); during a live show it asks first
+            <>
+              <HubLink sessionId={sid} live={s?.status === "live"} /> ·{" "}
+            </>
+          )}
+          {t("BROADCAST WORKSPACE")}
+        </Eyebrow>
         <h1 className={styles.title}>{t("Live control room")}</h1>
         <span className={styles.subtitle}>{subtitle}</span>
       </div>

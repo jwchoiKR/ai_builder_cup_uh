@@ -6,7 +6,7 @@ import { setupApi } from "./setup/setupApi";
 import { SetupView } from "./setup/SetupView";
 
 export function Setup(props: ScreenProps) {
-  const [ownTheme, toggle] = useTheme();
+  const [ownTheme, , setTheme, themePref] = useTheme();
   const theme = props.theme ?? ownTheme;
   const catalog = useCatalog();
   return (
@@ -15,7 +15,9 @@ export function Setup(props: ScreenProps) {
       brand={catalog?.brand ?? "DAON LAB"}
       client={setupApi}
       theme={theme}
-      onToggleTheme={props.embedded ? undefined : toggle}
+      themePref={themePref}
+      onSetTheme={props.embedded ? undefined : setTheme}
+      sessionId={props.sessionId}
     />
   );
 }

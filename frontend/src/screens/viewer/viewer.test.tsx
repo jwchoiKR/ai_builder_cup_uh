@@ -22,6 +22,19 @@ function view(state: ClientState, extra: Partial<Parameters<typeof ViewerView>[0
   return <ViewerView state={state} catalog={catalog} connection="connected" theme="light" inputEnabled={false} {...extra} />;
 }
 
+describe("page chrome", () => {
+  it("the standalone viewer has the hub link and the Settings gear outside the phone; embedded it has neither", () => {
+    const { unmount } = render(view(stateWith(), { onSetTheme: vi.fn(), themePref: "system" }));
+    const phone = screen.getByTestId("viewer-phone");
+    expect(screen.getByTestId("hub-link")).toHaveAttribute("href", "/?session=ses_000001");
+    expect(phone.contains(screen.getByTestId("hub-link"))).toBe(false);
+    expect(phone.contains(screen.getByTestId("settings-button"))).toBe(false);
+    unmount();
+    render(view(stateWith(), { embedded: true }));
+    expect(screen.queryByTestId("hub-link")).toBeNull();
+  });
+});
+
 const raj = comment({ comment_id: "cm_1", author_id: "u_raj", author_name: "Raj", text: "Is it OK for oily skin?", received_at: T0 + 1000 });
 const priya = comment({ comment_id: "cm_2", author_id: "u_priya", author_name: "Priya", text: "oily skin here, ok?", received_at: T0 + 2000 });
 const lee = comment({ comment_id: "cm_3", author_id: "u_lee", author_name: "Lee", text: "How much is the cream?", received_at: T0 + 2500, group_id: "grp_2" });

@@ -204,6 +204,15 @@ afterEach(() => {
 });
 
 describe("Operator screen", () => {
+  it("links back to the hub with the session and asks first while live", async () => {
+    snap = snapshot({ session: { ...snapshot().session!, status: "live" } });
+    render(<Operator sessionId="ses_op_hub" />);
+    const link = await screen.findByTestId("hub-link");
+    expect(link).toHaveAttribute("href", "/?session=ses_op_hub");
+    fireEvent.click(link);
+    expect(screen.getByTestId("hub-link-confirm")).toBeInTheDocument();
+  });
+
   it("shows the escalated compliance card as Not corrected", async () => {
     snap = snapshot({ alerts: [alert({ escalated_at: T0 + 10_000 })] });
     render(<Operator sessionId="ses_op_escalated" />);
@@ -214,7 +223,7 @@ describe("Operator screen", () => {
     expect(within(card).getByText("Send correction cue")).toBeInTheDocument();
     expect(within(card).getByText("Dismiss false alert")).toBeInTheDocument();
     expect(screen.getByText("Live control room")).toBeInTheDocument();
-    expect(screen.getByText("BROADCAST WORKSPACE")).toBeInTheDocument();
+    expect(screen.getByText(/BROADCAST WORKSPACE/)).toBeInTheDocument();
   });
 
   it("requires Post anyway for a restricted phrase", async () => {
