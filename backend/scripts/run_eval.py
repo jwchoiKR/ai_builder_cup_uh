@@ -267,7 +267,10 @@ FACT_NOT_CONTRADICTED = ["U20", "U22", "U24", "U26"]
 
 
 def _norm_value(v: str | None) -> str:
-    return " ".join((v or "").lower().replace("ml", " ml").split())
+    import re
+
+    # "+45%" is the same value as "45%" (holdout H052)
+    return " ".join(re.sub(r"\+(?=\d)", "", (v or "").lower()).replace("ml", " ml").split())
 
 
 def _same_value(got: str | None, want: str) -> bool:

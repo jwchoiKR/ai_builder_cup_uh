@@ -184,3 +184,19 @@ def test_qualifier_ok_allows_only_a_lone_qualifier_medium():
     assert not checks(exp, judge(other))[0][2] and not checks(exp, judge(q, other))[0][2]
     assert not checks(exp, judge({**q, "severity": "HIGH"}))[0][2]
     assert not checks({"compliance": False}, judge(q))[0][2]  # without the label it is a leak
+
+
+def test_a_signed_percent_and_a_price_field_alias_score_as_the_same():
+    """Holdout H052 ("+45%" vs "45%") and H046 (a time-sale set price filed as set_price or promo)."""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    from run_eval import _same_value
+
+    assert _same_value("45%", "+45%") and not _same_value("40%", "+45%")
+    facts = {"claims": [{"verdict": "contradicted", "field": "set_price", "correct_value": "S$55.80"}]}
+    exp = {"fact": "contradicted", "field": "promo", "correct_value": "S$55.80"}
+    assert expectation_checks(exp, {}, facts, _same_value)[-1][2]
+    other = {"claims": [{"verdict": "contradicted", "field": "volume", "correct_value": "S$55.80"}]}
+    assert not expectation_checks(exp, {}, other, _same_value)[-1][2]
