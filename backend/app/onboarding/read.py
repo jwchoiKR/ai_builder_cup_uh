@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 import time
+from decimal import Decimal
 from pathlib import Path
 
 from ..providers.llm import LLMClient, LLMRequest
@@ -35,15 +36,33 @@ def _money_ok(m: Money, notes: list[str], where: str) -> bool:
     return True
 
 
-def _decimal(v: str | None) -> str | None:
-    """A number as written ("30", "0,2", "30 ml") as a plain decimal string ("30", "0.2"), or None."""
+# D-225: languages that write a decimal comma ("0,5 %"); elsewhere a comma separates thousands ("5,000 mg")
+DECIMAL_COMMA = frozenset({"de", "fr", "es", "it", "pt", "nl", "id", "ru", "tr", "vi", "pl", "cs", "sv", "da", "fi",
+                           "nb", "no", "ro", "hu", "el", "uk", "bg", "hr", "sk", "sl", "lt", "lv", "et"})
+_NUM = re.compile(r"\d[\d.,]*\d|\d")
+
+
+def _plain(raw: str, comma_decimal: bool) -> str | None:
+    if not comma_decimal and "," in raw and not re.fullmatch(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?", raw):
+        return None  # "0,50" outside a decimal-comma language is ambiguous: never guessed
+    n = raw.replace(".", "").replace(",", ".") if comma_decimal else raw.replace(",", "")
+    if n.count(".") > 1:
+        return None
+    return n.rstrip("0").rstrip(".") if "." in n else n.lstrip("0") or "0"
+
+
+def _decimal(v: str | None, comma_decimal: bool = False) -> str | None:
+    """A number as written ("30", "5,000 mg", "0,2" in a decimal-comma language) as a plain decimal string
+    ("30", "5000", "0.2"), or None."""
     if v is None:
         return None
-    m = re.search(r"\d+(?:[.,]\d+)?", v)
-    if m is None:
-        return None
-    n = m.group().replace(",", ".")
-    return n.rstrip("0").rstrip(".") if "." in n else n
+    m = _NUM.search(v)
+    return _plain(m.group(), comma_decimal) if m else None
+
+
+def _numbers_in(evidence, comma_decimal: bool) -> set[str]:
+    """Every number in the evidence quotes, normalised like the extracted values."""
+    return {n for e in evidence for m in _NUM.finditer(e.quote) if (n := _plain(m.group(), comma_decimal))}
 
 
 def _unit(u: str | None) -> str | None:
@@ -53,9 +72,22 @@ def _unit(u: str | None) -> str | None:
 
 
 def normalise(rec: ProductRecord) -> tuple[ProductRecord, list[str]]:
-    """Step 3, in code: ISO currencies, unit names, unique variant ids, and no value without evidence."""
+    """Step 3, in code: ISO currencies, unit names, unique variant ids, and no value without evidence.
+    D-225: every number must appear as written in its own evidence quote; one that does not is dropped and listed in
+    `missing` (0 wrong numbers beats a complete record)."""
     notes: list[str] = []
     r = rec.model_copy(deep=True)
+    comma = r.language.split("-")[0].lower() in DECIMAL_COMMA
+
+    def checked(written: str | None, evidence, where: str) -> str | None:
+        if written is None or not written.strip():
+            return None
+        value = _decimal(written, comma)
+        if value is not None and value in _numbers_in(evidence, comma):
+            return value
+        notes.append(f"{where}: {written!r} is not a clear number in its evidence quote; dropped")
+        r.missing.append(where)
+        return None
     seen: set[str] = set()
     kept = []
     for i, v in enumerate(r.variants):
@@ -65,10 +97,13 @@ def normalise(rec: ProductRecord) -> tuple[ProductRecord, list[str]]:
         vid = v.variant_id.strip() or f"v{i + 1}"
         while vid in seen:
             vid += "_2"
-        v.variant_id, v.size_unit, v.size_value = vid, _unit(v.size_unit), _decimal(v.size_value)
+        v.variant_id, v.size_unit = vid, _unit(v.size_unit)
+        v.size_value = checked(v.size_value, v.evidence, f"variants[{vid}].size_value")
         if v.market:
             v.market = v.market.strip().upper()
-        v.prices = [m for m in v.prices if m.evidence and _money_ok(m, notes, f"variants[{i}].prices")]
+        v.prices = [m for m in v.prices if m.evidence and _money_ok(m, notes, f"variants[{i}].prices")
+                    and checked(str(Decimal(m.minor) / 100), m.evidence,
+                                f"variants[{vid}].prices.{m.kind}.{m.currency}") is not None]
         seen.add(vid)
         kept.append(v)
     r.variants = kept
@@ -78,9 +113,10 @@ def normalise(rec: ProductRecord) -> tuple[ProductRecord, list[str]]:
         o.variant_ids = [x for x in o.variant_ids if x in seen]
     r.offers = [o for o in r.offers if o.evidence]
     for ing in r.ingredients:
-        ing.amount_unit, ing.amount_value = _unit(ing.amount_unit), _decimal(ing.amount_value)
+        ing.amount_unit = _unit(ing.amount_unit)
+        ing.amount_value = checked(ing.amount_value, ing.evidence, f"ingredients[{ing.name}].amount")
     for o in r.offers:
-        o.percent = _decimal(o.percent)
+        o.percent = checked(o.percent, o.evidence, f"offers[{o.offer_id}].percent")
     for name in ("approved_claims", "not_approved_claims", "cautions", "how_to_use", "key_facts", "ingredients",
                  "avoid_saying", "qualified_results"):
         items = getattr(r, name)
