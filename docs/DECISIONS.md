@@ -1392,3 +1392,8 @@ D-260: Live-only fixes for the final pool-2 run: a result said in number words k
 - **Compliance retry:** in split3, a compliance call that times out, errors or comes back invalid is made once more, like the fact check (D-203).
 - **Availability:** a new fact field `availability`. Channels (online only, retail counters) and markets with their limits are checkable.
 - **Codes as names (item 4):** no change. `_same_substance` compares only Latin name words of 4 or more letters, so "CI 77491" against "CI 77499" is not dropped as another substance. A code swap reaches the alert.
+
+D-261: A test result matches by the numbers its statement says, a word correction the line already says is a restatement, and a strict threshold with "not" agrees (candidate 947084e, pool-2 lip tint 55.6% to 79.6%; logic).
+- **Result numbers:** `qualifier.result_numbers` = the result's numbers normalised ("8.0" is 8), plus every number its say line states before the qualifier, in digits or words. A release whose result held "8.0", or no numbers, matched nothing for "eight hours", so the judge's alert was dropped (D-116).
+- **Word restatements:** a correction without numbers whose value words are all in the line, with the same polarity, is dropped ("available online only" against "Online only"). A negation on one side still makes it the opposite fact ("contains no fragrance" against "contains fragrance").
+- **Strict thresholds:** with "above" or "below" (or > / <) on either side, "S$40 does not qualify" and "above S$40" agree. The polarity rule (D-260) applies only to exact or inclusive thresholds.

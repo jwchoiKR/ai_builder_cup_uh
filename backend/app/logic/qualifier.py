@@ -17,6 +17,15 @@ from .lexicon import Lexicon
 RULE_ID = "BRAND-TEST-QUALIFIER"
 MIN_COVERAGE = 0.4  # without a matching number, this share of the approved wording must be heard
 
+def result_numbers(r: QualifiedResult, lex: Lexicon) -> set[str]:
+    """D-261 (candidate 947084e: a release result held "8.0", or no numbers, so "eight hours" matched nothing): the
+    result's numbers normalised, plus every number its statement says (the say line before the qualifier)."""
+    from .verify import number_set
+
+    statement = r.say[:r.say.rfind("(")] if "(" in r.say else r.say
+    return number_set(" ".join(r.numbers)) | number_set(statement) | lex.spoken_numbers(statement)
+
+
 def approved_replacement(text: str, on_air: Product, others: Sequence[Product], lex: Lexicon) -> QualifiedResult | None:
     """The approved result the sentence is about: most matching numbers, then the product on air,
     then most matching words. None when nothing matches well enough (no wording is invented)."""
@@ -26,7 +35,7 @@ def approved_replacement(text: str, on_air: Product, others: Sequence[Product], 
     best, best_key = None, None
     for rank, product in enumerate([on_air, *others]):
         for r in product.qualified_results:
-            hits = len(numbers & set(r.numbers))
+            hits = len(numbers & result_numbers(r, lex))
             cov = lex.coverage(lex.claim_words(r.say), heard)
             if hits == 0 and cov < MIN_COVERAGE:
                 continue
