@@ -1016,3 +1016,53 @@ async def test_d251_a_right_price_with_a_wrong_term_keeps_its_alert(tmp_path, mo
     assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
                                "Use it within nine months after opening.", period, row) == []
     assert [d["reason"] for d in row["dropped"]] == ["L1: a stated number corrected without a number"]
+
+
+@pytest.mark.parametrize("line, shown", [
+    ("A viewer says, 'it cures eczema,' and yes, that is what the cream does.", True),
+    ("A viewer calls it the best in the country, and I fully agree.", True),
+    ("A viewer says it cures eczema, but I don't agree, it is a cosmetic.", False),
+])
+async def test_d252_a_quote_the_host_endorses_is_the_hosts_own_claim(line, shown):
+    from .judge_fakes import close_env, make_env, speak, violation
+
+    rt, llm = await make_env()
+    try:
+        llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema", quoted=True)])
+        await speak(rt, line)
+        active = [a for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
+    finally:
+        await close_env(rt)
+    assert bool(active) is shown
+
+
+def test_d252_offer_combinability_and_conditions_are_labelled():
+    from app.onboarding.release import release_pack
+
+    ev = [{"file": "f", "locator": "l", "quote": "10% off; cannot be combined with other codes"}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(offers=[
+        {"offer_id": "o1", "kind": "percent_off", "title": "10% off", "variant_ids": [], "percent": "10", "amount": None,
+         "buy": None, "get": None, "gift": None, "rounding": None, "starts": None, "ends": None, "duration_min": None,
+         "combinable": False, "conditions": ["one per order"], "evidence": ev}])))
+    ctx = make_ctx()
+    try:
+        facts = [p.text for p in release_pack(ctx.pack, rec, "rel_x_v1", None).passages if p.text.startswith("Offer:")]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert "combinable with other offers or codes: no" in facts[0] and "condition: one per order" in facts[0]
+
+
+async def test_d252_an_absence_the_quote_does_not_state_is_no_correction(tmp_path, monkeypatch):
+    facts = [{"text": "Reapply after swimming or water exposure and every 2 hours.", "evidence": EV}]
+
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text == facts[0]["text"])
+        return _claim(pid, p, field="usage", stated_value="reapply after swimming",
+                      correct_value="No water-resistance claim is made",
+                      quote="Reapply after swimming or water exposure")
+
+    row: dict = {}
+    assert await _release_line(tmp_path, monkeypatch, {"key_facts": facts},
+                               "Reapply after swimming, and also every two hours.", claim, row) == []
+    assert [d["reason"] for d in row["dropped"]] == ["L1: an absence the quote does not state"]

@@ -85,6 +85,8 @@ class Offer(_Model):
     starts: str | None = None  # ISO date or datetime as stated
     ends: str | None = None
     duration_min: int | None = None
+    combinable: bool | None = None  # D-252: combines with other offers or codes; None when the files do not say
+    conditions: list[str] = []  # D-252: other terms as written (exclusions, limits per order, eligibility)
     evidence: list[Evidence]
 
 

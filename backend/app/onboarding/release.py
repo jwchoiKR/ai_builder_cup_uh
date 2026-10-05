@@ -195,6 +195,9 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
             terms.append(f"{label} {money_of(o.amount)}")
         if o.gift:
             terms.append(f"gift: {o.gift}")
+        if o.combinable is not None:  # D-252: labelled, so "it combines with a code" meets "combinable: no"
+            terms.append(f"combinable with other offers or codes: {'yes' if o.combinable else 'no'}")
+        terms += [f"condition: {x}" for x in o.conditions]
         if o.buy and o.get:
             terms.append(f"buy {o.buy} get {o.get}")
         if o.starts or o.ends:

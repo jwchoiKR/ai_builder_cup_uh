@@ -18,6 +18,9 @@ Rules:
   or recommended price, "live" for a price only during the live show or broadcast, "promo" for a limited offer
   price. `market` is the country code the price is for when the files say (SG, MY), else null.
 - Variants: one per size or version sold. Use the document's code or SKU as `variant_id` when there is one.
+- Offers: `combinable` is whether the offer combines with other offers or discount codes as the files state (null
+  when they do not say); `conditions` lists every other term as written (exclusions, limits per order or customer,
+  eligibility, which sizes or variants count).
 - Offers: percent off, amount off, fixed price, buy X get Y, a gift over a spend, a bundle of variants. Copy the
   stated terms, rounding rule, dates and duration; do not compute prices that are not written.
 - Ingredients: name, amount and unit as written. `ingredient_list_complete` is true only when a file gives the full
