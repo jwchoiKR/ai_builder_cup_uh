@@ -254,3 +254,21 @@ async def test_a_long_new_sentence_is_still_judged_alone(env):
     rt, _ = env
     t1, t2 = await split(rt, "It absorbs really fast.", "And now let me show you the texture on my hand.")
     assert (await stored(rt, t2)).merged_from_transcript_id is None
+
+
+async def test_the_fact_checker_sees_where_a_merged_utterance_was_split(env):
+    """D-167 (local SEED1 replay): "about 50% no plain water" + "Niacinamide" was read as "50% Niacinamide"; the
+    fact checker now gets the parts with " / " and a rule not to pair a number with the next sentence's subject."""
+    rt, llm = env
+    seen: list[str] = []
+    generate = llm.generate
+
+    async def record(req, timeout_ms):
+        if req.agent == "fact_checker":
+            seen.append(req.user_message)
+        return await generate(req, timeout_ms)
+    llm.generate = record
+    await speak(rt, "The base is aloe water, about half, no plain water")
+    await speak(rt, "Ceramides")
+    assert '>The base is aloe water, about half, no plain water / Ceramides</data>' in seen[-1]
+    assert "The base is aloe water, about half, no plain water" in seen[0] and " / " not in seen[0]

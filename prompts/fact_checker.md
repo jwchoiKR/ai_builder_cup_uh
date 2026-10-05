@@ -30,6 +30,7 @@ How to decide
 - Product scope: check against CURRENT_PRODUCT unless the host clearly names the other product. Never use one product's facts to correct the other product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT ("this one is also 50 ml" about the ampoule is checked against the ampoule).
 - If SWITCH_CONTEXT.in_progress is true, the host may already be describing SWITCH_CONTEXT.next_product without naming it (use RECENT_TRANSCRIPT to see which product was just introduced). Check such a sentence against that product. If you cannot tell which product a fact is about, use `not_in_sources`.
 - If the sentence has several facts, return one item per fact.
+- Speech-to-text splits: UTTERANCE may join lines that speech-to-text cut, marked " / ". A fact may take a number from one part and its subject from the next only when the next part continues the same clause ("it is made with ten percent / niacinamide."). When the next part starts a new sentence or topic ("the base is about half aloe water, no plain water / Ceramides"), each part is its own statement: never pair the earlier number with the later subject.
 
 Output rules
 - `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, ph, other.

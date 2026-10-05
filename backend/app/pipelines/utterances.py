@@ -303,7 +303,8 @@ class UtterancePipeline:
                 comp_task = rt.spawn(self.judge.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS),
                                      name=f"judge:{t.transcript_id}")
                 ctx_task = None
-            facts_task = None if self.single else rt.spawn(self._run_facts(inp.utterance, on_air, inp, scenario),
+            parts = [self._prepared[tid][0].text for tid in merge.chain if tid in self._prepared] + [t.text] if merge else []
+            facts_task = None if self.single else rt.spawn(self._run_facts(inp.utterance, on_air, inp, scenario, parts),
                                                            name=f"facts:{t.transcript_id}")
             waiting = {task for task in (comp_task, ctx_task, facts_task) if task is not None}
             while waiting:
@@ -414,14 +415,15 @@ class UtterancePipeline:
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
 
-    async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str) -> AgentResult:
+    async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
+                         parts: list[str] | None = None) -> AgentResult:
         passages = await self._fact_passages(text, on_air, judge_input.switch)
         s = await self.rt.load_session()
         offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
         return await self.facts.run(
             FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
                       passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario,
-                      offers=offers),
+                      offers=offers, parts=parts or []),
             deadline_ms=self.rt.settings.FACT_LATE_MS,  # D-144: on time is FACT_TIMEOUT_MS
         )
 

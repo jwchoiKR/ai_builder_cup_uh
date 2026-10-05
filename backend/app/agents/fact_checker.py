@@ -83,6 +83,7 @@ class FactInput:
     passages: list[Passage]
     previous: list[str] = field(default_factory=list)
     offers: list[Promo] = field(default_factory=list)  # D-149: running offers that change no price
+    parts: list[str] = field(default_factory=list)  # D-167: the finals a merged utterance joins, oldest first
     session_id: str | None = None
     scenario: str = "default"
 
@@ -202,7 +203,8 @@ class FactChecker:
             "set_offers_json": inputs.set_offers_json(self.catalog, inp.promo),
             "passages_json": inputs.passages_json(inp.passages),
             "last_two_final_transcripts_json": inp.previous[-2:],
-            "utterance_text": inputs.utterance_text(inp.utterance),
+            # D-167: a merged utterance shows where speech-to-text split it ("A / B")
+            "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
         }, {"current_product_compact_json", "passages_json"})
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
