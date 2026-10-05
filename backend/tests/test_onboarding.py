@@ -1390,3 +1390,38 @@ async def test_d260_a_failed_compliance_call_is_made_once_more():
 
     res = await UtterancePipeline._once_more(call)
     assert res.status == "ok" and len(calls) == 2
+
+
+@pytest.mark.parametrize("numbers", [["8"], [], ["8.0"]])
+def test_d261_a_result_matches_by_its_statement_numbers_too(pack, numbers):
+    from app.logic import qualifier
+    from app.models.data import QualifiedResult
+
+    r = QualifiedResult(result_id="x", numbers=numbers,
+                        say="Non-transferring for 8 hours, indoors (tested by Larkspur Labs, report LL-77)")
+    p = pack.products.products[0].model_copy(update={"qualified_results": [r]})
+    assert qualifier.approved_replacement("this tint stays non-transferring for eight hours", p, [], pack.lexicon) == r
+
+
+async def test_d261_a_word_correction_the_line_already_says_is_dropped(tmp_path, monkeypatch):
+    facts = [{"text": "Available online only.", "evidence": EV},
+             {"text": "Free gift on orders above S$40.", "evidence": EV}]
+
+    def online(pid, ps):
+        p = next(p for p in ps if p.text == facts[0]["text"])
+        return _claim(pid, p, field="availability", stated_value="available online only in both markets",
+                      correct_value="Online only")
+
+    row: dict = {}
+    assert await _release_line(tmp_path / "a", monkeypatch, {"key_facts": facts},
+                               "It is available online only, in both listed markets.", online, row) == []
+    assert [d["reason"] for d in row["dropped"]] == ["D-261: the line already says the correction"]
+
+    def threshold(pid, ps):
+        p = next(p for p in ps if p.text == facts[1]["text"])
+        return _claim(pid, p, field="promo", stated_value="S$40 does not qualify (threshold above S$40)",
+                      correct_value="above S$40")
+
+    row = {}
+    assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
+                               "Forty-four dollars qualifies while forty does not.", threshold, row) == []

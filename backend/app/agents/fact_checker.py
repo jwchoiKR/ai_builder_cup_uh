@@ -46,7 +46,10 @@ _FRAME = frozenset({"does", "contain", "includes", "include", "included", "made"
 
 
 def _polarity_differs(lex, host: str, correct: str | None) -> bool:
-    """D-260: "exactly S$40 qualifies" against "Exactly S$40 does not qualify": the same number, the opposite fact."""
+    """D-260: "exactly S$40 qualifies" against "Exactly S$40 does not qualify": the same number, the opposite fact.
+    D-261: with a strict threshold on either side, "S$40 does not qualify" and "above S$40" agree."""
+    if {lex.comparison_kind(host), lex.comparison_kind(correct or "")} & {"gt", "lt"}:
+        return False
     neg = lambda t: any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", (t or "").lower())  # noqa: E731
                         for n in lex.negation_words)
     return neg(host) != neg(correct)
@@ -283,6 +286,11 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                 or (c.stated_value or "").strip().lower() == (c.correct_value or "").strip().lower())
                 and not threshold):
             _drop(c, "D-151: the correction restates what the host said")
+            continue
+        if (not right and _words_within(c.correct_value, host) and not _polarity_differs(lex, host, c.correct_value)):
+            # D-261 (candidate 947084e: "available online only" corrected by "Online only"): every value word of a
+            # word correction is already in the line, with the same polarity: a restatement
+            _drop(c, "D-261: the line already says the correction")
             continue
         if (c.field in WORD_FIELDS and _words_within(c.stated_value, c.correct_value)
                 # D-248: "contains fragrance" against "No fragrance is added" (or the other way) is the opposite
