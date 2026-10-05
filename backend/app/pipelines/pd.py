@@ -210,20 +210,21 @@ class PdDirector:
                      "current_card": card.say if card else None}
             payload = [{"id": c.cid, "kind": c.kind, "say": c.say, "detail": c.detail} for c in cands]
         chosen, source, reason = None, "rule", "rule fallback"
-        if self.agent is not None:
+        # D-163 (local SEED1 replay): a due card is offered only at a break; a model call longer than the break
+        # (timeouts took ~2.1 s) made the re-check below drop it. A pulled, pushed or due question has no choice to
+        # make (D-153: the rules show it anyway), so the rules decide at once.
+        forced = any(c.forced for c in cands)
+        if forced:
+            reason = "due question"
+        if self.agent is not None and not forced:
             choice, ms, status = await self.agent.choose(state, payload, PD_DEADLINE_MS)
             self.latencies.append(ms)
             self.statuses[status] += 1
             if choice is not None:
                 if choice.choice == "none":
-                    # D-153 (00007 show replays): a talkative host is always "mid-topic", so the model said
-                    # "none" to every due card. A pulled, pushed or due question is shown by the rules then.
-                    if not any(c.forced for c in cands):
-                        return
-                    reason = "due question"
-                else:
-                    chosen = next((c for c in cands if c.cid == choice.choice), None)
-                    source, reason = "ai", choice.reason
+                    return
+                chosen = next((c for c in cands if c.cid == choice.choice), None)
+                source, reason = "ai", choice.reason
         if chosen is None:
             chosen = pdl.rule_pick(cands)
         if chosen is None:

@@ -245,7 +245,7 @@ async def test_a_due_question_card_shows_even_when_the_model_says_none(env):
         if card is not None:
             break
     assert card is not None and card.ref_id == g.group_id
-    assert rt.pd.agent.calls >= 1
+    assert rt.pd.agent.calls == 0  # D-163: a due question is decided by the rules, the model is not asked
 
 
 async def test_an_uncorrected_red_alert_blocks_cards_only_while_it_is_fresh(env):
@@ -278,3 +278,34 @@ def test_a_fresh_red_alert_is_one_created_or_escalated_within_the_block():
     assert pdl.red_blocks([Alert(**base, escalated_at=5_000)], pdl.RED_BLOCK_MS + 4_999)
     assert not pdl.red_blocks([Alert(**{**base, "severity": "MEDIUM"})], 1)
     assert not pdl.red_blocks([Alert(**{**base, "status": "corrected"})], 1)
+
+
+class SlowTimeout:
+    """The AI PD model when its call runs out: 2.5 s pass on the show clock, then no choice."""
+
+    def __init__(self, clock):
+        self.clock, self.calls = clock, 0
+
+    async def choose(self, state, candidates, deadline_ms):
+        self.calls += 1
+        self.clock.advance(2_500)
+        return None, 2_500, "timeout"
+
+
+async def test_a_due_question_card_does_not_wait_for_the_model(env):
+    """D-163 (local SEED1 replay on HEAD): how-to-use waited 285 s with a verified draft. Due at a break (2 s after
+    a final), it went to the model, which timed out after ~2.1 s; the re-check then found the break over and dropped
+    the card, and the unchanged candidate key never decided it again. A due question is decided by the rules at once."""
+    rt, _ = env
+    rt.pd.agent = SlowTimeout(rt.ctx.clock)
+    await speak(rt, "Welcome everyone, today we start with the cream.")
+    await say(rt, "Mei", "Is the cream okay for oily skin?")
+    [g] = await rt.groups()
+    assert g.route == "HOST" and g.status == "ready"
+    for _ in range(30):  # 120 s of talking, never an 8 s pause
+        await rt.ctx.scheduler.advance(4000)
+        await speak(rt, "Look at the texture, it is so light on the skin.")
+        card = (await rt.load_session()).pd_card
+        if card is not None:
+            break
+    assert card is not None and card.ref_id == g.group_id
