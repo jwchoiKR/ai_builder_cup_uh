@@ -27,6 +27,7 @@ For the COMMENT, decide:
 3. `intent`: exactly one value from INTENTS. Choose the most specific. "Will it remove my wrinkles?" is `efficacy_claim`. "Can I use it with vitamin C?" is `how_to_use`.
    - Whether it suits a skin type (oily, dry, sensitive, combination), including "will it feel heavy or greasy on oily skin?", is `skin_type_suitability`.
    - The price of both products together (set, bundle, "both", "cream and ampoule", "two-item") is `set_price`.
+   - The order in which to apply the show's products on the skin is `routine_order`; its `canonical_question` names both products in full, with "it" or "this" resolved ("does the ampoule go on before the cream?"). Which one to buy (first) is `product_comparison`.
    - What kind of product it is ("is it a serum?", "essence or serum?", "is this a moisturiser?") is `texture`, about that product (or the product in CONTEXT_PRODUCT_ID), with a canonical question about it ("Is it a serum?"). `product_comparison` is only for comparing the show's products with each other.
    - How long a running sale or offer lasts, or when it ends, is `promo`; so is a question about a running offer's terms (how much to spend for the gift, whether a bundle also gets it).
    - A product question the sheet can answer is never `other`: "ml in this jar?" is `volume`, "has perfume?" is `fragrance`, "SPF?" is `ingredients`, "can use at night?" is `how_to_use`, "how long does it last after opening?" is `shelf_life`.
