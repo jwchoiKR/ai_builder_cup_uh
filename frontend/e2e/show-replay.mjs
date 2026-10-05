@@ -171,7 +171,10 @@ function groupDetail(run, qg, mine, gs, list) {
   return { ...base, reason };
 }
 
-/** The spoken line each final belongs to: the most overlapping line that had started before it. */
+/** The spoken line each final belongs to: the most overlapping line that had started before it (within
+ *  LINE_WINDOW_MS); on a tie the latest. A repeated claim ("38% more hydration" a minute after the qualified
+ *  "38%") or a short earlier line whose words all recur scored the same as the line itself, and the first won. */
+const LINE_WINDOW_MS = 60_000;
 function finalsByLine(run) {
   const byLine = new Map(run.spoken.map((s) => [s.t_s, []]));
   for (const f of run.finals) {
@@ -179,8 +182,11 @@ function finalsByLine(run) {
     const t = run.seen.transcripts[f.transcript_id];
     let best = null, bestScore = 0;
     for (const s of run.spoken) {
+      if (f.at !== undefined && (s.started > f.at || f.at - s.started > LINE_WINDOW_MS)) continue;
       const score = overlap(f.text, s.text);
-      if (score > bestScore) { best = s; bestScore = score; }
+      if (score > bestScore || (f.at !== undefined && score === bestScore && best && s.started > best.started)) {
+        best = s; bestScore = score;
+      }
     }
     if (best && bestScore >= 0.3) byLine.get(best.t_s).push({ ...f, transcript: t ?? null });
   }
