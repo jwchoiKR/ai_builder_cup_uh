@@ -1,0 +1,94 @@
+"""The BriefAgent on an approved release (D-265): an STT glossary and prompter points for an onboarded product.
+
+Before this, a release's show had the approved claims as prompter points (the first one required) and a glossary of
+only its brand, product and four ingredient names, so new names had few phrase hints for speech-to-text. At approval
+the BriefAgent now reads the release's record and its source files' readable text (any language) and writes
+briefs/<release_id>.json, write-once like the release. A session from the release uses its glossary as phrase hints
+and its points on the prompter; without a brief (a failure, or a release made before) nothing changes.
+"""
+from __future__ import annotations
+
+import json
+import time
+from pathlib import Path
+
+from ..agents.brief import BriefAgent, BriefInput
+from ..models.agent_io import BriefOutput
+from .record import ProductRecord, money_value
+from .storage import persisted
+
+MAX_POINTS = 10
+MAX_POINT_CHARS = 140
+
+ADDENDUM = """This is an onboarded product. DOCUMENT holds its approved record and the readable text of its source files,
+in any language. The show's language is {lang}. These rules replace the counts and lengths above.
+A. Glossary: every brand, product and short name, ingredient and key technical term as the files write it (original
+spelling, any script), with `spoken_forms`: how a host says it in {lang}, and sound-alikes a speech recogniser may hear
+instead. Up to 40 terms.
+B. Prompter points, written in {lang}: the must-say items: the key approved claims with their qualifiers and test
+conditions, the cautions the host must say, and the offers with their conditions. `required=true` for the cautions
+and the qualified claims that must be said. At most {max_points} points, each at most {max_chars} characters. Never a
+claim the record lists as not approved, and never a value the DOCUMENT does not state."""
+
+
+def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = ()) -> str:
+    """The record as a sheet with section headings, then each source file's readable text."""
+    lines = [f"# {record.product_name}", f"Brand: {record.brand}"]
+    if record.short_names:
+        lines.append("Also called: " + ", ".join(record.short_names))
+    lines.append(f"Category: {record.category}")
+    if record.ingredients:
+        lines += ["", "## Key ingredients", "| Ingredient | Amount |", "|---|---|"]
+        lines += [f"| {i.name} | {(i.amount_value or '') + ' ' + (i.amount_unit or '')} |".replace("  ", " ")
+                  for i in record.ingredients]
+    sections = (("Approved on-air claims", [c.text for c in record.approved_claims]),
+                ("Test results", [f"{q.statement}{', ' + q.conditions if q.conditions else ''} ({q.qualifier})"
+                                  for q in record.qualified_results]),
+                ("Cautions", [c.text for c in record.cautions]),
+                ("Offers", [o.title + "".join(f"; {c}" for c in o.conditions)
+                            + (f"; {money_value(o.amount.currency, o.amount.minor)} {o.amount.currency}" if o.amount
+                               else "") for o in record.offers]),
+                ("How to use", [h.text for h in record.how_to_use]),
+                ("Key facts", [k.text for k in record.key_facts]),
+                ("Claims not approved", [c.text for c in record.not_approved_claims]))
+    for title, items in sections:
+        if items:
+            lines += ["", f"## {title}", *(f"- {x}" for x in items)]
+    for name, text in file_texts:
+        if text.strip():
+            lines += ["", f"## Source file {name}", text.strip()]
+    return "\n".join(lines)
+
+
+async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record: ProductRecord, lang: str, *,
+                        model: str | None = None, thinking: str | None = None, deadline_ms: int = 60_000):
+    """(AgentResult, seconds) of the BriefAgent on a release. `model`/`thinking` override BRIEF_MODEL/BRIEF_THINKING
+    (scripts/eval_brief.py)."""
+    from .sources import release_sources
+
+    texts = [(p.doc, p.text) for p in release_sources(str(root), release_id)[1]]
+    agent = BriefAgent(llm, prompt, reflex, extra=ADDENDUM.format(lang=lang, max_points=MAX_POINTS,
+                                                                   max_chars=MAX_POINT_CHARS),
+                       max_points=MAX_POINTS, max_chars=MAX_POINT_CHARS, model=model, thinking=thinking)
+    t0 = time.perf_counter()
+    res = await agent.run(BriefInput(product_id=release_id, document_text=release_document(record, texts)),
+                          deadline_ms=deadline_ms)
+    return res, round(time.perf_counter() - t0, 1)
+
+
+def save_brief(root: Path, release_id: str, out: BriefOutput, models: str) -> Path:
+    folder = root / "briefs"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{release_id}.json"
+    path.write_text(json.dumps({"release_id": release_id, "model": models, "at": int(time.time() * 1000),
+                                "brief": out.model_dump(mode="json")}, ensure_ascii=False, indent=1),
+                    encoding="utf-8")
+    persisted(path, create_only=True)  # D-263: write-once, like the release
+    return path
+
+
+def load_brief(root: Path, release_id: str) -> BriefOutput | None:
+    path = root / "briefs" / f"{release_id}.json"
+    if not path.is_file():
+        return None
+    return BriefOutput.model_validate(json.loads(path.read_text(encoding="utf-8"))["brief"])

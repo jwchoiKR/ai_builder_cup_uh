@@ -127,8 +127,20 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
     if record.language.split("-")[0] != ctx.pack.lang and ctx.pack.lang not in translations:
         warnings.append(f"no approved wording in {ctx.pack.lang}: alerts will have no replacement line")
     live = _live_summary(pack, record)  # D-231: what will happen live, in plain words
-    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id, translations),
-            "warnings": warnings, "live": live, "translations": translations}
+    release_id = save_release(ctx.settings.onboarding_path, record, job_id, translations)
+    # D-265: the BriefAgent on the release: STT glossary and prompter points; on failure today's points and a warning
+    from ..onboarding.brief import brief_release, save_brief
+
+    res, _ = await brief_release(ctx.llm, ctx.prompts["brief_agent"], ctx.reflex, ctx.settings.onboarding_path,
+                                 release_id, record, ctx.pack.lang, deadline_ms=ctx.settings.BRIEF_TIMEOUT_MS)
+    if res.status == "ok" and res.output is not None:
+        save_brief(ctx.settings.onboarding_path, release_id, res.output,
+                   f"{ctx.llm.brief.model} ({ctx.llm.brief.thinking_level})")
+        live["brief"] = {"glossary": len(res.output.glossary), "points": len(res.output.prompter_points)}
+    else:
+        warnings.append(f"the brief did not run ({res.status}): the prompter shows the approved claims and speech "
+                        "recognition gets only the brand, product and ingredient names")
+    return {"release_id": release_id, "warnings": warnings, "live": live, "translations": translations}
 
 
 def _live_summary(pack, record) -> dict:

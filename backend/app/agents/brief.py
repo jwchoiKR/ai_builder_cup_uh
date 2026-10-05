@@ -23,7 +23,8 @@ class BriefInput:
     scenario: str = "S01"
 
 
-def post_validate(out: BriefOutput, product_id: str, document_text: str, reflex: Reflex) -> BriefOutput:
+def post_validate(out: BriefOutput, product_id: str, document_text: str, reflex: Reflex,
+                  max_points: int = MAX_POINTS, max_chars: int = MAX_POINT_CHARS) -> BriefOutput:
     """Drop terms the document does not contain and drafts that are too long or carry restricted
     wording; keep at most 40 terms and 6 points."""
     o = out.model_copy(deep=True)
@@ -41,18 +42,24 @@ def post_validate(out: BriefOutput, product_id: str, document_text: str, reflex:
         terms.append(t)
     o.glossary = terms[:MAX_TERMS]
     o.prompter_points = [p for p in o.prompter_points
-                         if 0 < len(p.text.strip()) <= MAX_POINT_CHARS and not reflex.scan(p.text)][:MAX_POINTS]
+                         if 0 < len(p.text.strip()) <= max_chars and not reflex.scan(p.text)][:max_points]
     return o
 
 
 class BriefAgent:
     name = "brief_agent"
 
-    def __init__(self, llm: LLMClient, prompt: PromptTemplate, reflex: Reflex) -> None:
+    def __init__(self, llm: LLMClient, prompt: PromptTemplate, reflex: Reflex, *, extra: str = "",
+                 max_points: int = MAX_POINTS, max_chars: int = MAX_POINT_CHARS, model: str | None = None,
+                 thinking: str | None = None) -> None:
         self.llm = llm
         self.prompt = prompt
         self.prompt_version = prompt.version
-        self.model = llm.quality.model
+        # D-265: BRIEF_MODEL / BRIEF_THINKING (an override for the eval); a release brief adds its own rules
+        spec = getattr(llm, "brief", None) or llm.quality
+        self.model, self.thinking = model or spec.model, thinking or spec.thinking_level
+        self.system_instruction = f"{prompt.system_instruction}\n\n{extra}" if extra else prompt.system_instruction
+        self.max_points, self.max_chars = max_points, max_chars
         self.reflex = reflex
 
     async def run(self, inp: BriefInput, *, deadline_ms: int) -> AgentResult[BriefOutput]:
@@ -61,15 +68,16 @@ class BriefAgent:
             "full_document_text_with_section_headings": inputs.full_document_text_with_section_headings(inp.document_text),
         })
         res = await self.llm.call(LLMRequest(
-            agent=self.name, model=self.llm.quality.model, thinking_level=self.llm.quality.thinking_level,
-            prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
+            agent=self.name, model=self.model, thinking_level=self.thinking,
+            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=BriefOutput, deadline_ms=deadline_ms, session_id=None,
             mock_primary_text=inp.product_id, mock_scenario=inp.scenario,
             mock_fallback=lambda _: rule_based_brief(inp.product_id, inp.document_text, self.reflex),
             preview=f"brief {inp.product_id}",
         ))
         if res.output is not None:
-            res.output = post_validate(res.output, inp.product_id, inp.document_text, self.reflex)
+            res.output = post_validate(res.output, inp.product_id, inp.document_text, self.reflex, self.max_points,
+                                       self.max_chars)
         return res
 
 
