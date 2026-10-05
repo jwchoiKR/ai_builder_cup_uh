@@ -95,8 +95,20 @@
 
 /* Hub (v2): a centred group, at most 1240 px wide, of a short hero and the screens in the order of a show.
    Cards size to their content; white space around the group is fine. */
-.hubHeader .subtitle {
-  margin-right: auto;
+.hubBrand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hubBrandLine {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+.hubBrandLine .subtitle {
+  font-size: 13px;
 }
 @media (max-width: 599px) {
   .hubHeader {
@@ -108,14 +120,14 @@
   display: flex;
   flex-direction: column;
 }
-/* the group sits a little above the middle: top space : bottom space = 2 : 3 */
+/* the group sits above the middle: top space : bottom space = 1 : 2 */
 .hubBody::before,
 .hubBody::after {
   content: "";
-  flex: 2 1 0;
+  flex: 1 1 0;
 }
 .hubBody::after {
-  flex-grow: 3;
+  flex-grow: 2;
 }
 .hubContent {
   flex: none;
@@ -136,13 +148,12 @@
 }
 .hubTitle {
   margin: 0;
-  font-size: 32px;
+  font-size: 20px;
   font-weight: var(--fw-semibold);
-  line-height: 1.2;
+  line-height: 1.25;
 }
 .hubLead {
   margin: 0;
-  max-width: 760px;
   font-size: 17px;
   line-height: 1.5;
   color: var(--text-2);
