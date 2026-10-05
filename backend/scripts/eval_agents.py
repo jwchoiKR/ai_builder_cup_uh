@@ -273,6 +273,19 @@ async def run(structure: str, runs: int, concurrency: int, cases: list[dict] | N
                 if structure == "split3":
                     row |= {"comp_status": c.status, "comp_ms": c.latency_ms, "ctx_status": x.status, "ctx_ms": x.latency_ms}
                 row["judge"] = judge_post_validate(merged, catalog, values).model_dump(mode="json")
+                if structure == "split3" and row["judge"]["answer"]["matched_group_id"] is None:  # a timeout too
+                    # D-175: as the runtime does, ask once more about the one draft the line seems to answer
+                    from dataclasses import replace as _replace
+
+                    from app.logic.publish import relink_candidate
+                    cand = relink_candidate(utt, {g.group_id: a for g, a in questions if a}, pack.lexicon)
+                    if cand is not None:
+                        one = [(g, a) for g, a in questions if g.group_id == cand]
+                        jin2 = _replace(jin, open_questions=one, on_screen_group_id=cand)
+                        x2 = await ctx_judge.run(jin2, deadline_ms=settings.JUDGE_TIMEOUT_MS,
+                                                 values=judge.build_values(jin2))
+                        row["ctx_relink"] = {"group_id": cand, "status": x2.status, "ms": x2.latency_ms,
+                                             "answer": x2.output.answer.model_dump(mode="json") if x2.output else None}
                 row["compliance_usage"] = getattr(c, "meta", {}).get("usage")
                 row["context_usage"] = getattr(x, "meta", {}).get("usage")
                 if f is None:  # router3: facts not chosen

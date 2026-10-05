@@ -355,3 +355,73 @@ async def test_a_pending_host_answer_is_dropped_when_its_question_changes(env, c
     [m] = await messages(rt, "host_answer")
     assert m.state == "cancelled" and await events(rt, "message.cancelled")
     assert (await rt.get_group(g.group_id)).status != "answered"
+
+
+async def _relink_env(env, line: str):
+    """D-175: the context judge links `line` to nothing at first; asked about the one question again, it links it."""
+    from .judge_fakes import judge_output as jout
+
+    rt, llm = env
+    g = await oily_on_host(rt)
+    ans = await rt.get_answer(g.answer_id)
+    ans.text = draft = "Yes. It has a lightweight gel-cream texture, so use a smaller amount on oily areas."  # the FAQ
+    await rt.save_answer(ans)
+    llm.judge(line, utterance_type="product_talk")
+    calls = []
+    generate = llm.generate
+
+    async def second_links(req, timeout_ms):
+        if req.agent == "context_judge":
+            calls.append(req.user_message)
+            if len(calls) == 2:
+                llm.outputs[("utterance_judge", line)] = jout(utterance_type="answer", matched=g.group_id,
+                                                              is_answer=True, consistent=True)
+        return await generate(req, timeout_ms)
+    llm.generate = second_links
+    await speak(rt, line)
+    await advance(rt, 2000)
+    return rt, g, draft, calls
+
+
+async def test_d175_a_line_the_judge_did_not_link_is_asked_about_its_one_question_again(env):
+    rt, g, draft, calls = await _relink_env(env, "Raj, yes: " + "lightweight gel-cream texture, use a smaller amount on oily areas.")
+    assert len(calls) == 2 and calls[1].count('"group_id"') == 1  # the second call offers that one question
+    [m] = await messages(rt, "host_answer")
+    assert m.state == "published" and (await rt.get_group(g.group_id)).status == "answered"
+
+
+async def test_d175_a_line_with_another_number_is_not_asked_again(env):
+    rt, g, draft, calls = await _relink_env(env, "Raj, yes: lightweight gel-cream texture, use 3 pumps on oily areas.")
+    assert len(calls) == 1 and await messages(rt, "host_answer") == []
+
+
+async def test_d175_a_context_timeout_is_asked_again_about_the_one_question(env):
+    """D-175 (verbal eval: every remaining miss was a context-judge timeout): the line is still published when the
+    second call links it, and compliance still decides."""
+    from app.providers.llm import LLMTimeout
+
+    from .judge_fakes import judge_output as jout
+
+    rt, llm = env
+    g = await oily_on_host(rt)
+    ans = await rt.get_answer(g.answer_id)
+    ans.text = "Yes. It has a lightweight gel-cream texture, so use a smaller amount on oily areas."
+    await rt.save_answer(ans)
+    line = "Raj, yes: lightweight gel-cream texture, use a smaller amount on oily areas."
+    llm.outputs[("utterance_judge", line)] = jout(utterance_type="answer", matched=g.group_id, is_answer=True,
+                                                  consistent=True)
+    calls = []
+    generate = llm.generate
+
+    async def first_times_out(req, timeout_ms):
+        if req.agent == "context_judge":
+            calls.append(req.user_message)
+            if len(calls) == 1:
+                raise LLMTimeout("deadline")
+        return await generate(req, timeout_ms)
+    llm.generate = first_times_out
+    await speak(rt, line)
+    await advance(rt, 2000)
+    assert len(calls) == 2
+    [m] = await messages(rt, "host_answer")
+    assert m.state == "published"

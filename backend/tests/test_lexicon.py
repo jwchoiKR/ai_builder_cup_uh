@@ -45,3 +45,18 @@ def test_guards_use_the_lexicon_they_are_handed(pack):
 ])
 def test_d174_compound_numbers_and_equal_durations(pack, said, draft, held):
     assert (verbal_check(said, draft, [], pack.lexicon) is not None) is held
+
+
+def test_d175_relink_candidate(pack):
+    """D-175: the one waiting draft a line seems to answer, only as a trigger for a second judge call."""
+    from app.logic.publish import relink_candidate
+
+    lex = pack.lexicon
+    drafts = {"g_set": "The Cream + Ampoule set is S$62 during this live.",
+              "g_niacin": "The ampoule has 4% niacinamide."}
+    assert relink_candidate("This ampoule has four percent niacinamide.", drafts, lex) == "g_niacin"
+    assert relink_candidate("This ampoule has five percent niacinamide.", drafts, lex) is None  # a differing number
+    assert relink_candidate("I think maybe it has four percent niacinamide?", drafts, lex) is None  # unsure
+    assert relink_candidate("Let me show you the texture now.", drafts, lex) is None  # answers nothing
+    twins = {"a": "The ampoule has 4% niacinamide.", "b": "Yes, the ampoule has 4% niacinamide."}
+    assert relink_candidate("This ampoule has four percent niacinamide.", twins, lex) is None  # not one

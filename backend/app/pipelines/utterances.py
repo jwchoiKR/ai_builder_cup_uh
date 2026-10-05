@@ -337,7 +337,20 @@ class UtterancePipeline:
                         if facts is not None:
                             async with rt.lock:
                                 await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
-            if comp is None or ctx is None:
+            if comp is None:
+                return None, facts
+            if ctx is None and self.split3:
+                # D-175: the context judge ran out; the answer links nothing, so a line that seems to answer one
+                # waiting draft is asked about once more (compliance still decides any post)
+                ctx = UtteranceJudgeOutput.model_validate({
+                    "compliance": {"violations": []}, "correction": {"corrects_alert_ids": []},
+                    "answer": {"utterance_type": "other", "matched_group_id": None, "is_answer": False,
+                               "consistent_with_suggested": False},
+                    "prompter": {"covered_point_ids": [], "covered_cue_ids": [],
+                                 "switch": {"is_transition": False, "is_quote": False, "target_product_id": None,
+                                            "confidence": "low"}},
+                    "reason": "context judge unavailable"})
+            elif ctx is None:
                 return None, facts
             if self.split3:
                 comp = UtteranceJudgeOutput(compliance=comp.compliance, correction=comp.correction,
@@ -781,6 +794,14 @@ class UtterancePipeline:
             if not undone and before.publish[1] == "post" and decision.group_id == before.publish[0]:
                 return  # the fragment's reply is already published: nothing more for this group
             before.publish = None
+        if decision.action == "none" and gid is None and offered and t.transcript_id in self._inputs:
+            # D-175: the judge linked nothing, but the line seems to answer one offered draft: ask about that one
+            cand = publish_logic.relink_candidate(merge.text if merge else t.text,
+                                                  {g: a.text for g, a in offered.items() if a is not None},
+                                                  rt.catalog.lexicon)
+            if cand is not None:
+                rt.spawn(self._relink(t, judge, facts, self._inputs[t.transcript_id], cand,
+                                      merge.text if merge else t.text), name=f"relink:{t.transcript_id}")
         if decision.action == "none" or group is None:
             return
         if (decision.action == "verbal_not_posted" and offered.get(group.group_id) is None
@@ -834,6 +855,38 @@ class UtterancePipeline:
                 lex=rt.catalog.lexicon, utterance=early.utterance, current_key=await answer_key(rt, g))
             log.info("early spoken answer for %s: %s (%s)", group_id, decision.action, decision.reason)
             if decision.action != "post" or not rt.live:  # D-150: a preview market posts nothing by itself
+                return
+            await post_host_answer_locked(rt, g, answer)
+            g.version += 1
+            await rt.save_group(g)
+            await rt.emit("group.updated", g)
+            await rt.recompute_host_queue_locked()
+
+    async def _relink(self, t: Transcript, judge, facts, inp, group_id: str, utterance: str) -> None:
+        """D-175: ask the context judge once more with only the one question the line seems to answer, and post
+        only when it now links the line to it and every usual check passes (numbers, compliance, staleness)."""
+        rt = self.rt
+        async with rt.lock:
+            g = await rt.get_group(group_id)
+            answer = await rt.get_answer(g.answer_id) if g is not None and g.answer_id else None
+            if g is None or answer is None or not answer.verified or g.published_message_id is not None:
+                return
+        agent = self.context if self.split3 else self.judge
+        res = await agent.run(replace(inp, open_questions=[(g, answer.text)], on_screen_group_id=group_id),
+                              deadline_ms=rt.settings.JUDGE_TIMEOUT_MS)
+        if res.status != "ok" or res.output is None:
+            return
+        second = judge.model_copy(update={"answer": res.output.answer})
+        async with rt.lock:
+            g = await rt.get_group(group_id)
+            if g is None or g.answer_id != answer.answer_id:
+                return
+            decision = publish_logic.decide(
+                second, {group_id: answer}, g, answer,
+                high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
+                lex=rt.catalog.lexicon, utterance=utterance, current_key=await answer_key(rt, g))
+            log.info("relinked spoken answer %s %s: %s (%s)", t.transcript_id, group_id, decision.action, decision.reason)
+            if decision.action != "post" or not rt.live:
                 return
             await post_host_answer_locked(rt, g, answer)
             g.version += 1

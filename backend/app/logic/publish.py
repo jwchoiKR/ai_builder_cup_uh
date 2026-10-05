@@ -36,6 +36,21 @@ def verbal_check(utterance: str, draft: str, other_drafts: Iterable[str], lex: L
     return None
 
 
+RELINK_MIN_COVERAGE = 0.5  # D-175: share of a draft's claim words the line must say to be asked about again
+
+
+def relink_candidate(utterance: str, drafts: Mapping[str, str], lex: Lexicon) -> str | None:
+    """D-175 (sealed verbal set: ~1 in 150 spoken answers linked to nothing): the one offered draft the line seems
+    to answer, so the context judge is asked once more about that question alone. Every number the line says is
+    in the draft, the host does not sound unsure, and the line says at least RELINK_MIN_COVERAGE of the draft's
+    claim words. None when no draft or more than one qualifies. Never a post by itself."""
+    heard = lex.content_words(utterance)
+    fits = [gid for gid, text in drafts.items()
+            if text and verbal_check(utterance, text, [], lex) is None
+            and lex.coverage(lex.claim_words(text), heard) >= RELINK_MIN_COVERAGE]
+    return fits[0] if len(fits) == 1 else None
+
+
 def decide(
     judge: UtteranceJudgeOutput,
     offered: Mapping[str, Answer | None],
