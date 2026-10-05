@@ -1135,3 +1135,9 @@ D-198: Spoken-answer eval: PASS needs 0 false, 0 missed and 0 duplicate posts, w
 - **Found on the way:** in the runtime a question about the product that is not on air reaches the judge only from a host slot (`_open_questions_locked`). Seeding only the shown slot hid V46's ampoule question, so the judge could not link it.
 - The D-196 prompt example was one of our eval lines (V46). It is replaced with my own ("It's fragrance-free, and you get 50 mL in the tube."), and the bullet now says to check every part of a two-fact sentence against every open question.
 - Real models: V14 and V46, 3 runs agent mode: PASS. V01, V14, V20, V30, V41 and V46, 2 runs runtime: PASS.
+
+D-199: Comment-flow eval scores silence as a failure (full review P1, `eval_comment_flow.py`).
+- Route: every gold question is scored, also one that never reached a group (kind wrong, or lost); before, such a comment was left out of the route score.
+- Delivery (new pass line, 0 undelivered): an answer counts only when a published message replies to the asker, for AUTO at once and for HOST once the host confirmed; with `post_to_all_askers` every asker must get it.
+- Cache: reuse counts only when exactly one AI draft served the question and, where the answer is posted, every later asker got it. Before, no draft at all scored as reuse.
+- Re-scored `docs/eval/comment-flow-d157.json`: route 91.4%, cache 98.1%, now also 1 of 62 undelivered (CF06 c_wrinkles: confirmed but not delivered; fixed later by D-190). The older `comment-flow-3a94506.json` shows many AUTO clusters undelivered, which the old scorer passed as cache reuse.
