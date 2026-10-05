@@ -60,7 +60,7 @@ async function replay(page, show, assistant) {
 
   // state history: first time each group was on the host list, on a card, answered; all transcripts and alerts
   const seen = { onList: {}, onCard: {}, cardKind: {}, posted: {}, transcripts: {}, alerts: {}, groups: {}, messages: {}, answers: {},
-    promoStarts: {} };
+    promoStarts: {}, comments: {}, analyses: {} };
   const catalog = await api("GET", "/catalog");
   const priceChanging = new Set((catalog.promos ?? []).filter((p) => p.changes_prices).map((p) => p.promo_id));
   let polling = true;
@@ -73,6 +73,8 @@ async function replay(page, show, assistant) {
         for (const a of st.alerts ?? []) seen.alerts[a.alert_id] = a;
         for (const g of st.groups ?? []) seen.groups[g.group_id] = g;
         for (const m of st.messages ?? []) seen.messages[m.message_id] = m;
+        for (const c of st.comments ?? []) seen.comments[c.comment_id] = c;
+        Object.assign(seen.analyses, st.analyses ?? {});
         Object.assign(seen.answers, st.answers ?? {});
         for (const sl of st.host_slots ?? []) seen.onList[sl.group_id] ??= now;
         const card = st.session?.pd_card;
@@ -130,6 +132,43 @@ async function replay(page, show, assistant) {
   mic.close();
   await api("POST", `/sessions/${sid}/end`).catch(() => undefined);
   return { sid, assistant, t0, spoken, comments, finals, seen, promoStarts: Object.values(seen.promoStarts) };
+}
+
+/** Why a question group ended unanswered (the first that applies), with its route, draft and triage product.
+ *  The largest group of the question's comments speaks for it. */
+function groupDetail(run, qg, mine, gs, list) {
+  const triage = mine.map((c) => {
+    const cm = run.seen.comments[c.comment_id];
+    const an = run.seen.analyses[c.comment_id];
+    return { text: c.text, kind: cm?.kind ?? null, intent: an?.output?.intent ?? null, product_id: an?.product_id ?? null,
+      basis: an?.product_basis ?? null, context_product_id: an?.context_product_id ?? null };
+  });
+  const g = [...gs].sort((a, b) => b.member_comment_ids.length - a.member_comment_ids.length)[0];
+  const ans = g?.answer_id ? run.seen.answers[g.answer_id] : null;
+  const draft = !g ? "no_group" : ans ? (ans.verified ? "verified" : "blocked") : g.status === "composing" ? "composing" : "none";
+  const base = { route: g?.route ?? null, route_reason: g?.route_reason ?? null, status: g?.status ?? null, draft,
+    draft_errors: ans && !ans.verified ? ans.verify_errors : [], needs_human: ans?.needs_human ?? null,
+    product_id: g?.product_id ?? null, triage };
+  let reason;
+  if (!g) {
+    reason = `not_triaged_as_question (${[...new Set(triage.map((t) => t.kind ?? "unseen"))].join("/")})`;
+  } else if (g.host_verbal_answer_transcript_id) {
+    reason = "host_answered_unmatched";
+  } else if (!ans) {
+    reason = g.route_reason === "unresolved_product" ? "no_draft (product unresolved)" : g.route_reason === "general"
+      ? (qg.answerable ? "no_draft (general intent)" : "unanswerable_no_card") : "no_draft";
+  } else if (!ans.verified) {
+    reason = `draft_blocked: ${(ans.verify_errors ?? []).join("; ")}`;
+  } else if (ans.needs_human && g.route !== "HOST") {
+    reason = `needs_human_waiting (${g.route}, ${g.unique_author_ids.length} asking)`;
+  } else if (list !== Infinity && !run.seen.onCard[g.group_id]) {
+    reason = "card_not_due";
+  } else if (!qg.answerable) {
+    reason = "unanswerable_no_card";
+  } else {
+    reason = `not_on_host_list (${g.route}/${g.status})`;
+  }
+  return { ...base, reason };
 }
 
 /** The spoken line each final belongs to: the most overlapping line that had started before it. */
@@ -198,8 +237,10 @@ function score(show, run) {
     else if (card !== Infinity) { handling = deferral ? "deferred_honestly" : "host_card"; at = card; }
     else if (posted !== Infinity) { handling = "posted"; at = posted; }
     const ms = at === Infinity || !mine.length ? null : at - firstAsk;
+    const detail = groupDetail(run, qg, mine, gs, list);
     return { id: qg.id, intent: qg.intent, answerable: qg.answerable, asks: mine.length, groups: gs.length,
-      handling, ms, late: ms !== null && ms > LATE_MS, on_list_only: handling === "never" && list !== Infinity };
+      handling, ms, late: ms !== null && ms > LATE_MS, on_list_only: handling === "never" && list !== Infinity,
+      ...detail, reason: handling === "never" || handling === "deferred_honestly" ? detail.reason : null };
   });
   // (e) wrong or stale posts: an AI post for a question the script marks unanswerable; a post made after a
   // promo started with an answer written before it, for a price question
@@ -262,6 +303,19 @@ function markdown(results) {
     row("operator actions needed", (s) => `${s.operator_actions}`);
     row("wrong / stale posts", (s) => `${s.wrong_posts} / ${s.stale_posts}`);
     lines.push("");
+    for (const r of runs) {
+      const open = r.questions.filter((q) => q.reason);
+      if (!open.length) continue;
+      lines.push(`### ${seed}, assistant ${r.assistant}: why questions were not answered`, "",
+        "| group | intent | answerable | asks | reason | route | draft | triage product (basis) |", "|---|---|---|---|---|---|---|---|");
+      for (const q of open) {
+        const tp = [...new Set(q.triage.map((t) => `${t.product_id ?? "none"} (${t.basis ?? "-"})`))].join(", ");
+        lines.push(`| ${q.id} | ${q.intent} | ${q.answerable} | ${q.asks} | ${q.reason} | ${q.route ?? "-"}/${q.route_reason ?? "-"} | ${q.draft} | ${tp} |`);
+      }
+      const counts = {};
+      for (const q of open) counts[q.reason.split(/[ :(]/)[0]] = (counts[q.reason.split(/[ :(]/)[0]] ?? 0) + 1;
+      lines.push("", `Reasons: ${Object.entries(counts).map(([k, n]) => `${k} ${n}`).join(", ")}`, "");
+    }
   }
   return lines.join("\n") + "\n";
 }
