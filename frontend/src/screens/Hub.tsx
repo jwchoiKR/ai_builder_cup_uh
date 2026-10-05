@@ -7,7 +7,7 @@ import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useHealth } from "../app/store";
 import { useTheme } from "../app/theme";
 import { Button, SettingsButton } from "../components";
-import { onboardingApi, type ReleaseRow } from "./onboarding/onboardingApi";
+import { BRIEF_RUNNING_NOTE, onboardingApi, type ReleaseRow } from "./onboarding/onboardingApi";
 import styles from "./screens.module.css";
 
 interface Screen {
@@ -64,9 +64,16 @@ function ReleasePicker() {
   useEffect(() => {
     onboardingApi.releases().then((r) => {
       setRows(r);
-      setPicked(r[0]?.release_id ?? "");
+      setPicked((p) => p || (r[0]?.release_id ?? ""));
     }, () => setRows([]));
   }, []);
+  // D-266: while a brief runs, look again every few seconds
+  const running = rows?.some((r) => r.brief === "running") ?? false;
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setTimeout(() => onboardingApi.releases().then(setRows, () => undefined), 4000);
+    return () => window.clearTimeout(timer);
+  }, [rows, running]);
   if (!rows?.length) return null;
   const start = async () => {
     setBusy(true);
@@ -88,7 +95,7 @@ function ReleasePicker() {
           {rows.map((r) => (
             <option key={r.release_id} value={r.release_id}>
               {r.brand} · {r.product_name} (v{r.version}{r.markets.length ? `, ${r.markets.join("/")}` : ""},{" "}
-              {new Date(r.approved_at).toLocaleDateString()})
+              {new Date(r.approved_at).toLocaleDateString()}){r.brief === "done" ? "" : ` · brief ${r.brief}`}
             </option>
           ))}
         </select>
@@ -96,6 +103,9 @@ function ReleasePicker() {
       <Button disabled={busy || !picked} onClick={start} data-testid="hub-release-start">
         {t("Start a show")}
       </Button>
+      {rows.find((r) => r.release_id === picked)?.brief === "running" && (
+        <span className={styles.hubStudioNote} data-testid="hub-brief-running">{t(BRIEF_RUNNING_NOTE)}</span>
+      )}
       {error && <span className={styles.error}>{error}</span>}
     </div>
   );

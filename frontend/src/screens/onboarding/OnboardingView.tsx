@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 
 import { Button, Chip, Eyebrow, HubLink } from "../../components";
 import { navigate } from "../../app/nav";
-import { onboardingApi, type Evidence, type Job, type Line, type ProductRecord, type TextItem, type Translations } from "./onboardingApi";
+import {
+  BRIEF_RUNNING_NOTE, onboardingApi, type Evidence, type Job, type Line, type ProductRecord, type TextItem, type Translations,
+} from "./onboardingApi";
 import { conflictValue, money, newestIndex, plainField, setAt } from "./recordEdit";
 import styles from "./onboarding.module.css";
 
@@ -140,6 +142,25 @@ export function RecordReview({ record, onChange }: { record: ProductRecord; onCh
       <TextRows title="How to use" items={r.how_to_use} onChange={text("how_to_use")} />
       <TextRows title="Key facts" items={r.key_facts} onChange={text("key_facts")} />
     </>
+  );
+}
+
+/** D-266: the release's brief runs after approval; until it lands a show uses the approved claims as points. */
+function BriefStatus({ releaseId }: { releaseId: string }) {
+  const [status, setStatus] = useState("running");
+  useEffect(() => {
+    if (status !== "running") return;
+    const timer = window.setTimeout(
+      () => onboardingApi.briefStatus(releaseId).then((r) => setStatus(r.status), () => setStatus("unknown")), 2000);
+    return () => window.clearTimeout(timer);
+  }, [releaseId, status]);
+  return (
+    <p className={status === "running" || status.startsWith("failed") ? styles.warning : styles.muted}
+       data-testid="onb-brief-status">
+      {status === "running" ? BRIEF_RUNNING_NOTE
+        : status === "done" ? "Brief done: speech-recognition names and prompter points are ready."
+          : `Brief ${status}: the show uses the approved claims as points and only the main names as hints.`}
+    </p>
   );
 }
 
@@ -402,6 +423,7 @@ export function OnboardingView() {
                   {" "}{release.live?.not_approved_claims} claims not approved, {release.live?.promos} offers to start</li>
               </ul>
               {release.warnings.map((w) => <p key={w} className={styles.warning}>{w}</p>)}
+              <BriefStatus releaseId={release.release_id} />
               <Button variant="primary" disabled={busy}
                       onClick={() => act(async () => {
                         const s = await onboardingApi.startShow(release.release_id);

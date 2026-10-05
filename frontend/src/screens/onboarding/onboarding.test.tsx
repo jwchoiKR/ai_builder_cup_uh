@@ -26,7 +26,9 @@ vi.mock("./onboardingApi", () => ({
     preview: vi.fn(async () => ({ live: {}, translations: { ms: { approved_claims: [], avoid_saying: [],
       cautions: [{ text: "Uji tampalan dahulu.", reviewed: false }] } } })),
     startShow: vi.fn(),
+    briefStatus: vi.fn(async () => ({ status: "done" })),
   },
+  BRIEF_RUNNING_NOTE: "The brief is still running.",
 }));
 
 import { OnboardingView } from "./OnboardingView";

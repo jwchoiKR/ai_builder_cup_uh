@@ -1423,3 +1423,10 @@ D-265: Approval runs the BriefAgent on the release: an STT glossary and prompter
 - **Settings:** `BRIEF_MODEL` (empty means LLM_QUALITY_MODEL) and `BRIEF_THINKING` (MEDIUM).
 - **Eval:** `scripts/eval_brief.py --release <id> [--thinking X] [--model M] --out <json>` runs the same function and writes the glossary, the phrase hints a show would get and the prompter points. It stores nothing.
 - **Real model, dev serum (made up), gemini-3.8-flash MEDIUM:** 31.6 s, 19 terms with sound-alikes, and 8 points: the lab-qualified claim, three caution points and the directions in English. Approval now takes about 30 s longer.
+
+D-266: The release brief runs in the background after approval (follow-up to D-265; the test drive must not wait about 30 s more; logic and screens).
+- **Approval** returns at once with `live.brief = {"status": "running"}` and starts the BriefAgent as a background task. When the brief lands, it is stored (write-once, D-265) and the cached show pack of that release is dropped (`AppContext.forget_release`), so the next show is built with the brief's points.
+- **Status:** `GET /api/onboarding/releases/{id}/brief` returns done (the stored file), running, failed (…), or none (approved before D-265, or approved by another process). The release list carries the same `brief` field.
+- **A show started before the brief lands** keeps today's points (the approved claims). Its STT hints come from the brief once the brief exists when the microphone connects (`release_phrases` reads the file at connect).
+- **Screens:** the approval panel and the hub's release picker show the status, and look again every few seconds while it runs. A running brief shows the note "still running, about 30 s; a show started now uses the approved claims as points".
+- **Test:** an approval that returns before a slow brief; a show started then has today's points; the next show after the brief lands has the brief's points.

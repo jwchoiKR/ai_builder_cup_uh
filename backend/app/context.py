@@ -61,6 +61,11 @@ class AppContext:
     sse_heartbeat_sec: float = HEARTBEAT_SEC
     _packs: dict = field(default_factory=dict, init=False, repr=False)
 
+    def forget_release(self, release_id: str) -> None:
+        """D-266: the next show from this release is built again (its brief has landed)."""
+        for key in [k for k in self._packs if len(k) == 3 and k[2] == release_id]:
+            del self._packs[key]
+
     def pack_for(self, market: str, lang: str, release_id: str | None = None) -> tuple[DataPack, Reflex]:
         """D-142: the data pack and reflex of one (market, language), loaded once. The settings' pair is
         `pack`/`reflex`; others load from the same data folder (DataPackError when not offered).

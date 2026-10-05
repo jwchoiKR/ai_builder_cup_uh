@@ -128,19 +128,40 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
         warnings.append(f"no approved wording in {ctx.pack.lang}: alerts will have no replacement line")
     live = _live_summary(pack, record)  # D-231: what will happen live, in plain words
     release_id = save_release(ctx.settings.onboarding_path, record, job_id, translations)
-    # D-265: the BriefAgent on the release: STT glossary and prompter points; on failure today's points and a warning
+    # D-265/D-266: the BriefAgent on the release (STT glossary, prompter points) runs after the approval returns
+    _briefs[release_id] = "running"
+    ctx.scheduler.spawn(_brief(ctx, release_id, record), name=f"brief:{release_id}")
+    live["brief"] = {"status": "running"}
+    return {"release_id": release_id, "warnings": warnings, "live": live, "translations": translations}
+
+
+# D-266: brief status per release in this process ("running", "failed (...)"); "done" is the stored file
+_briefs: dict[str, str] = {}
+
+
+async def _brief(ctx: AppContext, release_id: str, record) -> None:
     from ..onboarding.brief import brief_release, save_brief
 
-    res, _ = await brief_release(ctx.llm, ctx.prompts["brief_agent"], ctx.reflex, ctx.settings.onboarding_path,
-                                 release_id, record, ctx.pack.lang, deadline_ms=ctx.settings.BRIEF_TIMEOUT_MS)
-    if res.status == "ok" and res.output is not None:
-        save_brief(ctx.settings.onboarding_path, release_id, res.output,
-                   f"{ctx.llm.brief.model} ({ctx.llm.brief.thinking_level})")
-        live["brief"] = {"glossary": len(res.output.glossary), "points": len(res.output.prompter_points)}
-    else:
-        warnings.append(f"the brief did not run ({res.status}): the prompter shows the approved claims and speech "
-                        "recognition gets only the brand, product and ingredient names")
-    return {"release_id": release_id, "warnings": warnings, "live": live, "translations": translations}
+    try:
+        res, _ = await brief_release(ctx.llm, ctx.prompts["brief_agent"], ctx.reflex, ctx.settings.onboarding_path,
+                                     release_id, record, ctx.pack.lang, deadline_ms=ctx.settings.BRIEF_TIMEOUT_MS)
+        if res.status == "ok" and res.output is not None:
+            save_brief(ctx.settings.onboarding_path, release_id, res.output,
+                       f"{ctx.llm.brief.model} ({ctx.llm.brief.thinking_level})")
+            ctx.forget_release(release_id)  # shows started from now on get the brief's points
+            _briefs[release_id] = "done"
+        else:
+            _briefs[release_id] = f"failed ({res.status})"
+    except Exception as e:  # noqa: BLE001 - reported as the release's brief status
+        log.exception("brief for %s failed", release_id)
+        _briefs[release_id] = f"failed ({type(e).__name__})"
+
+
+def brief_status(ctx: AppContext, release_id: str) -> str:
+    """done (stored), running, failed (...), or none (a release approved before D-265, or in another process)."""
+    if (ctx.settings.onboarding_path / "briefs" / f"{release_id}.json").is_file():
+        return "done"
+    return _briefs.get(release_id, "none")
 
 
 def _live_summary(pack, record) -> dict:
@@ -279,7 +300,13 @@ async def releases(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
     """D-264: the approved products a show can start from, newest first (after a cold start too, D-263)."""
     from ..onboarding.release import list_releases
 
-    return list_releases(ctx.settings.onboarding_path)
+    return [r | {"brief": brief_status(ctx, r["release_id"])} for r in list_releases(ctx.settings.onboarding_path)]
+
+
+@router.get("/releases/{release_id}/brief")
+async def release_brief(release_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-266: whether the release's brief (STT glossary, prompter points) is done, running or failed."""
+    return {"release_id": release_id, "status": brief_status(ctx, release_id)}
 
 
 @router.get("/jobs/{job_id}")
