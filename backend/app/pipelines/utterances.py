@@ -64,6 +64,8 @@ def ends_sentence(text: str) -> bool:
     return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
 
 
+LATE_QUALIFIER_MS = 10_000  # D-151: a qualifier add-on fixes a qualifier alert at most this old
+ADDENDUM_MAX_WORDS = 10
 EARLY_ANSWER_MS = 30_000  # D-146: a draft verified later than this after the spoken answer is not posted
 
 
@@ -128,6 +130,7 @@ class UtterancePipeline:
         self._inputs: dict[str, JudgeInput] = {}  # D-146: kept with the judged prefix, for a later recheck
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
+        self._addenda: dict[str, Transcript] = {}  # D-151: finals that only add "in our in-house test"
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
         key = (t.transcript_id, kind)
@@ -213,6 +216,8 @@ class UtterancePipeline:
         if merge:
             t.merged_from_transcript_id, t.judged_text = merge.prev.transcript_id, text
         self._remember(t, merge, text)
+        if self._qualifier_addendum(text):
+            self._addenda[t.transcript_id] = t  # D-151: "That's from our in-house test." after a number
         # 1. store, emit
         await rt.ctx.store.put(rt.path("transcripts"), t.transcript_id, t)
         await rt.emit("transcript.final", t)
@@ -266,6 +271,7 @@ class UtterancePipeline:
                 self._judged.pop(tid, None)
                 self._prepared.pop(tid, None)
                 self._inputs.pop(tid, None)
+                self._addenda.pop(tid, None)
 
     async def _infer(self, t, on_air, inp, hits, merge, scenario, ready):
         rt = self.rt
@@ -454,9 +460,11 @@ class UtterancePipeline:
                 active_rules.update(a.rule_id for a in alerts if a.kind == "compliance"
                                     and a.status in ("active", "provisional") and a.transcript_id == prev.transcript_id)
             judge = judge.model_copy(deep=True)  # D-108: no second card while the same result's alert is active
+            late_addendum = self._addendum_after(t)  # D-151: the qualifier came in the next final, judged first
             judge.compliance.violations = [
                 v for v in judge.compliance.violations
-                if not (v.rule_id == qualifier.RULE_ID and qualifier.is_repeat(v.say_instead or None, alerts, on_air))]
+                if not (v.rule_id == qualifier.RULE_ID and (late_addendum is not None
+                                                            or qualifier.is_repeat(v.say_instead or None, alerts, on_air)))]
             changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.pack.rules_by_id,
                                                                   rt.new_id, now, active_rule_ids=active_rules)
             for a in created:
@@ -515,12 +523,32 @@ class UtterancePipeline:
                     and a.alert_id not in accepted and says_the_replacement(text, a, rt.reflex)):
                 log.info("correction of %s by its replacement wording: %r", a.alert_id, text)
                 accepted.append(a.alert_id)
+        if self._qualifier_addendum(text):
+            # D-151 (sealed round 3): "Redness went down 30% after two weeks." then "That's from our in-house
+            # test." The judge saw the fix but listed nothing; the add-on corrects the qualifier alert just before
+            for a in correctable:
+                if (a.kind == "compliance" and a.rule_id == qualifier.RULE_ID and a.status in ("active", "provisional")
+                        and a.alert_id not in accepted and self._segments.get(a.transcript_id) == t.segment_id
+                        and now - a.created_at <= LATE_QUALIFIER_MS):
+                    accepted.append(a.alert_id)
         if not accepted:
             return
         for a in alert_logic.apply_corrections(correctable, accepted, t, now):
             rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
+
+    def _qualifier_addendum(self, text: str) -> bool:
+        """D-151: a short final that only names our test ("That's from our in-house test."), no number of its own."""
+        return (self.rt.catalog.lexicon.is_qualified(text) and not any(ch.isdigit() for ch in text)
+                and len(text.split()) <= ADDENDUM_MAX_WORDS)
+
+    def _addendum_after(self, t: Transcript) -> Transcript | None:
+        """A qualifier add-on that followed `t` within LATE_QUALIFIER_MS in the same segment."""
+        seq = self._sequence.get(t.transcript_id, 0)
+        return next((a for a in self._addenda.values()
+                     if self._sequence.get(a.transcript_id, 0) > seq and a.segment_id == t.segment_id
+                     and 0 <= a.received_at - t.received_at <= LATE_QUALIFIER_MS), None)
 
     def _substantive_corrections(self, alerts: list[Alert], listed: list[str], text: str) -> list[str]:
         """The listed compliance alerts that the utterance really corrects (D-089)."""

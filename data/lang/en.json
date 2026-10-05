@@ -555,6 +555,19 @@
       "without the sale",
       "before the sale",
       "outside the sale"
+    ],
+    "absence_cues": [
+      "no",
+      "not",
+      "none",
+      "zero",
+      "without",
+      "free from",
+      "free of",
+      "doesn't contain",
+      "does not contain",
+      "doesn't have",
+      "does not have"
     ]
   }
 }

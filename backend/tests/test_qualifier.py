@@ -252,3 +252,41 @@ async def test_a_topic_word_alone_is_not_a_claim(env, text, alerts):
     llm.judge(text, violations=[violation("ASEAN-3-SKIN-ACNE", "acne" if alerts == 0 else "cures acne")])
     await speak(rt, text)
     assert len(await compliance_alerts(rt)) == alerts
+
+
+async def test_a_qualifier_added_in_the_next_final_corrects_the_alert(env):
+    """D-151 (sealed round 3): the number, then "That's from our in-house test." as its own final; the judge
+    listed no correction."""
+    rt, llm = env
+    text = "Redness went down 30% after two weeks."
+    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
+    await speak(rt, text)
+    [a] = await compliance_alerts(rt)
+    await speak(rt, "That's from our in-house test.")
+    assert await compliance_alerts(rt) == []
+    assert (await rt.ctx.store.get(rt.path("alerts"), a.alert_id, Alert)).status == "corrected"
+
+
+async def test_a_qualifier_add_on_judged_first_prevents_the_alert(env):
+    """D-151: the add-on's judgment finished before the number's, so no alert existed yet to correct."""
+    import asyncio
+
+    rt, llm = env
+    text = "Redness went down 30% after two weeks."
+    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
+    llm.delays[("utterance_judge", text)] = 0.3  # the number's judgment arrives last
+    await speak(rt, text, wait=False)
+    await speak(rt, "That's from our in-house test.", wait=False)
+    await rt.utterances.drain()
+    await asyncio.sleep(0.4)
+    await rt.ctx.scheduler.idle()
+    assert await compliance_alerts(rt) == []
+
+
+async def test_an_add_on_with_its_own_number_is_not_a_late_qualifier(env):
+    rt, llm = env
+    text = "Redness went down 30% after two weeks."
+    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
+    await speak(rt, text)
+    await speak(rt, "In our in-house test 29 of 32 people loved it.")
+    assert len(await compliance_alerts(rt)) == 1

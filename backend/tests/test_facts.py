@@ -381,3 +381,30 @@ def test_d149_a_wrong_gift_threshold_is_a_checked_fact(catalog, pack):
     assert post_validate(out, [], catalog, None).claims[0].verdict == "not_in_sources"  # no offer running
     wrong = FactCheckOutput.model_validate({"claims": [claim | {"correct_value": "S$70.00"}], "reason": "t"})
     assert post_validate(wrong, [], catalog, None, offers=[gift]).claims[0].verdict == "not_in_sources"
+
+
+def test_d151_a_stated_absence_is_never_contradicted_by_an_absence(catalog, pack):
+    """D-151 (sealed round 3): "No retinol in this one" (true) got a note "not in this product"."""
+    from app.agents.fact_checker import ABSENT, post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    base = {"field": "ingredient", "product_id": "cream_hydra_barrier", "verdict": "contradicted",
+            "correct_value": ABSENT, "passage_id": None, "quote": None}
+    said_absent = FactCheckOutput.model_validate({"claims": [base | {"span": "No retinol in this one",
+                                                                     "stated_value": "no retinol"}], "reason": "t"})
+    passages = [p for p in pack.passages if p.product_id == "cream_hydra_barrier"]
+    assert post_validate(said_absent, passages, catalog, None).claims[0].verdict == "not_in_sources"
+    said_present = FactCheckOutput.model_validate({"claims": [base | {"span": "it has retinol",
+                                                                      "stated_value": "retinol"}], "reason": "t"})
+    assert post_validate(said_present, passages, catalog, None).claims[0].verdict == "contradicted"
+
+
+def test_d151_a_correction_that_restates_the_stated_value_is_dropped(catalog, pack):
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    claim = {"span": "thirty-six dollars", "field": "price", "product_id": "cream_hydra_barrier", "stated_value": "S$36",
+             "verdict": "contradicted", "correct_value": "S$36.00", "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
+             "quote": "Live broadcast price: S$36.00"}
+    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
+    assert post_validate(out, pack.passages, catalog, None).claims[0].verdict == "not_in_sources"
