@@ -175,3 +175,20 @@ def test_arm_b_verify_keeps_digits_restricted_phrases_and_citations_only(pack, c
     assert verify_answer(out, passages, CREAM, minimal=True, **kw) == (True, [])
     wrong = out.model_copy(update={"answer": "It rose 40% right after one use."})
     assert verify_answer(wrong, passages, CREAM, minimal=True, **kw)[1] == ["number 40 not in a cited quote"]
+
+
+@pytest.mark.parametrize("arm, provisional, fallback", [("B", True, True), ("C", False, False)])
+async def test_arm_c_has_no_reflex_pre_scan(arm, provisional, fallback):
+    """D-189: arm C is arm B without the reflex chip and without the reflex fallback alert when the judge fails."""
+    from .judge_fakes import events
+
+    rt, llm = await make_env(DESIGN_ARM=arm)
+    try:
+        line = "This cream cures eczema, honestly."
+        llm.fail("utterance_judge", line)  # both split judges fail
+        await speak(rt, line)
+        created = [e.payload for e in await events(rt, "alert.created")]
+        assert any(p["status"] == "provisional" for p in created) is provisional
+        assert any(a.status == "active" and a.unverified for a in await rt.alerts()) is fallback
+    finally:
+        await close_env(rt)
