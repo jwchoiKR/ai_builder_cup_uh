@@ -56,6 +56,8 @@ def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None,
         out += [_item("governance", q.statement, "check the qualifier") for q in r.qualified_results]
         out += [_item("other", i.name, "check the ingredient") for i in r.ingredients]
         out += [_item("other", m, "missing") for m in r.missing if not m.startswith("variants")]
+        if law is not None and law.startswith("no law"):
+            out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
         return out
     out = _product_items(r) + _corrected_items(result)
     if law is not None and law.startswith("no law"):
