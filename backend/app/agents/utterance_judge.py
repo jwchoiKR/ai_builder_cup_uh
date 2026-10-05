@@ -79,9 +79,16 @@ def names_the_source(text: str, say: str, lex) -> bool:
     """D-244 L7: the qualifier of a result names its source ("tested by Kestrel Labs", "certified by the Vegan
     Society"); a line that names that source carries the qualifier, whatever words it uses around it."""
     m = re.search(r"\(([^()]*)\)\s*$", say)
-    if m is None:
+    if m is None or lex.in_house.search(m.group(1)) or lex.is_qualified(m.group(1)):
+        # D-250 (sealed run: "... in 22 adults" counted as naming the source of "in our in-house test with 22
+        # adults"): our own test has no outside name to say; its qualifier is the words themselves
         return False
     source = {w for w in lex.content_words(m.group(1)) if w not in _GENERIC_QUALIFIER and not w.isdigit()}
+    tokens = re.findall(r"\w[\w'-]*", m.group(1))
+    if any(ch.lower() != ch.upper() for ch in m.group(1)):
+        # D-250: in a script with capitals, the source is a name ("Kestrel Dermal Labs"), not "adults" or "hours"
+        names = set(lex.content_words(" ".join(t for t in tokens if t[0].isupper())))
+        source &= names
     return bool(source) and bool(source & set(lex.content_words(text)))
 
 

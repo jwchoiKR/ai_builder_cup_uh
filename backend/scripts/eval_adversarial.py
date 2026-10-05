@@ -66,6 +66,10 @@ def load_cases(name: str) -> list[dict]:
 
 async def run_case(ctx, case: dict, run_no: int) -> dict:
     """The alerts the host would see for this case: every compliance or fact alert that became active."""
+    from app.agents.fact_checker import DROPS
+
+    drops: list = []
+    DROPS.set(drops)  # D-250: every right-or-wrong model verdict code overruled in this case, with the reason
     s = await create_session(ctx, next(iter(ctx.pack.runsheets)), release_id=RELEASE)
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None  # this eval isolates the utterance pipeline
@@ -86,7 +90,7 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
         for c in calls:
             if c.agent == "fact_checker":
                 tries[c.input_preview].append(c)
-        return {"id": case["case_id"], "run": run_no,
+        return {"id": case["case_id"], "run": run_no, "dropped": drops,
                 # every judge and fact output with its reason, to diagnose a miss or a false alert
                 "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output,
                            "latency_ms": c.latency_ms}
