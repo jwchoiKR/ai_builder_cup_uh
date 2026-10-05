@@ -9,14 +9,13 @@ Both read the same input values as the UtteranceJudge (`build_judge_values`) and
 """
 from __future__ import annotations
 
-import json
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import ComplianceOutput, ComplianceOutputB, ContextOutput, ContextOutputB
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
-from . import arms
+from . import arms, inputs
 from .utterance_judge import (
     STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
     validate_context,
@@ -44,8 +43,11 @@ class _SplitJudge:
         raise NotImplementedError
 
     def extra_data(self) -> str:
-        """D-187: data blocks a design arm adds after the user message (the cached prefix stays the same)."""
-        return ""
+        """D-187: data blocks a design arm adds after the user message (the cached prefix stays the same).
+        D-191 arms D and E: the whole product sheets."""
+        if not arms.agents_decide(self.arm):
+            return ""
+        return inputs.data_block("PRODUCT_FACTS", inputs.passages_json(inputs.all_passages(self.catalog)))
 
     def validate(self, out, values: dict):
         raise NotImplementedError
@@ -86,7 +88,7 @@ class ComplianceJudge(_SplitJudge):
         # D-187 arm B: the in-house test results the judge picks a qualifier replacement from, by id
         results = [{"result_id": r.result_id, "product_id": p.product_id, "say": r.say}
                    for p in self.catalog.products for r in p.qualified_results]
-        return "\n" + f'<data name="QUALIFIED_RESULTS">{json.dumps(results, ensure_ascii=False)}</data>'
+        return super().extra_data() + inputs.data_block("QUALIFIED_RESULTS", results)
 
     def validate(self, out: ComplianceOutput, values: dict) -> ComplianceOutput:
         return validate_compliance(out, self.catalog, values, arm=self.arm)

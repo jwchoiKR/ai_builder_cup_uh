@@ -37,11 +37,13 @@ def verbal_check(utterance: str, draft: str, other_drafts: Iterable[str], lex: L
     return None
 
 
-def judged_numbers_check(link, draft: str, other_drafts: Iterable[str]) -> str | None:
+def judged_numbers_check(link, draft: str, other_drafts: Iterable[str], numbers: bool = True) -> str | None:
     """D-187 arm B: the same hold as verbal_check, from what the context judge reported (`numbers_said` as digits and
     `hedged`) instead of parsing the wording: every number said must be in the draft or another offered draft."""
     if getattr(link, "hedged", False):
         return "host sounded unsure or took it back"
+    if not numbers:  # D-191 arms D and E: no code number gate; the judge's consistency alone decides
+        return None
     allowed = number_set(draft).union(*(number_set(d) for d in other_drafts))
     said = number_set(" ".join(getattr(link, "numbers_said", None) or []))
     if not said <= allowed:
@@ -76,6 +78,7 @@ def decide(
     utterance: str = "",
     current_key: str | None = None,
     by_judge: bool = False,
+    numbers_gate: bool = True,
 ) -> PublishDecision:
     """`offered` maps each question shown to the judge to the verified answer shown with it."""
     a = judge.answer
@@ -90,7 +93,7 @@ def decide(
     stale = (answer is None or shown is None or shown.answer_id != answer.answer_id
              or (current_key is not None and answer.cache_key is not None and answer.cache_key != current_key))
     others = [x.text for g, x in offered.items() if g != gid and x is not None]
-    held = (None if answer is None else judged_numbers_check(a, answer.text, others) if by_judge  # D-187 arm B
+    held = (None if answer is None else judged_numbers_check(a, answer.text, others, numbers_gate) if by_judge  # D-187 arm B
             else verbal_check(utterance, answer.text, others, lex))
     consistent = a.consistent_with_suggested and not stale and held is None  # 2.
     if a.consistent_with_suggested and group.status == "auto_answered":  # a mark only: nothing is posted

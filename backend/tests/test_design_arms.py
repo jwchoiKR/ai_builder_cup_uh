@@ -177,7 +177,7 @@ def test_arm_b_verify_keeps_digits_restricted_phrases_and_citations_only(pack, c
     assert verify_answer(wrong, passages, CREAM, minimal=True, **kw)[1] == ["number 40 not in a cited quote"]
 
 
-@pytest.mark.parametrize("arm, provisional, fallback", [("B", True, True), ("C", False, False)])
+@pytest.mark.parametrize("arm, provisional, fallback", [("B", True, True), ("C", False, False), ("D", False, False)])
 async def test_arm_c_has_no_reflex_pre_scan(arm, provisional, fallback):
     """D-189: arm C is arm B without the reflex chip and without the reflex fallback alert when the judge fails."""
     from .judge_fakes import events
@@ -190,5 +190,52 @@ async def test_arm_c_has_no_reflex_pre_scan(arm, provisional, fallback):
         created = [e.payload for e in await events(rt, "alert.created")]
         assert any(p["status"] == "provisional" for p in created) is provisional
         assert any(a.status == "active" and a.unverified for a in await rt.alerts()) is fallback
+    finally:
+        await close_env(rt)
+
+
+def test_arm_d_layers_b_and_d_prompt_lines_and_gives_the_whole_sheet(catalog):
+    d = arms.system_instruction("BASE", "context_judge", "D", PROMPTS)
+    assert "numbers_said" in d and "PRODUCT_FACTS" in d
+    assert arms.system_instruction("BASE", "answer_composer", "E", PROMPTS) == arms.system_instruction(
+        "BASE", "answer_composer", "D", PROMPTS) != "BASE"
+    assert arms.system_instruction("BASE", "answer_composer", "B", PROMPTS) == "BASE"
+    from app.agents import inputs
+    assert {p.product_id for p in inputs.all_passages(catalog)} == {p.product_id for p in catalog.products}
+    assert inputs.all_passages(catalog, CREAM) and all(p.product_id == CREAM for p in inputs.all_passages(catalog, CREAM))
+
+
+def test_arm_d_posting_has_no_code_number_gate():
+    kw = dict(lex=LEX, high_alert_active=False, facts=None, by_judge=True)
+    d = decide(_jo(numbers_said=["4"], hedged=False), OFFERED, grp(), ans(), numbers_gate=False, **kw)
+    assert d.action == "post"
+    d = decide(_jo(numbers_said=[], hedged=True), OFFERED, grp(), ans(), numbers_gate=False, **kw)
+    assert d.action == "verbal_not_posted"  # the judge's own "unsure" still holds it
+
+
+async def test_arm_d_a_listed_correction_counts_without_a_quote():
+    rt, llm = await make_env(DESIGN_ARM="D")
+    try:
+        line = "This cream cures eczema."
+        llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
+        await speak(rt, line)
+        [a] = [x for x in await rt.alerts() if x.status == "active"]
+        fix = "Let me say that again more carefully."
+        llm.outputs[("compliance_judge", fix)] = {
+            "compliance": {"violations": []},
+            "correction": {"corrects_alert_ids": [a.alert_id], "quotes": []}, "reason": "scripted"}
+        await speak(rt, fix)
+        assert (await rt.get_alert(a.alert_id)).status == "corrected"
+    finally:
+        await close_env(rt)
+
+
+@pytest.mark.parametrize("arm, kind", [("A", "reaction"), ("D", "pending")])
+async def test_arm_d_has_no_comment_prefilter(arm, kind):
+    rt, _ = await make_env(DESIGN_ARM=arm)
+    try:
+        c = await say(rt, "Mei", "lol", wait=False)  # arm A settles it at once; arm D leaves it to triage
+        assert c.kind == kind
+        await rt.ctx.scheduler.idle()
     finally:
         await close_env(rt)

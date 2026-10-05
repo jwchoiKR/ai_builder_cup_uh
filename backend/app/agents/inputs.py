@@ -6,6 +6,7 @@ placeholder that has no builder here.
 """
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from typing import Any
 
@@ -196,6 +197,16 @@ def last_two_final_transcripts_json(previous: Sequence[Transcript]) -> list[str]
 def passages_json(passages: Sequence[Passage]) -> list[dict]:
     return [{"passage_id": p.passage_id, "product_id": p.product_id, "section": p.section, "text": p.text}
             for p in passages]
+
+
+def all_passages(catalog: Catalog, product_id: str | None = None) -> list[Passage]:
+    """D-191 arms D and E: the whole product sheet (every passage) of one product, or of every product."""
+    return [p for p in catalog.pack.passages if product_id is None or p.product_id == product_id]
+
+
+def data_block(name: str, value: Any) -> str:
+    """D-191: a data block a design arm adds after the rendered user message."""
+    return "\n" + f'<data name="{name}">{json.dumps(value, ensure_ascii=False)}</data>'
 
 
 def summary_stats_json(stats: dict[str, Any]) -> dict[str, Any]:

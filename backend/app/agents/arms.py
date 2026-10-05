@@ -17,8 +17,23 @@ def family(arm: str) -> str:
 
 
 def meaning_to_llm(arm: str) -> bool:
-    """Arms B and C: corrections, spoken numbers, hedges, qualifier ids and shout-outs come from the model."""
-    return family(arm) == "B"
+    """Arms B to E: corrections, spoken numbers, hedges, qualifier ids and shout-outs come from the model."""
+    return family(arm) in ("B", "D")
+
+
+def no_reflex(arm: str) -> bool:
+    """Arms C, D and E: no reflex pre-scan (no provisional chip, no fallback alert when the judge fails)."""
+    return arm in ("C", "D", "E")
+
+
+def agents_decide(arm: str) -> bool:
+    """Arms D and E (D-191): the rules and the product facts go whole into the prompts and the agents decide; code
+    keeps deadlines, retries, the state machines, routing permissions and post idempotency only (no comment prefilter
+    beyond Model Armor, no code number gate on a post, no code check of a draft before the LLM draft verifier)."""
+    return family(arm) == "D"
+
+
+LAYERS = {"A": (), "B": ("B",), "D": ("B", "D")}  # D builds on B's model fields
 
 
 @lru_cache(maxsize=4)
@@ -33,6 +48,6 @@ def _addenda(prompts_dir: str) -> dict[tuple[str, str], str]:
 
 
 def system_instruction(base: str, agent: str, arm: str, prompts_dir: Path | str) -> str:
-    """The agent's system instruction with its arm family's addition, if any."""
-    extra = _addenda(str(prompts_dir)).get((family(arm), agent))
-    return f"{base}\n\n{extra}" if extra else base
+    """The agent's system instruction with its arm family's additions, if any."""
+    extras = [x for layer in LAYERS[family(arm)] if (x := _addenda(str(prompts_dir)).get((layer, agent)))]
+    return "\n\n".join([base, *extras])

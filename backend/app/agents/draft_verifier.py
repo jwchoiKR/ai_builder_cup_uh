@@ -11,7 +11,7 @@ from ..models.agent_io import DraftCheckOutput
 from ..models.data import Passage, Promo
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
-from . import inputs
+from . import arms, inputs
 
 
 @dataclass
@@ -20,7 +20,7 @@ class DraftCheckInput:
     question: str
     answer: str
     promo: Promo | None
-    passages: list[Passage]  # the cited passages
+    passages: list[Passage]  # the cited passages (D-191 arms D and E: the whole sheet)
     session_id: str | None = None
     scenario: str = "default"
 
@@ -39,6 +39,8 @@ class DraftVerifier:
         self.prompt_version = prompt.version
         self.model = llm.fast.model
         self.catalog = catalog
+        self.system_instruction = arms.system_instruction(prompt.system_instruction, self.name, llm.design_arm,
+                                                          llm.prompts_path)  # D-191
 
     async def run(self, inp: DraftCheckInput, *, deadline_ms: int) -> AgentResult[DraftCheckOutput]:
         user = self.prompt.render({
@@ -48,9 +50,11 @@ class DraftVerifier:
             "canonical_question": inputs.canonical_question(inp.question),
             "draft_answer_json": inputs.draft_answer_json(inp.answer),
         })
+        if arms.agents_decide(self.llm.design_arm):  # D-191 arms D and E: the advertising rules, whole
+            user += inputs.data_block("RULES", inputs.rules_compact_json(self.catalog))
         return await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
-            prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
+            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=DraftCheckOutput, deadline_ms=deadline_ms,
             session_id=inp.session_id, mock_primary_text=f"{inp.product_id or '*'}|{inp.answer}",
             mock_scenario=inp.scenario,

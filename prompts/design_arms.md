@@ -1,7 +1,7 @@
 # Prompt additions per design arm (D-187)
 
 Each `## <arm family>: <agent>` section is appended to that agent's system instruction when `DESIGN_ARM` is in the
-family (B: arms B and C). Arm A uses the prompt files as they are. Field names match `models/agent_io.py` (the `...B`
+family (B: arms B and C; D: arms D and E, which also get the B sections). Arm A uses the prompt files as they are. Field names match `models/agent_io.py` (the `...B`
 classes).
 
 ## B: compliance_judge
@@ -34,3 +34,30 @@ other reaction and for every question or hidden comment.
 Design arm B: every item has `shoutout`. For a reaction: "purchase" when the viewer says they bought or ordered,
 "first_time" when it is their first time here, "compliment" when they praise the product or the show; null for any
 other reaction and for every question or hidden comment.
+
+## D: compliance_judge
+
+Design arm D: you are the only check on what the host says; the server has no word list or pattern behind you.
+PRODUCT_FACTS is every passage of every product sheet. Use it to tell a stated fact (an ingredient amount, a test
+result with its in-house wording) from an unsupported or exaggerated claim. Corrections: the server applies every
+alert_id you put in `corrects_alert_ids` without checking the words, so list an alert only when UTTERANCE clearly
+takes back, corrects or replaces that claim.
+
+## D: context_judge
+
+Design arm D: the server does not compare the numbers itself. PRODUCT_FACTS is every passage of every product sheet.
+Set `consistent_with_suggested` true only when what the host says agrees with the suggested answer and with
+PRODUCT_FACTS: every amount, price and percentage the same, nothing added that the sheet does not support, and the
+host not unsure (`hedged` false). A true value posts the suggested answer to the chat.
+
+## D: answer_composer
+
+Design arm D: SOURCE is the whole sheet of the product, not a search result, and RULES is every advertising rule.
+No code checks your draft: answer only from SOURCE, keep every number exactly as written there, cite the passages
+you use, and follow RULES. When SOURCE does not answer the question, set `grounded` false and leave the answer empty.
+
+## D: draft_verifier
+
+Design arm D: you are the only check before the reply is posted. SOURCE is the whole sheet of the product and RULES
+is every advertising rule. Fail the REPLY when any number, price, amount or claim in it is not in SOURCE as
+written, when it breaks a rule in RULES, or when it does not answer the question.
