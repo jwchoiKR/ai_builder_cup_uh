@@ -4,7 +4,7 @@ facts and policies, overstated results, weakened cautions and replies that answe
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
 from ..models.agent_io import DraftCheckOutput
@@ -23,6 +23,7 @@ class DraftCheckInput:
     passages: list[Passage]  # the cited passages (D-191 arms D and E: the whole sheet)
     session_id: str | None = None
     scenario: str = "default"
+    comments: list[str] = field(default_factory=list)  # D-212: the askers' own words
 
 
 def cited_passages(cited_ids: Sequence[str], passages: Sequence[Passage]) -> list[Passage]:
@@ -49,6 +50,8 @@ class DraftVerifier:
             "passages_json": inputs.passages_json(inp.passages),
             "canonical_question": inputs.canonical_question(inp.question),
             "draft_answer_json": inputs.draft_answer_json(inp.answer),
+            "cautions_json": inputs.cautions_json(self.catalog, inp.product_id),
+            "viewer_comments_json": inputs.viewer_comments_json(inp.comments or [inp.question]),
         })
         if arms.agents_decide(self.llm.design_arm):  # D-191 arms D and E: the advertising rules, whole
             user += inputs.data_block("RULES", inputs.rules_compact_json(self.catalog))
