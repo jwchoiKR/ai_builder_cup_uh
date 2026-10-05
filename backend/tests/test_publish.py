@@ -535,3 +535,18 @@ async def test_d203_a_failed_fact_check_on_a_number_line_runs_once_more(line, ca
         assert [a for a, _ in backend.calls].count("fact_checker") == calls
     finally:
         await close_env(rt)
+
+
+async def test_d204_a_red_alert_in_the_cancel_window_stops_the_post(env):
+    rt, llm = env
+    g = await oily_on_host(rt)
+    answer_script(llm, g.group_id)
+    await speak(rt, ANSWER)
+    [m] = await messages(rt, "host_answer")
+    assert m.state == "pending"
+    line = "And honestly this cream cures eczema."
+    llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
+    await speak(rt, line)
+    await rt.ctx.scheduler.advance(2000)
+    [m] = await messages(rt, "host_answer")
+    assert m.state == "cancelled"
