@@ -165,9 +165,11 @@ def test_code_checks_on_the_verbal_post_cases(case):
     shown = case["expected"].get("matched_group") or case["shown_group_id"]
     if shown not in qs:
         return  # other_group: no draft shown for this question
-    held = verbal_check(case["utterance"], qs[shown], LEX)
+    # D-196: a line answering two shown questions is linked to both, so the other draft's numbers count
+    linked = [a for g, a in qs.items() if g != shown] if case["case_id"] in ("V14", "V46") else []
+    held = verbal_check(case["utterance"], qs[shown], LEX, linked)
     exp = case["expected"]
-    if exp["post"] and case["case_id"] not in ("V14", "V46"):  # D-195: two drafts at once is held now
+    if exp["post"]:
         assert held is None, held
     elif exp["category"] in ("wrong_number", "hedge", "retracted"):
         assert held is not None
@@ -451,3 +453,57 @@ async def test_d175_a_context_timeout_is_asked_again_about_the_one_question(env)
     assert len(calls) == 2
     [m] = await messages(rt, "host_answer")
     assert m.state == "published"
+
+
+# ---- D-196: one sentence, several shown questions -----------------------------------------------------------------
+
+
+def _two(utterance: str, also: list[str]):
+    size = ans().model_copy(update={"text": "It is 50 mL."})
+    amp = ans().model_copy(update={"answer_id": "a2", "group_id": "g2", "text": "It is 30 mL."})
+    offered = {"g1": size, "g2": amp}
+    j = jo()
+    j.answer.also_answered_group_ids = also
+    kw = dict(lex=LEX, high_alert_active=False, facts=CHECKED, utterance=utterance)
+    first = decide(j, offered, grp(), size, **kw)
+    second = None
+    if also:
+        j2 = j.model_copy(deep=True)
+        j2.answer.matched_group_id, j2.answer.also_answered_group_ids = "g2", ["g1"]
+        second = decide(j2, offered, grp(group_id="g2", answer_id="a2"), amp, **kw)
+    return first, second
+
+
+def test_d196_a_line_answering_two_linked_questions_posts_each():
+    first, second = _two("The ampoule is 30 mL and the cream is 50 mL.", ["g2"])
+    assert first.action == "post" and second.action == "post"
+
+
+def test_d196_without_the_second_link_the_other_number_is_held():
+    first, _ = _two("The ampoule is 30 mL and the cream is 50 mL.", [])
+    assert (first.action, first.reason) == ("verbal_not_posted", "a number differs from the verified draft")
+
+
+def test_d196_a_linked_draft_whose_number_was_not_said_is_held():
+    """Linked to both, but the line only states the ampoule's 30: the cream's draft (50) is not posted."""
+    first, second = _two("The ampoule is 30 mL.", ["g2"])
+    assert (first.action, first.reason) == ("verbal_not_posted", "a number of this draft was not said")
+    assert second.action == "post"
+
+
+@pytest.mark.parametrize("linked_both", [True, False])
+async def test_d196_the_pipeline_posts_every_group_one_line_answers(env, linked_both):
+    rt, llm = env
+    g1 = await oily_on_host(rt)
+    await say(rt, "Mia", "Can I use it while pregnant?")
+    g2 = next(g for g in await rt.groups() if g.group_id != g1.group_id)
+    assert g2.status == "ready"
+    line = "Yes, it's a lightweight gel-cream, so use a smaller amount on oily areas, and please ask your doctor first if you are pregnant."
+    out = judge_output(utterance_type="answer", matched=g1.group_id, is_answer=True, consistent=True)
+    out["answer"]["also_answered_group_ids"] = [g2.group_id] if linked_both else []
+    llm.outputs[("utterance_judge", line)] = out
+    await speak(rt, line)
+    await rt.ctx.scheduler.advance(2000)
+    posted = await messages(rt, "host_answer")
+    expected = (g1.group_id, g2.group_id) if linked_both else (g1.group_id,)
+    assert sorted(m.idempotency_key for m in posted) == sorted(f"host_answer:{g}" for g in expected)

@@ -34,6 +34,8 @@ class AnswerLink(BaseModel):
     matched_group_id: str | None
     is_answer: bool
     consistent_with_suggested: bool
+    # D-196: other open questions the same sentence also answers, consistently with their suggested answers
+    also_answered_group_ids: list[str] = []
 
 
 class SwitchCue(BaseModel):
