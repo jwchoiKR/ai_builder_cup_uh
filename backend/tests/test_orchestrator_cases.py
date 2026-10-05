@@ -16,7 +16,7 @@ from .test_publish import oily_on_host
 
 PROMPTER = "It's a lightweight gel-cream, so it absorbs really quickly."
 WRINKLES = "Use it every night and your wrinkles will disappear overnight."
-SAY = "With regular use, it helps keep your skin hydrated for up to 24 hours in our in-house test."
+SAY = "Helps keep skin hydrated for up to 24 hours in our in-house test."  # D-209: approved wording, not the model's
 APOLOGY = "Oh, I'm sorry."
 FIX = "Let me correct that. It helps keep your skin hydrated for up to twenty-four hours in our in-house test."
 NEGATED = "Just to be clear, it does not treat acne. It's a moisturiser."
