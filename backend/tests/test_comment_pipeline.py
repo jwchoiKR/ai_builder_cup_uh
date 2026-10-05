@@ -343,16 +343,44 @@ async def test_armor_screens_cache_hits_too(rt):
 
 
 @pytest.mark.parametrize("armor", [FakeArmor(fail=RuntimeError("503")), FakeArmor(delay_s=0.3)])
-async def test_armor_failure_or_timeout_leaves_the_comment_unscreened(tmp_path, armor):
+async def test_armor_failure_or_timeout_is_tried_again_then_goes_to_the_operator(tmp_path, armor):
+    """D-206: an unscreened comment is screened once more; still unscreened, it reaches no model and goes to the
+    operator as an "other" question (it used to be dropped as a reaction)."""
+    armor.seen.clear()
     ctx = make_ctx(tmp_path, MODEL_ARMOR_TIMEOUT_MS=50)
     rt = await armored(await live_runtime(ctx), armor)
     c = await say(rt, "Lee", "How much is the cream?")
     c = await rt.get_comment(c.comment_id)
-    assert (c.armor, c.kind, c.visibility) == ("unscreened", "reaction", "visible")
-    assert await groups(rt) == [] and await messages(rt) == []
+    assert len(armor.seen) == 2 and (c.armor, c.kind, c.visibility) == ("unscreened", "question", "visible")
+    [g] = await groups(rt)
+    assert (g.route, g.status, g.intent) == ("OPERATOR", "needs_review", "other") and await messages(rt) == []
     assert (await rt.compute_metrics())["armor"]["unscreened"] == 1
     ctx.runtimes.shutdown()
     ctx.scheduler.shutdown()
+
+
+async def test_d206_an_unknown_armor_result_is_not_a_pass(monkeypatch):
+    from app.providers import armor as armor_mod
+
+    class Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"sanitizationResult": {}}
+
+    client = armor_mod.ModelArmorClient("p", "us-central1", "t")
+
+    async def post(*_a, **_k):
+        return Resp()
+
+    async def token():
+        return "x"
+
+    monkeypatch.setattr(client._http, "post", post)
+    monkeypatch.setattr(client, "_token", token)
+    verdict, _ = await client.screen("hello")
+    assert verdict == "unscreened"
 
 
 @pytest.mark.parametrize("verdict", ["fail", "error"])

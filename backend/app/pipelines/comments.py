@@ -129,9 +129,19 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
     t0 = time.perf_counter()
     # D-125: Model Armor before triage, on every comment the prefilter let through (no cache bypass)
     verdict, detail = await armor_screen(rt.ctx.armor, comment.text, rt.settings.MODEL_ARMOR_TIMEOUT_MS)
-    if verdict != "pass":
+    if verdict == "unscreened":  # D-206: once more, then the operator
+        verdict, detail = await armor_screen(rt.ctx.armor, comment.text, rt.settings.MODEL_ARMOR_TIMEOUT_MS)
+    if verdict == "blocked":
         await _finish_armored(rt, comment_id, verdict, detail, round((time.perf_counter() - t0) * 1000))
         return
+    unscreened = verdict != "pass"
+    if unscreened:
+        # D-206 (full review P2): an unscreened comment never reaches a model; it goes to the operator as an
+        # "other" question (OPERATOR route, nothing drafted) instead of being dropped as a reaction
+        async with rt.lock:
+            comment.armor = "unscreened"
+            await rt.save_comment(comment)
+            rt.counters["armor_unscreened"] += 1
     segs = await rt.segments()
     seg = segment_at(segs, comment.received_at - rt.settings.STREAM_GRACE_SEC * 1000)
     # D-135: before the first segment, the host screen already shows the first run-sheet product as NOW.
@@ -148,7 +158,9 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
     key = triage_cache_key(comment.text, context_pid, host_line)
     cached = rt.triage_cache.get(key)
     for attempt in (1, 2):
-        if attempt == 1 and cached is not None:
+        if unscreened:
+            output, source, seen = _fallback_output(comment.text), "unscreened", set()
+        elif attempt == 1 and cached is not None:
             output, source, seen = CommentTriageOutput.model_validate(cached), "cache", set()
         else:
             inp = TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario,
@@ -175,7 +187,8 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
         intent = rt.intent(output.intent)
         pid, basis = attribute_product(comment.text, output, context_pid, rt.catalog, intent)
         async with rt.lock:
-            if attempt == 1 and source != "fallback" and await _missed_new_group(rt, output, pid, intent.intent, seen):
+            if attempt == 1 and source not in ("fallback", "unscreened") and await _missed_new_group(
+                    rt, output, pid, intent.intent, seen):
                 continue  # D-042: triage ran on a stale list of open groups; ask once more
             await rt.documents_changed_locked()  # D-152: before an asker joins a group with a stale answer
             await _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, source, latency_ms, scenario)

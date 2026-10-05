@@ -168,7 +168,7 @@ class CommentAnalysis(BaseModel):  # [sessions/{sid}/analyses/{analysis_id}]
     context_product_id: str | None = None  # product on air at received_at - STREAM_GRACE_SEC
     route: Literal["AUTO", "HOST", "OPERATOR"] | None = None
     route_reason: str | None = None
-    source: Literal["prefilter", "cache", "llm", "fallback", "armor"]
+    source: Literal["prefilter", "cache", "llm", "fallback", "armor", "unscreened"]
     latency_ms: int | None = None
 
 
