@@ -181,7 +181,7 @@ async def test_operator_actions(rt):
 
 
 async def test_unhide_reruns_triage(rt):
-    c = await say(rt, "Spam", "visit daonlab.sg for the price?")
+    c = await say(rt, "Spam", "how much is the cream daonlab.sg")  # D-234: a link without "?" stays hidden
     assert c.visibility == "hidden"
     await ops.unhide_comment(rt, c.comment_id)
     await rt.ctx.scheduler.idle()
@@ -896,3 +896,10 @@ async def test_d205_an_operator_reply_with_sheet_numbers_posts_verified(rt):
     await ops.write_answer(rt, g.group_id, "The cream is S$36.00 during this live.", "operator_written", confirm=False)
     [g] = await groups(rt)
     assert (await rt.get_answer(g.answer_id)).verified
+
+
+async def test_d234_a_question_with_a_link_loses_the_link_not_the_question(rt):
+    c = await say(rt, "Mia", "Is it ok for acne? I saw it on www.reddit.com/r/skincare")
+    c = await rt.get_comment(c.comment_id)
+    assert c.visibility == "visible" and c.kind == "question"
+    assert "reddit" not in c.text and "[link removed]" in c.text
