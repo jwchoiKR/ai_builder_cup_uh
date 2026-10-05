@@ -5,6 +5,7 @@ KNOWN_KEYS = frozenset({"compliance", "rule_id", "severity", "negated", "quoted"
                         "correct_value", "answer", "matched_group", "consistent_with_suggested",
                         "covered_points", "switch", "target", "corrects_alert_ids", "note", "qualifier_ok"})
 QUALIFIER_RULE = "BRAND-TEST-QUALIFIER"
+PRICE_FIELDS = frozenset({"price", "set_price", "promo"})  # a time-sale price is filed as either (holdout H046)
 
 
 def expectation_checks(expected: dict, judge: dict, facts: dict, same_value,
@@ -60,7 +61,8 @@ def expectation_checks(expected: dict, judge: dict, facts: dict, same_value,
     wrong = [c for c in facts.get("claims", []) if c.get("verdict") == "contradicted"]
     verdict = expected.get("fact")
     if verdict == "contradicted":
-        ok = any(c.get("field") == expected["field"] and same_value(c.get("correct_value"), expected["correct_value"]) for c in wrong)
+        ok = any((c.get("field") == expected["field"] or {c.get("field"), expected["field"]} <= PRICE_FIELDS)
+                 and same_value(c.get("correct_value"), expected["correct_value"]) for c in wrong)
         name = "catches the wrong fact"
     elif verdict in ("supported", "none", None):
         ok = not wrong
