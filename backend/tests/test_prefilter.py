@@ -14,10 +14,8 @@ LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexic
 @pytest.mark.parametrize(
     "text, category",
     [
-        ("Cheap creams here >>> www.deal-cosmetics.example", "link"),
-        ("Free followers at bit.ly/free-follow-example", "link"),
-        ("see https://x.y/z", "link"),
-        ("visit daonlab.sg now", "link"),
+        ("https://x.y/z", "link"),  # D-234: only a bare link is hidden here
+        ("www.deal-cosmetics.example !!", "link"),
         ("my email is jane.tan@example.com send me codes", "personal_info"),
         ("call me 9123 4567 for wholesale", "personal_info"),
         ("Message me on WhatsApp 8123 4567 for wholesale", "personal_info"),
@@ -31,6 +29,12 @@ LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexic
 def test_hide(text, category):
     v = prefilter(text, LEX)
     assert (v.kind, v.hide_category) == ("hide", category)
+
+
+@pytest.mark.parametrize("text", ["Cheap creams here >>> www.deal-cosmetics.example", "price for the 50ml bit.ly/x",
+                                  "this one can use for kids or not? see daonlab.sg"])
+def test_d234_a_link_with_words_goes_to_triage(text):
+    assert prefilter(text, LEX).kind is None  # triage tells spam from a question
 
 
 @pytest.mark.parametrize("text", ["😍😍", "😍😍😍", "👏👏", "!!!", "ok", "So pretty! 💜", "wow", "hi hi", "yesss",

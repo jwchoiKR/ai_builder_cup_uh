@@ -31,7 +31,7 @@ async def messages(rt) -> list[Message]:
 
 
 async def test_prefilter_hides_and_reactions_skip_llm(rt):
-    hidden = await say(rt, "Spam", "Cheap creams here >>> www.deal-cosmetics.example")
+    hidden = await say(rt, "Spam", "www.deal-cosmetics.example")  # D-234: a bare link
     reaction = await say(rt, "Amy", "So pretty! 💜")
     assert hidden.visibility == "hidden" and hidden.hide_category == "link"
     assert reaction.kind == "reaction"
@@ -181,7 +181,7 @@ async def test_operator_actions(rt):
 
 
 async def test_unhide_reruns_triage(rt):
-    c = await say(rt, "Spam", "how much is the cream daonlab.sg")  # D-234: a link without "?" stays hidden
+    c = await say(rt, "Spam", "what the fuck is the cream price")  # hidden by the prefilter (profanity)
     assert c.visibility == "hidden"
     await ops.unhide_comment(rt, c.comment_id)
     await rt.ctx.scheduler.idle()
