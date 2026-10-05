@@ -9,11 +9,14 @@ Both read the same input values as the UtteranceJudge (`build_judge_values`) and
 """
 from __future__ import annotations
 
+import json
+
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
-from ..models.agent_io import ComplianceOutput, ContextOutput
+from ..models.agent_io import ComplianceOutput, ComplianceOutputB, ContextOutput, ContextOutputB
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
+from . import arms
 from .utterance_judge import (
     STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
     validate_context,
@@ -24,6 +27,7 @@ class _SplitJudge:
     name: str
     spec: str  # the LLMClient model spec (D-128)
     output_model: type
+    output_model_b: type  # D-187: arms B and C
 
     def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
         self.llm = llm
@@ -32,9 +36,16 @@ class _SplitJudge:
         self.model = llm.fast.model
         self.catalog = catalog
         self.reflex = reflex
+        self.arm = llm.design_arm  # D-187
+        self.system_instruction = arms.system_instruction(self.prompt.system_instruction, self.name, self.arm,
+                                                          llm.prompts_path)
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         raise NotImplementedError
+
+    def extra_data(self) -> str:
+        """D-187: data blocks a design arm adds after the user message (the cached prefix stays the same)."""
+        return ""
 
     def validate(self, out, values: dict):
         raise NotImplementedError
@@ -43,11 +54,13 @@ class _SplitJudge:
         values = values if values is not None else build_judge_values(self.catalog, inp)
         encode, decode = symbolic_ids(values)
         user, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
+        user += self.extra_data()
+        b = arms.meaning_to_llm(self.arm)
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=getattr(self.llm, self.spec).model,
             thinking_level=getattr(self.llm, self.spec).thinking_level,
-            prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
-            user_message=user, output_model=self.output_model, deadline_ms=deadline_ms,
+            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
+            user_message=user, output_model=self.output_model_b if b else self.output_model, deadline_ms=deadline_ms,
             cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             session_id=inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: self.fallback(inp, values),
@@ -62,18 +75,28 @@ class ComplianceJudge(_SplitJudge):
     name = "compliance_judge"
     spec = "compliance"
     output_model = ComplianceOutput
+    output_model_b = ComplianceOutputB
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_compliance(inp, values, self.catalog, self.reflex)
 
+    def extra_data(self) -> str:
+        if not arms.meaning_to_llm(self.arm):
+            return ""
+        # D-187 arm B: the in-house test results the judge picks a qualifier replacement from, by id
+        results = [{"result_id": r.result_id, "product_id": p.product_id, "say": r.say}
+                   for p in self.catalog.products for r in p.qualified_results]
+        return "\n" + f'<data name="QUALIFIED_RESULTS">{json.dumps(results, ensure_ascii=False)}</data>'
+
     def validate(self, out: ComplianceOutput, values: dict) -> ComplianceOutput:
-        return validate_compliance(out, self.catalog, values)
+        return validate_compliance(out, self.catalog, values, arm=self.arm)
 
 
 class ContextJudge(_SplitJudge):
     name = "context_judge"
     spec = "context"
     output_model = ContextOutput
+    output_model_b = ContextOutputB
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_context(inp, self.catalog)

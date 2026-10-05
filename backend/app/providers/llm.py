@@ -441,6 +441,15 @@ class LLMClient:
         if settings.LLM_USAGE_REPORT:
             atexit.register(write_usage_report, settings.LLM_USAGE_REPORT)
 
+    @property
+    def design_arm(self) -> str:
+        """D-187: the design arm this process runs."""
+        return self._settings.DESIGN_ARM
+
+    @property
+    def prompts_path(self) -> Path:
+        return self._settings.prompts_path
+
     async def call(self, req: LLMRequest[T]) -> AgentResult[T]:
         call_id = self._ids.new("call_", req.session_id)
         started_at = self._clock.now_ms()

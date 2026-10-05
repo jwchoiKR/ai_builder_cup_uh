@@ -12,6 +12,7 @@ import re
 import time
 from typing import TYPE_CHECKING
 
+from ..agents import arms
 from ..agents.answer_composer import ComposeInput, gather_passages
 from ..agents.comment_triage import TriageInput
 from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
@@ -101,9 +102,10 @@ async def _finish_armored(rt, comment_id: str, verdict: str, detail: str, latenc
                                            "analysis": analysis.model_dump(mode="json")})
 
 
-def note_shoutout(rt: "SessionRuntime", comment: Comment) -> None:
-    """D-113: a purchase, first-time or compliment reaction the AI PD may read out with the name."""
-    kind = shout_kind(comment.text)
+def note_shoutout(rt: "SessionRuntime", comment: Comment, label: str | None = None) -> None:
+    """D-113: a purchase, first-time or compliment reaction the AI PD may read out with the name. D-187 arm B: the
+    kind is triage's label, never a regex (a reaction the prefilter settles has none)."""
+    kind = label if arms.meaning_to_llm(rt.settings.DESIGN_ARM) else shout_kind(comment.text)
     if kind is not None:
         rt.shoutouts.append(ShoutOut(comment.comment_id, comment.author_name, kind, comment.received_at))
 
@@ -261,7 +263,7 @@ async def _finish_non_question(rt, comment_id, output, context_pid, source, late
             comment.visibility, comment.hide_category = "hidden", output.hide_category
         await rt.save_comment(comment)
         if output.kind == "reaction":
-            note_shoutout(rt, comment)
+            note_shoutout(rt, comment, getattr(output, "shoutout", None))
         if output.kind == "hide":
             await rt.emit("comment.hidden", comment)
         await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"), "analysis": analysis.model_dump(mode="json")})
@@ -542,7 +544,8 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
         c for p in rt.catalog.products for c in p.not_approved_claims]
     ok, errors = verify_answer(out, passages, product_id, multi=product_id is None,
-                               reflex=rt.reflex, not_approved_claims=not_approved)
+                               reflex=rt.reflex, not_approved_claims=not_approved,
+                               minimal=arms.meaning_to_llm(rt.settings.DESIGN_ARM))  # D-187 arm B
     if ok:
         ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario)
     by_id = {p.passage_id: p for p in passages}
