@@ -14,6 +14,10 @@ export const KO_HOST: Record<string, string> = {
   "Reading size": "글자 크기",
   Microphone: "마이크",
   "System default": "시스템 기본",
+  Layout: "레이아웃",
+  "Reset layout": "레이아웃 초기화",
+  "Resize prompter and chat": "프롬프터와 채팅 크기 조절",
+  "Resize prompter and questions": "프롬프터와 질문 크기 조절",
   "Labels only. What you say on air is not translated.": "화면 글자만 바뀝니다. 방송에서 말할 문장은 번역하지 않습니다.",
   // top bar
   LIVE: "LIVE",

@@ -354,18 +354,22 @@
 /* ---- main grid ----------------------------------------------------------------------------------- */
 
 .main {
+  /* D-181: the splitter has its own track, as wide as the old gap; the saved split is set inline */
+  --split-gap: calc(20px * var(--hs));
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 58fr 42fr;
-  gap: calc(20px * var(--hs));
+  grid-template-columns: minmax(0, 58fr) var(--split-gap) minmax(0, 42fr);
 }
 /* D-095: left = prompter (top half) + audience questions (bottom half); right = live chat only */
 .left {
+  --split-gap: calc(20px * var(--hs));
   min-height: 0;
+  min-width: 0;
   display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: calc(20px * var(--hs));
+  /* the prompter row never goes below the height the prompter asks for (useFit sets it when even the smallest
+     zoom does not fit), so its status line never leaves the card; the questions take what is left */
+  grid-template-rows: minmax(auto, 1fr) var(--split-gap) minmax(0, 1fr);
 }
 /* D-107: the cue, the switch banner and the AI PD card come and go here, above the questions,
    so the prompter box above never moves */
