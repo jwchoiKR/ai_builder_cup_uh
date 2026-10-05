@@ -278,7 +278,7 @@ async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pi
                    canonical_question=output.canonical_question, candidate_id=output.group_candidate_id)
     created = g is None
     if g is None:
-        route, reason = ("OPERATOR", "ai_unavailable") if source == "fallback" else route_for(intent, pid)
+        route, reason = ("OPERATOR", "ai_unavailable") if source == "fallback" else await _route(rt, intent, pid)
         g = QuestionGroup(
             group_id=rt.new_id("grp_"), product_id=pid, intent=intent.intent, condition_slots=slots,
             canonical_question=output.canonical_question, member_comment_ids=[comment_id],
@@ -356,12 +356,9 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
         return  # members wait for the composer, the host or the operator
     intent = rt.intent(g.intent)
     if not is_composable(intent, g.product_id):
-        g.status = "needs_review"  # D-113: an unresolved product stays with the host ("Which product?")
-        if intent.product_scope == "none" and (await rt.load_session()).show_mode == "solo":
-            # D-140 (step F): shipping, returns, payment ... in a solo show wait on the host's list (a card
-            # with the general deferral once HOST_REPEAT_THRESHOLD viewers ask); nobody watches an operator list
-            # (a triage failure keeps its reason: it waits in the list without a card)
-            g.route, g.route_reason = "HOST", "general" if g.route_reason == "intent" else g.route_reason
+        # D-113: an unresolved product stays with the host ("Which product?"). D-178: shipping, returns,
+        # payment ... keep their OPERATOR route in a solo show too (the host sees only the unanswered count)
+        g.status = "needs_review"
         return
     key = await answer_key(rt, g)
     cached = rt.answer_cache.get(key)
@@ -374,20 +371,41 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
     rt.spawn(compose_for_group(rt, g.group_id, key, scenario), name=f"compose:{g.group_id}")
 
 
+async def _route(rt: "SessionRuntime", intent, product_id: str | None) -> tuple[str, str]:
+    """The intent's route (§8.9.2); D-178: a host question about a product already shown and no longer on air goes
+    to the operator (team) or the host's unanswered count (solo)."""
+    route, reason = route_for(intent, product_id)
+    if route == "HOST" and product_id is not None:
+        seg = await rt.current_segment()
+        aired = {x.product_id for x in await rt.segments() if x.ended_at is not None}
+        if product_id in aired and (seg is None or seg.product_id != product_id):
+            return "OPERATOR", "previous_product"
+    return route, reason
+
+
 async def no_draft_locked(rt: "SessionRuntime", g: QuestionGroup) -> None:
-    """D-135: no verified answer. A host question, or any question in a solo show (nobody watches the
-    operator list), stays on the host's list with the honest deferral line; in a team show the others
-    go to the operator."""
-    solo = (await rt.load_session()).show_mode == "solo"
-    route = "HOST" if g.route == "HOST" or solo else "OPERATOR"
-    g.route, g.route_reason, g.status = route, "no_verified_answer", "needs_review"
+    """D-178 (user decision, replaces D-135's host deferral card): no verified answer, so the product info does not
+    answer it. It goes to the operator (team) or only to the host's unanswered count (solo), sensitive ones too."""
+    g.route, g.route_reason, g.status = "OPERATOR", "no_verified_answer", "needs_review"
+
+
+async def move_previous_product_questions_locked(rt: "SessionRuntime", product_id: str) -> None:
+    """D-178 (user decision): at a product switch the host's questions about the previous product go to the
+    operator list (team) or the host's unanswered count (solo). Answered, AI-answered and "Which product?" groups stay."""
+    for g in await rt.groups():
+        if (g.product_id == product_id and g.route == "HOST" and g.status in ("new", "composing", "ready", "needs_review")
+                and g.host_verbal_answer_transcript_id is None):
+            g.route, g.route_reason = "OPERATOR", "previous_product"  # a ready draft stays ready for the operator
+            g.version += 1
+            await rt.save_group(g)
+            await rt.emit("group.updated", g)
 
 
 async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: Answer, *, instant: bool) -> None:
     g.answer_id = answer.answer_id
     if answer.verified and g.route_reason in ("no_verified_answer", "needs_human"):
         # D-135: an earlier draft failed (or timed out); a verified one now takes the intent's own route
-        g.route, g.route_reason = route_for(rt.intent(g.intent), g.product_id)
+        g.route, g.route_reason = await _route(rt, rt.intent(g.intent), g.product_id)
     if not answer.verified:
         await no_draft_locked(rt, g)
         return

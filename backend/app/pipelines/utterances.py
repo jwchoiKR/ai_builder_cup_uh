@@ -37,7 +37,7 @@ from ..logic.segments import classify_switch, expire, names_product, replace_cue
 from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
-from .comments import answer_key
+from .comments import answer_key, move_previous_product_questions_locked
 from .runtime import ActionError
 
 if TYPE_CHECKING:
@@ -1038,6 +1038,7 @@ async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -
     await rt.save_session(s)
     await rt.emit("segment.started", new)
     if old is not None:
+        await move_previous_product_questions_locked(rt, old.product_id)  # D-178
         missing = missing_required(rt.catalog, old)
         if missing:
             texts = {p.point_id: p.text for p in points_of(rt.catalog, old.product_id, rt.points)}

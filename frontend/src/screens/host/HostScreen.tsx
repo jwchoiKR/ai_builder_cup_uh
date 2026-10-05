@@ -10,6 +10,7 @@ import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
   redBlocking,
+  unansweredCount,
   activePdCard,
   activePricePromo,
   chatItems,
@@ -294,7 +295,8 @@ export function HostView({
             {/* D-107: everything that comes and goes sits here, so the prompter box never moves;
                 D-127: the AI PD card lives inside the questions panel */}
             <div className={styles.leftBottom}>
-              <Questions slots={hostSlots(state)} card={pd} onDismiss={actions.dismissPd} correcting={blocking} />
+              <Questions slots={hostSlots(state)} card={pd} onDismiss={actions.dismissPd} correcting={blocking}
+                unanswered={unansweredCount(state)} />
             </div>
           </div>
           <div className={styles.right}>

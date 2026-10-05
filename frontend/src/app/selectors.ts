@@ -358,6 +358,14 @@ function waitingState(group: QuestionGroup, answer: Answer | null, card: PdCard 
   return answer ? "Ready" : "No answer yet";
 }
 
+/** D-178: questions the product info does not answer, shop policy and the previous product's questions wait for the
+ *  operator. In a solo show nobody watches that list, so the host sees only how many there are. */
+export function unansweredCount(state: ClientState): number {
+  if (state.session?.show_mode !== "solo") return 0;
+  return Object.values(state.groups).filter((g) => g.route === "OPERATOR"
+    && ["new", "composing", "ready", "needs_review"].includes(g.status) && !g.host_verbal_answer_transcript_id).length;
+}
+
 export type DeskTab = "all" | "needs_review" | "on_host" | "ready" | "composing" | "answered" | "closed";
 export type DeskStatusTab = Exclude<DeskTab, "all">;
 
