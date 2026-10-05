@@ -51,6 +51,9 @@ def save_cached(root: Path, key: str, result: dict) -> None:
     folder = root / "testdrive_cache"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{key}.json").write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+    from ..onboarding.storage import persisted
+
+    persisted(folder / f"{key}.json")  # D-263
 
 
 def scene(rt) -> list[tuple[float, str, str, str]]:

@@ -1445,3 +1445,75 @@ async def test_d262_twice_is_a_number_in_every_guard(tmp_path, monkeypatch):
 
     [a] = await _release_line(tmp_path, monkeypatch, {"how_to_use": facts}, "Brush three times daily.", claim)
     assert a["correct_value"] == "Brush twice daily."
+
+
+def test_d263_the_bucket_holds_onboarding_state_across_a_restart(tmp_path):
+    from app.onboarding import storage
+    from app.onboarding.files import store
+    from app.onboarding.lawpack import LawPackRecord, lawpack_for, save_lawpack
+    from app.onboarding.release import load_release_full, save_release
+    from app.onboarding.sources import release_sources
+
+    bucket = storage.MemoryBucket()
+    a, b = tmp_path / "a", tmp_path / "b"
+    storage.configure(a, bucket)
+    try:
+        rec, _ = normalise(ProductRecord.model_validate(_record()))
+        stored = store(a, "job1", "spec.txt", b"Use within 12 months.")
+        rid = save_release(a, rec, "job1")
+        law = LawPackRecord.model_validate({"name": "Toy law", "regulator": "R", "covers": ["toy"], "language": "en",
+                                           "rules": []})
+        pid = save_lawpack(a, "SG", law, "job2")
+        keys = set(bucket.keys(storage.PREFIX))
+        assert {f"onboarding/releases/{rid}.json", f"onboarding/lawpacks/{pid}.json", "onboarding/job1/files.json",
+                f"onboarding/job1/{stored.path.name}"} <= keys  # write-through
+        # write-once: another release under the same name is refused
+        (a / "releases" / f"{rid}.json").write_text("{}", encoding="utf-8")
+        with pytest.raises(storage.Immutable):
+            storage.persisted(a / "releases" / f"{rid}.json", create_only=True)
+
+        storage.configure(b, bucket)  # a cold start: an empty disk, the same bucket
+        assert load_release_full(b, rid)[0].product_name == rec.product_name  # read back at start
+        assert lawpack_for(b, "SG", "toy")[0] == pid  # listings work from the read-back state
+        assert not (b / "job1" / stored.path.name).exists()  # uploads stay remote until needed
+        assert release_sources(str(b), rid)[1][0].text.startswith("Use within 12 months.")  # read back on a miss
+        assert save_release(b, rec, "job3") == rid.replace("_v1", "_v2")  # versions continue, never overwrite
+    finally:
+        storage.configure(a, None)
+        storage.configure(b, None)
+
+
+def test_d263_onboard_approve_restart_and_start_a_show_from_the_release(tmp_path, monkeypatch):
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    from app.onboarding import storage
+
+    from .helpers import make_settings
+
+    bucket = storage.MemoryBucket()
+    monkeypatch.setattr(storage, "bucket_for", lambda name, project=None: bucket)
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = _record(brand="Lumen", product_name="Night Serum")
+    first, second = tmp_path / "first", tmp_path / "second"
+    try:
+        with TestClient(create_app(make_settings(ONBOARDING_DIR=str(first), ONBOARDING_GCS_BUCKET="fake"),
+                                   llm_backend=backend)) as c:
+            job = c.post("/api/onboarding/jobs", files=[("files", ("spec.txt", b"hello", "text/plain"))]).json()["job_id"]
+            for _ in range(100):
+                if c.get(f"/api/onboarding/jobs/{job}").json()["status"] == "done":
+                    break
+                time.sleep(0.02)
+            rid = c.post(f"/api/onboarding/jobs/{job}/approve", json={}).json()["release_id"]
+        # a new instance after scale-to-zero: another (empty) disk, the same bucket
+        with TestClient(create_app(make_settings(ONBOARDING_DIR=str(second), ONBOARDING_GCS_BUCKET="fake"),
+                                   llm_backend=backend)) as c:
+            r = c.post("/api/sessions", json={"release_id": rid})
+            assert r.status_code == 201
+            cat = c.get(f"/api/catalog?session={r.json()['session_id']}").json()
+            assert [p["name"] for p in cat["products"]] == ["Night Serum"]
+    finally:
+        storage.configure(first, None)
+        storage.configure(second, None)

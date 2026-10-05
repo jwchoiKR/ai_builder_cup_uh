@@ -14,6 +14,7 @@ IAP_MEMBERS="${IAP_MEMBERS:-user:jaewoo@cloocus.com}"
 SA_NAME="live-studio-run"
 SA="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 REPO="live-studio"
+BUCKET="separk-cloocus-live-studio-onboarding"  # D-263: onboarding state (uploads, releases, law and brand packs)
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/app:$(git rev-parse --short HEAD)"
 G="gcloud --project=${PROJECT}"
 
@@ -29,6 +30,14 @@ for role in roles/aiplatform.user roles/speech.client roles/modelarmor.user role
     --condition=None >/dev/null
 done
 
+echo "== onboarding bucket (D-263: the source of truth for onboarding state; private, this service account only)"
+$G storage buckets describe "gs://${BUCKET}" >/dev/null 2>&1 || \
+  $G storage buckets create "gs://${BUCKET}" --location="$REGION" --uniform-bucket-level-access \
+    --public-access-prevention
+$G storage buckets update "gs://${BUCKET}" --uniform-bucket-level-access --public-access-prevention >/dev/null
+$G storage buckets add-iam-policy-binding "gs://${BUCKET}" --member="serviceAccount:${SA}" \
+  --role=roles/storage.objectAdmin >/dev/null
+
 echo "== image (Cloud Build; no local Docker needed)"
 $G artifacts repositories describe "$REPO" --location="$REGION" >/dev/null 2>&1 || \
   $G artifacts repositories create "$REPO" --repository-format=docker --location="$REGION"
@@ -42,7 +51,7 @@ $G beta run deploy "$SERVICE" --region="$REGION" --image="$IMAGE" --service-acco
   --no-allow-unauthenticated --iap \
   --min-instances=0 --max-instances=1 --session-affinity --timeout=3600 --cpu=2 --memory=2Gi \
   --cpu-boost --no-cpu-throttling \
-  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=memory,RETRIEVER=local,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1"
+  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=memory,RETRIEVER=local,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},VERIFY_MODE=lean"
 
 echo "== IAP access"
 PROJECT_NUMBER="$($G projects describe "$PROJECT" --format='value(projectNumber)')"

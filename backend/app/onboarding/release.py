@@ -64,6 +64,9 @@ def save_release(root: Path, record: ProductRecord, job_id: str, translations: d
         {"release_id": release_id, "job_id": job_id, "approved_at": int(time.time() * 1000),
          "record": record.model_dump(mode="json"), "translations": translations or {}},
         ensure_ascii=False, indent=1), encoding="utf-8")
+    from .storage import persisted
+
+    persisted(folder / f"{release_id}.json", create_only=True)  # D-263: releases are write-once
     return release_id
 
 

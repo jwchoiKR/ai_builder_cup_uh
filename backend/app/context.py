@@ -102,6 +102,11 @@ def build_context(
 
     clock = clock or SystemClock()
     ids = Ids(clock, deterministic=settings.LLM_PROVIDER == "mock")
+    if settings.ONBOARDING_GCS_BUCKET:  # D-263: the bucket is the source of truth for onboarding state
+        from .onboarding import storage
+
+        storage.configure(settings.onboarding_path, storage.bucket_for(settings.ONBOARDING_GCS_BUCKET,
+                                                                       settings.GCP_PROJECT))
     pack = DataPack.load(settings.data_path, settings.MARKET, settings.BROADCAST_LANGUAGE)
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     store = make_store(settings)

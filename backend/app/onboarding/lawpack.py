@@ -11,6 +11,8 @@ import json
 import re
 import time
 from pathlib import Path
+
+from .storage import persisted
 from typing import Literal
 
 from ..models.data import Rule
@@ -114,6 +116,7 @@ def save_lawpack(root: Path, market: str, rec: LawPackRecord, job_id: str) -> st
     (folder / f"{pack_id}.json").write_text(json.dumps(
         {"pack_id": pack_id, "market": market.upper(), "job_id": job_id, "approved_at": int(time.time() * 1000),
          "record": rec.model_dump(mode="json")}, ensure_ascii=False, indent=1), encoding="utf-8")
+    persisted(folder / f"{pack_id}.json", create_only=True)  # D-263: approved packs are write-once
     return pack_id
 
 
@@ -142,6 +145,7 @@ def save_brandpack(root: Path, brand: str, rec: LawPackRecord, job_id: str) -> s
     (folder / f"{pack_id}.json").write_text(json.dumps(
         {"pack_id": pack_id, "brand": brand, "job_id": job_id, "approved_at": int(time.time() * 1000),
          "record": rec.model_dump(mode="json")}, ensure_ascii=False, indent=1), encoding="utf-8")
+    persisted(folder / f"{pack_id}.json", create_only=True)  # D-263: approved packs are write-once
     return pack_id
 
 
