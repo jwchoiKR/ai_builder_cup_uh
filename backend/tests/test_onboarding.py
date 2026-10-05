@@ -132,3 +132,26 @@ def test_d217_the_upload_api_runs_the_same_pipeline(tmp_path):
         assert (tmp_path / r.json()["job_id"] / "result.json").exists()
         bad = c.post("/api/onboarding/jobs", files=[("files", ("x.exe", b"MZ", "application/octet-stream"))])
         assert wait(bad.json()["job_id"])["status"] == "failed"
+
+
+async def test_d218_a_release_runs_its_own_one_segment_show(tmp_path):
+    from app.onboarding.release import save_release
+    from app.pipelines.runtime import create_session
+
+    rec, _ = normalise(ProductRecord.model_validate(_record(
+        cautions=[{"text": "Patch test first.", "evidence": EV}],
+        approved_claims=[{"text": "Helps skin feel soft.", "evidence": EV}])))
+    rid = save_release(tmp_path, rec, "job1")
+    assert save_release(tmp_path, rec, "job2") == rid.replace("_v1", "_v2")  # every approval is a new version
+    ctx = make_ctx(ONBOARDING_DIR=str(tmp_path))
+    try:
+        s = await create_session(ctx, "ignored", release_id=rid)
+        rt = await ctx.runtimes.get(s.session_id)
+        assert s.release_id == rid and rt.catalog.order == ["p"] and rt.catalog.brand == "B"
+        assert rt.catalog.money(rt.catalog.live_price_value("p")) == "S$36.00"
+        assert [p.text for p in ctx.retriever.passages_of("p") if p.section == "Cautions"] == ["Patch test first."]
+        shipped = await create_session(ctx, "daon_skincare_demo")  # the shipped catalog is untouched
+        assert (await ctx.runtimes.get(shipped.session_id)).catalog.order != ["p"]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

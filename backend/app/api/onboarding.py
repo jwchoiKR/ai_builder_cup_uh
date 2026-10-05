@@ -60,6 +60,20 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
     return {"job_id": job_id, "status": "queued"}
 
 
+@router.post("/jobs/{job_id}/approve")
+async def approve_job(job_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-218: the operator approves the read record as it is; it becomes an immutable release (an approval bundle
+    with edits is step 6)."""
+    from ..onboarding.record import ProductRecord
+    from ..onboarding.release import save_release
+
+    job = _jobs.get(job_id)
+    if job is None or job["status"] != "done":
+        raise ActionError(409, "job_not_ready", f"onboarding job {job_id} has no record to approve")
+    record = ProductRecord.model_validate(job["result"]["record"])
+    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id)}
+
+
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str) -> dict:
     job = _jobs.get(job_id)

@@ -70,7 +70,7 @@ class SessionRuntime:
         self.sid = session.session_id
         self.settings = ctx.settings
         # D-142: the session's (market, language) pack; never ctx.pack inside a session
-        self.pack, self.reflex = ctx.pack_for(session.market, session.lang)
+        self.pack, self.reflex = ctx.pack_for(session.market, session.lang, session.release_id)
         self.catalog = Catalog(self.pack, session.runsheet_id)
         # D-150: a market or language below "live" (no sealed eval yet) is a preview: host cards only, nothing
         # is posted by itself, and the screens say so
@@ -626,7 +626,7 @@ class SessionRuntime:
 
 
 async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "solo", assistant: bool = True,
-                         market: str | None = None, lang: str | None = None) -> Session:
+                         market: str | None = None, lang: str | None = None, release_id: str | None = None) -> Session:
     """§8.1.1: a new session in status `ready`."""
     from ..logic.catalog import DataPackError
 
@@ -636,6 +636,12 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
         pack, _ = ctx.pack_for(market, lang)  # D-142: fails when the market does not offer the language
     except (DataPackError, FileNotFoundError) as e:
         raise ActionError(400, "unknown_market_language", f"{market}/{lang}: {e}") from None
+    if release_id is not None:  # D-218: an onboarded product's one-segment show
+        try:
+            pack, _ = ctx.pack_for(market, lang, release_id)
+        except DataPackError as e:
+            raise ActionError(404, "unknown_release", str(e)) from None
+        runsheet_id = release_id
     if pack.products.currency_symbol != ctx.pack.products.currency_symbol:
         # D-179: the sheets' index and /catalog are the server's market's; another currency needs MARKET=<it>
         raise ActionError(400, "market_needs_own_server",
@@ -654,7 +660,7 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
         pass
     session = Session(
         session_id=ctx.ids.new("ses_"), runsheet_id=runsheet.runsheet_id, title=runsheet.title, status="ready",
-        show_mode=show_mode, assistant=assistant, market=market, lang=lang,
+        show_mode=show_mode, assistant=assistant, market=market, lang=lang, release_id=release_id,
         settings_snapshot=ctx.settings.snapshot(), doc_version=ctx.retriever.doc_version(),
         glossary_version=glossary_version, prompter_points=points, created_at=ctx.clock.now_ms(),
     )
