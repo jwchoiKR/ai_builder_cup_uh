@@ -1,6 +1,7 @@
 """FactChecker agent (DEV_SPEC §7.4): checks product facts in one host sentence against the sheets."""
 from __future__ import annotations
 
+import logging
 import re
 from decimal import Decimal
 from collections.abc import Sequence
@@ -15,6 +16,8 @@ from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
 from ..providers.retriever import Retriever
 from . import inputs
+
+log = logging.getLogger(__name__)
 
 CLAIMS_SECTION = "Approved on-air claims"
 ABSENT = "not in this product"  # D-121: correct_value of an ingredient the sheet never names
@@ -34,15 +37,44 @@ def _words_within(stated: str, correct: str | None) -> bool:
     return bool(said) and said <= sheet
 
 
+# words that frame a statement ("it does contain", "no claim is made", "is given"), not the value it states
+_FRAME = frozenset({"does", "contain", "includes", "include", "included", "made", "given", "claim", "claims", "stated",
+                    "states", "listed", "there", "have", "from", "that", "which", "only", "also", "said", "says"})
+
+
 def _from_quote(correct: str, quote: str) -> bool:
-    """D-244 L1/L8: the correction rests on the quote: it shares a word with it (Latin script), or two letters in a
-    row (other scripts). "not disclosed" shares nothing with a passage that never discloses the value."""
+    """D-244 L1/L8: the correction rests on the quote. Latin script: at least half of its value words are in the
+    quote (by their first five letters, so "resistant" meets "resistance"); other scripts: two letters in a row.
+    "not disclosed" or "No expiry period is given" states no value the quote holds, so it is no correction."""
     q = quote.lower()
-    latin = set(_NAME.findall(correct.lower())) - _NOT_NAMES
+    latin = set(_NAME.findall(correct.lower())) - _NOT_NAMES - _FRAME
     if latin:
-        return bool(latin & set(_NAME.findall(q)))
+        stems = {w[:5] for w in _NAME.findall(q)}
+        return 2 * sum(w[:5] in stems for w in latin) >= len(latin)
     other = re.sub(r"[\W\d_a-z]", "", correct.lower())
     return any(other[i:i + 2] in q for i in range(len(other) - 1))
+
+
+def _drop(c, why: str) -> None:
+    """D-248 (sealed FR run: 3 of 4 right model corrections dropped in silence): code may overrule the model, but
+    never silently; the reason is logged with the claim."""
+    log.info("fact claim dropped by code: %s | field=%s stated=%r correct=%r passage=%s", why, c.field,
+             c.stated_value, c.correct_value, c.passage_id)
+    c.verdict = "not_in_sources"
+
+
+def _threshold_differs(lex, host: str, c, said: set) -> bool:
+    """D-248: "> SGD 90" or "exceeds S$90" is a threshold; "exactly S$90" is not the same value. True when the
+    correction or the quote words the number as a threshold and the host does not."""
+    if lex.comparison.search(host):
+        return False
+    if lex.comparison.search(c.correct_value or ""):
+        return True
+    q = c.quote or ""
+    for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", q):
+        if number_set(m.group()) & said and lex.comparison.search(q[max(0, m.start() - 20):m.end() + 15]):
+            return True
+    return False
 
 
 def _promo_term(c, promo) -> bool:
@@ -187,26 +219,33 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             continue
         if c.field == "other" or (c.field == "test_result" and utterance is not None
                                   and not TEST_CITED.search(utterance)):
-            c.verdict = "not_in_sources"
+            _drop(c, "field other, or a test result the line does not cite")
             continue
         said, right = number_set(c.stated_value or ""), number_set(c.correct_value or "")
         # D-207: the same number in another unit or currency ("12 years" vs "12 months", "RM36" vs "S$36") is a
         # real contradiction, not a restatement
         units_differ = bool(_units(c.stated_value) and _units(c.correct_value)
                             and _units(c.stated_value) != _units(c.correct_value))
-        if ((said and said == right and not units_differ)
-                or (c.stated_value or "").strip().lower() == (c.correct_value or "").strip().lower()):
-            c.verdict = "not_in_sources"  # D-151: the "correction" restates what the host said
+        lex = catalog.lexicon
+        host = f"{c.stated_value or ''} {c.span or ''}"
+        threshold = _threshold_differs(lex, host, c, said)
+        if (((said and said == right and not units_differ)
+                or (c.stated_value or "").strip().lower() == (c.correct_value or "").strip().lower())
+                and not threshold):
+            _drop(c, "D-151: the correction restates what the host said")
             continue
-        if c.field in WORD_FIELDS and _words_within(c.stated_value, c.correct_value):
-            c.verdict = "not_in_sources"  # D-123: "tube" is the "Airless pump tube", only less specific
+        if (c.field in WORD_FIELDS and _words_within(c.stated_value, c.correct_value)
+                # D-248: "contains fragrance" against "No fragrance is added" (or the other way) is the opposite
+                # fact, not a less specific one
+                and bool(lex.absence.search(host)) == bool(lex.absence.search(c.correct_value or ""))):
+            _drop(c, "D-123: the host's words are a less specific form of the source value")
             continue
         if (c.field == "ingredient" and _on_sheet(c.stated_value or "", passages, c.product_id)
                 and not catalog.lexicon.absence.search(f"{c.stated_value or ''} {c.span or ''}")):
             # D-165 (local SEED1 replay): "The main ingredient is niacinamide." came back "Centella Asiatica Leaf
             # Water". An ingredient the product contains is never contradicted by another one ("main" is not a fact
             # the sheet settles); an absence of one it contains still is
-            c.verdict = "not_in_sources"
+            _drop(c, "D-165: an ingredient the product contains")
             continue
         ok = False
         if (c.field in ("ingredient", "ingredient_amount") and c.passage_id is None
@@ -223,6 +262,11 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                   # D-244 L1: the correction is a value the quote states (a number, or the quote's words);
                   # "not disclosed" or "not specified" is no source value, so the claim is unverifiable
                   and (bool(number_set(c.correct_value)) or _from_quote(c.correct_value, c.quote))
+                  # D-244 L1 (sealed FR run): a stated number "corrected" by words is a value SOURCE does not give
+                  # ("lasts 24 months" -> "No period after opening is given"); presence of an ingredient is the
+                  # exception ("2% retinol" -> "free from retinol")
+                  and (c.field == "ingredient" or not number_set(c.stated_value or "")
+                       or bool(number_set(c.correct_value)))
                   # Claim wording is compliance (the judge's job), never a product fact (D-048).
                   and p.section != CLAIMS_SECTION)
         elif c.field in PRICE_FIELDS and promo is not None and promo.changes_prices:
@@ -231,11 +275,12 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         if not ok and c.field == "promo" and c.passage_id is None:
             ok = any(_offer_threshold(c, o) for o in offers)
         if not ok:
-            c.verdict = "not_in_sources"
-        elif (c.quote and not number_set(c.correct_value or "")
-              and (c.correct_value or "").strip().lower() in f"{c.stated_value or ''} {c.span or ''}".lower()):
+            _drop(c, "no source check passed (passage, quote, numbers in the quote, L1 source value)")
+        elif c.quote and ((not number_set(c.correct_value or "")
+                           and (c.correct_value or "").strip().lower() in host.lower())
+                          or (said and said == right and threshold)):
             # D-244 L8: a bare field word the host already said ("fragrance" for "no fragrance") is no line to say;
-            # the source's own words are
+            # D-248: nor is the threshold's number alone ("S$90" for "more than S$90"); the source's own words are
             c.correct_value = c.quote
     return o
 
@@ -266,22 +311,24 @@ class FactChecker:
             self.file_parts, self.file_passages = release_sources(str(settings.onboarding_path), release_id)
 
     def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None, **mock) -> LLMRequest:
-        # D-247: with files, the cache holds the system instruction and the files only (stable for the release);
-        # the product and passages blocks stay in the message, since the retrieved passages change per line
+        # D-247: with files, the cache holds the system instruction, the files and the product and full-sheet blocks
+        # (the same on every line of a one-product release)
         return LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=session_id,
-            cache_prefix="" if self.file_parts else prefix, cache_parts=self.file_parts,
+            cache_prefix=prefix, cache_parts=self.file_parts,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
 
-    async def warm_cache(self, session_id: str) -> None:
-        """D-247: the files' context cache is made at session start, not on the first line."""
+    async def warm_cache(self, inp: FactInput) -> None:
+        """D-247: the files' context cache is made at session start (with the first line's static blocks), not on
+        the first line."""
         if self.file_parts:
-            await self.llm.warm_cache(self._request("", "", 60_000, session_id))
+            _, prefix = self._render(inp)
+            await self.llm.warm_cache(self._request(prefix, prefix, 60_000, inp.session_id))
 
-    async def run(self, inp: FactInput, *, deadline_ms: int) -> AgentResult[FactCheckOutput]:
-        user, prefix = self.prompt.render_cached({
+    def _render(self, inp: FactInput) -> tuple[str, str]:
+        return self.prompt.render_cached({
             "current_product_compact_json": inputs.current_product_compact_json(self.catalog, inp.on_air),
             "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
             "active_promo_json_or_null": inputs.active_promo_json_or_null(self.catalog, inp.promo),
@@ -292,6 +339,9 @@ class FactChecker:
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
         }, {"current_product_compact_json", "passages_json"})
+
+    async def run(self, inp: FactInput, *, deadline_ms: int) -> AgentResult[FactCheckOutput]:
+        user, prefix = self._render(inp)
         res = await self.llm.call(self._request(
             user, prefix, deadline_ms, inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: {"claims": [], "reason": "rule-based: no fact check"}, preview=inp.utterance,

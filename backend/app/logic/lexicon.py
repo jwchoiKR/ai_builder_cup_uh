@@ -37,6 +37,7 @@ class Lexicon:
     fillers: frozenset[str]
     price_contrast: re.Pattern
     absence: re.Pattern
+    comparison: re.Pattern  # D-248: "> 90", "more than 90", "at least 60": a threshold
     duration_hours: dict[str, float]  # D-174
     phone: re.Pattern  # from the market
     currency: re.Pattern  # D-179: the market's currency symbol before a number ("s$", "rm"), from the market
@@ -58,6 +59,8 @@ class Lexicon:
             fillers=frozenset(lx.fillers),
             absence=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.absence_cues) + r")\b|\w-free\b", re.I),
             price_contrast=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.price_contrast_cues) + r")\b", re.I),
+            comparison=re.compile("|".join([r"[<>≤≥]", *(r"\b" + re.escape(c) + r"\b" for c in lx.comparison_cues)]),
+                                  re.I),
             duration_hours=dict(lx.duration_hours),
             exclusion=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.exclusion_cues) + r")\s+(?:the\s+)?$"),
             phone=re.compile(market.phone_pattern),

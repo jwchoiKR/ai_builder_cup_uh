@@ -22,6 +22,7 @@ from ..logic.catalog import Catalog
 from ..logic.grouping import is_open
 from ..logic.ranking import score
 from ..logic.segments import open_segment
+from ..onboarding.release import has_law as _has_law
 from ..models.data import Intent, Passage, Promo, PrompterPoint
 from ..providers import rule_search
 from ..logic.prompter import prompter_view
@@ -272,7 +273,7 @@ class SessionRuntime:
         await self.prefetch(first)
         await self.prefetch(self.catalog.next_product(first))
         self.spawn(self.ctx.llm.warm_up(), name="warm-up")
-        self.spawn(self.utterances.facts.warm_cache(self.sid), name="facts-files-cache")  # D-247 arm FD
+        self.spawn(self.utterances.warm_facts_cache(first), name="facts-files-cache")  # D-247 arm FD
         self.ctx.scheduler.call_later(self.key("tick"), TICK_MS, self._tick)
         return s
 
@@ -648,7 +649,7 @@ class SessionRuntime:
             "market": {"market": self.pack.market.market, "name": self.pack.market.name, "lang": self.pack.lang,
                        "tier": self.tier,  # D-150
                        # D-228: no law pack covers this release's category: no compliance checks run
-                       "law_checks": bool(self.pack.rules.rules), "category": self.pack.rules.category},
+                       "law_checks": _has_law(self.pack.rules), "category": self.pack.rules.category},
         }
         if role == "operator":
             ids = {c.comment_id for c in shown}

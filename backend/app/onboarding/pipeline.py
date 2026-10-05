@@ -8,7 +8,7 @@ from .files import media_type, model_part, store
 from .read import category_list, read_product
 from .checks import check_items, summary
 from .record import OnboardingResult
-from .release import release_pack
+from .release import has_law, release_pack
 
 
 async def onboard_files(llm: LLMClient, root: Path, draft_id: str, files: list[tuple[str, bytes]], *,
@@ -25,7 +25,7 @@ async def onboard_files(llm: LLMClient, root: Path, draft_id: str, files: list[t
     if base_pack is not None:
         try:
             pack = release_pack(base_pack, result.record, "rel_check_v1", root)
-            law = f"{len(pack.rules.rules)} rules" if pack.rules.rules else "no law checks"
+            law = f"{len(pack.rules.rules)} rules" if has_law(pack.rules) else "no law checks"
         except Exception as e:  # noqa: BLE001 - the show cannot be built: a check item of its own
             law = f"not buildable: {e}"
     result.verify_mode = verify_mode

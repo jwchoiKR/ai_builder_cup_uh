@@ -86,7 +86,8 @@ Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from t
 - Price terms in SOURCE (tax included or not, delivery included or not, per unit or per set) are checkable (field
   `price`).
 - Superseded values: describing an old value as old, previous or discontinued is `supported`; saying it is current,
-  or that it is not discontinued, is `contradicted`.
+  or that it is not discontinued, is `contradicted`. A line that describes the change between versions ("the new
+  version is a larger pack at the same price") is `supported` when each value matches its own version.
 - An ingredient the host says the product contains, which a "Free from" statement or a complete ingredient list in
   SOURCE excludes, is `contradicted` (field `ingredient`), with that statement as the correction.
 - Only contradict with a value SOURCE states. When SOURCE does not give the value ("not disclosed"), the claim is

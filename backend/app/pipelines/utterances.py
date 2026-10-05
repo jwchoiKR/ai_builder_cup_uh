@@ -433,6 +433,14 @@ class UtterancePipeline:
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
 
+    async def warm_facts_cache(self, on_air: str) -> None:
+        """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
+        if self.facts.file_parts:
+            switch = SwitchState()
+            await self.facts.warm_cache(FactInput(utterance="", on_air=on_air, switch=switch, promo=None,
+                                                  passages=await self._fact_passages("", on_air, switch),
+                                                  session_id=self.rt.sid))
+
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
                          parts: list[str] | None = None) -> AgentResult:
         # D-172: a product the last lines named stays citable ("the ampoule on its own is $32," / "list price 42")

@@ -5,6 +5,7 @@ import io
 import json
 
 import pytest
+from pathlib import Path
 
 from app.onboarding.files import UnsupportedFile, model_part, store
 from app.onboarding.read import normalise, read_product
@@ -813,3 +814,110 @@ def test_d247_fd_the_files_are_cached_per_release_with_an_empty_prefix():
     assert vb._cache_entry(req(())) is None  # no files and no prefix: nothing to cache
     contents = VertexBackend._contents(req(a), "line")
     assert len(contents) == 3 and contents[-1] == "line"
+
+
+async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of) -> list[dict]:
+    """D-248: one host line through the real pipeline (eval_adversarial.run_case) on a made-up release; the fact
+    checker's output is scripted from the release's own passages by `claim_of(pid, passages)`."""
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import eval_adversarial
+
+    from app.onboarding.release import product_key, release_pack, save_release
+
+    real_sleep = __import__("asyncio").sleep
+    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
+    rec, _ = normalise(ProductRecord.model_validate(_record(**record)))
+    rid = save_release(tmp_path, rec, "job")
+    monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
+    backend = ScriptedBackend()
+    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
+    try:
+        pack = release_pack(ctx.pack, rec, rid, tmp_path)
+        pid = product_key(rec)
+        backend.facts(line, claim_of(pid, [p for p in pack.passages if p.product_id == pid]))
+        case = {"case_id": "X", "type": "t", "current_product_id": pid, "utterance": line,
+                "expected": {"risky": True, "kind": "fact"}}
+        row = await eval_adversarial.run_case(ctx, case, 0)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    return [a for a in row["alerts"] if a["kind"] == "fact"]
+
+
+def _claim(pid, p, **kw) -> dict:
+    return {"span": "x", "product_id": pid, "verdict": "contradicted", "passage_id": p.passage_id, "quote": p.text} | kw
+
+
+async def test_d248_a_stated_number_corrected_by_no_value_never_reaches_the_host(tmp_path, monkeypatch):
+    def claim(pid, ps):
+        p = next(p for p in ps if "Patch test" in p.text)
+        return _claim(pid, p, field="shelf_life", stated_value="24 months",
+                      correct_value="No period after opening is given")
+
+    alerts = await _release_line(tmp_path, monkeypatch, {"cautions": [{"text": "Patch test first.", "evidence": EV}]},
+                                 "It lasts twenty four months after opening.", claim)
+    assert alerts == []
+
+
+async def test_d248_ingredient_presence_both_ways_reaches_the_host(tmp_path, monkeypatch):
+    facts = [{"text": "No fragrance ingredient is added.", "evidence": EV}]
+
+    def added(pid, ps):
+        p = next(p for p in ps if p.text == "No fragrance ingredient is added.")
+        return _claim(pid, p, field="fragrance", stated_value="contains fragrance",
+                      correct_value="No fragrance ingredient is added.")
+
+    [a] = await _release_line(tmp_path / "a", monkeypatch, {"key_facts": facts}, "There's added perfume in it.", added)
+    assert a["correct_value"] == "No fragrance ingredient is added."
+
+    def absent(pid, ps):
+        p = next(p for p in ps if p.text == "Contains a light citrus fragrance.")
+        return _claim(pid, p, field="fragrance", stated_value="contains no fragrance", correct_value="contains fragrance")
+
+    [b] = await _release_line(tmp_path / "b", monkeypatch,
+                              {"key_facts": [{"text": "Contains a light citrus fragrance.", "evidence": EV}]},
+                              "There's no fragrance inside.", absent)
+    assert b["field"] == "fragrance"
+
+
+async def test_d248_a_threshold_is_not_the_number_alone(tmp_path, monkeypatch):
+    ev = [{"file": "f", "locator": "l", "quote": "Free pouch when the subtotal is more than S$90"}]
+    offer = {"offer_id": "o1", "kind": "spend_threshold_gift", "title": "Free pouch", "variant_ids": [], "percent": None,
+             "amount": {"currency": "SGD", "minor": 9000, "kind": "promo", "market": "SG", "evidence": ev},
+             "buy": None, "get": None, "gift": "pouch", "rounding": None, "starts": None, "ends": None,
+             "duration_min": None, "evidence": ev}
+
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text.startswith("Offer: Free pouch"))
+        assert "minimum spend S$90.00" in p.text and "gift: pouch" in p.text
+        return _claim(pid, p, field="promo", stated_value="S$90", correct_value="S$90",
+                      quote="Free pouch when the subtotal is more than S$90")
+
+    [a] = await _release_line(tmp_path, monkeypatch, {"offers": [offer]}, "Exactly ninety dollars qualifies.", claim)
+    assert a["field"] == "promo" and a["correct_value"] == "Free pouch when the subtotal is more than S$90"
+
+
+def test_d248_the_qualifier_rule_comes_with_the_records_results():
+    from app.logic.qualifier import RULE_ID
+    from app.onboarding.release import has_law, release_pack
+
+    result = [{"statement": "Hydration up 18% after 8 hours", "numbers": ["18", "8"], "provenance": "in_house",
+               "qualifier": "in our in-house test", "marker": None, "evidence": EV}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(category="garden_tools", qualified_results=result)))
+    ctx = make_ctx()
+    try:
+        rules = release_pack(ctx.pack, rec, "rel_x_v1", None).rules
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert [r.rule_id for r in rules.rules] == [RULE_ID] and not has_law(rules)
+
+
+def test_d248_a_sentence_that_gives_no_value_is_no_correction():
+    from app.agents.fact_checker import _from_quote
+
+    assert not _from_quote("No water-resistance claim is made", "Long-wear formula for daily use")
+    assert not _from_quote("No expiry date or period after opening is given", "Use after opening as directed.")
+    assert _from_quote("It does contain fragrance", "Ingredients: Water, Glycerin, Fragrance")
