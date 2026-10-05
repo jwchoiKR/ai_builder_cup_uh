@@ -15,6 +15,7 @@ from pathlib import Path
 
 from ..models.data import Passage
 from .files import model_part
+from .storage import ensure
 
 SECTION = "Source file"
 
@@ -72,7 +73,7 @@ def release_sources(root: str, release_id: str) -> tuple[tuple[tuple[bytes, str]
     passages: list[Passage] = []
     for e in json.loads(index.read_text(encoding="utf-8")):
         path = folder / e["file"]
-        if not path.is_file():
+        if not ensure(path):  # D-263: read back from the bucket after a cold start
             continue
         part = model_part(e["name"], path.read_bytes())
         parts += [(f"FILE {e['name']}".encode(), "text/plain"), (part.data, part.mime)]

@@ -16,6 +16,7 @@ dependencies = [
     "google-adk>=2.11,<2.12",
     "python-docx>=1.2.0",
     "openpyxl>=3.1.5",
+    "google-cloud-storage>=2.19",
 ]
 
 [dependency-groups]

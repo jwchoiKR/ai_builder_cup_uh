@@ -14,6 +14,8 @@ import mimetypes
 from dataclasses import dataclass
 from pathlib import Path
 
+from .storage import persisted
+
 NATIVE = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
           ".webp": "image/webp", ".txt": "text/plain", ".md": "text/plain", ".html": "text/html",
           ".htm": "text/html"}
@@ -53,11 +55,13 @@ def store(root: Path, draft_id: str, name: str, data: bytes) -> StoredFile:
     path = folder / f"{sha}{ext}"
     if not path.exists():
         path.write_bytes(data)
+    persisted(path, create_only=True)  # D-263: content-addressed, so the same name is always the same bytes
     index = folder / "files.json"
     entries = json.loads(index.read_text(encoding="utf-8")) if index.exists() else []
     if not any(e["sha256"] == sha and e["name"] == name for e in entries):
         entries.append({"name": name, "sha256": sha, "file": path.name, "bytes": len(data)})
         index.write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding="utf-8")
+        persisted(index)
     return StoredFile(name, sha, path, len(data))
 
 

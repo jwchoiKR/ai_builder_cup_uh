@@ -14,6 +14,7 @@ from ..context import AppContext, get_ctx
 from ..onboarding.files import MAX_BYTES, UnsupportedFile
 from ..onboarding.pipeline import onboard_files
 from ..onboarding.release import has_law
+from ..onboarding.storage import persisted
 from ..pipelines.runtime import ActionError
 
 log = logging.getLogger(__name__)
@@ -62,6 +63,7 @@ def start_job(ctx: AppContext, data: list[tuple[str, bytes]], hints: str = "", o
                 out = result.model_dump(mode="json")
                 (ctx.settings.onboarding_path / job_id / "result.json").write_text(
                     json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+                persisted(ctx.settings.onboarding_path / job_id / "result.json")  # D-263
                 _jobs[job_id].update(status="done", result=out)
                 if on_done is not None:
                     on_done(out)
