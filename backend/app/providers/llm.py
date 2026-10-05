@@ -400,7 +400,11 @@ def write_usage_report(path: str) -> None:
     for row in USAGE.values():
         for k in total:
             total[k] += row[k]
-    Path(path).write_text(json.dumps({"agents": USAGE, "total": total}, indent=1), encoding="utf-8")
+    from . import rule_search  # D-194 arm E: retrieval latency and the rule ids per line, for recall
+
+    report = {"agents": USAGE, "total": total} | ({"rule_search": rule_search.summary()}
+                                                  if rule_search.STATS["calls"] else {})
+    Path(path).write_text(json.dumps(report, indent=1), encoding="utf-8")
 
 
 # D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
@@ -445,6 +449,10 @@ class LLMClient:
     def design_arm(self) -> str:
         """D-187: the design arm this process runs."""
         return self._settings.DESIGN_ARM
+
+    @property
+    def settings(self) -> Settings:
+        return self._settings
 
     @property
     def prompts_path(self) -> Path:

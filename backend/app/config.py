@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     DESIGN_ARM: Literal["A", "B", "C", "D", "E", "F1", "F2"] = "A"
     # D-187: write the calls and tokens per agent of this process as JSON to this path at exit ("" = off)
     LLM_USAGE_REPORT: str = ""
+    # D-194 arm E: the Vertex AI Search serving config that picks the compliance rules for each spoken line
+    RULE_SEARCH_SERVING_CONFIG: str = ("projects/separk-cloocus/locations/global/collections/default_collection/"
+                                       "engines/live-studio-rules-engine/servingConfigs/default_search")
+    RULE_SEARCH_PAGE_SIZE: int = 8
+    RULE_SEARCH_TIMEOUT_MS: int = 1000
     # D-184: a judge or fact call still unanswered after this sends one identical second request; the first answer
     # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
     JUDGE_HEDGE_MS: int = 1500

@@ -313,3 +313,34 @@ async def test_arm_f1_composer_answers_from_the_files_its_tool_step_asked_for():
         assert "Key facts" in composer.user_message and '<data name="RULES">' not in composer.user_message
     finally:
         await close_env(rt)
+
+
+@pytest.mark.parametrize("ids, kept", [(["ASEAN-2D-DISEASE", "NOPE", "BRAND-SUPERLATIVE"], 2), (None, None)])
+async def test_arm_e_the_judge_reads_only_the_rules_the_search_picked(monkeypatch, ids, kept):
+    from app.providers import rule_search
+
+    class Search:
+        async def warm_up(self):
+            pass
+
+        async def search(self, text, market, **_):
+            return ids
+
+    monkeypatch.setattr(rule_search, "for_settings", lambda _s: Search())
+    rt, llm = await make_env(DESIGN_ARM="E")
+    seen = []
+    original = llm.generate
+
+    async def capture(req, timeout_ms):
+        seen.append(req)
+        return await original(req, timeout_ms)
+
+    llm.generate = capture
+    try:
+        await speak(rt, "This cream feels so light.")
+        [req] = [r for r in seen if r.agent == "compliance_judge"]
+        rules = req.user_message.split('<data name="RULES">', 1)[1].split("</data>", 1)[0]
+        assert rules.count('"rule_id"') == (kept or len(rt.catalog.pack.rules.rules))
+        assert '<data name="RULES">' not in req.cache_prefix
+    finally:
+        await close_env(rt)
