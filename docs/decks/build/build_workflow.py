@@ -9,65 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
 OUT = Path(__file__).parent.parent / "workflow_detail.html"
-GREYBG = "#F1F3F4"
-
-# kind -> (label, label colour, background, border)
-KIND = {
-    "person": ("사람", SUB, GREYBG, LINE),
-    "ai": ("AI", BLUE, BLUEBG, "#A8C7FA"),
-    "code": ("코드", INK, "#FFFFFF", LINE),
-    "store": ("저장", SUB, "#FFFFFF", LINE),
-    "screen": ("화면·게시", GRN, GRNBG, "#A8DAB5"),
-    "wait": ("운영자", "#B06000", YELBG, "#FDD663"),
-    "stop": ("차단", RED, REDBG, "#F6AEA9"),
-}
-
-
-def node(kind, title, *lines, use=""):
-    """Small step box: role label, step name, what it does (short lines), and what it uses (API, file, model)."""
-    lab, fg, bg, bd = KIND[kind]
-    dash = "dashed" if kind == "store" else "solid"
-    body = "".join(f'<p style="font-size:23px; line-height:1.3; color:{INK}">{x}</p>' for x in lines)
-    u = f'<p style="font-size:23px; line-height:1.3; color:{BLUE if kind == "ai" else SUB}; font-weight:500">{use}</p>' if use else ""
-    return (f'<div style="flex:1; width:100%; box-sizing:border-box; background:{bg}; border:2px {dash} {bd}; border-radius:16px; padding:10px 14px; '
-            f'display:flex; flex-direction:column; gap:4px; min-width:0">'
-            f'<p style="font-size:23px; font-weight:700; color:{fg}">{lab}</p>'
-            f'<p style="font-size:26px; font-weight:700; line-height:1.25; color:{INK}">{title}</p>{body}{u}</div>')
-
-
-def stack(*nodes):
-    """Several outcomes of one step, stacked in one cell: they share the row height in equal parts."""
-    parts = "".join(f'<div style="flex:1 1 0; display:flex; width:100%">{x}</div>' for x in nodes)
-    return f'<div style="flex:1; width:100%; display:flex; flex-direction:column; align-items:stretch; gap:10px">{parts}</div>'
-
-
-def lanes(*rows, n=None):
-    """Rows of nodes joined by arrows. Each row is its own grid, so a short row still fills the width; every box in a
-    row has the row's height (stacked outcomes split it). A str row is a stage label."""
-    out = []
-    for r in rows:
-        if isinstance(r, str):
-            out.append(r)
-            continue
-        r = list(r)
-        cols = " 44px ".join(["minmax(0,1fr)"] * len(r))
-        cells = []
-        for k, x in enumerate(r):
-            if k:
-                cells.append(f'<div style="display:flex; align-items:center; justify-content:center">{right(44)}</div>')
-            cells.append(f'<div style="min-width:0; display:flex; align-items:stretch">{x}</div>')
-        out.append(f'<div style="display:grid; grid-template-columns:{cols}; column-gap:8px; align-items:stretch">'
-                   f'{"".join(cells)}</div>')
-    return f'<div style="display:flex; flex-direction:column; gap:10px">{"".join(out)}</div>'
-
-
-def stage(text, color=SUB):
-    return f'<p style="font-size:24px; font-weight:700; color:{color}">{text}</p>'
-
-
-def legend():
-    return tags("박스 색", chip("사람", "grey"), chip("AI (Gemini)", "blue"), chip("코드", "grey"),
-                chip("화면·게시", "green", "check"), chip("운영자에게", "yellow", "warn"), chip("차단", "red", "x"))
+# node(), stack(), lanes(), stage(), legend() come from the skill (deck.py)
 
 
 def ok(x):
