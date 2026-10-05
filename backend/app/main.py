@@ -56,9 +56,15 @@ async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
 
 
 @meta.get("/catalog")
-async def catalog(ctx: AppContext = Depends(get_ctx)) -> dict:
-    pack = ctx.pack
-    cat = Catalog(pack)
+async def catalog(session: str | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
+    # D-230: with ?session=<sid>, that session's catalog (an onboarded release's product, brand and prices), not the
+    # server's shipped one
+    if session:
+        rt = await ctx.runtimes.get(session)
+        pack, cat = rt.pack, rt.catalog
+    else:
+        pack = ctx.pack
+        cat = Catalog(pack)
     products = []
     for p in pack.products.products:
         d = p.model_dump(mode="json")

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { catalog, snapshot } from "../test/fixtures";
@@ -43,6 +43,16 @@ afterEach(() => {
 });
 
 describe("screens", () => {
+  it("D-230: the Studio's panes load the session's own catalog (an onboarded product's show)", async () => {
+    render(<Studio sessionId="ses_rel" />);
+    await screen.findByText("Host + Operator");
+    await waitFor(() =>
+      expect((fetch as unknown as { mock: { calls: string[][] } }).mock.calls.map((c) => c[0])).toContain(
+        "/api/catalog?session=ses_rel",
+      ),
+    );
+  });
+
   it("Studio renders the default preset, toggles recording mode and the demo console", async () => {
     render(<Studio sessionId="ses_000001" />);
     expect(await screen.findByText("Host + Operator")).toBeInTheDocument();

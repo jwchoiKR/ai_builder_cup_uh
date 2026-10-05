@@ -26,7 +26,7 @@ export function ScreenPlaceholder({
   const [ownTheme, toggle] = useTheme();
   const theme = props.theme ?? ownTheme;
   const { state, connection, error } = useSession(props.sessionId, role);
-  const catalog = useCatalog();
+  const catalog = useCatalog(props.sessionId);
 
   // Host: key T toggles the theme (§12.3.10); other screens use the header toggle.
   useEffect(() => {

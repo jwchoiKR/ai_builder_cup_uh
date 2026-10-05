@@ -190,7 +190,7 @@ beforeEach(() => {
       calls.push({ method, path, body });
       let status = 200;
       let out: unknown = { ok: true };
-      if (path === "/api/catalog") out = catalog;
+      if (path.split("?")[0] === "/api/catalog") out = catalog;
       else if (path === "/api/health") out = { status: "ok", demo_tools_enabled: true };
       else if (path.endsWith("/state")) out = snap;
       else if (path.endsWith("/answer") && answerReplies.length) ({ status, body: out } = answerReplies.shift()!);

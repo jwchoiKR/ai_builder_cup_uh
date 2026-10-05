@@ -8,7 +8,7 @@ import { SetupView } from "./setup/SetupView";
 export function Setup(props: ScreenProps) {
   const [ownTheme, , setTheme, themePref] = useTheme();
   const theme = props.theme ?? ownTheme;
-  const catalog = useCatalog();
+  const catalog = useCatalog(props.sessionId);
   return (
     <SetupView
       products={catalog?.products ?? []}

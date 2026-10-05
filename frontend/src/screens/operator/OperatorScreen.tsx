@@ -19,7 +19,7 @@ export function OperatorScreen(props: ScreenProps) {
   const t = useT();
   const theme = props.theme ?? ownTheme;
   const { state, connection, error } = useSession(props.sessionId, "operator");
-  const catalog = useCatalog();
+  const catalog = useCatalog(props.sessionId);
   const now = useServerNow(state, 1000);
 
   if (!props.sessionId) {

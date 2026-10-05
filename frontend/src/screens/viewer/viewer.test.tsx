@@ -272,7 +272,7 @@ describe("Viewer wired to the session store", () => {
         const path = url.split("?")[0];
         const body = path.endsWith("/state")
           ? snapshot({ last_seq: 3, server_time: Date.now(), comments: [raj, priya], segments: [segment({ product_id: CREAM })] })
-          : path === "/api/catalog"
+          : path.split("?")[0] === "/api/catalog"
             ? catalog
             : path === "/api/health"
               ? { status: "ok", viewer_input_enabled: false, demo_tools_enabled: true }

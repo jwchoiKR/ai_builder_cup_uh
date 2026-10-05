@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import json
 
 import pytest
 
@@ -300,3 +301,38 @@ async def test_d229_an_approved_law_pack_covers_a_category_the_market_pack_does_
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+def test_d230_upload_approve_start_shows_the_new_product_on_the_session(tmp_path):
+    """The user flow end to end: upload, read, approve, start a show; the session's catalog, prompter and run sheet
+    are the new product's (not the shipped demo's)."""
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    from .helpers import make_settings
+
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = _record(
+        brand="Lumen", product_name="Night Serum",
+        approved_claims=[{"text": "Helps skin look smoother by morning.", "evidence": EV}])
+    with TestClient(create_app(make_settings(ONBOARDING_DIR=str(tmp_path)), llm_backend=backend)) as c:
+        job = c.post("/api/onboarding/jobs", files=[("files", ("spec.txt", b"hello", "text/plain"))]).json()["job_id"]
+        for _ in range(100):
+            if c.get(f"/api/onboarding/jobs/{job}").json()["status"] == "done":
+                break
+            time.sleep(0.02)
+        rid = c.post(f"/api/onboarding/jobs/{job}/approve", json={}).json()["release_id"]
+        sid = c.post("/api/sessions", json={"release_id": rid}).json()["session_id"]
+        cat = c.get(f"/api/catalog?session={sid}").json()
+        assert cat["brand"] == "Lumen" and [p["name"] for p in cat["products"]] == ["Night Serum"]
+        assert cat["products"][0]["live_price_display"] == "S$36.00"
+        assert [rs["title"] for rs in cat["runsheets"]] == ["Lumen · Night Serum"]
+        assert c.get("/api/catalog").json()["brand"] != "Lumen"  # the shipped catalog is unchanged
+        c.post(f"/api/sessions/{sid}/start")
+        state = c.get(f"/api/sessions/{sid}/state?role=host").json()
+        # the host prompter is on the new product (its name comes from the session's catalog above)
+        assert state["prompter"]["product_id"] == cat["products"][0]["product_id"]
+        assert [p["text"] for p in state["prompter"]["points"]] == ["Helps skin look smoother by morning."]
