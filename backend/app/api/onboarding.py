@@ -88,12 +88,19 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
     except ValidationError as e:
         raise ActionError(400, "invalid_record", str(e)[:400]) from None
     record, _ = normalise(record)
+    # D-232: host-facing lines in every language the market offers, translated now (never live), marked for review
+    from ..onboarding.translate import translate_record
+
+    translations = await translate_record(ctx.llm, record, [x.lang for x in ctx.pack.market.languages])
     try:  # the show must be buildable in this server's market before the release is saved
-        pack = release_pack(ctx.pack, record, "rel_check_v1", ctx.settings.onboarding_path)
+        pack = release_pack(ctx.pack, record, "rel_check_v1", ctx.settings.onboarding_path, translations)
     except Exception as e:  # noqa: BLE001
         raise ActionError(409, "release_not_buildable", str(e)) from None
     warnings = [] if pack.rules.rules else [
         f"no law pack for {record.category} in {ctx.pack.market.market}: only brand-level checks run"]
+    warnings += [f"approved wording machine-translated into {lang}: review it before going live" for lang in translations]
+    if record.language.split("-")[0] != ctx.pack.lang and ctx.pack.lang not in translations:
+        warnings.append(f"no approved wording in {ctx.pack.lang}: alerts will have no replacement line")
     # D-231: what will happen live, in plain words for the approval screen
     live = {"law": (f"{len(pack.rules.rules)} rules from {pack.rules.policy_id}" if pack.rules.rules
                     else "no law checks for this category"),
@@ -101,8 +108,8 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
             "not_approved_claims": len(record.not_approved_claims), "promos": len(pack.promos.promos),
             "price": f"{pack.products.currency_symbol}{pack.products.products[0].live_price:.2f} live, "
                      f"{pack.products.currency_symbol}{pack.products.products[0].list_price:.2f} list"}
-    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id), "warnings": warnings,
-            "live": live}
+    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id, translations),
+            "warnings": warnings, "live": live, "translations": translations}
 
 
 @router.post("/lawpacks/jobs")

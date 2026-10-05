@@ -69,11 +69,11 @@ class AppContext:
         if release_id is not None:
             rkey = (market.upper(), lang, release_id)
             if rkey not in self._packs:
-                from .onboarding.release import load_release, release_pack
+                from .onboarding.release import load_release_full, release_pack
 
                 base, reflex = self.pack_for(market, lang)
-                pack = release_pack(base, load_release(self.settings.onboarding_path, release_id), release_id,
-                                    self.settings.onboarding_path)
+                record, translations = load_release_full(self.settings.onboarding_path, release_id)
+                pack = release_pack(base, record, release_id, self.settings.onboarding_path, translations)
                 if pack.rules is not base.rules:  # D-227: no law pack for its category, so no reflex phrases either
                     reflex = Reflex(pack.rules, pack.lexicon)
                 pid = pack.products.products[0].product_id

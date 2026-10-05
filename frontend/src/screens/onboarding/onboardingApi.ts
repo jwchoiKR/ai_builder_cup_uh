@@ -49,7 +49,9 @@ export const onboardingApi = {
   job: (jobId: string) => request<Job>("GET", `/onboarding/jobs/${encodeURIComponent(jobId)}`),
   approve: (jobId: string, record?: ProductRecord) =>
     request<{ release_id: string; warnings: string[]; live?: { law: string; price: string; cautions: number;
-      approved_claims: number; not_approved_claims: number; promos: number } }>(
+      approved_claims: number; not_approved_claims: number; promos: number };
+      translations?: Record<string, { approved_claims: string[]; cautions: string[];
+        avoid_saying: { say_not: string; say: string }[] }> }>(
       "POST", `/onboarding/jobs/${encodeURIComponent(jobId)}/approve`,
       record ? { record } : {}),
   startShow: (releaseId: string) => request<Session>("POST", "/sessions", { release_id: releaseId }),

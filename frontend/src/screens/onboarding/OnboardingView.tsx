@@ -306,6 +306,16 @@ export function OnboardingView() {
                   {" "}{release.live?.not_approved_claims} claims not approved, {release.live?.promos} offers to start</li>
               </ul>
               {release.warnings.map((w) => <p key={w} className={styles.warning}>{w}</p>)}
+              {Object.entries(release.translations ?? {}).map(([lang, t]) => (
+                // D-232: host lines in the show's language, translated at approval (never live): review them
+                <div key={lang} data-testid={`onb-translation-${lang}`}>
+                  <p className={styles.value}><b>Machine translation into {lang}</b> (review before going live)</p>
+                  <ul className={styles.rows}>
+                    {[...t.approved_claims, ...t.cautions, ...t.avoid_saying.map((a) => `“${a.say_not}” → “${a.say}”`)].map(
+                      (x, i) => <li key={i} className={styles.value}>{x}</li>)}
+                  </ul>
+                </div>
+              ))}
               <Button variant="primary" disabled={busy}
                       onClick={() => act(async () => {
                         const s = await onboardingApi.startShow(release.release_id);
