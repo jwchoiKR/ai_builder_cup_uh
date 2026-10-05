@@ -1,5 +1,5 @@
 import { ArrowUpRight, ChartColumn, Clapperboard, FileUp, Headset, Mic, Smartphone, type LucideIcon } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { api } from "../app/api";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
@@ -8,14 +8,51 @@ import { useTheme } from "../app/theme";
 import { Button, Chip, Eyebrow, ThemeToggle } from "../components";
 import styles from "./screens.module.css";
 
-/** A term a visitor may not know: dotted underline, and a short tooltip on hover and on keyboard focus. */
+const TIP_GAP = 8;
+const TIP_MARGIN = 16;
+
+/** A term a visitor may not know: dotted underline, and a short tooltip below it (above when there is no room) on
+ *  hover and keyboard focus; a tap toggles it on touch screens. */
 function Term({ children, tip }: { children: ReactNode; tip: string }) {
   const id = useId();
+  const termRef = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLSpanElement>(null);
+  const pointer = useRef<string>("mouse");
+  const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState<{ above: boolean; shift: number }>({ above: false, shift: 0 });
+
+  useLayoutEffect(() => {
+    if (!open || !termRef.current || !tipRef.current) return;
+    const term = termRef.current.getBoundingClientRect();
+    const box = tipRef.current.getBoundingClientRect();
+    const above = term.bottom + TIP_GAP + box.height > window.innerHeight && term.top - TIP_GAP - box.height >= 0;
+    const shift = Math.min(0, window.innerWidth - TIP_MARGIN - (term.left + box.width));
+    setPlace({ above, shift: Math.max(shift, TIP_MARGIN - term.left) });
+  }, [open]);
+
   return (
-    <span className={styles.term} tabIndex={0} aria-describedby={id}
-      onKeyDown={(e) => e.key === "Escape" && e.currentTarget.blur()}>
+    <span
+      ref={termRef}
+      className={styles.term}
+      tabIndex={0}
+      aria-describedby={id}
+      onPointerDown={(e) => (pointer.current = e.pointerType)}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => pointer.current !== "touch" && setOpen(true)}
+      onBlur={() => setOpen(false)}
+      onClick={() => pointer.current === "touch" && setOpen((o) => !o)}
+      onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+    >
       {children}
-      <span role="tooltip" id={id} className={styles.termTip}>
+      <span
+        ref={tipRef}
+        role="tooltip"
+        id={id}
+        data-open={open}
+        className={`${styles.termTip} ${place.above ? styles.termTipAbove : ""}`}
+        style={{ "--tip-shift": `${place.shift}px` } as CSSProperties}
+      >
         {tip}
       </span>
     </span>
@@ -46,7 +83,7 @@ const SCREENS: { path: string; title: string; icon: LucideIcon; phase: Phase; wh
   {
     path: "/operator", title: "Operator", icon: Headset, phase: "During the show", who: "For the operator.",
     points: [
-      "Run of show and product switch.",
+      "Show schedule and product switch.",
       <>The <Term tip="The operator's list of viewer questions, each with its status and a draft answer when there is one.">question desk</Term>: questions the product info cannot answer, to approve or answer.</>,
       "Alerts, banners and notices.",
     ],
@@ -69,7 +106,7 @@ const SCREENS: { path: string; title: string; icon: LucideIcon; phase: Phase; wh
   {
     path: "/summary", title: "Summary", icon: ChartColumn, phase: "After the show", who: "For the team.",
     points: [
-      "Show numbers: alerts, corrections, answered questions.",
+      "Show results: alerts, corrections, answered questions.",
       "Logs.",
       "A recap written by the AI.",
     ],
@@ -98,7 +135,7 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
 
   return (
     <div className={styles.root} data-theme={theme}>
-      <header className={styles.header}>
+      <header className={`${styles.header} ${styles.hubHeader}`}>
         <div className={styles.headerTitle}>
           <Eyebrow>LIVE / Studio</Eyebrow>
           <span className={styles.title}>Broadcast hub</span>
@@ -130,26 +167,28 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
                   <span className={styles.hubIcon}>
                     <Icon aria-hidden />
                   </span>
-                  <Chip tone={PHASE_TONE[s.phase]}>{s.phase}</Chip>
+                  <Chip tone={PHASE_TONE[s.phase]} className={styles.hubPhase}>{s.phase}</Chip>
                 </div>
-                <a
-                  className={styles.hubCardLink}
-                  href={href}
-                  onClick={(e) => {
-                    if (e.metaKey || e.ctrlKey || e.shiftKey) return;
-                    e.preventDefault();
-                    navigate(href);
-                  }}
-                >
-                  {s.title}
-                  <ArrowUpRight aria-hidden />
-                </a>
-                <p className={styles.hubWho}>{s.who}</p>
-                <ul className={styles.hubPoints}>
-                  {s.points.map((pt, i) => (
-                    <li key={i}>{pt}</li>
-                  ))}
-                </ul>
+                <div className={styles.hubCardBody}>
+                  <a
+                    className={styles.hubCardLink}
+                    href={href}
+                    onClick={(e) => {
+                      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+                      e.preventDefault();
+                      navigate(href);
+                    }}
+                  >
+                    {s.title}
+                    <ArrowUpRight aria-hidden />
+                  </a>
+                  <p className={styles.hubWho}>{s.who}</p>
+                  <ul className={styles.hubPoints}>
+                    {s.points.map((pt, i) => (
+                      <li key={i}>{pt}</li>
+                    ))}
+                  </ul>
+                </div>
               </article>
             );
           })}
