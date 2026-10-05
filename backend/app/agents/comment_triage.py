@@ -25,6 +25,7 @@ class TriageInput:
     text: str  # full comment text; truncated to MAX_COMMENT_CHARS for the model
     context_product_id: str | None
     open_groups: list[QuestionGroup] = field(default_factory=list)
+    host_line: str | None = None  # D-157: the host's last final, for a short comment only
     session_id: str | None = None
     scenario: str = "default"
 
@@ -92,6 +93,7 @@ class CommentTriage:
         user = self.prompt.render({
             "products_compact_json": inputs.products_compact_json(self.catalog),
             "product_id_at_comment_time_minus_grace": inputs.product_id_at_comment_time_minus_grace(inp.context_product_id),
+            "recent_host_line_json_or_null": inputs.recent_host_line_json_or_null(inp.host_line),
             "intent_names_json": inputs.intent_names_json(self.catalog),
             "condition_slots_json": inputs.condition_slots_json(self.catalog.pack.intents.condition_slots),
             "open_groups_json": groups,
@@ -119,7 +121,7 @@ class CommentTriage:
             "intent_names_json": inputs.intent_names_json(self.catalog),
             "condition_slots_json": inputs.condition_slots_json(self.catalog.pack.intents.condition_slots),
             "open_groups_json": groups,
-            "comments_json": inputs.comments_json([(x.text, x.context_product_id) for x in inps],
+            "comments_json": inputs.comments_json([(x.text, x.context_product_id, x.host_line) for x in inps],
                                                   self.settings.MAX_COMMENT_CHARS),
         })
 

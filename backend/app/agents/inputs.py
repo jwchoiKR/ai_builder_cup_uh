@@ -206,10 +206,14 @@ def comment_text(text: str, max_chars: int) -> str:
     return text[:max_chars]  # §5 MAX_COMMENT_CHARS: truncated for analysis, stored in full
 
 
-def comments_json(items: Sequence[tuple[str, str | None]], max_chars: int) -> list[dict]:
-    """Micro-batch triage: (text, context product) per comment, indexed in order."""
-    return [{"i": i, "context_product_id": pid, "comment": comment_text(text, max_chars)}
-            for i, (text, pid) in enumerate(items)]
+def comments_json(items: Sequence[tuple[str, str | None, str | None]], max_chars: int) -> list[dict]:
+    """Micro-batch triage: (text, context product, recent host line) per comment, indexed in order."""
+    return [{"i": i, "context_product_id": pid, "recent_host_line": line, "comment": comment_text(text, max_chars)}
+            for i, (text, pid, line) in enumerate(items)]
+
+
+def recent_host_line_json_or_null(line: str | None) -> str | None:
+    return line  # D-157: the host's last final before a short comment, else null
 
 
 def canonical_question(text: str) -> str:
@@ -241,7 +245,7 @@ BUILDERS = {
         intent_names_json, condition_slots_json, active_alerts_json, open_questions_json,
         open_groups_json, host_cues_json, last_two_final_transcripts_json, passages_json,
         summary_stats_json, draft_answer_json, utterance_text, comment_text, comments_json, canonical_question, product_id,
-        product_id_at_comment_time_minus_grace, full_document_text_with_section_headings,
+        product_id_at_comment_time_minus_grace, full_document_text_with_section_headings, recent_host_line_json_or_null,
     )
 }
 BUILDERS["current_product_compact_json"] = current_product_compact_json

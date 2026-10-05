@@ -458,11 +458,11 @@ async def test_a_later_verified_draft_takes_the_intents_route_again():
     class FirstComposerFails(ScriptedBackend):
         def __init__(self):
             super().__init__()
-            self.first = True
+            self.left = 2  # D-157: the first draft and its one retry
 
         async def generate(self, req, timeout_ms):
-            if req.agent == "answer_composer" and self.first:
-                self.first = False
+            if req.agent == "answer_composer" and self.left:
+                self.left -= 1
                 raise LLMError("timeout")
             return await super().generate(req, timeout_ms)
 
@@ -664,3 +664,105 @@ async def test_a_document_change_closes_answered_groups_with_a_stale_answer(rt):
     gs = await groups(rt)
     assert (await rt.get_group(old.group_id)).closed_reason == "documents_changed"
     assert len(gs) == 2 and any(g.status == "auto_answered" and g.group_id != old.group_id for g in gs)
+
+
+def _triage_recorder():
+    """The triage prompts the model received (D-157)."""
+    from .judge_fakes import ScriptedBackend
+
+    class Recorder(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.triage_messages: list[str] = []
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "comment_triage":
+                self.triage_messages.append(req.user_message)
+            return await super().generate(req, timeout_ms)
+    return Recorder()
+
+
+async def test_a_short_comment_is_triaged_with_the_hosts_last_line():
+    """D-157 (00007 show replays): "Over 60 how", "Pouch for set?" and "Tingling?" right after the host talked about
+    that topic were mis-triaged, because triage never saw what the host had just said."""
+    from .judge_fakes import speak
+
+    backend = _triage_recorder()
+    ctx = make_ctx(backend=backend)
+    rt = await live_runtime(ctx)
+    try:
+        line = "Some of you may feel a slight tingle for a few seconds."
+        await speak(rt, line)
+        await say(rt, "Mei", "sting normal?")
+        await say(rt, "Raj", "Is a slight tingle normal when I put the cream on?")  # long: no host line
+        await rt.ctx.scheduler.advance(31_000)
+        await say(rt, "Ann", "tingle ok?")  # the line is older than 30 s
+        short, long_, late = backend.triage_messages
+        assert f'<data name="RECENT_HOST_LINE">"{line}"</data>' in short
+        assert '<data name="RECENT_HOST_LINE">null</data>' in long_ and '<data name="RECENT_HOST_LINE">null</data>' in late
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+def test_a_short_comments_triage_cache_entry_belongs_to_its_host_line():
+    from app.logic.cache import triage_cache_key
+
+    assert triage_cache_key("50 can?", CREAM) == triage_cache_key("50 can?", CREAM, None)  # unchanged without a line
+    assert triage_cache_key("50 can?", CREAM, "Spend over S$60 for the pouch.") != triage_cache_key("50 can?", CREAM)
+
+
+def test_the_batch_triage_carries_each_comments_host_line():
+    from app.agents.inputs import comments_json
+
+    items = comments_json([("50 can?", CREAM, "Spend over S$60 for the pouch."), ("price?", CREAM, None)], 300)
+    assert [i["recent_host_line"] for i in items] == ["Spend over S$60 for the pouch.", None]
+
+
+def _composer_backend(failures: int):
+    """The composer times out `failures` times, then drafts as usual (D-157)."""
+    from app.providers.llm import LLMTimeout
+
+    from .judge_fakes import ScriptedBackend
+
+    class Flaky(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.left = failures
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "answer_composer" and self.left:
+                self.left -= 1
+                raise LLMTimeout("deadline")
+            return await super().generate(req, timeout_ms)
+    return Flaky()
+
+
+async def test_a_composer_timeout_is_retried_once():
+    """D-157 (comment-flow CF01): the price group's only draft timed out while all three askers had joined,
+    so it went to the host with no answer and nobody came later to draft again."""
+    ctx = make_ctx(backend=_composer_backend(1))
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        assert g.status == "auto_answered"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_a_new_asker_drafts_again_after_the_composer_failed():
+    ctx = make_ctx(backend=_composer_backend(2))
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        assert (g.route_reason, g.answer_id) == ("no_verified_answer", None)
+        await rt.ctx.scheduler.advance(3000)
+        await say(rt, "Kumar", "How much is the cream?")
+        [g] = await groups(rt)
+        assert g.status == "auto_answered"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

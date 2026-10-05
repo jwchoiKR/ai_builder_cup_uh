@@ -196,6 +196,16 @@ class UtterancePipeline:
         base = judged.text if judged else prev.text
         return Merge(prev=prev, chain=list(chain), text=f"{base} {t.text}")
 
+    def recent_host_line(self, at: int, max_age_ms: int, segment_id: str | None) -> str | None:
+        """D-157: what the host said last before `at` (a merged sentence as judged), in this segment."""
+        best: tuple[Transcript, str] | None = None
+        for t, text, _ in self._prepared.values():
+            if (t.received_at <= at and at - t.received_at <= max_age_ms
+                    and (segment_id is None or t.segment_id == segment_id)
+                    and (best is None or t.received_at > best[0].received_at)):
+                best = (t, text)
+        return best[1] if best else None
+
     def _previous_final(self, t: Transcript) -> Transcript | None:
         """The final just before `t` in transcript order (still kept for merging)."""
         seq = self._sequence.get(t.transcript_id, 0) - 1

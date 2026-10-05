@@ -30,8 +30,10 @@ def normalise_comment(text: str) -> str:
     return t
 
 
-def triage_cache_key(text: str, context_product_id: str | None) -> str:
-    return hashlib.sha1(f"{normalise_comment(text)}|{context_product_id}".encode()).hexdigest()
+def triage_cache_key(text: str, context_product_id: str | None, host_line: str | None = None) -> str:
+    # D-157: a short comment read with the host's last line is cached for that line only
+    tail = f"|{host_line}" if host_line else ""
+    return hashlib.sha1(f"{normalise_comment(text)}|{context_product_id}{tail}".encode()).hexdigest()
 
 
 @dataclass
