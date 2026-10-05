@@ -192,7 +192,8 @@
         "completely safe",
         "totally safe",
         "no side effects",
-        "zero side effects"
+        "zero side effects",
+        "no harmful effects"
       ]
     },
     "medicine_like": {
@@ -240,7 +241,6 @@
       "reflex_phrases": [
         "it's halal",
         "it is halal",
-        "halal certified",
         "100% halal"
       ]
     },
@@ -266,14 +266,13 @@
       "say_instead_hint": "Describe this product's own approved benefit, without other brands.",
       "reflex_phrases": [
         "better than other brands",
-        "other brands are useless",
-        "unlike other brands"
+        "other brands are useless"
       ]
     },
     "professional_endorsement": {
       "unacceptable_examples": [
         "Dermatologists recommend this to all their patients.",
-        "Doctors use this themselves."
+        "Doctors recommend this cream to their patients."
       ],
       "say_instead_hint": "Say what the product sheet states; do not speak for doctors.",
       "reflex_phrases": [
@@ -286,14 +285,11 @@
     },
     "unsupported_evidence": {
       "unacceptable_examples": [
-        "It's clinically proven to work.",
-        "Look at this before and after!"
+        "It's proven to work, trust me.",
+        "Here's my before and after, I won't say how many weeks apart."
       ],
       "say_instead_hint": "Quote the approved in-house result with its qualifier, e.g. 'In our in-house test, ...'",
-      "reflex_phrases": [
-        "clinically proven",
-        "scientifically proven"
-      ]
+      "reflex_phrases": []
     },
     "testimonial": {
       "unacceptable_examples": [
@@ -309,7 +305,8 @@
       ],
       "say_instead_hint": "Describe the product's own approved benefit instead.",
       "reflex_phrases": [
-        "gmp certified"
+        "gmp certified",
+        "iso 22716"
       ]
     },
     "religious_claim": {

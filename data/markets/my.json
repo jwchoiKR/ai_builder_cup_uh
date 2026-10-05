@@ -178,7 +178,7 @@
       "source_id": "MY_CLAIMS",
       "source_ref": "3.a.iii",
       "title": "Absolute safety",
-      "description": "Claims that the product is completely or absolutely safe, harmless, or free of any side effect for everyone. Not this rule: repeating the product's cautions or advising a doctor's check.",
+      "description": "Claims or implies freedom from side effects or harm, or safety because ingredients are natural. Excludes bounded, substantiated test results, cautions and denials.",
       "severity": "MEDIUM"
     },
     {
@@ -214,7 +214,7 @@
       "source_id": "MY_HALAL",
       "source_ref": "3-5",
       "title": "Uncertified halal representation",
-      "description": "Saying or implying that the product is halal without a valid halal certification stated on the product sheet. Natural or alcohol-free ingredients do not make a product halal.",
+      "description": "Represents the product as halal without verified certification and required marking under paragraphs 4-5, through JAKIM/MAIN or a JAKIM-recognized foreign certifier. Ingredient exclusions alone are insufficient.",
       "severity": "MEDIUM"
     },
     {
@@ -241,7 +241,7 @@
       "source_id": "MY_ADVERTISING",
       "source_ref": "4.1",
       "title": "Medical endorsement impression",
-      "description": "Giving the impression that doctors, dermatologists, pharmacists or other health professionals recommend or endorse the product.",
+      "description": "Implies individual healthcare-professional recommendation or endorsement. Permit verified objective professional surveys and professional-body endorsements with written consent. Do not infer endorsement from test supervision.",
       "severity": "MEDIUM"
     },
     {
@@ -250,7 +250,7 @@
       "source_id": "MY_ADVERTISING",
       "source_ref": "4.3, 5.2 and 7",
       "title": "Unsupported evidence",
-      "description": "Claiming results are 'proven' or 'tested' without evidence on the product sheet, or a before-and-after comparison that does not say how much time passed.",
+      "description": "Makes unsupported or misleading evidence claims; names test institutions without authorization; uses research for medicinal claims; or presents misleading before-and-after comparisons or omits elapsed time. Missing documentation requires verification.",
       "severity": "MEDIUM"
     },
     {
@@ -259,7 +259,7 @@
       "source_id": "MY_ADVERTISING",
       "source_ref": "6",
       "title": "Invalid testimonial",
-      "description": "Presenting a customer's or celebrity's experience as a promise that everyone will get the same result. Testimonials must be genuine, and results vary.",
+      "description": "Uses a fabricated, obsolete or inapplicable testimonial, or misrepresents personal experience over a reasonable period. Unknown authenticity requires verification; omitting a variability disclaimer alone is not a violation.",
       "severity": "MEDIUM"
     },
     {
@@ -268,7 +268,7 @@
       "source_id": "MY_CLAIMS",
       "source_ref": "3.a.i",
       "title": "GMP promotional claim",
-      "description": "Promoting the manufacturer's GMP certification as a reason the product works or is better.",
+      "description": "Promotes the product using the manufacturer's GMP certification or standard, including ISO 22716, even without claiming superior efficacy. Excludes denials.",
       "severity": "MEDIUM"
     },
     {
@@ -277,7 +277,7 @@
       "source_id": "MY_CLAIMS",
       "source_ref": "3.a.ii",
       "title": "Religious efficacy claim",
-      "description": "Claiming religious or scriptural benefits or endorsement for the product. A valid halal certification is a different matter.",
+      "description": "Uses scripture or religious statements to promote the cosmetic. Excludes unrelated greetings and verified halal certification.",
       "severity": "MEDIUM"
     }
   ]
