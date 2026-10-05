@@ -55,6 +55,7 @@ async def gather_passages(
     promo: Promo | None,
     top_k: int,
     timeout_ms: int = 2000,
+    offers: Sequence[Promo] = (),
 ) -> list[Passage]:
     """§7.6 retrieval: top-k search filtered to the product (each product for multi), plus Key facts
     for price/volume intents, plus the promo passage while a price promo runs."""
@@ -73,6 +74,10 @@ async def gather_passages(
     if active is not None:
         pp = promo_passage(active, catalog)
         out[pp.passage_id] = pp
+    if intent == "promo":  # D-168: a running offer's terms ("free pouch over how much?")
+        for o in offers:
+            op = promo_passage(o, catalog)
+            out[op.passage_id] = op
     return list(out.values())
 
 

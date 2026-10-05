@@ -216,6 +216,11 @@ class SessionRuntime:
     async def active_price_promo(self) -> Promo | None:
         return self.promo((await self.load_session()).active_promo_id)
 
+    async def active_offers(self) -> list[Promo]:
+        """D-168: running offers that change no price (a gift over a spend)."""
+        return [p for p in (self.promo(ap.promo_id) for ap in (await self.load_session()).active_promos)
+                if p is not None and not p.changes_prices]
+
     # ---- rate limits (§5) ----------------------------------------------------------------------
 
     def check_rate(self, author_id: str, now: int) -> None:

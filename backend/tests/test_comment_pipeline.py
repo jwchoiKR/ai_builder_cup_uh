@@ -766,3 +766,15 @@ async def test_a_new_asker_drafts_again_after_the_composer_failed():
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+async def test_d168_a_promo_answer_belongs_to_the_offers_running(rt):
+    g = QuestionGroup(group_id="g1", product_id=CREAM, intent="promo", condition_slots={}, status="new",
+                      canonical_question="Is there a gift?", member_comment_ids=[], unique_author_ids=[],
+                      first_at=0, last_at=0, route="AUTO", route_reason="intent")
+    before = await ops.answer_key(rt, g)
+    price = g.model_copy(update={"intent": "price"})
+    price_before = await ops.answer_key(rt, price)
+    await rt.start_promo("promo_gift_pouch")
+    assert await ops.answer_key(rt, g) != before
+    assert await ops.answer_key(rt, price) == price_before  # a gift changes no price answer
