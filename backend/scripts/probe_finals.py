@@ -72,6 +72,7 @@ async def main() -> None:
         for run in range(args.runs):
             print(f"run {run + 1}")
             await run_once(ctx, case)
+        print("second requests (D-184):", ctx.llm.hedges or "none")
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()

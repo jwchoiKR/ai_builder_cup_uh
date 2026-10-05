@@ -2,7 +2,8 @@
 
 `LLMClient.call()` enforces the agent deadline with asyncio.wait_for, retries once on HTTP 5xx
 only (never on timeout), validates the JSON reply with the agent's pydantic model and writes an
-audit record. Any failure is returned as a status; it never raises to the caller.
+audit record. Any failure is returned as a status; it never raises to the caller. D-184: the judges and the
+fact checker send one identical second request when the first has not answered after JUDGE_HEDGE_MS.
 """
 from __future__ import annotations
 
@@ -380,6 +381,10 @@ class AuditSink(Protocol):
     async def record(self, call: AgentCall, session_id: str | None) -> None: ...
 
 
+# D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
+HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker"})
+
+
 @dataclass(frozen=True)
 class ModelSpec:
     model: str
@@ -409,6 +414,8 @@ class LLMClient:
         self.facts = ModelSpec(settings.LLM_FAST_MODEL, settings.FACTS_THINKING)
         self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
         self.warmup_status: dict[str, str] = {}
+        # D-184: per agent, calls that sent a second request, and how many of those the second one answered
+        self.hedges: dict[str, dict[str, int]] = {}
 
     async def call(self, req: LLMRequest[T]) -> AgentResult[T]:
         call_id = self._ids.new("call_", req.session_id)
@@ -419,7 +426,9 @@ class LLMClient:
         error: str | None = None
         meta: dict[str, Any] = {}
         try:
-            raw = await asyncio.wait_for(self._generate(req, t0), timeout=req.deadline_ms / 1000)
+            hedge_ms = self._settings.JUDGE_HEDGE_MS if req.agent in HEDGED_AGENTS else 0
+            work = self._hedged(req, t0, hedge_ms) if 0 < hedge_ms < req.deadline_ms else self._generate(req, t0)
+            raw = await asyncio.wait_for(work, timeout=req.deadline_ms / 1000)
             meta = {"model_version": raw.model_version, "usage": raw.usage, "finish_reason": raw.finish_reason}
             try:
                 output = req.output_model.model_validate_json(raw.text)
@@ -466,6 +475,35 @@ class LLMClient:
                     raise
                 log.warning("agent=%s 5xx (%s), retry %d/%d", req.agent, e, attempt, attempts - 1)
         raise AssertionError("unreachable")
+
+    async def _hedged(self, req: LLMRequest, t0: float, hedge_ms: int) -> RawReply:
+        """D-184: the first request; if it has not answered after `hedge_ms`, one identical second request. The first
+        reply wins and the other is cancelled; an error from one waits for the other."""
+        first = asyncio.ensure_future(self._generate(req, t0))
+        done, _ = await asyncio.wait({first}, timeout=hedge_ms / 1000)
+        if done:
+            return first.result()
+        second = asyncio.ensure_future(self._generate(req, t0))
+        count = self.hedges.setdefault(req.agent, {"hedged": 0, "second_won": 0})
+        count["hedged"] += 1
+        log.info("agent=%s no answer after %d ms: second request sent", req.agent, hedge_ms)
+        pending = {first, second}
+        error: BaseException | None = None
+        try:
+            while pending:
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    if task.exception() is None:
+                        if task is second:
+                            count["second_won"] += 1
+                        return task.result()
+                    error = task.exception()
+            assert error is not None
+            raise error
+        finally:
+            for task in (first, second):
+                if not task.done():
+                    task.cancel()
 
     async def warm_up(self) -> dict[str, str]:
         """One tiny call per model so the first real call is not a cold start. Not audited."""
