@@ -85,7 +85,18 @@ export interface SummaryStats {
   compliance_alerts: ComplianceRow[];
   fact_alerts: FactRow[];
   promos: PromoRow[];
-  agent_latency: Record<string, { p50_ms: number | null; p95_ms: number | null; calls: number }>;
+  // D-202: attempts, failures and deadline attainment next to the latency of the successful calls
+  agent_latency: Record<
+    string,
+    {
+      p50_ms: number | null;
+      p95_ms: number | null;
+      calls: number;
+      attempts?: number;
+      failure_rate?: number;
+      deadline_attainment?: number;
+    }
+  >;
   cache: { instant_answers: number; composed_answers: number; triage_hits: number; triage_misses: number };
 }
 

@@ -157,12 +157,22 @@ def compute_summary_stats(
         promo_rows.append({**row, "duration_sec": _sec(stop - row["started_at"])})
 
     # ---- agents and caches ------------------------------------------------------------------------
+    # D-202 (full review P1): latency of the successful calls, next to every attempt, its failures and the share
+    # that finished within its deadline (a timeout is the deadline missed), so failures cannot look fast
     latencies: dict[str, list[int]] = {}
+    attempts: dict[str, list[str]] = {}
     for c in agent_calls:
+        attempts.setdefault(c.agent, []).append(c.status)
         if c.status == "ok":
             latencies.setdefault(c.agent, []).append(c.latency_ms)
-    agents = {name: {"p50_ms": percentile(v, 0.5), "p95_ms": percentile(v, 0.95), "calls": len(v)}
-              for name, v in sorted(latencies.items())}
+    agents = {}
+    for name, statuses in sorted(attempts.items()):
+        v, n = latencies.get(name, []), len(statuses)
+        failures = sum(st != "ok" for st in statuses)
+        agents[name] = {"p50_ms": percentile(v, 0.5), "p95_ms": percentile(v, 0.95), "calls": len(v),
+                        "attempts": n, "failures": failures, "timeouts": statuses.count("timeout"),
+                        "failure_rate": round(failures / n, 4),
+                        "deadline_attainment": round((n - statuses.count("timeout")) / n, 4)}
 
     questions_total = sum(1 for c in comments if c.kind == "question")
     return {
