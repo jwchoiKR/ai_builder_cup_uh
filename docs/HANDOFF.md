@@ -42,7 +42,7 @@
 ## 3. 지금 상태
 
 - 브랜치 `multi_agent_test`. 코드 최신은 개발 세션의 D-260(947084e)까지다(10/6 새벽 기준 push 여부는 `git log origin/multi_agent_test`로 확인).
-- **클라우드:** Cloud Run `live-studio-us` 00008 = 이미지 2600ed8 = 코드 0d5565a. 자동 등록·FD 등 10/5 밤 이후 코드는 배포되지 않았다.
+- **클라우드:** Cloud Run `live-studio-us` 00009-qcf = 이미지/코드 41411fd (10/6 아침 사용자 배포). `/api/health` 정상, 사실 확인 Flash-Lite LOW. 클라우드에서 FD 컨텍스트 캐시는 아직 제품을 올려 확인하지 않았다. STORE=memory라 재시작하면 올린 제품·릴리스가 사라진다.
 - **10/6 밤 기본 구조 (측정으로 결정):**
   - 사실 확인: `FACT_MODE=docs`(FD). 등록 기록 + 원본 파일(방송 시작 때 컨텍스트 캐시). Flash-Lite LOW, 사실 마감 5초, 규정 경고 3초.
   - 자동 등록: Gemini 3.8 Flash로 통째로 읽기 + 주의·한계 다시 읽기 + 칸 재분류 + 카테고리(닫힌 목록, 대상 연령은 따로) + 누락 점검, 코드가 숫자 단어·묶음 계산·근거 확인. `VERIFY_MODE=lean`(사람이 볼 항목 최대 10개).
