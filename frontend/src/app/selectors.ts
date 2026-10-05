@@ -161,6 +161,7 @@ export interface PriceView {
   current: string; // large price
   struck: string; // small, struck-through price
   set: string; // set price (promo set price during the time sale)
+  symbol: string; // D-179: the market's currency symbol ("S$", "RM")
 }
 
 export function priceView(state: ClientState, catalog: Catalog | null, product: Product | null): PriceView | null {
@@ -174,9 +175,11 @@ export function priceView(state: ClientState, catalog: Catalog | null, product: 
       current: promoPrice,
       struck: product.live_price_display,
       set: (set && promo.promo_prices_display[set.set_id]) || set?.live_price_display || "",
+      symbol: catalog.currency_symbol,
     };
   }
-  return { label: "LIVE PRICE", current: product.live_price_display, struck: product.list_price_display, set: set?.live_price_display ?? "" };
+  return { label: "LIVE PRICE", current: product.live_price_display, struck: product.list_price_display,
+    set: set?.live_price_display ?? "", symbol: catalog.currency_symbol };
 }
 
 // ---- prompter --------------------------------------------------------------------------------------

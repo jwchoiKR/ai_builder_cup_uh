@@ -197,7 +197,7 @@ function ProductPanel({
     .map((p) => p.text.toLowerCase())
     .join(" ");
   // The price column already shows prices; a price point is listed only when it is required.
-  const rows = points.filter((p) => p.required || !p.text.includes("S$"));
+  const rows = points.filter((p) => p.required || !price || !p.text.includes(price.symbol));
   const lead = rows.find((p) => p.required && !p.covered) ?? null;
   const sale = price?.label === "TIME SALE";
   return (

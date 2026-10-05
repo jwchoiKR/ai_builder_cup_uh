@@ -49,9 +49,9 @@ async def test_two_sessions_two_languages_on_one_service(tmp_path, settings):
     ctx.runtimes.shutdown()
 
 
-def test_d150_the_malaysia_pack_builds_but_waits_for_rm_products(settings):
-    """D-150 (JAPAC step 1, option c): Malaysia's rules (ASEAN base + NPRA) build with English wording, but the
-    pack refuses to load until products are priced in RM (D-129)."""
+def test_d150_the_malaysia_pack_builds_in_rm(settings, tmp_path):
+    """D-150 (JAPAC step 1, option c): Malaysia's rules (ASEAN base + NPRA) build with English wording. D-179: the
+    pack loads with the RM prices of products.json; without them it still refuses (D-129)."""
     from app.logic.catalog import DataPack, DataPackError, claim_rules
     from app.models.data import LangPack, MarketPack
 
@@ -61,8 +61,48 @@ def test_d150_the_malaysia_pack_builds_but_waits_for_rm_products(settings):
     rules = claim_rules(my, en)
     assert my.tier == "preview" and len(rules.rules) == 23
     assert {"MY-HALAL-UNVERIFIED", "MY-AUTHORITY-APPROVAL"} <= {r.rule_id for r in rules.rules}
-    with pytest.raises(DataPackError, match="priced in S\$, market MY uses RM"):
-        DataPack.load(data, "MY", "en")
+    pack = DataPack.load(data, "MY", "en")
+    assert pack.products.currency_symbol == "RM"
+    products = json.loads((data / "products" / "products.json").read_text(encoding="utf-8"))
+    del products["market_prices"]
+    bare = tmp_copy(data, products, tmp_path)
+    with pytest.raises(DataPackError, match=r"priced in S\$, market MY uses RM"):
+        DataPack.load(bare, "MY", "en")
+
+
+def tmp_copy(data, products, tmp_path):
+    """The data folder with another products.json."""
+    import shutil
+
+    out = tmp_path / "data"
+    shutil.copytree(data, out)
+    (out / "products" / "products.json").write_text(json.dumps(products), encoding="utf-8")
+    return out
+
+
+def test_d179_malaysia_uses_the_rm_prices_everywhere(settings):
+    """D-179 (user decision 10/5, demo values): an MY session gets RM prices in the products, the sheets' passages,
+    the prompter points and the promos that carry no price of their own; S$ is left nowhere. The time sale (S$ promo
+    prices) and the gift (S$60 threshold) have no MY values, so they are left out, not converted."""
+    from app.logic.catalog import Catalog, DataPack
+
+    pack = DataPack.load(settings.data_path, "MY", "en")
+    cat = Catalog(pack)
+    cream = cat.get_product("cream_hydra_barrier")
+    assert (cream.list_price, cream.live_price, cream.key_facts["set_price"]) == (159.0, 119.0, "RM205.00")
+    assert cat.price_display("ampoule_deep_hydration") == "RM105.00" and cat.live_price_value("set_cream_ampoule") == 205.0
+    texts = {p.passage_id: p.text for p in pack.passages}
+    assert texts["DL-CR-01#key-facts#live-broadcast-price"].startswith("Live broadcast price: RM119.00")
+    assert texts["DL-AM-01#key-facts#list-price"] == "List price: RM139.00"
+    assert any("RM119 (list RM159)" in pt.text for pt in cream.prompter_points)
+    assert {p.promo_id for p in pack.promos.promos} == {"promo_set_reminder"}
+    assert "RM205" in pack.promos_by_id["promo_set_reminder"].viewer_text
+    assert pack.runsheets["daon_skincare_demo"].promo_ids == ["promo_set_reminder"]
+    dump = pack.products.model_dump_json(exclude={"market_prices"}) + "".join(texts.values())
+    assert "S$" not in dump + pack.promos.model_dump_json()
+    assert pack.lexicon.spoken_numbers("It is RM119.00 today") == {"119"}
+    sg = DataPack.load(settings.data_path, "SG", "en")
+    assert Catalog(sg).price_display("cream_hydra_barrier") == "S$36.00"  # the default market is unchanged
 
 
 async def test_d150_a_preview_language_posts_nothing_by_itself(tmp_path, settings):
@@ -86,3 +126,22 @@ async def test_d150_a_preview_language_posts_nothing_by_itself(tmp_path, setting
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+async def test_d179_an_rm_session_needs_a_server_in_that_market():
+    """D-179: the sheets' index and /catalog follow the server's market, so an MY session runs on a MARKET=MY server;
+    an SG server refuses it instead of mixing S$ sheets with RM prices."""
+    from app.pipelines.runtime import ActionError, create_session
+
+    from .helpers import make_ctx
+
+    sg = make_ctx()
+    with pytest.raises(ActionError, match="MARKET=MY"):
+        await create_session(sg, "daon_skincare_demo", market="MY")
+    my = make_ctx(MARKET="MY")
+    s = await create_session(my, "daon_skincare_demo")
+    rt = await my.runtimes.get(s.session_id)
+    assert (s.market, rt.catalog.price_display("cream_hydra_barrier")) == ("MY", "RM119.00")
+    assert any(p.text.startswith("Live broadcast price: RM119.00") for p in await my.retriever.prefetch("cream_hydra_barrier"))
+    sg.runtimes.shutdown()
+    my.runtimes.shutdown()

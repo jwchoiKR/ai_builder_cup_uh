@@ -39,6 +39,7 @@ class Lexicon:
     absence: re.Pattern
     duration_hours: dict[str, float]  # D-174
     phone: re.Pattern  # from the market
+    currency: re.Pattern  # D-179: the market's currency symbol before a number ("s$", "rm"), from the market
 
     @classmethod
     def from_packs(cls, lang: LangPack, market: MarketPack) -> "Lexicon":
@@ -57,6 +58,7 @@ class Lexicon:
             duration_hours=dict(lx.duration_hours),
             exclusion=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.exclusion_cues) + r")\s+(?:the\s+)?$"),
             phone=re.compile(market.phone_pattern),
+            currency=re.compile(r"(?<![a-z])" + re.escape(market.currency.symbol.lower().replace("$", "")) + r"\$?(?=\d)"),
         )
 
     # ---- words and numbers ----------------------------------------------------------------------
@@ -107,9 +109,9 @@ class Lexicon:
         return self.content_words(self.in_house.sub(" ", claim.replace("*", " ")))
 
     def spoken_numbers(self, text: str) -> set[str]:
-        """Numbers as said or written: "fifty mils" -> {"50"}, "S$36.00" -> {"36"}, "4%" -> {"4"},
+        """Numbers as said or written: "fifty mils" -> {"50"}, "S$36.00" or "RM119.00" -> {"36"}/{"119"}, "4%" -> {"4"},
         "zero point two" -> {"0.2"}. A lone skip word ("one") is ignored."""
-        raw = normalise(text).replace("$", " ").split()
+        raw = self.currency.sub(" ", normalise(text).replace("$", " ")).split()
         # D-174: "twenty-one" kept its "one": a skip word is dropped only when it stands alone
         tokens = [w for i, w in enumerate(raw) if w not in self.skip_alone or (i > 0 and raw[i - 1] in self.tens)]
         words = self.numbers(tokens)

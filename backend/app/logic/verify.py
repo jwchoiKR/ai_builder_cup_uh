@@ -40,7 +40,7 @@ def number_set(text: str) -> set[str]:
 
 # D-117 B8: numbers are checked with their subject ("panthenol 5%"), not only "appears in some quote"
 _TOKEN = re.compile(r"\d+(?:\.\d+)?|[a-z][a-z'-]*")
-_UNITS = frozenset("""ml mls percent s sgd dollar dollars hour hours week weeks month months day days minute minutes
+_UNITS = frozenset("""ml mls percent s sgd dollar dollars rm myr ringgit hour hours week weeks month months day days minute minutes
 pump pumps drop drops g x of and the a an is are has have with""".split())
 SUBJECT_WINDOW = 3
 
