@@ -52,6 +52,13 @@ def _offer_threshold(c, offer) -> bool:
     return right == number_set(f"{offer.min_spend}") and bool(said) and not said <= right
 
 
+def _on_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
+    """D-165: every ingredient word the host named is in the product's sheet (not only in its "Free from" list)."""
+    names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
+    sheet = " ".join(p.text.lower() for p in passages if p.product_id == product_id and not _FREE_FROM.match(p.text.lower()))
+    return bool(names) and all(n in sheet for n in names)
+
+
 def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
     """D-121: every ingredient word the host named is missing from all of the product's sheet passages.
     D-156: a word the sheet names only in its "Free from:" list is missing too ("a little alcohol" against
@@ -145,6 +152,13 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             continue
         if c.field in WORD_FIELDS and _words_within(c.stated_value, c.correct_value):
             c.verdict = "not_in_sources"  # D-123: "tube" is the "Airless pump tube", only less specific
+            continue
+        if (c.field == "ingredient" and _on_sheet(c.stated_value or "", passages, c.product_id)
+                and not catalog.lexicon.absence.search(f"{c.stated_value or ''} {c.span or ''}")):
+            # D-165 (local SEED1 replay): "The main ingredient is niacinamide." came back "Centella Asiatica Leaf
+            # Water". An ingredient the product contains is never contradicted by another one ("main" is not a fact
+            # the sheet settles); an absence of one it contains still is
+            c.verdict = "not_in_sources"
             continue
         ok = False
         if (c.field in ("ingredient", "ingredient_amount") and c.passage_id is None
