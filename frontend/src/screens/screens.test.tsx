@@ -111,7 +111,18 @@ describe("screens", () => {
     expect(host.getAllByRole("listitem")).toHaveLength(3);
     const term = screen.getByText("question desk");
     expect(term).toHaveAttribute("tabindex", "0");
-    expect(document.getElementById(term.getAttribute("aria-describedby")!)).toHaveTextContent("The operator's list");
+    const tip = document.getElementById(term.getAttribute("aria-describedby")!)!;
+    expect(tip).toHaveTextContent("The operator's list");
+    expect(tip).toHaveAttribute("data-open", "false");
+    fireEvent.focus(term);
+    expect(tip).toHaveAttribute("data-open", "true");
+    fireEvent.keyDown(term, { key: "Escape" });
+    expect(tip).toHaveAttribute("data-open", "false");
+    fireEvent.pointerDown(term, { pointerType: "touch" });
+    fireEvent.click(term); // a tap toggles it on touch screens
+    expect(tip).toHaveAttribute("data-open", "true");
+    fireEvent.click(term);
+    expect(tip).toHaveAttribute("data-open", "false");
     expect(screen.getByText("Brief Agent")).toHaveAttribute("aria-describedby");
     expect(screen.getByText("Demo Console")).toHaveAttribute("aria-describedby");
     expect(screen.getByText("glossary")).toHaveAttribute("aria-describedby");
