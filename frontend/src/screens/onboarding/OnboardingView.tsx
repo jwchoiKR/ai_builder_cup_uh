@@ -305,11 +305,14 @@ export function OnboardingView() {
             <Ev items={rec.category_evidence} />
           </section>
 
-          {result.verify_mode === "risk" && result.checks && (
-            // D-236: only what would reach the live show, by group, plus audit samples
+          {(result.verify_mode === "risk" || result.verify_mode === "lean") && result.checks && (
+            // D-236: only what would reach the live show, by group, plus audit samples; D-254 lean: at most 10
             <section className={styles.block} data-testid="onb-to-check">
               <h2 className={styles.blockTitle}>
                 To check <span className={styles.count}>{result.checks.length}</span>
+                {result.check_summary?.before !== undefined && (
+                  <span className={styles.muted}> of {result.check_summary.before} found</span>
+                )}
               </h2>
               <ul className={styles.rows}>
                 {result.checks.map((c, i) => (
@@ -321,6 +324,34 @@ export function OnboardingView() {
                   </li>
                 ))}
               </ul>
+              {!!result.checks_collapsed?.length && (
+                <details data-testid="onb-collapsed">
+                  <summary className={styles.muted}>{result.checks_collapsed.length} more, lower live impact</summary>
+                  <ul className={styles.rows}>
+                    {result.checks_collapsed.map((c, i) => (
+                      <li key={i} className={styles.row}>
+                        <span className={styles.value}><b>{c.group}</b> · {plainField(rec, c.label)}</span>
+                        <span className={styles.muted}>{c.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {!!result.auto_accepted?.length && (
+                <details data-testid="onb-auto-accepted">
+                  <summary className={styles.muted}>
+                    {result.auto_accepted.length} cautions added automatically, with their source
+                  </summary>
+                  <ul className={styles.rows}>
+                    {result.auto_accepted.map((c, i) => (
+                      <li key={i} className={styles.row}>
+                        <span className={styles.value}>{c.label}</span>
+                        <span className={styles.muted}>{c.source}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </section>
           )}
           {rec.conflicts.length > 0 && <Conflicts record={rec} onChange={edit} />}

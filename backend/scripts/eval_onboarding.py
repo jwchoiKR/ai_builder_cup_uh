@@ -28,7 +28,7 @@ async def main() -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--hints", default="", help="optional brand or market hints")
     ap.add_argument("--thinking", default=None, help="override the read step's thinking level")
-    ap.add_argument("--verify-mode", default=None, choices=["full", "risk"], help="D-236: default VERIFY_MODE")
+    ap.add_argument("--verify-mode", default=None, choices=["full", "risk", "lean"], help="D-236: default VERIFY_MODE")
     args = ap.parse_args()
     files = sorted(p for p in args.files.iterdir() if p.is_file())
     settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local")
