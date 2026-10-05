@@ -29,32 +29,36 @@ def node(kind, title, *lines, use=""):
     dash = "dashed" if kind == "store" else "solid"
     body = "".join(f'<p style="font-size:23px; line-height:1.3; color:{INK}">{x}</p>' for x in lines)
     u = f'<p style="font-size:23px; line-height:1.3; color:{BLUE if kind == "ai" else SUB}; font-weight:500">{use}</p>' if use else ""
-    return (f'<div style="background:{bg}; border:2px {dash} {bd}; border-radius:16px; padding:10px 14px; '
+    return (f'<div style="flex:1; width:100%; box-sizing:border-box; background:{bg}; border:2px {dash} {bd}; border-radius:16px; padding:10px 14px; '
             f'display:flex; flex-direction:column; gap:4px; min-width:0">'
             f'<p style="font-size:23px; font-weight:700; color:{fg}">{lab}</p>'
             f'<p style="font-size:26px; font-weight:700; line-height:1.25; color:{INK}">{title}</p>{body}{u}</div>')
 
 
 def stack(*nodes):
-    """Several outcomes of one step, stacked in one cell."""
-    return f'<div style="display:flex; flex-direction:column; gap:10px">{"".join(nodes)}</div>'
+    """Several outcomes of one step, stacked in one cell: they share the row height in equal parts."""
+    parts = "".join(f'<div style="flex:1 1 0; display:flex; width:100%">{x}</div>' for x in nodes)
+    return f'<div style="flex:1; width:100%; display:flex; flex-direction:column; align-items:stretch; gap:10px">{parts}</div>'
 
 
-def lanes(*rows, n=5):
-    """Rows of nodes joined by arrows, in one grid so columns line up. A str row is a full-width stage label."""
-    cols = " 44px ".join(["minmax(0,1fr)"] * n)
-    cells = []
+def lanes(*rows, n=None):
+    """Rows of nodes joined by arrows. Each row is its own grid, so a short row still fills the width; every box in a
+    row has the row's height (stacked outcomes split it). A str row is a stage label."""
+    out = []
     for r in rows:
         if isinstance(r, str):
-            cells.append(f'<div style="grid-column:1/-1">{r}</div>')
+            out.append(r)
             continue
-        r = list(r) + [None] * (n - len(r))
+        r = list(r)
+        cols = " 44px ".join(["minmax(0,1fr)"] * len(r))
+        cells = []
         for k, x in enumerate(r):
             if k:
-                cells.append(f'<div>{right(44) if x is not None else ""}</div>')
-            cells.append(f'<div style="min-width:0">{x or ""}</div>')
-    return (f'<div style="display:grid; grid-template-columns:{cols}; column-gap:8px; row-gap:10px; '
-            f'align-items:start">{"".join(cells)}</div>')
+                cells.append(f'<div style="display:flex; align-items:center; justify-content:center">{right(44)}</div>')
+            cells.append(f'<div style="min-width:0; display:flex; align-items:stretch">{x}</div>')
+        out.append(f'<div style="display:grid; grid-template-columns:{cols}; column-gap:8px; align-items:stretch">'
+                   f'{"".join(cells)}</div>')
+    return f'<div style="display:flex; flex-direction:column; gap:10px">{"".join(out)}</div>'
 
 
 def stage(text, color=SUB):
@@ -173,10 +177,10 @@ slide("live-1", "방송 중 ① 진행자 말", "진행자가 말하면 판정 A
            node("code", "문장 잇기", "끊긴 문장 합침", use="D-088"),
            stack(node("ai", "규정 판정", use="3.5 Flash-Lite · LOW"),
                  node("ai", "맥락 판정", use="3.5 Flash-Lite · MINIMAL"),
-                 node("ai", "사실 확인 (FD)", "등록 기록 + 원본 파일", use="3.5 Flash-Lite · LOW · 캐시")),
+                 node("ai", "사실 확인 (FD)", "원본 파일까지", use="3.5 Flash-Lite · LOW")),
            node("code", "판정 확인", "정정엔 원문 인용 필수", use="D-244~261"),
            stack(node("stop", "빨간 경고", "정정할 때까지 유지"), node("screen", "사실 정정", "방송 언어로"),
-                 node("screen", "프롬프터", "말한 포인트 체크"))), n=6),
+                 node("screen", "프롬프터", "말한 포인트 체크")))),
     gap=18),
     notes="FACT_MODE=docs(D-247, 기본값 D-255). 원본 파일은 방송 시작 때 Gemini 컨텍스트 캐시에 올린다. 사실 확인 p95 2.3~3.3초(봉인 세트). 코드가 판정을 지우면 이유를 남긴다(D-250).")
 
