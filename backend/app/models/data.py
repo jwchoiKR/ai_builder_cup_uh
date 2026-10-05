@@ -196,6 +196,7 @@ class MarketPack(BaseModel):
     regulator: str
     policy_id: str
     category: str
+    covers: list[str] = []  # D-227: product categories this law pack also covers ("skincare", "haircare", ...)
     tier: Literal["live", "preview", "not_yet"]
     currency: Currency
     languages: list[MarketLanguage]

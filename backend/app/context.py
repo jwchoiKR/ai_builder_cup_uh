@@ -73,6 +73,8 @@ class AppContext:
 
                 base, reflex = self.pack_for(market, lang)
                 pack = release_pack(base, load_release(self.settings.onboarding_path, release_id), release_id)
+                if pack.rules is not base.rules:  # D-227: no law pack for its category, so no reflex phrases either
+                    reflex = Reflex(pack.rules, pack.lexicon)
                 pid = pack.products.products[0].product_id
                 self.retriever.replace_product(pid, pack.passages)
                 self._packs[rkey] = (pack, reflex)

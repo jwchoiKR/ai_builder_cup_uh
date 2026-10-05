@@ -136,7 +136,7 @@ def test_d217_the_upload_api_runs_the_same_pipeline(tmp_path):
 
 
 async def test_d218_a_release_runs_its_own_one_segment_show(tmp_path):
-    from app.onboarding.release import save_release
+    from app.onboarding.release import product_key, save_release
     from app.pipelines.runtime import create_session
 
     rec, _ = normalise(ProductRecord.model_validate(_record(
@@ -148,11 +148,13 @@ async def test_d218_a_release_runs_its_own_one_segment_show(tmp_path):
     try:
         s = await create_session(ctx, "ignored", release_id=rid)
         rt = await ctx.runtimes.get(s.session_id)
-        assert s.release_id == rid and rt.catalog.order == ["p"] and rt.catalog.brand == "B"
-        assert rt.catalog.money(rt.catalog.live_price_value("p")) == "S$36.00"
-        assert [p.text for p in ctx.retriever.passages_of("p") if p.section == "Cautions"] == ["Patch test first."]
+        pid = product_key(rec)
+        assert s.release_id == rid and rt.catalog.order == [pid] and rt.catalog.brand == "B"
+        assert rt.catalog.money(rt.catalog.live_price_value(pid)) == "S$36.00"
+        assert [p.text for p in ctx.retriever.passages_of(pid) if p.section == "Cautions"] == ["Patch test first."]
+        assert rt.pack.rules.rules  # a cosmetic: the market's law pack applies
         shipped = await create_session(ctx, "daon_skincare_demo")  # the shipped catalog is untouched
-        assert (await ctx.runtimes.get(shipped.session_id)).catalog.order != ["p"]
+        assert (await ctx.runtimes.get(shipped.session_id)).catalog.order != [pid]
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
@@ -246,3 +248,28 @@ async def test_d226_the_caution_pass_adds_what_the_full_read_missed():
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
     assert [c.text for c in res.record.cautions] == ["Patch test first.", "Avoid the eye area."]
+
+
+def test_d227_ids_in_any_script_are_distinct(tmp_path):
+    from app.onboarding.release import product_key, save_release
+
+    a = ProductRecord.model_validate(_record(brand="한빛", product_name="수분 크림"))
+    b = ProductRecord.model_validate(_record(brand="한빛", product_name="진정 앰플"))
+    assert product_key(a) != product_key(b) and product_key(a).startswith("p_")
+    assert save_release(tmp_path, a, "j") != save_release(tmp_path, b, "j")
+
+
+async def test_d227_a_category_without_a_law_pack_gets_no_law_rules(tmp_path):
+    from app.onboarding.release import save_release
+    from app.pipelines.runtime import create_session
+
+    rec, _ = normalise(ProductRecord.model_validate(_record(category="apparel")))
+    rid = save_release(tmp_path, rec, "j")
+    ctx = make_ctx(ONBOARDING_DIR=str(tmp_path))
+    try:
+        rt = await ctx.runtimes.get((await create_session(ctx, "x", release_id=rid)).session_id)
+        assert rt.pack.rules.rules == [] and rt.reflex.scan("This shirt cures eczema.") == []
+        assert ctx.pack.rules.rules  # the shipped pack keeps its rules
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

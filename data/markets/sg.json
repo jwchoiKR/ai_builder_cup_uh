@@ -4,6 +4,7 @@
   "regulator": "Health Sciences Authority (HSA)",
   "policy_id": "sg_asean_cosmetic_claims_v1",
   "category": "cosmetics",
+  "covers": ["cosmetic", "skincare", "haircare", "makeup", "fragrance", "personal_care", "body_care"],
   "tier": "live",
   "currency": {
     "code": "SGD",

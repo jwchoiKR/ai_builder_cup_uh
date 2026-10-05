@@ -9,6 +9,7 @@ The adapter still writes the passages under the section names today's live path 
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import re
 import time
@@ -29,11 +30,26 @@ def _slug(text: str, n: int = 40) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:n] or "item"
 
 
+def product_key(record: ProductRecord) -> str:
+    """D-227: a stable id for brand + product in any script: its Latin letters and digits (if any) plus a short hash,
+    so two Korean or Japanese products never share an id."""
+    digest = hashlib.sha1(f"{record.brand}|{record.product_name}".encode()).hexdigest()[:8]
+    latin = _slug(f"{record.brand} {record.product_name}", 24).replace("-", "_")
+    return f"{latin}_{digest}" if latin != "item" else f"p_{digest}"
+
+
+def law_applies(base: DataPack, category: str) -> bool:
+    """D-227: the market's law pack covers this product category (its own category or one it lists in `covers`)."""
+    m = base.market
+    norm = lambda c: c.strip().lower().replace(" ", "_").rstrip("s")  # noqa: E731
+    return m is not None and norm(category) in {norm(m.category), *(norm(c) for c in m.covers)}
+
+
 def save_release(root: Path, record: ProductRecord, job_id: str) -> str:
     """Immutable: releases/<release_id>.json, a new id per approval."""
     folder = root / "releases"
     folder.mkdir(parents=True, exist_ok=True)
-    base = "rel_" + _slug(f"{record.brand} {record.product_name}", 30).replace("-", "_")
+    base = "rel_" + product_key(record)
     n = 1 + sum(1 for _ in folder.glob(f"{base}_v*.json"))
     release_id = f"{base}_v{n}"
     (folder / f"{release_id}.json").write_text(json.dumps(
@@ -107,7 +123,7 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str) -> Data
     main, list_price, live_price = priced[0]
     list_price, live_price = list_price or live_price, live_price or list_price
     money = lambda d: f"{sym}{d:.2f}"  # noqa: E731
-    pid = _slug(record.product_name).replace("-", "_")
+    pid = product_key(record)
     code = main.variant_id
     size = f"{main.size_value} {main.size_unit}".strip() if main.size_value else ""
     doc = record.variants[0].evidence[0].file if record.variants[0].evidence else ""
@@ -175,5 +191,9 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str) -> Data
                                             required_point_ids=[points[0].point_id] if points else [])],
                         promo_ids=[p.promo_id for p in promos])
     products = ProductsFile(brand=record.brand, currency=cur, currency_symbol=sym, set_offers=[], products=[product])
-    return dataclasses.replace(base, products=products, runsheets={release_id: runsheet},
+    # D-227: a category the market's law pack does not cover gets no law rules (never the cosmetics rules); only
+    # brand-level checks may run, and there are none until brand guidelines are onboarded
+    rules = base.rules if law_applies(base, record.category) else base.rules.model_copy(
+        update={"rules": [], "category": record.category})
+    return dataclasses.replace(base, products=products, runsheets={release_id: runsheet}, rules=rules,
                                promos=PromosFile(promos=promos, rules=base.promos.rules), passages=unique)

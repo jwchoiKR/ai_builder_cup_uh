@@ -8,6 +8,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
 from ..onboarding.files import MAX_BYTES, UnsupportedFile
@@ -60,18 +61,35 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
     return {"job_id": job_id, "status": "queued"}
 
 
+class ApproveBody(BaseModel):
+    record: dict | None = None  # D-224: the operator's edited record; None approves the read record as it is
+
+
 @router.post("/jobs/{job_id}/approve")
-async def approve_job(job_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
-    """D-218: the operator approves the read record as it is; it becomes an immutable release (an approval bundle
-    with edits is step 6)."""
+async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-218: the approved record becomes an immutable release. D-224: the approval screen may send an edited record;
+    it is validated and normalised like a read one (a value without evidence is dropped)."""
+    from pydantic import ValidationError
+
+    from ..onboarding.read import normalise
     from ..onboarding.record import ProductRecord
-    from ..onboarding.release import save_release
+    from ..onboarding.release import law_applies, release_pack, save_release
 
     job = _jobs.get(job_id)
     if job is None or job["status"] != "done":
         raise ActionError(409, "job_not_ready", f"onboarding job {job_id} has no record to approve")
-    record = ProductRecord.model_validate(job["result"]["record"])
-    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id)}
+    try:
+        record = ProductRecord.model_validate((body.record if body and body.record else None) or job["result"]["record"])
+    except ValidationError as e:
+        raise ActionError(400, "invalid_record", str(e)[:400]) from None
+    record, _ = normalise(record)
+    try:  # the show must be buildable in this server's market before the release is saved
+        release_pack(ctx.pack, record, "rel_check_v1")
+    except Exception as e:  # noqa: BLE001
+        raise ActionError(409, "release_not_buildable", str(e)) from None
+    warnings = [] if law_applies(ctx.pack, record.category) else [
+        f"no law pack for {record.category} in {ctx.pack.market.market}: only brand-level checks run"]
+    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id), "warnings": warnings}
 
 
 @router.get("/jobs/{job_id}")
