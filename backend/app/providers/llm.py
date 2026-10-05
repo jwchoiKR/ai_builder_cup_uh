@@ -8,6 +8,7 @@ fact checker send one identical second request when the first has not answered a
 from __future__ import annotations
 
 import asyncio
+import atexit
 import hashlib
 import json
 import logging
@@ -381,6 +382,27 @@ class AuditSink(Protocol):
     async def record(self, call: AgentCall, session_id: str | None) -> None: ...
 
 
+# D-187: calls and tokens per agent in this process, to compare the cost of the design arms
+USAGE: dict[str, dict[str, int]] = {}
+_USAGE_FIELDS = ("prompt", "output", "thoughts", "cached")
+
+
+def add_usage(agent: str, usage: dict | None) -> None:
+    row = USAGE.setdefault(agent, {"calls": 0, **{k: 0 for k in _USAGE_FIELDS}})
+    row["calls"] += 1
+    for k in _USAGE_FIELDS:
+        row[k] += int((usage or {}).get(k) or 0)
+
+
+def write_usage_report(path: str) -> None:
+    """D-187: the per-agent totals and their sum as JSON."""
+    total = {"calls": 0, **{k: 0 for k in _USAGE_FIELDS}}
+    for row in USAGE.values():
+        for k in total:
+            total[k] += row[k]
+    Path(path).write_text(json.dumps({"agents": USAGE, "total": total}, indent=1), encoding="utf-8")
+
+
 # D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
 HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker"})
 
@@ -416,6 +438,8 @@ class LLMClient:
         self.warmup_status: dict[str, str] = {}
         # D-184: per agent, calls that sent a second request, and how many of those the second one answered
         self.hedges: dict[str, dict[str, int]] = {}
+        if settings.LLM_USAGE_REPORT:
+            atexit.register(write_usage_report, settings.LLM_USAGE_REPORT)
 
     async def call(self, req: LLMRequest[T]) -> AgentResult[T]:
         call_id = self._ids.new("call_", req.session_id)
@@ -447,13 +471,16 @@ class LLMClient:
             log.exception("LLM call %s failed", req.agent)
             status, error = "error", f"{type(e).__name__}: {e}"[:500]
         latency_ms = round((time.perf_counter() - t0) * 1000)
-        log.info("agent=%s model=%s status=%s latency_ms=%d", req.agent, req.model, status, latency_ms)
+        usage = meta.get("usage")
+        add_usage(req.agent, usage)
+        log.info("agent=%s model=%s status=%s latency_ms=%d tokens=%s", req.agent, req.model, status, latency_ms,
+                 "/".join(str((usage or {}).get(k) or 0) for k in _USAGE_FIELDS))  # prompt/output/thoughts/cached
         call = AgentCall(
             call_id=call_id, agent=req.agent, model=req.model, prompt_version=req.prompt_version,
             started_at=started_at, latency_ms=latency_ms, status=status,
             input_hash=hashlib.sha1(f"{req.prompt_version}\n{req.user_message}".encode()).hexdigest(),
             input_preview=(req.preview or req.mock_primary_text or req.user_message)[:300],
-            output=logged_output, error=error,
+            output=logged_output, error=error, usage=usage,
         )
         if self._audit is not None:
             try:
