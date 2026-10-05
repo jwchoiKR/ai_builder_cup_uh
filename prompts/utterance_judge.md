@@ -42,21 +42,21 @@ ACTIVE_ALERTS lists alerts already shown to the host. If this sentence retracts 
 OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested answer.
 - `utterance_type`: one of `product_talk`, `answer`, `question_readout`, `correction`, `transition`, `chit_chat`, `other`.
 - `matched_group_id`: the question this sentence is about, or null. Set it also when the host only reads the question out or puts it off (then `is_answer = false`).
-- A sentence that states the answer to ANY open question answers it, even when the host does not read the question out or say "yes" first ("It's 50 mL, so it lasts a while." answers "How many mL is it?"). Then `utterance_type` is `answer` and `is_answer` is true. If two open questions fit, prefer the one marked `on_screen`. The mark is only that tie-breaker: a sentence that answers a different open question than the one on screen answers that one ("No alcohol in it, so it's mild." answers a waiting "Does it contain alcohol?" while "How many mL?" is on screen).
+- A sentence that states the answer to ANY open question answers it, even when the host does not read the question out or say "yes" first ("It's 75 mL, so it lasts a while." answers "How many mL is it?"). Then `utterance_type` is `answer` and `is_answer` is true. If two open questions fit, prefer the one marked `on_screen`. The mark is only that tie-breaker: a sentence that answers a different open question than the one on screen answers that one ("No alcohol in it, so it's mild." answers a waiting "Does it contain alcohol?" while "How many mL?" is on screen).
 - This holds even when the sentence also describes the product or covers a prompter point: one sentence can cover a point AND answer a question. Use `product_talk` only when the sentence answers none of the open questions. Check every open question against the sentence before choosing `product_talk`.
 - An answer can be implicit: when the sentence gives the facts or the advice of a suggested answer, it answers that question even without "yes", without naming the question, and in other words.
-- `is_answer = true` only when the host actually answers it with a statement. Reading the question out, asking it back, quoting someone, a hypothetical ("if it were ..."), promising to answer later, or saying "let me check" is NOT an answer. A line that reads the question out and then answers it ("Mia asks about the size. It's 50 mL.") IS an answer: `utterance_type` is `answer`.
-- `also_answered_group_ids`: when the one sentence also answers other open questions ("It's fragrance-free, and you get 50 mL in the tube." answers both "Does it have a scent?" and "How big is it?"), put the main one in `matched_group_id` and the others here, each only when the sentence answers it consistently with its suggested answer. A sentence with two facts (two products, or two properties joined by "and") often answers two questions: check every part of it against every open question, the one on screen included. Otherwise an empty list.
+- `is_answer = true` only when the host actually answers it with a statement. Reading the question out, asking it back, quoting someone, a hypothetical ("if it were ..."), promising to answer later, or saying "let me check" is NOT an answer. A line that reads the question out and then answers it ("Mia asks about the size. It's 75 mL.") IS an answer: `utterance_type` is `answer`.
+- `also_answered_group_ids`: when the one sentence also answers other open questions ("It's fragrance-free, and you get 75 mL in the tube." answers both "Does it have a scent?" and "How big is it?"), put the main one in `matched_group_id` and the others here, each only when the sentence answers it consistently with its suggested answer. A sentence with two facts (two products, or two properties joined by "and") often answers two questions: check every part of it against every open question, the one on screen included. Otherwise an empty list.
 - `consistent_with_suggested = true` only when the host's answer agrees with the suggested answer: the same direction (yes or no) and the same numbers. Saying less than the suggested answer is consistent. It is false when the host adds a claim, caveat, condition or restriction that is not in the suggested answer, sounds unsure, contradicts it, or takes it back. The suggested answer is posted to viewers when this is true.
 
 ### Job 4. Prompter tracking and product switch
 - `covered_point_ids`: ids from PROMPTER_POINTS whose meaning the host has now stated. Paraphrase counts. A partial mention counts only if the point's key fact is stated.
 - `covered_cue_ids`: ids from HOST_CUES that the host has now done.
-- `switch.is_transition = true` only when the host starts presenting a DIFFERENT product from RUN_SHEET as the new subject ("now let me show you the ampoule", "next up is ...").
+- `switch.is_transition = true` only when the host starts presenting a DIFFERENT product from RUN_SHEET as the new subject ("now let me show you the serum", "next up is ...").
 - Mentioning another product while reading a viewer's comment, answering a question, or saying "we'll get to it later" is NOT a transition. Set `switch.is_quote = true` in those cases.
 - `switch.target_product_id` is the product being introduced, or null.
 - `switch.confidence` is `high` only for an explicit introduction of the next product.
-- If the host goes back to talking about the previous product ("going back to the cream for a second"), set `is_transition = true` and `target_product_id` to that previous product. The software uses this to cancel a pending switch.
+- If the host goes back to talking about the previous product ("going back to the lotion for a second"), set `is_transition = true` and `target_product_id` to that previous product. The software uses this to cancel a pending switch.
 - A sentence that keeps describing the product named in the last transition (its texture, usage, ingredients) is a continuation: set `is_transition = false` and list the covered points of that product.
 
 ### Output rules
@@ -132,7 +132,7 @@ Return the JSON verdict for UTTERANCE.
 
 Example A
 UTTERANCE: "Use it every night and your wrinkles will disappear overnight."
-CURRENT_PRODUCT: cream_hydra_barrier
+CURRENT_PRODUCT: product_a
 ```json
 {"compliance":{"violations":[{"span":"your wrinkles will disappear overnight","rule_id":"ASEAN-3-SKIN-AGEING","severity":"HIGH","is_negated":false,"is_quoted":false,"say_instead":"With regular use, it helps keep your skin hydrated for up to 24 hours in our in-house test."}]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"product_talk","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Claims wrinkles disappear, an ageing-reversal claim listed as unacceptable for skin products."}
 ```
@@ -140,31 +140,31 @@ CURRENT_PRODUCT: cream_hydra_barrier
 Example B
 UTTERANCE: "Someone asked if it cures eczema. No, it's a cosmetic, it doesn't treat any condition."
 ```json
-{"compliance":{"violations":[{"span":"cures eczema","rule_id":"ASEAN-2D-DISEASE","severity":"HIGH","is_negated":true,"is_quoted":true,"say_instead":"It helps relieve the feeling of dryness."}]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"answer","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Host quotes a viewer and denies the disease claim."}
+{"compliance":{"violations":[{"span":"cures eczema","rule_id":"ASEAN-2D-DISEASE","severity":"HIGH","is_negated":true,"is_quoted":true,"say_instead":"It helps skin feel comfortable after cleansing."}]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"answer","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Host quotes a viewer and denies the disease claim."}
 ```
 
 Example C
 ACTIVE_ALERTS: [{"alert_id":"al_7","span":"your wrinkles will disappear overnight","rule_id":"ASEAN-3-SKIN-AGEING"}]
 UTTERANCE: "Let me correct that. It helps keep your skin hydrated for up to twenty-four hours in our in-house test."
 ```json
-{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":["al_7"]},"answer":{"utterance_type":"correction","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["cr-p3"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Explicit retraction followed by an approved hydration claim."}
+{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":["al_7"]},"answer":{"utterance_type":"correction","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pa-p3"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Explicit retraction followed by an approved hydration claim."}
 ```
 
 Example D
-OPEN_QUESTIONS: [{"group_id":"g_12","canonical_question":"Is it suitable for oily skin?","suggested_answer":"Yes. It has a lightweight gel-cream texture. Use a smaller amount on oily areas."}]
-UTTERANCE: "Raj is asking if it's OK for oily skin. Yes, it's a lightweight gel-cream, so just use a smaller amount on oily areas."
+OPEN_QUESTIONS: [{"group_id":"g_12","canonical_question":"Is it suitable for oily skin?","suggested_answer":"Yes. It has a lightweight gel-lotion texture. Use a thin layer on oily areas."}]
+UTTERANCE: "Raj is asking if it's OK for oily skin. Yes, it's a lightweight gel-lotion, so just use a thin layer on oily areas."
 ```json
-{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"answer","matched_group_id":"g_12","is_answer":true,"consistent_with_suggested":true},"prompter":{"covered_point_ids":["cr-p1"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Reads the oily-skin question and answers it in line with the suggested answer."}
+{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"answer","matched_group_id":"g_12","is_answer":true,"consistent_with_suggested":true},"prompter":{"covered_point_ids":["pa-p1"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Reads the oily-skin question and answers it in line with the suggested answer."}
 ```
 
 Example E
-UTTERANCE: "Someone is asking about the ampoule, we'll get to it in a minute."
+UTTERANCE: "Someone is asking about the serum, we'll get to it in a minute."
 ```json
-{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"ampoule_deep_hydration","confidence":"low"}},"reason":"Defers a viewer question about the ampoule; no OPEN_QUESTION is about the ampoule, so no match."}
+{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"product_b","confidence":"low"}},"reason":"Defers a viewer question about the serum; no OPEN_QUESTION is about the serum, so no match."}
 ```
 
 Example F
-UTTERANCE: "Okay, now let me show you our Deep Hydration Ampoule. It has four percent niacinamide."
+UTTERANCE: "Okay, now let me show you our Bright Drop Serum. It has four percent bisabolol."
 ```json
-{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"transition","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["am-p1"],"covered_cue_ids":[],"switch":{"is_transition":true,"is_quote":false,"target_product_id":"ampoule_deep_hydration","confidence":"high"}},"reason":"Explicit introduction of the next product and its niacinamide point."}
+{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"answer":{"utterance_type":"transition","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pb-p1"],"covered_cue_ids":[],"switch":{"is_transition":true,"is_quote":false,"target_product_id":"product_b","confidence":"high"}},"reason":"Explicit introduction of the next product and its bisabolol point."}
 ```

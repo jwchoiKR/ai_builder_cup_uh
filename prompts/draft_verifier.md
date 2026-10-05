@@ -66,28 +66,28 @@ Return the JSON check of REPLY.
 ## EXAMPLES
 
 Example A
-PRODUCT: ampoule_deep_hydration. SOURCE: {"passage_id":"DL-AM-01#key-ingredients#niacinamide","product_id":"ampoule_deep_hydration","text":"Niacinamide: 4%. Helps skin look more radiant and even-toned."}
-QUESTION: "Is there niacinamide in the ampoule?" REPLY: "Yes, it has four percent niacinamide to help skin look more radiant."
+PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#key-ingredients#bisabolol","product_id":"product_b","text":"Bisabolol: 4%. Helps skin look fresher."}
+QUESTION: "Is there bisabolol in the serum?" REPLY: "Yes, it has four percent bisabolol to help skin look fresher."
 ```json
 {"verdict":"pass","problems":[],"reason":"Amount and effect match the cited passage."}
 ```
 
 Example B
-PRODUCT: ampoule_deep_hydration. SOURCE: {"passage_id":"DL-AM-01#cautions#stop-using","product_id":"ampoule_deep_hydration","text":"Stop using and consult a dermatologist if redness, swelling or itching persists."}
-QUESTION: "My skin stays red after the ampoule, is that normal?" REPLY: "A little redness is normal, it will fade if you keep going."
+PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#cautions#stop-using","product_id":"product_b","text":"Stop using and consult a dermatologist if redness, swelling or itching persists."}
+QUESTION: "My skin stays red after the serum, is that normal?" REPLY: "A little redness is normal, it will fade if you keep going."
 ```json
 {"verdict":"fail","problems":["rule 4: tells the viewer to continue; SOURCE says stop using and consult a dermatologist if redness persists"],"reason":"The caution is reversed."}
 ```
 
 Example C
-PRODUCT: ampoule_deep_hydration. SOURCE: {"passage_id":"DL-AM-01#key-facts#free-from","product_id":"ampoule_deep_hydration","text":"Free from: added fragrance, essential oils, ethanol (denatured alcohol)."}
-QUESTION: "Is the ampoule halal certified?" REPLY: "Yes, it is free from alcohol, so it is halal certified."
+PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#key-facts#free-from","product_id":"product_b","text":"Free from: added colourants, mineral oil, parabens."}
+QUESTION: "Is the serum halal certified?" REPLY: "Yes, it is free from parabens, so it is halal certified."
 ```json
 {"verdict":"fail","problems":["rule 1: halal certification is not stated in SOURCE; it is inferred from the free-from list"],"reason":"Invented certification."}
 ```
 
 Example D
-PRODUCT: ampoule_deep_hydration. SOURCE: {"passage_id":"DL-AM-01#test-results#tone","product_id":"ampoule_deep_hydration","text":"In-house test: 24 of 30 participants said their skin tone looked more even after 4 weeks."}
+PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#test-results#tone","product_id":"product_b","text":"In-house test: 24 of 30 participants said their skin tone looked more even after 4 weeks."}
 QUESTION: "Does it even out skin tone?" REPLY: "Yes, it evens out skin tone for everyone within 4 weeks."
 ```json
 {"verdict":"fail","problems":["rule 3: turns what 24 of 30 participants said in an in-house test into a result for everyone"],"reason":"Overstated test result."}

@@ -87,7 +87,7 @@ Return the JSON verdict for UTTERANCE.
 
 Example A
 UTTERANCE: "Use it every night and your wrinkles will disappear overnight."
-CURRENT_PRODUCT: cream_hydra_barrier
+CURRENT_PRODUCT: product_a
 ```json
 {"compliance":{"violations":[{"span":"your wrinkles will disappear overnight","rule_id":"ASEAN-3-SKIN-AGEING","severity":"HIGH","is_negated":false,"is_quoted":false,"say_instead":"With regular use, it helps keep your skin hydrated for up to 24 hours in our in-house test."}]},"correction":{"corrects_alert_ids":[]},"reason":"Claims wrinkles disappear, an ageing-reversal claim listed as unacceptable for skin products."}
 ```
@@ -95,7 +95,7 @@ CURRENT_PRODUCT: cream_hydra_barrier
 Example B
 UTTERANCE: "Someone asked if it cures eczema. No, it's a cosmetic, it doesn't treat any condition."
 ```json
-{"compliance":{"violations":[{"span":"cures eczema","rule_id":"ASEAN-2D-DISEASE","severity":"HIGH","is_negated":true,"is_quoted":true,"say_instead":"It helps relieve the feeling of dryness."}]},"correction":{"corrects_alert_ids":[]},"reason":"Host quotes a viewer and denies the disease claim."}
+{"compliance":{"violations":[{"span":"cures eczema","rule_id":"ASEAN-2D-DISEASE","severity":"HIGH","is_negated":true,"is_quoted":true,"say_instead":"It helps skin feel comfortable after cleansing."}]},"correction":{"corrects_alert_ids":[]},"reason":"Host quotes a viewer and denies the disease claim."}
 ```
 
 Example C
