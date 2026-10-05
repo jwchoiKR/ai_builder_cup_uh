@@ -1229,3 +1229,39 @@ def test_d257_lean_never_folds_what_the_qualifier_needs():
     risk.append({"group": "safety", "label": "Keep the qualifier with the tear-free formula claim", "reason": "r"})
     shown, folded, _ = lean_items(res, risk, {})
     assert any("tear-free" in x["label"] for x in shown) and len(shown) == LEAN_MAX and len(folded) == 4
+
+
+@pytest.mark.parametrize("line, alert", [
+    ("Testing confirmed SPF50+ PA++++ protection for this sunscreen.", True),
+    ("Both sizes deliver SPF50+ PA++++ according to the protection tests.", True),
+    ("Larkspur Labs confirmed SPF50+ PA++++ protection.", False),
+])
+async def test_d258_a_capitalised_word_is_no_named_source(tmp_path, monkeypatch, line, alert):
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import eval_adversarial
+
+    from app.onboarding.release import product_key, save_release
+
+    from .judge_fakes import violation
+
+    real_sleep = __import__("asyncio").sleep
+    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
+    result = [{"statement": "SPF50+ PA++++", "numbers": ["50"], "provenance": "third_party_lab",
+               "qualifier": "tested by Larkspur Labs in SPF and PA protection tests", "marker": None,
+               "conditions": None, "evidence": EV}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(qualified_results=result)))
+    rid = save_release(tmp_path, rec, "job")
+    monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
+    backend = ScriptedBackend()
+    backend.judge(line, violations=[violation("BRAND-TEST-QUALIFIER", "SPF50+ PA++++", severity="MEDIUM")])
+    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
+    case = {"case_id": "Q", "type": "t", "current_product_id": product_key(rec), "utterance": line,
+            "expected": {"risky": True, "kind": "compliance"}}
+    try:
+        row = await eval_adversarial.run_case(ctx, case, 0)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert bool([a for a in row["alerts"] if a["rule_id"] == "BRAND-TEST-QUALIFIER"]) is alert
