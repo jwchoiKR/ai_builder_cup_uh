@@ -151,6 +151,7 @@ class OnboardingResult(BaseModel):
     seconds: float
     notes: list[str] = []  # what normalisation changed or dropped
     caution_pass_added: list[str] = []  # D-236: cautions only the caution pass found
+    uncovered: list[dict] = []  # D-249: what the files state and the record does not hold (coverage audit)
     verify_mode: str = "full"  # D-236
     checks: list[dict] = []  # D-236: what a person must check, each with its group
     check_summary: dict = {}

@@ -105,7 +105,10 @@ async def test_read_product_sends_every_file_and_normalises(tmp_path):
         ctx.scheduler.shutdown()
     [req] = [r for r in seen if r.agent == "onboarding_read"]
     assert [m for _, m in req.parts] == ["text/plain", "text/plain", "text/plain", "image/jpeg"]
-    assert [r.agent for r in seen if r.agent != "onboarding_read"] == ["onboarding_cautions"]  # D-226
+    assert [r.agent for r in seen if r.agent != "onboarding_read"] == ["onboarding_cautions",  # D-226
+                                                                      "onboarding_audit"]  # D-249
+    [audit] = [r for r in seen if r.agent == "onboarding_audit"]
+    assert audit.parts == req.parts and '<data name="RECORD">' in audit.user_message
     assert res.method == "gemini_whole" and res.record.variants[0].prices[0].currency == "SGD"
 
 
@@ -921,3 +924,32 @@ def test_d248_a_sentence_that_gives_no_value_is_no_correction():
     assert not _from_quote("No water-resistance claim is made", "Long-wear formula for daily use")
     assert not _from_quote("No expiry date or period after opening is given", "Use after opening as directed.")
     assert _from_quote("It does contain fragrance", "Ingredients: Water, Glycerin, Fragrance")
+
+
+async def test_d249_the_coverage_audit_lists_what_the_record_lacks_and_checks_its_quote():
+    from app.onboarding.checks import check_items
+
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt|label.jpg")] = _record()
+    backend.outputs[("onboarding_audit", "audit|P")] = {"items": [
+        {"kind": "condition", "text": "pouch only over S$60", "file": "spec.txt", "locator": "line 2",
+         "quote": "Free pouch on orders over S$60", "record_has": None},
+        {"kind": "number", "text": "use within 6 months", "file": "spec.txt", "locator": "line 3",
+         "quote": "Use within 9 months", "record_has": None},
+        {"kind": "claim", "text": "dermatologist tested", "file": "label.jpg", "locator": "image",
+         "quote": "Dermatologist tested", "record_has": None},
+        {"kind": "condition", "text": "dup", "file": "spec.txt", "locator": "line 2",
+         "quote": "Free pouch on orders  over S$60", "record_has": None}]}
+    ctx = make_ctx(backend=backend)
+    try:
+        res = await read_product(ctx.llm, [model_part("spec.txt", b"P 30 ml\nFree pouch on orders over S$60\n"
+                                                                  b"Use within 6 months"),
+                                           model_part("label.jpg", b"\xff\xd8")])
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert [(x["text"], x["in_file_text"]) for x in res.uncovered] == [
+        ("pouch only over S$60", True), ("use within 6 months", False), ("dermatologist tested", None)]
+    items = [x for x in check_items(res, "risk", law="15 rules") if x["group"] == "coverage"]
+    assert len(items) == 3 and "spec.txt (line 2)" in items[0]["reason"] and "not found" in items[1]["reason"]
+    assert len([x for x in check_items(res, "full", law="15 rules") if x["group"] == "coverage"]) == 3
