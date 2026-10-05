@@ -33,7 +33,7 @@ async def main() -> int:
     settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local")
     ctx = build_context(settings)
     try:
-        result = await onboard_files(ctx.llm, settings.data_path / "onboarding", args.files.name,
+        result = await onboard_files(ctx.llm, settings.onboarding_path, args.files.name,
                                      [(p.name, p.read_bytes()) for p in files], hints=args.hints,
                                      **({"thinking": args.thinking} if args.thinking else {}))
     finally:

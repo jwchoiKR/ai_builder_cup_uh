@@ -25,6 +25,7 @@ class Settings(BaseSettings):
 
     APP_ENV: Literal["local", "cloud"] = "local"
     DATA_DIR: str = "../data"
+    ONBOARDING_DIR: str = "../data/onboarding"  # D-217: uploaded product files, immutable, git-ignored
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
     RETRIEVER: Literal["local", "vertex_search"] = "local"
@@ -142,6 +143,10 @@ class Settings(BaseSettings):
     @property
     def data_path(self) -> Path:
         return _resolve(self.DATA_DIR)
+
+    @property
+    def onboarding_path(self) -> Path:
+        return _resolve(self.ONBOARDING_DIR)
 
     @property
     def prompts_path(self) -> Path:
