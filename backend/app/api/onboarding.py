@@ -48,6 +48,12 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
     return start_job(ctx, data, hints)
 
 
+def onboarding_models(settings) -> dict:
+    """D-267: the read's model and thinking, and the passes' (empty settings keep their defaults)."""
+    return {"model": settings.ONBOARDING_MODEL, "thinking": settings.ONBOARDING_THINKING,
+            "pass_model": settings.ONBOARDING_PASS_MODEL or None, "pass_thinking": settings.ONBOARDING_PASS_THINKING or None}
+
+
 def start_job(ctx: AppContext, data: list[tuple[str, bytes]], hints: str = "", on_done=None) -> dict:
     """The read in the background; `on_done(result)` runs after a successful read (the test drive caches it)."""
     job_id = "onb_" + uuid.uuid4().hex[:12]
@@ -59,7 +65,8 @@ def start_job(ctx: AppContext, data: list[tuple[str, bytes]], hints: str = "", o
             try:
                 result = await onboard_files(ctx.llm, ctx.settings.onboarding_path, job_id, data,
                                              hints=hints[:500], base_pack=ctx.pack,
-                                             verify_mode=ctx.settings.VERIFY_MODE)
+                                             verify_mode=ctx.settings.VERIFY_MODE,
+                                             **onboarding_models(ctx.settings))
                 out = result.model_dump(mode="json")
                 (ctx.settings.onboarding_path / job_id / "result.json").write_text(
                     json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -220,7 +227,9 @@ async def create_lawpack_job(files: list[UploadFile] = File(...), market: str = 
                 for name, body in data:
                     store(ctx.settings.onboarding_path, job_id, name, body)
                 rec, notes, secs = await read_lawpack(ctx.llm, [model_part(n, b) for n, b in data],
-                                                      market=market.upper(), category=category)
+                                                      market=market.upper(), category=category,
+                                                      model=ctx.settings.ONBOARDING_MODEL,
+                                                      thinking=ctx.settings.ONBOARDING_THINKING)
                 _jobs[job_id].update(status="done", result={"record": rec.model_dump(mode="json"), "notes": notes,
                                                             "seconds": secs})
             except Exception as e:  # noqa: BLE001 - reported on the job
@@ -250,7 +259,9 @@ async def create_brandpack_job(files: list[UploadFile] = File(...), brand: str =
                 for name, body in data:
                     store(ctx.settings.onboarding_path, job_id, name, body)
                 rec, notes, secs = await read_lawpack(ctx.llm, [model_part(n, b) for n, b in data],
-                                                      market=ctx.pack.market.market, category=f"brand:{brand.strip()}")
+                                                      market=ctx.pack.market.market, category=f"brand:{brand.strip()}",
+                                                      model=ctx.settings.ONBOARDING_MODEL,
+                                                      thinking=ctx.settings.ONBOARDING_THINKING)
                 _jobs[job_id].update(status="done", result={"record": rec.model_dump(mode="json"), "notes": notes,
                                                             "seconds": secs})
             except Exception as e:  # noqa: BLE001 - reported on the job

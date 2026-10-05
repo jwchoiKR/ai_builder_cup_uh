@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import Settings  # noqa: E402
 from app.context import build_context  # noqa: E402
+from app.api.onboarding import onboarding_models  # noqa: E402
 from app.onboarding.pipeline import onboard_files  # noqa: E402
 
 
@@ -27,7 +28,10 @@ async def main() -> int:
     ap.add_argument("files", type=Path, help="folder with one product's files")
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--hints", default="", help="optional brand or market hints")
-    ap.add_argument("--thinking", default=None, help="override the read step's thinking level")
+    ap.add_argument("--thinking", default=None, help="override ONBOARDING_THINKING (the read)")
+    ap.add_argument("--model", default=None, help="override ONBOARDING_MODEL (the read), e.g. gemini-3.1-pro-preview")
+    ap.add_argument("--pass-model", default=None, help="override ONBOARDING_PASS_MODEL (caution, route, category, audit)")
+    ap.add_argument("--pass-thinking", default=None, help="override ONBOARDING_PASS_THINKING")
     ap.add_argument("--verify-mode", default=None, choices=["full", "risk", "lean"], help="D-236: default VERIFY_MODE")
     args = ap.parse_args()
     files = sorted(p for p in args.files.iterdir() if p.is_file())
@@ -37,7 +41,9 @@ async def main() -> int:
         result = await onboard_files(ctx.llm, settings.onboarding_path, args.files.name,
                                      [(p.name, p.read_bytes()) for p in files], hints=args.hints,
                                      base_pack=ctx.pack, verify_mode=args.verify_mode or settings.VERIFY_MODE,
-                                     **({"thinking": args.thinking} if args.thinking else {}))
+                                     **(onboarding_models(settings) | {k: v for k, v in (
+                                         ("model", args.model), ("thinking", args.thinking),
+                                         ("pass_model", args.pass_model), ("pass_thinking", args.pass_thinking)) if v}))
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
