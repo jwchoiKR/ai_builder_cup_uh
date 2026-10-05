@@ -104,3 +104,31 @@ async def test_read_product_sends_every_file_and_normalises(tmp_path):
     [req] = seen
     assert [m for _, m in req.parts] == ["text/plain", "text/plain", "text/plain", "image/jpeg"]
     assert res.method == "gemini_whole" and res.record.variants[0].prices[0].currency == "SGD"
+
+
+def test_d217_the_upload_api_runs_the_same_pipeline(tmp_path):
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    from .helpers import make_settings
+
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = _record()
+    with TestClient(create_app(make_settings(ONBOARDING_DIR=str(tmp_path)), llm_backend=backend)) as c:
+        def wait(job: str) -> dict:
+            for _ in range(100):
+                got = c.get(f"/api/onboarding/jobs/{job}").json()
+                if got["status"] in ("done", "failed"):
+                    return got
+                time.sleep(0.02)
+            return got
+
+        r = c.post("/api/onboarding/jobs", files=[("files", ("spec.txt", b"hello", "text/plain"))])
+        got = wait(r.json()["job_id"])
+        assert got["status"] == "done" and got["result"]["record"]["variants"][0]["prices"][0]["currency"] == "SGD"
+        assert (tmp_path / r.json()["job_id"] / "result.json").exists()
+        bad = c.post("/api/onboarding/jobs", files=[("files", ("x.exe", b"MZ", "application/octet-stream"))])
+        assert wait(bad.json()["job_id"])["status"] == "failed"
