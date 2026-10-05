@@ -4,6 +4,7 @@
   "regulator": "National Pharmaceutical Regulatory Agency (NPRA), Ministry of Health Malaysia",
   "policy_id": "my_asean_cosmetic_claims_v1",
   "category": "cosmetics",
+  "covers": ["cosmetic", "skincare", "haircare", "makeup", "fragrance", "personal_care", "body_care"],
   "tier": "preview",
   "currency": {
     "code": "MYR",
