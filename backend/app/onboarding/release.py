@@ -264,5 +264,15 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
         found = lawpack_for(lawpacks, base.market.market, record.category)
         if found is not None:
             rules = rules.model_copy(update={"rules": to_rules(*found), "policy_id": found[0]})
+    if lawpacks is not None:
+        # D-241: the brand's own approved rules are added on top (restrict only: no law rule is removed or replaced)
+        from .lawpack import brandpack_for, to_rules as _to_rules
+
+        brand = brandpack_for(lawpacks, record.brand)
+        if brand is not None:
+            have = {x.rule_id for x in rules.rules}
+            extra = [x.model_copy(update={"rule_id": f"BR-{x.rule_id}"}) for x in _to_rules(*brand)
+                     if f"BR-{x.rule_id}" not in have]
+            rules = rules.model_copy(update={"rules": [*rules.rules, *extra]})
     return dataclasses.replace(base, products=products, runsheets={release_id: runsheet}, rules=rules,
                                promos=PromosFile(promos=promos, rules=base.promos.rules), passages=unique)

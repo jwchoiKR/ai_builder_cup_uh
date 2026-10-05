@@ -471,3 +471,26 @@ async def test_d240_impact_counts_come_with_their_denominators():
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+async def test_d241_brand_rules_only_add_restrictions(tmp_path):
+    from app.onboarding.lawpack import LawPackRecord, normalise_pack, save_brandpack
+    from app.onboarding.release import release_pack
+
+    brand, _ = normalise_pack(LawPackRecord.model_validate({
+        "name": "B guidelines", "regulator": "B", "covers": ["cosmetic"], "language": "en", "rules": [
+            {"rule_id": "NO-CELEB", "title": "No celebrity comparisons", "description": "Never compare to a celebrity.",
+             "severity": "MEDIUM", "rule_category": "comparison", "unacceptable_examples": ["Skin like a movie star."],
+             "say_instead_hint": "Describe the product itself.", "evidence": EV}]}))
+    save_brandpack(tmp_path, "B", brand, "j")
+    rec, _ = normalise(ProductRecord.model_validate(_record()))  # brand "B", a cosmetic
+    ctx = make_ctx()
+    try:
+        law = release_pack(ctx.pack, rec, "rel_x_v1", None).rules.rules
+        both = release_pack(ctx.pack, rec, "rel_x_v1", tmp_path).rules.rules
+        assert [r.rule_id for r in both] == [r.rule_id for r in law] + ["BR-NO-CELEB"]  # law kept, brand added
+        other = rec.model_copy(update={"brand": "Other"})
+        assert len(release_pack(ctx.pack, other, "rel_y_v1", tmp_path).rules.rules) == len(law)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
