@@ -6,7 +6,7 @@ from pathlib import Path
 from ..providers.llm import LLMClient
 from .files import media_type, model_part, store
 from .read import category_list, read_product
-from .checks import check_items, summary
+from .checks import check_items, lean_items, summary
 from .record import OnboardingResult
 from .release import has_law, release_pack
 
@@ -31,4 +31,12 @@ async def onboard_files(llm: LLMClient, root: Path, draft_id: str, files: list[t
     result.verify_mode = verify_mode
     result.checks = check_items(result, verify_mode, law=law, caution_pass_only=result.caution_pass_added)
     result.check_summary = summary(result.checks)
+    if verify_mode == "lean":  # D-254: at most LEAN_MAX to check; the rest folded, verified cautions accepted
+        from .sources import _code_text
+
+        texts = {p.name: _code_text(p) for p in parts}
+        before = len(result.checks)
+        result.checks, result.checks_collapsed, result.auto_accepted = lean_items(result, result.checks, texts)
+        result.check_summary = summary(result.checks) | {
+            "before": before, "collapsed": len(result.checks_collapsed), "auto_accepted": len(result.auto_accepted)}
     return result

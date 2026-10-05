@@ -12,11 +12,14 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import Literal
+
+from pydantic import BaseModel
 
 from .record import OnboardingResult
 
-Mode = Literal["full", "risk"]
+Mode = Literal["full", "risk", "lean"]
 
 
 def _item(group: str, label: str, reason: str) -> dict:
@@ -69,6 +72,8 @@ def _coverage_items(result) -> list[dict]:
 def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None, caution_pass_only: list[str] = (),
                 translations: dict | None = None) -> list[dict]:
     r = result.record
+    if mode == "lean":
+        mode = "risk"  # lean starts from the risk items (lean_items)
     if mode == "full":
         out = _product_items(r) + _corrected_items(result)
         for v in r.variants:
@@ -112,6 +117,109 @@ def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None,
     for k in range(min(2, len(pool))):
         out.append(_item("audit", pool[(seed + k * 7) % len(pool)], "audit sample: confirm it matches the document"))
     return out
+
+
+# ---- D-254 lean: the risk items, at most LEAN_MAX to check ---------------------------------------------------------
+LEAN_MAX = 10
+_GROUP_ORDER = {"product": 0, "governance": 1, "offers": 2, "safety": 3, "coverage": 4, "audit": 5}
+_LIVE_KIND = {"condition": 0, "test_result": 0, "certification": 1, "caution": 1, "claim": 2, "number": 3}
+
+
+def _verified(quote: str, file: str, file_texts: dict[str, str]) -> bool:
+    from ..logic.verify import quote_in_file
+
+    text = file_texts.get(file)
+    return bool(text and quote and quote_in_file(quote, text))
+
+
+def _flat(t: str) -> str:
+    from ..logic.verify import _flat as flat
+
+    return flat(t or "")
+
+
+def _coverage_lean(result) -> list[dict]:
+    """Coverage items without duplicates and without what the record's own evidence already quotes, most live
+    impact first (conditions and test results, then certifications and cautions, claims, numbers; an unfound quote
+    last)."""
+    held = [_flat(e.quote) for e in _all_evidence(result.record)]
+    seen, out = [], []
+    for x in result.uncovered:
+        q = _flat(x.get("quote", ""))
+        if not q:
+            continue
+        if not x.get("record_has") and any(q in h or (len(h) > 12 and h in q) for h in held):
+            continue  # the record holds this source line already (a different value there stays a check)
+        if any(q == s or q in s or s in q for s in seen):
+            continue  # the same statement twice
+        seen.append(q)
+        out.append(x)
+    out.sort(key=lambda x: (_LIVE_KIND.get(x.get("kind"), 4) + (x.get("in_file_text") is False)))
+    return out
+
+
+def _all_evidence(record):
+    out = []
+
+    def walk(o):
+        if isinstance(o, list):
+            for v in o:
+                walk(v)
+        elif isinstance(o, BaseModel):
+            if {"file", "locator", "quote"} <= set(type(o).model_fields):
+                out.append(o)
+                return
+            for k in type(o).model_fields:
+                walk(getattr(o, k))
+
+    walk(record)
+    return out
+
+
+def _family(items: list[dict]) -> list[dict]:
+    """Product items of the same field across variants become one: "variants[*].prices.list.SGD (12 variants)", or
+    "12 variants: no price for this size" when only the variant name differs."""
+    fam: dict[tuple, list[dict]] = {}
+    for x in items:
+        key = ((re.sub(r"\[[^\]]*\]", "[*]", x["label"]), x["reason"].split(":")[0]) if "[" in x["label"]
+               else ("", x["reason"]))
+        fam.setdefault(key, []).append(x)
+    out = []
+    for (label, reason), xs in fam.items():
+        if len(xs) < 3:
+            out += xs
+            continue
+        names = [re.findall(r"\[([^\]]*)\]", y["label"])[0] if label else y["label"] for y in xs]
+        listed = ", ".join(names[:6]) + (", ..." if len(names) > 6 else "")
+        out.append(_item(xs[0]["group"], f"{label} ({len(xs)} variants)" if label else f"{len(xs)} variants: {reason}",
+                         f"{xs[0]['reason']} (same for {listed})" if label else f"{reason}: {listed}"))
+    return out
+
+
+def lean_items(result: OnboardingResult, risk: list[dict], file_texts: dict[str, str]) -> tuple[list, list, list]:
+    """D-254 (sealed onboarding: 7-41 items per product read as a manual step): (to check, folded, accepted).
+    A caution only the caution pass found is accepted when its quote is in the file text; coverage items lose
+    duplicates and lines the record already quotes; product items of one field across variants become one; one audit
+    sample. Then the first LEAN_MAX by group (product, governance, offers, safety, coverage, audit) are to check."""
+    r = result.record
+    auto, keep = [], []
+    by_text = {c.text: c for c in r.cautions}
+    for x in risk:
+        if x["group"] == "safety" and x["reason"] == "found only by the caution pass":
+            c = by_text.get(x["label"])
+            ev = next((e for e in (c.evidence if c else []) if _verified(e.quote, e.file, file_texts)), None)
+            if ev is not None:
+                auto.append({"label": x["label"], "source": f"{ev.file} ({ev.locator}): “{ev.quote}”"})
+                continue
+        if x["group"] == "coverage":
+            continue  # rebuilt below
+        keep.append(x)
+    keep += _coverage_items(result.model_copy(update={"uncovered": _coverage_lean(result)}))
+    audits = [x for x in keep if x["group"] == "audit"]
+    keep = [x for x in keep if x["group"] != "audit"] + audits[:1]
+    keep = _family([x for x in keep if x["group"] == "product"]) + [x for x in keep if x["group"] != "product"]
+    keep.sort(key=lambda x: _GROUP_ORDER.get(x["group"], 9))  # stable: the order inside a group stays
+    return keep[:LEAN_MAX], keep[LEAN_MAX:], auto
 
 
 def summary(items: list[dict]) -> dict:

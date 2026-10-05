@@ -156,4 +156,6 @@ class OnboardingResult(BaseModel):
     uncovered: list[dict] = []  # D-249: what the files state and the record does not hold (coverage audit)
     verify_mode: str = "full"  # D-236
     checks: list[dict] = []  # D-236: what a person must check, each with its group
+    checks_collapsed: list[dict] = []  # D-254 lean: the rest of the risk items, shown folded
+    auto_accepted: list[dict] = []  # D-254 lean: caution-pass cautions whose quote code found in the file
     check_summary: dict = {}

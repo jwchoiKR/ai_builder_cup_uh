@@ -34,7 +34,11 @@ export type ProductRecord = {
 export type CheckItem = { group: string; label: string; reason: string };
 export type OnboardingResult = { record: ProductRecord; method: string; models: Record<string, string>;
   seconds: number; notes: string[]; files: { name: string; bytes: number }[];
-  verify_mode?: string; checks?: CheckItem[]; check_summary?: { to_check: number; by_group: Record<string, number> } };
+  verify_mode?: string; checks?: CheckItem[];
+  check_summary?: { to_check: number; by_group: Record<string, number>; before?: number; collapsed?: number;
+    auto_accepted?: number };
+  // D-254 lean: the rest of the risk items (folded) and the caution-pass cautions accepted with a verified source
+  checks_collapsed?: CheckItem[]; auto_accepted?: { label: string; source: string }[] };
 export type Line = { text?: string; say_not?: string; say?: string; reviewed: boolean };
 export type Translations = Record<string, { approved_claims: Line[]; cautions: Line[]; avoid_saying: Line[] }>;
 export type Job = { job_id: string; status: "queued" | "reading" | "done" | "failed"; files: string[];

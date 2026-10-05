@@ -1092,3 +1092,33 @@ def test_d253_fd_sends_the_qualified_results_to_the_compliance_judge():
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
     assert judge.fact_record and "QUALIFIED_RESULTS" in judge.system_instruction + judge.extra_data()
+
+
+def test_d254_lean_checks_at_most_ten_and_folds_or_accepts_the_rest():
+    from app.onboarding.checks import LEAN_MAX, check_items, lean_items
+    from app.onboarding.record import OnboardingResult
+
+    spec = "Keep away from eyes. Store below 30C. Do not use on broken skin. Stop if irritation occurs."
+    ev = lambda q, f="spec.txt": [{"file": f, "locator": "p1", "quote": q}]  # noqa: E731
+    cautions = [{"text": t, "evidence": ev(t)} for t in
+                ("Keep away from eyes.", "Store below 30C.", "Do not use on broken skin.", "Stop if irritation occurs.")]
+    cautions.append({"text": "Not for children.", "evidence": ev("Not for children.", "label.jpg")})
+    variants = [{"variant_id": f"C{i}", "name": f"Colour {i}", "size_value": None, "size_unit": None, "market": None,
+                 "prices": [], "evidence": EV} for i in range(8)]
+    rec, notes = normalise(ProductRecord.model_validate(_record(cautions=cautions, variants=variants)))
+    uncovered = [{"kind": k, "text": t, "file": "spec.txt", "locator": "p2", "quote": q, "record_has": None,
+                  "in_file_text": True} for k, t, q in (
+        ("number", "size 2", "Size chart: S 60-64 cm"), ("number", "size 2 again", "Size chart: S 60-64 cm"),
+        ("condition", "one per order", "Limit one per order"), ("caution", "held", "Keep away from eyes."))]
+    result = OnboardingResult(record=rec, method="gemini_whole", seconds=1, notes=notes,
+                              caution_pass_added=[c["text"] for c in cautions], uncovered=uncovered)
+    risk = check_items(result, "risk", law="15 rules", caution_pass_only=result.caution_pass_added)
+    checks, folded, auto = lean_items(result, risk, {"spec.txt": spec, "label.jpg": ""})
+    assert len(checks) <= LEAN_MAX < len(risk)
+    assert [a["label"] for a in auto] == [c["text"] for c in cautions[:4]]  # quotes found in the file text
+    assert any(x["label"] == "Not for children." for x in checks + folded)  # an image quote stays to check
+    cov = [x["label"] for x in checks + folded if x["group"] == "coverage"]
+    assert cov == ["one per order", "size 2"]  # no duplicate, no line the record quotes, conditions first
+    product = [x for x in checks if x["group"] == "product"]
+    assert [x["label"] for x in product if "variants" in x["label"]] == ["8 variants: no price for this size"]
+    assert [x["group"] for x in checks + folded].count("audit") <= 1
