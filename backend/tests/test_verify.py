@@ -179,3 +179,23 @@ def test_rule6_stays_in_its_clause_and_accepts_any_matching_subject(passages, ca
     of 'set'" and "36 is not the value of 'list'"."""
     ok, errors = check(out(text, [PRICE, LIST, SET]), passages, catalog, reflex)
     assert ok, errors
+
+
+def test_d168_an_offer_passage_in_its_own_viewer_wording(pack, catalog):
+    p = promo_passage(pack.promos_by_id["promo_gift_pouch"], catalog)
+    assert (p.passage_id, p.text) == ("PROMO#promo_gift_pouch",
+                                      "Free DAON LAB travel pouch with orders over S$60. Runs for 15 minutes.")
+
+
+async def test_d168_a_promo_question_gets_the_running_offers(pack, catalog):
+    """D-168 (local SEED2 replay): "free pouch over how much?" had nothing to cite; the gift is promo data."""
+    from app.agents.answer_composer import gather_passages
+    from app.providers.retriever import LocalRetriever
+
+    gift = pack.promos_by_id["promo_gift_pouch"]
+    r = LocalRetriever(pack.passages)
+    for intent, has in (("promo", True), ("price", False)):
+        got = await gather_passages(r, catalog, {}, product_id="cream_hydra_barrier", intent=intent,
+                                    canonical_question="How much do I need to spend for the pouch?", promo=None,
+                                    top_k=6, offers=[gift])
+        assert ("PROMO#promo_gift_pouch" in {p.passage_id for p in got}) is has

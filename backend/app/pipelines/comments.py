@@ -307,8 +307,10 @@ async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
     # D-152: a single-answer intent (price, set price, volume ...) has one answer per product, slots and state,
     # however the question was worded, so two groups of it share one draft
     question = "" if g.intent in SINGLE_QUESTION_INTENTS else g.canonical_question
-    return answer_cache_key(g.product_id, g.intent, g.condition_slots, question,
-                            promo_state(promo), rt.ctx.retriever.doc_version())
+    state = promo_state(promo)
+    if g.intent == "promo":  # D-168: an offer's answer holds while that offer runs
+        state += "".join(f"+{o.promo_id}" for o in sorted(await rt.active_offers(), key=lambda o: o.promo_id))
+    return answer_cache_key(g.product_id, g.intent, g.condition_slots, question, state, rt.ctx.retriever.doc_version())
 
 
 async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_comment_ids: list[str], scenario: str) -> None:
@@ -479,6 +481,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     passages = await gather_passages(
         rt.ctx.retriever, rt.catalog, rt.prefetched, product_id=product_id, intent=g.intent,
         canonical_question=g.canonical_question, promo=promo, top_k=rt.settings.COMPOSER_TOP_K,
+        offers=await rt.active_offers(),
     )
     inp = ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
                        canonical_question=g.canonical_question, promo=promo, passages=passages,
