@@ -12,6 +12,16 @@ _deck.CSS += """
 .an-item { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both; }
 .an-img { animation: an-pop .6s cubic-bezier(.2,.7,.2,1) both; }
 .an-pulse { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both, an-pulse 1.2s ease-out both; }
+/* always-on motion while a slide is shown: arrows flow, a dot runs along them, AI badges breathe, flow steps light up in turn */
+@keyframes an-dash { to { stroke-dashoffset: -28; } }
+@keyframes an-breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); } 50% { box-shadow: 0 0 0 8px rgba(26,115,232,.16); } }
+@keyframes an-step { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); border-color: inherit; } 12%, 30% { box-shadow: 0 0 0 5px rgba(26,115,232,.22); } }
+@keyframes an-run { from { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
+section.on .an-flow path { stroke-dasharray: 9 5; animation: an-dash 1.1s linear infinite; }
+section.on .an-ai { animation: an-breathe 2.4s ease-in-out infinite; border-radius: 999px; }
+section.on .an-seq { animation: an-step var(--an-cycle, 4s) ease-in-out infinite; animation-delay: var(--an-at, 0s); }
+.an-dot { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #1A73E8; top: 0; left: 0; pointer-events: none;
+          offset-rotate: 0deg; animation: an-run 1.6s ease-in-out infinite; }
 """
 
 _deck.JS += r"""
@@ -44,8 +54,20 @@ _deck.JS += r"""
     picks.forEach(([el, cls], k) => { el.style.animationDelay = (0.08 * k).toFixed(2) + 's' + (cls === 'an-pulse' ? ', ' + (0.08 * k + 0.4).toFixed(2) + 's' : '');
                                       el.classList.add(cls); });
   }
+  function live(sec){
+    const bd = sec.querySelector('.bd'); if (!bd) return;
+    bd.querySelectorAll('svg').forEach(sv => { const p = sv.querySelector('path'); if (!p) return;
+      const st = p.getAttribute('stroke') || ''; if (st.toUpperCase() === '#9AA0A6') {
+        sv.classList.add('an-flow'); } });
+    bd.querySelectorAll('div').forEach(el => { const cs = getComputedStyle(el);
+      if (cs.backgroundColor === 'rgb(232, 240, 254)' && cs.borderRadius && parseFloat(cs.width) <= 90 && parseFloat(cs.width) >= 40 && Math.abs(parseFloat(cs.width) - parseFloat(cs.height)) < 4) el.classList.add('an-ai'); });
+    bd.querySelectorAll('div').forEach(row => { const kids = [...row.children];
+      const arrows = kids.filter(k => k.tagName === 'svg' && (k.querySelector('path')?.getAttribute('stroke') || '').toUpperCase() === '#9AA0A6');
+      const boxes = kids.filter(k => k.tagName === 'DIV' && BOX(k));
+      if (arrows.length >= 1 && boxes.length >= 2) boxes.forEach((b, k) => { b.classList.add('an-seq'); b.style.setProperty('--an-at', (k * 0.9).toFixed(1) + 's'); b.style.setProperty('--an-cycle', (boxes.length * 0.9 + 1.2).toFixed(1) + 's'); }); });
+  }
   const base = show;
-  show = function(n){ base(n); const cur = document.querySelector('section.on'); if (cur) requestAnimationFrame(() => animate(cur)); };
-  window.addEventListener('load', () => { const cur = document.querySelector('section.on'); if (cur) setTimeout(() => animate(cur), 300); });
+  show = function(n){ base(n); const cur = document.querySelector('section.on'); if (cur) requestAnimationFrame(() => { animate(cur); live(cur); }); };
+  window.addEventListener('load', () => { const cur = document.querySelector('section.on'); if (cur) setTimeout(() => { animate(cur); live(cur); }, 300); });
 })();
 """
