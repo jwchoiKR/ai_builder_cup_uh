@@ -105,8 +105,33 @@ def test_hedge_or_new_number_holds_the_post_even_when_the_judge_says_consistent(
                          ("It's forty mils.", "a number differs from the verified draft")]:
         d = decide(jo(), offered, grp(), draft, lex=LEX, high_alert_active=False, facts=None, utterance=said)
         assert (d.action, d.reason) == ("verbal_not_posted", reason)
-    assert decide(jo(), offered, grp(), draft, lex=LEX, high_alert_active=False, facts=None,
+    assert decide(jo(), offered, grp(), draft, lex=LEX, high_alert_active=False, facts=CHECKED,
                   utterance="Fifty mils in this jar.").action == "post"
+
+
+CHECKED = FactCheckOutput(claims=[], reason="")
+
+
+def test_d195_a_number_line_without_a_completed_fact_check_is_not_posted():
+    """A fact check that timed out or failed (facts=None) never lets a line that states a number post."""
+    draft = ans().model_copy(update={"text": "It is S$36.00 today."})
+    kw = dict(lex=LEX, high_alert_active=False, utterance="It's thirty-six dollars today.")
+    d = decide(jo(), {"g1": draft}, grp(), draft, facts=None, **kw)
+    assert (d.action, d.reason) == ("verbal_not_posted", "check incomplete")
+    assert decide(jo(), {"g1": draft}, grp(), draft, facts=CHECKED, **kw).action == "post"
+    plain = ans().model_copy(update={"text": "Yes."})  # no number said: nothing for the fact check to confirm
+    assert decide(jo(), {"g1": plain}, grp(), plain, facts=None, lex=LEX, high_alert_active=False,
+                  utterance="Yes, it is.").action == "post"
+
+
+def test_d195_another_offered_draft_never_accepts_a_number():
+    """Two drafts open: the cream's answer said with the ampoule's price is held, not accepted via the other draft."""
+    cream = ans().model_copy(update={"text": "The cream is S$36.00 today."})
+    ampoule = ans().model_copy(update={"answer_id": "a2", "group_id": "g2", "text": "The ampoule is S$32.00 today."})
+    offered = {"g1": cream, "g2": ampoule}
+    d = decide(jo(), offered, grp(), cream, facts=CHECKED, lex=LEX, high_alert_active=False,
+               utterance="The cream is thirty-two dollars today.")
+    assert (d.action, d.reason) == ("verbal_not_posted", "a number differs from the verified draft")
 
 
 def _verbal_cases() -> list[dict]:
@@ -136,12 +161,13 @@ def test_code_checks_on_the_verbal_post_cases(case):
     from app.logic.publish import verbal_check
 
     qs = {q["group_id"]: q["suggested_answer"] for q in case["context"]["open_questions"]}
-    shown = case["shown_group_id"]
+    # D-195: the numbers are checked against the draft of the group the line answers, not the one on screen
+    shown = case["expected"].get("matched_group") or case["shown_group_id"]
     if shown not in qs:
         return  # other_group: no draft shown for this question
-    held = verbal_check(case["utterance"], qs[shown], [a for g, a in qs.items() if g != shown], LEX)
+    held = verbal_check(case["utterance"], qs[shown], LEX)
     exp = case["expected"]
-    if exp["post"]:
+    if exp["post"] and case["case_id"] not in ("V14", "V46"):  # D-195: two drafts at once is held now
         assert held is None, held
     elif exp["category"] in ("wrong_number", "hedge", "retracted"):
         assert held is not None
