@@ -82,16 +82,17 @@ _CJK_POINT = {"점", "点", "點"}
 _CJK = re.compile(r"[0-9.,영공일이삼사오육칠팔구십백천만억零〇一二两兩三四五六七八九十百千万萬亿億점点點\s]+")
 
 
-def _cjk_value(span: str) -> Decimal | None:
+def _cjk_value(span: str, whole_part: bool = False) -> Decimal | None:
     """One Korean/Chinese numeral, digits allowed inside ("2만 9천", "1.5만", "이만 구천", "二万九千", "영 점 오")."""
     s = re.sub(r"\s+", "", span).replace(",", "")
     if not s or not any(ch in _CJK_DIGITS or ch in _CJK_SMALL or ch in _CJK_LARGE or ch in _CJK_POINT for ch in s):
         return None
     if len(s) == 1 and s in _CJK_DIGITS:
-        return None  # one digit syllable alone is usually a word ("이 제품", "사용"), not a number
+        # one digit syllable alone is usually a word ("이 제품", "사용"), not a number; before 점 it is the whole part
+        return Decimal(_CJK_DIGITS[s]) if whole_part else None
     if any(p in s for p in _CJK_POINT):
         head, tail = re.split("|".join(_CJK_POINT), s, maxsplit=1)
-        whole = _cjk_value(head) if head else Decimal(0)
+        whole = _cjk_value(head, whole_part=True) if head else None  # "단점" is a word, not .x
         frac = "".join(str(_CJK_DIGITS[ch]) if ch in _CJK_DIGITS else ch for ch in tail if ch in _CJK_DIGITS or ch.isdigit())
         return None if whole is None or not frac else whole + Decimal(f"0.{frac}")
     total, section, num = Decimal(0), Decimal(0), None
@@ -104,6 +105,8 @@ def _cjk_value(span: str) -> Decimal | None:
             i += len(m.group())
             continue
         if ch in _CJK_DIGITS:
+            if num is not None:
+                return None  # D-245 R4: "5 이하" is 5 and a word, never the numeral 2
             num = Decimal(_CJK_DIGITS[ch])
         elif ch in _CJK_SMALL:
             section += (num if num is not None else 1) * _CJK_SMALL[ch]
@@ -124,7 +127,17 @@ def numbers_in_text(text: str, comma_decimal: bool = False) -> set[Decimal]:
     """Every number a text states, as a value: digits ("29,000", "29k"), English and Malay words, Korean and Chinese
     numerals (alone or mixed with digits)."""
     out: set[Decimal] = set()
+    # D-245 R4: digits inside a Korean/Chinese numeral ("2만 9천", "1.5만") are part of it, never numbers of their own
+    inside: list[tuple[int, int]] = []
+    for m in _CJK.finditer(text):
+        v = _cjk_value(m.group())
+        if v is not None:
+            out.add(v)
+            if any(ch in _CJK_SMALL or ch in _CJK_LARGE or ch in _CJK_POINT for ch in m.group()):
+                inside.append(m.span())
     for m in _DIGITS.finditer(text):
+        if any(a <= m.start() and m.end() <= b for a, b in inside):
+            continue
         raw = m.group().strip()
         k = raw[-1] in "kK"
         raw = raw.rstrip("kK").strip()
@@ -137,10 +150,6 @@ def numbers_in_text(text: str, comma_decimal: bool = False) -> set[Decimal]:
         except InvalidOperation:
             continue
         out.add(v * 1000 if k else v)
-    for m in _CJK.finditer(text):
-        v = _cjk_value(m.group())
-        if v is not None:
-            out.add(v)
     out.update(_word_sequences(text))
     return out
 
