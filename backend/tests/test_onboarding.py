@@ -216,7 +216,8 @@ def test_d223_promo_prices_are_computed_in_code_from_the_stated_terms():
 
 @pytest.mark.parametrize("written, quote, kept", [
     ("5,000 mg", "Vitamin C 5,000 mg per serving", "5000"),  # D-225: thousands separator, not "5"
-    ("5", "Vitamin C 5,000 mg per serving", None),  # a number not in its own quote is dropped
+    ("5", "Vitamin C 5,000 mg per serving", "5000"),  # D-243: the quote's one number wins, and a person checks it
+    ("7", "Vitamin C 5,000 mg and 2 tablets", None),  # not in its quote, and the quote is ambiguous: dropped
     ("0,5", "Vitamin C 0,5 mg", None),  # a decimal comma in an English record is not guessed
 ])
 def test_d225_numbers_must_match_their_evidence(written, quote, kept):
@@ -523,3 +524,63 @@ def test_d242_record_mode_gives_the_fact_checker_every_size_market_offer_and_sup
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+@pytest.mark.parametrize("quote, written, currency, kept_minor", [
+    ("가격 이만 구천 원", "290", "KRW", 29000),  # D-243: Korean words; the model's misread is replaced
+    ("Harga dua puluh sembilan ringgit", "29", "MYR", 2900),  # Malay words
+    ("售价二万九千", "29000", "KRW", 29000),  # Chinese numerals
+    ("Now only 2만 9천원", "29000", "KRW", 29000),  # mixed digits and Korean scale words
+    ("Price: twenty-nine dollars", "29", "SGD", 2900),
+])
+def test_d243_prices_written_in_words_are_read_in_code(quote, written, currency, kept_minor):
+    from app.onboarding.record import to_minor
+
+    ev = [{"file": "f", "locator": "l", "quote": quote}]
+    rec = ProductRecord.model_validate(_record(variants=[{
+        "variant_id": "A", "name": "P", "size_value": None, "size_unit": None, "market": None,
+        "prices": [{"currency": currency, "minor": to_minor(currency, written), "kind": "list", "market": None,
+                    "evidence": ev}], "evidence": ev}]))
+    r, notes = normalise(rec)
+    assert r.variants[0].prices[0].minor == kept_minor
+
+
+def test_d243_zero_decimal_currencies_keep_the_whole_amount():
+    from app.onboarding.record import money_value, to_minor
+
+    assert money_value("KRW", 29000) == 29000 and to_minor("KRW", "29000") == 29000
+    assert money_value("SGD", 3600) == 36 and to_minor("SGD", "36") == 3600
+
+
+async def test_d243_routing_turns_tests_and_certifications_into_qualified_results_and_limitations_into_cautions():
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = _record(
+        key_facts=[{"text": "Tested by Kestrel Labs: 21 of 24 felt softer skin.", "evidence": EV}],
+        approved_claims=[{"text": "Certified vegan by the Vegan Society.", "evidence": EV}],
+        how_to_use=[{"text": "Results may vary between users.", "evidence": EV},
+                    {"text": "Keep the applicator clean.", "evidence": EV}])
+    backend.outputs[("onboarding_route", "route|P")] = {"items": [
+        {"id": "key_facts[0]", "kind": "test_result", "statement": "21 of 24 felt softer skin",
+         "provenance": "third_party_lab", "qualifier": "tested by Kestrel Labs", "marker": None},
+        {"id": "approved_claims[0]", "kind": "certification", "statement": "Certified vegan",
+         "provenance": "other", "qualifier": "certified by the Vegan Society", "marker": None},
+        {"id": "how_to_use[0]", "kind": "limitation", "statement": None, "provenance": None, "qualifier": None,
+         "marker": None},
+        {"id": "nope[9]", "kind": "test_result", "statement": "x", "provenance": "other", "qualifier": "q",
+         "marker": None}]}
+    # D-243 F3: the caution pass lists a hygiene line that also stays in the directions
+    backend.outputs[("onboarding_cautions", "cautions")] = {"cautions": [{"text": "Keep the applicator clean.",
+                                                                           "evidence": EV}]}
+    ctx = make_ctx(backend=backend)
+    try:
+        res = await read_product(ctx.llm, [model_part("spec.txt", b"hello")])
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    r = res.record
+    assert [(q.statement, q.provenance, q.qualifier) for q in r.qualified_results] == [
+        ("21 of 24 felt softer skin", "third_party_lab", "tested by Kestrel Labs"),
+        ("Certified vegan", "other", "certified by the Vegan Society")]
+    assert r.qualified_results[0].numbers == ["21", "24"] and r.qualified_results[0].evidence == r.key_facts[0].evidence
+    assert [c.text for c in r.cautions] == ["Keep the applicator clean.", "Results may vary between users."]
+    assert "Keep the applicator clean." in [h.text for h in r.how_to_use]  # kept in the directions too

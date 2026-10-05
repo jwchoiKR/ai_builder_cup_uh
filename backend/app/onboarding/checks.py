@@ -36,11 +36,17 @@ def _product_items(r) -> list[dict]:
     return out
 
 
+def _corrected_items(result) -> list[dict]:
+    """D-243: values the code read from the quote instead of the model's number."""
+    return [_item("product", n.split(": ", 2)[1], n.split(": ", 2)[2]) for n in result.notes
+            if n.startswith("corrected: ") and n.count(": ") >= 2]
+
+
 def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None, caution_pass_only: list[str] = (),
                 translations: dict | None = None) -> list[dict]:
     r = result.record
     if mode == "full":
-        out = _product_items(r)
+        out = _product_items(r) + _corrected_items(result)
         for v in r.variants:
             out += [_item("product", f"{v.name} · {m.kind} price", "check the value") for m in v.prices]
         out += [_item("offers", o.title, "check the terms") for o in r.offers]
@@ -51,7 +57,7 @@ def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None,
         out += [_item("other", i.name, "check the ingredient") for i in r.ingredients]
         out += [_item("other", m, "missing") for m in r.missing if not m.startswith("variants")]
         return out
-    out = _product_items(r)
+    out = _product_items(r) + _corrected_items(result)
     if law is not None and law.startswith("no law"):
         out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
     out += [_item("governance", q.statement, f"say it with “{q.qualifier}”") for q in r.qualified_results]
