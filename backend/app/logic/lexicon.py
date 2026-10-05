@@ -43,6 +43,8 @@ class Lexicon:
     currency: re.Pattern  # D-179: the market's currency symbol before a number ("s$", "rm"), from the market
     scales: dict[str, int] = field(default_factory=dict)  # D-208
     and_word: str | None = None
+    affirmation: re.Pattern | None = None  # D-252
+    negation_words: tuple[str, ...] = ()  # D-252: the language's negation cues, to read "I don't agree"
 
     @classmethod
     def from_packs(cls, lang: LangPack, market: MarketPack) -> "Lexicon":
@@ -63,6 +65,9 @@ class Lexicon:
                                   re.I),
             duration_hours=dict(lx.duration_hours),
             exclusion=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.exclusion_cues) + r")\s+(?:the\s+)?$"),
+            affirmation=(re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.affirmation_cues) + r")\b", re.I)
+                         if lx.affirmation_cues else None),
+            negation_words=tuple(c.lower() for c in lang.negation_cues),
             phone=re.compile(market.phone_pattern),
             currency=re.compile(r"(?<![a-z])" + re.escape(market.currency.symbol.lower().replace("$", "")) + r"\$?(?=\d)"),
         )
@@ -195,6 +200,17 @@ class Lexicon:
             start = m.end()
         parts.append(text[start:].strip())
         return [p for p in parts if p]
+
+    def affirms(self, text: str) -> bool:
+        """D-252: the line endorses something ("and yes, that's what it does", "I fully agree"); "I don't agree" is
+        no endorsement."""
+        if self.affirmation is None:
+            return False
+        for m in self.affirmation.finditer(text):
+            before = " ".join(text[:m.start()].lower().split()[-3:])
+            if not any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", before) for n in self.negation_words):
+                return True
+        return False
 
     def is_qualified(self, text: str) -> bool:
         """The sentence names our own test ("in our in-house test", "our 48-hour patch test")."""

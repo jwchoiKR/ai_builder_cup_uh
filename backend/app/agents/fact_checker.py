@@ -293,6 +293,12 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                 # D-244 L1 (sealed FR run): a stated number "corrected" by words is a value SOURCE does not give
                 # ("lasts 24 months" -> "No period after opening is given"); presence of an ingredient is the
                 # exception ("2% retinol" -> "free from retinol")
+                # D-252 (sealed: "reapply after swimming" -> "No water-resistance claim is made"): an absence the
+                # quote does not state is the model's note, not a source value; presence fields may infer it from
+                # a complete list
+                ("L1: an absence the quote does not state",
+                 lambda: c.field in ("ingredient", "fragrance") or not lex.absence.search(c.correct_value or "")
+                 or bool(lex.absence.search(c.quote or ""))),
                 ("L1: a stated number corrected without a number",
                  lambda: c.field == "ingredient" or not said or bool(right) or _term_dispute(c, p, said, passages)),
                 # Claim wording is compliance (the judge's job), never a product fact (D-048).

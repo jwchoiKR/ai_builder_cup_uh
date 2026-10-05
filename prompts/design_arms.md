@@ -81,6 +81,8 @@ Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from t
   get one"), compare it with the offer's terms and its computed totals ("pay for 2 = ...", "2 units ..."), never with
   the unit price. An offer's threshold, its comparison ("more than", "at least"), whether it combines with other offers
   and which items it covers are checkable terms ("terms as written").
+- Packaging, form and texture stated in any passage (key facts included: "the current pack contains 50 mL in an
+  airless pump") are checkable: a different one ("a screw-top jar") is `contradicted` (field `packaging`, `texture`).
 - Every number with a unit anywhere in SOURCE is checkable, wherever it appears (key facts, how to use, cautions):
   periods after opening, hours, days, uses, pumps, drops, counts.
 - Price terms in SOURCE (tax included or not, delivery included or not, per unit or per set) are checkable (field

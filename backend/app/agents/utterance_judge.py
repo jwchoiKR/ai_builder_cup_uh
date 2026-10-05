@@ -140,6 +140,11 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
     said = [w for w in lex.content_words(text) if w not in lex.fillers]
     o.compliance.violations = [v for v in o.compliance.violations
                                if not (len(said) == 1 and lex.content_words(v.span) == said)]
+    for v in o.compliance.violations:
+        if v.is_quoted and not v.is_negated and lex.affirms(text):
+            # D-252 (sealed: "A viewer says 'it cures eczema', and yes, that is what it does" got no alert): a quote
+            # the host endorses in the same line is the host's own claim
+            v.is_quoted = False
     kept = []
     on_air_id = (values.get("current_product_json") or {}).get("product_id")
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
