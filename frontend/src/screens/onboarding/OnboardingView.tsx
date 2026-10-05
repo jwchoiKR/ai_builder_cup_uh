@@ -305,6 +305,24 @@ export function OnboardingView() {
             <Ev items={rec.category_evidence} />
           </section>
 
+          {result.verify_mode === "risk" && result.checks && (
+            // D-236: only what would reach the live show, by group, plus audit samples
+            <section className={styles.block} data-testid="onb-to-check">
+              <h2 className={styles.blockTitle}>
+                To check <span className={styles.count}>{result.checks.length}</span>
+              </h2>
+              <ul className={styles.rows}>
+                {result.checks.map((c, i) => (
+                  <li key={i} className={styles.row}>
+                    <span className={styles.value}>
+                      <b>{c.group}</b> · {plainField(rec, c.label)}
+                    </span>
+                    <span className={styles.muted}>{c.reason}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           {rec.conflicts.length > 0 && <Conflicts record={rec} onChange={edit} />}
           {(rec.missing.length > 0 || result.notes.length > 0) && (
             <section className={styles.block} data-testid="onb-missing">

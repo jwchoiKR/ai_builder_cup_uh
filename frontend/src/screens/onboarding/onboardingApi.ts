@@ -31,8 +31,10 @@ export type ProductRecord = {
   conflicts: { field: string; values: string[]; effective_dates: (string | null)[]; note: string;
     evidence: Evidence[] }[];
 };
+export type CheckItem = { group: string; label: string; reason: string };
 export type OnboardingResult = { record: ProductRecord; method: string; models: Record<string, string>;
-  seconds: number; notes: string[]; files: { name: string; bytes: number }[] };
+  seconds: number; notes: string[]; files: { name: string; bytes: number }[];
+  verify_mode?: string; checks?: CheckItem[]; check_summary?: { to_check: number; by_group: Record<string, number> } };
 export type Line = { text?: string; say_not?: string; say?: string; reviewed: boolean };
 export type Translations = Record<string, { approved_claims: Line[]; cautions: Line[]; avoid_saying: Line[] }>;
 export type Job = { job_id: string; status: "queued" | "reading" | "done" | "failed"; files: string[];

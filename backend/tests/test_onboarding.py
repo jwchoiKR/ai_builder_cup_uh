@@ -392,3 +392,23 @@ async def test_d233_an_answer_from_an_unreviewed_translation_is_never_auto_poste
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+def test_d236_risk_mode_checks_only_what_reaches_the_show():
+    from app.onboarding.checks import check_items, summary
+    from app.onboarding.record import OnboardingResult
+
+    rec, _ = normalise(ProductRecord.model_validate(_record(
+        cautions=[{"text": "Patch test first.", "evidence": EV}, {"text": "Avoid the eye area.", "evidence": EV}],
+        how_to_use=[{"text": "Apply at night.", "evidence": EV}],
+        approved_claims=[{"text": "Helps skin feel soft.", "evidence": EV}],
+        conflicts=[{"field": "variants[0].prices[0].minor", "values": ["3600", "3400"], "evidence": EV,
+                    "effective_dates": [None, None], "note": ""}])))
+    result = OnboardingResult(record=rec, method="gemini_whole", seconds=1, caution_pass_added=["Avoid the eye area."])
+    full = check_items(result, "full", law="15 rules")
+    risk = check_items(result, "risk", law="15 rules", caution_pass_only=result.caution_pass_added)
+    assert len(risk) < len(full)
+    groups = summary(risk)["by_group"]
+    assert groups["product"] == 2 and groups["safety"] == 1 and groups["audit"] == 2  # the conflict, a size with no price
+    assert not any(x["label"] == "Apply at night." for x in risk)  # prose is checked live, not here
+    assert any(x["reason"].startswith("no law pack") for x in check_items(result, "risk", law="no law checks"))

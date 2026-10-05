@@ -28,6 +28,7 @@ async def main() -> int:
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--hints", default="", help="optional brand or market hints")
     ap.add_argument("--thinking", default=None, help="override the read step's thinking level")
+    ap.add_argument("--verify-mode", default=None, choices=["full", "risk"], help="D-236: default VERIFY_MODE")
     args = ap.parse_args()
     files = sorted(p for p in args.files.iterdir() if p.is_file())
     settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local")
@@ -35,6 +36,7 @@ async def main() -> int:
     try:
         result = await onboard_files(ctx.llm, settings.onboarding_path, args.files.name,
                                      [(p.name, p.read_bytes()) for p in files], hints=args.hints,
+                                     base_pack=ctx.pack, verify_mode=args.verify_mode or settings.VERIFY_MODE,
                                      **({"thinking": args.thinking} if args.thinking else {}))
     finally:
         ctx.runtimes.shutdown()
@@ -46,7 +48,7 @@ async def main() -> int:
     r = result.record
     print(f"{r.brand} · {r.product_name} · {r.category} · {len(r.variants)} variants · {len(r.offers)} offers · "
           f"{len(r.cautions)} cautions · {len(r.not_approved_claims)} not-approved · {len(r.conflicts)} conflicts · "
-          f"{result.seconds}s · notes {len(result.notes)}")
+          f"{result.seconds}s · notes {len(result.notes)} · {result.verify_mode}: {result.check_summary}")
     return 0
 
 
