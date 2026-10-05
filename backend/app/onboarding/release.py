@@ -233,7 +233,9 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
     if unit is not None and fmt is not None:
         out.append(("unit-totals", f"Live unit price {fmt(unit)}; 2 units {fmt(unit * 2)}; 3 units {fmt(unit * 3)}"))
     for i, q in enumerate(record.qualified_results):
-        out.append((f"result-{i + 1}", f"Test result: {q.statement}. Must be said with: {q.qualifier} ({q.provenance})."))
+        cond = f" Holds only under: {q.conditions}." if q.conditions else ""  # D-257: dropping them overclaims
+        out.append((f"result-{i + 1}",
+                    f"Test result: {q.statement}. Must be said with: {q.qualifier} ({q.provenance}).{cond}"))
     return out
 
 
@@ -330,7 +332,8 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
          for i in [x for x in record.ingredients if x.amount_value][:4]}, prompter_points=points, approved_claims=[c.text for c in record.approved_claims],
         not_approved_claims=[c.text for c in record.not_approved_claims],
         qualified_results=[QualifiedResult(result_id=f"{pid}-r{i + 1}", numbers=q.numbers,
-                                           say=f"{q.statement} ({q.qualifier})")
+                                           say=(f"{q.statement}, {q.conditions} ({q.qualifier})" if q.conditions
+                                                else f"{q.statement} ({q.qualifier})"))
                            for i, q in enumerate(record.qualified_results)],
         target_group=list(record.target_group),
         cautions=[c.text for c in record.cautions],

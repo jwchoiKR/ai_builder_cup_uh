@@ -1198,3 +1198,34 @@ async def test_d256_an_audience_is_no_category_and_an_uncovered_type_maps_to_a_c
         ctx.scheduler.shutdown()
     gov = [x["label"] for x in check_items(res, "risk", law="15 rules") if x["group"] == "governance"]
     assert "household has no law pack; mapped to the covered type body_care" in gov
+
+
+def test_d257_test_conditions_reach_the_say_line_and_the_fact_line():
+    from app.onboarding.release import release_pack
+
+    result = [{"statement": "Stays on 8 hours", "numbers": ["8"], "provenance": "in_house", "qualifier": "in our test",
+               "marker": None, "conditions": "indoors, on dry skin", "evidence": EV}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(qualified_results=result)))
+    ctx = make_ctx()
+    try:
+        pack = release_pack(ctx.pack, rec, "rel_x_v1", None)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    [q] = pack.products.products[0].qualified_results
+    assert q.say == "Stays on 8 hours, indoors, on dry skin (in our test)"
+    assert any(p.text.endswith("Holds only under: indoors, on dry skin.") for p in pack.passages)
+
+
+def test_d257_lean_never_folds_what_the_qualifier_needs():
+    from app.onboarding.checks import LEAN_MAX, lean_items
+    from app.onboarding.record import OnboardingResult
+
+    result = [{"statement": "Tear-free formula", "numbers": [], "provenance": "in_house", "qualifier": "in our eye test",
+               "marker": None, "conditions": None, "evidence": EV}]
+    rec, _ = normalise(ProductRecord.model_validate(_record(qualified_results=result)))
+    res = OnboardingResult(record=rec, method="gemini_whole", seconds=1)
+    risk = [{"group": "product", "label": f"p{i}", "reason": f"r{i}"} for i in range(LEAN_MAX + 3)]
+    risk.append({"group": "safety", "label": "Keep the qualifier with the tear-free formula claim", "reason": "r"})
+    shown, folded, _ = lean_items(res, risk, {})
+    assert any("tear-free" in x["label"] for x in shown) and len(shown) == LEAN_MAX and len(folded) == 4
