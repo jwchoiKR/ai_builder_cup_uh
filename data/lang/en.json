@@ -568,6 +568,14 @@
       "does not contain",
       "doesn't have",
       "does not have"
-    ]
+    ],
+    "duration_hours": {
+      "hour": 1,
+      "hours": 1,
+      "day": 24,
+      "days": 24,
+      "week": 168,
+      "weeks": 168
+    }
   }
 }

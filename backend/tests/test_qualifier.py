@@ -334,3 +334,16 @@ async def test_the_same_number_later_without_the_qualifier_alerts(env):
     llm.judge(later, violations=[violation(RULE, later, severity="MEDIUM")])
     t = await speak(rt, later)
     assert [x.transcript_id for x in await compliance_alerts(rt)] == [t.transcript_id]
+
+
+@pytest.mark.parametrize("text, span, alerts", [
+    # D-174 (sealed verbal set): the judge flagged the short span "all users" (HIGH, vulnerable users) inside the
+    # sheet's own "all skin types and all users"; a short span is checked with the phrase around it
+    ("Guys can use it too, no problem, all skin types and all users.", "all users", 0),
+    ("Guys can use it too, it even cures acne for all users.", "cures acne", 1),  # the phrase is not sheet wording
+])
+async def test_d174_a_short_span_inside_sheet_wording_is_not_an_alert(env, text, span, alerts):
+    rt, llm = env
+    llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE" if alerts == 0 else "ASEAN-3-SKIN-ACNE", span)])
+    await speak(rt, text)
+    assert len(await compliance_alerts(rt)) == alerts

@@ -27,7 +27,11 @@ def verbal_check(utterance: str, draft: str, other_drafts: Iterable[str], lex: L
     if lex.is_unsure(utterance):
         return "host sounded unsure or took it back"
     allowed = lex.spoken_numbers(draft).union(*(lex.spoken_numbers(d) for d in other_drafts))
-    if not lex.spoken_numbers(utterance) <= allowed:
+    said = lex.spoken_numbers(utterance)
+    # D-174: the same duration in other units ("a week later" for "after 7 days") is the same number
+    hours = {h for d in (draft, *other_drafts) for _, h in lex.durations(d)}
+    said -= {n for n, h in lex.durations(utterance) if n is not None and h in hours}
+    if not said <= allowed:
         return "a number differs from the verified draft"
     return None
 
