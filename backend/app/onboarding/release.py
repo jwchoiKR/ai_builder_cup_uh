@@ -111,7 +111,7 @@ def promos_from_offers(record: ProductRecord, pid: str, main_variant: str, live:
     return out
 
 
-def release_pack(base: DataPack, record: ProductRecord, release_id: str) -> DataPack:
+def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None) -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
     assert base.market is not None
     cur, market, sym = base.market.currency.code, base.market.market, base.market.currency.symbol
@@ -195,5 +195,12 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str) -> Data
     # brand-level checks may run, and there are none until brand guidelines are onboarded
     rules = base.rules if law_applies(base, record.category) else base.rules.model_copy(
         update={"rules": [], "category": record.category})
+    if rules is not base.rules and lawpacks is not None and base.market is not None:
+        # D-229: an approved law pack built from the regulator's documents for this market and category
+        from .lawpack import lawpack_for, to_rules
+
+        found = lawpack_for(lawpacks, base.market.market, record.category)
+        if found is not None:
+            rules = rules.model_copy(update={"rules": to_rules(*found), "policy_id": found[0]})
     return dataclasses.replace(base, products=products, runsheets={release_id: runsheet}, rules=rules,
                                promos=PromosFile(promos=promos, rules=base.promos.rules), passages=unique)

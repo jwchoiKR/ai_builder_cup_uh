@@ -25,9 +25,7 @@ _running = asyncio.Semaphore(MAX_RUNNING)
 _jobs: dict[str, dict] = {}
 
 
-@router.post("/jobs")
-async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
-                     ctx: AppContext = Depends(get_ctx)) -> dict:
+async def _read_files(files: list[UploadFile]) -> list[tuple[str, bytes]]:
     if not files or len(files) > MAX_FILES:
         raise ActionError(400, "bad_files", f"send 1 to {MAX_FILES} files")
     data = []
@@ -38,6 +36,13 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
         if len(body) > MAX_BYTES or total > MAX_JOB_BYTES:
             raise ActionError(413, "too_large", "a file or the job is too large")
         data.append((f.filename or "file", body))
+    return data
+
+
+@router.post("/jobs")
+async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
+                     ctx: AppContext = Depends(get_ctx)) -> dict:
+    data = await _read_files(files)
     job_id = "onb_" + uuid.uuid4().hex[:12]
     _jobs[job_id] = {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None, "error": None}
 
@@ -73,7 +78,7 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
 
     from ..onboarding.read import normalise
     from ..onboarding.record import ProductRecord
-    from ..onboarding.release import law_applies, release_pack, save_release
+    from ..onboarding.release import release_pack, save_release
 
     job = _jobs.get(job_id)
     if job is None or job["status"] != "done":
@@ -84,12 +89,59 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
         raise ActionError(400, "invalid_record", str(e)[:400]) from None
     record, _ = normalise(record)
     try:  # the show must be buildable in this server's market before the release is saved
-        release_pack(ctx.pack, record, "rel_check_v1")
+        pack = release_pack(ctx.pack, record, "rel_check_v1", ctx.settings.onboarding_path)
     except Exception as e:  # noqa: BLE001
         raise ActionError(409, "release_not_buildable", str(e)) from None
-    warnings = [] if law_applies(ctx.pack, record.category) else [
+    warnings = [] if pack.rules.rules else [
         f"no law pack for {record.category} in {ctx.pack.market.market}: only brand-level checks run"]
     return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id), "warnings": warnings}
+
+
+@router.post("/lawpacks/jobs")
+async def create_lawpack_job(files: list[UploadFile] = File(...), market: str = Form(...), category: str = Form(...),
+                             ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-229: regulator documents in, rule records with evidence out (approve with /jobs/{id}/approve-lawpack)."""
+    from ..onboarding.files import model_part, store
+    from ..onboarding.lawpack import read_lawpack
+
+    data = await _read_files(files)
+    job_id = "law_" + uuid.uuid4().hex[:12]
+    _jobs[job_id] = {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None, "error": None,
+                     "market": market.upper(), "category": category}
+
+    async def run() -> None:
+        async with _running:
+            _jobs[job_id]["status"] = "reading"
+            try:
+                for name, body in data:
+                    store(ctx.settings.onboarding_path, job_id, name, body)
+                rec, notes, secs = await read_lawpack(ctx.llm, [model_part(n, b) for n, b in data],
+                                                      market=market.upper(), category=category)
+                _jobs[job_id].update(status="done", result={"record": rec.model_dump(mode="json"), "notes": notes,
+                                                            "seconds": secs})
+            except Exception as e:  # noqa: BLE001 - reported on the job
+                log.exception("law pack job %s failed", job_id)
+                _jobs[job_id].update(status="failed", error=f"{type(e).__name__}: {e}")
+
+    ctx.scheduler.spawn(run(), name=f"lawpack:{job_id}")
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.post("/jobs/{job_id}/approve-lawpack")
+async def approve_lawpack(job_id: str, body: ApproveBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
+    from pydantic import ValidationError
+
+    from ..onboarding.lawpack import LawPackRecord, normalise_pack, save_lawpack
+
+    job = _jobs.get(job_id)
+    if job is None or job["status"] != "done" or "market" not in job:
+        raise ActionError(409, "job_not_ready", f"law pack job {job_id} has no record to approve")
+    try:
+        rec = LawPackRecord.model_validate((body.record if body and body.record else None) or job["result"]["record"])
+    except ValidationError as e:
+        raise ActionError(400, "invalid_record", str(e)[:400]) from None
+    rec, _ = normalise_pack(rec)
+    return {"pack_id": save_lawpack(ctx.settings.onboarding_path, job["market"], rec, job_id)}
 
 
 @router.get("/jobs/{job_id}")

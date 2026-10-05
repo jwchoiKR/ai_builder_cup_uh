@@ -72,7 +72,8 @@ class AppContext:
                 from .onboarding.release import load_release, release_pack
 
                 base, reflex = self.pack_for(market, lang)
-                pack = release_pack(base, load_release(self.settings.onboarding_path, release_id), release_id)
+                pack = release_pack(base, load_release(self.settings.onboarding_path, release_id), release_id,
+                                    self.settings.onboarding_path)
                 if pack.rules is not base.rules:  # D-227: no law pack for its category, so no reflex phrases either
                     reflex = Reflex(pack.rules, pack.lexicon)
                 pid = pack.products.products[0].product_id
