@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..models.data import LangPack, MarketPack
 from .reflex import normalise
@@ -40,6 +40,8 @@ class Lexicon:
     duration_hours: dict[str, float]  # D-174
     phone: re.Pattern  # from the market
     currency: re.Pattern  # D-179: the market's currency symbol before a number ("s$", "rm"), from the market
+    scales: dict[str, int] = field(default_factory=dict)  # D-208
+    and_word: str | None = None
 
     @classmethod
     def from_packs(cls, lang: LangPack, market: MarketPack) -> "Lexicon":
@@ -47,6 +49,7 @@ class Lexicon:
         return cls(
             lang=lang.lang, stopwords=frozenset(lx.stopwords), ones=dict(lx.number_words.ones),
             tens=dict(lx.number_words.tens), decimal_word=lx.number_words.decimal,
+            scales=dict(lx.number_words.scales), and_word=lx.number_words.and_word,
             skip_alone=frozenset(lx.number_words.skip_alone), stem_suffixes=tuple(lx.stem.suffixes),
             min_stem=lx.stem.min_stem, prefix_match=lx.prefix_match, unsure=re.compile(p.unsure),
             test_qualifier=re.compile(p.test_qualifier), in_house=re.compile(p.in_house),
@@ -63,21 +66,53 @@ class Lexicon:
 
     # ---- words and numbers ----------------------------------------------------------------------
 
+    def _below_100(self, tokens: list[str], j: int) -> tuple[int, int] | None:
+        w = tokens[j] if j < len(tokens) else None
+        if w in self.tens:
+            if j + 1 < len(tokens) and tokens[j + 1] in self.ones and self.ones[tokens[j + 1]] < 10:
+                return self.tens[w] + self.ones[tokens[j + 1]], j + 2
+            return self.tens[w], j + 1
+        if w in self.ones:
+            return self.ones[w], j + 1
+        return None
+
+    def _spoken(self, tokens: list[str], i: int) -> tuple[int, int] | None:
+        """D-208 (full review P2: "one hundred nineteen" read as 19): one spoken number from tokens[i], with its
+        scale words ("one hundred and nineteen" -> 119, "a hundred" -> 100, "two thousand five hundred" -> 2500).
+        Two numbers said one after the other stay two ("five five")."""
+        first = self._below_100(tokens, i)
+        if first is None:
+            if tokens[i] in ("a", "an") and i + 1 < len(tokens) and tokens[i + 1] in self.scales:
+                first = (1, i + 1)
+            else:
+                return None
+        total, (cur, j) = 0, first
+        while j < len(tokens) and tokens[j] in self.scales:
+            scale = self.scales[tokens[j]]
+            j += 1
+            if scale >= 1000:
+                total, cur = total + cur * scale, 0
+            else:
+                cur *= scale
+            k = j + 1 if j < len(tokens) and tokens[j] == self.and_word else j
+            nxt = self._below_100(tokens, k)
+            if nxt is None:
+                break
+            cur, j = cur + nxt[0], nxt[1]
+        return total + cur, j
+
     def numbers(self, tokens: list[str]) -> list[str]:
-        """Spoken numbers to digits ("twenty four" -> "24"); "4%" -> "4", "percent"."""
+        """Spoken numbers to digits ("twenty four" -> "24", "one hundred nineteen" -> "119"); "4%" -> "4", "percent"."""
         out: list[str] = []
         i = 0
         while i < len(tokens):
             w = tokens[i]
-            if w in self.tens:
-                n = self.tens[w]
-                if i + 1 < len(tokens) and tokens[i + 1] in self.ones and self.ones[tokens[i + 1]] < 10:
-                    n += self.ones[tokens[i + 1]]
-                    i += 1
-                out.append(str(n))
-            elif w in self.ones:
-                out.append(str(self.ones[w]))
-            elif w.endswith("%") and w[:-1]:
+            spoken = self._spoken(tokens, i)
+            if spoken is not None:
+                out.append(str(spoken[0]))
+                i = spoken[1]
+                continue
+            if w.endswith("%") and w[:-1]:
                 out += [w[:-1], "percent"]
             else:
                 out.append(w)
@@ -113,7 +148,8 @@ class Lexicon:
         "zero point two" -> {"0.2"}. A lone skip word ("one") is ignored."""
         raw = self.currency.sub(" ", normalise(text).replace("$", " ")).split()
         # D-174: "twenty-one" kept its "one": a skip word is dropped only when it stands alone
-        tokens = [w for i, w in enumerate(raw) if w not in self.skip_alone or (i > 0 and raw[i - 1] in self.tens)]
+        tokens = [w for i, w in enumerate(raw) if w not in self.skip_alone or (i > 0 and raw[i - 1] in self.tens)
+                  or (i + 1 < len(raw) and raw[i + 1] in self.scales)]  # D-208: "one hundred" is not "one"
         words = self.numbers(tokens)
         merged: list[str] = []  # D-116: spoken decimals, "five point five" -> "5.5"
         i = 0

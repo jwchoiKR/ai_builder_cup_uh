@@ -484,7 +484,12 @@
       "decimal": "point",
       "skip_alone": [
         "one"
-      ]
+      ],
+      "scales": {
+        "hundred": 100,
+        "thousand": 1000
+      },
+      "and_word": "and"
     },
     "stem": {
       "suffixes": [

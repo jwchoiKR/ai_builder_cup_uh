@@ -216,6 +216,8 @@ class NumberWords(BaseModel):
     tens: dict[str, int]
     decimal: str
     skip_alone: list[str]
+    scales: dict[str, int] = {}  # D-208: "hundred" -> 100, "thousand" -> 1000
+    and_word: str | None = None  # D-208: "one hundred and nineteen"
 
 
 class Stemming(BaseModel):
