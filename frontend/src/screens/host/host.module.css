@@ -992,6 +992,21 @@
   border-color: var(--fact-border);
   color: var(--fact-text);
 }
+/* D-177: the first 20 s of a red (and again for a repeat): a ring that pulses */
+.alertHighFresh {
+  box-shadow: 0 0 0 calc(4px * var(--hs)) var(--risk-strong);
+  animation: fadeIn var(--motion-fast) var(--ease), redFresh 1.2s var(--ease) 3;
+}
+@keyframes redFresh {
+  50% {
+    box-shadow: 0 0 0 calc(8px * var(--hs)) var(--risk-bg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .alertHighFresh {
+    animation: none;
+  }
+}
 /* D-115: the fact card keeps the box; the right value is the hero, heard and source are small */
 .alertFact .alertSay {
   font-size: calc(38px * var(--hs));
@@ -1232,25 +1247,6 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-/* D-161: red alerts past their block, still waiting for a correction */
-.redChip {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: calc(6px * var(--hs));
-  padding: calc(2px * var(--hs)) calc(10px * var(--hs));
-  border: 1px solid var(--risk-strong);
-  border-radius: var(--radius-chip);
-  background: var(--risk-bg);
-  color: var(--risk-text);
-  font-size: calc(13px * var(--hs));
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-}
-.redChip svg {
-  width: calc(14px * var(--hs));
-  height: calc(14px * var(--hs));
 }
 /* D-150: preview market or language */
 .previewTag {

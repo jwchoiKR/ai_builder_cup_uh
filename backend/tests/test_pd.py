@@ -250,7 +250,7 @@ async def test_a_due_question_card_shows_even_when_the_model_says_none(env):
 
 async def test_an_uncorrected_red_alert_blocks_cards_only_while_it_is_fresh(env):
     """D-161 (local SEED1 replay: a red nobody corrected blocked every card for the last 10 minutes of the show).
-    A red blocks cards for RED_BLOCK_MS after it was created or escalated; then cards resume while it waits."""
+    A red blocks cards for RED_BLOCK_MS after it was created; then cards resume while it waits (D-177)."""
     rt, llm = env
     await speak(rt, "Welcome everyone, today we start with the cream.")  # talking: no pause, no card yet
     await say(rt, "Mei", "Is the cream okay for oily skin?")
@@ -262,20 +262,20 @@ async def test_an_uncorrected_red_alert_blocks_cards_only_while_it_is_fresh(env)
     [red] = [a for a in await rt.alerts() if a.severity == "HIGH" and a.status == "active"]
     await rt.ctx.scheduler.advance(pdl.SILENCE_MS)  # a pause: the card would be offered now
     assert (await rt.load_session()).pd_card is None
-    await rt.ctx.scheduler.advance(pdl.RED_BLOCK_MS + 6_000 - pdl.SILENCE_MS)  # past the escalation's block too
+    await rt.ctx.scheduler.advance(pdl.RED_BLOCK_MS - pdl.SILENCE_MS)  # D-177: 20 s, the escalation adds nothing
     card = (await rt.load_session()).pd_card
     assert card is not None and card.ref_id == g.group_id
     assert (await rt.get_alert(red.alert_id)).status == "active"  # the red still waits for its correction
 
 
-def test_a_fresh_red_alert_is_one_created_or_escalated_within_the_block():
+def test_a_fresh_red_alert_is_one_created_within_the_block():
     from app.models.session import Alert
 
     base = dict(alert_id="al", kind="compliance", status="active", transcript_id="t", product_id="p",
                 severity="HIGH", rule_id="R", created_at=0)
     assert pdl.red_blocks([Alert(**base)], pdl.RED_BLOCK_MS - 1)
     assert not pdl.red_blocks([Alert(**base)], pdl.RED_BLOCK_MS)
-    assert pdl.red_blocks([Alert(**base, escalated_at=5_000)], pdl.RED_BLOCK_MS + 4_999)
+    assert not pdl.red_blocks([Alert(**base, escalated_at=5_000)], pdl.RED_BLOCK_MS)  # D-177
     assert not pdl.red_blocks([Alert(**{**base, "severity": "MEDIUM"})], 1)
     assert not pdl.red_blocks([Alert(**{**base, "status": "corrected"})], 1)
 
