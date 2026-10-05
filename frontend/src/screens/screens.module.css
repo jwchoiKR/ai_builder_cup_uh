@@ -93,7 +93,11 @@
   font-size: var(--fs-14);
 }
 
-/* Hub: six cards fill the body, 3 x 2 on desktop, in the order they are used; type scales with the viewport */
+/* Hub (v2): a centred group, at most 1240 px wide, of a short hero and the screens in the order of a show.
+   Cards size to their content; white space around the group is fine. */
+.hubHeader .subtitle {
+  margin-right: auto;
+}
 @media (max-width: 599px) {
   .hubHeader {
     flex-direction: column;
@@ -103,151 +107,188 @@
 .hubBody {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
 }
-.hubGrid {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(min-content, 1fr));
-  gap: var(--space-5);
-}
-@media (max-width: 899px) {
-  .hubGrid {
-    flex: none;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: none;
-  }
-}
-@media (max-width: 599px) {
-  .hubGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-.hubCard {
-  position: relative; /* the title link covers the card */
+.hubContent {
+  margin: auto;
+  width: 100%;
+  max-width: 1240px;
   display: flex;
   flex-direction: column;
-  gap: clamp(12px, 2.5vh, 32px); /* icon row to title, the same in every card, so titles line up across a row */
-  padding: clamp(24px, 2vw, 40px);
+  gap: var(--space-8);
+}
+.hubHero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-3); /* level with the phase labels */
+}
+.hubTitle {
+  margin: 0;
+  font-size: 32px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+}
+.hubLead {
+  margin: 0;
+  max-width: 760px;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.hubStudio {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  margin-top: var(--space-3);
+}
+.hubStudioButton {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-control);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--fs-16);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  transition: filter 140ms var(--ease);
+}
+.hubStudioButton:hover {
+  filter: brightness(1.08);
+}
+.hubStudioButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.hubStudioNote {
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+/* Before | During | After, columns 1 : 3 : 1, a chevron in each gutter */
+.hubPhases {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 3fr) 28px minmax(0, 1fr);
+  align-items: stretch;
+}
+.hubPhaseSlot {
+  display: contents;
+}
+.hubChevron {
+  align-self: center;
+  justify-self: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 30px; /* level with the cards, under the phase labels */
+  color: var(--text-3);
+}
+.hubPhase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: calc(var(--radius-card) + 4px);
+}
+/* the live part of the show */
+.hubPhaseLive {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.hubPhaseLabel {
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.hubPhaseCards {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(var(--cards), minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.hubCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 210px;
+  padding: var(--space-5);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow);
-  transition: border-color var(--motion-fast) var(--ease);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease), transform 140ms var(--ease);
 }
-.hubCard:hover {
+.hubCard:hover,
+.hubCard:focus-visible {
   border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+  outline: none;
 }
-.hubCardTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-.hubPhase {
-  color: var(--text); /* the neutral phase chips read clearly in both themes */
-}
-/* title, who-line and points start under the icon row; the leftover space goes to the bottom */
-.hubCardBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+@media (prefers-reduced-motion: reduce) {
+  .hubCard {
+    transition: none;
+  }
+  .hubCard:hover,
+  .hubCard:focus-visible {
+    transform: none;
+  }
 }
 .hubIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
+  margin-bottom: var(--space-2);
   border-radius: var(--radius-control);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent);
 }
 .hubIcon svg {
-  width: 24px;
-  height: 24px;
+  width: 21px;
+  height: 21px;
 }
-.hubCardLink {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: var(--space-2);
-  font-size: clamp(24px, 1.6vw, 32px);
+.hubCardTitle {
+  font-size: 20px;
   font-weight: var(--fw-semibold);
-  color: var(--text);
-  text-decoration: none;
-}
-.hubCardLink svg {
-  width: 20px;
-  height: 20px;
-  color: var(--text-2);
-}
-.hubCardLink::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: var(--radius-card);
-}
-.hubCardLink:focus-visible {
-  outline: none;
-}
-.hubCardLink:focus-visible::after {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  line-height: 1.25;
 }
 .hubWho {
-  margin: 0;
-  font-size: clamp(13px, 0.8vw, 16px);
-  color: var(--text-2); /* 5.8:1 light, 6.9:1 dark */
+  font-size: 13px;
+  color: var(--text-2);
 }
-.hubPoints {
-  margin: 0;
-  padding-left: var(--space-5);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  font-size: clamp(15px, 1vw, 19px);
+.hubText {
+  margin-top: var(--space-1);
+  font-size: 15px;
   line-height: 1.5;
-  color: var(--text);
 }
-/* a term with a tooltip: above the card link, so hover and focus reach it */
-.term {
-  position: relative;
-  z-index: 1;
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-  cursor: help;
+@media (max-width: 1099px) {
+  .hubPhases {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
+    gap: var(--space-4);
+  }
+  .hubChevron {
+    display: none;
+  }
 }
-.term:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-.termTip {
-  position: absolute;
-  left: var(--tip-shift, 0px);
-  top: calc(100% + 8px);
-  z-index: 2;
-  width: max-content;
-  max-width: min(280px, 100vw - 32px);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--text);
-  color: var(--surface);
-  font-size: var(--fs-14);
-  font-weight: normal;
-  line-height: 1.4;
-  box-shadow: var(--shadow);
-  display: none; /* hidden tips take no room, so they never add a scroll bar */
-  pointer-events: none;
-}
-.termTipAbove {
-  top: auto;
-  bottom: calc(100% + 8px);
-}
-.termTip[data-open="true"] {
-  display: block;
+@media (max-width: 699px) {
+  .hubPhases {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hubPhaseCards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hubCard {
+    min-height: 0;
+  }
+  .hubStudioButton {
+    width: 100%;
+    justify-content: center;
+  }
 }
