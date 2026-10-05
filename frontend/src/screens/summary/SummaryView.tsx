@@ -32,6 +32,9 @@ export interface SummaryViewProps {
   embedded?: boolean;
 }
 
+/** D-202: a share as a whole percent, "–" when the server did not send it. */
+const pctOrDash = (v: number | undefined) => (v === undefined ? "–" : `${Math.round(v * 100)}%`);
+
 function UnansweredList({ items }: { items: UnansweredGroup[] }) {
   if (!items.length) return <p className={styles.muted}>No unanswered questions.</p>;
   return (
@@ -347,6 +350,8 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
             <tr>
               <th>Agent</th>
               <th>Calls</th>
+              <th>Failed</th>
+              <th>In time</th>
               <th>p50</th>
               <th>p95</th>
             </tr>
@@ -355,7 +360,9 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
             {Object.entries(s.agent_latency).map(([name, a]) => (
               <tr key={name}>
                 <td>{agentLabel(name)}</td>
-                <td className="tabular">{a.calls}</td>
+                <td className="tabular">{a.attempts ?? a.calls}</td>
+                <td className="tabular">{pctOrDash(a.failure_rate)}</td>
+                <td className="tabular">{pctOrDash(a.deadline_attainment)}</td>
                 <td className="tabular">{formatMsAsSeconds(a.p50_ms)}</td>
                 <td className="tabular">{formatMsAsSeconds(a.p95_ms)}</td>
               </tr>

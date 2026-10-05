@@ -155,7 +155,10 @@ def test_summary_numbers(catalog):
                     "ended_at": T0 + 700_000, "duration_sec": 100}
     assert gift["ended_at"] is None and gift["duration_sec"] == 590  # still running at the end of the session
 
-    assert s["agent_latency"]["utterance_judge"] == {"p50_ms": 1400, "p95_ms": 1700, "calls": 2}
+    # D-202: the timeout is not in the latency, but it is in the attempts, failures and deadline attainment
+    assert s["agent_latency"]["utterance_judge"] == {
+        "p50_ms": 1400, "p95_ms": 1700, "calls": 2, "attempts": 3, "failures": 1, "timeouts": 1,
+        "failure_rate": 0.3333, "deadline_attainment": 0.6667}
     assert s["cache"] == {"instant_answers": 9, "composed_answers": 4, "triage_hits": 5, "triage_misses": 11}
     assert s["totals"]["comments"] == 6 and s["totals"]["hidden_comments"] == 1
     assert s["totals"]["messages_by_kind"]["ai_answer"] == 2 and s["totals"]["messages_by_kind"]["correction_notice"] == 1
