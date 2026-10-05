@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ..providers.llm import LLMClient
 from .files import media_type, model_part, store
-from .read import category_list, read_product
+from .read import category_list, covered_categories, read_product
 from .checks import check_items, lean_items, summary
 from .record import OnboardingResult
 from .release import has_law, release_pack
@@ -17,7 +17,8 @@ async def onboard_files(llm: LLMClient, root: Path, draft_id: str, files: list[t
     stored = [store(root, draft_id, name, data) for name, data in files]
     parts = [model_part(name, data) for name, data in files]
     result = await read_product(llm, parts, hints=hints, session_id=session_id,
-                                categories=category_list(base_pack, root), **read_kw)
+                                categories=category_list(base_pack, root),
+                                covered=covered_categories(base_pack, root), **read_kw)
     result.files = [{"name": s.name, "sha256": s.sha256, "media_type": media_type(s.name), "bytes": s.size}
                     for s in stored]
     # D-236: what a person must check (VERIFY_MODE), with the law pack the show would get

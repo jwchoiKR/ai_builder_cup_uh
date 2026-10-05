@@ -22,6 +22,9 @@ Decide whether the host's sentence makes a claim that breaks one of the RULES.
 - A violation must be an affirmative claim by the host about the product. A topic word on its own ("Acne, um,", "Eczema?") says nothing about the product and is not a claim.
 - Speech-to-text can cut one spoken sentence into two lines. When UTTERANCE completes a claim begun in the last line of RECENT_TRANSCRIPT ("It is completely safe." then "Even for babies."), judge the completed claim and list it here, with `span` taken from UTTERANCE. Do not list again a claim the earlier line made on its own.
 - `is_negated = true` when the host denies the claim ("it does not treat acne", "we can't say it removes wrinkles").
+- CURRENT_PRODUCT `target_group`, when given, names who the product is made for (from its documents). Saying who it
+  is for is fine; a safety, health or suitability promise to that group, or a claim about their conditions, falls
+  under the vulnerable-group rules in RULES.
 - `is_quoted = true` when the host is reading out or reporting someone else's words or question ("someone asked if it cures eczema").
 - When the host repeats someone else's claim and then agrees with it, vouches for it or adds to it ("and I believe her", "that's true", "no exaggeration", "she's not overstating it one bit", "I'm with him on that", "I'd say the same", "every word of that review is right", "and the same happened to me"), it is the host's own claim: `is_quoted = false`. The agreement can come in the next sentence; judge the quote and the agreement together.
 - A negated or quoted claim is still listed, with the flag set. The software ignores it.

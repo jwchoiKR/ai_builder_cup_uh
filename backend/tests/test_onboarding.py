@@ -1167,3 +1167,34 @@ async def test_d255_an_absence_note_and_another_substance_are_no_corrections(tmp
     assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
                                "Each bottle has three mg zinc gluconate.", salt, row) == []
     assert [d["reason"] for d in row["dropped"]] == ["another substance than the host named"]
+
+
+async def test_d256_an_audience_is_no_category_and_an_uncovered_type_maps_to_a_covered_one(tmp_path):
+    from app.agents.inputs import current_product_json
+    from app.logic.catalog import Catalog
+    from app.onboarding.checks import check_items
+    from app.onboarding.read import GENERIC_CATEGORIES, category_list, covered_categories
+    from app.onboarding.release import release_pack
+
+    assert "baby" not in GENERIC_CATEGORIES
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = _record(category="baby", target_group=["infants"],
+                                                               target_group_evidence=EV)
+    backend.outputs[("onboarding_category", "category|baby")] = {"category": "household"}
+    backend.outputs[("onboarding_category", "covered|household")] = {"category": "body_care"}
+    ctx = make_ctx(backend=backend)
+    try:
+        cats, covered = category_list(ctx.pack, tmp_path), covered_categories(ctx.pack, tmp_path)
+        res = await read_product(ctx.llm, [model_part("spec.txt", b"hello")], categories=cats, covered=covered)
+        r = res.record
+        assert r.category == "body_care" and r.target_group == ["infants"]
+        assert r.category_evidence[-1].quote == "baby"
+        pack = release_pack(ctx.pack, r, "rel_x_v1", None)
+        assert len(pack.rules.rules) > 1  # the body-care law pack, not the qualifier rule alone
+        catalog = Catalog(pack, "rel_x_v1")
+        assert current_product_json(catalog, catalog.order[0])["target_group"] == ["infants"]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    gov = [x["label"] for x in check_items(res, "risk", law="15 rules") if x["group"] == "governance"]
+    assert "household has no law pack; mapped to the covered type body_care" in gov

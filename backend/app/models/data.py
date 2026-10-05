@@ -45,6 +45,7 @@ class Product(BaseModel):
     approved_claims: list[str]
     not_approved_claims: list[str]
     qualified_results: list[QualifiedResult] = []
+    target_group: list[str] = []  # D-256: who the product is made for (onboarded products), for the judges
     cautions: list[str] = []  # short host lines from the sheet's Cautions section (D-106)
     avoid_saying: list[AvoidSaying] = []
 

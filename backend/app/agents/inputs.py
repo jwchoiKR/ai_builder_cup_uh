@@ -19,7 +19,10 @@ from ..models.session import Alert, HostCue, QuestionGroup, SwitchState, Transcr
 
 def current_product_json(catalog: Catalog, product_id: str) -> dict:
     p = catalog.get_product(product_id)
-    return {"product_id": p.product_id, "name": p.name, "short_name": p.short_name}
+    out = {"product_id": p.product_id, "name": p.name, "short_name": p.short_name}
+    if p.target_group:  # D-256: who the product is for (a vulnerable group's rules apply to promises to them)
+        out["target_group"] = p.target_group
+    return out
 
 
 def product_compact_json(catalog: Catalog, product_id: str | None) -> dict | None:

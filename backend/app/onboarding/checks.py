@@ -39,6 +39,12 @@ def _product_items(r) -> list[dict]:
     return out
 
 
+def _category_items(result) -> list[dict]:
+    """D-256: a category the code mapped (to the list, or to a covered type) is checked with the law pack it selects."""
+    return [_item("governance", n.split(": ", 1)[1], "the category selects the law pack: confirm it")
+            for n in result.notes if n.startswith("category: ")]
+
+
 def _corrected_items(result) -> list[dict]:
     """D-243: values the code read from the quote instead of the model's number."""
     return [_item("product", n.split(": ", 2)[1], n.split(": ", 2)[2]) for n in result.notes
@@ -87,13 +93,14 @@ def check_items(result: OnboardingResult, mode: Mode, *, law: str | None = None,
         out += [_item("other", m, "missing") for m in r.missing if not m.startswith("variants")]
         if law is not None and law.startswith("no law"):
             out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
-        return out + _coverage_items(result)
+        return out + _category_items(result) + _coverage_items(result)
     out = _product_items(r) + _corrected_items(result)
     shown = {x["label"] for x in out}
     out += [x for x in _dropped_items(result) if x["label"] not in shown]
     out += _coverage_items(result)
     if law is not None and law.startswith("no law"):
         out.append(_item("governance", r.category, "no law pack covers this category: no compliance checks live"))
+    out += _category_items(result)
     out += [_item("governance", q.statement, f"say it with “{q.qualifier}”") for q in r.qualified_results]
     out += [_item("safety", c, "found only by the caution pass") for c in caution_pass_only]
     for lang, t in (translations or {}).items():
