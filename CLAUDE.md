@@ -34,7 +34,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 
 ## Handoff by role (10/6 06:00, branch `multi_agent_test` at 427efdb, pushed)
 
-Where things stand: unseen-product live detection is about **84%** (fresh sealed pool 3, one clean run, fbb8aa7: 84.6%; pool 2: 83-84%). The goal is 100%. Onboarding passes product/governance/safety/offers on nearly all 21 sealed products with at most 10 human checks each. Numbers and history: `docs/eval/proof-plan.md` (last sections), `docs/HANDOFF.md`. Nothing is running.
+Cloud: `live-studio-us` revision 00009-qcf runs 41411fd (deployed 10/6 morning, IAP on). Where things stand: unseen-product live detection is about **84%** (fresh sealed pool 3, one clean run, fbb8aa7: 84.6%; pool 2: 83-84%). The goal is 100%. Onboarding passes product/governance/safety/offers on nearly all 21 sealed products with at most 10 human checks each. Numbers and history: `docs/eval/proof-plan.md` (last sections), `docs/HANDOFF.md`. Nothing is running.
 
 ### Planning/eval session (writes docs, data, evals; never app code)
 - Owns: sealed pools, scoring, the measurement loop, decks, handoff, coordinating dev/critic/peers, commit+push of the branch.
