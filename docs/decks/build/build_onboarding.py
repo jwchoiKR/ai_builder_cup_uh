@@ -64,7 +64,7 @@ slide("path1", "시스템 흐름 ①", "파일을 올리면 이렇게 처리된�
 slide("path2", "시스템 흐름 ②", "승인하면 출시본이 생기고, 라이브가 그 제품으로 돈다", col(
     table(["순서", "어디서", "무엇을"], [
         ["7. 승인", "<b>POST /api/onboarding/jobs/{id}/approve</b>", "다시 검증·정리, 이 시장에서 방송 가능한지 확인"],
-        ["8. 출시본 저장", "<b>onboarding/release.py</b> → <code>releases/&lt;release_id&gt;_vN.json</code>", "버전 붙여 저장, 기존 제품은 그대로"],
+        ["8. 승인본 저장 (재배포 없음)", "<b>onboarding/release.py</b> → <code>releases/&lt;release_id&gt;_vN.json</code>", "버전 붙여 저장, 기존 제품은 그대로"],
         ["9. 라이브용 변환 (코드)", "release.py", "제품 정보·검색 문단·1구간 진행표, <b>할인가는 코드가 계산</b>"],
         ["10. 규정 고르기", "카테고리 → 규정 묶음 <code>covers</code>", "기본 규정 → 원문에서 만든 규정(D-229) → 없으면 '법규 검사 없음'"],
         ["11. 방송 시작", "<b>POST /api/sessions</b> {release_id}", "프롬프터·판정·답변이 이 제품으로 동작"]], [16, 40, 44], 24),
