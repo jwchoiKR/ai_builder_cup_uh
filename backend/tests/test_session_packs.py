@@ -80,11 +80,12 @@ def tmp_copy(data, products, tmp_path):
     return out
 
 
-def test_d179_malaysia_uses_the_rm_prices_everywhere(settings):
+def test_d179_malaysia_uses_the_rm_prices_everywhere(settings, tmp_path):
     """D-179 (user decision 10/5, demo values): an MY session gets RM prices in the products, the sheets' passages,
-    the prompter points and the promos that carry no price of their own; S$ is left nowhere. The time sale (S$ promo
-    prices) and the gift (S$60 threshold) have no MY values, so they are left out, not converted."""
+    the prompter points and the promos (time sale RM107.10 / RM94.50 / RM184.50, gift over RM200); S$ is left
+    nowhere. A promo without MY values is left out, not converted."""
     from app.logic.catalog import Catalog, DataPack
+    from app.logic.promos import promo_passage
 
     pack = DataPack.load(settings.data_path, "MY", "en")
     cat = Catalog(pack)
@@ -95,14 +96,24 @@ def test_d179_malaysia_uses_the_rm_prices_everywhere(settings):
     assert texts["DL-CR-01#key-facts#live-broadcast-price"].startswith("Live broadcast price: RM119.00")
     assert texts["DL-AM-01#key-facts#list-price"] == "List price: RM139.00"
     assert any("RM119 (list RM159)" in pt.text for pt in cream.prompter_points)
-    assert {p.promo_id for p in pack.promos.promos} == {"promo_set_reminder"}
     assert "RM205" in pack.promos_by_id["promo_set_reminder"].viewer_text
-    assert pack.runsheets["daon_skincare_demo"].promo_ids == ["promo_set_reminder"]
+    sale, gift = pack.promos_by_id["promo_time_sale_10"], pack.promos_by_id["promo_gift_pouch"]
+    assert cat.price_display("set_cream_ampoule", sale) == "RM184.50"
+    assert promo_passage(sale, cat).text.startswith("Time sale price (extra 10% off the live price): Hydra Barrier "
+                                                    "Cream RM107.10; Deep Hydration Ampoule RM94.50;")
+    assert (gift.min_spend, gift.host_text, gift.viewer_text) == (
+        200.0, "GIFT OVER RM200", "Free DAON LAB travel pouch with orders over RM200")
+    assert pack.runsheets["daon_skincare_demo"].promo_ids == ["promo_time_sale_10", "promo_gift_pouch", "promo_set_reminder"]
     dump = pack.products.model_dump_json(exclude={"market_prices"}) + "".join(texts.values())
     assert "S$" not in dump + pack.promos.model_dump_json()
     assert pack.lexicon.spoken_numbers("It is RM119.00 today") == {"119"}
     sg = DataPack.load(settings.data_path, "SG", "en")
     assert Catalog(sg).price_display("cream_hydra_barrier") == "S$36.00"  # the default market is unchanged
+    products = json.loads((settings.data_path / "products" / "products.json").read_text(encoding="utf-8"))
+    del products["market_prices"]["MY"]["promos"]["promo_gift_pouch"]
+    no_gift = DataPack.load(tmp_copy(settings.data_path, products, tmp_path), "MY", "en")
+    assert "promo_gift_pouch" not in no_gift.promos_by_id
+    assert no_gift.runsheets["daon_skincare_demo"].promo_ids == ["promo_time_sale_10", "promo_set_reminder"]
 
 
 async def test_d150_a_preview_language_posts_nothing_by_itself(tmp_path, settings):
