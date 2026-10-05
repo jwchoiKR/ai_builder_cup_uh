@@ -30,7 +30,7 @@
         "Use it once and your skin is fixed for good.",
         "The effect lasts forever."
       ],
-      "say_instead_hint": "Add continued use, e.g. 'With regular use, it helps keep skin hydrated.'",
+      "say_instead_hint": "Add continued use, e.g. 'With regular use, it helps skin feel soft.'",
       "reflex_phrases": [
         "permanent",
         "permanently",
@@ -63,7 +63,7 @@
         "It removes wrinkles.",
         "It reverses ageing."
       ],
-      "say_instead_hint": "Use an approved look/feel claim, e.g. 'It helps reduce the look of fine dryness lines.' (ampoule) or 'It helps keep skin hydrated.' (cream)",
+      "say_instead_hint": "Use an approved look/feel claim from the product's data, e.g. 'It helps skin look smoother.'",
       "reflex_phrases": [
         "wrinkles disappear",
         "wrinkles will disappear",
@@ -173,7 +173,7 @@
         "This is the best moisturiser in Singapore.",
         "It is stronger than any other ampoule."
       ],
-      "say_instead_hint": "Describe this product's own approved benefit instead, e.g. 'It helps keep skin hydrated for up to 24 hours in our in-house test.'",
+      "say_instead_hint": "Describe this product's own approved benefit instead.",
       "reflex_phrases": [
         "the best",
         "best in singapore",
@@ -188,7 +188,7 @@
         "It is 100% safe for everyone.",
         "There are zero side effects."
       ],
-      "say_instead_hint": "Use the approved patch-test claim with its qualifier: 'Patch tested with no irritation reactions in our in-house test.'",
+      "say_instead_hint": "Use the product's approved safety-test claim with its qualifier, if it has one.",
       "reflex_phrases": [
         "100% safe",
         "completely safe",
@@ -234,9 +234,9 @@
     },
     "test_qualifier": {
       "unacceptable_examples": [
-        "Hydration goes up forty-five percent right after one use.",
+        "Softness goes up thirty percent after one week.",
         "Zero out of thirty-two people reacted in the patch test.",
-        "It keeps your skin hydrated for twenty-four hours."
+        "It keeps skin soft for twelve hours."
       ],
       "say_instead_hint": "Say the same result with 'in our in-house test'.",
       "reflex_phrases": []
