@@ -1263,3 +1263,6 @@ D-238: Judge test drive (logic). The Hub's "Try it with a sample product →" op
 - Access: the deployed service is behind IAP for one account; a judge without login needs that changed, which is the user's call (not done here).
 
 D-239: The host chat shows the source of every AI reply: under the reply, its first citation's section (or document) and a short quote (the viewer already had a "Source" button that expands every citation, D-122). The brand avatar in the host chat is an icon, not the letter "D".
+
+D-240: Live impact counters from logged state, each with its denominator (`metrics.impact`, the operator header): risky lines alerted (compliance alerts shown, not dismissed) of final lines; askers answered by AI, sent to the host, sent to the operator, of all askers; operator actions (logged `operator.action` events by the operator); LLM calls, tokens and tokens per hour of the show. Cost in money needs per-model rates, STT and infra rates the planning session supplies (not invented here); the assistant-off baseline comes from the replay (`assistant=false`, D-139), not from this screen. The host screen does not show them (its top bar is full).
+- D-238 follow-up: the test drive's spoken answer reads the waiting question's verified draft aloud, so it is posted like a real host answer.
