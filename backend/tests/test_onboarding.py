@@ -412,3 +412,41 @@ def test_d236_risk_mode_checks_only_what_reaches_the_show():
     assert groups["product"] == 2 and groups["safety"] == 1 and groups["audit"] == 2  # the conflict, a size with no price
     assert not any(x["label"] == "Apply at night." for x in risk)  # prose is checked live, not here
     assert any(x["reason"].startswith("no law pack") for x in check_items(result, "risk", law="no law checks"))
+
+
+def test_d238_test_drive_reads_the_sample_approves_and_starts_a_live_show(tmp_path, monkeypatch):
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+    from app.pipelines import testdrive as td
+
+    from .helpers import make_settings
+
+    monkeypatch.setattr(td, "_starts", [])
+    monkeypatch.setattr(td, "MAX_PER_HOUR", 1)
+    played = []
+
+    async def no_scene(rt):
+        played.append(rt.sid)
+
+    monkeypatch.setattr(td, "play", no_scene)
+    backend = ScriptedBackend()
+    settings = make_settings(ONBOARDING_DIR=str(tmp_path))
+    names = "|".join(n for n, _ in td.sample_files(settings.data_path))
+    backend.outputs[("onboarding_read", names)] = _record(brand="Lumen", product_name="Night Serum")
+    with TestClient(create_app(settings, llm_backend=backend)) as c:
+        start = c.post("/api/testdrive/start").json()
+        assert not start["cached"] and len(start["files"]) == 4
+        for _ in range(100):
+            if c.get(f"/api/onboarding/jobs/{start['job_id']}").json()["status"] == "done":
+                break
+            time.sleep(0.02)
+        go = c.post(f"/api/testdrive/{start['job_id']}/go").json()
+        state = c.get(f"/api/sessions/{go['session_id']}/state?role=host").json()
+        assert state["session"]["status"] == "live" and played == [go["session_id"]]
+        assert c.post("/api/testdrive/start").status_code == 429  # the hourly cap
+        monkeypatch.setattr(td, "_starts", [])
+        again = c.post("/api/testdrive/start").json()
+        assert again["cached"] and again["status"] == "done"  # the sample is read once, then reused
