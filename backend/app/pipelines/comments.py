@@ -12,7 +12,7 @@ import re
 import time
 from typing import TYPE_CHECKING
 
-from ..agents import arms, inputs
+from ..agents import arms, file_tools, inputs
 from ..agents.answer_composer import ComposeInput, gather_passages
 from ..agents.comment_triage import TriageInput
 from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
@@ -533,11 +533,18 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
         offers=await rt.active_offers(), search=not arms.files(rt.settings.DESIGN_ARM),  # D-192: F arms do not search
     )
     decide = arms.agents_decide(rt.settings.DESIGN_ARM)
-    if decide:  # D-191 arms D to F2: the whole sheet of the product (of every product for multi)
+    rules = True
+    if arms.tools(rt.settings.DESIGN_ARM):  # D-192 arm F1: the composer gets the sheets its tool step asked for
+        got = await file_tools.fetch(rt.composer.llm, rt.catalog, product_id=product_id,
+                                     question=g.canonical_question, session_id=rt.sid, scenario=scenario,
+                                     deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
+        passages = [*(p for pid in got.product_ids for p in inputs.all_passages(rt.catalog, pid)), *passages]
+        rules = got.rules
+    elif decide:  # D-191 arms D to F2: the whole sheet of the product (of every product for multi)
         passages = list({p.passage_id: p for p in [*inputs.all_passages(rt.catalog, product_id), *passages]}.values())
     inp = ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
                        canonical_question=g.canonical_question, promo=promo, passages=passages,
-                       session_id=rt.sid, scenario=scenario, sensitive=intent.sensitive)
+                       session_id=rt.sid, scenario=scenario, sensitive=intent.sensitive, rules=rules)
     res = await rt.composer.run(inp, deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
     if res.status != "ok" or res.output is None:
         # D-157 (comment-flow CF01): every asker had joined while the only draft timed out; draft once more

@@ -42,6 +42,7 @@ class ComposeInput:
     session_id: str | None = None
     scenario: str = "default"
     sensitive: bool = False
+    rules: bool = True  # D-192 arm F1: RULES only when the tool step fetched them
 
 
 def compose_primary_text(product_id: str | None, canonical_question: str, promo: Promo | None) -> str:
@@ -112,7 +113,7 @@ class AnswerComposer:
             "passages_json": inputs.passages_json(inp.passages),
             "avoid_saying_json": inputs.avoid_saying_json(self.catalog, inp.product_id),
         })
-        if arms.agents_decide(self.llm.design_arm):  # D-191 arms D and E: the advertising rules, whole
+        if arms.agents_decide(self.llm.design_arm) and inp.rules:  # D-191 arms D to F2: the advertising rules, whole
             user += inputs.data_block("RULES", inputs.rules_compact_json(self.catalog))
         primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo)
         return await self.llm.call(LLMRequest(
