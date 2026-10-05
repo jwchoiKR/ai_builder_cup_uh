@@ -33,13 +33,17 @@ def attribute_product(
         return pid, "explicit" if named else "unknown"
     if scope == "multi" and len(named) >= 2:
         return None, "explicit"  # both products named: the comparison stays product-less
-    if len(named) == 1:
-        return next(iter(named)), "explicit"  # code alias match wins
+    # D-213 (full review P3): triage decides the product; code only checks that the id is a product. The alias
+    # matches are candidates, used when triage gave none ("Not the cream, how much is this?" is triage's call).
     if triage.product_basis in ("explicit", "content") and catalog.is_product(triage.product_id):
         return triage.product_id, triage.product_basis
+    if len(named) == 1:
+        return next(iter(named)), "explicit"
+    if len(named) >= 2 and context_product_id in named:
+        return context_product_id, "context"  # a word that fits several products: the one on air, if it is one
     # D-135 (comment-flow CF01, CF03): a comment that names no product is about the product on air
     # ("ml?", "SPF?", "dry skin here, suitable?"), whatever basis triage gave. Only before the broadcast
-    # (no product on air) or when two products are named does it stay unresolved ("Which product?").
+    # (no product on air) or when the named products leave it open does it stay unresolved ("Which product?").
     if context_product_id is not None and len(named) == 0:
         return context_product_id, "context"
     return None, "unknown"
