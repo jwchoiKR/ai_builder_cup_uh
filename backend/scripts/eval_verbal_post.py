@@ -36,6 +36,9 @@ from app.models.agent_io import FactCheckOutput, UtteranceJudgeOutput  # noqa: E
 from app.models.session import AgentCall, Answer, HostSlot, Message, QuestionGroup  # noqa: E402
 
 CASES = "verbal_post_cases.jsonl"
+# D-222: --release <release_id> runs every case on that onboarded product's show (one product, so the case's
+# current_product_id is ignored and cases may name the product by role)
+RELEASE: str | None = None
 
 
 def load_cases(name: str = CASES) -> list[dict]:
@@ -182,7 +185,7 @@ async def run_runtime_case(ctx, case: dict, run_no: int) -> dict:
 
     import logging
 
-    s = await create_session(ctx, next(iter(ctx.pack.runsheets)))
+    s = await create_session(ctx, next(iter(ctx.pack.runsheets)), release_id=RELEASE)
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None
     decisions: list[str] = []  # the runtime's own "host answer ..." log lines of this session, as the reason
@@ -199,14 +202,15 @@ async def run_runtime_case(ctx, case: dict, run_no: int) -> dict:
     log.addHandler(handler)
     try:
         await rt.start()
-        if (await rt.current_segment()).product_id != case["current_product_id"]:
+        if RELEASE is None and (await rt.current_segment()).product_id != case["current_product_id"]:
             await operator_switch(rt, case["current_product_id"])
         now = rt.now()
+        pid = rt.catalog.order[0] if RELEASE else case["current_product_id"]
         qs = case["context"]["open_questions"]
         async with rt.lock:
             for q in qs:
                 await rt.save_answer(_answer(q))
-                await rt.save_group(_group(q, case["current_product_id"]).model_copy(
+                await rt.save_group(_group(q if RELEASE is None else {**q, "product_id": pid}, pid).model_copy(
                     update={"first_at": now, "last_at": now}))
             # every open question of the case is offered to the judge, as in the case context: the shown one first,
             # the others behind it (a question about the product not on air is offered only from a host slot)
@@ -269,8 +273,13 @@ async def main() -> int:
     ap.add_argument("--from-json", type=Path, default=None, help="re-score saved outputs without calling the models")
     ap.add_argument("--cases", default=CASES, help="case file in data/eval, e.g. verbal_post_holdout.jsonl")
     ap.add_argument("--runtime", action="store_true", help="replay each case in a real session; read committed posts")
+    ap.add_argument("--release", default=None, help="with --runtime: an onboarded release id")
     args = ap.parse_args()
     cases = load_cases(args.cases)
+    global RELEASE
+    RELEASE = args.release
+    if args.release and not args.runtime and not args.from_json:
+        ap.error("--release needs --runtime")
     if args.from_json:
         raw = json.loads(args.from_json.read_text(encoding="utf-8"))
     else:

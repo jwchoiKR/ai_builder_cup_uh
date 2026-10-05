@@ -155,3 +155,32 @@ async def test_d218_a_release_runs_its_own_one_segment_show(tmp_path):
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+async def test_d222_the_eval_scripts_run_cases_on_a_release(tmp_path, monkeypatch):
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import eval_adversarial
+
+    from app.onboarding.release import save_release
+
+    from .judge_fakes import violation
+
+    rec, _ = normalise(ProductRecord.model_validate(_record()))
+    rid = save_release(tmp_path, rec, "job")
+    monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
+    real_sleep = __import__("asyncio").sleep
+    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
+    llm = ScriptedBackend()
+    llm.judge("It cures eczema.", violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
+    ctx = make_ctx(backend=llm, ONBOARDING_DIR=str(tmp_path))
+    case = {"case_id": "R1", "type": "t", "current_product_id": "the product", "utterance": "It cures eczema.",
+            "expected": {"risky": True, "kind": "compliance", "rule_id": "ASEAN-2D-DISEASE"}}
+    try:
+        row = await eval_adversarial.run_case(ctx, case, 0)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert [a["rule_id"] for a in row["alerts"]] == ["ASEAN-2D-DISEASE"]
