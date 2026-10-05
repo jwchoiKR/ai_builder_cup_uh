@@ -90,7 +90,7 @@ def test_candidate_must_match_product_intent_slots():
 
 
 def test_same_canonical_question_joins_without_candidate():
-    g = group("g1", q="How much is it?", intent="price", slots={})
+    g = group("g1", q="How much is it?", intent="price", slots={"skin_type": None})
     found = find_group([g], product_id=CREAM, intent="price", slots={}, canonical_question="how much is it",
                        candidate_id=None)
     assert found is g
@@ -144,3 +144,10 @@ def test_d213_triage_decides_the_product_and_aliases_are_only_candidates(catalog
     # no product from triage: the one alias candidate is used
     assert attribute_product("how much is the cream?", triage(None, "unknown"), AMPOULE, catalog,
                              intent) == (CREAM, "explicit")
+
+
+def test_d214_an_empty_condition_is_not_any_condition():
+    oily = group("g_oily")  # "Is it suitable for oily skin?"
+    args = dict(product_id=CREAM, intent="skin_type_suitability", canonical_question="Is it suitable for my skin?")
+    assert find_group([oily], slots={}, candidate_id=None, **args) is None  # code alone: conditions differ
+    assert find_group([oily], slots={}, candidate_id="g_oily", **args) is oily  # the model says same answer

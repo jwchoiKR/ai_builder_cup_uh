@@ -18,6 +18,11 @@ def slots_compatible(a: dict[str, str | None], b: dict[str, str | None]) -> bool
     return all(a.get(k) is None or b.get(k) is None or a[k] == b[k] for k in set(a) | set(b))
 
 
+def slots_equal(a: dict[str, str | None], b: dict[str, str | None]) -> bool:
+    """D-214: the same stated conditions; an empty condition is not "any" condition."""
+    return {k: v for k, v in a.items() if v is not None} == {k: v for k, v in b.items() if v is not None}
+
+
 def normalise_question(q: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s%$]", " ", q.lower())).strip()
 
@@ -36,15 +41,18 @@ def find_group(
     canonical_question: str,
     candidate_id: str | None,
 ) -> QuestionGroup | None:
-    def fits(g: QuestionGroup) -> bool:
-        return (is_open(g) and g.product_id == product_id and g.intent == intent
-                and slots_compatible(g.condition_slots, slots))
+    def target(g: QuestionGroup) -> bool:
+        return is_open(g) and g.product_id == product_id and g.intent == intent
 
-    open_groups = [g for g in groups if fits(g)]
+    targets = [g for g in groups if target(g)]
     if candidate_id is not None:
-        for g in open_groups:
-            if g.group_id == candidate_id:
+        # D-214 (full review P3): the model decides that two questions have the same answer; code only checks the
+        # product, the intent and that no stated condition conflicts
+        for g in targets:
+            if g.group_id == candidate_id and slots_compatible(g.condition_slots, slots):
                 return g
+    # without the model's pick, code joins only the same question with the same conditions
+    open_groups = [g for g in targets if slots_equal(g.condition_slots, slots)]
     norm = normalise_question(canonical_question)
     for g in sorted(open_groups, key=lambda g: g.last_at, reverse=True):
         if normalise_question(g.canonical_question) == norm:
