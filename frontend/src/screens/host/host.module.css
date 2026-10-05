@@ -368,8 +368,8 @@
   min-width: 0;
   display: grid;
   /* the prompter row never goes below the height the prompter asks for (useFit sets it when even the smallest
-     zoom does not fit), so its status line never leaves the card; the questions take what is left */
-  grid-template-rows: minmax(auto, 1fr) var(--split-gap) minmax(0, 1fr);
+     zoom does not fit), so its status line never leaves the card; D-182: the same for the AI PD card */
+  grid-template-rows: minmax(auto, 1fr) var(--split-gap) minmax(auto, 1fr);
 }
 /* D-107: the cue, the switch banner and the AI PD card come and go here, above the questions,
    so the prompter box above never moves */
@@ -710,7 +710,8 @@
 .questions {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto; /* D-182: the waiting rows give way to the AI PD card */
   display: flex;
   flex-direction: column;
 }
@@ -1235,7 +1236,8 @@
    A fixed height, so a shown card never grows or shrinks; nothing animates in the panel. */
 .pdSlot {
   flex: none;
-  height: calc(200px * var(--hs));
+  height: calc(200px * var(--hs)); /* D-182: grows only when the card does not fit even at its smallest text */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   padding: calc(8px * var(--hs)) calc(12px * var(--hs));
@@ -1248,9 +1250,7 @@
   color: var(--text-3);
 }
 .pdSlot > .pdCard {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+  flex: 1 0 auto; /* never clipped: a card taller than the box shows as overflow, which the fit then removes */
 }
 /* D-150: preview market or language */
 .previewTag {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { clampSplit, HOST_LAYOUT_DEFAULT, splitAt, SPLIT_MAX, SPLIT_MIN, stepSplit } from "./prefs";
+import { clampSplit, COLS_MAX, HOST_LAYOUT_DEFAULT, splitAt, SPLIT_MAX, SPLIT_MIN, stepSplit } from "./prefs";
 
 afterEach(() => {
   window.localStorage.clear();
@@ -48,5 +48,17 @@ describe("host panel sizes (D-181)", () => {
     vi.resetModules();
     prefs = await import("./prefs");
     expect(prefs.getHostLayout()).toEqual({ cols: 0.25, rows: 0.75 }); // clamped
+  });
+
+  it("D-182: the chat keeps at least 30% of the width", async () => {
+    expect(stepSplit(0.68, "ArrowRight", SPLIT_MIN, COLS_MAX)).toBe(0.7);
+    expect(stepSplit(0.5, "End", SPLIT_MIN, COLS_MAX)).toBe(0.7);
+    expect(splitAt(990, 0, 1000, 20, SPLIT_MIN, COLS_MAX)).toBe(0.7);
+    window.localStorage.setItem("ls.layout.host", JSON.stringify({ cols: 0.75, rows: 0.75 }));
+    vi.resetModules();
+    const prefs = await import("./prefs");
+    expect(prefs.getHostLayout()).toEqual({ cols: 0.7, rows: 0.75 });
+    prefs.setHostLayout({ cols: 0.9 });
+    expect(prefs.getHostLayout().cols).toBe(0.7);
   });
 });

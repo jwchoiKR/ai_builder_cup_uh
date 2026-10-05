@@ -73,21 +73,24 @@ export const HOST_LAYOUT_DEFAULT: HostLayout = { cols: 0.58, rows: 0.5 };
 export const SPLIT_MIN = 0.25; // every panel keeps at least a quarter of its axis
 export const SPLIT_MAX = 1 - SPLIT_MIN;
 export const SPLIT_STEP = 0.05;
+/** D-182: the chat keeps at least 30% of the width, so its answer text is not squeezed beside its label */
+export const COLS_MAX = 0.7;
 
-export const clampSplit = (v: number) => Math.round(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, v)) * 1000) / 1000;
+export const clampSplit = (v: number, min = SPLIT_MIN, max = SPLIT_MAX) =>
+  Math.round(Math.min(max, Math.max(min, v)) * 1000) / 1000;
 
 /** The split for a pointer at `pos` over a container starting at `start`, `size` long, with a `gap` between
  *  its two panels (the splitter sits in the middle of the gap). */
-export function splitAt(pos: number, start: number, size: number, gap: number): number {
-  return clampSplit((pos - start - gap / 2) / Math.max(1, size - gap));
+export function splitAt(pos: number, start: number, size: number, gap: number, min = SPLIT_MIN, max = SPLIT_MAX): number {
+  return clampSplit((pos - start - gap / 2) / Math.max(1, size - gap), min, max);
 }
 
 /** Arrow keys move the split by SPLIT_STEP, Home and End go to the limits; null for any other key. */
-export function stepSplit(v: number, key: string): number | null {
-  if (key === "ArrowLeft" || key === "ArrowUp") return clampSplit(v - SPLIT_STEP);
-  if (key === "ArrowRight" || key === "ArrowDown") return clampSplit(v + SPLIT_STEP);
-  if (key === "Home") return SPLIT_MIN;
-  if (key === "End") return SPLIT_MAX;
+export function stepSplit(v: number, key: string, min = SPLIT_MIN, max = SPLIT_MAX): number | null {
+  if (key === "ArrowLeft" || key === "ArrowUp") return clampSplit(v - SPLIT_STEP, min, max);
+  if (key === "ArrowRight" || key === "ArrowDown") return clampSplit(v + SPLIT_STEP, min, max);
+  if (key === "Home") return min;
+  if (key === "End") return max;
   return null;
 }
 
@@ -98,7 +101,7 @@ export function getHostLayout(): HostLayout {
     try {
       const v = JSON.parse(read(LAYOUT_KEY) ?? "null") as Partial<HostLayout> | null;
       layout = v && Number.isFinite(v.cols) && Number.isFinite(v.rows)
-        ? { cols: clampSplit(v.cols!), rows: clampSplit(v.rows!) }
+        ? { cols: clampSplit(v.cols!, SPLIT_MIN, COLS_MAX), rows: clampSplit(v.rows!) }
         : HOST_LAYOUT_DEFAULT;
     } catch {
       layout = HOST_LAYOUT_DEFAULT;
@@ -109,7 +112,7 @@ export function getHostLayout(): HostLayout {
 
 export function setHostLayout(next: Partial<HostLayout>): void {
   const cur = getHostLayout();
-  layout = { cols: clampSplit(next.cols ?? cur.cols), rows: clampSplit(next.rows ?? cur.rows) };
+  layout = { cols: clampSplit(next.cols ?? cur.cols, SPLIT_MIN, COLS_MAX), rows: clampSplit(next.rows ?? cur.rows) };
   write(LAYOUT_KEY, JSON.stringify(layout));
   notify();
 }

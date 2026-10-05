@@ -13,6 +13,8 @@ export function Splitter({
   onReset,
   label,
   testId,
+  min = SPLIT_MIN,
+  max = SPLIT_MAX,
 }: {
   /** "vertical": a line between two columns; "horizontal": between two rows */
   orientation: "vertical" | "horizontal";
@@ -21,6 +23,9 @@ export function Splitter({
   onReset: () => void;
   label: string;
   testId?: string;
+  /** the limits of this split (default 25% to 75%) */
+  min?: number;
+  max?: number;
 }) {
   const dragging = useRef(false);
   const vertical = orientation === "vertical";
@@ -31,7 +36,7 @@ export function Splitter({
     const r = box.getBoundingClientRect();
     const own = e.currentTarget.getBoundingClientRect();
     const gap = vertical ? own.width : own.height;
-    return vertical ? splitAt(e.clientX, r.left, r.width, gap) : splitAt(e.clientY, r.top, r.height, gap);
+    return vertical ? splitAt(e.clientX, r.left, r.width, gap, min, max) : splitAt(e.clientY, r.top, r.height, gap, min, max);
   };
 
   return (
@@ -41,8 +46,8 @@ export function Splitter({
       aria-orientation={orientation}
       aria-label={label}
       aria-valuenow={Math.round(value * 100)}
-      aria-valuemin={Math.round(SPLIT_MIN * 100)}
-      aria-valuemax={Math.round(SPLIT_MAX * 100)}
+      aria-valuemin={Math.round(min * 100)}
+      aria-valuemax={Math.round(max * 100)}
       data-testid={testId}
       className={`${styles.splitter} ${vertical ? styles.splitterV : styles.splitterH}`}
       onPointerDown={(e) => {
@@ -60,7 +65,7 @@ export function Splitter({
       }}
       onDoubleClick={onReset}
       onKeyDown={(e) => {
-        const next = stepSplit(value, e.key);
+        const next = stepSplit(value, e.key, min, max);
         if (next === null) return;
         e.preventDefault();
         onChange(next);
