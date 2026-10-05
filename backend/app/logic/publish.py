@@ -1,7 +1,7 @@
 """Host spoken answer -> publish decision (DEV_SPEC §8.6)."""
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -20,34 +20,40 @@ class PublishDecision:
     reason: str = ""
 
 
-def verbal_check(utterance: str, draft: str, lex: Lexicon) -> str | None:
+def verbal_check(utterance: str, draft: str, lex: Lexicon, linked: Sequence[str] = ()) -> str | None:
     """D-110: code checks on top of the judge before a host's spoken answer is auto-posted.
     The host may say less than the draft, but every number they say must be in the draft, and they must not sound
     unsure. D-195: the linked group's draft only; another offered draft never accepts a number (product A's answer
-    with product B's price is held). Returns the reason to hold the post, or None."""
+    with product B's price is held). D-196: when the judge linked the line to several groups (`linked`: the other
+    linked drafts), a number may come from any linked draft, but every number of this draft must then be said.
+    Returns the reason to hold the post, or None."""
     if lex.is_unsure(utterance):
         return "host sounded unsure or took it back"
-    allowed = lex.spoken_numbers(draft)
+    allowed = lex.spoken_numbers(draft).union(*(lex.spoken_numbers(d) for d in linked))
     said = lex.spoken_numbers(utterance)
     # D-174: the same duration in other units ("a week later" for "after 7 days") is the same number
-    hours = {h for _, h in lex.durations(draft)}
+    hours = {h for d in (draft, *linked) for _, h in lex.durations(d)}
     said -= {n for n, h in lex.durations(utterance) if n is not None and h in hours}
     if not said <= allowed:
         return "a number differs from the verified draft"
+    if linked and not lex.spoken_numbers(draft) <= lex.spoken_numbers(utterance):
+        return "a number of this draft was not said"
     return None
 
 
-def judged_numbers_check(link, draft: str, numbers: bool = True) -> str | None:
+def judged_numbers_check(link, draft: str, numbers: bool = True, linked: Sequence[str] = ()) -> str | None:
     """D-187 arm B: the same hold as verbal_check, from what the context judge reported (`numbers_said` as digits and
     `hedged`) instead of parsing the wording: every number said must be in the linked draft (D-195)."""
     if getattr(link, "hedged", False):
         return "host sounded unsure or took it back"
     if not numbers:  # D-191 arms D and E: no code number gate; the judge's consistency alone decides
         return None
-    allowed = number_set(draft)
+    allowed = number_set(draft).union(*(number_set(d) for d in linked))
     said = number_set(" ".join(getattr(link, "numbers_said", None) or []))
     if not said <= allowed:
         return "a number differs from the verified draft"
+    if linked and not number_set(draft) <= said:  # D-196
+        return "a number of this draft was not said"
     return None
 
 
@@ -92,8 +98,11 @@ def decide(
     # D-110: bound to the answer the host saw, and to the current promo and document state
     stale = (answer is None or shown is None or shown.answer_id != answer.answer_id
              or (current_key is not None and answer.cache_key is not None and answer.cache_key != current_key))
-    held = (None if answer is None else judged_numbers_check(a, answer.text, numbers_gate) if by_judge  # D-187 arm B
-            else verbal_check(utterance, answer.text, lex))
+    # D-196: the drafts of the other groups the judge linked the same line to (one sentence, several answers)
+    linked = [offered[g].text for g in [a.matched_group_id, *a.also_answered_group_ids]
+              if g != gid and offered.get(g) is not None]
+    held = (None if answer is None else judged_numbers_check(a, answer.text, numbers_gate, linked) if by_judge  # arm B
+            else verbal_check(utterance, answer.text, lex, linked))
     # D-195: a line that states a number posts only after its fact check completed (a timeout or error is no check)
     states_number = bool(getattr(a, "numbers_said", None) if by_judge else lex.spoken_numbers(utterance))
     if held is None and facts is None and states_number:

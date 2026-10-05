@@ -45,6 +45,7 @@ OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested
 - This holds even when the sentence also describes the product or covers a prompter point: one sentence can cover a point AND answer a question. Use `product_talk` only when the sentence answers none of the open questions. Check every open question against the sentence before choosing `product_talk`.
 - An answer can be implicit: when the sentence gives the facts or the advice of a suggested answer, it answers that question even without "yes", without naming the question, and in other words.
 - `is_answer = true` only when the host actually answers it with a statement. Reading the question out, asking it back, quoting someone, a hypothetical ("if it were ..."), promising to answer later, or saying "let me check" is NOT an answer. A line that reads the question out and then answers it ("Mia asks about the size. It's 50 mL.") IS an answer: `utterance_type` is `answer`.
+- `also_answered_group_ids`: when the one sentence also answers other open questions ("The ampoule is 30 mL and the cream is 50 mL." answers both size questions), put the main one in `matched_group_id` and the others here, each only when the sentence answers it consistently with its suggested answer. Otherwise an empty list.
 - `consistent_with_suggested = true` only when the host's answer agrees with the suggested answer: the same direction (yes or no) and the same numbers. Saying less than the suggested answer is consistent. It is false when the host adds a claim, caveat, condition or restriction that is not in the suggested answer, sounds unsure, contradicts it, or takes it back. The suggested answer is posted to viewers when this is true.
 
 ### Job 4. Prompter tracking and product switch
@@ -107,7 +108,8 @@ Return the JSON verdict for UTTERANCE.
     "utterance_type": "product_talk | answer | question_readout | correction | transition | chit_chat | other",
     "matched_group_id": "string | null",
     "is_answer": false,
-    "consistent_with_suggested": false
+    "consistent_with_suggested": false,
+    "also_answered_group_ids": ["string"]
   },
   "prompter": {
     "covered_point_ids": ["string"],

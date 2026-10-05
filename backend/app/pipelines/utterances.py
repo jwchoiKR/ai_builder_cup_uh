@@ -831,6 +831,8 @@ class UtterancePipeline:
             if cands:
                 rt.spawn(self._relink(t, judge, facts, self._inputs[t.transcript_id], cands,
                                       merge.text if merge else t.text), name=f"relink:{t.transcript_id}")
+        if judge.answer.also_answered_group_ids:
+            await self._publish_also_locked(judge, facts, offered, merge.text if merge else t.text)
         if decision.action == "none" or group is None:
             return
         if (decision.action == "verbal_not_posted" and offered.get(group.group_id) is None
@@ -854,6 +856,37 @@ class UtterancePipeline:
         await rt.recompute_host_queue_locked()
         if mine is not None:
             mine.publish = (group.group_id, decision.action)
+
+    async def _publish_also_locked(self, judge: UtteranceJudgeOutput, facts: FactCheckOutput | None,
+                                   offered: dict[str, Answer | None], utterance: str) -> None:
+        """D-196: one sentence that answers several shown questions. Each other group the judge linked is checked on
+        its own (its draft's numbers all said, every number said in a linked draft, facts complete) and posted on its
+        own; a hold leaves its card as it is."""
+        rt = self.rt
+        a = judge.answer
+        for gid in a.also_answered_group_ids:
+            group = await rt.get_group(gid) if gid in offered else None
+            if group is None:
+                continue
+            rt.pd.mention(gid)
+            answer = await rt.get_answer(group.answer_id)
+            link = a.model_copy(update={"matched_group_id": gid, "consistent_with_suggested": True,
+                                        "also_answered_group_ids": [a.matched_group_id,
+                                                                    *(g for g in a.also_answered_group_ids if g != gid)]})
+            decision = publish_logic.decide(
+                judge.model_copy(update={"answer": link}), offered, group, answer,
+                high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
+                lex=rt.catalog.lexicon, by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM),
+                numbers_gate=not arms.agents_decide(rt.settings.DESIGN_ARM), utterance=utterance,
+                current_key=await answer_key(rt, group))
+            log.info("host answer (same line) %s %s: %s (%s)", rt.sid, gid, decision.action, decision.reason or "-")
+            if decision.action != "post" or not rt.live:
+                continue
+            await post_host_answer_locked(rt, group, answer)
+            group.version += 1
+            await rt.save_group(group)
+            await rt.emit("group.updated", group)
+            await rt.recompute_host_queue_locked()
 
     async def recheck_early(self, group_id: str) -> None:
         """D-146 (sealed show replay): the host answered a question aloud while its draft was being written.

@@ -184,6 +184,9 @@ def validate_context(o, catalog: Catalog, values: dict):
     if o.answer.matched_group_id is not None and o.answer.matched_group_id not in group_ids:
         o.answer.matched_group_id = None
         o.answer.is_answer = o.answer.consistent_with_suggested = False
+    o.answer.also_answered_group_ids = (
+        [g for g in dict.fromkeys(o.answer.also_answered_group_ids) if g in group_ids and g != o.answer.matched_group_id]
+        if o.answer.matched_group_id is not None and o.answer.is_answer else [])
     point_ids = {p["point_id"] for p in values["prompter_points_json"]}
     o.prompter.covered_point_ids = [p for p in dict.fromkeys(o.prompter.covered_point_ids) if p in point_ids]
     cue_ids = {c["cue_id"] for c in values["host_cues_json"]}
@@ -236,6 +239,9 @@ def symbolic_ids(values: dict) -> tuple[Callable[[dict], dict], Callable[[dict],
         ans = data.get("answer") or {}
         if ans.get("matched_group_id") in group_q:
             ans["matched_group_id"] = GROUP_REF + group_q[ans["matched_group_id"]]
+        if ans.get("also_answered_group_ids"):
+            ans["also_answered_group_ids"] = [GROUP_REF + group_q[g] if g in group_q else g
+                                              for g in ans["also_answered_group_ids"]]
         corr = data.get("correction") or {}
         corr["corrects_alert_ids"] = [ALERT_REF + alert_span[a] if a in alert_span else a
                                       for a in corr.get("corrects_alert_ids", [])]
@@ -246,6 +252,10 @@ def symbolic_ids(values: dict) -> tuple[Callable[[dict], dict], Callable[[dict],
         ref = ans.get("matched_group_id")
         if isinstance(ref, str) and ref.startswith(GROUP_REF):
             ans["matched_group_id"] = q_group.get(ref[len(GROUP_REF):])
+        if ans.get("also_answered_group_ids"):
+            ans["also_answered_group_ids"] = [
+                g for g in (q_group.get(r[len(GROUP_REF):]) if isinstance(r, str) and r.startswith(GROUP_REF) else r
+                            for r in ans["also_answered_group_ids"]) if g]
         corr = data.get("correction") or {}
         ids = []
         for a in corr.get("corrects_alert_ids", []):
