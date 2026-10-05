@@ -129,7 +129,7 @@
   position: relative; /* the title link covers the card */
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: clamp(12px, 2.5vh, 32px); /* icon row to title, the same in every card, so titles line up across a row */
   padding: clamp(24px, 2vw, 40px);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -149,12 +149,10 @@
 .hubPhase {
   color: var(--text); /* the neutral phase chips read clearly in both themes */
 }
-/* title, who-line and points sit in the middle of the space under the icon row */
+/* title, who-line and points start under the icon row; the leftover space goes to the bottom */
 .hubCardBody {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: var(--space-3);
 }
 .hubIcon {
