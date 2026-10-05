@@ -26,11 +26,12 @@ Rules:
 - `approved_claims`: claims the files say may be used (approved, allowed, OK to say). `not_approved_claims`:
   claims the files say must not be used. `avoid_saying`: pairs of "do not say X, say Y" as written.
 - `qualified_results`: test or study results with numbers. `provenance` from the files: in_house (our own test),
-  third_party_lab (a named lab or institute), clinical, consumer_panel, other. `qualifier` is the wording that must
+  third_party_lab (a named lab or institute), certifier (a named certification body), clinical, consumer_panel, other. `qualifier` is the wording that must
   go with the result ("in our in-house test", "tested by <lab>"); `marker` is the footnote mark when there is one.
 - `cautions`: every warning, contraindication and "stop using / consult a doctor" line.
-- `category`: what the product is, as one lower-case word or snake_case term (cosmetic, food_supplement, haircare,
-  household, electronics, ...), with `category_evidence`.
+- `category`: what the product is. When CATEGORIES is given, it is the one entry of that list that fits best (a
+  legging is "apparel", a serum "cosmetic"); otherwise one lower-case word or snake_case term. `category_evidence`
+  quotes how the files describe the product.
 - `generic_word`: the category word viewers use for it ("cream", "serum", "shampoo"); `short_names`: the shorter
   names the files use for this product, without the generic word alone.
 - Conflicts: when files disagree on a value (two prices, two sizes, two dates), list both in `conflicts` with their

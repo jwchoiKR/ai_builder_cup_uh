@@ -559,7 +559,8 @@ async def test_d243_routing_turns_tests_and_certifications_into_qualified_result
         approved_claims=[{"text": "Certified vegan by the Vegan Society.", "evidence": EV}],
         how_to_use=[{"text": "Results may vary between users.", "evidence": EV},
                     {"text": "Keep the applicator clean.", "evidence": EV}])
-    backend.outputs[("onboarding_route", "route|P")] = {"items": [
+    nolink = {"linked": None, "footnote_quote": None, "footnote_file": None}
+    backend.outputs[("onboarding_route", "route|P")] = {"items": [x | nolink for x in [
         {"id": "key_facts[0]", "kind": "test_result", "statement": "21 of 24 felt softer skin",
          "provenance": "third_party_lab", "qualifier": "tested by Kestrel Labs", "marker": None},
         {"id": "approved_claims[0]", "kind": "certification", "statement": "Certified vegan",
@@ -567,7 +568,7 @@ async def test_d243_routing_turns_tests_and_certifications_into_qualified_result
         {"id": "how_to_use[0]", "kind": "limitation", "statement": None, "provenance": None, "qualifier": None,
          "marker": None},
         {"id": "nope[9]", "kind": "test_result", "statement": "x", "provenance": "other", "qualifier": "q",
-         "marker": None}]}
+         "marker": None}]]}
     # D-243 F3: the caution pass lists a hygiene line that also stays in the directions
     backend.outputs[("onboarding_cautions", "cautions")] = {"cautions": [{"text": "Keep the applicator clean.",
                                                                            "evidence": EV}]}
@@ -655,3 +656,62 @@ def test_d244_l8_a_bare_field_word_becomes_the_source_line(pack, catalog):
     assert not _from_quote("not disclosed", "Live broadcast price: S$36.00")
     assert _from_quote("향료 함유", "전성분: 정제수, 글리세린, 향료")
     assert not _from_quote("공개되지 않음", "라이브 가격: 36,000원")
+
+
+async def test_d245_r1_a_marked_claim_and_its_footnote_become_one_qualified_result():
+    backend = ScriptedBackend()
+    claim_ev = [{"file": "spec.txt", "locator": "p1", "quote": "UV shield SPF40 †"}]
+    note_ev = [{"file": "spec.txt", "locator": "p2", "quote": "† Tested by Larkspur Labs, report LL-77"}]
+    backend.outputs[("onboarding_read", "spec.txt")] = _record(
+        approved_claims=[{"text": "UV shield SPF40 †", "evidence": claim_ev}],
+        key_facts=[{"text": "† Tested by Larkspur Labs, report LL-77", "evidence": note_ev}])
+    backend.outputs[("onboarding_route", "route|P")] = {"items": [
+        {"id": "approved_claims[0]", "kind": "test_result", "statement": "UV shield SPF40",
+         "provenance": "third_party_lab", "qualifier": "tested by Larkspur Labs", "marker": "†",
+         "linked": "key_facts[0]", "footnote_quote": "† Tested by Larkspur Labs, report LL-77",
+         "footnote_file": "spec.txt"},
+        {"id": "key_facts[0]", "kind": "none", "statement": None, "provenance": None, "qualifier": None,
+         "marker": None, "linked": None, "footnote_quote": None, "footnote_file": None}]}
+    ctx = make_ctx(backend=backend)
+    try:
+        res = await read_product(ctx.llm, [model_part("spec.txt", b"hello")])
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    [q] = res.record.qualified_results
+    assert (q.provenance, q.qualifier, q.marker, q.numbers) == ("third_party_lab", "tested by Larkspur Labs", "†", ["40"])
+    quotes = [e.quote for e in q.evidence]
+    assert quotes[0] == "UV shield SPF40 †" and "† Tested by Larkspur Labs, report LL-77" in quotes
+    assert [e.locator for e in q.evidence][-1] == "footnote"
+
+
+async def test_d245_r2_a_free_text_category_is_mapped_to_the_closed_list(tmp_path):
+    from app.onboarding.read import category_list
+
+    ctx = make_ctx()
+    try:
+        cats = category_list(ctx.pack, tmp_path)
+        assert ctx.pack.market.category in cats and "apparel" in cats and len(cats) == len(set(cats))
+        backend = ScriptedBackend()
+        backend.outputs[("onboarding_read", "spec.txt")] = _record(category="sports_leggings")
+        backend.outputs[("onboarding_category", "category|sports_leggings")] = {"category": "Apparel"}
+        ctx2 = make_ctx(backend=backend)
+        try:
+            res = await read_product(ctx2.llm, [model_part("spec.txt", b"hello")], categories=cats)
+        finally:
+            ctx2.runtimes.shutdown()
+            ctx2.scheduler.shutdown()
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    r = res.record
+    assert r.category == "apparel" and r.category_evidence[-1].quote == "sports_leggings"
+    assert "category: read as sports_leggings, mapped to apparel" in res.notes
+
+
+def test_d245_r3_a_certification_body_is_a_certifier():
+    from app.onboarding.record import QualifiedResult
+
+    q = QualifiedResult.model_validate({"statement": "Certified vegan", "provenance": "certifier",
+                                        "qualifier": "certified by the Vegan Society", "evidence": []})
+    assert q.provenance == "certifier"

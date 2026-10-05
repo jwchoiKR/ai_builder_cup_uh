@@ -100,7 +100,7 @@ class QualifiedResult(_Model):
     """A test or study result that may be said only with its qualifier."""
     statement: str  # the result as written ("29 of 32 participants said their skin felt less dry after 2 weeks")
     numbers: list[str] = []  # the numbers in it, as digits
-    provenance: Literal["in_house", "third_party_lab", "clinical", "consumer_panel", "other"]
+    provenance: Literal["in_house", "third_party_lab", "certifier", "clinical", "consumer_panel", "other"]
     qualifier: str  # the wording the host must say with it ("in our in-house test", "tested by <lab>")
     marker: str | None = None  # "*", "†", "※" when the document marks it
     evidence: list[Evidence]
