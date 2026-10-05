@@ -294,18 +294,45 @@ async def test_a_right_fact_about_another_ingredient_does_not_clear_the_note(env
 ABSENT = "not in this product"
 
 
-@pytest.mark.parametrize("stated, verdict", [
-    ("4% niacinamide", "contradicted"),  # the cream's sheet never names niacinamide
-    ("5% panthenol", "not_in_sources"),  # it does contain panthenol: absence is not accepted
+def _full_list():
+    from app.models.data import Passage
+
+    return Passage(passage_id="DL-CR-01#ingredients#all", product_id=CREAM, doc="sheet", section="Ingredients",
+                   text="Water, glycerin, panthenol, ceramide NP, squalane.", score=0.0)
+
+
+@pytest.mark.parametrize("stated, complete, verdict", [
+    ("4% niacinamide", False, "not_in_sources"),  # D-207: the cream's sheet is partial (full INCI on the carton)
+    ("4% niacinamide", True, "contradicted"),  # a complete ingredient list that never names it proves the absence
+    ("mineral oil", False, "contradicted"),  # the "Free from" list names it
+    ("5% panthenol", True, "not_in_sources"),  # it does contain panthenol: absence is not accepted
 ])
-def test_an_absent_ingredient_is_contradicted_only_when_the_sheet_never_names_it(pack, catalog, stated, verdict):
+def test_an_absent_ingredient_is_contradicted_only_when_the_sheet_proves_it(pack, catalog, stated, complete, verdict):
     from app.agents.fact_checker import post_validate
     from app.models.agent_io import FactCheckOutput
 
     c = claim("ingredient", "contradicted", stated=stated, correct=ABSENT)
     out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
-    sheet = [p for p in pack.passages if p.product_id == CREAM]
+    sheet = [p for p in pack.passages if p.product_id == CREAM] + ([_full_list()] if complete else [])
     assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"It has {stated}.").claims] == [verdict]
+
+
+@pytest.mark.parametrize("stated, correct, verdict", [
+    ("12 years", "12 months", "contradicted"),  # D-207: same number, other unit
+    ("RM36", "S$36.00", "contradicted"),  # same number, other currency
+    ("S$36", "S$36.00", "not_in_sources"),  # a restatement
+])
+def test_d207_units_and_currencies_count_in_a_contradiction(pack, catalog, stated, correct, verdict):
+    from app.agents.fact_checker import post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    field, passage, q = (("price", "DL-CR-01#key-facts#live-broadcast-price", "Live broadcast price: S$36.00")
+                         if "36" in correct else
+                         ("shelf_life", "DL-CR-01#key-facts#shelf-life", "Use within 12 months after opening"))
+    c = claim(field, "contradicted", stated=stated, correct=correct, passage_id=passage, quote=q)
+    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
+    got = post_validate(out, [p for p in pack.passages if p.product_id == CREAM], catalog, None).claims[0].verdict
+    assert got == verdict
 
 
 def test_a_wrong_ph_is_a_fact_note(pack, catalog):
@@ -396,7 +423,9 @@ def test_d151_a_stated_absence_is_never_contradicted_by_an_absence(catalog, pack
     assert post_validate(said_absent, passages, catalog, None).claims[0].verdict == "not_in_sources"
     said_present = FactCheckOutput.model_validate({"claims": [base | {"span": "it has retinol",
                                                                       "stated_value": "retinol"}], "reason": "t"})
-    assert post_validate(said_present, passages, catalog, None).claims[0].verdict == "contradicted"
+    # D-207: only a sheet with a complete ingredient list proves the absence
+    assert post_validate(said_present, passages, catalog, None).claims[0].verdict == "not_in_sources"
+    assert post_validate(said_present, passages + [_full_list()], catalog, None).claims[0].verdict == "contradicted"
 
 
 def test_d151_a_correction_that_restates_the_stated_value_is_dropped(catalog, pack):
