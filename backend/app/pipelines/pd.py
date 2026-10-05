@@ -197,7 +197,8 @@ class PdDirector:
                 cands = [c for c in cands if c.priority <= 1 and c.ref_id != card.ref_id]
             if not cands:
                 return
-            key = tuple(c.cid for c in cands)
+            # D-153: the priority is part of the key, so a question that becomes due is decided again
+            key = tuple((c.cid, c.priority) for c in cands)
             if key == self._last_cands:
                 return  # nothing new since the last decision (a card or "none"): no repeated model calls
             if st.now - self._last_decision_at < MIN_GAP_MS:
@@ -215,9 +216,14 @@ class PdDirector:
             self.statuses[status] += 1
             if choice is not None:
                 if choice.choice == "none":
-                    return
-                chosen = next((c for c in cands if c.cid == choice.choice), None)
-                source, reason = "ai", choice.reason
+                    # D-153 (00007 show replays): a talkative host is always "mid-topic", so the model said
+                    # "none" to every due card. A pulled, pushed or due question is shown by the rules then.
+                    if not any(c.forced for c in cands):
+                        return
+                    reason = "due question"
+                else:
+                    chosen = next((c for c in cands if c.cid == choice.choice), None)
+                    source, reason = "ai", choice.reason
         if chosen is None:
             chosen = pdl.rule_pick(cands)
         if chosen is None:
