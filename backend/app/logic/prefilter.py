@@ -57,11 +57,11 @@ def prefilter(text: str, lex: "Lexicon") -> PrefilterVerdict:
     if lex.phone.search(text):
         return PrefilterVerdict("hide", "personal_info", "phone number")
     if _URL.search(text) or LINK_REMOVED in text:
-        # D-234 (injection eval: a viewer question with a link was hidden): a comment with a link and a question mark
-        # goes on without its link (to triage: a real question or spam); a link without a question stays hidden
+        # D-234 (injection eval: a viewer question with a link was hidden): the link is removed and the rest goes on to
+        # triage, which tells spam from a question ("price for the 50ml", no "?" needed); only a bare link is hidden here
         rest = mask_links(text).replace(LINK_REMOVED, " ")
-        if "?" not in rest or _letters(rest) < 3:
-            return PrefilterVerdict("hide", "link", "link or domain without a question")
+        if _letters(rest) < 3:
+            return PrefilterVerdict("hide", "link", "a link and nothing else")
         text = rest
     if _profanity().search(text):
         return PrefilterVerdict("hide", "profanity", "profanity list")

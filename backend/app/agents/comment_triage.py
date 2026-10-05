@@ -205,6 +205,12 @@ _QUESTION_HINT = re.compile(r"\?|\b(how|what|can|is|does|do|will|which|where|whe
 def rule_based_triage(text: str, context_product_id: str | None, catalog: Catalog) -> dict:
     t = f" {text.lower()} "
     empty_slots = ConditionSlots(skin_type=None, life_stage=None, condition=None, combined_with=None, time_of_day=None)
+    if "[link removed]" in text and not _QUESTION_HINT.search(text):
+        # D-234: the no-LLM stand-in (unit tests, mock demo) hides a link comment that asks nothing; the real triage
+        # decides spam vs question itself
+        return CommentTriageOutput(kind="hide", hide_category="link", product_id=None, product_basis="unknown",
+                                   intent=None, condition_slots=empty_slots, canonical_question="",
+                                   group_candidate_id=None, reason="rule-based: link without a question").model_dump()
     if not _QUESTION_HINT.search(text):
         return CommentTriageOutput(kind="reaction", hide_category=None, product_id=None, product_basis="unknown",
                                    intent=None, condition_slots=empty_slots, canonical_question="",

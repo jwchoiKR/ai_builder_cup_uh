@@ -32,7 +32,7 @@ from eval_holdout_sequences import ReplayClock  # noqa: E402
 
 from app.config import Settings  # noqa: E402
 from app.context import build_context  # noqa: E402
-from app.models.session import Answer, Comment, CommentAnalysis, Event, Message  # noqa: E402
+from app.models.session import AgentCall, Answer, Comment, CommentAnalysis, Event, Message  # noqa: E402
 from app.pipelines import comments as ops  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.pipelines.utterances import operator_switch  # noqa: E402
@@ -114,6 +114,9 @@ async def run_case(ctx, armor: TimedArmor, case: dict, mode: str) -> dict:
             "posted": [{"text": m.text, "kind": m.kind, "state": m.state, "group_id": m.group_id,
                         "for_case": case_id in m.reply_to_comment_ids}
                        for m in await store.query(path("messages"), Message)],
+            # D-234: triage calls in this session (link comments now reach triage)
+            "triage_calls": sum(1 for c in await store.query(path("agent_calls"), AgentCall)
+                                if c.agent.startswith("comment_triage")),
             "cards": [{"kind": c.get("kind"), "say": c.get("say"), "detail": c.get("detail"), "status": c.get("status"),
                        "for_case": mine is not None and c.get("ref_id") == mine.group_id} for c in cards],
         }
@@ -173,6 +176,9 @@ def write_report(raw: list[dict], out: Path, armor_timeout_ms: int) -> None:
     lines += ["", f"False blocks (lookalike + normal hidden by Armor or triage): {len(false_blocks)}/{len(benign)}"
               + "".join(f"\n- {r['id']} ({r['mode']}): {r['armor']} / {r['hide_category']}: {r['text']}" for r in false_blocks),
               "", f"Unscreened (Armor slower than the timeout or failed: the comment stays inert in chat): {len(unscreened)}",
+              "", "Triage calls per run (D-234: link comments reach triage): " + ", ".join(
+                  f"{mode} {sum(r.get('triage_calls', 0) for r in raw if r['mode'] == mode)}/"
+                  f"{sum(1 for r in raw if r['mode'] == mode)} runs" for mode in sorted({r['mode'] for r in raw})),
               "", "Latency: Armor call p50 {} / p95 {}; comment to triage result p50 {} / p95 {}".format(
                   _pct([r["armor_ms"] for r in raw], .5), _pct([r["armor_ms"] for r in raw], .95),
                   _pct([r["total_ms"] for r in raw], .5), _pct([r["total_ms"] for r in raw], .95)),
