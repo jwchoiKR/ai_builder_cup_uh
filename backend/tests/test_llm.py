@@ -196,3 +196,53 @@ def test_vertex_config_uses_verified_fields():
     assert set(schema["$defs"]["ConditionSlots"]["required"]) == {
         "skin_type", "life_stage", "condition", "combined_with", "time_of_day",
     }
+
+
+@pytest.fixture
+def make_hedged(settings, clock, ids, store, bus):
+    def _make(backend, hedge_ms=50):
+        s = settings.model_copy(update={"JUDGE_HEDGE_MS": hedge_ms})
+        return LLMClient(backend, s, clock, ids, StoreAudit(store, bus))
+    return _make
+
+
+async def test_d184_a_slow_judge_call_gets_a_second_request_and_the_first_answer_wins(make_hedged):
+    """D-184 (cloud 00008: a fact check timed out after 6 s with no second try, so a wrong fact was never noted)."""
+    backend = FakeBackend(("sleep", 5), '{"answer":"second","n":2}')
+    client = make_hedged(backend)
+    res = await client.call(_req(agent="fact_checker", deadline_ms=1000))
+    assert res.status == "ok" and res.output.answer == "second" and res.latency_ms < 500
+    assert len(backend.calls) == 2 and client.hedges["fact_checker"] == {"hedged": 1, "second_won": 1}
+
+
+async def test_d184_a_fast_answer_or_another_agent_sends_one_request(make_hedged):
+    backend = FakeBackend('{"answer":"x","n":1}', ("sleep", 5))
+    client = make_hedged(backend)
+    assert (await client.call(_req(agent="compliance_judge", deadline_ms=1000))).status == "ok"
+    assert len(backend.calls) == 1 and client.hedges == {}
+    other = FakeBackend(("sleep", 5), '{"answer":"x","n":1}')
+    res = await make_hedged(other).call(_req(agent="answer_composer", deadline_ms=200))
+    assert res.status == "timeout" and len(other.calls) == 1  # not on the alert path: no second request
+
+
+async def test_d184_an_error_on_one_request_waits_for_the_other(make_hedged):
+    class Slow(FakeBackend):
+        async def generate(self, req, timeout_ms):
+            self.calls.append(timeout_ms)
+            if len(self.calls) == 1:
+                await asyncio.sleep(0.2)
+                raise LLMError("400 bad request")
+            await asyncio.sleep(0.3)
+            return RawReply('{"answer":"second","n":2}')
+
+    res = await make_hedged(Slow()).call(_req(agent="context_judge", deadline_ms=1000))
+    assert res.status == "ok" and res.output.answer == "second"
+    both_slow = FakeBackend(("sleep", 5), ("sleep", 5))
+    res = await make_hedged(both_slow).call(_req(agent="compliance_judge", deadline_ms=300))
+    assert res.status == "timeout" and len(both_slow.calls) == 2
+
+
+async def test_d184_hedging_off(make_hedged):
+    backend = FakeBackend(("sleep", 5), '{"answer":"x","n":1}')
+    res = await make_hedged(backend, hedge_ms=0).call(_req(agent="compliance_judge", deadline_ms=200))
+    assert res.status == "timeout" and len(backend.calls) == 1

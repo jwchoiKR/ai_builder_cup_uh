@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     LLM_CONTEXT_CACHE_TTL_SEC: int = 3600  # request session duration overrides this fallback
     JUDGE_MODE: Literal["split3", "split", "single"] = "split3"  # D-099; split = one UtteranceJudge (rollback)
     JUDGE_TIMEOUT_MS: int = 2500
+    # D-184: a judge or fact call still unanswered after this sends one identical second request; the first answer
+    # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
+    JUDGE_HEDGE_MS: int = 1500
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
     FACT_TIMEOUT_MS: int = 3000  # the "on time" line: a slower fact call counts as a timeout for the health dot
     FACT_LATE_MS: int = 6000  # D-144: a fact call may still answer until here; a late wrong-fact note beats none
