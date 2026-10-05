@@ -61,8 +61,9 @@ def _priced_for(market: str, products: ProductsFile, promos: PromosFile, passage
                 runsheets: dict[str, Runsheet]):
     """D-179: the pack in another market's prices (`products.json` `market_prices`). Every amount the products file
     and the sheets write in the default currency ("S$36.00", "S$36") becomes that market's price of the same item
-    ("RM119.00", "RM119"). An amount with no price there is an error. A promo with promo prices, a spend threshold
-    or an amount the market has no value for is left out of that market; prices are never computed."""
+    ("RM119.00", "RM119"). An amount with no price there is an error. A promo takes its promo prices and spend
+    threshold from the block too; one the market has no value for is left out of that market. Prices are never
+    computed."""
     mp = products.market_prices[market]
     old: dict[float, float] = {}
 
@@ -81,11 +82,12 @@ def _priced_for(market: str, products: ProductsFile, promos: PromosFile, passage
         price(s.live_price, mp.set_offers[s.set_id], s.set_id)
     amount = re.compile(re.escape(products.currency_symbol) + r"(\d+(?:\.\d+)?)")
 
-    def convert(text: str) -> tuple[str, list[str]]:
+    def convert(text: str, own: dict[float, float] | None = None) -> tuple[str, list[str]]:
         unknown: list[str] = []
 
         def one(m: re.Match) -> str:
-            v = old.get(float(m.group(1)))
+            was = float(m.group(1))
+            v = (own or {}).get(was, old.get(was))
             if v is None:
                 unknown.append(m.group(0))
                 return m.group(0)
@@ -109,11 +111,18 @@ def _priced_for(market: str, products: ProductsFile, promos: PromosFile, passage
         out_passages.append(p.model_copy(update={"text": text}))
     kept = []
     for promo in promos.promos:
-        texts = [convert(t) for t in (promo.title, promo.viewer_text, promo.host_text)]
-        if promo.promo_prices or promo.min_spend is not None or any(u for _, u in texts):
+        there = mp.promos.get(promo.promo_id)
+        own = {promo.min_spend: there.min_spend} if there and promo.min_spend is not None and there.min_spend else {}
+        texts = [convert(t, own) for t in (promo.title, promo.viewer_text, promo.host_text)]
+        missing = ((promo.promo_prices and (there is None or set(there.promo_prices) != set(promo.promo_prices)))
+                   or (promo.min_spend is not None and not own) or any(u for _, u in texts))
+        if missing:
             log.warning("promo %s is left out of market %s: no %s values for it", promo.promo_id, market, market)
             continue
-        kept.append(promo.model_copy(update={"title": texts[0][0], "viewer_text": texts[1][0], "host_text": texts[2][0]}))
+        kept.append(promo.model_copy(update={
+            "title": texts[0][0], "viewer_text": texts[1][0], "host_text": texts[2][0],
+            "promo_prices": there.promo_prices if there and promo.promo_prices else {},
+            "min_spend": own[promo.min_spend] if own else None}))
     ids = {p.promo_id for p in kept}
     out_runsheets = {k: rs.model_copy(update={"promo_ids": [i for i in rs.promo_ids if i in ids]})
                      for k, rs in runsheets.items()}

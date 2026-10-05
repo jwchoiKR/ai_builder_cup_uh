@@ -57,12 +57,19 @@ class SetOffer(BaseModel):
     live_price: float
 
 
+class MarketPromo(BaseModel):
+    """D-179: a promo's own amounts in another market (precomputed, never computed in code)."""
+    promo_prices: dict[str, float] = {}
+    min_spend: float | None = None
+
+
 class MarketPrices(BaseModel):
     """D-179: the same products' prices in another market's currency (MY: demo values, user decision 10/5)."""
     currency: str
     currency_symbol: str
     products: dict[str, dict[Literal["list_price", "live_price"], float]]
     set_offers: dict[str, float]
+    promos: dict[str, MarketPromo] = {}
 
 
 class ProductsFile(BaseModel):
