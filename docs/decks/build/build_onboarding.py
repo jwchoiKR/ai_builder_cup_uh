@@ -4,6 +4,8 @@ from pathlib import Path
 
 sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
 from deck import *  # noqa: E402,F403
+sys.path.insert(0, str(Path(__file__).parent))
+import anim  # noqa: E402,F401  (slide motion)
 
 OUT = Path(__file__).parent.parent / "onboarding_flow.html"
 

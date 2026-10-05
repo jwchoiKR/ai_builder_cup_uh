@@ -6,6 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
 from deck import *  # noqa: E402,F403
+sys.path.insert(0, str(Path(__file__).parent))
+import anim  # noqa: E402,F401  (slide motion)
 
 HERE = Path(__file__).parent
 OUT = HERE.parent / "team_update_1006.html"
