@@ -44,6 +44,7 @@ async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
             "fast": {"id": ctx.llm.fast.model, "thinking": ctx.llm.fast.thinking_level},
             "quality": {"id": ctx.llm.quality.model, "thinking": ctx.llm.quality.thinking_level},
             "composer": {"id": ctx.llm.composer.model, "thinking": ctx.llm.composer.thinking_level},
+            "facts": {"id": ctx.llm.facts.model, "thinking": ctx.llm.facts.thinking_level},  # D-246
             "agent_thinking": {name: getattr(ctx.llm, name).thinking_level  # D-128
                                for name in ("compliance", "context", "facts", "triage")},
             "warmup": ctx.llm.warmup_status,

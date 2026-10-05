@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     COMPLIANCE_THINKING: ThinkingLevel = "LOW"
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
     FACTS_THINKING: ThinkingLevel = "MINIMAL"
+    FACTS_MODEL: str = ""  # D-246: the fact checker's model (base and FR); empty = LLM_FAST_MODEL
     TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1
     LLM_CONTEXT_CACHE: bool = True  # measured 10/5: fact checker cached share 44% -> 72.5%, accuracy and latency unchanged

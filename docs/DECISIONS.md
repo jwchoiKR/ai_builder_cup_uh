@@ -1297,3 +1297,5 @@ D-245: Onboarding links a marked claim to its footnote, takes the category from 
 - Tests with made-up products: `test_d245_*`; the D-243 routing test gives the new fields.
 - **R4 (follow-up):** Korean and Chinese decimals are read: "영 점 오", "영점오", "일 점 이", "零点五". One digit syllable is a number only before 점/点. Digits inside a numeral ("2만 9천", "1.5만") are no longer numbers of their own, so the quote no longer also "states" 2 and 9. Two digits in a row without a scale ("5 이하") are a digit and a word, never the numeral 2. A word with 점 ("단점") is not a decimal.
 - **R5 (follow-up):** every value the evidence check drops (ingredient amounts, offer percents, sizes, prices) is a risk-mode check item ("product" or "offers" group), not only a note.
+
+D-246: FACTS_MODEL picks the fact checker's model (base and FR); empty means LLM_FAST_MODEL, so today's behaviour is unchanged. Together with FACTS_THINKING it lets the eval compare Flash-Lite MINIMAL, Flash-Lite LOW and gemini-3.8-flash LOW on unseen products (MINIMAL was picked on the two shipped products only). The model is warmed up at start and shown in /api/health (logic).
