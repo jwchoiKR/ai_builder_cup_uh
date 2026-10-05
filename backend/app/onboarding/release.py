@@ -276,7 +276,7 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
 
 
 def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None,
-                 translations: dict | None = None, fact_mode: str = "docs") -> DataPack:
+                 translations: dict | None = None, fact_mode: str = "docs", brief=None) -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
     assert base.market is not None
     record, unreviewed = in_language(record, base.lang, translations)
@@ -355,6 +355,9 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
 
     points = [PrompterPoint(point_id=f"{pid}-p{i + 1}", text=c.text, required=i == 0)
               for i, c in enumerate(record.approved_claims)]
+    if brief is not None and brief.prompter_points:  # D-265: the release's brief (must-say items, show language)
+        points = [PrompterPoint(point_id=f"{pid}-b{i + 1}", text=p.text, required=p.required)
+                  for i, p in enumerate(brief.prompter_points)]
     product = Product(
         product_id=pid, code=code, name=record.product_name,
         short_name=record.short_names[0] if record.short_names else record.product_name,
@@ -379,7 +382,9 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
     runsheet = Runsheet(runsheet_id=release_id, title=f"{record.brand} · {record.product_name}", brand=record.brand,
                         language=record.language, market=market,
                         items=[RunsheetItem(order=1, product_id=pid, planned_duration_sec=SEGMENT_SEC,
-                                            required_point_ids=[points[0].point_id] if points else [])],
+                                            required_point_ids=([p.point_id for p in points if p.required]
+                                                                if brief is not None and brief.prompter_points
+                                                                else [points[0].point_id] if points else []))],
                         promo_ids=[p.promo_id for p in promos])
     products = ProductsFile(brand=record.brand, currency=cur, currency_symbol=sym, set_offers=[], products=[product])
     # D-227: a category the market's law pack does not cover gets no law rules (never the cosmetics rules); only

@@ -38,6 +38,16 @@ def default_glossary(ctx, cat=None) -> dict:
     return {"version": 0, "terms": terms}
 
 
+def release_phrases(ctx, cat, release_id: str) -> list[str]:
+    """D-265: a release's show hints its brief's glossary (names, original spellings, sound-alikes) first, then its
+    brand, product and ingredient names."""
+    from ..onboarding.brief import load_brief
+
+    brief = load_brief(ctx.settings.onboarding_path, release_id)
+    terms = [t.model_dump() for t in brief.glossary] if brief is not None else []
+    return phrases_from_glossary({"terms": terms + default_glossary(ctx, cat)["terms"]})
+
+
 async def glossary_phrases(ctx) -> list[str]:
     try:
         from ..pipelines.setup import current_glossary
@@ -77,8 +87,8 @@ async def audio(ws: WebSocket, session_id: str) -> None:
     _active[session_id] = ws
 
     # D-230: an onboarded product's show hints its own brand and names, not the shipped products'
-    glossary = (phrases_from_glossary(default_glossary(ctx, rt.catalog)) if (await rt.load_session()).release_id
-                else await glossary_phrases(ctx))
+    release_id = (await rt.load_session()).release_id
+    glossary = (release_phrases(ctx, rt.catalog, release_id) if release_id else await glossary_phrases(ctx))
     risk = risk_phrases(rt.pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
     phrases = with_risk_phrases(glossary, risk)
     # D-186: which hints this run's streams use, visible in Cloud Logging

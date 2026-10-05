@@ -1520,3 +1520,56 @@ def test_d263_onboard_approve_restart_and_start_a_show_from_the_release(tmp_path
     finally:
         storage.configure(first, None)
         storage.configure(second, None)
+
+
+@pytest.mark.parametrize("brief_ok", [True, False])
+def test_d265_approval_briefs_the_release_for_stt_and_the_prompter(tmp_path, brief_ok):
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.api.audio_ws import release_phrases
+    from app.logic.catalog import Catalog
+    from app.main import create_app
+    from app.onboarding.release import product_key
+
+    from .helpers import make_settings
+
+    record = _record(brand="Quillon", product_name="Kelpa Night Serum",
+                     approved_claims=[{"text": "Helps skin look smoother by morning.", "evidence": EV}],
+                     cautions=[{"text": "Patch test first.", "evidence": EV}])
+    rid = f"rel_{product_key(normalise(ProductRecord.model_validate(record))[0])}_v1"
+    backend = ScriptedBackend()
+    backend.outputs[("onboarding_read", "spec.txt")] = record
+    if brief_ok:
+        backend.outputs[("brief_agent", rid)] = {"product_id": rid, "reason": "t", "glossary": [
+            {"term": "Quillon", "kind": "brand", "spoken_forms": ["kwil-on", "quill on"], "source_section": "x"},
+            {"term": "Kelpa", "kind": "product", "spoken_forms": ["kelp a"], "source_section": "x"},
+            {"term": "Invented", "kind": "technical", "spoken_forms": [], "source_section": "x"}],  # not in the doc
+            "prompter_points": [
+                {"text": "Patch test first.", "required": True, "source_section": "Cautions"},
+                {"text": "Helps skin look smoother by morning.", "required": False, "source_section": "Claims"}]}
+    else:
+        backend.fail("brief_agent", rid)
+    with TestClient(create_app(make_settings(ONBOARDING_DIR=str(tmp_path)), llm_backend=backend)) as c:
+        job = c.post("/api/onboarding/jobs", files=[("files", ("spec.txt", b"hello", "text/plain"))]).json()["job_id"]
+        for _ in range(100):
+            if c.get(f"/api/onboarding/jobs/{job}").json()["status"] == "done":
+                break
+            time.sleep(0.02)
+        approved = c.post(f"/api/onboarding/jobs/{job}/approve", json={}).json()
+        assert approved["release_id"] == rid
+        sid = c.post("/api/sessions", json={"release_id": rid}).json()["session_id"]
+        state = c.post(f"/api/sessions/{sid}/start") and c.get(f"/api/sessions/{sid}/state?role=host").json()
+        ctx = c.app.state.ctx
+        phrases = release_phrases(ctx, Catalog(ctx.pack_for("SG", ctx.pack.lang, rid)[0], rid), rid)
+    points = [(p["text"], p["required"]) for p in state["prompter"]["points"]]
+    if brief_ok:
+        assert (tmp_path / "briefs" / f"{rid}.json").is_file() and approved["live"]["brief"] == {"glossary": 2, "points": 2}
+        assert points == [("Patch test first.", True), ("Helps skin look smoother by morning.", False)]
+        assert phrases[:4] == ["Quillon", "kwil-on", "quill on", "Kelpa"] and "Invented" not in phrases
+    else:
+        assert not (tmp_path / "briefs").exists()
+        assert any(w.startswith("the brief did not run") for w in approved["warnings"])
+        assert points == [("Helps skin look smoother by morning.", True)]  # today's behaviour
+        assert phrases[0] == "Quillon"

@@ -32,6 +32,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Code may overrule a model verdict, but never silently: look for "fact claim dropped by code" and "compliance violation dropped by code" in the logs. `eval_adversarial` rows carry `dropped: [{reason, ...}]`. A right model answer with no alert is almost always one of these drops (D-248, D-250, D-260).
 - `FACT_MODE=docs` (FD, default) reads a release's original files from `<ONBOARDING_DIR>/<job_id>/files.json`. A release without stored files behaves as `record`. Record fields added after a release was made (pack counts, offer conditions, target group) appear only after re-onboarding.
 - In the cloud, onboarding state lives in `gs://separk-cloocus-live-studio-onboarding/onboarding/` (D-263). The bucket is the source of truth; the container's ONBOARDING_DIR is only a cache that is refilled at start. Never edit the bucket by hand: releases and packs are write-once.
+- Approving a release also runs the BriefAgent (about 30 s, D-265) and writes `briefs/<release_id>.json` (write-once). A release approved before D-265 has no brief: its show keeps the approved claims as points and only brand, product and ingredient names as STT hints until it is approved again.
 
 ## Handoff by role (10/6 06:00, branch `multi_agent_test` at 427efdb, pushed)
 

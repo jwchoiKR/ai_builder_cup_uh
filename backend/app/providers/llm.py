@@ -465,6 +465,7 @@ class LLMClient:
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
         self.facts = ModelSpec(settings.FACTS_MODEL or settings.LLM_FAST_MODEL, settings.FACTS_THINKING)  # D-246
         self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
+        self.brief = ModelSpec(settings.BRIEF_MODEL or settings.LLM_QUALITY_MODEL, settings.BRIEF_THINKING)  # D-265
         self.warmup_status: dict[str, str] = {}
         # D-184: per agent, calls that sent a second request, and how many of those the second one answered
         self.hedges: dict[str, dict[str, int]] = {}
