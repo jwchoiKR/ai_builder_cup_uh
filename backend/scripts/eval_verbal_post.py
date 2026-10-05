@@ -66,6 +66,14 @@ def decision_for(case: dict, row: dict) -> tuple[str, str | None, str]:
     group = _group(qs[gid], case["current_product_id"]) if gid in qs else None
     d = decide(judge, offered, group, offered.get(gid), high_alert_active=False, facts=facts, lex=_lexicon(),
                utterance=case["utterance"])
+    relink = row.get("ctx_relink") or {}
+    if d.action == "none" and gid is None and relink.get("answer"):
+        # D-175: the second judge call about the one question the line seems to answer, with every usual check
+        cand = relink["group_id"]
+        second = judge.model_copy(update={"answer": judge.answer.model_validate(relink["answer"])})
+        d = decide(second, {cand: offered[cand]}, _group(qs[cand], case["current_product_id"]), offered[cand],
+                   high_alert_active=False, facts=facts, lex=_lexicon(), utterance=case["utterance"])
+        return d.action, d.group_id, f"relinked: {d.reason}" if d.action != "post" else d.reason
     return d.action, d.group_id, d.reason
 
 
