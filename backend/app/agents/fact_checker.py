@@ -20,6 +20,7 @@ CLAIMS_SECTION = "Approved on-air claims"
 ABSENT = "not in this product"  # D-121: correct_value of an ingredient the sheet never names
 _NAME = re.compile(r"[a-z][a-z-]{3,}")
 _NOT_NAMES = frozenset({"percent", "with", "and", "contains", "has", "the", "this", "ampoule", "cream", "product"})
+_FREE_FROM = re.compile(r"\s*free from\s*:")
 
 
 WORD_FIELDS = frozenset({"packaging", "texture", "fragrance", "origin"})
@@ -52,10 +53,13 @@ def _offer_threshold(c, offer) -> bool:
 
 
 def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
-    """D-121: every ingredient word the host named is missing from all of the product's sheet passages."""
+    """D-121: every ingredient word the host named is missing from all of the product's sheet passages.
+    D-156: a word the sheet names only in its "Free from:" list is missing too ("a little alcohol" against
+    "Free from: ... ethanol (denatured alcohol)")."""
     names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
-    sheet = " ".join(p.text.lower() for p in passages if p.product_id == product_id)
-    return bool(names) and bool(sheet) and not any(n in sheet for n in names)
+    mine = [p.text.lower() for p in passages if p.product_id == product_id]
+    sheet = " ".join(t for t in mine if not _FREE_FROM.match(t))
+    return bool(names) and bool(mine) and not any(n in sheet for n in names)
 PRICE_FIELDS = ("price", "set_price", "promo")
 # D-100: a test result is checked only when the host cites a test. A time or number inside a benefit
 # claim ("it whitens your skin in two weeks") is compliance wording, not a test result.
