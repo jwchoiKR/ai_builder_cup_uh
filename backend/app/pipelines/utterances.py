@@ -240,8 +240,9 @@ class UtterancePipeline:
         await rt.emit("transcript.final", t)
         if not rt.assistant:
             return  # D-139: no reflex chip, no judge, no prompter coverage
-        # 2. reflex -> provisional alerts
-        hits = rt.reflex.scan(text)
+        # 2. reflex -> provisional alerts (D-189 arm C: no pre-scan, so no provisional chip and no fallback alert when
+        # the judge fails; reflex still guards drafts through the restricted phrases of verify_answer)
+        hits = [] if rt.settings.DESIGN_ARM == "C" else rt.reflex.scan(text)
         async with rt.lock:
             seg = await rt.get_segment(t.segment_id) if t.segment_id else await rt.current_segment()
             on_air = seg.product_id if seg else rt.catalog.order[0]
