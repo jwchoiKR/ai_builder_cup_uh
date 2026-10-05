@@ -195,6 +195,53 @@ async def create_lawpack_job(files: list[UploadFile] = File(...), market: str = 
     return {"job_id": job_id, "status": "queued"}
 
 
+@router.post("/brandpacks/jobs")
+async def create_brandpack_job(files: list[UploadFile] = File(...), brand: str = Form(...),
+                               ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-241: brand guideline documents in, brand rule records with evidence out (approve-brandpack)."""
+    from ..onboarding.files import model_part, store
+    from ..onboarding.lawpack import read_lawpack
+
+    data = await _read_files(files)
+    job_id = "brd_" + uuid.uuid4().hex[:12]
+    _jobs[job_id] = {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None, "error": None,
+                     "brand": brand.strip()}
+
+    async def run() -> None:
+        async with _running:
+            _jobs[job_id]["status"] = "reading"
+            try:
+                for name, body in data:
+                    store(ctx.settings.onboarding_path, job_id, name, body)
+                rec, notes, secs = await read_lawpack(ctx.llm, [model_part(n, b) for n, b in data],
+                                                      market=ctx.pack.market.market, category=f"brand:{brand.strip()}")
+                _jobs[job_id].update(status="done", result={"record": rec.model_dump(mode="json"), "notes": notes,
+                                                            "seconds": secs})
+            except Exception as e:  # noqa: BLE001 - reported on the job
+                log.exception("brand pack job %s failed", job_id)
+                _jobs[job_id].update(status="failed", error=f"{type(e).__name__}: {e}")
+
+    ctx.scheduler.spawn(run(), name=f"brandpack:{job_id}")
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.post("/jobs/{job_id}/approve-brandpack")
+async def approve_brandpack(job_id: str, body: ApproveBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
+    from pydantic import ValidationError
+
+    from ..onboarding.lawpack import LawPackRecord, normalise_pack, save_brandpack
+
+    job = _jobs.get(job_id)
+    if job is None or job["status"] != "done" or "brand" not in job:
+        raise ActionError(409, "job_not_ready", f"brand pack job {job_id} has no record to approve")
+    try:
+        rec = LawPackRecord.model_validate((body.record if body and body.record else None) or job["result"]["record"])
+    except ValidationError as e:
+        raise ActionError(400, "invalid_record", str(e)[:400]) from None
+    rec, _ = normalise_pack(rec)
+    return {"pack_id": save_brandpack(ctx.settings.onboarding_path, job["brand"], rec, job_id)}
+
+
 @router.post("/jobs/{job_id}/approve-lawpack")
 async def approve_lawpack(job_id: str, body: ApproveBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
     from pydantic import ValidationError

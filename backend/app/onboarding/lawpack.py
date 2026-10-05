@@ -19,8 +19,8 @@ from .files import ModelPart
 from .read import READ_DEADLINE_MS, READ_MODEL, READ_THINKING
 from .record import Evidence, _Model
 
-PROMPT = """You turn a regulator's or industry body's advertising rules into rule records for a live-commerce assistant
-that checks what a host says on air about a product.
+PROMPT = """You turn a regulator's, an industry body's or a brand's advertising rules into rule records for a
+live-commerce assistant that checks what a host says on air about a product.
 
 The files are the source documents (laws, guidelines, codes of practice, annexes) for one market and one product
 category. Read them whole: tables, annexes, examples and footnotes.
@@ -129,6 +129,31 @@ def lawpack_for(root: Path, market: str, category: str) -> tuple[str, LawPackRec
         rec = LawPackRecord.model_validate(data["record"])
         if norm(category) in {norm(c) for c in rec.covers} and (best is None or data["approved_at"] > best[0]):
             best = (data["approved_at"], data["pack_id"], rec)
+    return (best[1], best[2]) if best else None
+
+
+def save_brandpack(root: Path, brand: str, rec: LawPackRecord, job_id: str) -> str:
+    """D-241: a brand's own rules (guidelines), versioned per brand; they only add restrictions (never remove a law
+    rule)."""
+    folder = root / "brandpacks"
+    folder.mkdir(parents=True, exist_ok=True)
+    base = "brand_" + hashlib.sha1(brand.strip().lower().encode()).hexdigest()[:10]
+    pack_id = f"{base}_v{1 + sum(1 for _ in folder.glob(f'{base}_v*.json'))}"
+    (folder / f"{pack_id}.json").write_text(json.dumps(
+        {"pack_id": pack_id, "brand": brand, "job_id": job_id, "approved_at": int(time.time() * 1000),
+         "record": rec.model_dump(mode="json")}, ensure_ascii=False, indent=1), encoding="utf-8")
+    return pack_id
+
+
+def brandpack_for(root: Path, brand: str) -> tuple[str, LawPackRecord] | None:
+    """The newest approved brand pack of this brand, or None."""
+    folder = root / "brandpacks"
+    base = "brand_" + hashlib.sha1(brand.strip().lower().encode()).hexdigest()[:10]
+    best = None
+    for p in folder.glob(f"{base}_v*.json") if folder.is_dir() else []:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        if best is None or data["approved_at"] > best[0]:
+            best = (data["approved_at"], data["pack_id"], LawPackRecord.model_validate(data["record"]))
     return (best[1], best[2]) if best else None
 
 
