@@ -55,3 +55,37 @@ def test_scorer_flags_a_host_answer_posted_before_the_confirmation():
                          "text": "It is 50 mL.", "reply_to_comment_ids": ["cm1"], "published_at": 3000}]}
     s = cf.score([raw], [case])
     assert s["host_early"] == 1 and s["stale_or_wrong"] == 0 and not s["passed"]
+
+
+def _auto_case(messages, answers, groups=None):
+    case = {"scenario_id": "Y", "events": [],
+            "expect": {"clusters": {"c": {"later_askers_source": "cache", "post_to_all_askers": True}}}}
+    gold = {"kind": "question", "cluster": "c", "route": "AUTO", "answer_must_include": ["50 mL"]}
+    comments = [{"comment_id": cid, "gold": gold, "text": "size?", "kind": "question", "received_at": 0,
+                 "triage_ms": 900} for cid in ("cm1", "cm2")]
+    raw = {"id": "Y", "run": 0, "event_at": {}, "confirms": {}, "comments": comments,
+           "groups": groups if groups is not None else [{"group_id": "g1", "member_comment_ids": ["cm1", "cm2"],
+                                                          "route": "AUTO", "status": "auto_answered"}],
+           "answers": answers, "messages": messages}
+    return cf.score([raw], [case])
+
+
+ANS = {"answer_id": "a1", "group_id": "g1", "text": "It is 50 mL.", "verified": True, "created_at": 1, "origin": "ai"}
+
+
+def _msg(ids):
+    return {"message_id": "m1", "group_id": "g1", "kind": "ai_answer", "state": "published", "text": "It is 50 mL.",
+            "reply_to_comment_ids": ids, "published_at": 2}
+
+
+def test_d199_answers_must_reach_every_asker_and_cache_reuse_must_be_observed():
+    assert _auto_case([_msg(["cm1", "cm2"])], [ANS])["passed"]
+    s = _auto_case([_msg(["cm1"])], [ANS])  # the later asker never got the answer
+    assert s["undelivered"] == 1 and s["cache"] == 0 and not s["passed"]
+    s = _auto_case([], [])  # silence: no draft, nothing posted
+    assert s["undelivered"] == 1 and s["cache"] == 0 and not s["passed"]
+
+
+def test_d199_a_gold_question_that_never_reached_a_group_is_a_route_miss():
+    s = _auto_case([], [], groups=[])
+    assert s["route"] == 0 and not s["passed"]

@@ -10,7 +10,13 @@ the runtime settles and the session state is scored.
     uv run python scripts/eval_comment_flow.py --from-json ../docs/eval/comment-flow.json
 
 Pass lines (fixed before results): kind 100%, must_not_merge violations 0, route 100%, stale or wrong
-posted answers 0, HOST answers posted before the host confirmed 0, cache reuse 100% where expected.
+posted answers 0, HOST answers posted before the host confirmed 0, cache reuse 100% where expected, undelivered
+answers 0.
+
+D-199 (full review P1): every gold question is scored for its route, also one that never reached a group (a miss);
+an answer counts as delivered only when a published message replies to the asker (AUTO, or HOST after the host
+confirmed; `post_to_all_askers` means every asker); cache reuse counts only when exactly one AI draft served the
+question and, where the answer is posted, every later asker got it.
 """
 from __future__ import annotations
 
@@ -197,11 +203,16 @@ def score_scenario(case: dict, r: dict) -> dict:
             out["must_not_merge_violations"] += 1
             out["problems"].append(f"merged {x} with {y}")
 
-    # (c) route and sensitive
+    # (c) route and sensitive. D-199: every gold question, also one that never reached a group
     out["route_total"] = out["route_ok"] = 0
-    for c in qs:
+    for c in r["comments"]:
         gold = c["gold"].get("route")
-        if not gold:
+        if not gold or not c["gold"].get("cluster"):
+            continue
+        if c["comment_id"] not in group_of:
+            out["route_total"] += 1
+            out["problems"].append(f"route {c['comment_id']} ({c['gold']['cluster']}): no group, kind {c['kind']} "
+                                   f"(gold {gold})")
             continue
         g = groups[group_of[c["comment_id"]]]
         verified = any(a["verified"] for a in answers.values() if a["group_id"] == g["group_id"])
@@ -227,6 +238,7 @@ def score_scenario(case: dict, r: dict) -> dict:
     # (e) answers and (f) cache
     out["stale_or_wrong_posts"] = out["host_posted_before_confirm"] = 0
     out["cache_expected"] = out["cache_ok"] = 0
+    out["delivery_expected"] = out["undelivered"] = 0
     posted = [m for m in r["messages"] if m["state"] == "published"]
     for name, spec in (exp.get("clusters") or exp.get("all_clusters") or {}).items():
         if not isinstance(spec, dict):
@@ -245,6 +257,15 @@ def score_scenario(case: dict, r: dict) -> dict:
                 out["stale_or_wrong_posts"] += 1
                 out["problems"].append(f"{name}: posted '{m_text}' missing {missing} banned {banned}")
         route = golds[0].get("route") if golds else None
+        # D-199: delivered = a published reply to the asker; AUTO at once, HOST once the host confirmed
+        replied = {cid for m in msgs for cid in m["reply_to_comment_ids"]}
+        due = route == "AUTO" or (route == "HOST" and name in r["confirms"])
+        if due and cids:
+            every = spec.get("post_to_all_askers") or spec.get("post_to_all_askers_after_host_confirm")
+            out["delivery_expected"] += 1
+            if not (cids <= replied if every else replied & cids):
+                out["undelivered"] += 1
+                out["problems"].append(f"{name}: answer not delivered to {sorted(cids - replied)} (route {route})")
         if route == "HOST":
             confirm = r["confirms"].get(name)
             early = [m for m in msgs if confirm is None or m["published_at"] < confirm]
@@ -267,10 +288,13 @@ def score_scenario(case: dict, r: dict) -> dict:
             limit = r["event_at"].get(after) if after else None
             ai = [a for a in answers.values() if a["group_id"] in gids and a["origin"] == "ai"
                   and (limit is None or a["created_at"] < limit)]
-            if len(ai) <= 1:
+            # D-199: a hit is observed: one draft served the question, and every later asker got it where it posts
+            later_served = not due or cids <= replied
+            if len(ai) == 1 and later_served:
                 out["cache_ok"] += 1
             else:
-                out["problems"].append(f"{name}: {len(ai)} drafts for one question (cache not reused)")
+                out["problems"].append(f"{name}: {len(ai)} drafts for one question, later askers served "
+                                       f"{later_served} (cache reuse not observed)")
     return out
 
 
@@ -287,11 +311,12 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
         "stale_or_wrong": tot("stale_or_wrong_posts"),
         "host_early": tot("host_posted_before_confirm"),
         "cache": tot("cache_ok") / max(1, tot("cache_expected")),
+        "undelivered": tot("undelivered"), "delivery_expected": tot("delivery_expected"),
         "precision": sum(x["pair_precision"] for x in rows) / max(1, len(rows)),
         "recall": sum(x["pair_recall"] for x in rows) / max(1, len(rows)),
     }
     s["passed"] = (s["kind"] == 1 and s["must_not_merge"] == 0 and s["route"] == 1 and s["stale_or_wrong"] == 0
-                   and s["host_early"] == 0 and s["cache"] == 1)
+                   and s["host_early"] == 0 and s["cache"] == 1 and s["undelivered"] == 0)
     return s
 
 
@@ -313,7 +338,7 @@ def write_report(s: dict, cases: list[dict], out: Path, name: str) -> None:
         f"**{'PASS' if s['passed'] else 'FAIL'}** · kind {s['kind']:.1%} (100%; short or odd {s['kind_short']:.1%}) · "
         f"must_not_merge {s['must_not_merge']} (0) · route {s['route']:.1%} (100%) · stale or wrong posts "
         f"{s['stale_or_wrong']} (0) · host answers before confirm {s['host_early']} (0) · cache reuse "
-        f"{s['cache']:.1%} (100%)", "",
+        f"{s['cache']:.1%} (100%) · undelivered answers {s['undelivered']} of {s['delivery_expected']} (0)", "",
         f"Clustering (mean per scenario): pairwise precision {s['precision']:.1%}, recall {s['recall']:.1%}.", "",
         f"Parallelism: first comment to verified draft p50 {_p(drafts, .5)}, p95 {_p(drafts, .95)}; triage alone "
         f"p50 {_p(triages, .5)}, p95 {_p(triages, .95)}.", "",
