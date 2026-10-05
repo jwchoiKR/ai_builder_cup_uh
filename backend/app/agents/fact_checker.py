@@ -247,7 +247,7 @@ class FactChecker:
         self.llm = llm
         self.prompt = prompt
         self.prompt_version = prompt.version
-        self.model = llm.fast.model
+        self.model = llm.facts.model
         self.catalog = catalog
         # D-242 arm FR: how to read a release's record facts
         from . import arms

@@ -443,7 +443,7 @@ class LLMClient:
         # D-128: the fast model with a thinking level per agent
         self.compliance = ModelSpec(settings.LLM_FAST_MODEL, settings.COMPLIANCE_THINKING)
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
-        self.facts = ModelSpec(settings.LLM_FAST_MODEL, settings.FACTS_THINKING)
+        self.facts = ModelSpec(settings.FACTS_MODEL or settings.LLM_FAST_MODEL, settings.FACTS_THINKING)  # D-246
         self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
         self.warmup_status: dict[str, str] = {}
         # D-184: per agent, calls that sent a second request, and how many of those the second one answered
@@ -557,7 +557,7 @@ class LLMClient:
 
     async def warm_up(self) -> dict[str, str]:
         """One tiny call per model so the first real call is not a cold start. Not audited."""
-        models = list(dict.fromkeys((self.fast.model, self.quality.model)))
+        models = list(dict.fromkeys((self.fast.model, self.facts.model, self.quality.model)))
 
         async def one(model: str) -> None:
             t0 = time.perf_counter()

@@ -740,3 +740,16 @@ def test_d245_r4_r5_a_word_decimal_is_kept_and_a_dropped_amount_reaches_the_chec
     assert [i.amount_value for i in rec.ingredients] == ["0.5", None]
     risk = check_items(OnboardingResult(record=rec, method="gemini_whole", seconds=1, notes=notes), "risk", law="15 rules")
     assert [x["group"] for x in risk if x["label"] == "ingredients[Panthenol].amount"] == ["product"]
+
+
+def test_d246_facts_model_is_the_fact_checkers_own():
+    from app.agents.fact_checker import FactChecker
+
+    for kw, want in (({}, "gemini-3.5-flash-lite"), ({"FACTS_MODEL": "gemini-3.8-flash"}, "gemini-3.8-flash")):
+        ctx = make_ctx(LLM_FAST_MODEL="gemini-3.5-flash-lite", **kw)
+        try:
+            assert ctx.llm.facts.model == want and ctx.llm.fast.model == "gemini-3.5-flash-lite"
+            assert FactChecker(ctx.llm, ctx.prompts["fact_checker"], None).model == want
+        finally:
+            ctx.runtimes.shutdown()
+            ctx.scheduler.shutdown()
