@@ -15,6 +15,7 @@ import json
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import ComplianceOutput, ComplianceOutputB, ContextOutput, ContextOutputB
+from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
@@ -58,7 +59,9 @@ class _SplitJudge:
     async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None) -> AgentResult:
         values = values if values is not None else build_judge_values(self.catalog, inp)
         encode, decode = symbolic_ids(values)
-        user, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
+        # D-194 arm E: the rules differ per line, so they leave the cached prefix
+        user, prefix = self.prompt.render_cached(
+            values, STATIC_JUDGE_KEYS - {"rules_compact_json"} if self.arm == "E" else STATIC_JUDGE_KEYS)
         if arms.files(self.arm):  # D-192 arms F1 and F2: the on-air product's file, in the cached prefix
             doc = LocalDocStore(self.catalog).get_product(inp.on_air)
             pre = f'<data name="PRODUCT_FILE">{json.dumps(doc, ensure_ascii=False)}</data>\n'
@@ -88,6 +91,17 @@ class ComplianceJudge(_SplitJudge):
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_compliance(inp, values, self.catalog, self.reflex)
+
+    async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None) -> AgentResult:
+        search = rule_search.for_settings(self.llm.settings) if self.arm == "E" else None
+        if search is not None:  # D-194 arm E: only the rules the search picks for this line (every rule on failure)
+            values = dict(values if values is not None else build_judge_values(self.catalog, inp))
+            m = self.catalog.pack.market
+            ids = await search.search(inp.utterance, m.market if m is not None else "SG")
+            if ids is not None:
+                by_id = {r["rule_id"]: r for r in values["rules_compact_json"]}
+                values["rules_compact_json"] = [by_id[i] for i in dict.fromkeys(ids) if i in by_id]
+        return await super().run(inp, deadline_ms=deadline_ms, values=values)
 
     def extra_data(self) -> str:
         if not arms.meaning_to_llm(self.arm):

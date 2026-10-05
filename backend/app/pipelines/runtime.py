@@ -23,6 +23,7 @@ from ..logic.grouping import is_open
 from ..logic.ranking import score
 from ..logic.segments import open_segment
 from ..models.data import Intent, Passage, Promo, PrompterPoint
+from ..providers import rule_search
 from ..logic.prompter import prompter_view
 from ..models.session import (
     ActivePromo,
@@ -263,6 +264,8 @@ class SessionRuntime:
             s.settings_snapshot = self.settings.snapshot()
             await self.save_session(s)
             await self.emit("session.started", s)
+            if self.settings.DESIGN_ARM == "E" and (search := rule_search.for_settings(self.settings)) is not None:
+                self.spawn(search.warm_up(), name="rule-search-warm-up")  # D-194: one warm client
             await self.emit("segment.started", seg)
             await self.after_segment_started_locked(seg)
         await self.prefetch(first)
