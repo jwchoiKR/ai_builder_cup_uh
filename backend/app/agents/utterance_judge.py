@@ -70,6 +70,24 @@ def qualified_say(say: str, on_air, catalog: Catalog) -> str:
     return r.say if r is not None and numbers & set(r.numbers) else say
 
 
+def approved_say(say: str, on_air, catalog: Catalog) -> str:
+    """D-209 (full review P2): the say-instead line is approved wording, never the model's own sentence: the on-air
+    product's approved claim or "say instead" wording that covers most of what the model suggested (the first
+    approved claim when nothing overlaps), with its qualifier."""
+    if on_air is None:
+        return qualified_say(say, on_air, catalog)
+    lex = catalog.lexicon
+    cands = [spoken_claim(c) for c in catalog.approved_claims(on_air.product_id)] + [a.say for a in on_air.avoid_saying]
+    if not cands:
+        return qualified_say(say, on_air, catalog)
+    said = lex.content_words(say or "")
+    best = max(cands, key=lambda c: lex.coverage(lex.claim_words(c), said))
+    words = lex.claim_words(best)
+    # the model's sentence is kept only as a light rewording: no word the approved line lacks, most of its words
+    light = bool(said) and all(any(lex.same(w, b) for b in words) for w in said) and lex.coverage(words, said) >= 0.8
+    return qualified_say(say if light else best, on_air, catalog)
+
+
 def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
     """§8.4.3: the on-air product's first approved claim, with the in-house-test qualifier."""
     return spoken_claim(catalog.approved_claims(product_id)[0])
@@ -167,7 +185,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
             v.say_instead = r.say
         else:
-            v.say_instead = qualified_say(v.say_instead, on_air_product, catalog)
+            v.say_instead = approved_say(v.say_instead, on_air_product, catalog)
         kept.append(v)
     o.compliance.violations = kept
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
