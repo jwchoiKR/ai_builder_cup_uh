@@ -93,50 +93,7 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
     return spoken_claim(catalog.approved_claims(product_id)[0])
 
 
-APPROVED_SPAN_MIN = 0.8
 LEAD_IN_MAX_WORDS = 8  # D-146: "In our in-house test," said as its own final
-
-
-# D-132: product-sheet sections whose statements the host may repeat. Not "Cautions" (a warning's words
-# reused out of context could hide a claim) and not "Approved on-air claims", which also lists the claims
-# NOT approved (the approved ones come from the product's own list); a FAQ passage counts by its answer.
-SHEET_SECTIONS = frozenset({"Product overview", "Key facts", "Key ingredients", "How to use",
-                            "In-house test results", "Frequently asked questions"})
-
-
-def _sheet_statements(passages) -> list[str]:
-    """One sentence at a time, so words from different sentences never add up to a claim."""
-    out = []
-    for p in passages:
-        if p.section in SHEET_SECTIONS:
-            text = p.text.split(" A: ", 1)[1] if " A: " in p.text else p.text
-            out += [x for x in re.split(r"(?<=[.!?;])\s+", text) if x]
-    return out
-
-
-def _is_approved_wording(span: str, product, lex, passages=()) -> bool:
-    """The flagged words are the product's own approved wording: an approved claim, an approved in-house
-    result, a prompter point or a statement of its product sheet (D-132, sealed AW010: "suitable for all
-    skin types" is in the cream's sheet) - at least 80% of the span's content words, every number of it."""
-    words = lex.content_words(span)
-    if len(words) < 3:
-        return False
-    numbers = {w for w in words if w.isdigit()}
-    texts = [*product.approved_claims, *(r.say for r in product.qualified_results),
-             *(p.text for p in product.prompter_points), *_sheet_statements(passages)]
-    for text in texts:
-        heard = lex.content_words(text)
-        if lex.coverage(words, heard) >= APPROVED_SPAN_MIN and numbers <= set(heard):
-            return True
-    return False
-
-
-def _span_phrase(span: str, text: str, lex) -> str:
-    """D-174: a span too short to compare ("all users") is compared with the phrase around it in the utterance
-    (between commas or sentence marks): "all skin types and all users" is the sheet's own wording."""
-    if len(lex.content_words(span)) >= 3:
-        return span
-    return next((part.strip() for part in re.split(r"[,;:.!?]", text) if span.lower() in part.lower()), span)
 
 
 def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
@@ -166,10 +123,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
     for v in o.compliance.violations:
         v.severity = rules[v.rule_id].severity
-        if (on_air_product is not None and v.rule_id != qualifier.RULE_ID
-                and _is_approved_wording(_span_phrase(v.span, text, catalog.lexicon), on_air_product, catalog.lexicon,
-                                         [p for p in catalog.pack.passages if p.product_id == on_air_product.product_id])):
-            continue  # D-123: approved product wording is never a violation (the qualifier rule still applies)
+        # D-215 (full review P3): no code veto by word overlap with approved wording; the judge weighs it (prompt)
         if v.rule_id == qualifier.RULE_ID and arms.meaning_to_llm(arm):
             # D-187 arm B: the judge names the in-house result; code only checks the id exists
             rid = getattr(v, "qualified_result_id", None)
