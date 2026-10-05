@@ -980,3 +980,39 @@ def test_d250_the_panel_or_the_hours_never_name_an_in_house_source(pack):
     assert not names_the_source(line, "Hydration up 18% after 8 hours (in our in-house test with 22 adults)", lex)
     assert not names_the_source(line, "Hydration up 18% after 8 hours (consumer test with 22 adults)", lex)
     assert names_the_source("Kestrel Dermal Labs found 21 of 24", "21 of 24 (tested by Kestrel Dermal Labs)", lex)
+
+
+async def test_d251_a_quote_with_the_number_in_korean_words_backs_a_digit_correction(tmp_path, monkeypatch):
+    text = "나이아신아마이드가 영 점 오 퍼센트 들어 있습니다."
+
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text == text)
+        return _claim(pid, p, field="ingredient_amount", stated_value="2% niacinamide", correct_value="0.5%")
+
+    [a] = await _release_line(tmp_path, monkeypatch, {"key_facts": [{"text": text, "evidence": EV}]},
+                              "It has two percent niacinamide.", claim)
+    assert a["correct_value"] == "0.5%"
+
+
+async def test_d251_a_right_price_with_a_wrong_term_keeps_its_alert(tmp_path, monkeypatch):
+    facts = [{"text": "Delivery is not included in this price.", "evidence": EV},
+             {"text": "No period after opening is printed.", "evidence": EV}]
+
+    def term(pid, ps):
+        p = next(p for p in ps if p.text == "Delivery is not included in this price.")
+        return _claim(pid, p, field="price", stated_value="S$36 per tube including delivery",
+                      correct_value="Delivery is not included in this price.")
+
+    [a] = await _release_line(tmp_path / "a", monkeypatch, {"key_facts": facts},
+                              "Thirty-six dollars per tube already includes delivery.", term)
+    assert a["field"] == "price"
+
+    def period(pid, ps):  # the number itself has no source: still dropped
+        p = next(p for p in ps if p.text == "No period after opening is printed.")
+        return _claim(pid, p, field="shelf_life", stated_value="9 months",
+                      correct_value="No period after opening is printed.")
+
+    row: dict = {}
+    assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
+                               "Use it within nine months after opening.", period, row) == []
+    assert [d["reason"] for d in row["dropped"]] == ["L1: a stated number corrected without a number"]
