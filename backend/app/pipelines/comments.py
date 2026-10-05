@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from ..agents.answer_composer import ComposeInput, gather_passages
 from ..agents.comment_triage import TriageInput
 from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
-from ..logic.grouping import find_group, is_open, join_group, slots_compatible
+from ..logic.grouping import SINGLE_QUESTION_INTENTS, find_group, is_open, join_group, slots_compatible
 from ..logic.prefilter import prefilter
 from ..logic.product_mapping import attribute_product, set_question
 from ..logic.promos import promo_state
@@ -127,7 +127,11 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
         return
     segs = await rt.segments()
     seg = segment_at(segs, comment.received_at - rt.settings.STREAM_GRACE_SEC * 1000)
-    # D-135: before the first segment, the host screen already shows the first run-sheet product as NOW
+    # D-135: before the first segment, the host screen already shows the first run-sheet product as NOW.
+    # D-152 (comment-flow CF10): in the first seconds of a session the grace lookup finds no segment although
+    # one is on air; take the product on air then, not the first of the run sheet
+    if seg is None:
+        seg = await rt.current_segment()
     context_pid = seg.product_id if seg else (rt.catalog.order[0] if rt.catalog.order else None)
 
     key = triage_cache_key(comment.text, context_pid)
@@ -158,6 +162,7 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
         async with rt.lock:
             if attempt == 1 and source != "fallback" and await _missed_new_group(rt, output, pid, intent.intent, seen):
                 continue  # D-042: triage ran on a stale list of open groups; ask once more
+            await rt.documents_changed_locked()  # D-152: before an asker joins a group with a stale answer
             await _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, source, latency_ms, scenario)
             return
 
@@ -292,7 +297,10 @@ async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pi
 
 async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
     promo = await rt.active_price_promo()
-    return answer_cache_key(g.product_id, g.intent, g.condition_slots, g.canonical_question,
+    # D-152: a single-answer intent (price, set price, volume ...) has one answer per product, slots and state,
+    # however the question was worded, so two groups of it share one draft
+    question = "" if g.intent in SINGLE_QUESTION_INTENTS else g.canonical_question
+    return answer_cache_key(g.product_id, g.intent, g.condition_slots, question,
                             promo_state(promo), rt.ctx.retriever.doc_version())
 
 
@@ -303,6 +311,10 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
     if g.status in ("auto_answered", "answered") and g.published_message_id:
         await reply_again_locked(rt, g, new_comment_ids)
         return
+    if g.answer_id is not None and g.route_reason == "no_verified_answer" and new_comment_ids:
+        old = await rt.get_answer(g.answer_id)
+        if old is not None and old.verify_errors and all(e in UNCHECKED for e in old.verify_errors):
+            g.answer_id = None  # D-152: the draft was never judged (timeout, error): a new asker drafts again
     if g.status == "composing" or g.answer_id is not None:
         return  # members wait for the composer, the host or the operator
     intent = rt.intent(g.intent)
@@ -489,15 +501,18 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     return answer
 
 
+UNCHECKED = frozenset({"draft_check_timeout", "draft_check_error", "draft_check_invalid"})
+
+
 async def _llm_check(rt, question, out, passages, product_id, promo, scenario) -> tuple[bool, list[str]]:
     """D-126: the LLM draft verifier after the code checks. A fail, a timeout or an error keeps the draft
     unverified, so it goes to the operator instead of being posted or cached."""
-    res = await rt.draft_verifier.run(
-        DraftCheckInput(product_id=product_id, question=question, answer=out.answer.strip(), promo=promo,
-                        passages=cited_passages([c.passage_id for c in out.citations], passages),
-                        session_id=rt.sid, scenario=scenario),
-        deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS,
-    )
+    inp = DraftCheckInput(product_id=product_id, question=question, answer=out.answer.strip(), promo=promo,
+                          passages=cited_passages([c.passage_id for c in out.citations], passages),
+                          session_id=rt.sid, scenario=scenario)
+    res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
+    if res.status == "timeout":  # D-152 (comment-flow CF09): a timeout is not a block; once more
+        res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
     if res.status != "ok" or res.output is None:
         return False, [f"draft_check_{res.status}"]
     if res.output.verdict == "fail":

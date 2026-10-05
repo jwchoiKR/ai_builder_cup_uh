@@ -84,6 +84,7 @@ class SessionRuntime:
         self.composing: dict[str, asyncio.Future] = {}
         self.prefetched: dict[str, list[Passage]] = {}
         self._doc_version = ctx.retriever.doc_version()
+        self._doc_seen = self._doc_version  # D-152: the documents the open groups' answers were drafted from
         self.points = {pid: [PrompterPoint.model_validate(p) for p in pts] for pid, pts in session.prompter_points.items()}
         self.counters: defaultdict[str, int] = defaultdict(int)
         self._rate_session: deque[int] = deque()
@@ -491,6 +492,32 @@ class SessionRuntime:
             if promo is not None and promo.changes_prices:
                 await self.price_promo_changed_locked()
             return s
+
+    async def documents_changed_locked(self) -> None:
+        """D-152 (comment-flow CF11): a /setup upload changed the documents. An open, answered group whose answer
+        no longer matches is closed, as after a promo change, so the next asker gets a fresh answer instead of
+        the old reply posted again."""
+        from .comments import answer_key
+
+        v = self.ctx.retriever.doc_version()
+        if v == self._doc_seen:
+            return
+        self._doc_seen = v
+        for g in await self.groups():
+            ans = await self.get_answer(g.answer_id) if g.answer_id else None
+            if is_open(g) and ans is not None and g.status != "composing" and ans.cache_key != await answer_key(self, g):
+                g.status, g.closed_reason = "closed", "documents_changed"
+                g.host_slot, g.on_host_since = "none", None
+                g.version += 1
+                await self.save_group(g)
+                await self.emit("group.updated", g)
+        s = await self.load_session()
+        closed = {g.group_id for g in await self.groups() if g.status == "closed"}
+        if any(sl.group_id in closed for sl in s.host_slots):
+            s.host_slots = [sl for sl in s.host_slots if sl.group_id not in closed]
+            await self.save_session(s)
+            await self.emit("hostqueue.updated", {"slots": [sl.model_dump() for sl in s.host_slots]})
+        await self.recompute_host_queue_locked()
 
     async def price_promo_changed_locked(self) -> None:
         """No old price is re-posted after a promo change: drop cached price answers and close open

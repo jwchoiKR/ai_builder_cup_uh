@@ -572,3 +572,95 @@ async def test_a_spoken_answer_before_the_draft_is_posted_once_the_draft_verifie
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+def _verifier_backend(timeouts: int):
+    """The draft check times out `timeouts` times, then answers pass (D-152)."""
+    from app.providers.llm import LLMTimeout
+
+    from .judge_fakes import ScriptedBackend
+
+    class Flaky(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.left = timeouts
+
+        async def generate(self, req, timeout_ms):
+            if req.agent == "draft_verifier" and self.left:
+                self.left -= 1
+                raise LLMTimeout("deadline")
+            return await super().generate(req, timeout_ms)
+    return Flaky()
+
+
+async def test_a_draft_check_timeout_is_retried_once():
+    """D-152 (comment-flow CF09): "draft_check_timeout" sent a correct sale-price draft to the host."""
+    ctx = make_ctx(backend=_verifier_backend(1))
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        assert g.status == "auto_answered"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_a_new_asker_redrafts_a_group_whose_draft_was_never_checked():
+    ctx = make_ctx(backend=_verifier_backend(2))
+    rt = await live_runtime(ctx)
+    try:
+        await say(rt, "Lee", "How much is the cream?")
+        [g] = await groups(rt)
+        assert g.route_reason == "no_verified_answer"
+        await rt.ctx.scheduler.advance(3000)
+        await say(rt, "Kumar", "How much is the cream?")
+        [g] = await groups(rt)
+        assert g.status == "auto_answered"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_a_comment_in_the_first_seconds_takes_the_product_on_air():
+    """D-152 (comment-flow CF10): no segment 5 s before the comment, but the ampoule is on air."""
+    from app.pipelines.runtime import create_session
+    from app.pipelines.utterances import operator_switch
+
+    ctx = make_ctx()
+    s = await create_session(ctx, "daon_skincare_demo")
+    rt = await ctx.runtimes.get(s.session_id)
+    await rt.start()
+    await operator_switch(rt, "ampoule_deep_hydration")
+    try:
+        await say(rt, "Ben", "both together price pls")
+        [g] = await groups(rt)
+        assert g.product_id == "ampoule_deep_hydration"
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_single_answer_groups_share_one_draft(rt):
+    """D-152: the key of a single-answer intent ignores the wording of the question."""
+    g1 = QuestionGroup(group_id="g1", product_id=CREAM, intent="set_price", condition_slots={}, canonical_question="How much is the set?",
+                       member_comment_ids=[], unique_author_ids=[], first_at=0, last_at=0, route="AUTO", route_reason="intent", status="new")
+    g2 = g1.model_copy(update={"group_id": "g2", "canonical_question": "How much are both together?"})
+    assert await ops.answer_key(rt, g1) == await ops.answer_key(rt, g2)
+    h1 = g1.model_copy(update={"intent": "how_to_use", "canonical_question": "When to use it?"})
+    h2 = h1.model_copy(update={"canonical_question": "With retinol?"})
+    assert await ops.answer_key(rt, h1) != await ops.answer_key(rt, h2)
+
+
+async def test_a_document_change_closes_answered_groups_with_a_stale_answer(rt):
+    """D-152 (comment-flow CF11): after a /setup upload, new askers get a fresh answer, not the old reply again."""
+    await say(rt, "Lee", "How much is the cream?")
+    [old] = await groups(rt)
+    assert old.status == "auto_answered"
+    retriever = rt.ctx.retriever
+    retriever.replace_product(CREAM, [p for p in rt.ctx.pack.passages if p.product_id == CREAM])
+    await rt.ctx.scheduler.advance(3000)
+    await say(rt, "Kumar", "How much is the cream?")
+    gs = await groups(rt)
+    assert (await rt.get_group(old.group_id)).closed_reason == "documents_changed"
+    assert len(gs) == 2 and any(g.status == "auto_answered" and g.group_id != old.group_id for g in gs)
