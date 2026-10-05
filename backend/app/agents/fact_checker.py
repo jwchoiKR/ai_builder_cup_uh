@@ -34,6 +34,17 @@ def _words_within(stated: str, correct: str | None) -> bool:
     return bool(said) and said <= sheet
 
 
+def _from_quote(correct: str, quote: str) -> bool:
+    """D-244 L1/L8: the correction rests on the quote: it shares a word with it (Latin script), or two letters in a
+    row (other scripts). "not disclosed" shares nothing with a passage that never discloses the value."""
+    q = quote.lower()
+    latin = set(_NAME.findall(correct.lower())) - _NOT_NAMES
+    if latin:
+        return bool(latin & set(_NAME.findall(q)))
+    other = re.sub(r"[\W\d_a-z]", "", correct.lower())
+    return any(other[i:i + 2] in q for i in range(len(other) - 1))
+
+
 def _promo_term(c, promo) -> bool:
     """D-148: a wrong discount or duration of the active promo ("an extra 20% off" for 10%). Code checks that
     the right value is one of the promo's own terms and that the host said a different number."""
@@ -209,9 +220,9 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             p = by_id.get(c.passage_id)
             ok = (p is not None and c.quote is not None and quote_in_passage(c.quote, p.text)
                   and c.correct_value is not None and number_set(c.correct_value) <= number_set(c.quote)
-                  # D-244 L1: the correction is a value the quote states (a number, or the quote's own words);
+                  # D-244 L1: the correction is a value the quote states (a number, or the quote's words);
                   # "not disclosed" or "not specified" is no source value, so the claim is unverifiable
-                  and (bool(number_set(c.correct_value)) or _words_within(c.correct_value, c.quote))
+                  and (bool(number_set(c.correct_value)) or _from_quote(c.correct_value, c.quote))
                   # Claim wording is compliance (the judge's job), never a product fact (D-048).
                   and p.section != CLAIMS_SECTION)
         elif c.field in PRICE_FIELDS and promo is not None and promo.changes_prices:
@@ -221,6 +232,11 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             ok = any(_offer_threshold(c, o) for o in offers)
         if not ok:
             c.verdict = "not_in_sources"
+        elif (c.quote and not number_set(c.correct_value or "")
+              and (c.correct_value or "").strip().lower() in f"{c.stated_value or ''} {c.span or ''}".lower()):
+            # D-244 L8: a bare field word the host already said ("fragrance" for "no fragrance") is no line to say;
+            # the source's own words are
+            c.correct_value = c.quote
     return o
 
 

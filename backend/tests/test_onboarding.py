@@ -635,3 +635,23 @@ def test_d244_l4_to_l6_and_presence_rules_reach_the_fact_checker():
     for rule in ("never with\n  the unit price", "Every number with a unit", "Price terms", "describing an old value",
                  "Free from", "Only contradict with a value SOURCE states"):
         assert rule in fr
+
+
+def test_d244_l8_a_bare_field_word_becomes_the_source_line(pack, catalog):
+    from app.agents.fact_checker import _from_quote, post_validate
+    from app.models.agent_io import FactCheckOutput
+
+    p = next(p for p in pack.passages if p.product_id == "cream_hydra_barrier")
+    quote = p.text[:30]
+    word = quote.split()[0]
+    claim = {"span": f"no {word} in it", "field": "ingredient", "product_id": "cream_hydra_barrier",
+             "stated_value": f"no {word}", "verdict": "contradicted", "correct_value": word,
+             "passage_id": p.passage_id, "quote": quote}
+    [c] = post_validate(FactCheckOutput.model_validate({"claims": [claim], "reason": "t"}),
+                        pack.passages, catalog, None).claims
+    assert c.verdict == "contradicted" and c.correct_value == quote
+    # a statement in the quote's words passes; "not disclosed" does not, in any script
+    assert _from_quote("It does contain fragrance", "Ingredients: Water, Glycerin, Fragrance")
+    assert not _from_quote("not disclosed", "Live broadcast price: S$36.00")
+    assert _from_quote("향료 함유", "전성분: 정제수, 글리세린, 향료")
+    assert not _from_quote("공개되지 않음", "라이브 가격: 36,000원")

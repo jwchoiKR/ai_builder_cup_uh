@@ -37,6 +37,7 @@ Output rules
 - `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, ph, other.
 - A set's price or promotion price is about the set, not one product: use the set's `set_id` from SET_OFFERS as `product_id`.
 - `stated_value` and `correct_value` are short display strings, e.g. "S$21", "S$24.00", "10% bisabolol", "4% bisabolol", "100 mL", "75 mL".
+- The host reads `correct_value` aloud. For a value without a number it is a short statement of the right fact in the passage's words ("contains fragrance", "airless pump tube"), never the field word alone.
 - `passage_id` must be one of the given passage ids. `quote` must be copied character for character from that passage.
 - Return JSON only. If there is nothing to check, return `{"claims": [], "reason": "..."}`.
 

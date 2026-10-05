@@ -91,6 +91,8 @@ Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from t
   SOURCE excludes, is `contradicted` (field `ingredient`), with that statement as the correction.
 - Only contradict with a value SOURCE states. When SOURCE does not give the value ("not disclosed"), the claim is
   `not_in_sources`.
+- `correct_value` is the line the host says. Without a number it is a short statement of the right fact in the
+  quote's words ("contains fragrance"), never a bare field word.
 
 ## FR: compliance_judge
 
