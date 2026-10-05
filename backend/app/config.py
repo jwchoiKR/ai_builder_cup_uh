@@ -73,6 +73,9 @@ class Settings(BaseSettings):
     STT_MODEL: str = "chirp_3"
     STT_LANGUAGE: str = ""  # empty: the market pack's code for BROADCAST_LANGUAGE (D-129)
     STT_PHRASE_HINTS_ENABLED: bool = True
+    # D-186: also hint the market's claim words (the reflex phrases of its rules, in the broadcast language) after
+    # the glossary, so a risky word is not heard as a harmless sound-alike ("widens" for "whitens"). Off until measured
+    STT_RISK_HINTS: bool = False
     VERTEX_SEARCH_LOCATION: str = "global"
     VERTEX_SEARCH_DATA_STORE_ID: str = ""
     GCS_BUCKET: str = ""

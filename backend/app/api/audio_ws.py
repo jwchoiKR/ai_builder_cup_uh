@@ -13,7 +13,7 @@ import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..pipelines.runtime import ActionError
-from ..providers.stt import phrases_from_glossary
+from ..providers.stt import phrases_from_glossary, risk_phrases, with_risk_phrases
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -75,7 +75,13 @@ async def audio(ws: WebSocket, session_id: str) -> None:
         await previous.close(code=4409)
     _active[session_id] = ws
 
-    phrases = await glossary_phrases(ctx)
+    glossary = await glossary_phrases(ctx)
+    risk = risk_phrases(rt.pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
+    phrases = with_risk_phrases(glossary, risk)
+    # D-186: which hints this run's streams use, visible in Cloud Logging
+    log.info("stt phrase hints for %s: glossary %d, risk %d (STT_RISK_HINTS=%s, hints %s)", session_id, len(glossary),
+             len(phrases) - len(glossary), ctx.settings.STT_RISK_HINTS,
+             "on" if ctx.settings.STT_PHRASE_HINTS_ENABLED else "off")
     stream = stt.open(phrases, rt.pack.stt_language)  # D-142: the session's broadcast language
     await _send(ws, {"type": "status", "state": "listening", "phrases": len(phrases)})
 
