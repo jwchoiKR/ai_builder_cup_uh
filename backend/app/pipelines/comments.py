@@ -12,12 +12,12 @@ import re
 import time
 from typing import TYPE_CHECKING
 
-from ..agents import arms
+from ..agents import arms, inputs
 from ..agents.answer_composer import ComposeInput, gather_passages
 from ..agents.comment_triage import TriageInput
 from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
 from ..logic.grouping import SINGLE_QUESTION_INTENTS, find_group, is_open, join_group, slots_compatible
-from ..logic.prefilter import prefilter
+from ..logic.prefilter import PrefilterVerdict, prefilter
 from ..logic.product_mapping import attribute_product, set_question
 from ..logic.promos import promo_state
 from ..logic.routing import is_composable, route_for
@@ -52,7 +52,8 @@ async def submit_comment(
         raise ActionError(400, "empty_comment", "comment text is empty")
     now = rt.now()
     rt.check_rate(author_id, now)
-    verdict = prefilter(text, rt.catalog.lexicon)
+    # D-191 arms D and E: no prefilter beyond Model Armor; triage decides every comment
+    verdict = PrefilterVerdict(None) if arms.agents_decide(rt.settings.DESIGN_ARM) else prefilter(text, rt.catalog.lexicon)
     comment = Comment(
         comment_id=rt.new_id("cm_"), author_id=author_id, author_name=author_name.strip() or "Viewer",
         text=text, received_at=now, source=source,
@@ -531,6 +532,9 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
         canonical_question=g.canonical_question, promo=promo, top_k=rt.settings.COMPOSER_TOP_K,
         offers=await rt.active_offers(),
     )
+    decide = arms.agents_decide(rt.settings.DESIGN_ARM)
+    if decide:  # D-191 arms D and E: the whole sheet of the product (of every product for multi), not a search
+        passages = list({p.passage_id: p for p in [*inputs.all_passages(rt.catalog, product_id), *passages]}.values())
     inp = ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
                        canonical_question=g.canonical_question, promo=promo, passages=passages,
                        session_id=rt.sid, scenario=scenario, sensitive=intent.sensitive)
@@ -543,11 +547,15 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     out = res.output
     not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
         c for p in rt.catalog.products for c in p.not_approved_claims]
-    ok, errors = verify_answer(out, passages, product_id, multi=product_id is None,
-                               reflex=rt.reflex, not_approved_claims=not_approved,
-                               minimal=arms.meaning_to_llm(rt.settings.DESIGN_ARM))  # D-187 arm B
+    if decide:  # D-191: no code check of the draft; the composer's own refusal and the LLM draft verifier decide
+        ok, errors = (True, []) if out.grounded and out.answer.strip() else (False, ["not grounded"])
+    else:
+        ok, errors = verify_answer(out, passages, product_id, multi=product_id is None,
+                                   reflex=rt.reflex, not_approved_claims=not_approved,
+                                   minimal=arms.meaning_to_llm(rt.settings.DESIGN_ARM))  # D-187 arm B
     if ok:
-        ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario)
+        ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario,
+                                      whole=decide)
     by_id = {p.passage_id: p for p in passages}
     citations = [{"passage_id": c.passage_id, "quote": c.quote,
                   "section": by_id[c.passage_id].section if c.passage_id in by_id else None,
@@ -564,11 +572,12 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
 UNCHECKED = frozenset({"draft_check_timeout", "draft_check_error", "draft_check_invalid"})
 
 
-async def _llm_check(rt, question, out, passages, product_id, promo, scenario) -> tuple[bool, list[str]]:
+async def _llm_check(rt, question, out, passages, product_id, promo, scenario, whole=False) -> tuple[bool, list[str]]:
     """D-126: the LLM draft verifier after the code checks. A fail, a timeout or an error keeps the draft
     unverified, so it goes to the operator instead of being posted or cached."""
     inp = DraftCheckInput(product_id=product_id, question=question, answer=out.answer.strip(), promo=promo,
-                          passages=cited_passages([c.passage_id for c in out.citations], passages),
+                          passages=passages if whole else cited_passages([c.passage_id for c in out.citations],
+                                                                         passages),
                           session_id=rt.sid, scenario=scenario)
     res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
     if res.status == "timeout":  # D-152 (comment-flow CF09): a timeout is not a block; once more

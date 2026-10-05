@@ -242,7 +242,7 @@ class UtterancePipeline:
             return  # D-139: no reflex chip, no judge, no prompter coverage
         # 2. reflex -> provisional alerts (D-189 arm C: no pre-scan, so no provisional chip and no fallback alert when
         # the judge fails; reflex still guards drafts through the restricted phrases of verify_answer)
-        hits = [] if rt.settings.DESIGN_ARM == "C" else rt.reflex.scan(text)
+        hits = [] if arms.no_reflex(rt.settings.DESIGN_ARM) else rt.reflex.scan(text)
         async with rt.lock:
             seg = await rt.get_segment(t.segment_id) if t.segment_id else await rt.current_segment()
             on_air = seg.product_id if seg else rt.catalog.order[0]
@@ -557,8 +557,11 @@ class UtterancePipeline:
             # the quote (two words or more) is in what the host said. No word overlap, no replacement match.
             heard = normalise(text)
             ids = {a.alert_id for a in correctable if a.kind == "compliance"}
-            accepted = list(dict.fromkeys(q.alert_id for q in (quotes or []) if q.alert_id in ids
-                                          and len(normalise(q.quote).split()) >= 2 and normalise(q.quote) in heard))
+            if arms.agents_decide(rt.settings.DESIGN_ARM):  # D-191 arms D and E: the judge's ids, unchecked
+                accepted = [i for i in dict.fromkeys(listed) if i in ids]
+            else:
+                accepted = list(dict.fromkeys(q.alert_id for q in (quotes or []) if q.alert_id in ids
+                                              and len(normalise(q.quote).split()) >= 2 and normalise(q.quote) in heard))
             if accepted:
                 for a in alert_logic.apply_corrections(earlier, accepted, t, now):
                     rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
@@ -798,6 +801,7 @@ class UtterancePipeline:
         decision = publish_logic.decide(judge, offered, group, answer,
                                         high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
                                         lex=rt.catalog.lexicon, by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM),
+                                        numbers_gate=not arms.agents_decide(rt.settings.DESIGN_ARM),
                                         utterance=merge.text if merge else t.text,
                                         current_key=await answer_key(rt, group) if group is not None else None)
         mine = self._judged.get(t.transcript_id)
@@ -878,7 +882,8 @@ class UtterancePipeline:
                 judge, {group_id: answer}, g, answer,
                 high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=early.facts,
                 lex=rt.catalog.lexicon, utterance=early.utterance, current_key=await answer_key(rt, g),
-                by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM))
+                by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM),
+                numbers_gate=not arms.agents_decide(rt.settings.DESIGN_ARM))
             log.info("early spoken answer for %s: %s (%s)", group_id, decision.action, decision.reason)
             if decision.action != "post" or not rt.live:  # D-150: a preview market posts nothing by itself
                 return
@@ -919,7 +924,8 @@ class UtterancePipeline:
                 second, {gid: a for gid, (_, a) in shown.items()}, g, answer,
                 high_alert_active=alert_logic.high_alert_active(await rt.alerts()), facts=facts,
                 lex=rt.catalog.lexicon, utterance=utterance, current_key=await answer_key(rt, g),
-                by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM))
+                by_judge=arms.meaning_to_llm(rt.settings.DESIGN_ARM),
+                numbers_gate=not arms.agents_decide(rt.settings.DESIGN_ARM))
             log.info("relinked spoken answer %s %s: %s (%s)", t.transcript_id, group_id, decision.action, decision.reason)
             if decision.action != "post" or not rt.live:
                 return

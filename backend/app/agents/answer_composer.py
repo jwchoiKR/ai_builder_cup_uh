@@ -12,7 +12,7 @@ from ..models.data import Passage, Promo
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
 from ..providers.retriever import Retriever
-from . import inputs
+from . import arms, inputs
 
 KEY_FACT_INTENTS = frozenset({"price", "set_price", "promo", "volume"})
 # D-068: intents whose answer sits in a fixed section that BM25 may miss ("Where is it manufactured?"
@@ -98,6 +98,8 @@ class AnswerComposer:
         self.prompt_version = prompt.version
         self.model = llm.composer.model
         self.catalog = catalog
+        self.system_instruction = arms.system_instruction(prompt.system_instruction, self.name, llm.design_arm,
+                                                          llm.prompts_path)  # D-191
 
     async def run(self, inp: ComposeInput, *, deadline_ms: int) -> AgentResult[ComposerOutput]:
         user = self.prompt.render({
@@ -109,10 +111,12 @@ class AnswerComposer:
             "passages_json": inputs.passages_json(inp.passages),
             "avoid_saying_json": inputs.avoid_saying_json(self.catalog, inp.product_id),
         })
+        if arms.agents_decide(self.llm.design_arm):  # D-191 arms D and E: the advertising rules, whole
+            user += inputs.data_block("RULES", inputs.rules_compact_json(self.catalog))
         primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo)
         return await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.composer.model, thinking_level=self.llm.composer.thinking_level,
-            prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
+            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=ComposerOutput, deadline_ms=deadline_ms,
             session_id=inp.session_id, mock_primary_text=primary, mock_scenario=inp.scenario,
             mock_fallback=lambda _: rule_based_answer(inp.passages, inp.sensitive),
