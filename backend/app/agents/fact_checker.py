@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_passage
 from ..models.agent_io import FactCheckOutput
+from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -83,6 +84,16 @@ def _threshold_differs(lex, host: str, c, said: set) -> bool:
         if number_set(m.group()) & said and lex.comparison.search(q[max(0, m.start() - 20):m.end() + 15]):
             return True
     return False
+
+
+def _term_dispute(c, p, said: set, passages: Sequence[Passage]) -> bool:
+    """D-251 (sealed: "S$36 per tube already includes delivery" -> "delivery is not included in this price"): the
+    stated number is right and the correction is about a term attached to it (tax, delivery, per unit, validity).
+    The number is right when the quote's passage states it, or, for a price, any passage of the product."""
+    stated = lambda t: number_set(t) | {plain_number(v) for v in numbers_in_text(t)}  # noqa: E731
+    if said <= stated(p.text):
+        return True
+    return c.field in PRICE_FIELDS and said <= stated(" ".join(x.text for x in passages if x.product_id == c.product_id))
 
 
 def _promo_term(c, promo) -> bool:
@@ -231,7 +242,9 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             continue
         lex = catalog.lexicon
         # D-250: numbers in digits or words ("twelve months after opening" states 12)
-        nums = lambda t: number_set(t or "") | lex.spoken_numbers(t or "")  # noqa: E731
+        # D-251: and numbers written in other scripts' words ("영 점 오 퍼센트" states 0.5; onboarding's numwords)
+        nums = lambda t: (number_set(t or "") | lex.spoken_numbers(t or "")  # noqa: E731
+                          | {plain_number(v) for v in numbers_in_text(t or "")})
         said, right = nums(c.stated_value), nums(c.correct_value)
         # D-207: the same number in another unit or currency ("12 years" vs "12 months", "RM36" vs "S$36") is a
         # real contradiction, not a restatement
@@ -281,7 +294,7 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                 # ("lasts 24 months" -> "No period after opening is given"); presence of an ingredient is the
                 # exception ("2% retinol" -> "free from retinol")
                 ("L1: a stated number corrected without a number",
-                 lambda: c.field == "ingredient" or not said or bool(right)),
+                 lambda: c.field == "ingredient" or not said or bool(right) or _term_dispute(c, p, said, passages)),
                 # Claim wording is compliance (the judge's job), never a product fact (D-048).
                 ("an approved-claims passage", lambda: p.section != CLAIMS_SECTION),
             )
