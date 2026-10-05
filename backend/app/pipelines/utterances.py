@@ -1060,6 +1060,14 @@ async def finish_pending_locked(rt: "SessionRuntime", message_id: str,
         await rt.emit("message.cancelled", m)
         log.info("pending host answer %s dropped: its question changed", message_id)
         return
+    if m.kind == "host_answer" and alert_logic.high_alert_active(await rt.alerts()):
+        # D-204: the safety state is checked again at the moment of posting; a red alert raised in the cancel
+        # window stops the post, and the card stays for the host
+        m.state = "cancelled"
+        await rt.save_message(m)
+        await rt.emit("message.cancelled", m)
+        log.info("pending host answer %s dropped: a HIGH alert is active", message_id)
+        return
     now = rt.now()
     m.state, m.published_at = "published", now
     await rt.save_message(m)

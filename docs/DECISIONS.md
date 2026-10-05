@@ -1149,3 +1149,5 @@ D-201: Draft-verifier eval scores each arm's real production gate (full review P
 D-202: Summary agent stats count failures (full review P1, `logic/summary_stats.py`). Each agent row keeps p50/p95 of the successful calls (`calls`) and adds `attempts`, `failures`, `timeouts`, `failure_rate` and `deadline_attainment` (attempts that did not time out, out of all). Before, only successful calls were counted, so an agent that timed out more looked faster. The summary table shows calls as attempts, plus "Failed" and "In time".
 
 D-203: A fact check that times out or fails on a line stating a number runs once more, with its own deadline, before the publish decision (`_run_facts`). The card waits; nothing posts until a check completes (D-195). Lines without a number are not retried. The agent-mode verbal eval calls the fact checker once; `eval_verbal_post.py --runtime` includes the retry.
+
+D-204: The safety state is checked again when a pending host answer is committed (`finish_pending_locked`). A HIGH alert raised during the 2 s cancel window cancels the post; the card stays for the host. Before, only the question, answer, promo and document state were rechecked.
