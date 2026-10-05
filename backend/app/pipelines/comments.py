@@ -19,13 +19,13 @@ from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
 from ..logic.grouping import SINGLE_QUESTION_INTENTS, find_group, is_open, join_group, slots_compatible
 from ..logic.prefilter import PrefilterVerdict, prefilter
 from ..logic.product_mapping import attribute_product, set_question
-from ..logic.promos import promo_state
+from ..logic.promos import promo_passage, promo_state
 from ..logic.routing import is_composable, route_for
 from ..logic.pd import ShoutOut
 from ..logic.segments import segment_at
 from ..logic.shoutout import shout_kind
 from ..agents.draft_verifier import DraftCheckInput, cited_passages
-from ..logic.verify import verify_answer
+from ..logic.verify import number_set, verify_answer
 from ..providers.armor import screen as armor_screen
 from ..models.agent_io import CommentTriageOutput, ConditionSlots
 from ..models.session import Answer, Comment, CommentAnalysis, QuestionGroup
@@ -704,16 +704,44 @@ async def write_answer(rt: "SessionRuntime", gid: str, text: str, origin: str, c
         rule = rt.pack.rules_by_id[hit.rule_id]
         raise ActionError(409, "restricted_phrase",
                           f"This reply contains a restricted phrase: '{hit.phrase}' ({rule.title}).")
+    problems = await _check_operator_reply(rt, gid, text, origin)
+    if problems and not confirm:
+        raise ActionError(409, "unverified_reply", "This reply could not be verified: " + "; ".join(problems))
     async with rt.lock:
         g = await _group_or_404(rt, gid)
         if g.status in ("answered", "rejected", "closed"):
             raise ActionError(409, "invalid_state", f"group is {g.status}")
         answer = Answer(answer_id=rt.new_id("ans_"), group_id=gid, text=text, citations=[], origin=origin,
-                        verified=False, verify_errors=["operator text"], needs_human=False, created_at=rt.now())
+                        verified=not problems, verify_errors=problems, needs_human=False, created_at=rt.now())
         await rt.save_answer(answer)
         g.answer_id = answer.answer_id
         await _publish_answer_locked(rt, g, kind="brand_answer", text=text, citations=[], key=f"brand_answer:{gid}")
         await operator_action(rt, "answer", group_id=gid, origin=origin, confirmed_restricted=hit is not None)
+
+
+async def _check_operator_reply(rt: "SessionRuntime", gid: str, text: str, origin: str) -> list[str]:
+    """D-205 (full review P2): an operator's reply is checked before it is posted. Every number must be in the
+    product's sheet, a running promo or the question's draft; an edited AI draft also passes the LLM draft verifier
+    on the product's whole sheet. Problems need the operator's explicit confirmation ("Post anyway")."""
+    g = await _group_or_404(rt, gid)
+    sheet = inputs.all_passages(rt.catalog, g.product_id)
+    promo = await rt.active_price_promo()
+    sources = [p.text for p in sheet] + [promo_passage(o, rt.catalog).text
+                                         for o in [*([promo] if promo else []), *await rt.active_offers()]]
+    draft = await rt.get_answer(g.answer_id) if g.answer_id else None
+    if draft is not None and draft.verified:
+        sources.append(draft.text)
+    allowed = set().union(*(number_set(x) for x in sources)) if sources else set()
+    problems = [f"number {n} is not in the product sheet" for n in sorted(number_set(text) - allowed)]
+    if origin == "operator_edit" and not problems:
+        res = await rt.draft_verifier.run(DraftCheckInput(
+            product_id=g.product_id, question=g.canonical_question, answer=text, promo=promo, passages=sheet,
+            session_id=rt.sid), deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
+        if res.status != "ok" or res.output is None:
+            problems.append(f"draft check {res.status}")
+        elif res.output.verdict == "fail":
+            problems += [f"draft check: {p}" for p in res.output.problems] or [f"draft check: {res.output.reason}"]
+    return problems
 
 
 async def post_suggested(rt: "SessionRuntime", gid: str) -> None:

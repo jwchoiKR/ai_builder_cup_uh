@@ -849,3 +849,22 @@ async def test_a_switch_moves_the_previous_products_questions_to_the_operator(sh
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+async def test_d205_an_operator_reply_with_a_number_not_in_the_sheet_needs_confirmation(rt):
+    await say(rt, "Tom", "Do you ship to Malaysia?")
+    [g] = await groups(rt)
+    with pytest.raises(ActionError, match="number 99 is not in the product sheet"):
+        await ops.write_answer(rt, g.group_id, "The cream is S$99 today.", "operator_written", confirm=False)
+    await ops.write_answer(rt, g.group_id, "The cream is S$99 today.", "operator_written", confirm=True)
+    [g] = await groups(rt)
+    answer = await rt.get_answer(g.answer_id)
+    assert g.status == "answered" and not answer.verified and answer.verify_errors
+
+
+async def test_d205_an_operator_reply_with_sheet_numbers_posts_verified(rt):
+    await say(rt, "Tom", "Do you ship to Malaysia?")
+    [g] = await groups(rt)
+    await ops.write_answer(rt, g.group_id, "The cream is S$36.00 during this live.", "operator_written", confirm=False)
+    [g] = await groups(rt)
+    assert (await rt.get_answer(g.answer_id)).verified
