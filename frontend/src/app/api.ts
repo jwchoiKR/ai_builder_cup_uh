@@ -64,7 +64,8 @@ export type AnswerOrigin = "operator_edit" | "operator_written";
 export const api = {
   // meta
   health: () => get<Health>("/health"),
-  catalog: () => get<Catalog>("/catalog"),
+  // D-230: a session's own catalog (an onboarded product's show), else the server's shipped one
+  catalog: (sid?: string | null) => get<Catalog>(sid ? `/catalog?session=${encodeURIComponent(sid)}` : "/catalog"),
 
   // demo tools
   demoCurrent: () => get<Session>("/demo/current"),

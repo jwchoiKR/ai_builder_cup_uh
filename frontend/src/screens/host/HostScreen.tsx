@@ -348,7 +348,7 @@ export function HostScreen(props: ScreenProps) {
   const [ownTheme, toggle, setTheme, themePref] = useTheme();
   const theme = props.theme ?? ownTheme;
   const { state, connection } = useSession(props.sessionId, "host");
-  const catalog = useCatalog();
+  const catalog = useCatalog(props.sessionId);
   const sid = props.sessionId;
 
   const rendered = useCallback(

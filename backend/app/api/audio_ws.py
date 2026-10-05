@@ -22,11 +22,12 @@ INTERIM_MIN_GAP_MS = 300
 _active: dict[str, WebSocket] = {}
 
 
-def default_glossary(ctx) -> dict:
-    """§8.15 default glossary: brand, product names, ingredient names from key facts."""
+def default_glossary(ctx, cat=None) -> dict:
+    """§8.15 default glossary: brand, product names, ingredient names from key facts. D-230: `cat` is a session's
+    own catalog (an onboarded release)."""
     from ..logic.catalog import Catalog
 
-    cat = Catalog(ctx.pack)
+    cat = cat or Catalog(ctx.pack)
     terms = [{"term": cat.brand, "spoken_forms": []}]
     for p in cat.products:
         terms.append({"term": p.name, "spoken_forms": []})
@@ -75,7 +76,9 @@ async def audio(ws: WebSocket, session_id: str) -> None:
         await previous.close(code=4409)
     _active[session_id] = ws
 
-    glossary = await glossary_phrases(ctx)
+    # D-230: an onboarded product's show hints its own brand and names, not the shipped products'
+    glossary = (phrases_from_glossary(default_glossary(ctx, rt.catalog)) if (await rt.load_session()).release_id
+                else await glossary_phrases(ctx))
     risk = risk_phrases(rt.pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
     phrases = with_risk_phrases(glossary, risk)
     # D-186: which hints this run's streams use, visible in Cloud Logging

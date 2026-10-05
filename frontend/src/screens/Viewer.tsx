@@ -13,7 +13,7 @@ export function Viewer(props: ScreenProps) {
   const [ownTheme, , setTheme, themePref] = useTheme();
   const theme = props.theme ?? ownTheme;
   const { state, connection } = useSession(props.sessionId, "viewer");
-  const catalog = useCatalog();
+  const catalog = useCatalog(props.sessionId);
   const health = useHealth();
   const sessionId = props.sessionId;
   const embedded = Boolean(props.embedded);

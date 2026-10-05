@@ -219,7 +219,18 @@ function cachedResource<T>(load: () => Promise<T>) {
   };
 }
 
-export const useCatalog = cachedResource<Catalog>(() => api.catalog());
+const catalogs = new Map<string, () => Catalog | null>();
+
+/** D-230: the catalog of this session (an onboarded release has its own product, brand and prices). */
+export function useCatalog(sessionId?: string | null): Catalog | null {
+  const key = sessionId ?? "";
+  let hook = catalogs.get(key);
+  if (!hook) {
+    hook = cachedResource<Catalog>(() => api.catalog(sessionId));
+    catalogs.set(key, hook);
+  }
+  return hook();
+}
 export const useHealth = cachedResource<Health>(() => api.health());
 export const useDemoScript = cachedResource<DemoStep[]>(() =>
   api.demoScript().then(
