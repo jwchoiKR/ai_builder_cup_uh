@@ -199,3 +199,18 @@ async def test_d168_a_promo_question_gets_the_running_offers(pack, catalog):
                                     canonical_question="How much do I need to spend for the pouch?", promo=None,
                                     top_k=6, offers=[gift])
         assert ("PROMO#promo_gift_pouch" in {p.passage_id for p in got}) is has
+
+
+async def test_d190_an_efficacy_question_gets_the_approved_claims(pack, catalog):
+    """D-190 (comment flow CF06): "will this ampoule remove wrinkles?" found the not-approved list but not the approved
+    "Helps reduce the look of fine dryness lines", so the composer drafted nothing."""
+    from app.agents import inputs
+    from app.agents.answer_composer import gather_passages
+    from app.providers.retriever import LocalRetriever
+
+    got = await gather_passages(LocalRetriever(pack.passages), catalog, {}, product_id="ampoule_deep_hydration",
+                                intent="efficacy_claim", canonical_question="Will this ampoule remove wrinkles?",
+                                promo=None, top_k=6)
+    assert "DL-AM-01#approved-on-air-claims#approved" in {p.passage_id for p in got}
+    assert {"say_not": "Removes wrinkles", "say": "Helps reduce the look of fine dryness lines."} in \
+        inputs.avoid_saying_json(catalog, "ampoule_deep_hydration")

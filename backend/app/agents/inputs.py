@@ -63,6 +63,13 @@ def approved_claims_of_current_product_json(catalog: Catalog, product_id: str) -
     return catalog.approved_claims(product_id)
 
 
+def avoid_saying_json(catalog: Catalog, product_id: str | None) -> list[dict]:
+    """D-190: the sheet's "avoid saying -> say instead" pairs (approved wording, verbatim) for the composer."""
+    if product_id is None:
+        return []
+    return [{"say_not": a.say_not, "say": a.say} for a in catalog.get_product(product_id).avoid_saying]
+
+
 def prompter_points_json(
     catalog: Catalog,
     on_air_product_id: str,
@@ -240,7 +247,7 @@ BUILDERS = {
     f.__name__: f
     for f in (
         current_product_json, product_compact_json, products_compact_json,
-        run_sheet_compact_json, approved_claims_of_current_product_json, prompter_points_json,
+        run_sheet_compact_json, approved_claims_of_current_product_json, avoid_saying_json, prompter_points_json,
         set_offers_json, active_promo_json_or_null, active_offers_json, switch_context_json, rules_compact_json,
         intent_names_json, condition_slots_json, active_alerts_json, open_questions_json,
         open_groups_json, host_cues_json, last_two_final_transcripts_json, passages_json,

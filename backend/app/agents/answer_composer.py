@@ -24,6 +24,10 @@ SECTION_INTENTS: dict[str, tuple[str, ...]] = {
     "pregnancy_breastfeeding": ("Cautions",), "medical_condition": ("Cautions",), "age_suitability": ("Cautions",),
     # D-153 (00007 show replays): "How many drops?" never retrieved "Apply two to three drops ..."
     "how_to_use": ("How to use",), "routine_order": ("How to use",),
+    # D-190 (comment flow CF06: "will this ampoule remove wrinkles?" drafted nothing, because search found the
+    # not-approved list but not the approved "Helps reduce the look of fine dryness lines"): an efficacy question is
+    # answered from the approved claims
+    "efficacy_claim": ("Approved on-air claims",),
 }
 
 
@@ -67,7 +71,11 @@ async def gather_passages(
             out.setdefault(p.passage_id, p)
         sections = (("Key facts",) if intent in KEY_FACT_INTENTS else ()) + SECTION_INTENTS.get(intent, ())
         if sections:
-            for p in prefetched.get(pid) or await retriever.prefetch(pid):
+            # D-190: a section outside the prefetched ones (the approved claims) is read from the index directly
+            by_section = getattr(retriever, "sections", None)
+            pool = (prefetched.get(pid) or await retriever.prefetch(pid)) + (
+                by_section(pid, sections) if callable(by_section) else [])
+            for p in pool:
                 if p.section in sections:
                     out.setdefault(p.passage_id, p)
     active = price_promo(promo)
@@ -99,6 +107,7 @@ class AnswerComposer:
             "canonical_question": inputs.canonical_question(inp.canonical_question),
             "condition_slots_json": inputs.condition_slots_json(inp.slots),
             "passages_json": inputs.passages_json(inp.passages),
+            "avoid_saying_json": inputs.avoid_saying_json(self.catalog, inp.product_id),
         })
         primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo)
         return await self.llm.call(LLMRequest(

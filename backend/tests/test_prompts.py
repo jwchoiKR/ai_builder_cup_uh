@@ -79,7 +79,7 @@ def _example_outputs(system: str) -> list[dict]:
 
 
 EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 3, "context_judge": 4,
-                  "fact_checker": 4, "comment_triage": 7, "answer_composer": 5, "draft_verifier": 4,
+                  "fact_checker": 4, "comment_triage": 7, "answer_composer": 6, "draft_verifier": 4,
                   "brief_agent": 1}
 
 
