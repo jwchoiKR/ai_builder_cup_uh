@@ -160,16 +160,14 @@ async def test_ingredient_amounts_prices_and_volumes_never_get_the_test_qualifie
     assert await compliance_alerts(rt) == []
 
 
-async def test_approved_wording_is_never_a_red_alert(env):
-    """D-123 (adversarial AV037): the judge flagged ASEAN-3-SKIN-ACNE with the span of an approved,
-    in-house result. A violation whose span is approved product wording is dropped (the qualifier rule
-    still applies to an unqualified number)."""
+async def test_d215_the_judges_verdict_on_approved_wording_stands(env):
+    """D-215 (full review P3): code no longer drops a violation because its words overlap approved wording (D-123,
+    D-132, D-174 removed); the judge weighs approved wording under the rules (prompt)."""
     rt, llm = env
-    text = "29 of 32 participants said their skin felt less dry after 2 weeks."
-    llm.judge(text, violations=[violation("ASEAN-3-SKIN-ACNE", "29 of 32 participants said their skin felt less dry "
-                                          "after 2 weeks")])
+    text = "Contains no added fragrance and no essential oils, making it suitable for all skin types."
+    llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE", "suitable for all skin types")])
     await speak(rt, text)
-    assert await compliance_alerts(rt) == []
+    assert len(await compliance_alerts(rt)) == 1
 
 
 async def test_say_instead_with_a_test_number_carries_the_qualifier(env):
@@ -194,34 +192,12 @@ async def test_say_instead_without_a_test_number_is_kept(env):
     assert a.say_instead == "It helps relieve the feeling of dryness."
 
 
-async def test_a_statement_of_the_product_sheet_is_never_an_alert(env):
-    """D-132 (sealed AW010): "suitable for all skin types" is in the cream's sheet (Key facts, FAQ);
-    the judge flagged it once HIGH (vulnerable users) and twice MEDIUM (superlative)."""
-    rt, llm = env
-    text = "Contains no added fragrance and no essential oils, making it suitable for all skin types."
-    llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE", "suitable for all skin types"),
-                                violation("BRAND-SUPERLATIVE", "it is suitable for all skin types", severity="MEDIUM")])
-    await speak(rt, text)
-    assert await compliance_alerts(rt) == []
-
-
 async def test_sheet_words_do_not_cover_a_wider_claim(env):
     rt, llm = env
     text = "It is suitable for babies and every skin condition."
     llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE", "suitable for babies and every skin condition")])
     await speak(rt, text)
     assert len(await compliance_alerts(rt)) == 1
-
-
-def test_not_approved_claims_of_the_sheet_never_count_as_approved(catalog, pack):
-    from app.agents.utterance_judge import _is_approved_wording
-
-    cream = catalog.get_product(CREAM)
-    passages = [p for p in pack.passages if p.product_id == CREAM]
-    lex = catalog.lexicon
-    assert not _is_approved_wording("the best moisturiser in Singapore", cream, lex, passages)
-    assert not _is_approved_wording("removes wrinkles or reverses skin ageing", cream, lex, passages)
-    assert _is_approved_wording("suitable for all skin types", cream, lex, passages)
 
 
 async def test_a_lead_in_final_naming_our_test_qualifies_the_next_one(env):
@@ -339,7 +315,6 @@ async def test_the_same_number_later_without_the_qualifier_alerts(env):
 @pytest.mark.parametrize("text, span, alerts", [
     # D-174 (sealed verbal set): the judge flagged the short span "all users" (HIGH, vulnerable users) inside the
     # sheet's own "all skin types and all users"; a short span is checked with the phrase around it
-    ("Guys can use it too, no problem, all skin types and all users.", "all users", 0),
     ("Guys can use it too, it even cures acne for all users.", "cures acne", 1),  # the phrase is not sheet wording
 ])
 async def test_d174_a_short_span_inside_sheet_wording_is_not_an_alert(env, text, span, alerts):

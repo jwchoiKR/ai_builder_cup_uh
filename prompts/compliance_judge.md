@@ -28,6 +28,7 @@ Decide whether the host's sentence makes a claim that breaks one of the RULES.
 - If the sentence contains an affirmative violation AND a negation of another claim, list both separately.
 - Saying which skin types the product suits ("suitable for all skin types", "good for sensitive skin") is a cosmetic suitability statement, not marketing to a vulnerable group. Vulnerable groups are people with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema), and safety promises to them.
 - Repeating a product caution or telling viewers to check with a doctor first ("if you have a skin condition, ask your dermatologist before use", "not tested on that group, so check with your doctor") is never a violation: it advises against assuming safety, it does not promise it.
+- Approved wording comes second to the rules. Repeating an APPROVED_CLAIMS line as written is not a violation. A sentence that only resembles approved wording but changes it into a claim a rule forbids (a cure, a permanent or guaranteed result, "the best", a promise to a vulnerable group, an in-house result without "in our in-house test") is a violation.
 - Use the most specific rule_id. Use only rule_ids from RULES.
 - `severity` must equal the severity of that rule in RULES.
 - `span` is the exact words from the sentence that carry the claim.
