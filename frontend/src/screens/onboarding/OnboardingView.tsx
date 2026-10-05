@@ -1,11 +1,15 @@
-// Product onboarding (P0 step 6, D-224): upload any documents of one product, watch the read, review every field
-// with its evidence (file, place, quote), resolve conflicts, edit if needed, approve, and start a show on the release.
+// Product onboarding (P0 step 6, D-224/D-231): upload any documents of one product, watch the read, review every field
+// with its evidence (file, place, quote), choose between conflicting values, fix a value in place, approve, and start
+// a show on the release.
 import { useEffect, useState } from "react";
 
 import { Button, Chip, Eyebrow, HubLink } from "../../components";
 import { navigate } from "../../app/nav";
-import { onboardingApi, type Evidence, type Job, type ProductRecord } from "./onboardingApi";
+import { onboardingApi, type Evidence, type Job, type ProductRecord, type TextItem } from "./onboardingApi";
+import { conflictValue, money, newestIndex, plainField, setAt } from "./recordEdit";
 import styles from "./onboarding.module.css";
+
+type Approved = Awaited<ReturnType<typeof onboardingApi.approve>>;
 
 function Ev({ items }: { items: Evidence[] }) {
   if (!items.length) return null;
@@ -17,6 +21,50 @@ function Ev({ items }: { items: Evidence[] }) {
         </span>
       ))}
     </span>
+  );
+}
+
+/** A value that turns into an input on click ("Edit"), and back on Enter or blur. */
+function Editable({ value, onSave, label }: { value: string; onSave: (v: string) => void; label: string }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  if (!editing)
+    return (
+      <span className={styles.editable}>
+        <span className={styles.value}>{value}</span>
+        <button type="button" className={styles.editLink} onClick={() => { setDraft(value); setEditing(true); }}
+                aria-label={`Edit ${label}`}>
+          Edit
+        </button>
+      </span>
+    );
+  const save = () => { setEditing(false); if (draft.trim() && draft !== value) onSave(draft.trim()); };
+  return (
+    <input className={styles.input} autoFocus value={draft} aria-label={label} onChange={(e) => setDraft(e.target.value)}
+           onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }} />
+  );
+}
+
+function TextRows({ title, items, onChange }: { title: string; items: TextItem[]; onChange: (items: TextItem[]) => void }) {
+  return (
+    <section className={styles.block} data-testid={`onb-${title.toLowerCase().replace(/\W+/g, "-")}`}>
+      <h2 className={styles.blockTitle}>
+        {title} <span className={styles.count}>{items.length}</span>
+      </h2>
+      {items.length === 0 ? (
+        <p className={styles.muted}>None in the documents.</p>
+      ) : (
+        <ul className={styles.rows}>
+          {items.map((it, i) => (
+            <li key={i} className={styles.row}>
+              <Editable value={it.text} label={title}
+                        onSave={(v) => onChange(items.map((x, j) => (j === i ? { ...x, text: v } : x)))} />
+              <Ev items={it.evidence} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -42,37 +90,88 @@ function Rows({ title, rows }: { title: string; rows: { value: string; evidence:
   );
 }
 
-const money = (m: { currency: string; minor: number }) => `${m.currency} ${(m.minor / 100).toFixed(2)}`;
-
-export function RecordReview({ record }: { record: ProductRecord }) {
+export function RecordReview({ record, onChange }: { record: ProductRecord; onChange: (r: ProductRecord) => void }) {
   const r = record;
+  const set = (path: string, v: string) => {
+    const next = setAt(r, path, v);
+    if (next) onChange(next);
+  };
+  const text = (key: "cautions" | "approved_claims" | "not_approved_claims" | "how_to_use" | "key_facts") =>
+    (items: TextItem[]) => onChange({ ...r, [key]: items });
   return (
     <>
-      <Rows
-        title="Variants and prices"
-        rows={r.variants.flatMap((v) => [
-          { value: `${v.name} (${v.variant_id})${v.size_value ? ` · ${v.size_value} ${v.size_unit ?? ""}` : ""}`,
-            evidence: v.evidence },
-          ...v.prices.map((m) => ({ value: `  ${m.kind} price ${money(m)}${m.market ? ` · ${m.market}` : ""}`,
-            evidence: m.evidence })),
-        ])}
-      />
+      <section className={styles.block} data-testid="onb-variants-and-prices">
+        <h2 className={styles.blockTitle}>
+          Sizes and prices <span className={styles.count}>{r.variants.length}</span>
+        </h2>
+        <ul className={styles.rows}>
+          {r.variants.map((v, i) => (
+            <li key={v.variant_id} className={styles.row}>
+              <span className={styles.value}>{v.name} ({v.variant_id})</span>
+              <span className={styles.inline}>
+                Size:{" "}
+                <Editable value={v.size_value ? `${v.size_value}` : "—"} label={`${v.name} size`}
+                          onSave={(x) => set(`variants[${i}].size_value`, x)} /> {v.size_unit ?? ""}
+              </span>
+              {v.prices.map((m, j) => (
+                <span key={j} className={styles.inline}>
+                  {m.kind} price{m.market ? ` ${m.market}` : ""}:{" "}
+                  <Editable value={money(m)} label={`${v.name} ${m.kind} price`}
+                            onSave={(x) => set(`variants[${i}].prices[${j}].minor`, x)} />
+                </span>
+              ))}
+              <Ev items={v.evidence} />
+            </li>
+          ))}
+        </ul>
+      </section>
       <Rows title="Offers" rows={r.offers.map((o) => ({
-        value: `${o.title} (${o.kind}${o.percent ? ` ${o.percent}%` : ""}${o.amount ? ` ${money(o.amount)}` : ""})`,
+        value: `${o.title}${o.percent ? ` · ${o.percent}% off` : ""}${o.amount ? ` · ${money(o.amount)}` : ""}`,
         evidence: o.evidence }))} />
-      <Rows title="Cautions" rows={r.cautions.map((c) => ({ value: c.text, evidence: c.evidence }))} />
-      <Rows title="Approved claims" rows={r.approved_claims.map((c) => ({ value: c.text, evidence: c.evidence }))} />
-      <Rows title="Not approved claims" rows={r.not_approved_claims.map((c) => ({ value: c.text, evidence: c.evidence }))} />
+      <TextRows title="Cautions" items={r.cautions} onChange={text("cautions")} />
+      <TextRows title="Approved claims" items={r.approved_claims} onChange={text("approved_claims")} />
+      <TextRows title="Claims not approved" items={r.not_approved_claims} onChange={text("not_approved_claims")} />
       <Rows title="Test results" rows={r.qualified_results.map((q) => ({
-        value: `${q.statement} — say “${q.qualifier}” (${q.provenance}${q.marker ? `, ${q.marker}` : ""})`,
-        evidence: q.evidence }))} />
+        value: `${q.statement} — say “${q.qualifier}”${q.marker ? ` (${q.marker})` : ""}`, evidence: q.evidence }))} />
       <Rows title="Avoid saying" rows={r.avoid_saying.map((a) => ({ value: `“${a.say_not}” → “${a.say}”`,
         evidence: a.evidence }))} />
-      <Rows title={`Ingredients${r.ingredient_list_complete ? " (complete list)" : ""}`} rows={r.ingredients.map((i) => ({
-        value: `${i.name}${i.amount_value ? ` ${i.amount_value}${i.amount_unit ?? ""}` : ""}`, evidence: i.evidence }))} />
-      <Rows title="How to use" rows={r.how_to_use.map((c) => ({ value: c.text, evidence: c.evidence }))} />
-      <Rows title="Key facts" rows={r.key_facts.map((c) => ({ value: c.text, evidence: c.evidence }))} />
+      <Rows title={`Ingredients${r.ingredient_list_complete ? " (complete list)" : ""}`} rows={r.ingredients.map((x) => ({
+        value: `${x.name}${x.amount_value ? ` ${x.amount_value}${x.amount_unit ?? ""}` : ""}`, evidence: x.evidence }))} />
+      <TextRows title="How to use" items={r.how_to_use} onChange={text("how_to_use")} />
+      <TextRows title="Key facts" items={r.key_facts} onChange={text("key_facts")} />
     </>
+  );
+}
+
+function Conflicts({ record, onChange }: { record: ProductRecord; onChange: (r: ProductRecord) => void }) {
+  const [chosen, setChosen] = useState<Record<number, number>>(() =>
+    Object.fromEntries(record.conflicts.map((c, i) => [i, newestIndex(c.effective_dates)])));
+  const choose = (i: number, k: number) => {
+    setChosen((x) => ({ ...x, [i]: k }));
+    const c = record.conflicts[i];
+    const next = setAt(record, c.field, c.values[k]);
+    if (next) onChange(next);
+  };
+  return (
+    <section className={`${styles.block} ${styles.risk}`} data-testid="onb-conflicts">
+      <h2 className={styles.blockTitle}>The documents disagree: choose one</h2>
+      <ul className={styles.rows}>
+        {record.conflicts.map((c, i) => (
+          <li key={i} className={styles.row}>
+            <span className={styles.value}>{plainField(record, c.field)}</span>
+            <span className={styles.actions}>
+              {c.values.map((v, k) => (
+                <Button key={k} size="sm" variant={chosen[i] === k ? "primary" : "secondary"} onClick={() => choose(i, k)}
+                        aria-pressed={chosen[i] === k}>
+                  Use {conflictValue(record, c.field, v)}{c.effective_dates[k] ? ` (${c.effective_dates[k]}${k === newestIndex(c.effective_dates) ? ", newest" : ""})` : ""}
+                </Button>
+              ))}
+            </span>
+            <Ev items={c.evidence} />
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -80,16 +179,20 @@ export function OnboardingView() {
   const [files, setFiles] = useState<File[]>([]);
   const [hints, setHints] = useState("");
   const [job, setJob] = useState<Job | null>(null);
+  const [rec, setRec] = useState<ProductRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const [draft, setDraft] = useState("");
-  const [release, setRelease] = useState<{ release_id: string; warnings: string[] } | null>(null);
+  const [release, setRelease] = useState<Approved | null>(null);
 
   useEffect(() => {
     if (!job || job.status === "done" || job.status === "failed") return;
     const t = window.setTimeout(() => {
-      onboardingApi.job(job.job_id).then(setJob, (e) => setError(String(e)));
+      onboardingApi.job(job.job_id).then((j) => {
+        setJob(j);
+        if (j.status === "done" && j.result) setRec(j.result.record);
+      }, (e) => setError(String(e)));
     }, 1500);
     return () => window.clearTimeout(t);
   }, [job]);
@@ -106,7 +209,7 @@ export function OnboardingView() {
     }
   };
   const result = job?.status === "done" ? job.result : null;
-  const record = result?.record ?? null;
+  const edit = (r: ProductRecord) => { setRec(r); setRelease(null); };
 
   return (
     <div className={styles.page}>
@@ -129,6 +232,7 @@ export function OnboardingView() {
         <Button variant="primary" disabled={busy || files.length === 0} data-testid="onb-read"
                 onClick={() => act(async () => {
                   setRelease(null);
+                  setRec(null);
                   const { job_id } = await onboardingApi.upload(files, hints);
                   setJob({ job_id, status: "queued", files: files.map((f) => f.name), result: null, error: null });
                 })}>
@@ -143,61 +247,48 @@ export function OnboardingView() {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      {record && result && (
+      {rec && result && (
         <>
           <section className={styles.summary} data-testid="onb-summary">
-            <h2 className={styles.product}>{record.brand} · {record.product_name}</h2>
+            <h2 className={styles.product}>{rec.brand} · {rec.product_name}</h2>
             <div className={styles.chips}>
-              <Chip>{record.category}</Chip>
-              <Chip>{record.language}</Chip>
-              <Chip>{record.variants.length} variants</Chip>
-              <Chip>{record.cautions.length} cautions</Chip>
-              <Chip tone={record.conflicts.length ? "risk" : undefined}>{record.conflicts.length} conflicts</Chip>
+              <Chip>{rec.category}</Chip>
+              <Chip>{rec.language}</Chip>
+              <Chip>{rec.variants.length} sizes</Chip>
+              <Chip>{rec.cautions.length} cautions</Chip>
+              <Chip tone={rec.conflicts.length ? "risk" : undefined}>{rec.conflicts.length} to choose</Chip>
               <Chip>{Math.round(result.seconds)} s</Chip>
             </div>
-            <Ev items={record.category_evidence} />
+            <Ev items={rec.category_evidence} />
           </section>
 
-          {record.conflicts.length > 0 && (
-            <section className={`${styles.block} ${styles.risk}`} data-testid="onb-conflicts">
-              <h2 className={styles.blockTitle}>Conflicts to check</h2>
+          {rec.conflicts.length > 0 && <Conflicts record={rec} onChange={edit} />}
+          {(rec.missing.length > 0 || result.notes.length > 0) && (
+            <section className={styles.block} data-testid="onb-missing">
+              <h2 className={styles.blockTitle}>Not in the documents, or left out</h2>
               <ul className={styles.rows}>
-                {record.conflicts.map((c, i) => (
-                  <li key={i} className={styles.row}>
-                    <span className={styles.value}>
-                      {c.field}: {c.values.map((v, j) => `${v}${c.effective_dates[j] ? ` (${c.effective_dates[j]})` : ""}`).join(" vs ")}
-                    </span>
-                    <Ev items={c.evidence} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-          {(record.missing.length > 0 || result.notes.length > 0) && (
-            <section className={styles.block}>
-              <h2 className={styles.blockTitle}>Not in the documents, or dropped</h2>
-              <ul className={styles.rows}>
-                {[...record.missing, ...result.notes].map((m, i) => <li key={i} className={styles.muted}>{m}</li>)}
+                {rec.missing.map((m, i) => <li key={`m${i}`} className={styles.muted}>{plainField(rec, m)}</li>)}
+                {result.notes.map((m, i) => <li key={`n${i}`} className={styles.muted}>{m}</li>)}
               </ul>
             </section>
           )}
 
-          <RecordReview record={record} />
+          <RecordReview record={rec} onChange={edit} />
 
           <section className={styles.block}>
             <div className={styles.actions}>
-              <Button onClick={() => { setEditing(!editing); setDraft(JSON.stringify(record, null, 1)); }}>
-                {editing ? "Close editor" : "Edit record"}
-              </Button>
               <Button variant="primary" disabled={busy} data-testid="onb-approve"
                       onClick={() => act(async () => {
-                        const edited = editing ? (JSON.parse(draft) as ProductRecord) : undefined;
+                        const edited = advanced ? (JSON.parse(draft) as ProductRecord) : rec;
                         setRelease(await onboardingApi.approve(job!.job_id, edited));
                       })}>
                 Approve and create release
               </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setAdvanced(!advanced); setDraft(JSON.stringify(rec, null, 1)); }}>
+                {advanced ? "Close advanced editor" : "Advanced: edit as JSON"}
+              </Button>
             </div>
-            {editing && (
+            {advanced && (
               <textarea className={styles.editor} rows={18} value={draft} onChange={(e) => setDraft(e.target.value)}
                         aria-label="Record JSON" />
             )}
@@ -205,9 +296,15 @@ export function OnboardingView() {
 
           {release && (
             <section className={`${styles.block} ${styles.ok}`} data-testid="onb-release">
-              <p>
-                Release <b>{release.release_id}</b> created.
+              <p className={styles.value}>
+                Release <b>{release.release_id}</b> is ready. In the live show:
               </p>
+              <ul className={styles.rows} data-testid="onb-live-summary">
+                <li>Price: {release.live?.price}</li>
+                <li>Compliance: {release.live?.law}</li>
+                <li>{release.live?.cautions} cautions for answers, {release.live?.approved_claims} approved claims for the prompter,
+                  {" "}{release.live?.not_approved_claims} claims not approved, {release.live?.promos} offers to start</li>
+              </ul>
               {release.warnings.map((w) => <p key={w} className={styles.warning}>{w}</p>)}
               <Button variant="primary" disabled={busy}
                       onClick={() => act(async () => {

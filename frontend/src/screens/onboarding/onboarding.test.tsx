@@ -11,7 +11,7 @@ const record: ProductRecord = {
     prices: [{ currency: "SGD", minor: 4400, kind: "live", market: "SG", evidence: ev }], evidence: ev }],
   offers: [], ingredients: [], ingredient_list_complete: false, approved_claims: [], not_approved_claims: [],
   avoid_saying: [], qualified_results: [], cautions: [{ text: "Patch test before first use.", evidence: ev }],
-  how_to_use: [], key_facts: [], missing: ["origin"],
+  how_to_use: [], key_facts: [], missing: ["category"],
   conflicts: [{ field: "live price", values: ["S$46.00", "S$44.00"], effective_dates: ["2026-09-01", "2026-10-01"],
     note: "", evidence: ev }],
 };
@@ -36,9 +36,16 @@ describe("OnboardingView (D-224)", () => {
     fireEvent.change(input, { target: { files: [new File(["x"], "spec.docx")] } });
     fireEvent.click(screen.getByTestId("onb-read"));
     expect(await screen.findByTestId("onb-summary", {}, { timeout: 4000 })).toHaveTextContent("Night Serum");
-    expect(screen.getByTestId("onb-conflicts")).toHaveTextContent("S$46.00 (2026-09-01) vs S$44.00 (2026-10-01)");
+    expect(screen.getByTestId("onb-conflicts")).toHaveTextContent("Use S$44.00 (2026-10-01, newest)");
+    expect(screen.getByRole("button", { name: /S\$44\.00/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("onb-cautions")).toHaveTextContent("spec.docx · paragraph 3");
-    expect(screen.getByTestId("onb-variants-and-prices")).toHaveTextContent("live price SGD 44.00");
+    expect(screen.getByTestId("onb-variants-and-prices")).toHaveTextContent("live price SG: SGD 44.00");
+    fireEvent.click(screen.getByRole("button", { name: "Edit Night Serum 30 ml live price" }));
+    const price = screen.getByRole("textbox", { name: "Night Serum 30 ml live price" });
+    fireEvent.change(price, { target: { value: "S$45.00" } });
+    fireEvent.keyDown(price, { key: "Enter" });
+    expect(screen.getByTestId("onb-variants-and-prices")).toHaveTextContent("live price SG: SGD 45.00");
+    expect(screen.getByTestId("onb-missing")).toHaveTextContent("Product category");
     fireEvent.click(screen.getByTestId("onb-approve"));
     await waitFor(() => expect(screen.getByTestId("onb-release")).toHaveTextContent("rel_lumen_v1"));
   });

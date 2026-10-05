@@ -94,7 +94,15 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
         raise ActionError(409, "release_not_buildable", str(e)) from None
     warnings = [] if pack.rules.rules else [
         f"no law pack for {record.category} in {ctx.pack.market.market}: only brand-level checks run"]
-    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id), "warnings": warnings}
+    # D-231: what will happen live, in plain words for the approval screen
+    live = {"law": (f"{len(pack.rules.rules)} rules from {pack.rules.policy_id}" if pack.rules.rules
+                    else "no law checks for this category"),
+            "cautions": len(record.cautions), "approved_claims": len(record.approved_claims),
+            "not_approved_claims": len(record.not_approved_claims), "promos": len(pack.promos.promos),
+            "price": f"{pack.products.currency_symbol}{pack.products.products[0].live_price:.2f} live, "
+                     f"{pack.products.currency_symbol}{pack.products.products[0].list_price:.2f} list"}
+    return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id), "warnings": warnings,
+            "live": live}
 
 
 @router.post("/lawpacks/jobs")
