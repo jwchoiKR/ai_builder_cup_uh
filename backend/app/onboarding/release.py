@@ -157,8 +157,47 @@ def in_language(record: ProductRecord, lang: str, translations: dict | None) -> 
     return record.model_copy(update={"approved_claims": claims, "cautions": cautions, "avoid_saying": avoid}), unreviewed
 
 
+def record_facts(record: ProductRecord, money_of) -> list[tuple[str, str]]:
+    """D-242 arm FR: the record's facts as (key, text) lines the fact checker can quote: every size's price in every
+    market, superseded values (the documents' older dated version), offer terms, and each test result's qualifier."""
+    out: list[tuple[str, str]] = []
+    for v in record.variants:
+        size = f"{v.size_value} {v.size_unit or ''}".strip() if v.size_value else ""
+        for m in v.prices:
+            label = f"{m.market or 'any market'} {m.kind} price"
+            out.append((f"{v.variant_id}-{m.market}-{m.kind}",
+                        f"{v.name}{f' ({size})' if size else ''} · {label}: {money_of(m)}"))
+        if size:
+            out.append((f"{v.variant_id}-size", f"{v.name} · size: {size}"))
+    for c in record.conflicts:
+        dated = [(d, v) for v, d in zip(c.values, c.effective_dates) if d]
+        if len(dated) >= 2:
+            dated.sort()
+            current = dated[-1]
+            for d, v in dated[:-1]:
+                out.append((f"superseded-{c.field}-{d}",
+                            f"Superseded: {c.field} was {v} (version of {d}); current value {current[1]} "
+                            f"(version of {current[0]}). Saying {v} as current is wrong."))
+    for o in record.offers:
+        terms = [o.title]
+        if o.percent:
+            terms.append(f"{o.percent}% off")
+        if o.amount is not None:
+            terms.append(f"amount {money_of(o.amount)}")
+        if o.buy and o.get:
+            terms.append(f"buy {o.buy} get {o.get}")
+        if o.starts or o.ends:
+            terms.append(f"from {o.starts or '?'} to {o.ends or '?'}")
+        if o.duration_min:
+            terms.append(f"{o.duration_min} minutes")
+        out.append((f"offer-{o.offer_id}", "Offer: " + "; ".join(terms)))
+    for i, q in enumerate(record.qualified_results):
+        out.append((f"result-{i + 1}", f"Test result: {q.statement}. Must be said with: {q.qualifier} ({q.provenance})."))
+    return out
+
+
 def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None,
-                 translations: dict | None = None) -> DataPack:
+                 translations: dict | None = None, fact_mode: str = "sheet") -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
     assert base.market is not None
     record, unreviewed = in_language(record, base.lang, translations)
@@ -190,8 +229,10 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
                                 doc=UNREVIEWED_DOC if unreviewed_line else doc, section=section, text=text))
 
     add("Product overview", "overview", f"{record.brand} {record.product_name} ({record.category}).")
-    add("Key facts", "list-price", f"List price: {money(list_price)}")
-    add("Key facts", "live-broadcast-price", f"Live broadcast price: {money(live_price)}")
+    # D-242 arm FR: the price passages name their size, so a second size's price is never read as this one's
+    sized = f" ({size})" if fact_mode == "record" and size else ""
+    add("Key facts", "list-price", f"List price{sized}: {money(list_price)}")
+    add("Key facts", "live-broadcast-price", f"Live broadcast price{sized}: {money(live_price)}")
     if size:
         add("Key facts", "volume", f"Volume: {size}")
     for v, lp, live in priced[1:]:
@@ -199,6 +240,13 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
             f"{v.name}: list price {money(lp or live)}, live broadcast price {money(live or lp)}")
     for i, f in enumerate(record.key_facts):
         add("Key facts", f"fact-{i + 1}-{f.text[:30]}", f.text)
+    if fact_mode == "record":
+        def fact_money(m) -> str:  # this market's currency as shown on air, another one by its code
+            amount = Decimal(m.minor) / 100
+            return f"{sym}{amount:.2f}" if m.currency == cur else f"{m.currency} {amount:.2f}"
+
+        for key, text in record_facts(record, fact_money):
+            add("Record facts", key, text)
     for ing in record.ingredients:
         amount = f": {ing.amount_value}{ing.amount_unit or ''}" if ing.amount_value else ""
         add("Key ingredients", ing.name, f"{ing.name}{amount}{'. ' + ing.purpose if ing.purpose else ''}")

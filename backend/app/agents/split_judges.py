@@ -42,6 +42,11 @@ class _SplitJudge:
         self.arm = llm.design_arm  # D-187
         self.system_instruction = arms.system_instruction(self.prompt.system_instruction, self.name, self.arm,
                                                           llm.prompts_path)
+        # D-242 arm FR: the record's test results and the qualifier each needs
+        self.fact_record = getattr(getattr(llm, "settings", None), "FACT_MODE", "sheet") == "record"
+        fr = arms._addenda(str(llm.prompts_path)).get(("FR", self.name)) if self.fact_record else None
+        if fr:
+            self.system_instruction = f"{self.system_instruction}\n\n{fr}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         raise NotImplementedError
@@ -105,7 +110,11 @@ class ComplianceJudge(_SplitJudge):
 
     def extra_data(self) -> str:
         if not arms.meaning_to_llm(self.arm):
-            return ""
+            if not self.fact_record:
+                return ""
+            results = [{"product_id": p.product_id, "say": r.say} for p in self.catalog.products
+                       for r in p.qualified_results]
+            return super().extra_data() + (inputs.data_block("QUALIFIED_RESULTS", results) if results else "")
         # D-187 arm B: the in-house test results the judge picks a qualifier replacement from, by id
         results = [{"result_id": r.result_id, "product_id": p.product_id, "say": r.say}
                    for p in self.catalog.products for r in p.qualified_results]

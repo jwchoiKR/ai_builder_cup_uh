@@ -230,6 +230,11 @@ class FactChecker:
         self.prompt_version = prompt.version
         self.model = llm.fast.model
         self.catalog = catalog
+        # D-242 arm FR: how to read a release's record facts
+        from . import arms
+        record = getattr(getattr(llm, "settings", None), "FACT_MODE", "sheet") == "record"
+        extra = arms._addenda(str(llm.prompts_path)).get(("FR", self.name)) if record else None
+        self.system_instruction = f"{prompt.system_instruction}\n\n{extra}" if extra else prompt.system_instruction
 
     async def run(self, inp: FactInput, *, deadline_ms: int) -> AgentResult[FactCheckOutput]:
         user, prefix = self.prompt.render_cached({
@@ -245,7 +250,7 @@ class FactChecker:
         }, {"current_product_compact_json", "passages_json"})
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
-            prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction,
+            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=inp.session_id,
             cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
