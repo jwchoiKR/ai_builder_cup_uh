@@ -1425,3 +1425,23 @@ async def test_d261_a_word_correction_the_line_already_says_is_dropped(tmp_path,
     row = {}
     assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
                                "Forty-four dollars qualifies while forty does not.", threshold, row) == []
+
+
+def test_d262_a_correction_without_the_name_and_multiplicative_words(pack):
+    from app.agents.fact_checker import _same_substance
+
+    assert _same_substance("1% shea butter", "10% by weight", "shea butter: 10% by weight")
+    assert _same_substance("9 mg sodium", "90 mg per 30 g scoop", "sodium: 90 mg per 30 g scoop")
+    assert not _same_substance("3 mg zinc gluconate", "2.5 mg zinc", "Zinc 2.5 mg (as zinc gluconate)")
+    assert pack.lexicon.times_numbers("Brush twice daily.") == {"2"}
+
+
+async def test_d262_twice_is_a_number_in_every_guard(tmp_path, monkeypatch):
+    facts = [{"text": "Brush twice daily.", "evidence": EV}]
+
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text == facts[0]["text"])
+        return _claim(pid, p, field="usage", stated_value="three times daily", correct_value="Brush twice daily.")
+
+    [a] = await _release_line(tmp_path, monkeypatch, {"how_to_use": facts}, "Brush three times daily.", claim)
+    assert a["correct_value"] == "Brush twice daily."

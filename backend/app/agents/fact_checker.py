@@ -59,12 +59,17 @@ def _latin(text: str | None) -> bool:
     return bool(re.search(r"[a-z]{2}", (text or "").lower()))
 
 
-def _same_substance(stated: str | None, correct: str | None) -> bool:
-    """Every name word the host gave for the substance is in the correction ("zinc gluconate" vs "zinc": no)."""
-    said = set(_NAME.findall((stated or "").lower())) - _NOT_NAMES - _UNIT_WORDS
-    right = set(_NAME.findall((correct or "").lower()))
-    return not said or not right or said <= right
-
+def _same_substance(stated: str | None, correct: str | None, quote: str | None = None) -> bool:
+    """Every name word the host gave for the substance is in the correction ("zinc gluconate" vs "zinc": no).
+    D-262 (pool 3: "10% by weight" quoting "shea butter: 10% by weight" was dropped): a correction that names none of
+    the host's substance words leaves the name to its quote, which must then hold them."""
+    names = lambda t: set(_NAME.findall((t or "").lower())) - _NOT_NAMES - _UNIT_WORDS  # noqa: E731
+    said, right = names(stated), names(correct)
+    if not said:
+        return True
+    if said & right:
+        return said <= right
+    return said <= names(quote) or not names(quote)
 
 def _from_quote(correct: str, quote: str, share: float = 0.5) -> bool:
     """D-244 L1/L8: the correction rests on the quote. Latin script: at least half of its value words are in the
@@ -274,7 +279,7 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         # D-250: numbers in digits or words ("twelve months after opening" states 12)
         # D-251: and numbers written in other scripts' words ("영 점 오 퍼센트" states 0.5; onboarding's numwords)
         nums = lambda t: (number_set(t or "") | lex.spoken_numbers(t or "")  # noqa: E731
-                          | {plain_number(v) for v in numbers_in_text(t or "")})
+                          | {plain_number(v) for v in numbers_in_text(t or "")} | lex.times_numbers(t or ""))
         said, right = nums(c.stated_value), nums(c.correct_value)
         # D-207: the same number in another unit or currency ("12 years" vs "12 months", "RM36" vs "S$36") is a
         # real contradiction, not a restatement
@@ -341,7 +346,8 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                 # D-255 (sealed FD: "3 mg zinc gluconate" contradicted by "2.5 mg zinc"): a salt is not its element;
                 # the correction must be about the substance the host named
                 ("another substance than the host named",
-                 lambda: c.field != "ingredient_amount" or _same_substance(c.stated_value, c.correct_value)),
+                 lambda: c.field != "ingredient_amount"
+                 or _same_substance(c.stated_value, c.correct_value, c.quote)),
                 ("L1: a stated number corrected without a number",
                  lambda: c.field == "ingredient" or not said or bool(right) or _term_dispute(c, p, said, passages)),
                 # Claim wording is compliance (the judge's job), never a product fact (D-048).
