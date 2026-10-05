@@ -52,6 +52,37 @@ def _offer_threshold(c, offer) -> bool:
     return right == number_set(f"{offer.min_spend}") and bool(said) and not said <= right
 
 
+# D-207: a section that lists every ingredient ("Ingredients", "Full ingredients", "Ingredients (INCI)"); a "Key
+# ingredients" table is not one
+_COMPLETE_LIST = re.compile(r"^(?:full |complete )?ingredients?(?: list)?(?: \(inci\))?$", re.IGNORECASE)
+_UNIT_ALIASES = {"ml": "ml", "mls": "ml", "milliliter": "ml", "milliliters": "ml", "millilitre": "ml",
+                 "millilitres": "ml", "g": "g", "gram": "g", "grams": "g", "%": "%", "percent": "%",
+                 "year": "year", "years": "year", "month": "month", "months": "month", "week": "week",
+                 "weeks": "week", "day": "day", "days": "day", "hour": "hour", "hours": "hour",
+                 "s$": "SGD", "sgd": "SGD", "rm": "MYR", "myr": "MYR"}
+_QUANTITY = re.compile(r"(s\$|sgd|rm|myr)?\s*(\d+(?:\.\d+)?)\s*(%|[a-z]+)?", re.IGNORECASE)
+
+
+def _units(text: str) -> set[str]:
+    """D-207: the units and currencies next to the numbers of a value ("12 months" -> {"month"}, "RM36" -> {"MYR"})."""
+    out = set()
+    for cur, _, unit in _QUANTITY.findall(text or ""):
+        for u in (cur, unit):
+            if u and u.lower() in _UNIT_ALIASES:
+                out.add(_UNIT_ALIASES[u.lower()])
+    return out
+
+
+def _proven_absent(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
+    """D-207 (full review P2): an absence is a fact only when the sheet proves it: the product's "Free from" list names
+    the ingredient, or the sheet has a complete ingredient list. A partial sheet ("full INCI list on the carton")
+    settles nothing, and the claim stays not_in_sources."""
+    names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
+    mine = [p for p in passages if p.product_id == product_id]
+    free_from = " ".join(p.text.lower() for p in mine if _FREE_FROM.match(p.text.lower()))
+    return bool(names) and (any(n in free_from for n in names) or any(_COMPLETE_LIST.match(p.section) for p in mine))
+
+
 def _on_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
     """D-165: every ingredient word the host named is in the product's sheet (not only in its "Free from" list)."""
     names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
@@ -148,7 +179,12 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             c.verdict = "not_in_sources"
             continue
         said, right = number_set(c.stated_value or ""), number_set(c.correct_value or "")
-        if (said and said == right) or (c.stated_value or "").strip().lower() == (c.correct_value or "").strip().lower():
+        # D-207: the same number in another unit or currency ("12 years" vs "12 months", "RM36" vs "S$36") is a
+        # real contradiction, not a restatement
+        units_differ = bool(_units(c.stated_value) and _units(c.correct_value)
+                            and _units(c.stated_value) != _units(c.correct_value))
+        if ((said and said == right and not units_differ)
+                or (c.stated_value or "").strip().lower() == (c.correct_value or "").strip().lower()):
             c.verdict = "not_in_sources"  # D-151: the "correction" restates what the host said
             continue
         if c.field in WORD_FIELDS and _words_within(c.stated_value, c.correct_value):
@@ -167,7 +203,8 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             # D-151 (sealed round 3): "No retinol in this one" came back contradicted with "not in this product":
             # the same thing. A stated absence is never contradicted by an absence.
             said_absent = catalog.lexicon.absence.search(f"{c.stated_value or ''} {c.span or ''}")
-            ok = not said_absent and _absent_from_sheet(c.stated_value, passages, c.product_id)
+            ok = (not said_absent and _absent_from_sheet(c.stated_value, passages, c.product_id)
+                  and _proven_absent(c.stated_value or "", passages, c.product_id))  # D-207
         elif c.passage_id is not None:
             p = by_id.get(c.passage_id)
             ok = (p is not None and c.quote is not None and quote_in_passage(c.quote, p.text)
