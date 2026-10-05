@@ -28,7 +28,7 @@
     },
     {
       "source_id": "PRODUCT_SHEET",
-      "title": "DAON LAB product sheets, section 7 'Claims not approved for this product' (fictional brand policy)",
+      "title": "Brand claims policy (fictional brand)",
       "file": "data/products/*.pdf",
       "note": "Brand policy for the demo. Not a regulation."
     }
@@ -117,7 +117,7 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "Appendix III, Section 3, Skin products",
       "title": "Numbing effect",
-      "description": "Listed as unacceptable for skin products: 'Numbing effect'. Not this rule: saying that skin may feel a mild, temporary tingling, with patch-test advice (approved product wording).",
+      "description": "Listed as unacceptable for skin products: 'Numbing effect'. Not this rule: describing a mild, temporary sensation that the product's own data states (such as a light tingle), with its caution.",
       "severity": "HIGH"
     },
     {
@@ -135,23 +135,23 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "Appendix III, Section 2.d.vi (particular target of the marketing)",
       "title": "Targets groups with, or vulnerable to, specific conditions",
-      "description": "Product presentation includes marketing aimed at population groups with, or particularly vulnerable to, specific diseases or adverse conditions. The product sheets also state the products were not specifically tested on pregnant or breastfeeding women. Not this rule: telling pregnant or breastfeeding viewers that the product was not specifically tested for them and that they should check with their doctor first (the approved answer). Not this rule either: a skin-type suitability statement (\"suitable for all skin types\", \"good for sensitive or oily skin\"); skin types are not a vulnerable group. This rule is about named groups with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema) or safety promises to them (\"safe for everyone\").",
+      "description": "Product presentation includes marketing aimed at population groups with, or particularly vulnerable to, specific diseases or adverse conditions. Not this rule: telling pregnant or breastfeeding viewers that the product was not tested for them, or that they should check with their doctor first. Not this rule either: a skin-type suitability statement (\"suitable for all skin types\", \"good for sensitive or oily skin\"); skin types are not a vulnerable group. This rule is about named groups with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema) or safety promises to them (\"safe for everyone\").",
       "severity": "HIGH"
     },
     {
       "rule_id": "BRAND-SUPERLATIVE",
       "category": "superlative",
       "source_id": "PRODUCT_SHEET",
-      "source_ref": "Product sheet, section 7, Claims not approved",
+      "source_ref": "Brand claims policy, claims not approved",
       "title": "Comparative or superlative claims",
-      "description": "Brand policy forbids comparative or superlative claims such as 'the best moisturiser in Singapore'.",
+      "description": "Brand policy forbids comparative or superlative claims such as 'the best on the market'.",
       "severity": "MEDIUM"
     },
     {
       "rule_id": "BRAND-ABSOLUTE-SAFETY",
       "category": "absolute_safety",
       "source_id": "PRODUCT_SHEET",
-      "source_ref": "Product sheet, section 7, Claims not approved",
+      "source_ref": "Brand claims policy, claims not approved",
       "title": "Absolute safety claims",
       "description": "Brand policy forbids 'completely safe for everyone' and similar absolute safety claims.",
       "severity": "MEDIUM"
@@ -160,7 +160,7 @@
       "rule_id": "BRAND-MEDICINE-LIKE",
       "category": "medicine_like",
       "source_id": "PRODUCT_SHEET",
-      "source_ref": "Product sheet, section 7, Claims not approved",
+      "source_ref": "Brand claims policy, claims not approved",
       "title": "Compared to a medicine or prescription product",
       "description": "Brand policy forbids saying the product works like a medicine or prescription product.",
       "severity": "MEDIUM"
@@ -169,7 +169,7 @@
       "rule_id": "BRAND-WHITENING",
       "category": "whitening",
       "source_id": "PRODUCT_SHEET",
-      "source_ref": "Product sheet (Deep Hydration Ampoule), section 7, Claims not approved",
+      "source_ref": "Brand claims policy, claims not approved",
       "title": "Whitening or permanent colour change",
       "description": "Brand policy forbids whitening, skin-lightening or fairer-skin claims (bleaching the skin, removing or fading melanin or pigment) and claims of permanently changing skin colour.",
       "severity": "MEDIUM"
@@ -178,9 +178,9 @@
       "rule_id": "BRAND-TEST-QUALIFIER",
       "category": "test_qualifier",
       "source_id": "PRODUCT_SHEET",
-      "source_ref": "Product sheet, section 5 (in-house test results) and section 7 (claims marked *)",
+      "source_ref": "Brand claims policy, test results and their qualifiers",
       "title": "Test result without 'in our in-house test'",
-      "description": "Brand policy: a number from a test or study (a percentage, a count of participants such as '0 of 32', or a measured time such as '24 hours') must be said together with 'in our in-house test' or 'in our in-house study'. Use this rule, not an ageing, physiological or superlative rule, when the only problem is the missing qualifier. Only results of a test or study need it. Not this rule: ingredient amounts ('5% panthenol'), prices, volumes or pH; a sentence that already says the result is from our own test ('in our in-house test', 'in our 48-hour patch test'), benefit wording without a test number ('it keeps skin hydrated'), a viewer's question read out, or a denial.",
+      "description": "Brand policy: a number from a test or study (a percentage, a count of participants such as '21 of 24', or a measured time such as '12 hours') must be said together with its qualifier from the product's data, such as 'in our in-house test' or 'in an independent lab test'. Use this rule, not an ageing, physiological or superlative rule, when the only problem is the missing qualifier. Only results of a test or study need it. Not this rule: ingredient amounts ('2% allantoin'), prices, volumes or pH; a sentence that already gives the result's qualifier ('in our in-house test', 'in our 72-hour patch test', 'in an independent lab test'), benefit wording without a test number ('it keeps skin hydrated'), a viewer's question read out, or a denial.",
       "severity": "MEDIUM"
     }
   ],

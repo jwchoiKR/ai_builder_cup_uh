@@ -47,7 +47,7 @@
     },
     {
       "source_id": "PRODUCT_SHEET",
-      "title": "DAON LAB product sheets",
+      "title": "Brand claims policy (fictional brand)",
       "file": "data/products/*.pdf",
       "note": "Fictional brand policy, not legislation; same product restrictions as SG. Publication date not specified."
     },
