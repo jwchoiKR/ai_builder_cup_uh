@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 TRIGGERS = frozenset({"transcript.final", "prompter.updated", "hostqueue.updated", "group.updated",
                       "promo.started", "promo.ended", "segment.started", "alert.created", "alert.updated"})
-PD_DEADLINE_MS = 2500
+PD_DEADLINE_MS = 4000  # D-166: gemini-3.8-flash LOW (p95 ~4 s direct); the rules decide on a timeout
 MIN_GAP_MS = 1000  # at most one decision per second
 
 
@@ -37,8 +37,9 @@ class PdDirector:
         if st.LLM_PROVIDER == "vertex":
             try:
                 from ..agents.ai_pd import AiPd
-                self.agent = AiPd(project=st.GCP_PROJECT, location=st.LLM_LOCATION, model=st.LLM_FAST_MODEL,
-                                  thinking_level=st.LLM_FAST_THINKING, prompts_dir=st.prompts_path)
+                # D-166: the quality model at PD_THINKING (flash-lite chose no better than the rules)
+                self.agent = AiPd(project=st.GCP_PROJECT, location=st.LLM_LOCATION, model=st.LLM_QUALITY_MODEL,
+                                  thinking_level=st.PD_THINKING, prompts_dir=st.prompts_path)
             except Exception as e:  # noqa: BLE001 - the rule fallback keeps the show running
                 log.warning("AI PD agent unavailable, using rules: %s", e)
         self.recent: collections.deque[str] = collections.deque(maxlen=3)

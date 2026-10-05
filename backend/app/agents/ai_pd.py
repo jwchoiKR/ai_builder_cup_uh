@@ -30,6 +30,19 @@ def load_template(prompts_dir: Path):
     return _template(pf, _with_examples(_until_rule(pf.require("SYSTEM INSTRUCTION").lines), _examples_text(pf)))
 
 
+_MODELS: dict[str, object] = {}  # D-166: one ADK Gemini model (and its genai client) per model name, process-wide
+
+
+def _gemini(model: str):
+    """D-166: given a model name, ADK built a new model object and genai client on every call (a new connection
+    and credentials each time, ~1.7 s); one shared object keeps its client."""
+    from google.adk.models import Gemini
+
+    if model not in _MODELS:
+        _MODELS[model] = Gemini(model=model)
+    return _MODELS[model]
+
+
 class AiPd:
     """One ADK agent and in-memory runner per broadcast session."""
 
@@ -48,7 +61,7 @@ class AiPd:
         self._types = types
         system = self.template.system_instruction
         self.agent = LlmAgent(
-            name="ai_pd", model=model, description="Picks the host's next action card.",
+            name="ai_pd", model=_gemini(model), description="Picks the host's next action card.",
             instruction=lambda _ctx: system,  # a callable: ADK does not template the JSON braces
             output_schema=PdChoice, include_contents="none",
             generate_content_config=types.GenerateContentConfig(

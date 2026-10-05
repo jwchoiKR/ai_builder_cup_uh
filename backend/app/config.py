@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     LLM_QUALITY_MODEL: str = "gemini-3.8-flash"
     LLM_QUALITY_THINKING: ThinkingLevel = "MEDIUM"
     COMPOSER_THINKING: ThinkingLevel = "LOW"  # per-agent override for AnswerComposer (D-067)
+    PD_THINKING: ThinkingLevel = "LOW"  # D-166: the AI PD on LLM_QUALITY_MODEL (docs/eval/ai-pd-arms.md)
     # D-128: per-agent overrides of LLM_FAST_THINKING (thinking-level comparison, docs/eval/models/README.md)
     COMPLIANCE_THINKING: ThinkingLevel = "LOW"
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"

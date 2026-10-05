@@ -1,6 +1,6 @@
 # Prompt: ai_pd (version ai_pd_v1)
 
-Used by: `AiPd` (ADK `LlmAgent`, `backend/app/agents/ai_pd.py`). Model: `LLM_FAST_MODEL`, thinking MINIMAL.
+Used by: `AiPd` (ADK `LlmAgent`, `backend/app/agents/ai_pd.py`). Model: `LLM_QUALITY_MODEL`, thinking `PD_THINKING` (LOW, D-166).
 Called on broadcast events (a judged final, question queue change, time milestone, promo start or end,
 a pause of 8 s), never on the 3 s alert path. It picks ONE card id from CANDIDATES or "none". It never
 writes wording: every candidate already carries verified text. Output must validate against `PdChoice`.
