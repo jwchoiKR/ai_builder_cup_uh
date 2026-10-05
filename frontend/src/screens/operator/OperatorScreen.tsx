@@ -15,7 +15,7 @@ import { RightRail } from "./RightRail";
 
 export function OperatorScreen(props: ScreenProps) {
   // No T key on this screen, so the toggle (2nd element) is not used; the gear sets the theme.
-  const [ownTheme, , setTheme, themePref] = useTheme("operator");
+  const [ownTheme, , setTheme, themePref] = useTheme();
   const t = useT();
   const theme = props.theme ?? ownTheme;
   const { state, connection, error } = useSession(props.sessionId, "operator");

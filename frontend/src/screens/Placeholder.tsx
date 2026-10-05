@@ -23,7 +23,7 @@ export function ScreenPlaceholder({
   props: ScreenProps;
   children?: ReactNode;
 }) {
-  const [ownTheme, toggle] = useTheme(screen);
+  const [ownTheme, toggle] = useTheme();
   const theme = props.theme ?? ownTheme;
   const { state, connection, error } = useSession(props.sessionId, role);
   const catalog = useCatalog();

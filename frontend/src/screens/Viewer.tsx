@@ -10,7 +10,7 @@ import { ViewerView } from "./viewer/ViewerView";
 /** Viewer page (§12.5). Standalone it is a framed 390x844 phone; embedded (Studio pane, operator
  * preview) it fills its container. */
 export function Viewer(props: ScreenProps) {
-  const [ownTheme, toggle] = useTheme("viewer");
+  const [ownTheme, toggle] = useTheme();
   const theme = props.theme ?? ownTheme;
   const { state, connection } = useSession(props.sessionId, "viewer");
   const catalog = useCatalog();

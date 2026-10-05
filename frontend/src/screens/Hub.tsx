@@ -54,7 +54,7 @@ const go = (href: string) => (e: MouseEvent) => {
 };
 
 export function Hub({ sessionId, onSessionChange }: ScreenProps) {
-  const [theme, , setTheme, themePref] = useTheme("hub");
+  const [theme, , setTheme, themePref] = useTheme();
   const t = useT();
   const lang = useLang();
   const health = useHealth();
