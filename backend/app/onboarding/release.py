@@ -332,6 +332,7 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
         qualified_results=[QualifiedResult(result_id=f"{pid}-r{i + 1}", numbers=q.numbers,
                                            say=f"{q.statement} ({q.qualifier})")
                            for i, q in enumerate(record.qualified_results)],
+        target_group=list(record.target_group),
         cautions=[c.text for c in record.cautions],
         avoid_saying=[AvoidSaying(say_not=a.say_not, say=a.say) for a in record.avoid_saying],
     )

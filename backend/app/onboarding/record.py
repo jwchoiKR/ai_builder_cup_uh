@@ -132,6 +132,8 @@ class ProductRecord(_Model):
     generic_word: str | None = None  # the category word ("cream", "serum"), never an alias on its own
     category: str  # "cosmetic", "food_supplement", "haircare", ...: selects the law pack
     category_evidence: list[Evidence] = []
+    target_group: list[str] = []  # D-256: who the product is made for ("infants", "children", "pregnant women")
+    target_group_evidence: list[Evidence] = []
     language: str  # the documents' main language, BCP-47
     variants: list[Variant]
     offers: list[Offer] = []

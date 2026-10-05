@@ -34,9 +34,11 @@ Rules:
   third_party_lab (a named lab or institute), certifier (a named certification body), clinical, consumer_panel, other. `qualifier` is the wording that must
   go with the result ("in our in-house test", "tested by <lab>"); `marker` is the footnote mark when there is one.
 - `cautions`: every warning, contraindication and "stop using / consult a doctor" line.
-- `category`: what the product is. When CATEGORIES is given, it is the one entry of that list that fits best (a
-  legging is "apparel", a serum "cosmetic"); otherwise one lower-case word or snake_case term. `category_evidence`
-  quotes how the files describe the product.
+- `category`: the regulatory product type, what the product is, never who it is for. When CATEGORIES is given, it is
+  the one entry of that list that fits best (a legging is "apparel", a serum "cosmetic", a baby body wash "body_care");
+  otherwise one lower-case word or snake_case term. `category_evidence` quotes how the files describe the product.
+- `target_group`: who the product is made or marketed for, when the files say so ("infants", "children", "pregnant
+  women", "men"), with `target_group_evidence`; empty when the files name no group.
 - `generic_word`: the category word viewers use for it ("cream", "serum", "shampoo"); `short_names`: the shorter
   names the files use for this product, without the generic word alone.
 - Conflicts: when files disagree on a value (two prices, two sizes, two dates), list both in `conflicts` with their
