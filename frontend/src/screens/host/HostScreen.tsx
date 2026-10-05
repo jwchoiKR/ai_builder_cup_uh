@@ -27,7 +27,7 @@ import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
 import { useCatalog, useNow, useSession } from "../../app/store";
 import { useT } from "../../app/i18n";
-import { HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReadingSize } from "../../app/prefs";
+import { COLS_MAX, HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReadingSize } from "../../app/prefs";
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { Catalog } from "../../app/types";
 import { Countdown, Elapsed, SettingsButton, Splitter } from "../../components";
@@ -268,7 +268,7 @@ export function HostView({
         <div className={styles.main}
           style={{ gridTemplateColumns: `minmax(0, ${fr(layout.cols)}fr) var(--split-gap) minmax(0, ${fr(1 - layout.cols)}fr)` }}>
           <div className={styles.left}
-            style={{ gridTemplateRows: `minmax(auto, ${fr(layout.rows)}fr) var(--split-gap) minmax(0, ${fr(1 - layout.rows)}fr)` }}>
+            style={{ gridTemplateRows: `minmax(auto, ${fr(layout.rows)}fr) var(--split-gap) minmax(auto, ${fr(1 - layout.rows)}fr)` }}>
             <Prompter
               view={prompter}
               product={prompter.product ?? product}
@@ -305,7 +305,7 @@ export function HostView({
                 unanswered={unansweredCount(state)} />
             </div>
           </div>
-          <Splitter orientation="vertical" value={layout.cols} onChange={(cols) => setHostLayout({ cols })}
+          <Splitter orientation="vertical" value={layout.cols} max={COLS_MAX} onChange={(cols) => setHostLayout({ cols })}
             onReset={() => setHostLayout({ cols: HOST_LAYOUT_DEFAULT.cols })} label={t("Resize prompter and chat")}
             testId="host-split-cols" />
           <div className={styles.right}>

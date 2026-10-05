@@ -685,6 +685,9 @@ describe("host panel sizes (D-181)", () => {
       fireEvent.keyDown(rows, { key: "Home" });
       expect(rows).toHaveAttribute("aria-valuenow", "25");
       expect(JSON.parse(window.localStorage.getItem("ls.layout.host")!)).toEqual({ cols: 0.63, rows: 0.25 });
+      fireEvent.keyDown(cols, { key: "End" });
+      expect(cols).toHaveAttribute("aria-valuenow", "70"); // D-182: the chat keeps 30%
+      expect(cols).toHaveAttribute("aria-valuemax", "70");
       fireEvent.doubleClick(cols);
       expect(cols).toHaveAttribute("aria-valuenow", "58");
       fireEvent.click(screen.getByTestId("settings-button"));
