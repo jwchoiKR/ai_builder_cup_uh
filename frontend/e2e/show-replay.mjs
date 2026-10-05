@@ -220,7 +220,10 @@ function score(show, run) {
     const al = alertsOn(run, lineFor(byLine, sl.t_s));
     return { t_s: sl.t_s, why: sl.why,
       red: al.some((a) => a.kind === "compliance" && a.severity === "HIGH"),
-      yellow: al.some((a) => !(a.kind === "compliance" && a.severity === "HIGH")) };
+      yellow: al.some((a) => !(a.kind === "compliance" && a.severity === "HIGH")),
+      // which rule or fact note fired, so a false alert can be traced without another run
+      alerts: al.map((a) => ({ kind: a.kind, rule_id: a.rule_id ?? null, severity: a.severity ?? null, status: a.status,
+        field: a.field ?? null, said: a.stated_value ?? null, correct: a.correct_value ?? null })) };
   });
   // (c) question groups: how each was handled first, and when
   const groups = Object.values(run.seen.groups);
