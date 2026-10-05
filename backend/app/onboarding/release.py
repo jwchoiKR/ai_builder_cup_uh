@@ -70,6 +70,23 @@ def save_release(root: Path, record: ProductRecord, job_id: str, translations: d
     return release_id
 
 
+def list_releases(root: Path) -> list[dict]:
+    """D-264: every approved release on disk (in the cloud: read back from the bucket at start), newest first."""
+    folder = root / "releases"
+    out = []
+    for p in folder.glob("rel_*_v*.json") if folder.is_dir() else []:
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            r = data["record"]
+        except (ValueError, KeyError):
+            continue
+        markets = sorted({m.get("market") for v in r.get("variants", []) for m in v.get("prices", []) if m.get("market")})
+        out.append({"release_id": data["release_id"], "product_name": r.get("product_name"), "brand": r.get("brand"),
+                    "category": r.get("category"), "markets": markets, "approved_at": data.get("approved_at"),
+                    "version": int(data["release_id"].rsplit("_v", 1)[1])})
+    return sorted(out, key=lambda x: x["approved_at"] or 0, reverse=True)
+
+
 def load_release(root: Path, release_id: str) -> ProductRecord:
     return load_release_full(root, release_id)[0]
 

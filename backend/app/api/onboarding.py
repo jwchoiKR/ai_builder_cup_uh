@@ -262,6 +262,14 @@ async def approve_lawpack(job_id: str, body: ApproveBody | None = None, ctx: App
     return {"pack_id": save_lawpack(ctx.settings.onboarding_path, job["market"], rec, job_id)}
 
 
+@router.get("/releases")
+async def releases(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
+    """D-264: the approved products a show can start from, newest first (after a cold start too, D-263)."""
+    from ..onboarding.release import list_releases
+
+    return list_releases(ctx.settings.onboarding_path)
+
+
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str) -> dict:
     job = _jobs.get(job_id)
