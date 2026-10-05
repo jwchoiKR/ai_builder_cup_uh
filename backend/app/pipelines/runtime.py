@@ -130,6 +130,10 @@ class SessionRuntime:
             data["answer"] = answer.model_dump(mode="json") if answer else None
             payload = data
         await self.ctx.bus.emit(self.sid, type_, payload)
+        if type_.startswith("alert.") and isinstance(payload, Alert):  # D-158: traces a cloud replay
+            log.info("alert %s %s %s %s %s %s %s t=%s field=%s", self.sid, type_, payload.alert_id, payload.kind,
+                     payload.rule_id or "-", payload.severity or "-", payload.status, payload.transcript_id,
+                     payload.field or "-")
         pd = getattr(self, "pd", None)
         if pd is not None and type_ != "pd.card":
             pd.on_event(type_, payload)  # only schedules work; never takes the lock
