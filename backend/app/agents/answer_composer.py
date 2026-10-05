@@ -22,6 +22,8 @@ SECTION_INTENTS: dict[str, tuple[str, ...]] = {
     "texture": ("Key facts",), "fragrance": ("Key facts",), "ingredient_amount": ("Key ingredients",),
     "ingredients": ("Key ingredients",), "allergy_sensitivity": ("Cautions",),
     "pregnancy_breastfeeding": ("Cautions",), "medical_condition": ("Cautions",), "age_suitability": ("Cautions",),
+    # D-153 (00007 show replays): "How many drops?" never retrieved "Apply two to three drops ..."
+    "how_to_use": ("How to use",), "routine_order": ("How to use",),
 }
 
 

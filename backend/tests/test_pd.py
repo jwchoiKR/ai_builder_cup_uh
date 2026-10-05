@@ -212,3 +212,37 @@ def test_a_question_waiting_past_its_ceiling_gets_a_card_at_the_next_break():
     recent_card = dict(just_after_final, last_question_card_at=100_000 - pdl.DUE_GAP_MS + 1)
     assert kinds_at(questions=old, **recent_card) == []
     assert kinds_at(questions=old, high_alert_active=True, **just_after_final) == []  # a red alert pre-empts
+
+
+class SaysNone:
+    """The AI PD model when the host is always mid-topic: it picks "none" every time."""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def choose(self, state, candidates, deadline_ms):
+        from app.agents.ai_pd import PdChoice
+
+        self.calls += 1
+        return PdChoice(choice="none", reason="Host is mid-topic; nothing urgent."), 5, "ok"
+
+
+async def test_a_due_question_card_shows_even_when_the_model_says_none(env):
+    """00007 show replays: verified HOST drafts waited 4-7 minutes and never got a card. The host talked with
+    4 s gaps, so the card was only offered as due (D-146); the model said "none" (mid-topic), and the same
+    candidate id was never asked about again."""
+    rt, _ = env
+    rt.pd.agent = SaysNone()
+    await speak(rt, "Welcome everyone, today we start with the cream.")
+    await say(rt, "Mei", "Is the cream okay for oily skin?")
+    [g] = await rt.groups()
+    assert g.route == "HOST" and g.status == "ready"
+    for _ in range(30):  # 120 s of talking, never an 8 s pause
+        await rt.ctx.scheduler.advance(4000)
+        await speak(rt, "Look at the texture, it is so light on the skin.")
+        await rt.ctx.scheduler.advance(500)
+        card = (await rt.load_session()).pd_card
+        if card is not None:
+            break
+    assert card is not None and card.ref_id == g.group_id
+    assert rt.pd.agent.calls >= 1

@@ -148,7 +148,7 @@ function groupDetail(run, qg, mine, gs, list) {
   const draft = !g ? "no_group" : ans ? (ans.verified ? "verified" : "blocked") : g.status === "composing" ? "composing" : "none";
   const base = { route: g?.route ?? null, route_reason: g?.route_reason ?? null, status: g?.status ?? null, draft,
     draft_errors: ans && !ans.verified ? ans.verify_errors : [], needs_human: ans?.needs_human ?? null,
-    product_id: g?.product_id ?? null, triage };
+    product_id: g?.product_id ?? null, question: g?.canonical_question ?? null, triage };
   let reason;
   if (!g) {
     reason = `not_triaged_as_question (${[...new Set(triage.map((t) => t.kind ?? "unseen"))].join("/")})`;
@@ -236,6 +236,11 @@ function score(show, run) {
     if (posted !== Infinity && gs.some((g) => g.status === "auto_answered")) { handling = "auto_answered"; at = posted; }
     else if (card !== Infinity) { handling = deferral ? "deferred_honestly" : "host_card"; at = card; }
     else if (posted !== Infinity) { handling = "posted"; at = posted; }
+    else if (gs.some((g) => g.host_verbal_answer_transcript_id)) {
+      // the host answered it aloud (not posted): viewers heard the answer, no operator action needed
+      handling = "answered_on_air";
+      at = Math.min(...gs.map((g) => run.seen.transcripts[g.host_verbal_answer_transcript_id]?.received_at ?? Infinity));
+    }
     const ms = at === Infinity || !mine.length ? null : at - firstAsk;
     const detail = groupDetail(run, qg, mine, gs, list);
     return { id: qg.id, intent: qg.intent, answerable: qg.answerable, asks: mine.length, groups: gs.length,
@@ -270,7 +275,8 @@ function score(show, run) {
       errors_by_kind: byKind,
       lookalikes: { total: lookalikes.length, red: lookalikes.filter((l) => l.red).length, yellow: lookalikes.filter((l) => l.yellow).length },
       questions: { total: questions.length, auto_answered: handled("auto_answered"), host_card: handled("host_card"),
-        deferred_honestly: handled("deferred_honestly"), posted: handled("posted"), never: handled("never"),
+        deferred_honestly: handled("deferred_honestly"), posted: handled("posted"),
+        answered_on_air: handled("answered_on_air"), never: handled("never"),
         late: questions.filter((q) => q.late).length },
       operator_actions: unhandled, wrong_posts: wrong.length, stale_posts: stale.length,
     },
@@ -298,6 +304,7 @@ function markdown(results) {
     row("questions auto-answered", (s) => `${s.questions.auto_answered}/${s.questions.total}`);
     row("questions on a host card", (s) => `${s.questions.host_card}/${s.questions.total}`);
     row("questions deferred honestly", (s) => `${s.questions.deferred_honestly}/${s.questions.total}`);
+    row("questions answered on air (not posted)", (s) => `${s.questions.answered_on_air}/${s.questions.total}`);
     row("questions never handled", (s) => `${s.questions.never}/${s.questions.total}`);
     row("questions handled late (> 60 s)", (s) => `${s.questions.late}`);
     row("operator actions needed", (s) => `${s.operator_actions}`);

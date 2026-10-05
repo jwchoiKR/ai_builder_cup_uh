@@ -768,6 +768,8 @@ class UtterancePipeline:
                                                       merge.text if merge else t.text, rt.now())
         if decision.action == "post" and not rt.live:
             decision = publish_logic.PublishDecision("verbal_not_posted", group.group_id, "preview: never auto-posted")
+        # D-153: why a spoken answer was or was not posted (00007: verified drafts answered aloud, not posted)
+        log.info("host answer %s %s: %s (%s)", rt.sid, group.group_id, decision.action, decision.reason or "-")
         if decision.action == "post":
             await post_host_answer_locked(rt, group, answer)
         elif decision.action == "confirm_ai":

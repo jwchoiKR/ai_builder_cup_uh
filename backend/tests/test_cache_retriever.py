@@ -53,3 +53,16 @@ async def test_prefetch_sections(pack):
     pre = await r.prefetch(CREAM)
     assert {p.section for p in pre} == {"Key facts", "Key ingredients", "How to use", "Cautions", "In-house test results"}
     assert all(p.product_id == CREAM for p in pre)
+
+
+async def test_a_how_to_use_question_always_gets_the_how_to_use_steps(pack):
+    """D-153 (00007 show replays): BM25 never ranked "Apply two to three drops ..." for "How many drops?", so
+    the composer answered nothing."""
+    from app.agents.answer_composer import gather_passages
+    from app.logic.catalog import Catalog
+
+    r = LocalRetriever(pack.passages)
+    for intent in ("how_to_use", "routine_order"):
+        got = await gather_passages(r, Catalog(pack), {}, product_id=AMPOULE, intent=intent,
+                                    canonical_question="How many drops?", promo=None, top_k=6)
+        assert "DL-AM-01#how-to-use#steps" in {p.passage_id for p in got}

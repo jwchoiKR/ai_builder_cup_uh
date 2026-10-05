@@ -110,6 +110,7 @@ class Candidate:
     ref_id: str
     priority: int  # rule fallback order, lower first
     askers: int | None = None
+    forced: bool = False  # D-153: a pulled, pushed or due question: the model may not answer "none" to it
 
 
 def candidates(st: PdState) -> list[Candidate]:
@@ -137,15 +138,18 @@ def candidates(st: PdState) -> list[Candidate]:
         if not (pulled or due or (st.pause and (gap_ok or q.pushed))):
             continue
         prio = 0 if (pulled or q.pushed) else (1 if q.urgent else 2) if due else 3
+        forced = prio < 3
         if q.kind == "clarify":
             say = f"Which product do you mean: {' or '.join(st.product_names)}?"
-            cand = Candidate(f"question:{q.group_id}", "clarify_product", say, q.question, q.group_id, prio, q.askers)
+            cand = Candidate(f"question:{q.group_id}", "clarify_product", say, q.question, q.group_id, prio, q.askers,
+                             forced)
         elif q.kind == "read" and q.answer:
             detail = f"{q.askers} people asked: {q.question}"
-            cand = Candidate(f"question:{q.group_id}", "read_question", q.answer, detail, q.group_id, prio, q.askers)
+            cand = Candidate(f"question:{q.group_id}", "read_question", q.answer, detail, q.group_id, prio, q.askers,
+                             forced)
         elif q.answer:
             cand = Candidate(f"question:{q.group_id}", "answer_question", q.answer, q.question, q.group_id, prio,
-                             q.askers)
+                             q.askers, forced)
         else:
             continue
         out.append(cand)
