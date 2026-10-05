@@ -105,3 +105,45 @@ Sources: the dev session's grep of the code (file:line), the Sonnet critic's rev
   - 0 wrong public posts
   - A's drop from the old two products ≤ 2 pt
 - **Also log** which A patches fired on C. If few fired, A was in effect prompt-driven there.
+
+## 9. codex (gpt-6-astra, high) review: more flaws (file:line, checked by Claude)
+
+- **Fact-check failure permits a post:** a failed check becomes `facts=None`, and the post decision reads that as "no contradiction" (`pipelines/utterances.py:324`, `logic/publish.py:103`). Sent to dev as a safety fix.
+- **The number gate unions the numbers of every offered draft** (`logic/publish.py:30`). A swap of two products' prices can pass. Sent to dev.
+- **F1/F2 belong to family D** (`agents/arms.py:12`), so they also dropped the number gate, reflex and prefilter. Tonight's F2 result is not "A plus preloading". A future arm F2G keeps A's gate.
+- **Price conversion maps amount to amount** (`logic/catalog.py:68`), and `money()` always prints two decimals whatever the market's `minor_units` (`catalog.py:354`).
+- **Upload creates competing truths:** a local upload replaces retrieved passages but not catalog prices, claims or aliases. F2 reads `pack.passages`. The cloud upload still asks for a manual import (`setup.py:522`, `providers/docstore.py:31`).
+- **Bundles assume the demo pair:** any price question naming two products becomes a set question (`logic/product_mapping.py:27`).
+- **Brand scaffolding:** catalog validation requires `daon_skincare_demo` (`catalog.py:240`), and correction notices say "DAON LAB" (`data/templates/notices.json:7`).
+- **The language pack holds product policy:** `en.json:66` guidance names the demo cream and ampoule. `verify.py:168` assumes every numeric study needs the "in-house" qualifier, but a third-party lab's study needs other wording.
+- **Promo truth is duplicated without an arithmetic check** (`promos.json:13`, `catalog.py:232`).
+- **Correction:** market and language already vary per session (`runtime.py:73`). The open boundary is shared brand data and global setup state. Serving several brands at once needs tenant ownership.
+
+**On the plan:**
+- "Any document" must allow unsupported, missing, conflicting and unreadable outcomes. Never invent prices, categories or approved claims.
+- A source position shows where text appeared, not that it is true, current or approved. Keep versions, units, qualifiers, effective dates and conflicts. Treat instructions inside uploaded documents as untrusted content.
+- Humans resolve conflicting commercial facts and approve claim substantiation. Confidence alone cannot choose what to review, so sample high-confidence fields too.
+- Measure precision and recall, wrong product/unit/currency links, omitted cautions, citation accuracy, abstentions, review minutes, cost and latency. Zero wrong numbers on 5-10 sheets is a pilot result, not proof.
+- **Order:**
+  1. Fix how a failed check blocks a post.
+  2. Tenant, product, variant and offer identity plus versioned evidence.
+  3. Compare extraction methods.
+  4. Generate the derived files.
+  5. Approve an immutable release, activate it atomically, with rollback.
+  6. A document change invalidates approvals, caches and evals.
+
+**Generalization test:**
+- **Freeze everything first:** code, prompts, model settings and thresholds, before the third product is revealed. Start with a second cream from another brand: overlapping aliases, another layout, the same SGD price with a different MYR price, and a second bundle.
+- **Arms:** compare A, F2 and F2G. Run once on generated evidence and once on independently checked evidence, to separate extraction failures from runtime failures.
+- **Report per product, with uncertainty:** false, missed and duplicate posts, routing, detection, false alerts per hour, p95, cost and human work.
+- **Generalize carefully:** one product can disprove generalization. Proving it needs several brands, categories and languages.
+
+## 10. agy (gemini-3.8-flash-high) review
+
+Several file names it cited do not exist (`logic/comment_intent.py`, `claim_checker.py`, `price_calculator.py`, `comment_routing.py`), and "9% GST" is not in our data, so its file references are not usable. Points kept:
+- Layout parsers detach footnotes ("*min spend $80", "first 50") from price tables.
+- Too many aliases in STT phrase hints cause acoustic hallucinations.
+- Promo stacking policy and borderline legal risk tolerance stay human decisions.
+- Measure human touches per SKU and use 15-20 messy multi-brand decks.
+- A review screen should show fields with their source boxes.
+- Its verdict on A: "No, A is overfitted". It proposes a blind third-SKU test in a different category, zero code edits allowed.
