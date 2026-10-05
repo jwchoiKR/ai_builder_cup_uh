@@ -89,10 +89,12 @@ def rule_based_brief(product_id: str, document_text: str, reflex: Reflex) -> dic
         if term and all(t["term"].lower() != term.lower() for t in terms):
             terms.append({"term": term, "kind": kind, "spoken_forms": [term.lower()], "source_section": src})
 
-    if "DAON LAB" in document_text:
-        add("DAON LAB", "brand", "Product overview")
+    # D-221: no brand literal; a "Brand: X" line names the brand, the first heading names the product
+    brand = next((m.group(1).strip() for ln in lines if (m := re.match(r"\W*brand\W*:\s*(.+)", ln, re.I))), "")
+    if brand:
+        add(brand, "brand", "Product overview")
     title = next((m.group(1) for ln in lines if (m := _HEADING.match(ln)) and ln.startswith("# ")), "")
-    add(title.replace("DAON LAB", "").strip(), "product", "Product overview")
+    add(title.replace(brand, "").strip() if brand else title.strip(), "product", "Product overview")
     points: list[dict] = []
     in_claims = False
     for ln in lines:

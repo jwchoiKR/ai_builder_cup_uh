@@ -32,7 +32,7 @@ function ReplyBadge({ kind }: { kind: Message["kind"] }) {
   return (
     <span className={cx(styles.badge, styles.badgeBrand)}>
       <Store aria-hidden />
-      DAON LAB
+      {t("Brand")}
     </span>
   );
 }

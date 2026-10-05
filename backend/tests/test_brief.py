@@ -50,7 +50,8 @@ def test_rule_based_fallback_reads_the_sheet(settings, reflex):
     md = (settings.data_path / "products" / "DAON_LAB_Hydra_Barrier_Cream.md").read_text(encoding="utf-8")
     out = BriefOutput.model_validate(rule_based_brief("cream_hydra_barrier", md, reflex))
     terms = {t.term for t in out.glossary}
-    assert {"DAON LAB", "Hydra Barrier Cream", "Panthenol", "Ceramide NP", "Sodium Hyaluronate"} <= terms
+    # D-221: no brand literal in code; without a "Brand:" line the title is the product term as written
+    assert {"DAON LAB Hydra Barrier Cream", "Panthenol", "Ceramide NP", "Sodium Hyaluronate"} <= terms
     assert out.prompter_points and all(len(p.text) <= 90 for p in out.prompter_points)
 
 

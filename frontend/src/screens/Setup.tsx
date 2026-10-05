@@ -12,7 +12,7 @@ export function Setup(props: ScreenProps) {
   return (
     <SetupView
       products={catalog?.products ?? []}
-      brand={catalog?.brand ?? "DAON LAB"}
+      brand={catalog?.brand ?? ""}
       client={setupApi}
       theme={theme}
       themePref={themePref}

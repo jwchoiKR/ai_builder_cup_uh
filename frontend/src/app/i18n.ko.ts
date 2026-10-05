@@ -136,6 +136,7 @@ export const KO_HOST: Record<string, string> = {
   "Reconnecting…": "다시 연결 중…",
   "AI answer": "AI 답변",
   "Host answer": "진행자 답변",
+  "Brand": "브랜드",
   Correction: "정정",
   "Also answered:": "함께 답변:",
 };
