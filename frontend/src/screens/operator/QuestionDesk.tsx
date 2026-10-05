@@ -352,7 +352,8 @@ export function ReplyEditor({
   const { sid } = useOperator();
   const [text, setText] = useState(initial);
   const act = useAction();
-  const restricted = act.errorCode === "restricted_phrase";
+  // D-205: a restricted phrase or a reply that could not be verified needs an explicit "Post anyway"
+  const restricted = act.errorCode === "restricted_phrase" || act.errorCode === "unverified_reply";
   const post = async (confirm: boolean) => {
     if (await act.run(() => api.answer(sid, g.group_id, text.trim(), origin, confirm))) onDone();
   };
