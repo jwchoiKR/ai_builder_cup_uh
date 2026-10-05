@@ -67,6 +67,7 @@ class Session(BaseModel):  # [sessions/{session_id}]
     # frozen for the session; the runtime loads that pack
     market: str = "SG"
     lang: str = "en"
+    release_id: str | None = None  # D-218: an onboarded product's release; None for the shipped catalog
     started_at: int | None = None
     ended_at: int | None = None
     current_segment_id: str | None = None

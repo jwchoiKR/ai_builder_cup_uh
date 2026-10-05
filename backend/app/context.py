@@ -61,9 +61,22 @@ class AppContext:
     sse_heartbeat_sec: float = HEARTBEAT_SEC
     _packs: dict = field(default_factory=dict, init=False, repr=False)
 
-    def pack_for(self, market: str, lang: str) -> tuple[DataPack, Reflex]:
+    def pack_for(self, market: str, lang: str, release_id: str | None = None) -> tuple[DataPack, Reflex]:
         """D-142: the data pack and reflex of one (market, language), loaded once. The settings' pair is
-        `pack`/`reflex`; others load from the same data folder (DataPackError when not offered)."""
+        `pack`/`reflex`; others load from the same data folder (DataPackError when not offered).
+        D-218: with a release, that onboarded product's pack on the same market and language; its passages join the
+        retriever's index once."""
+        if release_id is not None:
+            rkey = (market.upper(), lang, release_id)
+            if rkey not in self._packs:
+                from .onboarding.release import load_release, release_pack
+
+                base, reflex = self.pack_for(market, lang)
+                pack = release_pack(base, load_release(self.settings.onboarding_path, release_id), release_id)
+                pid = pack.products.products[0].product_id
+                self.retriever.replace_product(pid, pack.passages)
+                self._packs[rkey] = (pack, reflex)
+            return self._packs[rkey]
         key = (market.upper(), lang)
         if key not in self._packs:
             if key == (self.pack.market.market, self.pack.lang):
