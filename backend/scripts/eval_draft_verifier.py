@@ -6,6 +6,11 @@
 
 Pass lines (fixed before results): bad drafts passing every layer 0, good drafts blocked <= 3%,
 LLM check adds <= 700 ms at p95.
+
+D-201 (full review P1): `--arm` (default: DESIGN_ARM) scores the arm's real production gate: its code layer
+(`comments.draft_code_gate`: full `verify_answer` for A, the minimal one for B and C, only the composer's own
+refusal for D to F2) and its LLM verifier input (the cited passages, or the product's whole sheet and RULES for
+D to F2).
 """
 from __future__ import annotations
 
@@ -18,14 +23,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.agents import arms, inputs  # noqa: E402
 from app.agents.draft_verifier import DraftCheckInput, DraftVerifier, cited_passages  # noqa: E402
 from app.config import REPO_DIR, Settings, get_settings  # noqa: E402
 from app.context import build_context  # noqa: E402
 from app.logic.catalog import Catalog, DataPack  # noqa: E402
 from app.logic.metrics import percentile  # noqa: E402
 from app.logic.reflex import Reflex  # noqa: E402
-from app.logic.verify import verify_answer  # noqa: E402
 from app.models.agent_io import ComposerOutput  # noqa: E402
+from app.pipelines.comments import draft_code_gate  # noqa: E402
 
 PASS = {"good_blocked": 0.03, "p95_ms": 700}
 
@@ -35,7 +41,7 @@ def load_cases(name: str) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def check_all(cases: list[dict]) -> list[dict]:
+def check_all(cases: list[dict], arm: str = "A") -> list[dict]:
     pack = DataPack.load(get_settings().data_path)
     catalog, reflex = Catalog(pack), Reflex(pack.rules, pack.lexicon)
     rows = []
@@ -43,16 +49,17 @@ def check_all(cases: list[dict]) -> list[dict]:
         out = ComposerOutput.model_validate(c["composer_output"])
         pid = c.get("product_id")
         multi = pid is None
-        ok, errors = verify_answer(out, pack.passages, pid, multi=multi, reflex=reflex,
-                                   not_approved_claims=catalog.not_approved_claims(pid) if pid else [])
+        ok, errors = draft_code_gate(out, pack.passages, None if multi else pid, arm=arm, reflex=reflex,
+                                     not_approved=catalog.not_approved_claims(pid) if pid else [])
         rows.append({"draft_id": c["draft_id"], "label": c["label"], "flaw": c.get("flaw"), "passed": ok,
                      "errors": errors, "answer": out.answer})
     return rows
 
 
-async def llm_check_all(cases: list[dict], runs: int, concurrency: int) -> list[dict]:
+async def llm_check_all(cases: list[dict], runs: int, concurrency: int, arm: str = "A") -> list[dict]:
     """The LLM check on every draft (not only those verify_answer lets through), so each layer is measured."""
-    settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local")
+    settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local",
+                        DESIGN_ARM=arm)
     ctx = build_context(settings)
     pack = ctx.pack
     verifier = DraftVerifier(ctx.llm, ctx.prompts["draft_verifier"], Catalog(pack))
@@ -63,7 +70,8 @@ async def llm_check_all(cases: list[dict], runs: int, concurrency: int) -> list[
         async with sem:
             res = await verifier.run(DraftCheckInput(
                 product_id=c.get("product_id"), question=c["question"], answer=out.answer.strip(), promo=None,
-                passages=cited_passages([x.passage_id for x in out.citations], pack.passages), scenario="eval",
+                passages=inputs.all_passages(verifier.catalog, c.get("product_id")) if arms.agents_decide(arm)
+                else cited_passages([x.passage_id for x in out.citations], pack.passages), scenario="eval",
             ), deadline_ms=settings.DRAFT_VERIFY_TIMEOUT_MS)
         o = res.output
         return {"draft_id": c["draft_id"], "run": run_no, "status": res.status, "latency_ms": res.latency_ms,
@@ -90,29 +98,32 @@ def main() -> int:
     ap.add_argument("--llm", action="store_true", help="also run the LLM draft verifier (Vertex)")
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--concurrency", type=int, default=6)
+    ap.add_argument("--arm", default=get_settings().DESIGN_ARM, choices=sorted(arms.FAMILY))
     args = ap.parse_args()
     cases = load_cases(args.cases)
-    rows = check_all(cases)
+    rows = check_all(cases, args.arm)
     bad = [r for r in rows if r["label"] == "bad"]
     good = [r for r in rows if r["label"] == "good"]
     bad_pass = [r for r in bad if r["passed"]]
     good_block = [r for r in good if not r["passed"]]
     if not args.llm:
         lines = [
-            "# Draft verifier gate: verify_answer alone", "",
-            f"{dt.date.today().isoformat()} · `{args.cases}` · {len(bad)} bad and {len(good)} good drafts.", "",
-            f"- Bad drafts that pass verify_answer: **{len(bad_pass)} / {len(bad)}**",
-            f"- Good drafts that verify_answer blocks: **{len(good_block)} / {len(good)}**", "",
+            "# Draft verifier gate: the code layer alone", "",
+            f"{dt.date.today().isoformat()} · `{args.cases}` · arm {args.arm} · {len(bad)} bad and {len(good)} good "
+            "drafts.", "",
+            f"- Bad drafts that pass the code layer: **{len(bad_pass)} / {len(bad)}**",
+            f"- Good drafts that the code layer blocks: **{len(good_block)} / {len(good)}**", "",
             "## Bad drafts that pass", "",
             *[f"- {r['draft_id']}: {r['flaw']} — \"{r['answer']}\"" for r in bad_pass], "",
             "## Good drafts that are blocked", "",
             *([f"- {r['draft_id']}: {'; '.join(r['errors'])} — \"{r['answer']}\"" for r in good_block] or ["- none"]),
         ]
         args.out.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
-        print(f"bad passing verify_answer {len(bad_pass)}/{len(bad)}; good blocked {len(good_block)}/{len(good)}")
+        print(f"arm {args.arm}: bad passing the code layer {len(bad_pass)}/{len(bad)}; good blocked "
+              f"{len(good_block)}/{len(good)}")
         return 0
 
-    raw = asyncio.run(llm_check_all(cases, args.runs, args.concurrency))
+    raw = asyncio.run(llm_check_all(cases, args.runs, args.concurrency, args.arm))
     args.out.with_suffix(".json").write_text(json.dumps(raw, ensure_ascii=False) + "\n", encoding="utf-8",
                                              newline="\n")
     code = {r["draft_id"]: r for r in rows}
@@ -130,17 +141,18 @@ def main() -> int:
     gb_rate = len(good_blocked) / len(good_runs) if good_runs else 0.0
     passed = not bad_posted and gb_rate <= PASS["good_blocked"] and (p95 or 0) <= PASS["p95_ms"]
     lines = [
-        "# Draft verifier gate: verify_answer + LLM draft verifier", "",
-        f"{dt.date.today().isoformat()} · `{args.cases}` · {len(bad)} bad and {len(good)} good drafts × {args.runs} runs"
+        "# Draft verifier gate: the arm's code layer + LLM draft verifier", "",
+        f"{dt.date.today().isoformat()} · `{args.cases}` · arm {args.arm} · {len(bad)} bad and {len(good)} good drafts"
+        f" × {args.runs} runs"
         f" · `{get_settings().LLM_FAST_MODEL}` ({get_settings().LLM_FAST_THINKING}).", "",
         f"**{'PASS' if passed else 'FAIL'}** · bad drafts posted {len(bad_posted)} (0) · good drafts blocked "
         f"{len(good_blocked)}/{len(good_runs)} ({gb_rate:.1%}, ≤ 3%) · LLM check p50 {p50} ms, p95 {p95} ms (≤ 700 ms)"
         f" · timeouts or errors {len(errors)}", "",
         f"- Bad drafts the LLM check alone lets through (all runs): {len(llm_only_bad)}/{len(bad) * args.runs}",
-        f"- Good drafts verify_answer blocks: {len(good_block)}/{len(good)}", "",
+        f"- Good drafts the code layer blocks: {len(good_block)}/{len(good)}", "",
         "## Bad drafts posted (passed both layers)", "",
         *([f"- {x['draft_id']} run {x['run']}: {x['flaw']} — \"{x['answer']}\"" for x in bad_posted] or ["- none"]), "",
-        "## Bad drafts the LLM check passes (verify_answer may still block them)", "",
+        "## Bad drafts the LLM check passes (the code layer may still block them)", "",
         *([f"- {x['draft_id']} run {x['run']} (code {'pass' if x['code_passed'] else 'block'}): {x['flaw']}"
            for x in llm_only_bad] or ["- none"]), "",
         "## Good drafts blocked", "",

@@ -554,12 +554,8 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     out = res.output
     not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
         c for p in rt.catalog.products for c in p.not_approved_claims]
-    if decide:  # D-191: no code check of the draft; the composer's own refusal and the LLM draft verifier decide
-        ok, errors = (True, []) if out.grounded and out.answer.strip() else (False, ["not grounded"])
-    else:
-        ok, errors = verify_answer(out, passages, product_id, multi=product_id is None,
-                                   reflex=rt.reflex, not_approved_claims=not_approved,
-                                   minimal=arms.meaning_to_llm(rt.settings.DESIGN_ARM))  # D-187 arm B
+    ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
+                                 not_approved=not_approved)
     if ok:
         ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario,
                                       whole=decide)
@@ -574,6 +570,15 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     if ok:
         rt.answer_cache.put(key, CachedAnswer(answer_id=answer.answer_id, intent=g.intent))
     return answer
+
+
+def draft_code_gate(out, passages, product_id, *, arm: str, reflex, not_approved) -> tuple[bool, list[str]]:
+    """The code layer a draft passes before the LLM draft verifier, per design arm (D-200: also what
+    eval_draft_verifier scores). Arms D to F2 (D-191): none but the composer's own refusal."""
+    if arms.agents_decide(arm):
+        return (True, []) if out.grounded and out.answer.strip() else (False, ["not grounded"])
+    return verify_answer(out, passages, product_id, multi=product_id is None, reflex=reflex,
+                         not_approved_claims=not_approved, minimal=arms.meaning_to_llm(arm))  # D-187 arm B
 
 
 UNCHECKED = frozenset({"draft_check_timeout", "draft_check_error", "draft_check_invalid"})

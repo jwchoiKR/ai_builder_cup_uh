@@ -346,3 +346,21 @@ async def test_arm_e_the_judge_reads_only_the_rules_the_search_picked(monkeypatc
         assert '<data name="RULES">' not in req.cache_prefix
     finally:
         await close_env(rt)
+
+
+@pytest.mark.parametrize("arm, ok", [("A", False), ("B", False), ("D", True), ("F2", True)])
+def test_d201_the_draft_code_gate_per_arm(pack, catalog, arm, ok):
+    """A wrong number: arms A to C block it in code; arms D to F2 leave it to the LLM draft verifier."""
+    from app.logic.reflex import Reflex
+    from app.pipelines.comments import draft_code_gate
+
+    quote = "Live broadcast price: S$36.00"
+    out = ComposerOutput(answer="It is S$30.00 today.", citations=[{"passage_id": "DL-CR-01#key-facts#live-broadcast-price",
+                                                                     "quote": quote}],
+                         grounded=True, needs_human=False, reason="")
+    got, _ = draft_code_gate(out, pack.passages, CREAM, arm=arm, reflex=Reflex(pack.rules, pack.lexicon),
+                             not_approved=[])
+    assert got is ok
+    refused = out.model_copy(update={"grounded": False, "answer": ""})
+    assert draft_code_gate(refused, pack.passages, CREAM, arm=arm, reflex=Reflex(pack.rules, pack.lexicon),
+                           not_approved=[])[0] is False
