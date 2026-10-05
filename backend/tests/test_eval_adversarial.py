@@ -82,6 +82,12 @@ async def test_a_split_case_runs_through_the_real_pipeline(monkeypatch):
         ctx.scheduler.shutdown()
     assert [(a["rule_id"], a["severity"]) for a in row["alerts"]] == [("ASEAN-2D-DISEASE", "HIGH")]
     assert score([row], [case])["detection"] == 1.0
+    # D-246: per-call latency; the fact checker's retry and final status, and its per-line summary
+    assert all("latency_ms" in c for c in row["calls"])
+    fc = [c for c in row["calls"] if c["agent"] == "fact_checker"]
+    assert fc and all(c["retried"] is False and c["final_status"] == "ok" for c in fc)
+    facts = score([row], [case])["facts"]
+    assert facts["lines"] == len(row["facts"]) and facts["timeout_calls"] == 0 and facts["p95_ms"] >= facts["p50_ms"]
 
 
 def test_d235_an_unverifiable_safe_line_allows_a_soft_fact_note_only():
