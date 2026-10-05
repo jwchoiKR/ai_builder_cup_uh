@@ -80,12 +80,23 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 await asyncio.sleep(PART_GAP_S)
         await rt.utterances.drain()
         alerts = [a for a in await rt.alerts() if a.shown_at is not None]
-        calls = await rt.ctx.store.query(rt.path("agent_calls"), AgentCall)
+        calls = sorted(await rt.ctx.store.query(rt.path("agent_calls"), AgentCall), key=lambda c: c.started_at)
+        # the fact checker's tries per line (D-203 retries once after a timeout or error): retried, final status
+        tries = collections.defaultdict(list)
+        for c in calls:
+            if c.agent == "fact_checker":
+                tries[c.input_preview].append(c)
         return {"id": case["case_id"], "run": run_no,
                 # every judge and fact output with its reason, to diagnose a miss or a false alert
-                "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output}
+                "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output,
+                           "latency_ms": c.latency_ms}
+                          | ({"retried": len(tries[c.input_preview]) > 1,
+                              "final_status": tries[c.input_preview][-1].status} if c.agent == "fact_checker" else {})
                           for c in calls if c.agent in ("compliance_judge", "context_judge", "fact_checker",
                                                         "utterance_judge", "judge_single")],
+                # per line: the fact check's whole time, retry included, and how it ended
+                "facts": [{"input": k, "ms": sum(c.latency_ms for c in v), "tries": len(v), "final_status": v[-1].status,
+                           "timeouts": sum(c.status == "timeout" for c in v)} for k, v in tries.items()],
                 "alerts": [{"kind": a.kind, "rule_id": a.rule_id, "severity": a.severity, "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
                             "correct_value": a.correct_value, "status": a.status} for a in alerts]}
@@ -170,7 +181,13 @@ def score(raw: list[dict], cases: list[dict]) -> dict:
     wrong_text = sum(x["wrong_text"] for x in rows)
     extra_rate = sum(x["extra_wrong"] for x in risky) / len(risky) if risky else 0.0
     unverifiable_soft = sum(x.get("unverifiable_soft", False) for x in safe)
-    return {"rows": rows, "detection": detection, "false_rate": false_rate, "wrong_high": wrong_high,
+    lines = [f for r in raw for f in r.get("facts", [])]
+    ms = sorted(f["ms"] for f in lines)
+    pick = lambda q: ms[min(len(ms) - 1, int(q * len(ms)))] if ms else 0  # noqa: E731
+    facts = {"lines": len(lines), "p50_ms": pick(0.5), "p95_ms": pick(0.95),
+             "timeout_calls": sum(f["timeouts"] for f in lines), "retried": sum(f["tries"] > 1 for f in lines),
+             "final_not_ok": sum(f["final_status"] != "ok" for f in lines)}
+    return {"rows": rows, "facts": facts, "detection": detection, "false_rate": false_rate, "wrong_high": wrong_high,
             "wrong_text": wrong_text, "extra_rate": extra_rate, "unverifiable_soft": unverifiable_soft,
             "passed": detection >= PASS["detection"] and wrong_high == 0 and false_rate <= PASS["false_alert"]
             and wrong_text == 0 and extra_rate <= PASS["extra_wrong"],
@@ -202,6 +219,9 @@ def write_report(s: dict, cases: list[dict], out: Path, name: str) -> None:
         f"**{'PASS' if s['passed'] else 'FAIL'}** · detection {s['detection']:.1%} (≥ 95%) · wrong HIGH "
         f"{s['wrong_high']} (0) · false alerts {s['false_rate']:.1%} (≤ 5%) · wrong correction texts "
         f"{s['wrong_text']} (0) · risky lines with an extra wrong alert {s['extra_rate']:.1%} (≤ 5%)", "",
+        f"Fact checker per line (retry included): p50 {s['facts']['p50_ms']} ms · p95 {s['facts']['p95_ms']} ms · "
+        f"{s['facts']['lines']} lines · timed-out calls {s['facts']['timeout_calls']} · retried lines "
+        f"{s['facts']['retried']} · lines without a completed check {s['facts']['final_not_ok']}", "",
         f"Unverifiable lines with a soft fact note (not a false alert): {s['unverifiable_soft']}", "",
         "Caught means the expected rule or field, and the right value in a fact correction (D-197).", "",
         "| type | risky caught | extra wrong alert | safe with an alert | HIGH | MEDIUM | fact note | wrong HIGH | "
