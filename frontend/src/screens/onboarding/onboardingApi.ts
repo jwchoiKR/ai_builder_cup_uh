@@ -33,6 +33,8 @@ export type ProductRecord = {
 };
 export type OnboardingResult = { record: ProductRecord; method: string; models: Record<string, string>;
   seconds: number; notes: string[]; files: { name: string; bytes: number }[] };
+export type Line = { text?: string; say_not?: string; say?: string; reviewed: boolean };
+export type Translations = Record<string, { approved_claims: Line[]; cautions: Line[]; avoid_saying: Line[] }>;
 export type Job = { job_id: string; status: "queued" | "reading" | "done" | "failed"; files: string[];
   result: OnboardingResult | null; error: string | null };
 
@@ -47,12 +49,15 @@ export const onboardingApi = {
     return data;
   },
   job: (jobId: string) => request<Job>("GET", `/onboarding/jobs/${encodeURIComponent(jobId)}`),
-  approve: (jobId: string, record?: ProductRecord) =>
+  approve: (jobId: string, record?: ProductRecord, translations?: Translations) =>
     request<{ release_id: string; warnings: string[]; live?: { law: string; price: string; cautions: number;
       approved_claims: number; not_approved_claims: number; promos: number };
-      translations?: Record<string, { approved_claims: string[]; cautions: string[];
-        avoid_saying: { say_not: string; say: string }[] }> }>(
+      translations?: Translations }>(
       "POST", `/onboarding/jobs/${encodeURIComponent(jobId)}/approve`,
-      record ? { record } : {}),
+      { ...(record ? { record } : {}), ...(translations ? { translations } : {}) }),
+  // D-233: translations for review before approval, and what the show would get
+  preview: (jobId: string, record?: ProductRecord) =>
+    request<{ translations: Translations; live: { law?: string; price?: string; error?: string } }>(
+      "POST", `/onboarding/jobs/${encodeURIComponent(jobId)}/preview`, record ? { record } : {}),
   startShow: (releaseId: string) => request<Session>("POST", "/sessions", { release_id: releaseId }),
 };

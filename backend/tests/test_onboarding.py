@@ -346,18 +346,49 @@ async def test_d232_host_lines_come_in_the_show_language_or_not_at_all(tmp_path)
 
     rec, _ = normalise(ProductRecord.model_validate(_record(
         language="ms", approved_claims=[{"text": "Membantu kulit kelihatan licin.", "evidence": EV}])))
-    with_t = save_release(tmp_path, rec, "j", {"en": {"approved_claims": ["Helps skin look smooth."], "cautions": [],
-                                                      "avoid_saying": [], "reviewed": False}})
+    with_t = save_release(tmp_path, rec, "j", {"en": {"approved_claims": [{"text": "Helps skin look smooth.",
+                                                                          "reviewed": True}],
+                                                      "cautions": [], "avoid_saying": []}})
+    unreviewed = save_release(tmp_path, rec, "j3", {"en": {"approved_claims": [{"text": "Helps skin look smooth.",
+                                                                              "reviewed": False}],
+                                                           "cautions": [], "avoid_saying": []}})
     without = save_release(tmp_path, rec, "j2")
     llm = ScriptedBackend()
     llm.judge("It cures eczema.", violations=[violation("ASEAN-2D-DISEASE", "cures eczema", say="Model's own line.")])
     ctx = make_ctx(backend=llm, ONBOARDING_DIR=str(tmp_path))
     try:
-        for rid, say in [(with_t, "Helps skin look smooth."), (without, "(no approved wording in en)")]:
+        for rid, say in [(with_t, "Helps skin look smooth."),
+                         (unreviewed, "Helps skin look smooth. (unreviewed translation)"),  # D-233: marked
+                         (without, "(no approved wording in en)")]:
             rt = await ctx.runtimes.get((await create_session(ctx, "x", release_id=rid)).session_id)
             await rt.start()
             await speak(rt, "It cures eczema.")
             assert [a.say_instead for a in await rt.alerts() if a.kind == "compliance"] == [say]
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+
+
+async def test_d233_an_answer_from_an_unreviewed_translation_is_never_auto_posted(tmp_path):
+    from app.onboarding.release import UNREVIEWED_DOC, release_pack
+
+    rec, _ = normalise(ProductRecord.model_validate(_record(
+        language="ms", cautions=[{"text": "Jangan guna pada kulit luka.", "evidence": EV}],
+        qualified_results=[{"statement": "21 of 24 saw smoother skin", "numbers": ["21", "24"],
+                            "provenance": "third_party_lab", "qualifier": "tested by Kestrel Labs", "marker": "†",
+                            "evidence": EV}],
+        approved_claims=[{"text": "Kulit lebih licin dalam 4 minggu†", "evidence": EV}],
+        ingredients=[{"name": "Zinc", "amount_value": "0.5", "amount_unit": "mg", "purpose": None, "evidence": EV}])))
+    ctx = make_ctx()
+    try:
+        tr = {"en": {"approved_claims": [{"text": "Smoother skin in 4 weeks†", "reviewed": True}],
+                     "cautions": [{"text": "Do not use on broken skin.", "reviewed": False}], "avoid_saying": []}}
+        pack = release_pack(ctx.pack, rec, "rel_x_v1", None, tr)
+        product = pack.products.products[0]
+        assert product.approved_claims == ["Smoother skin in 4 weeks (tested by Kestrel Labs)"]  # marker -> qualifier
+        assert product.key_facts == {"zinc": "0.5mg"}  # the prompter's ingredient panel
+        [caution] = [p for p in pack.passages if p.section == "Cautions"]
+        assert caution.doc == UNREVIEWED_DOC
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()

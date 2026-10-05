@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Button, Chip, Eyebrow, HubLink } from "../../components";
 import { navigate } from "../../app/nav";
-import { onboardingApi, type Evidence, type Job, type ProductRecord, type TextItem } from "./onboardingApi";
+import { onboardingApi, type Evidence, type Job, type Line, type ProductRecord, type TextItem, type Translations } from "./onboardingApi";
 import { conflictValue, money, newestIndex, plainField, setAt } from "./recordEdit";
 import styles from "./onboarding.module.css";
 
@@ -143,6 +143,45 @@ export function RecordReview({ record, onChange }: { record: ProductRecord; onCh
   );
 }
 
+/** D-233: machine-translated host lines; each one is approved on its own (only approved lines may be auto-posted). */
+function TranslationReview({ translations, onChange }: { translations: Translations; onChange: (t: Translations) => void }) {
+  const setAll = (value: boolean) =>
+    onChange(Object.fromEntries(Object.entries(translations).map(([lang, t]) => [lang, {
+      approved_claims: t.approved_claims.map((x) => ({ ...x, reviewed: value })),
+      cautions: t.cautions.map((x) => ({ ...x, reviewed: value })),
+      avoid_saying: t.avoid_saying.map((x) => ({ ...x, reviewed: value })) }])));
+  const toggle = (lang: string, key: "approved_claims" | "cautions" | "avoid_saying", i: number) =>
+    onChange({ ...translations, [lang]: { ...translations[lang],
+      [key]: translations[lang][key].map((x: Line, j: number) => (j === i ? { ...x, reviewed: !x.reviewed } : x)) } });
+  return (
+    <section className={styles.block} data-testid="onb-translations">
+      <h2 className={styles.blockTitle}>Machine translations to review</h2>
+      <p className={styles.muted}>
+        Unreviewed lines are shown to the host marked “unreviewed translation” and never posted to viewers by themselves.
+      </p>
+      <div className={styles.actions}>
+        <Button size="sm" onClick={() => setAll(true)} data-testid="onb-approve-all-translations">Approve all translations</Button>
+      </div>
+      {Object.entries(translations).map(([lang, t]) => (
+        <div key={lang}>
+          <p className={styles.value}><b>{lang}</b></p>
+          <ul className={styles.rows}>
+            {(["approved_claims", "cautions", "avoid_saying"] as const).flatMap((key) =>
+              t[key].map((x: Line, i: number) => (
+                <li key={`${key}${i}`} className={styles.inline}>
+                  <label>
+                    <input type="checkbox" checked={x.reviewed} onChange={() => toggle(lang, key, i)} />{" "}
+                    {x.text ?? `“${x.say_not}” → “${x.say}”`}
+                  </label>
+                </li>
+              )))}
+          </ul>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function Conflicts({ record, onChange }: { record: ProductRecord; onChange: (r: ProductRecord) => void }) {
   const [chosen, setChosen] = useState<Record<number, number>>(() =>
     Object.fromEntries(record.conflicts.map((c, i) => [i, newestIndex(c.effective_dates)])));
@@ -185,13 +224,17 @@ export function OnboardingView() {
   const [advanced, setAdvanced] = useState(false);
   const [draft, setDraft] = useState("");
   const [release, setRelease] = useState<Approved | null>(null);
+  const [translations, setTranslations] = useState<Translations | null>(null);
 
   useEffect(() => {
     if (!job || job.status === "done" || job.status === "failed") return;
     const t = window.setTimeout(() => {
       onboardingApi.job(job.job_id).then((j) => {
         setJob(j);
-        if (j.status === "done" && j.result) setRec(j.result.record);
+        if (j.status === "done" && j.result) {
+          setRec(j.result.record);
+          onboardingApi.preview(j.job_id).then((p) => setTranslations(p.translations), () => setTranslations({}));
+        }
       }, (e) => setError(String(e)));
     }, 1500);
     return () => window.clearTimeout(t);
@@ -273,6 +316,10 @@ export function OnboardingView() {
             </section>
           )}
 
+          {translations && Object.keys(translations).length > 0 && (
+            <TranslationReview translations={translations} onChange={setTranslations} />
+          )}
+
           <RecordReview record={rec} onChange={edit} />
 
           <section className={styles.block}>
@@ -280,7 +327,7 @@ export function OnboardingView() {
               <Button variant="primary" disabled={busy} data-testid="onb-approve"
                       onClick={() => act(async () => {
                         const edited = advanced ? (JSON.parse(draft) as ProductRecord) : rec;
-                        setRelease(await onboardingApi.approve(job!.job_id, edited));
+                        setRelease(await onboardingApi.approve(job!.job_id, edited, translations ?? undefined));
                       })}>
                 Approve and create release
               </Button>
@@ -306,16 +353,6 @@ export function OnboardingView() {
                   {" "}{release.live?.not_approved_claims} claims not approved, {release.live?.promos} offers to start</li>
               </ul>
               {release.warnings.map((w) => <p key={w} className={styles.warning}>{w}</p>)}
-              {Object.entries(release.translations ?? {}).map(([lang, t]) => (
-                // D-232: host lines in the show's language, translated at approval (never live): review them
-                <div key={lang} data-testid={`onb-translation-${lang}`}>
-                  <p className={styles.value}><b>Machine translation into {lang}</b> (review before going live)</p>
-                  <ul className={styles.rows}>
-                    {[...t.approved_claims, ...t.cautions, ...t.avoid_saying.map((a) => `“${a.say_not}” → “${a.say}”`)].map(
-                      (x, i) => <li key={i} className={styles.value}>{x}</li>)}
-                  </ul>
-                </div>
-              ))}
               <Button variant="primary" disabled={busy}
                       onClick={() => act(async () => {
                         const s = await onboardingApi.startShow(release.release_id);

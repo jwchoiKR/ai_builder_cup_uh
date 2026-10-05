@@ -23,6 +23,8 @@ vi.mock("./onboardingApi", () => ({
     upload: vi.fn(async () => ({ job_id: "onb_1" })),
     job: vi.fn(async () => done),
     approve: vi.fn(async () => ({ release_id: "rel_lumen_v1", warnings: [] })),
+    preview: vi.fn(async () => ({ live: {}, translations: { ms: { approved_claims: [], avoid_saying: [],
+      cautions: [{ text: "Uji tampalan dahulu.", reviewed: false }] } } })),
     startShow: vi.fn(),
   },
 }));
@@ -46,6 +48,11 @@ describe("OnboardingView (D-224)", () => {
     fireEvent.keyDown(price, { key: "Enter" });
     expect(screen.getByTestId("onb-variants-and-prices")).toHaveTextContent("live price SG: SGD 45.00");
     expect(screen.getByTestId("onb-missing")).toHaveTextContent("Product category");
+    // D-233: translations are approved line by line (or all at once) before approval
+    const line = await screen.findByRole("checkbox", { name: /Uji tampalan dahulu/ });
+    expect(line).not.toBeChecked();
+    fireEvent.click(screen.getByTestId("onb-approve-all-translations"));
+    expect(screen.getByRole("checkbox", { name: /Uji tampalan dahulu/ })).toBeChecked();
     fireEvent.click(screen.getByTestId("onb-approve"));
     await waitFor(() => expect(screen.getByTestId("onb-release")).toHaveTextContent("rel_lumen_v1"));
   });

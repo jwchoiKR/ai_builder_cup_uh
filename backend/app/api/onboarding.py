@@ -68,6 +68,7 @@ async def create_job(files: list[UploadFile] = File(...), hints: str = Form(""),
 
 class ApproveBody(BaseModel):
     record: dict | None = None  # D-224: the operator's edited record; None approves the read record as it is
+    translations: dict | None = None  # D-233: the translations with the operator's per-line review
 
 
 @router.post("/jobs/{job_id}/approve")
@@ -91,25 +92,62 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
     # D-232: host-facing lines in every language the market offers, translated now (never live), marked for review
     from ..onboarding.translate import translate_record
 
-    translations = await translate_record(ctx.llm, record, [x.lang for x in ctx.pack.market.languages])
+    translations = (body.translations if body and body.translations is not None
+                    else await translate_record(ctx.llm, record, [x.lang for x in ctx.pack.market.languages]))
     try:  # the show must be buildable in this server's market before the release is saved
         pack = release_pack(ctx.pack, record, "rel_check_v1", ctx.settings.onboarding_path, translations)
     except Exception as e:  # noqa: BLE001
         raise ActionError(409, "release_not_buildable", str(e)) from None
     warnings = [] if pack.rules.rules else [
         f"no law pack for {record.category} in {ctx.pack.market.market}: only brand-level checks run"]
-    warnings += [f"approved wording machine-translated into {lang}: review it before going live" for lang in translations]
+    for lang, t in translations.items():
+        lines = [*t.get("approved_claims", []), *t.get("cautions", []), *t.get("avoid_saying", [])]
+        left = sum(1 for x in lines if not (isinstance(x, dict) and x.get("reviewed")))
+        if left:
+            warnings.append(f"{left} machine-translated lines in {lang} not reviewed: shown to the host marked, "
+                            "never auto-posted")
     if record.language.split("-")[0] != ctx.pack.lang and ctx.pack.lang not in translations:
         warnings.append(f"no approved wording in {ctx.pack.lang}: alerts will have no replacement line")
-    # D-231: what will happen live, in plain words for the approval screen
-    live = {"law": (f"{len(pack.rules.rules)} rules from {pack.rules.policy_id}" if pack.rules.rules
-                    else "no law checks for this category"),
-            "cautions": len(record.cautions), "approved_claims": len(record.approved_claims),
-            "not_approved_claims": len(record.not_approved_claims), "promos": len(pack.promos.promos),
-            "price": f"{pack.products.currency_symbol}{pack.products.products[0].live_price:.2f} live, "
-                     f"{pack.products.currency_symbol}{pack.products.products[0].list_price:.2f} list"}
+    live = _live_summary(pack, record)  # D-231: what will happen live, in plain words
     return {"release_id": save_release(ctx.settings.onboarding_path, record, job_id, translations),
             "warnings": warnings, "live": live, "translations": translations}
+
+
+def _live_summary(pack, record) -> dict:
+    """D-231/D-234: what the show will get, in plain words."""
+    rules = pack.rules
+    law = (f"{len(rules.rules)} rules from {rules.policy_id}" if rules.rules else "no law checks for this category")
+    p = pack.products.products[0]
+    return {"law": law, "law_rules": len(rules.rules), "cautions": len(record.cautions),
+            "approved_claims": len(record.approved_claims), "not_approved_claims": len(record.not_approved_claims),
+            "promos": len(pack.promos.promos),
+            "promo_lines": [f"{x.title}" + (f" · {pack.products.currency_symbol}{x.promo_prices[p.product_id]:.2f}"
+                                            if x.promo_prices.get(p.product_id) else "") for x in pack.promos.promos],
+            "price": f"{pack.products.currency_symbol}{p.live_price:.2f} live, "
+                     f"{pack.products.currency_symbol}{p.list_price:.2f} list"}
+
+
+@router.post("/jobs/{job_id}/preview")
+async def preview_job(job_id: str, body: ApproveBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-233/D-234: before approval: the host-facing lines translated into the market's languages (for review) and
+    what the show would get (rules applied, price, offers)."""
+    from ..onboarding.read import normalise
+    from ..onboarding.record import ProductRecord
+    from ..onboarding.release import release_pack
+    from ..onboarding.translate import translate_record
+
+    job = _jobs.get(job_id)
+    if job is None or job["status"] != "done":
+        raise ActionError(409, "job_not_ready", f"onboarding job {job_id} has no record")
+    record, _ = normalise(ProductRecord.model_validate((body.record if body and body.record else None)
+                                                       or job["result"]["record"]))
+    translations = await translate_record(ctx.llm, record, [x.lang for x in ctx.pack.market.languages])
+    try:
+        live = _live_summary(release_pack(ctx.pack, record, "rel_check_v1", ctx.settings.onboarding_path,
+                                          translations), record)
+    except Exception as e:  # noqa: BLE001
+        live = {"error": str(e)}
+    return {"translations": translations, "live": live}
 
 
 @router.post("/lawpacks/jobs")

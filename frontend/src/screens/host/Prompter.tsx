@@ -11,7 +11,7 @@ import type { Product } from "../../app/types";
 import styles from "./host.module.css";
 
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
-const PERCENT = /^\d+(\.\d+)?%$/;
+const PERCENT = /^\d+(\.\d+)?\s*(%|mg|mcg|µg|g|iu)$/i; // D-233: a share or a mass (supplements)
 const MAX_INGREDIENTS = 4;
 
 /** "ceramide_np" -> "Ceramide NP", "sodium_hyaluronate" -> "Sodium Hyaluronate". */
