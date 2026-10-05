@@ -184,3 +184,27 @@ async def test_d222_the_eval_scripts_run_cases_on_a_release(tmp_path, monkeypatc
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
     assert [a["rule_id"] for a in row["alerts"]] == ["ASEAN-2D-DISEASE"]
+
+
+def test_d223_promo_prices_are_computed_in_code_from_the_stated_terms():
+    from decimal import Decimal
+
+    from app.onboarding.release import _rounded, promos_from_offers
+
+    money = {"currency": "SGD", "minor": 6000, "kind": "promo", "market": "SG", "evidence": EV}
+    offers = [
+        {"offer_id": "o1", "kind": "percent_off", "title": "Extra 15% off", "variant_ids": [], "percent": "15",
+         "amount": None, "buy": None, "get": None, "gift": None, "rounding": "rounded to the nearest 10 cents",
+         "starts": None, "ends": None, "duration_min": 10, "evidence": EV},
+        {"offer_id": "o2", "kind": "spend_threshold_gift", "title": "Free pouch over S$60", "variant_ids": [],
+         "percent": None, "amount": money, "buy": None, "get": None, "gift": "pouch", "rounding": None,
+         "starts": None, "ends": None, "duration_min": None, "evidence": EV},
+        {"offer_id": "o3", "kind": "percent_off", "title": "Other size only", "variant_ids": ["B"], "percent": "50",
+         "amount": None, "buy": None, "get": None, "gift": None, "rounding": None, "starts": None, "ends": None,
+         "duration_min": None, "evidence": EV},
+    ]
+    rec = ProductRecord.model_validate(_record(offers=offers))
+    sale, gift = promos_from_offers(rec, "p", "A", Decimal("36.00"), "SGD", "SG")  # o3 is for another variant
+    assert sale.changes_prices and sale.promo_prices == {"p": 30.6} and sale.duration_sec == 600  # 30.60 to 10 cents
+    assert not gift.changes_prices and gift.min_spend == 60.0
+    assert _rounded(Decimal("30.66"), None) == Decimal("30.66") and _rounded(Decimal("30.66"), "round down to the dollar") == 30
