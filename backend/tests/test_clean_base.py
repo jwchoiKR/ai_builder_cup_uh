@@ -118,3 +118,22 @@ def test_d278_a_release_gets_no_demo_brand_rules_and_its_qualifier_rule_from_its
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+def test_d278_the_demo_is_a_show_of_its_onboarded_releases(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from app.main import create_app
+
+    from .helpers import make_settings
+
+    data, onb = clean_data(tmp_path), tmp_path / "onb"
+    show = json.loads((data / "demo_release" / "show.json").read_text(encoding="utf-8"))["release_ids"]
+    with TestClient(create_app(make_settings(DATA_DIR=str(data), ONBOARDING_DIR=str(onb), DEMO_TOOLS_ENABLED=True),
+                               llm_backend=ScriptedBackend())) as c:
+        s = c.post("/api/demo/reset", json={}).json()
+        assert s["release_ids"] == show and len(show) == 2
+        cat = c.get(f"/api/catalog?session={s['session_id']}").json()
+        assert [p["name"] for p in cat["products"]] == ["Hydra Barrier Cream", "Deep Hydration Ampoule"]
+        again = c.post("/api/demo/reset", json={}).json()  # a reset keeps the show
+        assert again["release_ids"] == show and again["session_id"] != s["session_id"]

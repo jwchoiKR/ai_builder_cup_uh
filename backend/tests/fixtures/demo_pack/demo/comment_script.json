@@ -1,0 +1,467 @@
+{
+  "script_id": "daon_demo_v1",
+  "time_unit": "offset_ms from the moment the burst is triggered from the demo console",
+  "bursts": {
+    "B1_reactions_and_price": {
+      "scene": "S03",
+      "description": "Reactions are ignored. Price questions are auto-answered once by the LLM, then from cache.",
+      "comments": [
+        {
+          "offset_ms": 0,
+          "author_id": "u_amy",
+          "author_name": "Amy",
+          "text": "So pretty! 💜",
+          "expect": {
+            "kind": "reaction"
+          }
+        },
+        {
+          "offset_ms": 1200,
+          "author_id": "u_siti",
+          "author_name": "Siti",
+          "text": "love the packaging",
+          "expect": {
+            "kind": "reaction"
+          }
+        },
+        {
+          "offset_ms": 2500,
+          "author_id": "u_lee",
+          "author_name": "Lee",
+          "text": "How much is the cream?",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "product_id": "cream_hydra_barrier"
+          }
+        },
+        {
+          "offset_ms": 3800,
+          "author_id": "u_kumar",
+          "author_name": "Kumar",
+          "text": "price?",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "product_id": "cream_hydra_barrier"
+          }
+        },
+        {
+          "offset_ms": 4600,
+          "author_id": "u_nur",
+          "author_name": "Nur",
+          "text": "how much is it",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "product_id": "cream_hydra_barrier",
+            "note": "joins the price group; answered in the same coalesced reply or instantly if the answer is already verified"
+          }
+        },
+        {
+          "offset_ms": 5900,
+          "author_id": "u_daniel",
+          "author_name": "Daniel",
+          "text": "What's the price of the cream today?",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "note": "joins the price group"
+          }
+        },
+        {
+          "offset_ms": 7000,
+          "author_id": "u_lee",
+          "author_name": "Lee",
+          "text": "How much is the cream?",
+          "expect": {
+            "note": "same author repeats; unique askers must not increase; triage cache hit (same normalised text)"
+          }
+        },
+        {
+          "offset_ms": 8300,
+          "author_id": "u_jiahui",
+          "author_name": "Jia Hui",
+          "text": "how much is the set with the ampoule?",
+          "expect": {
+            "kind": "question",
+            "intent": "set_price",
+            "route": "AUTO"
+          }
+        },
+        {
+          "offset_ms": 9500,
+          "author_id": "u_ben",
+          "author_name": "Ben",
+          "text": "😍😍😍",
+          "expect": {
+            "kind": "reaction",
+            "llm": false
+          }
+        }
+      ]
+    },
+    "B2_oily_and_makeup": {
+      "scene": "S04",
+      "description": "Paraphrased questions are grouped. Oily-skin and makeup groups reach the host top 3 with suggested answers.",
+      "comments": [
+        {
+          "offset_ms": 0,
+          "author_id": "u_raj",
+          "author_name": "Raj",
+          "text": "Is it OK for oily skin?",
+          "expect": {
+            "intent": "suitability",
+            "route": "HOST",
+            "slots": {
+              "person_type": "oily"
+            }
+          }
+        },
+        {
+          "offset_ms": 900,
+          "author_id": "u_priya",
+          "author_name": "Priya",
+          "text": "my skin is super oily, will this work for me?",
+          "expect": {
+            "group_with": "oily"
+          }
+        },
+        {
+          "offset_ms": 1800,
+          "author_id": "u_hafiz",
+          "author_name": "Hafiz",
+          "text": "good for oily skin or not",
+          "expect": {
+            "group_with": "oily"
+          }
+        },
+        {
+          "offset_ms": 2600,
+          "author_id": "u_mei",
+          "author_name": "Mei",
+          "text": "Can oily skin types use this cream?",
+          "expect": {
+            "group_with": "oily"
+          }
+        },
+        {
+          "offset_ms": 3400,
+          "author_id": "u_arjun",
+          "author_name": "Arjun",
+          "text": "oily skin here, is it too heavy?",
+          "expect": {
+            "group_with": "oily"
+          }
+        },
+        {
+          "offset_ms": 4100,
+          "author_id": "u_chloe",
+          "author_name": "Chloe",
+          "text": "Will it make my face greasy? I have oily skin",
+          "expect": {
+            "group_with": "oily"
+          }
+        },
+        {
+          "offset_ms": 4900,
+          "author_id": "u_ming",
+          "author_name": "Ming",
+          "text": "Can I use it under makeup?",
+          "expect": {
+            "intent": "compatibility",
+            "route": "HOST"
+          }
+        },
+        {
+          "offset_ms": 5600,
+          "author_id": "u_farah",
+          "author_name": "Farah",
+          "text": "does it pill under foundation?",
+          "expect": {
+            "group_with": "makeup"
+          }
+        },
+        {
+          "offset_ms": 6400,
+          "author_id": "u_aisha",
+          "author_name": "Aisha",
+          "text": "can i put makeup on after this",
+          "expect": {
+            "group_with": "makeup"
+          }
+        },
+        {
+          "offset_ms": 7100,
+          "author_id": "u_kai",
+          "author_name": "Kai",
+          "text": "is it okay for dry skin too?",
+          "expect": {
+            "intent": "suitability",
+            "slots": {
+              "person_type": "dry"
+            },
+            "note": "different slot, separate group"
+          }
+        },
+        {
+          "offset_ms": 7900,
+          "author_id": "u_sofia",
+          "author_name": "Sofia",
+          "text": "makeup over it ok?",
+          "expect": {
+            "group_with": "makeup"
+          }
+        },
+        {
+          "offset_ms": 8600,
+          "author_id": "u_ravi",
+          "author_name": "Ravi",
+          "text": "Is this good for oily skin?",
+          "expect": {
+            "group_with": "oily"
+          }
+        },
+        {
+          "offset_ms": 9400,
+          "author_id": "u_hannah",
+          "author_name": "Hannah",
+          "text": "Does it have fragrance?",
+          "expect": {
+            "intent": "fragrance",
+            "route": "AUTO"
+          }
+        }
+      ]
+    },
+    "B3_sensitive": {
+      "scene": "S09",
+      "description": "Sensitive questions go only to the operator approval queue.",
+      "comments": [
+        {
+          "offset_ms": 0,
+          "author_id": "u_jun",
+          "author_name": "Jun",
+          "text": "Can I use it while pregnant?",
+          "expect": {
+            "intent": "pregnancy_breastfeeding",
+            "route": "OPERATOR",
+            "sensitive": true
+          }
+        },
+        {
+          "offset_ms": 1500,
+          "author_id": "u_nadia",
+          "author_name": "Nadia",
+          "text": "is this safe during pregnancy??",
+          "expect": {
+            "group_with": "pregnancy"
+          }
+        },
+        {
+          "offset_ms": 2700,
+          "author_id": "u_weiling",
+          "author_name": "Wei Ling",
+          "text": "I'm pregnant, can I use the cream?",
+          "expect": {
+            "group_with": "pregnancy"
+          }
+        },
+        {
+          "offset_ms": 4200,
+          "author_id": "u_tom",
+          "author_name": "Tom",
+          "text": "my daughter has eczema can she use this",
+          "expect": {
+            "intent": "medical_condition",
+            "route": "OPERATOR",
+            "sensitive": true,
+            "slots": {
+              "life_stage": "child",
+              "condition": "eczema"
+            }
+          }
+        },
+        {
+          "offset_ms": 5600,
+          "author_id": "u_kumar",
+          "author_name": "Kumar",
+          "text": "Do you ship to Malaysia?",
+          "expect": {
+            "intent": "shipping",
+            "route": "OPERATOR"
+          }
+        },
+        {
+          "offset_ms": 6900,
+          "author_id": "u_spam1",
+          "author_name": "deals4u",
+          "text": "Cheap creams here >>> www.deal-cosmetics.example",
+          "expect": {
+            "kind": "hide",
+            "hide_category": "link"
+          }
+        },
+        {
+          "offset_ms": 8100,
+          "author_id": "u_rude",
+          "author_name": "xx_troll",
+          "text": "this host talks way too much, so annoying",
+          "expect": {
+            "kind": "hide",
+            "hide_category": "harassment"
+          }
+        },
+        {
+          "offset_ms": 9300,
+          "author_id": "u_spam2",
+          "author_name": "glowqueen_shop",
+          "text": "DM me for 50% codes, call 9123 4567",
+          "expect": {
+            "kind": "hide",
+            "hide_category": "personal_info"
+          }
+        }
+      ]
+    },
+    "B4_time_sale": {
+      "scene": "S11",
+      "description": "After the time sale starts, price answers are regenerated with promo prices (cache invalidated).",
+      "comments": [
+        {
+          "offset_ms": 0,
+          "author_id": "u_amy",
+          "author_name": "Amy",
+          "text": "omg time sale!!",
+          "expect": {
+            "kind": "reaction"
+          }
+        },
+        {
+          "offset_ms": 1300,
+          "author_id": "u_lee",
+          "author_name": "Lee",
+          "text": "how much is the cream now?",
+          "expect": {
+            "intent": "promo",
+            "route": "AUTO",
+            "expected_answer_contains": "S$32.40"
+          }
+        },
+        {
+          "offset_ms": 2600,
+          "author_id": "u_priya",
+          "author_name": "Priya",
+          "text": "what's the set price with the time sale?",
+          "expect": {
+            "intent": "set_price",
+            "route": "AUTO",
+            "expected_answer_contains": "S$55.80"
+          }
+        },
+        {
+          "offset_ms": 3900,
+          "author_id": "u_daniel",
+          "author_name": "Daniel",
+          "text": "price now?",
+          "expect": {
+            "intent": "price",
+            "route": "AUTO",
+            "expected_answer_contains": "S$32.40",
+            "note": "creates a new price group (all price groups were closed when the promo started) and gets a freshly composed answer with the promo price"
+          }
+        }
+      ]
+    },
+    "B5_switch_boundary": {
+      "scene": "S12",
+      "anchor": "next_segment_start",
+      "description": "Armed from the Demo Console before the switch; fires when the ampoule segment starts (t=0 = segment start).",
+      "comments": [
+        {
+          "offset_ms": 1000,
+          "author_id": "u_mei",
+          "author_name": "Mei",
+          "text": "how much?",
+          "expect": {
+            "product_id": "cream_hydra_barrier",
+            "product_basis": "context",
+            "note": "within STREAM_GRACE_SEC=2 of the switch, mapped to the previous product"
+          }
+        },
+        {
+          "offset_ms": 1600,
+          "author_id": "u_chloe",
+          "author_name": "Chloe",
+          "text": "is the cream fragrance free?",
+          "expect": {
+            "product_id": "cream_hydra_barrier",
+            "product_basis": "explicit"
+          }
+        },
+        {
+          "offset_ms": 9000,
+          "author_id": "u_arjun",
+          "author_name": "Arjun",
+          "text": "Does the ampoule sting?",
+          "expect": {
+            "product_id": "ampoule_deep_hydration",
+            "intent": "allergy_sensitivity",
+            "route": "OPERATOR"
+          }
+        },
+        {
+          "offset_ms": 11000,
+          "author_id": "u_hafiz",
+          "author_name": "Hafiz",
+          "text": "can I use it with vitamin C?",
+          "expect": {
+            "product_id": "ampoule_deep_hydration",
+            "intent": "how_to_use",
+            "route": "HOST",
+            "slots": {
+              "combined_with": "vitamin_c"
+            }
+          }
+        },
+        {
+          "offset_ms": 12500,
+          "author_id": "u_siti",
+          "author_name": "Siti",
+          "text": "how much is the ampoule?",
+          "expect": {
+            "product_id": "ampoule_deep_hydration",
+            "intent": "price",
+            "route": "AUTO"
+          }
+        },
+        {
+          "offset_ms": 14000,
+          "author_id": "u_ben",
+          "author_name": "Ben",
+          "text": "how much niacinamide is in it?",
+          "expect": {
+            "product_id": "ampoule_deep_hydration",
+            "intent": "ingredient_amount",
+            "route": "AUTO"
+          }
+        },
+        {
+          "offset_ms": 15500,
+          "author_id": "u_ravi",
+          "author_name": "Ravi",
+          "text": "can i use the ampoule in the morning",
+          "expect": {
+            "product_id": "ampoule_deep_hydration",
+            "intent": "how_to_use",
+            "route": "HOST"
+          }
+        }
+      ]
+    }
+  }
+}
