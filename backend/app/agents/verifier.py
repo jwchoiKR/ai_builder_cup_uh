@@ -10,6 +10,7 @@ from collections.abc import Sequence
 
 from ..logic import qualifier
 from ..logic.catalog import Catalog
+from ..logic.verify import _flat
 from ..models.agent_io import ComplianceOutput, FactCheckOutput, VerifyOutput
 from ..models.data import Passage
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -18,6 +19,8 @@ from .fact_checker import _drop, _numbers, _product_numbers, sentence_index
 from .utterance_judge import _cdrop
 
 log = logging.getLogger(__name__)
+
+WINDOW = 2  # D-301: sentences on each side of the cited ones
 
 
 class Verifier:
@@ -28,6 +31,8 @@ class Verifier:
         self.llm, self.prompt, self.catalog = llm, prompt, catalog
         self.files = files or {}  # product id -> (model parts, file passages), as the fact checker has them
         self._sources: dict[str, tuple[list[dict], dict]] = {}
+        # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and their neighbours)
+        self.window = getattr(llm.settings, "VERIFY_EVIDENCE", "all") == "window"
 
     def source(self, pid: str) -> tuple[list[dict], dict]:
         """The product's documents, numbered once per product (the cached prefix of every call)."""
@@ -36,24 +41,44 @@ class Verifier:
             self._sources[pid] = sentence_index([*passages, *self.files.get(pid, ((), ()))[1]])
         return self._sources[pid]
 
-    async def _one(self, pid: str, cand: dict, line: str, previous: Sequence[str],
-                   session_id: str | None) -> tuple[AgentResult, dict]:
+    def evidence(self, pid: str, quote: str | None) -> list[dict]:
+        """D-301 window mode: the sentences the flagger's quote covers, with WINDOW neighbours each side (same ids as
+        the whole documents); none for a compliance candidate."""
         blocks, index = self.source(pid)
+        if not self.window:
+            return blocks
+        ids, q = list(index), _flat(quote or "")
+        hits = [i for i, sid in enumerate(ids) if q and (s := _flat(index[sid][1])) and (s in q or q in s)]
+        keep = {ids[j] for i in hits for j in range(max(0, i - WINDOW), min(len(ids), i + WINDOW + 1))}
+        return [b | {"sentences": [s for s in b["sentences"] if s[0] in keep]} for b in blocks
+                if any(s[0] in keep for s in b["sentences"])]
+
+    def _request(self, pid: str, blocks: list[dict], cand: dict, line: str, previous: Sequence[str],
+                 session_id: str | None) -> LLMRequest:
         user, prefix = self.prompt.render_cached({
             "passages_json": blocks, "candidate_json": cand,
             "last_two_final_transcripts_json": list(previous)[-2:], "utterance_text": line}, {"passages_json"})
-        s = self.llm.settings
-        res = await self.llm.call(LLMRequest(
+        return LLMRequest(
             agent=self.name, model=self.llm.verify.model, thinking_level=self.llm.verify.thinking_level,
             prompt_version=self.prompt.version, system_instruction=self.prompt.system_instruction, user_message=user,
-            output_model=VerifyOutput, deadline_ms=s.VERIFY_TIMEOUT_MS, session_id=session_id, cache_prefix=prefix,
-            cache_parts=self.files.get(pid, ((), ()))[0],
+            output_model=VerifyOutput, deadline_ms=self.llm.settings.VERIFY_TIMEOUT_MS, session_id=session_id,
+            cache_prefix="" if self.window else prefix,
+            cache_parts=() if self.window else self.files.get(pid, ((), ()))[0],
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             mock_primary_text=f"{line}|{cand.get('span', '')}",
             mock_fallback=lambda _: {"evidence": None, "reason": "mock: kept", "decision": "keep", "severity": None},
             preview=f"{line} | {cand.get('kind')}: {cand.get('span', '')}",
-        ))
-        return res, index
+        )
+
+    async def warm(self, pid: str, session_id: str | None) -> None:
+        """D-301: the product's documents cache, made at session start, so the first candidates are not uncached."""
+        if not self.window:
+            await self.llm.warm_cache(self._request(pid, self.source(pid)[0], {}, "", [], session_id))
+
+    async def _one(self, pid: str, cand: dict, quote: str | None, line: str, previous: Sequence[str],
+                   session_id: str | None) -> tuple[AgentResult, dict]:
+        res = await self.llm.call(self._request(pid, self.evidence(pid, quote), cand, line, previous, session_id))
+        return res, self.source(pid)[1]
 
     async def check_compliance(self, out: ComplianceOutput, line: str, previous: Sequence[str], on_air: str,
                                session_id: str | None = None) -> ComplianceOutput:
@@ -62,6 +87,7 @@ class Verifier:
             return out
         rules = self.catalog.pack.rules_by_id
         says = [r.say for p in self.catalog.products for r in p.qualified_results]
+        product = self.catalog.get_product(on_air) if self.catalog.is_product(on_air) else None
 
         async def go(v):
             r = rules[v.rule_id]
@@ -71,7 +97,9 @@ class Verifier:
                     "span": v.span, "claim_kind": getattr(v, "claim_kind", None), "group": getattr(v, "group", None)}
             if v.rule_id == qualifier.RULE_ID:
                 cand["qualified_results"] = says
-            return v, await self._one(on_air, cand, line, previous, session_id)
+            if self.window and product is not None:
+                cand["cautions"] = product.cautions  # D-301: with no documents, the cautions a line may reverse
+            return v, await self._one(on_air, cand, None, line, previous, session_id)
 
         rejected = set()
         for v, (res, index) in await asyncio.gather(*(go(v) for v in cands)):
@@ -101,7 +129,7 @@ class Verifier:
             pid = c.product_id if self.catalog.is_product(c.product_id) else on_air
             cand = {"kind": "fact", "field": c.field, "product_id": c.product_id, "span": c.span,
                     "stated": c.stated_value, "correction": c.correct_value, "quote": c.quote}
-            return c, await self._one(pid, cand, line, previous, session_id)
+            return c, await self._one(pid, cand, c.quote, line, previous, session_id)
 
         for c, (res, index) in await asyncio.gather(*(go(c) for c in cands)):
             o = res.output if res.status == "ok" else None

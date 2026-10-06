@@ -509,6 +509,8 @@ class UtterancePipeline:
 
     async def warm_facts_cache(self, on_air: str) -> None:
         """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
+        if self.verifier is not None:  # D-301: and the verifier's documents cache
+            self.rt.spawn(self.verifier.warm(on_air, self.rt.sid), name=f"verifier-cache:{on_air}")
         if self.facts._parts(on_air):
             switch = SwitchState()
             await self.facts.warm_cache(FactInput(utterance="", on_air=on_air, switch=switch, promo=None,

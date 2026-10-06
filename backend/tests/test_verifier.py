@@ -106,3 +106,49 @@ def test_d300_compliance_flagger_keeps_every_verdict_in_verify(catalog, monkeypa
     monkeypatch.setenv("JUDGE_ARM", "verify")
     got = _validate_r(catalog, "Have your child swallow the toothpaste.", [dict(v)], ALL)
     assert [x.rule_id for x in got] == [V]
+
+
+async def test_d301_window_evidence_is_the_cited_sentences_and_their_neighbours():
+    from .helpers import live_runtime, make_ctx
+
+    rt = await live_runtime(make_ctx(backend=ScriptedBackend(), JUDGE_ARM="verify", VERIFY_EVIDENCE="window"))
+    try:
+        v = rt.utterances.verifier
+        blocks, index = v.source(CREAM)
+        win = v.evidence(CREAM, "Live broadcast price: S$36.00")
+        got = [s for b in win for s in b["sentences"]]
+        assert any("S$36.00" in s[1] for s in got) and 1 <= len(got) <= 2 * 2 + 1 < len(index)
+        assert all(s[0] in index for s in got)  # the same ids as the whole documents
+        assert v.evidence(CREAM, None) == []  # a compliance candidate gets no documents in window mode
+    finally:
+        await close_env(rt)
+
+
+async def test_d301_the_verifier_cache_is_warmed_at_session_start():
+    from .helpers import live_runtime, make_ctx
+
+    class Warm(ScriptedBackend):
+        def __init__(self):
+            super().__init__()
+            self.warmed = []
+
+        async def warm_cache(self, req):
+            self.warmed.append(req.agent)
+
+    llm = Warm()
+    rt = await live_runtime(make_ctx(backend=llm, JUDGE_ARM="verify"))
+    try:
+        await rt.ctx.scheduler.idle()
+        assert "verifier" in llm.warmed
+    finally:
+        await close_env(rt)
+
+
+def test_d301_the_verifier_is_hedged_only_when_named(settings, clock, ids, store, bus):
+    from app.context import StoreAudit
+    from app.providers.llm import LLMClient
+
+    for names, hedged in (("compliance,fact,context", False), ("compliance,verifier", True)):
+        s = settings.model_copy(update={"HEDGED_AGENTS": names})
+        client = LLMClient(ScriptedBackend(), s, clock, ids, StoreAudit(store, bus))
+        assert ("verifier" in client._hedged_agents) is hedged
