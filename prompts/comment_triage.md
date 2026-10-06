@@ -1,4 +1,4 @@
-# Prompt: comment_triage (version comment_triage_v4)
+# Prompt: comment_triage (version comment_triage_v5)
 
 Used by: `CommentTriage` agent. Model: `LLM_FAST_MODEL`, thinking MINIMAL. Deadline `TRIAGE_TIMEOUT_MS`.
 Called once per viewer comment that passed the code pre-filter (not emoji-only, not a short reaction, not a triage-cache hit).
@@ -34,7 +34,7 @@ For the COMMENT, decide:
    - A product question the sheet can answer is never `other`: "ml in this jar?" is `volume`, "has perfume?" is `fragrance`, "SPF?" is `ingredients`, "can use at night?" is `how_to_use`, "how long does it last after opening?" is `shelf_life`.
    - `shelf_life` is only how long the product keeps (before or after opening). How long one bottle lasts in daily use ("how many months will a tube last me?") is `other`: no sheet states it.
    - Only a question that fits no intent at all is `other`.
-4. `condition_slots`: fill only what the comment states. A slot with listed values in SLOTS takes one of them; a slot with no listed values is a short lowercase phrase as the viewer gives it ("oily skin", "curly hair", "diabetes", "my other serum"). Leave others null.
+4. `condition_slots`: fill only what the comment states. A slot with listed values in SLOTS takes one of them; a slot with no listed values is a short lowercase phrase as the viewer gives it ("oily skin", "curly hair", "diabetes", "my other serum"). `variant` is the size or variant the viewer names ("100 ml", "the 30ml one", "refill"), as they say it. Leave others null.
 5. `canonical_question`: rewrite the question as one short, neutral English question about the product, without the person's details. Example: "I'm vegan, will this work for me?" becomes "Is it suitable for vegans?". Never widen what was asked: "free sample?" is "Is there a free sample?", not "Is there a free sample or discount?" (an answer to the wider question would not answer the viewer). For reactions and hidden comments use "".
 6. `group_candidate_id`: if an OPEN_GROUP asks the same thing about the same product with compatible slots, return its group_id, else null. Compare the meaning, not the wording: "vegan can take anot", "tablets ok for vegan?" and "vegan here, suitable?" are the same question as "Is it suitable for vegans?". Different slot values (vegan vs vegetarian, pregnant vs breastfeeding) are different groups.
 7. `reason`: at most 20 words.
@@ -78,7 +78,8 @@ Classify COMMENT.
     "life_stage": "string | null",
     "condition": "string | null",
     "combined_with": "string | null",
-    "time_of_day": "string | null"
+    "time_of_day": "string | null",
+    "variant": "string | null"
   },
   "canonical_question": "string",
   "group_candidate_id": "string | null",

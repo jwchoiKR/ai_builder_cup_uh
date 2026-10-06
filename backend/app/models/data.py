@@ -27,6 +27,13 @@ class AvoidSaying(BaseModel):
     say: str
 
 
+class ProductVariant(BaseModel):
+    """D-281: one priced size or variant of an onboarded product."""
+    label: str  # the variant's name and size as the documents write them ("Eau de Parfum 100 mL")
+    list_price: float
+    live_price: float
+
+
 class Product(BaseModel):
     product_id: str
     code: str
@@ -48,6 +55,7 @@ class Product(BaseModel):
     target_group: list[str] = []  # D-256: who the product is made for (onboarded products), for the judges
     cautions: list[str] = []  # short host lines from the sheet's Cautions section (D-106)
     avoid_saying: list[AvoidSaying] = []
+    variants: list[ProductVariant] = []  # D-281: every priced variant, the first is the main one (volume, live_price)
 
 
 class SetOffer(BaseModel):
