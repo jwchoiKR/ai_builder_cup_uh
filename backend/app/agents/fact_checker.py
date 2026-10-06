@@ -215,6 +215,47 @@ def _only_another_ingredient(c, passages: Sequence[Passage], said: set) -> bool:
 _GROUNDING = frozenset({"unknown passage", "quote not in the passage", "a number of the correction is not in the quote"})
 
 
+_AFFIRM = re.compile(r"\b(?:consistent with|aligns with|in line with|agrees with|matches|is correct|are correct|"
+                     r"correctly (?:states|says|gives)|is accurate|which is right)\b", re.I)
+_QUOTE_EXTRA = ("wrote", "writes", "commented", "posted", "typed", "asking if", "asking whether")
+
+
+def _reason_affirms(reason: str | None, lex) -> bool:
+    """D-283 Q4: the reason says the line agrees ("which aligns with 4 and up"), not negated just before."""
+    for m in _AFFIRM.finditer(reason or ""):
+        before = " ".join((reason or "")[:m.start()].lower().split()[-3:])
+        # the rest of the sentence ("1.5 L" is no sentence end), without the source words it quotes ('not under 4')
+        after = re.split(r"[.;](?:\s|$)", (reason or "")[m.end():], maxsplit=1)[0].lower()
+        after = re.sub(r"'[^']*'|\"[^\"]*\"", " ", after)
+        if (not any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", before) for n in (*lex.negation_words, "n't"))
+                and not _TURN.search(after)):  # "matches the list price, but the live price is ..." is no agreement
+            return True
+    return False
+
+
+_TURN = re.compile(r"\b(?:but|however|whereas|while|instead|not|differs?|different|wrong|incorrect)\b")
+
+
+def _number_spots(text: str) -> list[tuple[int, set]]:
+    return [(m.start(), number_set(m.group())) for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", text)]
+
+
+def _quoted_then_corrected(cues, utterance: str, said: set, right: set) -> bool:
+    """D-283 Q2: "Someone wrote 'S$89 for the 50 mL?' No, it's S$98.": the stated number comes after a quote cue or
+    inside a question, and the right number comes after it in the same line."""
+    if not said or not right or said == right:
+        return False
+    text = utterance.lower()
+    spots = _number_spots(text)
+    first_said = next((i for i, ns in spots if ns & said), None)
+    last_right = max((i for i, ns in spots if ns & right and not ns & said), default=None)
+    if first_said is None or last_right is None or last_right < first_said:
+        return False
+    cue_before = any(0 <= text.find(q) < first_said for q in (*cues, *_QUOTE_EXTRA))
+    asked = "?" in text[first_said:last_right]
+    return cue_before or asked
+
+
 def _record_holds(c, catalog: Catalog, right: set, host: str) -> bool:
     """D-282 R1: every number of the correction is a structured value of the product's record for the claim's field:
     a price of the variant the line names (the main one when it names none, never a guess between several), the
@@ -391,6 +432,9 @@ def _post_validate(o: FactCheckOutput, passages: Sequence[Passage], catalog: Cat
                    ) -> FactCheckOutput:
     by_id = {p.passage_id: p for p in passages}
     set_ids = {s.set_id for s in catalog.set_offers}
+    # D-283 Q4: the model's own reason says the line agrees with the source; one contradicted claim is then no fact
+    affirmed = ("Q4" in fixes and sum(c.verdict == "contradicted" for c in o.claims) == 1
+                and _reason_affirms(o.reason, catalog.lexicon))
     for c in o.claims:
         # D-148 (sealed show replay): during a time sale the live price said as the price now is stale, even when
         # the model calls it supported ("It's $36, very cheap"); "normally $36" or "after the sale" is fine
@@ -405,6 +449,9 @@ def _post_validate(o: FactCheckOutput, passages: Sequence[Passage], catalog: Cat
             c.verdict = "not_in_sources"
             continue
         if c.verdict != "contradicted":
+            continue
+        if affirmed:
+            _drop(c, f"Q4: the verdict's reason says the line agrees ({o.reason[:80]})")
             continue
         if (c.field == "other" and "F1" not in fixes) or (c.field == "test_result" and utterance is not None
                                                           and not TEST_CITED.search(utterance)):
@@ -422,6 +469,9 @@ def _post_validate(o: FactCheckOutput, passages: Sequence[Passage], catalog: Cat
                             and _units(c.stated_value) != _units(c.correct_value))
         host = f"{c.stated_value or ''} {c.span or ''}"
         threshold = _threshold_differs(lex, host, c, said) or _polarity_differs(lex, host, c.correct_value)
+        if "Q2" in fixes and utterance and _quoted_then_corrected(catalog.pack.rules.quote_cues, utterance, said, right):
+            _drop(c, "Q2: the line quotes the value and states the right one")
+            continue
         same_numbers = said and said == right and not units_differ
         if ("F4" in fixes and same_numbers and not _restates(c.correct_value, host)
                 and not (_range_kind(lex, host) and _range_kind(lex, host) == _range_kind(lex, c.correct_value or ""))):
