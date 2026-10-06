@@ -469,6 +469,10 @@ class LLMClient:
         self.warmup_status: dict[str, str] = {}
         # D-184: per agent, calls that sent a second request, and how many of those the second one answered
         self.hedges: dict[str, dict[str, int]] = {}
+        # D-287: HEDGED_AGENTS narrows the second request to some of the alert-path agents (cost); empty = all
+        names = [x.strip() for x in getattr(settings, "HEDGED_AGENTS", "").split(",") if x.strip()]
+        self._hedged_agents = (frozenset(a for a in HEDGED_AGENTS if any(a.startswith(n) for n in names))
+                               if names else HEDGED_AGENTS)
         if settings.LLM_USAGE_REPORT:
             atexit.register(write_usage_report, settings.LLM_USAGE_REPORT)
 
@@ -494,7 +498,7 @@ class LLMClient:
         error: str | None = None
         meta: dict[str, Any] = {}
         try:
-            hedge_ms = self._settings.JUDGE_HEDGE_MS if req.agent in HEDGED_AGENTS else 0
+            hedge_ms = self._settings.JUDGE_HEDGE_MS if req.agent in self._hedged_agents else 0
             work = self._hedged(req, t0, hedge_ms) if 0 < hedge_ms < req.deadline_ms else self._generate(req, t0)
             raw = await asyncio.wait_for(work, timeout=req.deadline_ms / 1000)
             meta = {"model_version": raw.model_version, "usage": raw.usage, "finish_reason": raw.finish_reason}

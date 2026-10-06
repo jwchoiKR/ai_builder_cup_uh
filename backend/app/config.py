@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     # D-184: a judge or fact call still unanswered after this sends one identical second request; the first answer
     # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
     JUDGE_HEDGE_MS: int = 1500
+    # D-287: which alert-path agents get the second request ("compliance,fact": names or prefixes); empty = all
+    HEDGED_AGENTS: str = ""
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
     # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
     # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more
