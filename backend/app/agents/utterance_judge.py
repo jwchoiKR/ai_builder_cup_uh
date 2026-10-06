@@ -142,11 +142,16 @@ _GENERIC_TEST = re.compile(r"\b(?:lab[- ]tested|laboratory[- ]tested|clinically 
                            r"tested|scientifically proven|tests? (?:confirm|confirmed|show|showed|prove|proved)|"
                            r"testing (?:confirmed|showed)|proven)\b", re.I)
 _HEDGE = re.compile(r"\b(?:may|might|can vary|results vary|individual results|up to|in some|not everyone)\b", re.I)
+# D-291 Q3: a line that disclaims the claim itself ("these documents give no lab result that supports a no-side-effects
+# claim", "we cannot claim that", "there is no evidence it cures colds")
+_DISCLAIMED = re.compile(r"\b(?:no|not any|without)\s+(?:\w+\s+){0,2}(?:results?|evidence|data|studies|study|proof)\s+"
+                         r"(?:that\s+|which\s+|to\s+)?(?:supports?|shows?|backs?|proves?)\b|\b(?:cannot|can't|can not|"
+                         r"don't|do not|won't|will not)\s+(?:claim|say|promise)\b", re.I)
 # D-286 Q3: a denied guarantee ("we can't guarantee", "it guarantees no individual result"), never "not only"
 _GUARANTEE = re.compile(r"\b(?:guarantee[sd]?|promise[sd]?)\b", re.I)
 _DENIED = re.compile(r"\b(?:no|not(?! only)|never|cannot|can't|don't|doesn't|won't)\s+(?:\w+\s+){0,2}"
                      r"(?:guarantee|promise)|\b(?:guarantee[sd]?|promise[sd]?)\s+no\s+(?:\w+\s+){0,2}"
-                     r"(?:results?|outcomes?|effects?|benefits?)\b", re.I)
+                     r"(?:results?|outcomes?)\b", re.I)
 
 
 def negated_caution(text: str, product, lex) -> str | None:
@@ -271,8 +276,9 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                 fit.append(v)
         kept[:] = fit
     if "Q3" in fixes:
-        for v in kept:
-            if not v.is_negated and (_DENIED.search(v.span or "") or (_DENIED.search(text) and _GUARANTEE.search(v.span or ""))):
+        for v in kept:  # D-291: whatever the rule's source (market, law pack, brand pack)
+            if not v.is_negated and (_DENIED.search(v.span or "") or _DISCLAIMED.search(text)
+                                     or (_DENIED.search(text) and _GUARANTEE.search(v.span or ""))):
                 log.info("compliance violation negated by code: D-286 Q3 a denied guarantee | rule=%s span=%r",
                          v.rule_id, v.span)
                 v.is_negated = True  # D-286 Q3: "it guarantees no individual result" denies a guarantee

@@ -407,7 +407,8 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
 
         found = lawpack_for(lawpacks, base.market.market, record.category)
         if found is not None:
-            rules = rules.model_copy(update={"rules": to_rules(*found), "policy_id": found[0]})
+            wording = base.lang_pack.categories if base.lang_pack else None  # D-291: Q6 terms for law packs too
+            rules = rules.model_copy(update={"rules": to_rules(*found, wording), "policy_id": found[0]})
     from ..logic.qualifier import RULE_ID as QUALIFIER_RULE
 
     if record.qualified_results and QUALIFIER_RULE not in {x.rule_id for x in rules.rules}:
@@ -424,7 +425,8 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
         brand = brandpack_for(lawpacks, record.brand)
         if brand is not None:
             have = {x.rule_id for x in rules.rules}
-            extra = [x.model_copy(update={"rule_id": f"BR-{x.rule_id}"}) for x in _to_rules(*brand)
+            extra = [x.model_copy(update={"rule_id": f"BR-{x.rule_id}"}) for x in _to_rules(
+                *brand, base.lang_pack.categories if base.lang_pack else None)
                      if f"BR-{x.rule_id}" not in have]
             rules = rules.model_copy(update={"rules": [*rules.rules, *extra]})
     return dataclasses.replace(base, products=products, runsheets={release_id: runsheet}, rules=rules,

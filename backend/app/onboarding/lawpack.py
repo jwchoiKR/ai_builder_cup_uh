@@ -162,8 +162,19 @@ def brandpack_for(root: Path, brand: str) -> tuple[str, LawPackRecord] | None:
     return (best[1], best[2]) if best else None
 
 
-def to_rules(pack_id: str, rec: LawPackRecord) -> list[Rule]:
+def required_terms_for(category: str, wording: dict | None) -> list[str]:
+    """D-291: the language pack's required terms (D-290 Q6) for a law-pack rule's own topic: the language category
+    whose name is the topic or one of its words ("vulnerable_groups" -> "vulnerable", "permanent_results" ->
+    "permanent"); none when no category fits."""
+    words = set(category.split("_"))
+    for name, w in (wording or {}).items():
+        if w.required_terms and (name == category or name in words):
+            return list(w.required_terms)
+    return []
+
+
+def to_rules(pack_id: str, rec: LawPackRecord, wording: dict | None = None) -> list[Rule]:
     return [Rule(rule_id=r.rule_id, source_id=pack_id, source_ref="; ".join(f"{e.file} {e.locator}" for e in r.evidence),
                  title=r.title, description=r.description, severity=r.severity,
                  unacceptable_examples=r.unacceptable_examples, say_instead_hint=r.say_instead_hint,
-                 reflex_phrases=[]) for r in rec.rules]
+                 reflex_phrases=[], required_terms=required_terms_for(r.rule_category, wording)) for r in rec.rules]

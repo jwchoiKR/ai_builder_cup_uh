@@ -271,3 +271,64 @@ def test_d290_q6_a_rule_needs_its_own_element_in_the_line(catalog, category, lin
     v = {"span": span, "rule_id": rule, "severity": "HIGH", "is_negated": False, "is_quoted": False, "say_instead": "x"}
     assert [x.rule_id for x in _validate(catalog, line, [v], ())] == [rule]  # today: the HIGH stands
     assert [x.rule_id for x in _validate(catalog, line, [v], ("Q6",))] == ([rule] if kept else [])
+
+
+def _with_law_rules(catalog, *rules):
+    """The demo catalog plus made-up law-pack rules (as onboarding's to_rules makes them)."""
+    import dataclasses
+
+    from app.logic.catalog import Catalog
+
+    pack = catalog.pack
+    pack = dataclasses.replace(pack, rules=pack.rules.model_copy(update={"rules": [*pack.rules.rules, *rules]}))
+    return Catalog(pack)
+
+
+def _law_rule(rule_id: str, category: str):
+    from app.onboarding.lawpack import LawPackRecord, to_rules
+
+    rec = LawPackRecord.model_validate({"rules": [{
+        "rule_id": rule_id, "title": rule_id, "description": "made up", "severity": "HIGH", "rule_category": category,
+        "unacceptable_examples": [], "say_instead_hint": "", "evidence": []}], "covers": ["food_supplement"],
+        "name": "made up", "regulator": "made up", "language": "en"})
+    return rule_id, rec
+
+
+def test_d291_law_pack_rules_get_their_category_s_required_terms(pack):
+    from app.onboarding.lawpack import required_terms_for, to_rules
+
+    wording = pack.lang_pack.categories
+    assert "pregnan" in required_terms_for("vulnerable_groups", wording)
+    assert "forever" in required_terms_for("permanent_results", wording)
+    assert required_terms_for("safety", wording) == [] and required_terms_for("disease", wording) == []
+    rid, rec = _law_rule("HS-VULNERABLE", "vulnerable_groups")
+    assert "baby" in to_rules("law_x_v1", rec, wording)[0].required_terms
+
+
+LAW = [  # (line, rule id, rule category, span, fixes, negated or dropped)
+    ("These documents give no lab result that supports a no-side-effects claim.", "HS-SAFETY-GUARANTEES", "safety",
+     "no-side-effects claim", ("Q3",), "negated"),
+    ("We cannot claim it has no side effects.", "HS-SAFETY-GUARANTEES", "safety", "no side effects", ("Q3",),
+     "negated"),
+    ("Guaranteed no side effects.", "HS-SAFETY-GUARANTEES", "safety", "Guaranteed no side effects", ("Q3", "Q6"),
+     "kept"),
+    ("This protein powder cures kidney disease and has 50 g protein.", "HS-DISEASE", "disease",
+     "cures kidney disease", ("Q3", "Q6"), "kept"),  # a fact error with a real rule: the cure claim stays HIGH
+    ("Zero side effects with these gummies.", "HS-VULNERABLE", "vulnerable_groups", "Zero side effects", ("Q6",),
+     "dropped"),
+    ("Safe for kids, zero side effects.", "HS-VULNERABLE", "vulnerable_groups", "Safe for kids", ("Q6",), "kept"),
+]
+
+
+@pytest.mark.parametrize("line, rule_id, category, span, fixes, outcome", LAW, ids=[str(i) for i in range(len(LAW))])
+def test_d291_q3_and_q6_hold_for_law_pack_rules(catalog, pack, line, rule_id, category, span, fixes, outcome):
+    from app.onboarding.lawpack import to_rules
+
+    _, rec = _law_rule(rule_id, category)
+    cat = _with_law_rules(catalog, *to_rules("law_x_v1", rec, pack.lang_pack.categories))
+    v = {"span": span, "rule_id": rule_id, "severity": "HIGH", "is_negated": False, "is_quoted": False,
+         "say_instead": "x"}
+    assert [(x.rule_id, x.is_negated) for x in _validate(cat, line, [v], ())] == [(rule_id, False)]  # today: HIGH
+    got = _validate(cat, line, [v], fixes)
+    assert {"negated": [(rule_id, True)], "kept": [(rule_id, False)], "dropped": []}[outcome] == \
+        [(x.rule_id, x.is_negated) for x in got]
