@@ -34,6 +34,31 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - In the cloud, onboarding state lives in `gs://ai-budiler-cup-uh-team-pjt-live-studio-onboarding/onboarding/` (D-263; bucket name since the 10/6 project move). The bucket is the source of truth; the container's ONBOARDING_DIR is only a cache that is refilled at start. Never edit the bucket by hand: releases and packs are write-once.
 - Approving a release also runs the BriefAgent (about 30 s, D-265) and writes `briefs/<release_id>.json` (write-once). A release approved before D-265 has no brief: its show keeps the approved claims as points and only brand, product and ingredient names as STT hints until it is approved again.
 
+## Handoff 10/7 early morning (read this first)
+
+- **Cloud:** `live-studio-us` revision 00003 runs fd62170 (D-308). The verifier arm is on (`JUDGE_ARM=verify`, 3.8 Flash on cited sentences, 5 s, "확인 중" chip, "미확인 (AI 응답 지연)" label). The other meaning-rule switches are back on their code defaults until each one wins an on/off test. Smoke-tested 10/6. The eval VM `live-studio-eval` now lives in ai-budiler-cup-uh-team-pjt (its SA has speech.client). The separk-cloocus leftovers are not deleted yet.
+- **User rules added 10/6-7:**
+  - Meaning judgments go to models; code only checks provenance.
+  - Alert latency (line end to shown) p95 ≤ 5 s is a pass line, next to detection 95%+, false alerts below 1% and wrong HIGH 0, per product.
+  - When a test misses a pass line, stop: explain the cause, then design the fix WITH the user before asking dev.
+  - Comments and pre-broadcast (onboarding) now belong to other people; this session and dev touch only the live path (STT, judges, display, latency).
+  - Any run with an http_429 waits 10 min and reruns (vm_live.sh does this).
+- **How we measure now:**
+  - Pool 5 lines go through TTS (two SAPI voices) and then our chirp_3 STT path, into `sealed_sets/onboarding5_stt{z,d}` (SHORT endpointing) and `onboarding5_stt{z,d}s` (STANDARD). Tools: `sealed_sets/stt/`.
+  - Scorer v3 (`--restore`, LABEL_CHANGES 10/6 18:40).
+  - Per-alert `ms_to_shown`, per-call `usage` and `failure`.
+  - Pool 5 is seen (diagnostic only); pool 6 is still to be built.
+- **Findings 10/6 (pool 5, STT voice A unless noted):**
+  - Code gates (R3) on STT: false alerts 19.4%, wrong HIGH 5. Cause: STT drops quote marks, mishears names, splits sentences.
+  - Flash-Lite → 3.8 Flash verifier (R2 window): 96.3 / 0.9% / 0. But 3.8 Flash itself is slow: app-free probe gave mean 3.6 s, p95 8.7 s, 5% 504. The user rejected it for speed and cost.
+  - STT_AWARE prompts, a 20 s context window and NUMBER_CHECK each made false alerts worse. They were rolled back.
+  - Flash-Lite LOW single arm: alert mean 1.4 s, p95 2.6 s, but false alerts 10-20% and wrong HIGH 4-13, almost all from the compliance judge (quotes, fact errors classed as VULNERABLE or SAFETY HIGH). COMPLIANCE_DOCS raised wrong HIGH at LOW.
+  - STANDARD endpointing cut split lines from 73 to 21 and false alerts from about 19% to about 11%.
+  - Flash-Lite MEDIUM on both agents gave wrong HIGH 0 and false 9.3%, but the fact checker timed out.
+  - 429s are shared capacity (DSQ), not a project quota: the Flash-Lite global limit is 50M tokens/min.
+- **Running at handoff:** `vm_litemed.sh` (a57cb46): Flash-Lite single with compliance MEDIUM and facts LOW, STANDARD, both voices, with COMPLIANCE_DOCS off and on. Results go to `results/arm_litemed*`. Score with cells_summary (SEMANTIC=1 RESTORE=1) per pool dir. Report false alerts, wrong HIGH and `ms_to_shown` mean/p95. If the pass lines are missed, stop and discuss.
+- **Decks:** `docs/decks/live_logic_1006.html`, `fix_plan_1006.html`, `rule_code_1006.html`, `arch_llm_1006.html`. The arch deck still shows the R2 verifier and needs an update once the design settles.
+
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)
 
 State: branch `multi_agent_test` pushed at ec9559c (later dev commits c0d4f7b may be local). Cloud is still 00009 (41411fd): nothing from today is deployed.
