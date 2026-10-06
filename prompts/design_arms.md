@@ -140,8 +140,12 @@ D-297: for a violation of a HIGH rule, set `claim_kind` to what the line itself 
 - `composition_fact`: what it contains or how much;
 - `other`.
 Set `group` to the group or condition the line names for the claim ("babies", "people with eczema", "everyone"), or
-null. Name only what the line says. A cosmetic state (chapped lips, dry skin, dull hair) is no disease. For a MEDIUM
-rule, both are null.
+null. Name only what the line says. A cosmetic state (chapped lips, dry skin, dull hair) is no disease. A line that
+tells viewers to ignore or reverse a caution ("Irritated skin? Go ahead and use it.") is `usage_instruction`, unless
+it promises safety to a group such as babies or pregnant women. For a TEST-QUALIFIER violation, set
+`qualified_result_id` to the `result_id` of the QUALIFIED_RESULTS entry the line states (by its number or by its
+meaning: "complete coverage" states "100% of strands"). For a MEDIUM rule, `claim_kind` and `group` are null; for
+every rule but TEST-QUALIFIER, `qualified_result_id` is null.
 
 ## FR: compliance_judge
 

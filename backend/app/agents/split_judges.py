@@ -126,7 +126,9 @@ class ComplianceJudge(_SplitJudge):
         if not arms.meaning_to_llm(self.arm):
             if not self.fact_record:
                 return ""
-            results = [{"product_id": p.product_id, "say": r.say} for p in self.catalog.products
+            rel = self.output_model is ComplianceOutputR  # D-299: the judge names the result by id
+            results = [{"product_id": p.product_id, "say": r.say} | ({"result_id": r.result_id} if rel else {})
+                       for p in self.catalog.products
                        for r in p.qualified_results]
             return super().extra_data() + (inputs.data_block("QUALIFIED_RESULTS", results) if results else "")
         # D-187 arm B: the in-house test results the judge picks a qualifier replacement from, by id

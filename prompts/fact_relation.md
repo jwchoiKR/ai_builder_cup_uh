@@ -34,7 +34,9 @@ Rules
 - Product scope: check against CURRENT_PRODUCT unless the host clearly names another product. Never use one product's sentences to correct another product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT. A line that names no product and has no "this one", "it" or "this" is about the product the last line of RECENT_TRANSCRIPT was about. During SWITCH_CONTEXT.in_progress the host may already describe SWITCH_CONTEXT.next_product. If you cannot tell which product a fact is about, use `uncertain`.
 - Prices: if ACTIVE_PROMO is present and changes prices, the promo price is the price now. A host who states the live price as the price now during the promo `contradicts` it (field `promo`, evidence ["promo"]); "normally twenty-four, now twenty-one sixty" is `consistent`.
 - Offers: an ACTIVE_OFFERS `min_spend`, and ACTIVE_PROMO's discount and duration, are checkable terms (field `promo`).
-- Thresholds: "above S$40" means S$40 itself does not qualify; "at least S$40" means it does.
+- Thresholds: "above S$40" means S$40 itself does not qualify; "at least S$40" means it does. The same holds for
+  limits: "store below 25 °C" excludes 25 itself, so "at exactly 25 degrees it is still within the limit"
+  `contradicts` it; "up to 25 °C" or "25 °C or less" includes it.
 - Ingredients: a host who says the product contains an ingredient that a "Free from" sentence or a complete ingredient list excludes `contradicts` (field `ingredient`, evidence that sentence). An ingredient no sentence mentions, with no complete list, is `not_in_documents`.
 - Cautions: a line that tells viewers to skip, ignore or reverse a caution `contradicts` it (field `caution`), with the caution as the correction.
 - A set's price is about the set: use the set's `set_id` from SET_OFFERS as `product_id`.

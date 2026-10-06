@@ -117,6 +117,7 @@ class ViolationR(Violation, _ArmB):
     # D-297: for a HIGH rule only, what kind of claim the line makes and the group it names (code checks the fit)
     claim_kind: ClaimKind | None = None
     group: str | None = None
+    qualified_result_id: str | None = None  # D-299: TEST-QUALIFIER: the QUALIFIED_RESULTS entry the line states
 
 
 class ComplianceR(Compliance, _ArmB):

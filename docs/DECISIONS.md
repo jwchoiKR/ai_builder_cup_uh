@@ -1743,3 +1743,13 @@ D-298: two checks of the model's extraction against the text, before the freeze.
   - Sonnet's guards still alert: "No, it cures eczema." and "No, it's S$15." assert the line's own claim.
   - Within one final, "That is wrong" and "That's not right" after a quote now count as a rejection.
 - **Tests:** `tests/test_d298.py`, each class next to the line that must still alert. Suite: 1164 passed.
+
+D-299: pool 5's failure classes, patched (not rewritten). On bc9c186 (scorer v3) pool 5 scored 92.6%: T1 83.3, T2 100, T3 83.3, T4 88.9, T5 100, T6 100. False alerts 0, wrong HIGH 1. GPT, Gemini and Sonnet agreed that the kill rule does not fire.
+- **Qualifier gate (4 of the 7 misses):** in the relation arm the compliance judge names the recorded result of a TEST-QUALIFIER verdict by id (`qualified_result_id`; QUALIFIED_RESULTS now carries `result_id`).
+  - A named result replaces D-116's match and passes the G4 gate, so "You get complete coverage of every grey hair" for "100% of assessed strands" keeps its alert.
+  - Without an id, one matching decimal number now counts like two numbers ("SPF 22.5"). One whole number still does not ("zinc at 2 percent" drops).
+- **Relation number check:** a correction's number may also be in another passage or a recorded value of the same product: its sizes, variants, prices and key facts. Examples: the 60-tablet tub when the cited sentence was the 30 pack, or the SPF in another sentence than the one cited. A number in none of them is still no correction. Number reading was not the cause: "SPF 22.5" reads as 22.5.
+- **Compliance timeout:** no change. Compliance is hedged by default (`HEDGED_AGENTS`), and D-260 makes the call once more after a timeout. "Timeout twice" means both attempts ran out within `JUDGE_TIMEOUT_MS`.
+- **Bounds (prompt):** the relation prompt says "below 25 °C" excludes 25 itself and "up to 25 °C" includes it.
+- **Wrong HIGH, reversed caution:** a vulnerable HIGH drops when its group is a state a product caution names ("damaged skin", "irritated skin") and no group of the rule's own ("pregnant women" stays). The prompt also says a line that reverses a caution is `usage_instruction`.
+- **Tests:** `tests/test_d299.py`, each class next to its pair. Suite: 1175 passed.
