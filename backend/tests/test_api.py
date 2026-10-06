@@ -29,7 +29,7 @@ def test_health(client):
     assert body["providers"] == {"llm": "mock", "stt": "mock", "store": "memory", "retriever": "local"}
     assert body["models"]["fast"] == {"id": "gemini-3.5-flash-lite", "thinking": "MINIMAL"}
     assert body["models"]["quality"] == {"id": "gemini-3.8-flash", "thinking": "MEDIUM"}
-    assert body["prompts"]["utterance_judge"] == "utterance_judge_v2"
+    assert body["prompts"]["utterance_judge"] == "utterance_judge_v3"
 
 
 def test_catalog(client):

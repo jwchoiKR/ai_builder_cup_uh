@@ -1,4 +1,4 @@
-# Prompt: context_judge (version context_judge_v2)
+# Prompt: context_judge (version context_judge_v3)
 
 Used by: `ContextJudge` agent, `JUDGE_MODE=split3` (default, D-099). Model: `LLM_FAST_MODEL`, thinking MINIMAL.
 Called once per final host transcript, in parallel with `compliance_judge` and `fact_checker`. Jobs 3 and 4 of
@@ -30,11 +30,11 @@ OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested
 ### Job 2. Prompter tracking and product switch
 - `covered_point_ids`: ids from PROMPTER_POINTS whose meaning the host has now stated. Paraphrase counts. A partial mention counts only if the point's key fact is stated.
 - `covered_cue_ids`: ids from HOST_CUES that the host has now done.
-- `switch.is_transition = true` only when the host starts presenting a DIFFERENT product from RUN_SHEET as the new subject ("now let me show you the serum", "next up is ...").
+- `switch.is_transition = true` only when the host starts presenting a DIFFERENT product from RUN_SHEET as the new subject ("now let me show you the perfume", "next up is ...").
 - Mentioning another product while reading a viewer's comment, answering a question, or saying "we'll get to it later" is NOT a transition. Set `switch.is_quote = true` in those cases.
 - `switch.target_product_id` is the product being introduced, or null.
 - `switch.confidence` is `high` only for an explicit introduction of the next product.
-- If the host goes back to talking about the previous product ("going back to the lotion for a second"), set `is_transition = true` and `target_product_id` to that previous product. The software uses this to cancel a pending switch.
+- If the host goes back to talking about the previous product ("going back to the vitamins for a second"), set `is_transition = true` and `target_product_id` to that previous product. The software uses this to cancel a pending switch.
 - A sentence that keeps describing the product named in the last transition (its texture, usage, ingredients) is a continuation: set `is_transition = false` and list the covered points of that product.
 
 ### Output rules
@@ -89,26 +89,26 @@ Return the JSON verdict for UTTERANCE.
 ## EXAMPLES (few-shot, include all of them in the prompt)
 
 Example A
-UTTERANCE: "Let me correct that. It helps keep your skin hydrated for up to twenty-four hours in our in-house test."
+UTTERANCE: "Let me correct that. Vitamin D contributes to the maintenance of normal bones."
 ```json
-{"answer":{"utterance_type":"correction","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pa-p3"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"A correction that also states the hydration point."}
+{"answer":{"utterance_type":"correction","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pa-p3"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"A correction that also states the vitamin D point."}
 ```
 
 Example B
-OPEN_QUESTIONS: [{"group_id":"g_12","canonical_question":"Is it suitable for oily skin?","suggested_answer":"Yes. It has a lightweight gel-lotion texture. Use a thin layer on oily areas."}]
-UTTERANCE: "Raj is asking if it's OK for oily skin. Yes, it's a lightweight gel-lotion, so just use a thin layer on oily areas."
+OPEN_QUESTIONS: [{"group_id":"g_12","canonical_question":"Is it suitable for vegans?","suggested_answer":"Yes. The tablets contain no animal-derived ingredients."}]
+UTTERANCE: "Raj is asking if it's OK for vegans. Yes, there's nothing animal-derived in the tablets."
 ```json
-{"answer":{"utterance_type":"answer","matched_group_id":"g_12","is_answer":true,"consistent_with_suggested":true},"prompter":{"covered_point_ids":["pa-p1"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Reads the oily-skin question and answers it in line with the suggested answer."}
+{"answer":{"utterance_type":"answer","matched_group_id":"g_12","is_answer":true,"consistent_with_suggested":true},"prompter":{"covered_point_ids":["pa-p1"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Reads the vegan question and answers it in line with the suggested answer."}
 ```
 
 Example C
-UTTERANCE: "Someone is asking about the serum, we'll get to it in a minute."
+UTTERANCE: "Someone is asking about the perfume, we'll get to it in a minute."
 ```json
-{"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"product_b","confidence":"low"}},"reason":"Defers a viewer question about the serum; no OPEN_QUESTION is about the serum, so no match."}
+{"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"product_b","confidence":"low"}},"reason":"Defers a viewer question about the perfume; no OPEN_QUESTION is about the perfume, so no match."}
 ```
 
 Example D
-UTTERANCE: "Okay, now let me show you our Bright Drop Serum. It has four percent bisabolol."
+UTTERANCE: "Okay, now let me show you our Fernlight Eau de Parfum. It opens with bergamot and settles on cedar."
 ```json
-{"answer":{"utterance_type":"transition","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pb-p1"],"covered_cue_ids":[],"switch":{"is_transition":true,"is_quote":false,"target_product_id":"product_b","confidence":"high"}},"reason":"Explicit introduction of the next product and its bisabolol point."}
+{"answer":{"utterance_type":"transition","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pb-p1"],"covered_cue_ids":[],"switch":{"is_transition":true,"is_quote":false,"target_product_id":"product_b","confidence":"high"}},"reason":"Explicit introduction of the next product and its scent-notes point."}
 ```
