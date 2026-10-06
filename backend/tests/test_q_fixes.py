@@ -143,3 +143,86 @@ def test_d285_mid_clause():
 
     assert mid_clause("The bottle at SGD 158 contains") and mid_clause("It is 158") and mid_clause("Made for")
     assert not mid_clause("It is 158 dollars.") and not mid_clause("It feels light") and not mid_clause("Yes!")
+
+
+def _release_catalog(tmp_path, result: str, qualifier: str, category: str):
+    """A made-up release with one qualified result, on the clean base."""
+    from app.logic.catalog import Catalog
+    from app.onboarding.record import ProductRecord
+    from app.onboarding.release import release_pack
+
+    from .helpers import make_ctx
+    from .test_clean_base import EV, clean_data, kettle
+
+    rec = ProductRecord.model_validate(kettle().model_dump() | {"category": category, "qualified_results": [
+        {"statement": result, "provenance": "third_party_lab", "qualifier": qualifier, "conditions": None,
+         "evidence": EV}]})
+    ctx = make_ctx(DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(tmp_path / "onb"))
+    pack = release_pack(ctx.pack, rec, "rel_t_v1", tmp_path / "onb")
+    ctx.runtimes.shutdown()
+    ctx.scheduler.shutdown()
+    return Catalog(pack, "rel_t_v1")
+
+
+def _validate(catalog, line, violations, fixes):
+    from app.agents.utterance_judge import JudgeInput, build_judge_values, validate_compliance
+    from app.models.agent_io import ComplianceOutput
+
+    pid = catalog.products[0].product_id
+    values = build_judge_values(catalog, JudgeInput(utterance=line, on_air=pid))
+    out = ComplianceOutput.model_validate({"compliance": {"violations": violations},
+                                           "correction": {"corrects_alert_ids": []}, "reason": "t"})
+    import os
+    old = os.environ.get("FACT_FIXES")
+    os.environ["FACT_FIXES"] = ",".join(fixes)
+    from app.config import get_settings
+    get_settings.cache_clear()
+    try:
+        return validate_compliance(out, catalog, values).compliance.violations
+    finally:
+        os.environ.pop("FACT_FIXES") if old is None else os.environ.__setitem__("FACT_FIXES", old)
+        get_settings.cache_clear()
+
+
+Q1T = [  # (category, result, qualifier, line, alert with Q1T)
+    ("supplement", "Absorbed 2 times faster than a standard tablet", "tested by Fenmore Labs",
+     "Lab-tested: it is absorbed 2 times faster!", True),
+    ("children", "Removes 90% of plaque in 4 weeks", "clinical study by Ardent Dental Institute, 40 children",
+     "Clinically proven to remove 90% of plaque in 4 weeks.", True),
+    ("fragrance", "Lasts 8 hours on skin", "tested by Kestrel Labs", "Tests confirm it lasts 8 hours on skin.", True),
+    ("haircare", "Reduces breakage by 60%", "tested by Brightwell Labs, 20 adults",
+     "In a lab test it reduced breakage by up to 60%, results may vary.", False),  # hedged, states its limits
+    ("kitchen_appliance", "Boils 1 litre in 3 minutes", "tested by Larkmoor Test Centre",
+     "Lab-tested by Larkmoor Test Centre: it boils a litre in 3 minutes.", False),  # names the tester
+    ("supplement", "Absorbed 2 times faster than a standard tablet", "tested by Fenmore Labs",
+     "It is lab-tested and pharmacist approved.", False),  # no result stated
+]
+
+
+@pytest.mark.parametrize("category, result, qualifier, line, alert", Q1T,
+                         ids=[f"{c[0]}-{i}" for i, c in enumerate(Q1T)])
+def test_d286_q1t_a_result_with_only_a_generic_test_word(tmp_path, category, result, qualifier, line, alert):
+    from app.logic.qualifier import RULE_ID
+
+    catalog = _release_catalog(tmp_path, result, qualifier, category)
+    assert _validate(catalog, line, [], ()) == []  # today: the judge was silent, so nothing
+    got = [v.rule_id for v in _validate(catalog, line, [], ("Q1T",))]
+    assert (got == [RULE_ID]) is alert
+
+
+Q3 = [  # (line, span, negated by Q3)
+    ("It guarantees no individual result, everyone is different.", "guarantees no individual result", True),
+    ("We can't guarantee you'll see results in a week.", "guarantee you'll see results", True),
+    ("Our kettle does not promise faster boiling for every model.", "promise faster boiling", True),
+    ("No more breakouts, guaranteed.", "No more breakouts, guaranteed", False),
+    ("We guarantee no wrinkles after a month.", "guarantee no wrinkles", False),
+    ("It is not only guaranteed to last, it cures dandruff.", "guaranteed to last", False),
+]
+
+
+@pytest.mark.parametrize("line, span, negated", Q3, ids=[str(i) for i in range(len(Q3))])
+def test_d286_q3_a_denied_guarantee_is_no_guarantee(catalog, line, span, negated):
+    v = {"span": span, "rule_id": "ASEAN-2E-PERMANENT", "severity": "HIGH", "is_negated": False, "is_quoted": False,
+         "say_instead": "x"}
+    assert [x.is_negated for x in _validate(catalog, line, [v], ())] == [False]
+    assert [x.is_negated for x in _validate(catalog, line, [v], ("Q3",))] == [negated]

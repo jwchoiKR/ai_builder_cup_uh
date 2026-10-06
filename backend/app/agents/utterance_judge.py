@@ -13,7 +13,7 @@ from ..logic.catalog import Catalog
 from ..logic import qualifier
 from ..logic.grouping import normalise_question
 from ..logic.reflex import Reflex
-from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput
+from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput, Violation
 from ..models.data import Passage, Promo, PrompterPoint
 from ..models.session import Alert, HostCue, QuestionGroup, SwitchState
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -131,6 +131,18 @@ def names_the_tester(text: str, say: str, lex) -> bool:
     return any(p.group(1) in panels for p in _PANEL.finditer(text))
 
 
+# D-286 Q1T: test words that name no tester; and the hedges of a line that states its limits
+_GENERIC_TEST = re.compile(r"\b(?:lab[- ]tested|laboratory[- ]tested|clinically (?:tested|proven)|dermatologically "
+                           r"tested|scientifically proven|tests? (?:confirm|confirmed|show|showed|prove|proved)|"
+                           r"testing (?:confirmed|showed)|proven)\b", re.I)
+_HEDGE = re.compile(r"\b(?:may|might|can vary|results vary|individual results|up to|in some|not everyone)\b", re.I)
+# D-286 Q3: a denied guarantee ("we can't guarantee", "it guarantees no individual result"), never "not only"
+_GUARANTEE = re.compile(r"\b(?:guarantee[sd]?|promise[sd]?)\b", re.I)
+_DENIED = re.compile(r"\b(?:no|not(?! only)|never|cannot|can't|don't|doesn't|won't)\s+(?:\w+\s+){0,2}"
+                     r"(?:guarantee|promise)|\b(?:guarantee[sd]?|promise[sd]?)\s+no\s+(?:\w+\s+){0,2}"
+                     r"(?:results?|outcomes?|effects?|benefits?)\b", re.I)
+
+
 def negated_caution(text: str, product, lex) -> str | None:
     """D-259 (sealed: "no need to stop using it when irritation occurs" got an unrelated approved claim to say): the
     product caution a line negates (most of the caution's words heard, and a negation in the line)."""
@@ -240,6 +252,26 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                              or approved_say(v.say_instead, on_air_product, catalog))
         kept.append(v)
     o.compliance.violations = kept
+    fixes = fact_checker.fixes_of()
+    if "Q3" in fixes:
+        for v in kept:
+            if not v.is_negated and (_DENIED.search(v.span or "") or (_DENIED.search(text) and _GUARANTEE.search(v.span or ""))):
+                log.info("compliance violation negated by code: D-286 Q3 a denied guarantee | rule=%s span=%r",
+                         v.rule_id, v.span)
+                v.is_negated = True  # D-286 Q3: "it guarantees no individual result" denies a guarantee
+    if ("Q1T" in fixes and qualifier.RULE_ID in rules and on_air_product is not None
+            and not any(v.rule_id == qualifier.RULE_ID for v in kept)):
+        generic = _GENERIC_TEST.search(text)
+        r = qualifier.approved_replacement(text, on_air_product, [p for p in catalog.products if p is not on_air_product],
+                                           lex) if generic and not qualified and not _HEDGE.search(text) else None
+        heard = {w for w in lex.content_words(text) if w.isdigit()} | lex.spoken_numbers(text)
+        if (r is not None and heard & qualifier.result_numbers(r, lex)
+                and not names_the_source(text, r.say, lex) and not names_the_tester(text, r.say, lex)):
+            # D-286 Q1T: a result said with only a generic "lab-tested" and no tester gets its qualifier alert
+            log.info("compliance violation added by code: D-286 Q1T a generic test word | span=%r", generic.group())
+            kept.append(Violation(span=generic.group(), rule_id=qualifier.RULE_ID,
+                                  severity=rules[qualifier.RULE_ID].severity, is_negated=False, is_quoted=False,
+                                  say_instead=r.say))
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
     o.correction.corrects_alert_ids = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a in alert_ids]
     if hasattr(o.correction, "quotes"):  # D-187 arm B
