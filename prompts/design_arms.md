@@ -137,3 +137,14 @@ that names no one ("testing confirmed", "according to the tests", "clinically pr
   enough for babies, no side effects"), a claim that it helps or suits their condition, or a claim that no medical
   check is needed falls under the vulnerable-group rules in RULES. Whether an age or direction matches the documents
   is not decided here.
+
+## F1: fact_checker
+
+D-280 F1: an offer's terms (what it covers, who qualifies, whether it combines, where it applies) are field `promo`;
+where the product is sold, in which markets or channels, and whether it is in stock are field `availability`. Use
+`other` only for a statement no field fits.
+
+## F5: fact_checker
+
+D-280 F5: `correct_value` is always in the show's language, even when the quote is in another language: translate the
+value and keep the quote verbatim as the evidence.

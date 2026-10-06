@@ -1559,3 +1559,17 @@ D-279: A show of 2-3 approved releases (the user's minimal multi-product show, a
   - Test: on a clean base, a demo reset opens the 2-release show with both products, and a second reset keeps it.
 
 D-268 result: scrapped. On pools 4 and 3, neither the 3.5 s compliance deadline nor the split vulnerable wording (D-270) beat the base. The reviewers (GPT, Gemini, Sonnet) agreed. `COMPLIANCE_TIMEOUT_MS` and its test are deleted. D-270's `VULNERABLE_WORDING` stays as an off arm for one targeted retest on a children's pool.
+
+D-280: Fixes of fact-claim code drops, each switchable in `FACT_FIXES` ("F1,F2,...", empty by default). On pools 2-4 (clean base), 81 of 115 missed fact row-runs were code drops of right model verdicts. The fixes are the reviewers' consensus plan (GPT, Gemini, Sonnet), and the user's rule is to report and proceed. This is logic plus two prompt lines.
+- **F1, field other:** a claim with field `other` is no longer dropped first. It runs the source checks, and if it passes it takes its field from its source passage: an offer or its terms becomes `promo`; a market, channel or where it is sold becomes `availability`. With no such field it is still dropped ("field other with no field from its source"). A prompt line (`design_arms.md` F1) names promo and availability for these statements.
+- **F2, quote grounding:** every passage is matched tolerantly (NFKC, casefold, no whitespace: "78 % v/v" holds "78% v/v"). A quote that is not in its cited passage but is in another passage of the same product is re-pointed to that passage (logged "quote re-pointed"). It is never grounded in another product's passage.
+- **F3, D-165:** the drop of "an ingredient the product contains" now applies only to its own case: the correction names another ingredient of the sheet, and the host stated no amount, no absence and no rank such as "main". A wrong amount, a "main ingredient" or a "free of X" that a quote contradicts is kept.
+- **F4, restatement:** equal numbers drop a claim (D-151) only when the correction's words, scope words included (market, per, each, only, both, all, not, no), are also in the line. "All 4 discounted" against "the 4th bottle is at the regular price" now alerts. A range that both sides state the same way (D-271, "4 and up" for "not under 4") is still a restatement.
+- **F5, show language:** a prompt line (`design_arms.md` F5) asks for `correct_value` in the show's language even when the quote is in another language, with the quote kept verbatim. There is no code translation on the live path.
+- **Guards counted before the change:**
+  - Suite with each fix on: F1 and F5 lose nothing.
+  - F2 changes one pinned case: a wrong passage id with a right quote of the same product is now grounded. That is the fix's intent.
+  - F3 changes one: "The main ingredient is niacinamide" corrected by the base ingredient now alerts, as specified.
+  - F4 first lost the D-271 age band; that was fixed before this commit and now loses nothing.
+  - Saved real model outputs (`scripts/fact_guard.py`: 1,495 fact outputs on 139 labelled demo lines): no fix, and not all five together, changes any line's outcome. Base is 174 caught, 2 missed, 1 false. With F1, the 207 "field other" drops are dropped by the later checks instead (an approved-claims passage 103, L1 65, no field 15, others 24). So the protection holds.
+- **Tests:** `tests/test_fact_fixes.py` gives each fix a made-up right verdict that today's code drops and the fix keeps, plus a check that F2 never grounds a quote in another product.
