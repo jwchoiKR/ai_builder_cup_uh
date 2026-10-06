@@ -185,7 +185,9 @@ async def run_runtime_case(ctx, case: dict, run_no: int) -> dict:
 
     import logging
 
-    s = await create_session(ctx, next(iter(ctx.pack.runsheets)), release_id=RELEASE)
+    from eval_comment_flow import show_session
+
+    s, ids = await show_session(ctx, RELEASE)  # D-307: the demo releases on a base without run-sheets
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None
     decisions: list[str] = []  # the runtime's own "host answer ..." log lines of this session, as the reason
@@ -202,15 +204,17 @@ async def run_runtime_case(ctx, case: dict, run_no: int) -> dict:
     log.addHandler(handler)
     try:
         await rt.start()
-        if RELEASE is None and (await rt.current_segment()).product_id != case["current_product_id"]:
-            await operator_switch(rt, case["current_product_id"])
+        current = ids.get(case["current_product_id"], case["current_product_id"])
+        if RELEASE is None and (await rt.current_segment()).product_id != current:
+            await operator_switch(rt, current)
         now = rt.now()
-        pid = rt.catalog.order[0] if RELEASE else case["current_product_id"]
+        pid = rt.catalog.order[0] if RELEASE else current
         qs = case["context"]["open_questions"]
         async with rt.lock:
             for q in qs:
                 await rt.save_answer(_answer(q))
-                await rt.save_group(_group(q if RELEASE is None else {**q, "product_id": pid}, pid).model_copy(
+                mapped = {**q, "product_id": ids.get(q.get("product_id", pid), q.get("product_id", pid))}
+                await rt.save_group(_group(mapped if RELEASE is None else {**q, "product_id": pid}, pid).model_copy(
                     update={"first_at": now, "last_at": now}))
             # every open question of the case is offered to the judge, as in the case context: the shown one first,
             # the others behind it (a question about the product not on air is offered only from a host slot)

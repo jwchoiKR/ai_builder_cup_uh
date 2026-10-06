@@ -89,3 +89,19 @@ def test_d199_answers_must_reach_every_asker_and_cache_reuse_must_be_observed():
 def test_d199_a_gold_question_that_never_reached_a_group_is_a_route_miss():
     s = _auto_case([], [], groups=[])
     assert s["route"] == 0 and not s["passed"]
+
+
+async def test_d307_a_base_without_run_sheets_runs_on_the_demo_releases(monkeypatch, tmp_path):
+    from .test_clean_base import clean_data
+
+    monkeypatch.setattr(cf, "PACE", InstantPace())
+    case = next(c for c in cf.load_cases("comment_flow_cases.jsonl") if c["scenario_id"] == "CF01")
+    ctx = make_ctx(DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(tmp_path / "onb"))
+    try:
+        assert not ctx.pack.runsheets  # the clean base (D-278)
+        raw = await cf.run_scenario(ctx, case, 0)
+        await ctx.scheduler.idle()
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    assert len(raw["comments"]) == sum(e["type"] == "comment" for e in case["events"])
