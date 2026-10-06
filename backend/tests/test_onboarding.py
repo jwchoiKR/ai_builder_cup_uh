@@ -1796,3 +1796,30 @@ def test_d272_readability_no_repeats_a_subject_document_notes_dropped_two_terms_
     assert lines[0] == "S$4.00 off the second tube."  # the amount the title says is not said again
     assert lines[1].startswith("Terms: It is not combinable with codes;")
     assert len(lines) == 3 and not any("bulletin" in x for x in lines)
+
+
+def test_d276_every_record_caution_gets_a_required_point_worded_only_if_its_meaning_survives(pack):
+    from app.models.agent_io import BriefOutput
+    from app.onboarding.brief import _with_cautions
+
+    t = lambda x: {"text": x, "evidence": EV}  # noqa: E731
+    rec = ProductRecord.model_validate(_record(
+        cautions=[t("Keep out of reach of children under 6."), t("Do not use on broken skin."),
+                  t("Sold online only in Singapore."), t("Contains milk.")],
+        how_to_use=[t("Shake well before use."), t("Store below 30 degrees."), t("Contains milk.")]))
+    out = BriefOutput(product_id="r", glossary=[], reason="t", prompter_points=[
+        {"text": "Softens dry lips.", "required": False, "source_section": "Approved on-air claims"},
+        {"text": "Careful with kids!", "required": True, "source_section": "Cautions"}], cautions=[
+        {"id": "c0", "kind": "safety", "say": "Keep it out of reach of children under 6."},
+        {"id": "c1", "kind": "safety", "say": "Use it on broken skin."},  # the negation is lost
+        {"id": "c2", "kind": "limit", "say": "Online only in Singapore."},
+        {"id": "d0", "kind": "direction", "say": "Shake it."},
+        {"id": "d1", "kind": "safety", "say": "Store it below 30 degrees."},
+        {"id": "d2", "kind": "safety", "say": "Contains milk."}])  # c3 left out by the model; d2 repeats it
+    points = _with_cautions(out, rec, "en", pack.lexicon)
+    assert [(p.text, p.required) for p in points] == [
+        ("Softens dry lips.", False),
+        ("Keep it out of reach of children under 6.", True),
+        ("Do not use on broken skin.", True),  # the record's text
+        ("Contains milk.", True),  # never lost, even when the model leaves it out
+        ("Store it below 30 degrees.", True)]

@@ -153,7 +153,7 @@ async def _brief(ctx: AppContext, release_id: str, record) -> None:
     try:
         res, _ = await brief_release(ctx.llm, ctx.prompts["brief_agent"], ctx.reflex, ctx.settings.onboarding_path,
                                      release_id, record, ctx.pack.lang, deadline_ms=ctx.settings.BRIEF_TIMEOUT_MS,
-                                     offers=ctx.settings.BRIEF_OFFERS)
+                                     offers=ctx.settings.BRIEF_OFFERS, cautions=ctx.settings.BRIEF_CAUTIONS)
         if res.status == "ok" and res.output is not None:
             save_brief(ctx.settings.onboarding_path, release_id, res.output,
                        f"{ctx.llm.brief.model} ({ctx.llm.brief.thinking_level})")

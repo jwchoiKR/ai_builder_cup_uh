@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     # D-269 arm: "terms" gives the brief every offer term with its id and one point per offer up to 240 characters;
     # D-272: "code" (default after the blind grading) builds the offer points from the record, after the model's
     BRIEF_OFFERS: Literal["sheet", "terms", "code"] = "code"
+    # D-276 arm: "code" gives every record caution (and every safety direction) a required point, worded by the model
+    # only when the meaning survives
+    BRIEF_CAUTIONS: Literal["model", "code"] = "model"
     SUMMARY_TIMEOUT_MS: int = 30000
     MARKET: str = "SG"  # D-129: data/markets/<code>.json (law)
     BROADCAST_LANGUAGE: str = "en"  # D-129: data/lang/<code>.json (wording); must be offered by MARKET
