@@ -836,7 +836,7 @@ async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of
     rid = save_release(tmp_path, rec, "job")
     monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
     backend = ScriptedBackend()
-    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
+    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path), REFLEX_ON_FAIL="alert")  # D-293: the alert path
     try:
         pack = release_pack(ctx.pack, rec, rid, tmp_path)
         pid = product_key(rec)

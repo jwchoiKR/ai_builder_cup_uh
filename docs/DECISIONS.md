@@ -1658,3 +1658,11 @@ D-291: Q3 and Q6 cover law-pack rules too. Pool 4 on 0c1ed4d, all fixes, 1 run: 
 D-292: `HEDGE_DELAYS` gives some agents a later second request, so it fires only on the slow tail (cost; logic). On pool 4 with HEDGED_AGENTS=compliance, timeouts rose to 2.1% (compliance 4/237, context 6/232, fact 5/237), and each fact timeout can be a miss.
 - **What:** a comma list such as `fact=3000,context=2000` (agent name or prefix = ms). A listed agent gets its second request only if the first has not answered by then; the others keep `JUDGE_HEDGE_MS` (1.5 s). A delay at or past the agent's own deadline sends no second request. The context judge's deadline is `JUDGE_TIMEOUT_MS` (2.5 s), so a 3 s delay would be a no-op for it, and 2 s is the latest delay that still fires. The fact checker's deadline is 5 s.
 - **Test:** with `fact=400`, a fact call answered at 200 ms sends one request and one answered at 800 ms sends two; compliance keeps the short delay.
+
+D-293: the freeze. Every switch measured on pool 4 is now on by default; nothing in the logic changes until pool 5 and certification are done (user decision, relayed by the planner).
+- **Defaults:**
+  - `FACT_FIXES=F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6` (all of them).
+  - `REFLEX_ON_FAIL=card`: a failed judge on a reflex hit shows a check card, not a red alert.
+  - `HEDGED_AGENTS=compliance,fact,context` with `HEDGE_DELAYS=fact=3000,context=2000`; compliance keeps 1.5 s.
+- **Context at 2 s, not 3 s:** the context judge's deadline is `JUDGE_TIMEOUT_MS` (2.5 s), so a 3 s delay would never send a second request (D-292).
+- **Tests:** the tests of the base guards and of the fallback alert pin the old setting (`FACT_FIXES=""` or `fixes=frozenset()`, `REFLEX_ON_FAIL=alert`, no hedge list in the D-184 tests). Each fix keeps its own tests. The D-215 test now uses a rule with no required terms, because Q6 rightly drops a vulnerable-group verdict on a line that names no group.

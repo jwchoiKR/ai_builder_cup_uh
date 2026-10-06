@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"
     # D-280: switchable fixes of fact-claim code drops ("F1,F2,..."); empty = today's checks
-    FACT_FIXES: str = ""
+    FACT_FIXES: str = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6"  # D-293 freeze: all on
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
@@ -82,12 +82,12 @@ class Settings(BaseSettings):
     # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
     JUDGE_HEDGE_MS: int = 1500
     # D-287: which alert-path agents get the second request ("compliance,fact": names or prefixes); empty = all
-    HEDGED_AGENTS: str = ""
+    HEDGED_AGENTS: str = "compliance,fact,context"  # D-293
     # D-292: a later second request for some agents ("fact=3000,context=2000": name or prefix = ms); the others use
     # JUDGE_HEDGE_MS. A delay at or past the agent's deadline sends no second request
-    HEDGE_DELAYS: str = ""
+    HEDGE_DELAYS: str = "fact=3000,context=2000"  # D-293
     # D-288: when every compliance call fails, a reflex hit is a HIGH alert (today) or a neutral "check this line" card
-    REFLEX_ON_FAIL: Literal["alert", "card"] = "alert"
+    REFLEX_ON_FAIL: Literal["alert", "card"] = "card"  # D-293
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
     # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
     # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more

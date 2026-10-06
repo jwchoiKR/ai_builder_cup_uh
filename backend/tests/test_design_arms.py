@@ -182,7 +182,7 @@ async def test_arm_c_has_no_reflex_pre_scan(arm, provisional, fallback):
     """D-189: arm C is arm B without the reflex chip and without the reflex fallback alert when the judge fails."""
     from .judge_fakes import events
 
-    rt, llm = await make_env(DESIGN_ARM=arm)
+    rt, llm = await make_env(DESIGN_ARM=arm, REFLEX_ON_FAIL="alert")  # D-293: the fallback alert path
     try:
         line = "This cream cures eczema, honestly."
         llm.fail("utterance_judge", line)  # both split judges fail
