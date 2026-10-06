@@ -306,8 +306,7 @@ class UtterancePipeline:
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
                 comp_task = rt.spawn(self._once_more(lambda: self.compliance.run(
-                    inp, deadline_ms=rt.settings.COMPLIANCE_TIMEOUT_MS or rt.settings.JUDGE_TIMEOUT_MS, values=values)),
-                    name=f"compliance:{t.transcript_id}")
+                    inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)), name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
                                                      values=values), name=f"context:{t.transcript_id}")
             else:
