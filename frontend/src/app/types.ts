@@ -130,6 +130,8 @@ export interface Alert {
   unverified: boolean;
   /** D-303: a fact note shown as "check what was said" (one misheard number), not a correction */
   heard_check?: boolean;
+  /** D-306: why the alert is unverified (the verifier's failure: http_504, client_timeout, http_429, other_error) */
+  unverified_reason?: string | null;
   field: string | null;
   stated_value: string | null;
   correct_value: string | null;
@@ -365,6 +367,7 @@ export interface StateSnapshot {
   metrics: Metrics;
   feed?: FeedState;
   judge_health?: { degraded: string[] }; // D-137
+  verify_health?: VerifyHealth; // D-306
   market?: SessionMarket; // D-150
   // P2 (planned): missing keys are treated as empty
   alerts?: Alert[];
@@ -500,4 +503,10 @@ export interface DemoStep {
   text: string;
   arg: string | null;
   expected: string;
+}
+
+/** D-306: verifier calls with no answer this show, in total and by failure type. */
+export interface VerifyHealth {
+  no_answer: number;
+  by: Record<string, number>;
 }

@@ -416,6 +416,21 @@ USAGE: dict[str, dict[str, int]] = {}
 _USAGE_FIELDS = ("prompt", "output", "thoughts", "cached")
 
 
+def failure_kind(status: str, error: str | None) -> str | None:
+    """D-306: what kind of failure a call was, to tell infrastructure from logic: a client-side deadline, the server's
+    504 or 429 (Google's shared capacity), or anything else."""
+    if status == "ok":
+        return None
+    if status == "timeout":
+        return "client_timeout"
+    e = (error or "").lower()
+    if "504" in e or "deadline_exceeded" in e or "deadline exceeded" in e:
+        return "http_504"
+    if "429" in e or "resource_exhausted" in e or "resource exhausted" in e:
+        return "http_429"
+    return "other_error"
+
+
 def add_usage(agent: str, usage: dict | None) -> None:
     row = USAGE.setdefault(agent, {"calls": 0, **{k: 0 for k in _USAGE_FIELDS}})
     row["calls"] += 1
@@ -544,8 +559,9 @@ class LLMClient:
             started_at=started_at, latency_ms=latency_ms, status=status,
             input_hash=hashlib.sha1(f"{req.prompt_version}\n{req.user_message}".encode()).hexdigest(),
             input_preview=(req.preview or req.mock_primary_text or req.user_message)[:300],
-            output=logged_output, error=error, usage=usage,
+            output=logged_output, error=error, usage=usage, failure=failure_kind(status, error),
         )
+        meta["failure"] = call.failure
         if self._audit is not None:
             try:
                 await self._audit.record(call, req.session_id)

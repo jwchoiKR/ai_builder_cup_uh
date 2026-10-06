@@ -51,6 +51,11 @@ export function FactNote({ alert, catalog, onRendered, pricePromoTitle = null }:
           <CircleAlert aria-hidden />
           {alert.heard_check ? t("CHECK WHAT WAS SAID") : `${t(label).toUpperCase()} ${t("CORRECTION")}`}
         </span>
+        {alert.unverified && (
+          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
+            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
+          </span>
+        )}
         <span className={styles.alertSaid} data-testid="host-fact-wrong">
           {/* D-303: a possibly misheard number is shown as heard, without the wrong mark */}
           {t("Heard:")} {alert.heard_check ? "" : "✕ "}{alert.stated_value}
@@ -97,6 +102,11 @@ export function MediumBanner({
           <ShieldAlert aria-hidden />
           {qualifier ? t("ADD 'IN OUR IN-HOUSE TEST'") : t("CHECK WORDING")}
         </span>
+        {alert.unverified && (
+          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
+            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
+          </span>
+        )}
         <span className={styles.alertSaid}>
           {t("Heard:")} "{alert.span}"
         </span>

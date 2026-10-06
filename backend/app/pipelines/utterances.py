@@ -20,6 +20,7 @@ adds (covered points are never removed, §6).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
@@ -358,7 +359,7 @@ class UtterancePipeline:
                 values = build_judge_values(rt.catalog, inp)
                 comp_task = rt.spawn(self._vote_compliance(self._verify_compliance(self._once_more(
                     lambda: self.compliance.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)),
-                    inp, on_air), inp, values), name=f"compliance:{t.transcript_id}")
+                    inp, on_air, t.transcript_id), inp, values), name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
                                                      values=values), name=f"context:{t.transcript_id}")
             else:
@@ -366,7 +367,8 @@ class UtterancePipeline:
                                      name=f"judge:{t.transcript_id}")
                 ctx_task = None
             parts = [self._prepared[tid][0].text for tid in merge.chain if tid in self._prepared] + [t.text] if merge else []
-            facts_task = None if self.single else rt.spawn(self._run_facts(inp.utterance, on_air, inp, scenario, parts),
+            facts_task = None if self.single else rt.spawn(self._run_facts(inp.utterance, on_air, inp, scenario, parts,
+                                                                           t.transcript_id),
                                                            name=f"facts:{t.transcript_id}")
             waiting = {task for task in (comp_task, ctx_task, facts_task) if task is not None}
             while waiting:
@@ -496,6 +498,27 @@ class UtterancePipeline:
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS,
                                           all_products=rt.settings.JUDGE_PRODUCTS == "all")
 
+    @contextlib.asynccontextmanager
+    async def _verifying(self, transcript_id: str | None, kind: str):
+        """D-306: the host sees a grey "checking" chip while the verifier works on a line's candidates (no alert yet;
+        a HIGH overlay only after it confirms); the operator's count of verifier calls with no answer, by cause."""
+        rt = self.rt
+        before = dict(self.verifier.failures)
+        async with rt.lock:
+            await rt.emit("verify.started", {"transcript_id": transcript_id, "kind": kind})
+        try:
+            yield
+        finally:
+            async with rt.lock:
+                await rt.emit("verify.done", {"transcript_id": transcript_id, "kind": kind})
+                if self.verifier.failures != before:
+                    await rt.emit("verify.health", self.verify_health())
+
+    def verify_health(self) -> dict:
+        """D-306: verifier calls with no answer this show, in total and by failure type."""
+        by = dict(self.verifier.failures) if self.verifier is not None else {}
+        return {"no_answer": sum(by.values()), "by": by}
+
     def _by_judge(self) -> bool:
         """D-187 arm B, or D-304 VERBAL_CHECK=judge: a spoken answer's numbers and hedges come from the context judge."""
         return arms.meaning_to_llm(self.rt.settings.DESIGN_ARM) or self.rt.settings.VERBAL_CHECK == "judge"
@@ -516,14 +539,15 @@ class UtterancePipeline:
         log.info("vote: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
         return res
 
-    async def _verify_compliance(self, call, inp: JudgeInput, on_air: str):
+    async def _verify_compliance(self, call, inp: JudgeInput, on_air: str, transcript_id: str | None = None):
         """D-300 R2: the compliance verdicts, each checked by the verifier (in parallel)."""
         res = await call
-        if self.verifier is not None and res.status == "ok" and res.output is not None:
+        if self.verifier is not None and res.status == "ok" and vote.candidates(res.output, "compliance"):
             start = self.rt.ctx.clock.now_ms()
-            res.output = await self.verifier.check_compliance(res.output, inp.utterance,
-                                                              inp.recent if inp.recent is not None else inp.previous,
-                                                              on_air, self.rt.sid)
+            async with self._verifying(transcript_id, "compliance"):
+                res.output = await self.verifier.check_compliance(res.output, inp.utterance,
+                                                                  inp.recent if inp.recent is not None else inp.previous,
+                                                                  on_air, self.rt.sid)
             log.info("verifier: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
         return res
 
@@ -548,7 +572,7 @@ class UtterancePipeline:
                                                   session_id=self.rt.sid))
 
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
-                         parts: list[str] | None = None) -> AgentResult:
+                         parts: list[str] | None = None, transcript_id: str | None = None) -> AgentResult:
         # D-172: a product the last lines named stays citable ("the ampoule on its own is $32," / "list price 42")
         passages = await self._fact_passages(" ".join([*judge_input.previous[-1:], text]), on_air, judge_input.switch)
         s = await self.rt.load_session()
@@ -569,11 +593,13 @@ class UtterancePipeline:
                                                            **self._vote_opts()) for _ in range(2)))
             res.output = vote.fact_votes(res.output, list(extras), self.rt.catalog)
             log.info("vote: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
-        if self.verifier is not None and res.status == "ok" and res.output is not None:
+        if self.verifier is not None and res.status == "ok" and vote.candidates(res.output, "facts"):
             start = self.rt.ctx.clock.now_ms()  # D-300 R2
-            res.output = await self.verifier.check_facts(res.output, text,
-                                                         inp.recent if inp.recent is not None else inp.previous, on_air,
-                                                         [*passages, *self.facts.all_file_passages], self.rt.sid)
+            async with self._verifying(transcript_id, "fact"):
+                res.output = await self.verifier.check_facts(res.output, text,
+                                                             inp.recent if inp.recent is not None else inp.previous,
+                                                             on_air, [*passages, *self.facts.all_file_passages],
+                                                             self.rt.sid)
             log.info("verifier: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
         return res
 

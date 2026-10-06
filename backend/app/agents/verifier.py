@@ -31,6 +31,7 @@ class Verifier:
         self.llm, self.prompt, self.catalog = llm, prompt, catalog
         self.files = files or {}  # product id -> (model parts, file passages), as the fact checker has them
         self._sources: dict[str, tuple[list[dict], dict]] = {}
+        self.failures: dict[str, int] = {}  # D-306: verifier calls with no answer, by failure type
         # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and their neighbours)
         self.window = getattr(llm.settings, "VERIFY_EVIDENCE", "all") == "window"
         # D-303: speech-to-text awareness, and the "check" decision for one misheard number
@@ -87,6 +88,9 @@ class Verifier:
     async def _one(self, pid: str, cand: dict, quote: str | None, line: str, previous: Sequence[str],
                    session_id: str | None) -> tuple[AgentResult, dict]:
         res = await self.llm.call(self._request(pid, self.evidence(pid, quote), cand, line, previous, session_id))
+        if res.status != "ok":
+            kind = res.meta.get("failure") or "other_error"
+            self.failures[kind] = self.failures.get(kind, 0) + 1
         return res, self.source(pid)[1]
 
     async def check_compliance(self, out: ComplianceOutput, line: str, previous: Sequence[str], on_air: str,
@@ -115,6 +119,7 @@ class Verifier:
             o = res.output if res.status == "ok" else None
             if o is None:
                 v._unverified = True  # a timeout or error keeps the candidate, marked
+                v._unverified_reason = res.meta.get("failure") or "other_error"  # D-306
                 log.info("verifier %s: compliance kept unverified | rule=%s span=%r", res.status, v.rule_id, v.span)
             elif o.decision == "reject":
                 _cdrop(v, f"verifier: {o.reason}")
@@ -150,6 +155,7 @@ class Verifier:
                 _drop(c, "provenance: a number of the correction is in no passage of the product")
             elif o is None:
                 c._unverified = True
+                c._unverified_reason = res.meta.get("failure") or "other_error"  # D-306
                 log.info("verifier %s: fact kept unverified | field=%s stated=%r", res.status, c.field, c.stated_value)
             elif o.decision == "reject":
                 _drop(c, f"verifier: {o.reason}")

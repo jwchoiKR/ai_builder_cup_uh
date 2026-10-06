@@ -387,3 +387,14 @@ describe("operator desk rows and header (D-120)", () => {
     expect(latencyShown({ header: { alert_in_s: 2.4, judge_p50_s: 1.2 } })).toEqual({ alert: true, judge: true });
   });
 });
+
+describe("verifier no-answers (D-306)", () => {
+  it("shows the count and the most common cause, off the host's screen", () => {
+    const st = { ...reduceSnapshot(snapshot(), "operator", T0), verifyHealth: { no_answer: 3, by: { http_504: 2, client_timeout: 1 } } };
+    const card = systemCards(st, catalog, T0).find((c) => c.kind === "ai_delay");
+    expect(card?.text).toBe("No AI answer: 3 · Google shared capacity busy");
+    expect(card?.key).toBe("verify:3"); // a new failure shows the card again after a dismiss
+    const none = { ...st, verifyHealth: { no_answer: 0, by: {} } };
+    expect(systemCards(none, catalog, T0).some((c) => c.kind === "ai_delay")).toBe(false);
+  });
+});

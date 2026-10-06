@@ -108,7 +108,8 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
         return {"id": case["case_id"], "run": run_no, "dropped": drops,
                 # every judge and fact output with its reason, to diagnose a miss or a false alert
                 "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output,
-                           "latency_ms": c.latency_ms} | ({"usage": c.usage} if c.agent == "verifier" else {})
+                           "latency_ms": c.latency_ms, "failure": c.failure}
+                          | ({"usage": c.usage} if c.agent == "verifier" else {})
                           | ({"retried": len(tries[c.input_preview]) > 1,
                               "final_status": tries[c.input_preview][-1].status} if c.agent == "fact_checker" else {})
                           for c in calls if c.agent in ("compliance_judge", "context_judge", "fact_checker",
@@ -124,7 +125,8 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                             "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
                             "correct_value": a.correct_value, "status": a.status, "unverified": a.unverified,
-                            "votes": a.votes, "evidence_ids": a.evidence_ids, "heard_check": a.heard_check}
+                            "votes": a.votes, "evidence_ids": a.evidence_ids, "heard_check": a.heard_check,
+                            "unverified_reason": a.unverified_reason}
                            for a in alerts]}
     finally:
         await ctx.runtimes.drop(rt.sid)

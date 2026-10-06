@@ -20,6 +20,7 @@ class Violation(BaseModel):
     _severity: str | None = PrivateAttr(default=None)
     _unverified: bool = PrivateAttr(default=False)
     _votes: int | None = PrivateAttr(default=None)  # D-302: the runs (of 3) that agree
+    _unverified_reason: str | None = PrivateAttr(default=None)  # D-306: the verifier's failure type
 
 
 class Compliance(BaseModel):
@@ -174,6 +175,7 @@ class FactClaim(BaseModel):
     _votes: int | None = PrivateAttr(default=None)  # D-302
     _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
     _check: bool = PrivateAttr(default=False)  # D-303: "check what was said" (one misheard number), not a correction
+    _unverified_reason: str | None = PrivateAttr(default=None)  # D-306: the verifier's failure type
 
 
 class FactCheckOutput(BaseModel):
