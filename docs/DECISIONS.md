@@ -1678,3 +1678,15 @@ D-294: G1-G7, one more round after the e7bc727 freeze. Pools 3 and 2 (one run ea
 - **Not done:** H1 and H2 (the L1 and "no source check passed" drops). They need the rows to see whether right verdicts with table-cell or other-language quotes are being dropped.
 - **Risks to watch in the rerun:** G4 drops a test-result line that has no result word ("SPF 50" alone). G5's first-word match exempts a line that uses a tester's common first word ("Advanced ..."). G7's promise list is English only.
 - **Tests:** `tests/test_g_fixes.py`, 49 cases on a supplement, a children's product, a fragrance, a haircare product, a kettle and a nail coating, plus law-pack rules for G4 and G7. Each case checks today's behaviour first, then the fix. Full suite: 1094 passed.
+
+D-295: the G4 gate keeps a headline test result. Sonnet checked G4 against the sealed labels: 4 of the 22 risky qualifier lines in pools 2-4 hold none of D-294's result words, so G4 would have silenced the rule's core case, a headline claim said bare ("This wash is tear-free").
+- **Gate:** a TEST-QUALIFIER or unsupported-evidence verdict drops only when the line (and the previous final) has no evidence word AND matches no qualified result of the show.
+  - The language pack's terms for these two categories are now evidence words only: test, study, trial, panel, clinical, lab, proven, evidence, certified, research, data.
+  - A match is either of two things: the result's own statement words cover 40% of the line (D-116's threshold, numbers left out on both sides), or the line holds two or more of the result's numbers ("zero out of thirty-two"). One number alone is no match: "zinc at 2 percent" is not "2 times faster".
+- **D-116 bug, fixed behind G4:** D-116 matched a line against the result's say including the bracketed qualifier. "This wash is tear-free" met 2 of the 7 words of "Tear-free formula (tested by Ardent Dental Institute)", so the judge's right verdict was dropped as "matches no test result". With G4 on, D-116 compares the statement only.
+- **Guards:**
+  - These were dropped before and now keep their alert: "This wash is tear-free", "Gentle cleansing without tears", "Frizz-free even in humid weather".
+  - These keep their alert as before: "Water-resistant for eighty minutes", "lasts 8 hours on skin", "absorbed two times faster".
+  - These still drop: "zinc at 2 percent", "60 percent argan oil", "4 percent xylitol", and the split "glycerin concentration is / three percent".
+  - "Skin hydration went up / three percent" keeps its alert.
+  - Suite: 1098 passed.

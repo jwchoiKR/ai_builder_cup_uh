@@ -237,7 +237,7 @@
       ]
     },
     "test_qualifier": {
-      "required_terms": ["test", "study", "studies", "trial", "panel", "clinical", "lab", "dermatolog", "result", "participant", "people", "person", "user", "adult", "women", "men", "volunteer", "subject", "out of", "of us", "agree", "said", "say", "felt", "feel", "report", "saw", "see", "notic", "show", "prove", "found", "measur", "up", "down", "rise", "rose", "increas", "decreas", "reduc", "improv", "boost", "more", "less", "fewer", "better", "higher", "lower", "faster", "longer", "doubl", "tripl", "twice", "half", "times", "plus", "+", "after", "within", "hour", "day", "week", "month", "minute", "last", "stay", "kept", "keep", "remov", "absorb"],
+      "required_terms": ["test", "study", "studies", "trial", "panel", "clinical", "lab", "dermatolog", "prove", "proof", "evidence", "certif", "scien", "research", "measur", "data"],
       "terms_fix": "G4",
       "unacceptable_examples": [
         "Softness goes up thirty percent after one week.",

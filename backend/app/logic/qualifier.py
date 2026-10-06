@@ -40,9 +40,29 @@ def result_numbers(r: QualifiedResult, lex: Lexicon) -> set[str]:
     return number_set(" ".join(r.numbers)) | number_set(statement) | lex.spoken_numbers(statement)
 
 
-def approved_replacement(text: str, on_air: Product, others: Sequence[Product], lex: Lexicon) -> QualifiedResult | None:
+def matches_result(text: str, products: Sequence[Product], lex: Lexicon) -> bool:
+    """D-295 G4: the line is about a qualified result by the result's own words (tear-free, water-resistant, the
+    measured property; numbers left out on both sides), or by two or more of its numbers ("zero out of thirty-two").
+    One number alone is no match: "zinc at 2 percent" is not "2 times faster"."""
+    heard = lex.content_words(text)
+    words_heard = [w for w in heard if not any(ch.isdigit() for ch in w)]
+    numbers = {w for w in heard if w.isdigit()} | lex.spoken_numbers(text)
+    for p in products:
+        for r in p.qualified_results:
+            statement = r.say[:r.say.rfind("(")] if "(" in r.say else r.say
+            words = [w for w in lex.claim_words(statement) if not any(ch.isdigit() for ch in w)]
+            if (words and lex.coverage(words, words_heard) >= MIN_COVERAGE) or len(numbers & result_numbers(r, lex)) >= 2:
+                return True
+    return False
+
+
+def approved_replacement(text: str, on_air: Product, others: Sequence[Product], lex: Lexicon,
+                         statement_only: bool = False) -> QualifiedResult | None:
     """The approved result the sentence is about: most matching numbers, then the product on air,
-    then most matching words. None when nothing matches well enough (no wording is invented)."""
+    then most matching words. None when nothing matches well enough (no wording is invented).
+    D-295 G4 (`statement_only`): the words are the result's statement without its qualifier; "tear-free" met only 2 of
+    the 7 words of "Tear-free formula (tested by Ardent Dental Institute)", so a headline result said bare was
+    dropped as matching no result."""
     heard = lex.content_words(text)
     # D-260 (candidate aa995d1: "non-transferring for eight hours" matched no result, so the judge's alert was dropped)
     numbers = {w for w in heard if w.isdigit()} | lex.spoken_numbers(text)
@@ -50,7 +70,8 @@ def approved_replacement(text: str, on_air: Product, others: Sequence[Product], 
     for rank, product in enumerate([on_air, *others]):
         for r in product.qualified_results:
             hits = len(numbers & result_numbers(r, lex))
-            cov = lex.coverage(lex.claim_words(r.say), heard)
+            say = r.say[:r.say.rfind("(")] if statement_only and "(" in r.say else r.say
+            cov = lex.coverage(lex.claim_words(say), heard)
             if hits == 0 and cov < MIN_COVERAGE:
                 continue
             key = (hits, -rank, cov)
