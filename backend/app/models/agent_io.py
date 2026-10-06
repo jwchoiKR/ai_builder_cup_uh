@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PrivateAttr
 
 # ---- UtteranceJudge (§7.3) -------------------------------------------------------------------
 
@@ -16,6 +16,9 @@ class Violation(BaseModel):
     is_negated: bool
     is_quoted: bool
     say_instead: str
+    # D-300: set by the verifier (never in the schema): its severity, and "kept without a verdict" (timeout)
+    _severity: str | None = PrivateAttr(default=None)
+    _unverified: bool = PrivateAttr(default=False)
 
 
 class Compliance(BaseModel):
@@ -154,6 +157,7 @@ class FactClaim(BaseModel):
     correct_value: str | None
     passage_id: str | None
     quote: str | None
+    _unverified: bool = PrivateAttr(default=False)  # D-300: kept without the verifier's verdict (timeout)
 
 
 class FactCheckOutput(BaseModel):
@@ -178,6 +182,14 @@ class FactRelationClaim(BaseModel):
 
 class FactRelationOutput(BaseModel):
     claims: list[FactRelationClaim]
+
+
+class VerifyOutput(BaseModel):
+    """D-300: the verifier's verdict on one candidate alert."""
+    evidence: str | None  # the SOURCE sentence id that settles it
+    reason: str
+    decision: Literal["keep", "reject"]
+    severity: Literal["HIGH", "MEDIUM"] | None  # compliance: the final severity; a fact: null
 
 
 class JudgeSingleOutput(UtteranceJudgeOutput):

@@ -244,7 +244,7 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
 LEAD_IN_MAX_WORDS = 8  # D-146: "In our in-house test," said as its own final
 
 
-def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
+def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verify: bool | None = None):
     """In place, on any output with `compliance` and `correction`: drop unknown rules and alert ids
     that were not in the input; severity comes from the rule. D-187 arm B: the qualifier replacement is the
     in-house result the judge picked by id, and correction quotes of unknown alerts are dropped."""
@@ -260,20 +260,25 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
     lead_in = (bool(prev) and catalog.lexicon.is_qualified(prev[0]) and not any(ch.isdigit() for ch in prev[0])
                and len(prev[0].split()) <= LEAD_IN_MAX_WORDS)
     qualified = catalog.lexicon.is_qualified(text) or lead_in
+    # D-300 R2: with the verifier, the flagger keeps every verdict on a rule it was given (schema only); the
+    # verifier decides what the code drops below decided
+    from ..config import get_settings
+
+    drops = not (get_settings().JUDGE_ARM == "verify" if verify is None else verify)
     for v in o.compliance.violations:
         if v.rule_id not in rules:
             _cdrop(v, "unknown rule")
-        elif v.rule_id == qualifier.RULE_ID and qualified:
+        elif v.rule_id == qualifier.RULE_ID and qualified and drops:
             _cdrop(v, "the line names our own test")
     o.compliance.violations = [v for v in o.compliance.violations if v.rule_id in rules
-                               and not (v.rule_id == qualifier.RULE_ID and qualified)]
+                               and not (v.rule_id == qualifier.RULE_ID and qualified and drops)]
     # D-148 (sealed show replay): STT made "Acne, um, no no," its own final and the judge flagged the word
     # "acne" (HIGH) before the host went on "we cannot say it treats acne". A final that is nothing but the
     # flagged word and fillers is a topic, not a claim.
     lex = catalog.lexicon
     said = [w for w in lex.content_words(text) if w not in lex.fillers]
     o.compliance.violations = [v for v in o.compliance.violations
-                               if not (len(said) == 1 and lex.content_words(v.span) == said)]
+                               if not (drops and len(said) == 1 and lex.content_words(v.span) == said)]
     for v in o.compliance.violations:
         if v.is_quoted and not v.is_negated and lex.affirms(text):
             # D-252 (sealed: "A viewer says 'it cures eczema', and yes, that is what it does" got no alert): a quote
@@ -301,9 +306,17 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             r = _named_result(v, catalog) or qualifier.approved_replacement(
                 text, on_air, [p for p in catalog.products if p is not on_air], catalog.lexicon,
                 "G4" in fact_checker.fixes_of())
+            if r is None and not drops:
+                v.say_instead = approved_say(v.say_instead, on_air_product, catalog)
+                kept.append(v)
+                continue
             if r is None:
                 _cdrop(v, "D-116: the line matches no test result")
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
+            if not drops:
+                v.say_instead = r.say
+                kept.append(v)
+                continue
             if names_the_source(text, r.say, catalog.lexicon):
                 _cdrop(v, "D-244 L7: the line names the test's source")
                 continue  # D-244 L7: the host named who ran the test or certified it: that is the qualifier
@@ -319,7 +332,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
         kept.append(v)
     o.compliance.violations = kept
     fixes = fact_checker.fixes_of()
-    if fixes & {"Q6", "G4", "G7", "CK"}:
+    if drops and fixes & {"Q6", "G4", "G7", "CK"}:
         fit = []
         for v in kept:
             r = rules[v.rule_id]
@@ -358,7 +371,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             else:
                 fit.append(v)
         kept[:] = fit
-    if "Q3" in fixes:
+    if drops and "Q3" in fixes:
         for v in kept:  # D-291: whatever the rule's source (market, law pack, brand pack)
             if not v.is_negated and (_DENIED.search(v.span or "") or _DISCLAIMED.search(text)
                                      or (_DENIED.search(text) and _GUARANTEE.search(v.span or ""))):

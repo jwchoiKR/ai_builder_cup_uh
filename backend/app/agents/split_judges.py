@@ -137,7 +137,8 @@ class ComplianceJudge(_SplitJudge):
         return super().extra_data() + inputs.data_block("QUALIFIED_RESULTS", results)
 
     def validate(self, out: ComplianceOutput, values: dict) -> ComplianceOutput:
-        return validate_compliance(out, self.catalog, values, arm=self.arm)
+        return validate_compliance(out, self.catalog, values, arm=self.arm,
+                                   verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") == "verify")  # D-300
 
 
 class ContextJudge(_SplitJudge):

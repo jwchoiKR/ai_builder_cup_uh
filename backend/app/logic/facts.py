@@ -67,7 +67,7 @@ def apply_fact_check(
             a = Alert(alert_id=new_id("fx_"), kind="fact", status="active", transcript_id=t.transcript_id,
                       product_id=c.product_id, field=c.field, stated_value=c.stated_value,
                       correct_value=c.correct_value, passage_id=c.passage_id, quote=c.quote,
-                      span=c.span, created_at=now, shown_at=now)
+                      span=c.span, created_at=now, shown_at=now, unverified=getattr(c, "_unverified", False))
             active[key] = a
             created.append(a)
     fresh = {a.alert_id for a in created + reshown}

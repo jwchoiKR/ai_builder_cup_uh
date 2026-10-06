@@ -779,7 +779,8 @@ def _product_numbers(lex, catalog: Catalog, pid: str, passages: Sequence[Passage
 
 def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
                   offers: Sequence[Promo], products: set[str], utterance: str | None = None,
-                  fixes: frozenset[str] = frozenset(), previous: str | None = None) -> FactCheckOutput:
+                  fixes: frozenset[str] = frozenset(), previous: str | None = None,
+                  verify: bool = False) -> FactCheckOutput:
     """D-296 FACT_GUARDS=off: only the hard checks on a relation contradiction, no lexical guard. The claim is about a
     product of the show (or a set's price); its evidence sentence belongs to that product, which the line is about
     (on air, a pending switch's target, or named); the evidence is not the approved-claims passage (D-048); every
@@ -799,6 +800,21 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         if c.verdict != "contradicted":
             continue
         right = _numbers(lex, c.correct_value)
+        if verify:
+            # D-300 R2: provenance only (the evidence exists; a correction's number is in the product's passages or
+            # record, or a promo's or offer's own term); the verifier decides the rest
+            p = by_id.get(c.passage_id) if c.passage_id else None
+            if c.passage_id is None:
+                ok = ((promo is not None and promo.changes_prices and c.field in PRICE_FIELDS
+                       and (c.correct_value == catalog.price_display(c.product_id, promo) or _promo_term(c, promo)))
+                      or (c.field == "promo" and any(_offer_threshold(c, x) for x in offers)))
+                if not ok:
+                    _drop(c, "relation: not a term of the active promo or offer")
+            elif p is None:
+                _drop(c, "relation: unknown evidence")
+            elif right and not right <= _product_numbers(lex, catalog, c.product_id, passages):
+                _drop(c, "provenance: a number of the correction is in no passage of the product")
+            continue
         if utterance and "Q2" in fixes and _quoted_then_corrected(catalog.pack.rules.quote_cues, utterance,
                                                                   _numbers(lex, c.stated_value), right):
             _drop(c, "Q2: the line quotes the value and states the right one")
@@ -933,7 +949,8 @@ class FactChecker:
                 products = self.catalog.line_products(inp.on_air, inp.switch.target_product_id,
                                                       [inp.utterance, *inp.previous[-1:]])
                 res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products,
-                                           inp.utterance, self.fixes, inp.previous[-1] if inp.previous else None)
+                                           inp.utterance, self.fixes, inp.previous[-1] if inp.previous else None,
+                                           verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") == "verify")
             return res
         if res.output is not None:
             for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it

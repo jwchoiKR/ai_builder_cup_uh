@@ -273,6 +273,11 @@ def full_document_text_with_section_headings(text: str) -> str:
     return text
 
 
+def candidate_json(candidate: dict) -> dict:
+    """D-300: one candidate alert for the verifier."""
+    return candidate
+
+
 BUILDERS = {
     f.__name__: f
     for f in (
@@ -284,6 +289,7 @@ BUILDERS = {
         open_groups_json, host_cues_json, last_two_final_transcripts_json, passages_json,
         summary_stats_json, draft_answer_json, utterance_text, comment_text, comments_json, canonical_question, product_id,
         product_id_at_comment_time_minus_grace, full_document_text_with_section_headings, recent_host_line_json_or_null,
+        candidate_json,
     )
 }
 BUILDERS["current_product_compact_json"] = current_product_compact_json

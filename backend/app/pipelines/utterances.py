@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from ..agents import arms
 from ..agents.fact_checker import FactChecker, FactInput, fixes_of, gather_fact_passages
 from ..agents.split_judges import ComplianceJudge, ContextJudge
+from ..agents.verifier import Verifier
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values, say_instead_fallback
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
@@ -130,6 +131,9 @@ class UtterancePipeline:
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_relation" if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296
+        # D-300 R2: one verifier call per candidate alert, after the flaggers (their code drops off)
+        self.verifier = (Verifier(ctx.llm, ctx.prompts["verifier"], rt.catalog, self.facts.files)
+                         if rt.settings.JUDGE_ARM == "verify" else None)
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
         self._amber: set[str] = set()
@@ -349,8 +353,9 @@ class UtterancePipeline:
                 inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
-                comp_task = rt.spawn(self._once_more(lambda: self.compliance.run(
-                    inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)), name=f"compliance:{t.transcript_id}")
+                comp_task = rt.spawn(self._verify_compliance(self._once_more(lambda: self.compliance.run(
+                    inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)), inp, on_air),
+                    name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
                                                      values=values), name=f"context:{t.transcript_id}")
             else:
@@ -482,6 +487,16 @@ class UtterancePipeline:
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
 
+    async def _verify_compliance(self, call, inp: JudgeInput, on_air: str):
+        """D-300 R2: the compliance verdicts, each checked by the verifier (in parallel)."""
+        res = await call
+        if self.verifier is not None and res.status == "ok" and res.output is not None:
+            start = self.rt.ctx.clock.now_ms()
+            res.output = await self.verifier.check_compliance(res.output, inp.utterance, inp.previous, on_air,
+                                                              self.rt.sid)
+            log.info("verifier: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
+        return res
+
     @staticmethod
     async def _once_more(call):
         """D-260 (candidate aa995d1: one compliance call failed, so a negated caution got no alert): a compliance call
@@ -515,6 +530,11 @@ class UtterancePipeline:
             # own deadline; the publish decision waits for it
             log.info("fact check %s for %r: once more", res.status, text[:80])
             res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)
+        if self.verifier is not None and res.status == "ok" and res.output is not None:
+            start = self.rt.ctx.clock.now_ms()  # D-300 R2
+            res.output = await self.verifier.check_facts(res.output, text, inp.previous, on_air,
+                                                         [*passages, *self.facts.all_file_passages], self.rt.sid)
+            log.info("verifier: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
         return res
 
     async def _apply_compliance_locked(self, t: Transcript, on_air: str, res: AgentResult, hits,
