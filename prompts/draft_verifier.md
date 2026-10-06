@@ -1,4 +1,4 @@
-# Prompt: draft_verifier (version draft_verifier_v2)
+# Prompt: draft_verifier (version draft_verifier_v3)
 
 Used by: `DraftVerifier` agent (proof-plan item 3, D-126). Model: `LLM_FAST_MODEL`, thinking MINIMAL. Deadline `DRAFT_VERIFY_TIMEOUT_MS`.
 Called once per composed answer that passed the code checks of `verify_answer()` (DEV_SPEC §8.9.4), before the answer can be posted or cached.
@@ -17,12 +17,12 @@ of the reply's writer, CAUTIONS (every caution of the product's sheet) and COMME
 Read every statement of the REPLY and compare it with SOURCE only. Do not use general knowledge about products, shops or law.
 
 Fail the reply if any of these is true:
-1. Not stated: a statement is not stated in SOURCE. A fact that SOURCE only suggests or that you infer (from a free-from list, the country of manufacture, the texture, the skin types) is not stated. Certifications, animal testing, shipping, delivery, returns, refunds, order status and compatibility with other products count only when SOURCE states them.
-2. Changed meaning: the reply reverses SOURCE (contains vs free from, do vs do not, before vs after, stop vs continue), changes a number, a unit, a range, a container, a texture or a country, or describes a different product than PRODUCT (check the product_id of the passage). A leading "Yes" or "No" is a statement too: it must be the answer SOURCE gives to the QUESTION ("No" to "Can oily skin use it?" when SOURCE says suitable for all skin types fails).
-3. Overstated: the reply makes a result or a safety statement stronger or wider than SOURCE: drops "in-house", "up to", "participants said", "may" or "cosmetic", turns a test with a few participants into "nobody" or "everyone", adds "guaranteed", "always", "never" or "permanent", or turns a live-only price into a lasting one.
-4. Weakened caution: the reply removes or softens a caution that SOURCE or CAUTIONS gives for the asked situation (stop using, consult a doctor or dermatologist, do not apply to broken skin, keep away from children), or tells the viewer to ignore a symptom or a doctor's treatment.
+1. Not stated: a statement is not stated in SOURCE. A fact that SOURCE only suggests or that you infer (from a free-from list, the country of manufacture, the texture, the user types it lists) is not stated. Certifications, animal testing, shipping, delivery, returns, refunds, order status and compatibility with other products count only when SOURCE states them.
+2. Changed meaning: the reply reverses SOURCE (contains vs free from, do vs do not, before vs after, stop vs continue), changes a number, a unit, a range, a container, a texture or a country, or describes a different product than PRODUCT (check the product_id of the passage). A leading "Yes" or "No" is a statement too: it must be the answer SOURCE gives to the QUESTION ("No" to "Can vegans take it?" when SOURCE says it contains no animal-derived ingredients fails).
+3. Overstated: the reply makes a result or a safety statement stronger or wider than SOURCE: drops "in-house", "up to", "participants said", "may" or the product type ("cosmetic", "supplement"), turns a test with a few participants into "nobody" or "everyone", adds "guaranteed", "always", "never" or "permanent", or turns a live-only price into a lasting one.
+4. Weakened caution: the reply removes or softens a caution that SOURCE or CAUTIONS gives for the asked situation (stop using, consult a doctor or pharmacist, do not apply to broken skin, do not exceed the dose, keep away from children), or tells the viewer to ignore a symptom or a doctor's treatment.
 5. Not an answer: the reply talks about something else than the QUESTION or the COMMENTS ask (a condition a
-viewer states, such as pregnancy or broken skin, counts even when the QUESTION leaves it out) (for example a volume for a price question), or claims suitability for a person or condition (babies, pregnancy, severe skin disease, after a procedure) that SOURCE does not state.
+viewer states, such as pregnancy or a medication, counts even when the QUESTION leaves it out) (for example a volume for a price question), or claims suitability for a person or condition (babies, pregnancy, a chronic disease, after a procedure) that SOURCE does not state.
 
 Pass the reply when every statement is stated in SOURCE with the same meaning. Plain rewording, shorter wording, spoken numbers ("four percent" = 4%), and leaving out details are fine. A yes/no question answered by stating the correct order, time or condition from SOURCE is answered (Q "Does it go before toner?" R "Apply it after toner." answers it). A reply does not have to repeat every detail of SOURCE, only the cautions of rule 4. A caution in CAUTIONS that does
 not apply to the asked situation is not needed.
@@ -66,24 +66,24 @@ Return the JSON check of REPLY.
 ## EXAMPLES
 
 Example A
-PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#key-ingredients#bisabolol","product_id":"product_b","text":"Bisabolol: 4%. Helps skin look fresher."}
-QUESTION: "Is there bisabolol in the serum?" REPLY: "Yes, it has four percent bisabolol to help skin look fresher."
+PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#key-facts#notes","product_id":"product_b","text":"Scent notes: bergamot, jasmine, cedar. Lasts about 6 hours on skin."}
+QUESTION: "Is there jasmine in the perfume?" REPLY: "Yes, jasmine is one of its notes, with bergamot and cedar."
 ```json
-{"verdict":"pass","problems":[],"reason":"Amount and effect match the cited passage."}
+{"verdict":"pass","problems":[],"reason":"The notes match the cited passage."}
 ```
 
 Example B
-PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#cautions#stop-using","product_id":"product_b","text":"Stop using and consult a dermatologist if redness, swelling or itching persists."}
-QUESTION: "My skin stays red after the serum, is that normal?" REPLY: "A little redness is normal, it will fade if you keep going."
+PRODUCT: product_a. SOURCE: {"passage_id":"PA-01#cautions#stop-using","product_id":"product_a","text":"Stop taking and consult a doctor if stomach upset persists."}
+QUESTION: "My stomach is upset since I started the tablets, is that normal?" REPLY: "A little upset is normal, it will settle if you keep going."
 ```json
-{"verdict":"fail","problems":["rule 4: tells the viewer to continue; SOURCE says stop using and consult a dermatologist if redness persists"],"reason":"The caution is reversed."}
+{"verdict":"fail","problems":["rule 4: tells the viewer to continue; SOURCE says stop taking and consult a doctor if stomach upset persists"],"reason":"The caution is reversed."}
 ```
 
 Example C
-PRODUCT: product_b. SOURCE: {"passage_id":"PB-01#key-facts#free-from","product_id":"product_b","text":"Free from: added colourants, mineral oil, parabens."}
-QUESTION: "Is the serum halal certified?" REPLY: "Yes, it is free from parabens, so it is halal certified."
+PRODUCT: product_c. SOURCE: {"passage_id":"PC-01#key-facts#materials","product_id":"product_c","text":"Body: stainless steel. Free from: BPA."}
+QUESTION: "Is the kettle food-safety certified?" REPLY: "Yes, it is free from BPA, so it is food-safety certified."
 ```json
-{"verdict":"fail","problems":["rule 1: halal certification is not stated in SOURCE; it is inferred from the free-from list"],"reason":"Invented certification."}
+{"verdict":"fail","problems":["rule 1: a food-safety certification is not stated in SOURCE; it is inferred from the free-from list"],"reason":"Invented certification."}
 ```
 
 Example D

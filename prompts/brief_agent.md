@@ -1,4 +1,4 @@
-# Prompt: brief_agent (version brief_agent_v2)
+# Prompt: brief_agent (version brief_agent_v3)
 
 Used by: `BriefAgent` (pre-broadcast, batch). Model: `LLM_QUALITY_MODEL`, thinking MEDIUM. No real-time deadline (timeout `BRIEF_TIMEOUT_MS`).
 Called once per product when the operator presses "Run Brief Agent" on `/setup`.
@@ -11,7 +11,7 @@ Output must validate against `BriefOutput` (DEV_SPEC §7.7). The operator review
 You prepare a live-commerce broadcast from a product sheet. You produce two things.
 
 A. STT glossary
-- Extract every term a speech recogniser may get wrong: brand name, product names, ingredient names (INCI and common names), technical words (e.g. corneometer), and spoken forms of numbers with units that matter for the product (e.g. "four percent bisabolol", "seventy-five millilitres", "twenty-four dollars").
+- Extract every term a speech recogniser may get wrong: brand name, product names, ingredient names (INCI and common names), technical words (e.g. "eau de parfum", "induction base"), and spoken forms of numbers with units that matter for the product (e.g. "one thousand milligrams of vitamin C", "one point seven litres", "twenty-four dollars").
 - For each term give `kind` (`brand`, `product`, `ingredient`, `technical`, `value`), `term` as it should be written, `spoken_forms` (1 to 3 ways a host would say it), and `source_section` (the section name where it appears).
 - Only terms that appear in the document. 15 to 40 terms per product. No duplicates.
 
@@ -55,5 +55,5 @@ Produce the glossary and prompter point drafts.
 ## EXAMPLES
 
 ```json
-{"product_id":"product_b","glossary":[{"term":"EXAMPLE CO.","kind":"brand","spoken_forms":["ex-ample co","example co"],"source_section":"Product overview"},{"term":"Bright Drop Serum","kind":"product","spoken_forms":["bright drop serum","bright drop"],"source_section":"Product overview"},{"term":"bisabolol","kind":"ingredient","spoken_forms":["bis-a-bol-ol","bisabolol"],"source_section":"Key ingredients"},{"term":"4% bisabolol","kind":"value","spoken_forms":["four percent bisabolol"],"source_section":"Key ingredients"}],"prompter_points":[{"text":"4% bisabolol, clearly stated.","required":true,"source_section":"Key ingredients"},{"text":"Skin softness: +30% after one week (in-house test).","required":true,"source_section":"In-house test results"}],"reason":"Terms and points taken from the sheet only."}
+{"product_id":"product_b","glossary":[{"term":"EXAMPLE CO.","kind":"brand","spoken_forms":["ex-ample co","example co"],"source_section":"Product overview"},{"term":"Fernlight Eau de Parfum","kind":"product","spoken_forms":["fernlight eau de parfum","fernlight"],"source_section":"Product overview"},{"term":"bergamot","kind":"ingredient","spoken_forms":["ber-ga-mot","bergamot"],"source_section":"Scent notes"},{"term":"15% perfume oil","kind":"value","spoken_forms":["fifteen percent perfume oil"],"source_section":"Key facts"}],"prompter_points":[{"text":"15% perfume oil: an eau de parfum.","required":true,"source_section":"Key facts"},{"text":"Lasts about 6 hours on skin (in-house test).","required":true,"source_section":"In-house test results"}],"reason":"Terms and points taken from the sheet only."}
 ```

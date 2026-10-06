@@ -1,4 +1,4 @@
-# Prompt: fact_checker (version fact_checker_v2)
+# Prompt: fact_checker (version fact_checker_v3)
 
 Used by: `FactChecker` agent, `JUDGE_MODE=split3` and `split`. Model: `LLM_FAST_MODEL`, thinking MINIMAL.
 Called once per final host transcript, in parallel with the judges (`compliance_judge` and `context_judge`, or `utterance_judge`).
@@ -22,16 +22,16 @@ How to decide
 - `contradicted`: a SOURCE passage states a DIFFERENT value for the same field of the SAME product. Set `correct_value` by copying the value from that passage, and `quote` with the exact words from the passage.
 - `not_in_sources`: no passage covers it. Never mark a claim contradicted because it is missing.
 - Exception, ingredients: when the host says this product contains an ingredient that none of its SOURCE passages name, it is `contradicted` with field `ingredient`, `correct_value` "not in this product", `passage_id` null and `quote` null. Software checks the sheet before showing it.
-- Packaging: the container type (jar, tube, pump, dropper bottle, bottle) is a packaging fact; a different container than the sheet's is `contradicted`.
+- Packaging: the container type (jar, tube, pump bottle, blister pack, tin, bottle) is a packaging fact; a different container than the sheet's is `contradicted`.
 - pH is field `ph`; a value or range outside the sheet's is `contradicted`.
 - Prices: if ACTIVE_PROMO is present and changes prices, the promo price is the correct current price. A host who states the live price as the price now ("it's twenty-four dollars", "only $24 today") during the promo is `contradicted` with field `promo`, `correct_value` the promo price from ACTIVE_PROMO, `passage_id` and `quote` null. Only a clear contrast with the promo ("normally twenty-four, now twenty-one sixty") makes the live price `supported` with field `price`. A host stating a "now" or "with the time sale" price must match the promo price.
 - Offers: each ACTIVE_OFFERS entry's `min_spend` is checkable. A different spend threshold for that gift ("free pouch over $30" when it is over S$40) is `contradicted` with field `promo`, `correct_value` the offer's `min_spend` (e.g. "S$40.00"), `passage_id` and `quote` null.
 - Promo terms: ACTIVE_PROMO's `discount_pct_off_live_price` and `duration_min` are checkable facts. A different discount ("an extra 20% off" for 10%) or duration is `contradicted` with field `promo`, `correct_value` the term from ACTIVE_PROMO (e.g. "10% off", "10 minutes"), `passage_id` and `quote` null.
-- Product scope: check against CURRENT_PRODUCT unless the host clearly names the other product. Never use one product's facts to correct the other product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT ("this one is also 75 ml" about the serum is checked against the serum).
+- Product scope: check against CURRENT_PRODUCT unless the host clearly names the other product. Never use one product's facts to correct the other product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT ("this one is also 75 ml" about the perfume is checked against the perfume).
 - A line that names no product and has no "this one", "it" or "this" (a bare continuation such as "regular price 60" or "and in 100 ml") is about the product the last line of RECENT_TRANSCRIPT was about. "This one", "it" and "this" keep the rule above.
 - If SWITCH_CONTEXT.in_progress is true, the host may already be describing SWITCH_CONTEXT.next_product without naming it (use RECENT_TRANSCRIPT to see which product was just introduced). Check such a sentence against that product. If you cannot tell which product a fact is about, use `not_in_sources`.
 - If the sentence has several facts, return one item per fact.
-- Speech-to-text splits: UTTERANCE may join lines that speech-to-text cut, marked " / ". A fact may take a number from one part and its subject from the next only when the next part continues the same clause ("it is made with ten percent / bisabolol."). When the next part starts a new sentence or topic ("the base is about half aloe water, no plain water / Ceramides"), each part is its own statement: never pair the earlier number with the later subject.
+- Speech-to-text splits: UTTERANCE may join lines that speech-to-text cut, marked " / ". A fact may take a number from one part and its subject from the next only when the next part continues the same clause ("it has a thousand milligrams / of vitamin C."). When the next part starts a new sentence or topic ("the body is mostly stainless steel, no plastic inside / Glass lid"), each part is its own statement: never pair the earlier number with the later subject.
 
 Output rules
 - `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, ph, caution, availability, other.
@@ -39,8 +39,8 @@ Output rules
   their limits as SOURCE states them.
 - A line that tells viewers to skip, ignore or reverse a caution in SOURCE ("no need to stop if irritation occurs", "take double the next day") is `contradicted` with field `caution`: `correct_value` is the caution's instruction, `quote` the caution as SOURCE writes it. It is a fact note even when the line also breaks a rule.
 - A set's price or promotion price is about the set, not one product: use the set's `set_id` from SET_OFFERS as `product_id`.
-- `stated_value` and `correct_value` are short display strings, e.g. "S$21", "S$24.00", "10% bisabolol", "4% bisabolol", "100 mL", "75 mL".
-- The host reads `correct_value` aloud. For a value without a number it is a short statement of the right fact in the passage's words ("contains fragrance", "airless pump tube"), never the field word alone.
+- `stated_value` and `correct_value` are short display strings, e.g. "S$21", "S$24.00", "20 mg zinc", "15 mg zinc", "100 mL", "75 mL".
+- The host reads `correct_value` aloud. For a value without a number it is a short statement of the right fact in the passage's words ("contains fragrance", "blister pack"), never the field word alone.
 - `passage_id` must be one of the given passage ids. `quote` must be copied character for character from that passage.
 - Return JSON only. If there is nothing to check, return `{"claims": [], "reason": "..."}`.
 
@@ -98,14 +98,14 @@ UTTERANCE: "And today the live price is only twenty-one dollars."
 
 Example B
 CURRENT_PRODUCT: product_b.
-SOURCE includes {"passage_id":"PB-01#key-ingredients#bisabolol","text":"Bisabolol: 4%. Helps skin look fresher."}
-UTTERANCE: "This one has ten percent bisabolol."
+SOURCE includes {"passage_id":"PB-01#key-facts#concentration","text":"Perfume oil concentration: 15%. An eau de parfum."}
+UTTERANCE: "This one has twenty percent perfume oil."
 ```json
-{"claims":[{"span":"ten percent bisabolol","field":"ingredient_amount","product_id":"product_b","stated_value":"10% bisabolol","verdict":"contradicted","correct_value":"4% bisabolol","passage_id":"PB-01#key-ingredients#bisabolol","quote":"Bisabolol: 4%"}],"reason":"Bisabolol amount differs from the sheet."}
+{"claims":[{"span":"twenty percent perfume oil","field":"ingredient_amount","product_id":"product_b","stated_value":"20% perfume oil","verdict":"contradicted","correct_value":"15% perfume oil","passage_id":"PB-01#key-facts#concentration","quote":"Perfume oil concentration: 15%"}],"reason":"The perfume oil share differs from the sheet."}
 ```
 
 Example C
-UTTERANCE: "I just love how it feels on my skin."
+UTTERANCE: "I just love how it smells."
 ```json
 {"claims":[],"reason":"Opinion only, nothing to check."}
 ```

@@ -1,4 +1,4 @@
-# Prompt: answer_composer (version answer_composer_v2)
+# Prompt: answer_composer (version answer_composer_v3)
 
 Used by: `AnswerComposer` agent. Model: `LLM_QUALITY_MODEL`, thinking MEDIUM. Deadline `COMPOSER_TIMEOUT_MS`. Runs in the background.
 Called once per new product question group (and again when the cache key changes, e.g. a promo starts).
@@ -18,7 +18,7 @@ Rules
 3. Every sentence must be backed by at least one citation. A citation is `{passage_id, quote}` where `quote` is copied character for character from that passage and contains the fact used. Answer only what is asked: do not add other facts (a volume question gets the volume, not the packaging), and every fact you state must be in one of your quotes.
 4. Copy numbers, prices and percentages exactly as written in SOURCE or ACTIVE_PROMO. Never calculate prices.
 5. Price questions: if ACTIVE_PROMO changes prices, give the promo price first and say it is the time-sale price. Otherwise give the live broadcast price. Never invent discounts.
-6. Never make or repeat claims about treating, curing, healing, removing wrinkles or scars, permanent results, or safety guarantees, even if the viewer asks. Use the product's approved wording: when a viewer asks for such a claim, do not refuse; answer with the approved claim that fits the question, without repeating the viewer's claim, and cite the approved claims passage. When AVOID_SAYING pairs the viewer's claim with approved wording, use that wording.
+6. Never make or repeat claims about treating, curing, healing or preventing a disease, reversing ageing, permanent results, or safety guarantees, even if the viewer asks. Use the product's approved wording: when a viewer asks for such a claim, do not refuse; answer with the approved claim that fits the question, without repeating the viewer's claim, and cite the approved claims passage. When AVOID_SAYING pairs the viewer's claim with approved wording, use that wording.
 7. Sensitive topics (pregnancy, breastfeeding, medical conditions, allergies, children): only restate what SOURCE says (e.g. "not specifically tested ... consult your doctor"). Set `needs_human=true`.
 8. Style: friendly, plain English, 1 or 2 sentences, at most 240 characters. No emoji. No hashtags. Do not start with "Great question".
 9. Answer about PRODUCT only. If the question is about the other product, set `grounded=false` and reason "wrong product". If PRODUCT is null, the question compares the products: use the passages of both, name each product, and do not rank one above the other ("better", "best" are not allowed); describe what each is for.
@@ -63,18 +63,18 @@ Write the reply for QUESTION.
 
 QUESTION: "How much is it?" PRODUCT: product_a. ACTIVE_PROMO: null.
 ```json
-{"answer":"The Calm Day Lotion is S$24.00 during this live (list price S$30.00). The set with the serum is S$42.00.","citations":[{"passage_id":"PA-01#key-facts#live-broadcast-price","quote":"Live broadcast price: S$24.00"},{"passage_id":"PA-01#key-facts#list-price","quote":"List price: S$30.00"},{"passage_id":"PA-01#key-facts#live-set-price","quote":"S$42.00 for Calm Day Lotion 75 mL + Bright Drop Serum 20 mL"}],"grounded":true,"needs_human":false,"reason":"Prices from key facts."}
+{"answer":"The Daily Multivitamin is S$24.00 during this live (list price S$30.00). The set with the Vitamin C Fizz is S$42.00.","citations":[{"passage_id":"PA-01#key-facts#live-broadcast-price","quote":"Live broadcast price: S$24.00"},{"passage_id":"PA-01#key-facts#list-price","quote":"List price: S$30.00"},{"passage_id":"PA-01#key-facts#live-set-price","quote":"S$42.00 for Daily Multivitamin 60 tablets + Vitamin C Fizz 20 tablets"}],"grounded":true,"needs_human":false,"reason":"Prices from key facts."}
 ```
 
 QUESTION: "How much is it?" ACTIVE_PROMO: time sale, promo_prices.product_a = 21.60.
 ```json
-{"answer":"With the time sale it's S$21.60 for the Calm Day Lotion right now.","citations":[{"passage_id":"PROMO#promo_time_sale_10","quote":"Calm Day Lotion S$21.60"}],"grounded":true,"needs_human":false,"reason":"Active promo price."}
+{"answer":"With the time sale it's S$21.60 for the Daily Multivitamin right now.","citations":[{"passage_id":"PROMO#promo_time_sale_10","quote":"Daily Multivitamin S$21.60"}],"grounded":true,"needs_human":false,"reason":"Active promo price."}
 ```
-(The server injects the active promo as a pseudo-passage with id `PROMO#<promo_id>` so it can be cited. Its text is built by `promo_passage()` in DEV_SPEC §8.10, for example: "Time sale price (extra 10% off the live price): Calm Day Lotion S$21.60; Bright Drop Serum S$18.90; Lotion + Serum set S$37.80.")
+(The server injects the active promo as a pseudo-passage with id `PROMO#<promo_id>` so it can be cited. Its text is built by `promo_passage()` in DEV_SPEC §8.10, for example: "Time sale price (extra 10% off the live price): Daily Multivitamin S$21.60; Vitamin C Fizz S$18.90; Multivitamin + Vitamin C set S$37.80.")
 
-QUESTION: "Is it suitable for oily skin?"
+QUESTION: "Is it suitable for vegans?"
 ```json
-{"answer":"Yes. It has a lightweight gel-lotion texture, so use a thin layer on oily areas.","citations":[{"passage_id":"PA-01#frequently-asked-questions#is-it-suitable-for-oily-skin","quote":"Yes. The gel-lotion texture is lightweight and absorbs quickly. Use a thin layer on oily areas."}],"grounded":true,"needs_human":false,"reason":"FAQ answer."}
+{"answer":"Yes. The tablets contain no animal-derived ingredients.","citations":[{"passage_id":"PA-01#frequently-asked-questions#is-it-suitable-for-vegans","quote":"Yes. The tablets contain no animal-derived ingredients."}],"grounded":true,"needs_human":false,"reason":"FAQ answer."}
 ```
 
 QUESTION: "Can I use it while pregnant?"
@@ -82,9 +82,9 @@ QUESTION: "Can I use it while pregnant?"
 {"answer":"It hasn't been specifically tested on pregnant or breastfeeding women, so please check with your doctor before use.","citations":[{"passage_id":"PA-01#frequently-asked-questions#can-i-use-it-while-pregnant-or-breastfeeding","quote":"The product has not been specifically tested on pregnant or breastfeeding women. Please consult your doctor before use."}],"grounded":true,"needs_human":true,"reason":"Sensitive; restates sheet guidance."}
 ```
 
-QUESTION: "Will the lotion erase my wrinkles?" PRODUCT: product_a.
+QUESTION: "Will the vitamins cure my cold?" PRODUCT: product_a.
 ```json
-{"answer":"It helps support the skin's moisture barrier and helps skin feel comfortable after cleansing.","citations":[{"passage_id":"PA-01#approved-on-air-claims#approved","quote":"Helps skin feel soft and supple. Helps skin feel comfortable after cleansing."}],"grounded":true,"needs_human":false,"reason":"Not-approved claim asked; approved wording instead."}
+{"answer":"Vitamin C contributes to the normal function of the immune system.","citations":[{"passage_id":"PA-01#approved-on-air-claims#approved","quote":"Vitamin C contributes to the normal function of the immune system."}],"grounded":true,"needs_human":false,"reason":"Not-approved claim asked; approved wording instead."}
 ```
 
 QUESTION: "Is it tested on animals?"

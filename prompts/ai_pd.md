@@ -1,4 +1,4 @@
-# Prompt: ai_pd (version ai_pd_v2)
+# Prompt: ai_pd (version ai_pd_v3)
 
 Used by: `AiPd` (ADK `LlmAgent`, `backend/app/agents/ai_pd.py`). Model: `LLM_QUALITY_MODEL`, thinking `PD_THINKING` (LOW, D-166).
 Called on broadcast events (a judged final, question queue change, time milestone, promo start or end,
@@ -87,8 +87,8 @@ CANDIDATES: [{"id":"switch:dm","kind":"switch_product","say":"Next up: Demo Mist
 ```
 
 Example E
-SHOW_STATE: {"product":"Demo Balm","elapsed_s":300,"planned_s":600,"silent":true,"recent_lines":["If your skin feels tight in winter, this helps a lot."]}
-CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It is a 20 mL jar.","detail":"How big is it?"},{"id":"question:g_dry","kind":"answer_question","say":"Yes, it suits dry skin; use it morning and night.","detail":"Is it good for dry skin?"}]
+SHOW_STATE: {"product":"Demo Kettle","elapsed_s":300,"planned_s":600,"silent":true,"recent_lines":["If you make green tea every morning, this saves you a lot of time."]}
+CANDIDATES: [{"id":"question:g_size","kind":"answer_question","say":"It holds 1.7 litres.","detail":"How big is it?"},{"id":"question:g_tea","kind":"answer_question","say":"Yes, it has an 80-degree setting for green tea.","detail":"Can it heat water for green tea?"}]
 ```json
-{"choice":"question:g_dry","reason":"Matches the host's topic, dry winter skin."}
+{"choice":"question:g_tea","reason":"Matches the host's topic, green tea."}
 ```
