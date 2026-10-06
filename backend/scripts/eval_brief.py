@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.config import Settings  # noqa: E402
 from app.context import build_context  # noqa: E402
 from app.logic.catalog import Catalog  # noqa: E402
-from app.onboarding.brief import brief_release, offer_misses  # noqa: E402
+from app.onboarding.brief import brief_release  # noqa: E402
 from app.onboarding.release import load_release, release_pack  # noqa: E402
 from app.providers.stt import phrases_from_glossary  # noqa: E402
 
@@ -49,9 +49,7 @@ async def main() -> int:
             terms = [t.model_dump() for t in res.output.glossary] + default_glossary(ctx, cat)["terms"]
             out |= {"glossary": [t.model_dump() for t in res.output.glossary],
                     "phrases": phrases_from_glossary({"terms": terms}),
-                    "prompter_points": [p.model_dump() for p in cat.products[0].prompter_points],
-                    "offer_misses": offer_misses(record, res.output.prompter_points, ctx.pack.lang,
-                                                 ctx.pack.lexicon)}
+                    "prompter_points": [p.model_dump() for p in cat.products[0].prompter_points]}
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
