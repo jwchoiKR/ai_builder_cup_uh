@@ -1,11 +1,12 @@
 {
-  "status": "DRAFT - needs brand/legal approval before real use. Approved for the fictional demo.",
+  "status": "Generic screen text for any product (D-278): the brand and product come from the show's release; no category, market or product wording. Needs brand/legal approval before real use.",
   "correction_notices": [
     {
       "template_id": "compliance_correction",
       "use_when": "A compliance alert (HIGH) was raised and the operator chooses 'Post notice'.",
-      "text": "Correction from DAON LAB: {product_name} is a cosmetic product. Its effects are cosmetic, not permanent, and it does not treat or cure any skin condition.",
+      "text": "Correction from {brand}: please disregard what was just said about {product_name}. Only the information on the product page applies.",
       "placeholders": [
+        "brand",
         "product_name"
       ]
     },
@@ -39,19 +40,19 @@
   },
   "operator_quick_replies": [
     {
-      "reply_id": "shipping_sg",
+      "reply_id": "shipping",
       "intent": "shipping",
-      "text": "We ship within Singapore. Delivery details are shown at checkout."
+      "text": "Delivery details are shown at checkout."
     },
     {
       "reply_id": "returns",
       "intent": "returns",
-      "text": "Unopened items can be returned. Please see the returns policy on the product page."
+      "text": "Please see the returns policy on the product page."
     },
     {
       "reply_id": "doctor_check",
       "intent": "pregnancy_breastfeeding",
-      "text": "{product_name} has not been specifically tested on pregnant or breastfeeding women. Please check with your doctor before use."
+      "text": "Please check with your doctor before using {product_name} while pregnant or breastfeeding."
     }
   ],
   "host_cue_presets": [
@@ -63,7 +64,7 @@
     {
       "cue_id": "preset_time_sale",
       "label": "Time sale",
-      "text": "Time sale is live. Mention the extra 10% off."
+      "text": "A time sale is live. Mention the offer and its terms."
     },
     {
       "cue_id": "preset_wrap_up",
@@ -71,15 +72,15 @@
       "text": "Please wrap up this product."
     },
     {
-      "cue_id": "preset_patch_test",
-      "label": "Patch test",
-      "text": "Mention the patch test results."
+      "cue_id": "preset_test_results",
+      "label": "Test results",
+      "text": "Mention the test results with who ran the test."
     }
   ],
   "host_deferrals": {
     "general": "Good question! I don't want to guess, so I'll check and reply to you in the chat.",
-    "sensitive": "Everyone's skin is different, so please check with your doctor or dermatologist before using it. I'll reply in the chat with what our product sheet says.",
+    "sensitive": "Everyone is different, so please check with your doctor or pharmacist before using it. I'll reply in the chat with what our product information says.",
     "general_solo": "Good question! I don't want to guess, so I'll check that for you.",
-    "sensitive_solo": "Everyone's skin is different, so please check with your doctor or dermatologist before using it."
+    "sensitive_solo": "Everyone is different, so please check with your doctor or pharmacist before using it."
   }
 }

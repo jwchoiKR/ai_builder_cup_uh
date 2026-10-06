@@ -1338,7 +1338,7 @@ def notice_template(rt: "SessionRuntime", a: Alert) -> str:
     name = sets.get(a.product_id) or rt.catalog.get_product(a.product_id).name
     if a.kind == "compliance":
         t = next(n for n in notices.correction_notices if n.template_id == "compliance_correction")
-        return t.text.replace("{product_name}", name)
+        return t.text.replace("{brand}", rt.catalog.brand).replace("{product_name}", name)  # D-278: the release's brand
     if a.field in ("price", "set_price", "promo"):
         t = next(n for n in notices.correction_notices if n.template_id == "fact_correction_price")
         return t.text.replace("{product_name}", name).replace("{correct_value}", a.correct_value or "")
