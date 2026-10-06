@@ -25,7 +25,14 @@ CLAIMS_SECTION = "Approved on-air claims"
 SOURCE_FILE = "Source file"  # D-247/D-253: a release file's passage (onboarding/sources.py), checked tolerantly
 ABSENT = "not in this product"  # D-121: correct_value of an ingredient the sheet never names
 _NAME = re.compile(r"[a-z][a-z-]{3,}")
-_NOT_NAMES = frozenset({"percent", "with", "and", "contains", "has", "the", "this", "ampoule", "cream", "product"})
+_BASE_NOT_NAMES = frozenset({"percent", "with", "and", "contains", "has", "the", "this", "product"})
+# D-278: the show's own product words ("the kettle", "this serum") are never a substance name; set per post_validate
+# from the catalog, in place of a fixed list of the demo products' words
+_PRODUCT_WORDS: contextvars.ContextVar[frozenset] = contextvars.ContextVar("product_words", default=frozenset())
+
+
+def _not_names() -> frozenset:
+    return _BASE_NOT_NAMES | _PRODUCT_WORDS.get()
 _FREE_FROM = re.compile(r"\s*free from\s*:")
 
 
@@ -35,7 +42,7 @@ _UNIT_WORDS = frozenset({"ml", "mls", "milliliter", "milliliters", "g", "gram", 
 
 def _words_within(stated: str, correct: str | None) -> bool:
     """Every word the host said is part of the sheet's value: a less specific form, not a contradiction."""
-    said = {w for w in _NAME.findall((stated or "").lower()) if w not in _UNIT_WORDS and w not in _NOT_NAMES}
+    said = {w for w in _NAME.findall((stated or "").lower()) if w not in _UNIT_WORDS and w not in _not_names()}
     sheet = set(_NAME.findall((correct or "").lower()))
     return bool(said) and said <= sheet
 
@@ -88,7 +95,7 @@ def _same_substance(stated: str | None, correct: str | None, quote: str | None =
     """Every name word the host gave for the substance is in the correction ("zinc gluconate" vs "zinc": no).
     D-262 (pool 3: "10% by weight" quoting "shea butter: 10% by weight" was dropped): a correction that names none of
     the host's substance words leaves the name to its quote, which must then hold them."""
-    names = lambda t: set(_NAME.findall((t or "").lower())) - _NOT_NAMES - _UNIT_WORDS  # noqa: E731
+    names = lambda t: set(_NAME.findall((t or "").lower())) - _not_names() - _UNIT_WORDS  # noqa: E731
     said, right = names(stated), names(correct)
     if not said:
         return True
@@ -101,7 +108,7 @@ def _from_quote(correct: str, quote: str, share: float = 0.5) -> bool:
     quote (by their first five letters, so "resistant" meets "resistance"); other scripts: two letters in a row.
     "not disclosed" or "No expiry period is given" states no value the quote holds, so it is no correction."""
     q = quote.lower()
-    latin = set(_NAME.findall(correct.lower())) - _NOT_NAMES - _FRAME
+    latin = set(_NAME.findall(correct.lower())) - _not_names() - _FRAME
     if latin:
         stems = {w[:5] for w in _NAME.findall(q)}
         return sum(w[:5] in stems for w in latin) >= share * len(latin)
@@ -197,7 +204,7 @@ def _proven_absent(stated: str, passages: Sequence[Passage], product_id: str) ->
     """D-207 (full review P2): an absence is a fact only when the sheet proves it: the product's "Free from" list names
     the ingredient, or the sheet has a complete ingredient list. A partial sheet ("full INCI list on the carton")
     settles nothing, and the claim stays not_in_sources."""
-    names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
+    names = [w for w in _NAME.findall(stated.lower()) if w not in _not_names()]
     mine = [p for p in passages if p.product_id == product_id]
     free_from = " ".join(p.text.lower() for p in mine if _FREE_FROM.match(p.text.lower()))
     return bool(names) and (any(n in free_from for n in names) or any(_COMPLETE_LIST.match(p.section) for p in mine))
@@ -205,7 +212,7 @@ def _proven_absent(stated: str, passages: Sequence[Passage], product_id: str) ->
 
 def _on_sheet(stated: str, passages: Sequence[Passage], product_id: str) -> bool:
     """D-165: every ingredient word the host named is in the product's sheet (not only in its "Free from" list)."""
-    names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
+    names = [w for w in _NAME.findall(stated.lower()) if w not in _not_names()]
     sheet = " ".join(p.text.lower() for p in passages if p.product_id == product_id and not _FREE_FROM.match(p.text.lower()))
     return bool(names) and all(n in sheet for n in names)
 
@@ -214,7 +221,7 @@ def _absent_from_sheet(stated: str, passages: Sequence[Passage], product_id: str
     """D-121: every ingredient word the host named is missing from all of the product's sheet passages.
     D-156: a word the sheet names only in its "Free from:" list is missing too ("a little alcohol" against
     "Free from: ... ethanol (denatured alcohol)")."""
-    names = [w for w in _NAME.findall(stated.lower()) if w not in _NOT_NAMES]
+    names = [w for w in _NAME.findall(stated.lower()) if w not in _not_names()]
     mine = [p.text.lower() for p in passages if p.product_id == product_id]
     sheet = " ".join(t for t in mine if not _FREE_FROM.match(t))
     # D-259 (sealed pool 2: "pear juice" was not absent because "juice" was on the sheet): absent when any of
@@ -279,6 +286,18 @@ def post_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
     D-100: never on field `other` (no value to compare, e.g. "prescription cream" -> "cosmetic
     product": that is the compliance judge's job), and on `test_result` only when the host cites a test."""
     o = out.model_copy(deep=True)
+    words = " ".join(" ".join([p.name, p.short_name, *p.aliases]) for p in catalog.products).lower()
+    # a word of an ingredient passage stays a substance name ("vitamin" in a "Vitamin C Serum")
+    used = " ".join(p.text.lower() for p in [*passages, *catalog.pack.passages] if "ingredient" in p.section.lower())
+    token = _PRODUCT_WORDS.set(frozenset(w for w in _NAME.findall(words) if w not in used))
+    try:
+        return _post_validate(o, passages, catalog, promo, utterance, offers)
+    finally:
+        _PRODUCT_WORDS.reset(token)
+
+
+def _post_validate(o: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
+                   utterance: str | None, offers: Sequence[Promo]) -> FactCheckOutput:
     by_id = {p.passage_id: p for p in passages}
     set_ids = {s.set_id for s in catalog.set_offers}
     for c in o.claims:

@@ -34,10 +34,6 @@ from .lexicon import Lexicon
 
 DEFAULT_RUNSHEET_ID = "daon_skincare_demo"
 
-# §6.4: the bare alias "cream" maps to the cream only when "ampoule" is not also present.
-_GENERIC_ALIAS_BLOCKERS = {"cream": "ampoule"}
-
-
 def claim_rules(market: MarketPack, lang: LangPack) -> ClaimRulesFile:
     """D-129: the rules of one broadcast = the market's law + the language's wording for each category."""
     offered = {x.lang for x in market.languages}
@@ -344,12 +340,8 @@ class Catalog:
 
     def product_by_alias(self, text: str) -> str | None:
         """The product named in `text`: longest matching alias wins; a tie between products is None."""
-        t = text.lower()
-        hits = [
-            (pid, alias)
-            for pid, alias in self._alias_hits(text)
-            if not (alias in _GENERIC_ALIAS_BLOCKERS and re.search(rf"\b{_GENERIC_ALIAS_BLOCKERS[alias]}\b", t))
-        ]
+        # D-278: no fixed blocker words ("cream" when "ampoule" is said): the longest alias already wins
+        hits = list(self._alias_hits(text))
         if not hits:
             return None
         longest = max(len(alias) for _, alias in hits)
