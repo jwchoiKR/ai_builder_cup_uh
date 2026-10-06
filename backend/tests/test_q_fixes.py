@@ -66,3 +66,31 @@ def test_d283_q4_a_verdict_whose_reason_says_the_line_agrees(check, category, re
     args = ("It costs twenty dollars.", "S$20", "S$36.00", "Live broadcast price: S$36.00", "price")
     assert check(*args, (), reason) == "contradicted"
     assert (check(*args, {"Q4"}, reason) == "contradicted") is not false_alert
+
+
+Q1E = [  # (category, result say, line, exempt with Q1E)
+    ("haircare", "Brightwell Labs: no colour transfer through 8 hours (independent lab test, 20 adults)",
+     "Brightwell Labs found no transfer through 8 hours.", True),
+    ("children", "Removes 90% of plaque in 4 weeks (clinical study, 40 children)",
+     "In a study with 40 children it removed 90% of plaque in 4 weeks.", True),
+    ("supplement", "Absorbed 2x faster (in our in-house test, 20 adults)",
+     "With 20 adults it was absorbed twice as fast.", False),  # our own test needs our own words (D-250)
+    ("fragrance", "Lasts 8 hours on skin (tested by Kestrel Institute)", "It lasts 8 hours on skin.", False),
+    ("kettle", "Boils 1 litre in 3 minutes (tested by Larkmoor Test Centre, 30 runs)",
+     "It boils a litre in 3 minutes, every time.", False),
+]
+
+
+@pytest.mark.parametrize("category, say, line, exempt", Q1E, ids=[f"{c[0]}-{i}" for i, c in enumerate(Q1E)])
+def test_d284_q1e_a_line_naming_the_tester_needs_no_qualifier(pack, category, say, line, exempt):
+    from app.agents.utterance_judge import names_the_source, names_the_tester
+
+    lex = pack.lexicon
+    assert (names_the_source(line, say, lex) or names_the_tester(line, say, lex)) is exempt
+
+
+def test_d284_q1e_covers_what_d244_missed(pack):
+    from app.agents.utterance_judge import names_the_source
+
+    for _, say, line, exempt in Q1E[:2]:
+        assert exempt and not names_the_source(line, say, pack.lexicon)  # today these lines get the qualifier alert

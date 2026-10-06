@@ -110,6 +110,27 @@ def names_the_source(text: str, say: str, lex) -> bool:
     return bool(source) and bool(source & set(lex.content_words(text)))
 
 
+_ORG = re.compile(r"\b((?:[A-Z][\w&'-]*\s+){1,4})(?:Labs?|Laboratories|Laboratory|Institute|Clinic|University|"
+                  r"Society|Centre|Center|Panel)\b")
+_PANEL = re.compile(r"\b(\d+)\s+(?:adults|participants|people|persons|women|men|users|volunteers|children|"
+                    r"subjects|testers)\b", re.I)
+
+
+def names_the_tester(text: str, say: str, lex) -> bool:
+    """D-284 Q1E: besides D-244 L7's source in the qualifier, a line names who tested an outside test when it says
+    the organisation the result names anywhere ("Brightwell Labs: no transfer ...", with Labs, Institute, Clinic,
+    ...) or the panel ("20 adults") of a qualifier that is not ours. Our own test still needs our own words (D-250)."""
+    m = re.search(r"\(([^()]*)\)\s*$", say)
+    if m is None or lex.in_house.search(m.group(1)) or lex.is_qualified(m.group(1)):
+        return False
+    low = text.lower()
+    orgs = {" ".join(g.group(1).split()).lower() for g in _ORG.finditer(say)}
+    if any(o and o in low for o in orgs):
+        return True
+    panels = {p.group(1) for p in _PANEL.finditer(m.group(1))}
+    return any(p.group(1) in panels for p in _PANEL.finditer(text))
+
+
 def negated_caution(text: str, product, lex) -> str | None:
     """D-259 (sealed: "no need to stop using it when irritation occurs" got an unrelated approved claim to say): the
     product caution a line negates (most of the caution's words heard, and a negation in the line)."""
@@ -208,6 +229,9 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             if names_the_source(text, r.say, catalog.lexicon):
                 _cdrop(v, "D-244 L7: the line names the test's source")
                 continue  # D-244 L7: the host named who ran the test or certified it: that is the qualifier
+            if "Q1E" in fact_checker.fixes_of() and names_the_tester(text, r.say, catalog.lexicon):
+                _cdrop(v, "D-284 Q1E: the line names the tester or its panel")
+                continue
             v.say_instead = r.say
         else:
             # D-259: a line that negates one of the product's cautions is corrected by that caution, not by an
