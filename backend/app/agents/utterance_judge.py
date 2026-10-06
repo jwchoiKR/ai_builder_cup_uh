@@ -140,8 +140,11 @@ def approved_say(say: str, on_air, catalog: Catalog) -> str:
 
 
 def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
-    """§8.4.3: the on-air product's first approved claim, with the in-house-test qualifier."""
-    return spoken_claim(catalog.approved_claims(product_id)[0])
+    """§8.4.3: the on-air product's first approved claim, with the in-house-test qualifier. D-273 (sealed pool 4: a
+    release with no approved claim raised IndexError here, so a failed judge call lost the line's alert): the D-232
+    line when there is none."""
+    claims = catalog.approved_claims(product_id)
+    return spoken_claim(claims[0]) if claims else f"(no approved wording in {catalog.pack.lang})"
 
 
 LEAD_IN_MAX_WORDS = 8  # D-146: "In our in-house test," said as its own final

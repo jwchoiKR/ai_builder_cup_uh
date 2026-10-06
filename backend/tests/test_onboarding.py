@@ -819,8 +819,8 @@ def test_d247_fd_the_files_are_cached_per_release_with_an_empty_prefix():
     assert len(contents) == 3 and contents[-1] == "line"
 
 
-async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of, row_out: dict | None = None
-                        ) -> list[dict]:
+async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of, row_out: dict | None = None,
+                        fail: tuple[str, ...] = ()) -> list[dict]:
     """D-248: one host line through the real pipeline (eval_adversarial.run_case) on a made-up release; the fact
     checker's output is scripted from the release's own passages by `claim_of(pid, passages)`."""
     import sys
@@ -841,6 +841,8 @@ async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of
         pack = release_pack(ctx.pack, rec, rid, tmp_path)
         pid = product_key(rec)
         backend.facts(line, claim_of(pid, [p for p in pack.passages if p.product_id == pid]))
+        for agent in fail:  # these agents fail on the line
+            backend.fail(agent, line)
         case = {"case_id": "X", "type": "t", "current_product_id": pid, "utterance": line,
                 "expected": {"risky": True, "kind": "fact"}}
         row = await eval_adversarial.run_case(ctx, case, 0)
@@ -1722,3 +1724,14 @@ async def test_d272_offer_points_come_from_the_record_and_survive_translation_on
     ms = [p.text for p in await offer_points(Fake(), rec, "ms")]
     assert en[1] == "Valid from 1 November 2026 to 14 November 2026." and ms[1] == "Sah from 1 November 2026 to 14 November 2026."
     assert ms[3] == "Free pouch: minimum spend 30 SGD."  # the changed number keeps the English line
+
+
+async def test_d273_a_release_without_approved_claims_keeps_the_fallback_alert(tmp_path, monkeypatch):
+    """A failed compliance call on a product with no approved claim raised IndexError in the say-instead fallback,
+    so the background task died and the line's red alert was lost."""
+    row: dict = {}
+    await _release_line(tmp_path, monkeypatch, {}, "It cures eczema.", lambda pid, ps: _claim(
+        pid, ps[0], field="other", verdict="not_in_sources", stated_value="x", correct_value=None), row,
+                        fail=("compliance_judge", "utterance_judge"))
+    [a] = [a for a in row["alerts"] if a["kind"] == "compliance"]
+    assert a["severity"] == "HIGH" and a["say_instead"] == "(no approved wording in en)"
