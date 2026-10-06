@@ -175,6 +175,13 @@ D-303: for a fact candidate whose only mismatch is one number that speech-to-tex
 such as "fifteen" for "fifty", a dropped or added digit), decide `check`: the host is asked to check what was said
 instead of being corrected. A wrong number that is clearly said ("thirty-two dollars" for S$36) is still `keep`.
 
+## DOCS: compliance_judge
+
+D-310: PRODUCT_DOCUMENTS (and any files before this message) are the on-air product's own documents. They are not
+rules. Use them to recognise what the line refers to: a tester, laboratory, brand or ingredient said as a sound-alike
+by speech-to-text ("Marlo Fenn" for "Marlow Fen") is that name, and a line that names the tester of a result states
+its qualifier.
+
 ## SINGLE: compliance_judge
 
 D-309 (one strong judge, no verifier): `severity` is the rule's severity, or MEDIUM when the line makes only a lesser

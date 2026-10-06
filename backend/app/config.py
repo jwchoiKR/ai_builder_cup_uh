@@ -100,7 +100,10 @@ class Settings(BaseSettings):
     # D-309 JUDGE_ARM=single: the one model and thinking level of the compliance judge and the fact checker
     SINGLE_MODEL: str = "gemini-3.8-flash"
     SINGLE_THINKING: ThinkingLevel = "LOW"
-    COMPLIANCE_MODEL: str = ""  # D-309: the compliance judge's model; empty = LLM_FAST_MODEL (VERIFY_MODEL in single)
+    COMPLIANCE_MODEL: str = ""
+    # D-310: the compliance judge's cached prefix also holds the on-air product's documents (the fact checker's FD
+    # files and passages): names said as sound-alikes can be matched, and the prefix passes the cache minimum
+    COMPLIANCE_DOCS: bool = False  # D-309: the compliance judge's model; empty = LLM_FAST_MODEL (VERIFY_MODEL in single)
     FACTS_MODEL: str = ""  # D-246: the fact checker's model (base and FR); empty = LLM_FAST_MODEL
     TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1
