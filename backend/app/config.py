@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # D-274 arm: "show" puts every caution and direction into the show's language and merges repeats by meaning
     ONBOARDING_CAUTION_LANG: Literal["as_written", "show"] = "as_written"
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
-    PREFILTER: Literal["full", "pii_only"] = "pii_only"  # D-305
+    PREFILTER: Literal["full", "pii_only"] = "full"  # D-308: back until measured
     # D-280: switchable fixes of fact-claim code drops ("F1,F2,..."); empty = today's checks
     FACT_FIXES: str = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK"  # D-293 freeze: all on; D-294 G1-G7; D-297 CK
     # D-296: the fact checker returns evidence sentence ids and a relation (contradicts, consistent, not in the
@@ -58,23 +58,23 @@ class Settings(BaseSettings):
     VERIFY_EVIDENCE: Literal["all", "window"] = "window"  # D-305
     # D-303 (STT set): the judges and the verifier are told the line is speech-to-text (missing quote marks,
     # sound-alike names, misheard numbers, sentences in pieces)
-    STT_AWARE: bool = True  # D-305
+    STT_AWARE: bool = False  # D-308: back (STT set: 96.3/11.1/5 with the STT bundle)
     # D-303: the judges read the finals of the last N ms (0 = the last two)
-    CONTEXT_WINDOW_MS: int = 20000  # D-305
+    CONTEXT_WINDOW_MS: int = 0  # D-308: back
     # D-303: the verifier may answer "check" when the only mismatch is one number speech-to-text may have misheard;
     # the host sees "check what was said" with the heard words, not a correction
-    NUMBER_CHECK: bool = True  # D-305
+    NUMBER_CHECK: bool = False  # D-308: back
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
-    SWITCH_ARM_NAME: bool = False  # D-305; # False: arm a switch from the context judge's target and confidence alone
-    CORRECTION_CHECK: Literal["words", "judge"] = "judge"  # D-305;  # judge: the compliance judge's listed alerts, unchecked
-    QUALIFIER_ADDON: bool = False  # D-305; # False: no late "in our in-house test" add-on (D-151/155)
-    VERBAL_CHECK: Literal["code", "judge"] = "judge"  # D-305;  # judge: numbers said and hedges from the context judge (arm B's)
-    REFLEX_SCAN: bool = False  # D-305; # False: no regex pre-scan; with REFLEX_ON_FAIL=card, a card on every failed line
-    JUDGE_PRODUCTS: Literal["named", "all"] = "all"  # D-305;  # all: every show product in the judges' inputs
-    COMMENT_PRODUCT: Literal["code", "triage"] = "triage"  # D-305;  # triage: the comment's product from triage, no alias rules
-    DRAFT_GATE: Literal["full", "provenance"] = "provenance"  # D-305;  # provenance: citations, products and numbers only
-    GROUP_JOIN: Literal["code", "model"] = "model"  # D-305;  # model: no only-open-group or stem joins
-    SHOUTOUT: Literal["regex", "judge"] = "judge"  # D-305;  # judge: triage labels shout-outs (arm B's)
+    SWITCH_ARM_NAME: bool = True  # D-308: back; # False: arm a switch from the context judge's target and confidence alone
+    CORRECTION_CHECK: Literal["words", "judge"] = "words"  # D-308: back;  # judge: the compliance judge's listed alerts, unchecked
+    QUALIFIER_ADDON: bool = True  # D-308: back; # False: no late "in our in-house test" add-on (D-151/155)
+    VERBAL_CHECK: Literal["code", "judge"] = "code"  # D-308: back;  # judge: numbers said and hedges from the context judge (arm B's)
+    REFLEX_SCAN: bool = True  # D-308: back; # False: no regex pre-scan; with REFLEX_ON_FAIL=card, a card on every failed line
+    JUDGE_PRODUCTS: Literal["named", "all"] = "named"  # D-308: back;  # all: every show product in the judges' inputs
+    COMMENT_PRODUCT: Literal["code", "triage"] = "code"  # D-308: back;  # triage: the comment's product from triage, no alias rules
+    DRAFT_GATE: Literal["full", "provenance"] = "full"  # D-308: back;  # provenance: citations, products and numbers only
+    GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins
+    SHOUTOUT: Literal["regex", "judge"] = "regex"  # D-308: back;  # judge: triage labels shout-outs (arm B's)
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     FACT_GUARDS: Literal["on", "off"] = "off"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
@@ -118,13 +118,13 @@ class Settings(BaseSettings):
     # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
     JUDGE_HEDGE_MS: int = 1500
     # D-287: which alert-path agents get the second request ("compliance,fact": names or prefixes); empty = all
-    HEDGED_AGENTS: str = "compliance,fact,context,verifier"  # D-293; D-306 adds the verifier
+    HEDGED_AGENTS: str = "compliance,fact,context"  # D-293; D-308: add "verifier" to hedge it (off until compared)
     # D-292: a later second request for some agents ("fact=3000,context=2000": name or prefix = ms); the others use
     # JUDGE_HEDGE_MS. A delay at or past the agent's deadline sends no second request
     HEDGE_DELAYS: str = "fact=3000,context=2000,verifier=2000"  # D-293; D-306 verifier
     # D-288: when every compliance call fails, a reflex hit is a HIGH alert (today) or a neutral "check this line" card
     REFLEX_ON_FAIL: Literal["alert", "card"] = "card"  # D-293
-    UTTERANCE_MERGE_WINDOW_MS: int = 0  # D-305 (was 3500)  # join a final with the previous unfinished one (D-088); 0 = off
+    UTTERANCE_MERGE_WINDOW_MS: int = 3500  # D-308: back  # join a final with the previous unfinished one (D-088); 0 = off
     # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
     # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more
     FACT_TIMEOUT_MS: int = 5000
