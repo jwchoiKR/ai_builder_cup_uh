@@ -3,6 +3,7 @@
   "name": "English",
   "categories": {
     "disease": {
+      "claim_kinds": ["disease_treatment"],
       "unacceptable_examples": [
         "It cures eczema.",
         "This treats dermatitis.",
@@ -25,6 +26,7 @@
       ]
     },
     "permanent": {
+      "claim_kinds": ["permanence"],
       "required_terms": ["forever", "permanent", "for good", "never come back", "never comes back", "never return", "won't come back", "once and for all", "for life", "lifetime", "never again", "never need", "no longer need", "cured for"],
       "unacceptable_examples": [
         "The results are permanent.",
@@ -42,6 +44,7 @@
       ]
     },
     "physiological": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment"],
       "unacceptable_examples": [
         "It regenerates your skin cells.",
         "It rebuilds your collagen.",
@@ -59,6 +62,7 @@
       ]
     },
     "skin_ageing": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment", "permanence"],
       "unacceptable_examples": [
         "Your wrinkles will disappear overnight.",
         "It removes wrinkles.",
@@ -82,6 +86,7 @@
       ]
     },
     "skin_scars": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment", "permanence"],
       "unacceptable_examples": [
         "It removes acne scars.",
         "Your scars will fade away completely."
@@ -93,6 +98,7 @@
       ]
     },
     "skin_acne": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment", "permanence"],
       "unacceptable_examples": [
         "It treats acne.",
         "It stops breakouts.",
@@ -111,6 +117,7 @@
       ]
     },
     "skin_body": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment", "permanence"],
       "unacceptable_examples": [
         "It burns fat.",
         "It reduces swelling.",
@@ -128,6 +135,7 @@
       ]
     },
     "skin_numbing": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment", "permanence"],
       "unacceptable_examples": [
         "It numbs the skin.",
         "It has a numbing effect."
@@ -139,6 +147,7 @@
       ]
     },
     "skin_antimicrobial": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment", "permanence"],
       "unacceptable_examples": [
         "It kills fungus.",
         "It kills viruses on your skin."
@@ -155,6 +164,8 @@
       ]
     },
     "vulnerable": {
+      "claim_kinds": ["safety_promise", "disease_treatment"],
+      "needs_group": true,
       "direction_terms": ["alone", "on their own", "on his own", "on her own", "on your own", "by themselves", "by himself", "by herself", "by yourself", "unsupervised", "without supervision", "without an adult", "without adult", "without help", "no adult", "no supervision", "adult supervision", "can skip", "skip the"],
       "promise_terms": ["safe", "harmless", "gentle", "mild", "side effect", "no risk", "risk-free", "risk free", "suitable", "good for", "great for", "perfect for", "ideal for", "best for", "fine for", "ok for", "okay for", "made for", "designed for", "formulated for", "recommend", "approved", "cure", "heal", "help", "treat", "protect", "relie", "sooth", "prevent", "won't harm", "no harm", "can use", "can take", "can eat", "can apply", "can drink"],
       "required_terms": ["pregnan", "breastfeed", "nursing mother", "expecting mother", "mum-to-be", "mom-to-be", "baby", "babies", "infant", "newborn", "toddler", "child", "kid", "teen", "elderly", "senior", "eczema", "dermatitis", "psoriasis", "rosacea", "acne", "diabet", "allerg", "asthma", "condition", "disease", "patient", "people with", "those with", "anyone with", "everyone", "anyone", "everybody", "anybody", "all ages", "whole family", "every age"],
@@ -173,6 +184,7 @@
       ]
     },
     "superlative": {
+      "claim_kinds": ["comparative_or_superlative"],
       "unacceptable_examples": [
         "This is the best moisturiser in Singapore.",
         "It is stronger than any other ampoule."
@@ -188,6 +200,7 @@
       ]
     },
     "absolute_safety": {
+      "claim_kinds": ["safety_promise"],
       "unacceptable_examples": [
         "It is 100% safe for everyone.",
         "There are zero side effects."
@@ -203,6 +216,7 @@
       ]
     },
     "medicine_like": {
+      "claim_kinds": ["medical_or_physiological_effect", "disease_treatment"],
       "unacceptable_examples": [
         "It works like a prescription cream.",
         "It's basically medicine for your skin."
@@ -217,6 +231,7 @@
       ]
     },
     "whitening": {
+      "claim_kinds": ["medical_or_physiological_effect", "permanence"],
       "unacceptable_examples": [
         "It whitens your skin.",
         "Your skin tone will change permanently.",
@@ -274,6 +289,7 @@
       ]
     },
     "comparative": {
+      "claim_kinds": ["comparative_or_superlative"],
       "unacceptable_examples": [
         "It's way better than that other famous brand.",
         "Other brands are useless compared to this."

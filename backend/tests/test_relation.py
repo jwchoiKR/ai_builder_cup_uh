@@ -14,6 +14,7 @@ from app.models.data import Passage
 
 from .judge_fakes import AMPOULE, CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
 from .test_g_fixes import FACT
+from .test_q_fixes import _release_catalog
 
 
 def _p(pid: str, text: str, product: str = CREAM, section: str = "Key facts") -> Passage:
@@ -175,25 +176,89 @@ def _validate_r(catalog, line, violations, fixes):
         get_settings.cache_clear()
 
 
-V = "ASEAN-2D-VULNERABLE"
+V, D = "ASEAN-2D-VULNERABLE", "ASEAN-2D-DISEASE"
+ALL = ("CK", "Q6", "G7")
 
 
-@pytest.mark.parametrize("category, line, span, claim, fixes, kept", [
-    ("skincare", "My kids love this gentle wash.", "gentle wash", "the wash is gentle", ("Q6",), False),
-    ("skincare", "My kids love this gentle wash.", "gentle wash", None, ("Q6",), True),  # no claim: the raw line
-    ("children", "Safe for babies and so soft.", "Safe for babies", "safe for babies", ("Q6",), True),
-    ("children", "Kids can brush on their own, so easy.", "brush on their own", "kids can brush on their own",
-     ("Q6", "G7"), False),
-    ("supplement", "Seniors and kids, zero side effects!", "zero side effects", "no side effects for seniors and kids",
-     ("Q6", "G7"), True),
+def _high(rule, span, kind=None, group=None):
+    return {"span": span, "rule_id": rule, "severity": "HIGH", "is_negated": False, "is_quoted": False,
+            "say_instead": "x", "claim_kind": kind, "group": group}
+
+
+@pytest.mark.parametrize("category, line, rule, span, kind, group, kept", [
+    # pairs (D-297): each failure class next to its true positive
+    ("children", "Have your child swallow the toothpaste.", V, "child swallow the toothpaste", "usage_instruction",
+     "child", False),
+    ("children", "Safe for babies.", V, "Safe for babies", "safety_promise", "babies", True),
+    ("lip balm", "Fine on chapped lips, no problem.", D, "Fine on chapped lips", "safety_promise", "chapped lips",
+     False),
+    ("skincare", "It cures eczema.", D, "cures eczema", "disease_treatment", None, True),
+    ("hand gel", "Zero side effects with this gel.", V, "Zero side effects", "safety_promise", None, False),
+    ("fragrance", "Safe for everyone, even sensitive noses.", V, "Safe for everyone", "safety_promise", "everyone", True),
+    ("supplement", "Each gummy has 2 mg zinc, great for kids.", V, "2 mg zinc", "composition_fact", "kids", False),
+    ("haircare", "Your dandruff will never come back.", D, "never come back", "permanence", None, False),
 ])
-def test_d296_rule_fit_reads_claim_made(catalog, category, line, span, claim, fixes, kept):
-    v = {"span": span, "rule_id": V, "severity": "HIGH", "is_negated": False, "is_quoted": False, "say_instead": "x",
-         "claim_made": claim}
-    assert [x.rule_id for x in _validate_r(catalog, line, [v], fixes)] == ([V] if kept else [])
+def test_d297_ck_the_claim_kind_must_fit_the_rule(catalog, category, line, rule, span, kind, group, kept):
+    assert [x.rule_id for x in _validate_r(catalog, line, [_high(rule, span, kind, group)], ALL)] == (
+        [rule] if kept else [])
 
 
-async def test_d296_the_compliance_judge_asks_for_claim_made_only_in_the_arm():
+@pytest.mark.parametrize("line, span, kept", [
+    ("Kids can brush on their own, so easy.", "brush on their own", False),  # G7 words
+    ("Safe for babies.", "Safe for babies", True),
+])
+def test_d297_ck_falls_back_to_the_word_lists_without_a_claim_kind(catalog, line, span, kept):
+    assert [x.rule_id for x in _validate_r(catalog, line, [_high(V, span)], ALL)] == ([V] if kept else [])
+
+
+def test_d297_compliance_guards_hold_with_the_fact_guards_off(catalog, monkeypatch):
+    monkeypatch.setenv("FACT_GUARDS", "off")
+    got = _validate_r(catalog, "Have your child swallow the toothpaste.",
+                      [_high(V, "swallow", "usage_instruction", "child")], ALL)
+    assert got == []
+
+
+@pytest.mark.parametrize("prev, line, kept", [
+    ("It costs", "SGD 22 for one 4 mL unit.", False),  # a split price line is no test result
+    ("And the best part,", "it lasts 4 hours.", True),  # a real result said without its qualifier
+])
+def test_d297_pair_split_price_is_no_test_result(tmp_path, prev, line, kept):
+    from app.logic.qualifier import RULE_ID
+
+    from .test_g_fixes import _validate_after
+
+    catalog = _release_catalog(tmp_path, "Lasts 4 hours", "tested by Fenmore Labs", "skincare")
+    v = {"span": line, "rule_id": RULE_ID, "severity": "MEDIUM", "is_negated": False, "is_quoted": False,
+         "say_instead": "x"}
+    assert [x.rule_id for x in _validate_after(catalog, prev, line, [v], ("G4", "G5", "Q1E"))] == (
+        [RULE_ID] if kept else [])
+
+
+@pytest.mark.parametrize("line, stated, correct, quote, field, alert", [
+    ("Someone asked if it's alcohol-free. No, it contains alcohol.", "alcohol-free", "Contains alcohol",
+     "Contains alcohol (ethanol)", "ingredient", False),
+    ("Someone asked if it's alcohol-free. Yes, it's alcohol-free.", "alcohol-free", "Contains alcohol",
+     "Contains alcohol (ethanol)", "ingredient", True),
+    ("A comment says the 50 mL is S$20; that mixes up sizes, it's S$24.", "S$20", "S$24.00",
+     "Live broadcast price (50 mL): S$24.00", "price", False),
+    ("The 50 mL is S$20.", "S$20", "S$24.00", "Live broadcast price (50 mL): S$24.00", "price", True),
+    ("Have your child swallow the toothpaste.", "swallow the toothpaste", "Do not swallow",
+     "Do not swallow. Spit out after brushing.", "caution", True),  # the usage error is a fact alert
+])
+def test_d297_pairs_on_the_fact_side(catalog, line, stated, correct, quote, field, alert):
+    """FACT_GUARDS=off keeps the quote-then-reject guard (Q2, G1): the relation model still read these as
+    contradictions."""
+    from app.config import get_settings
+
+    fixes = frozenset(x.strip() for x in get_settings().FACT_FIXES.split(","))
+    passages = [_p("DL-CR-01#key-facts#x", quote)]
+    _, index = sentence_index(passages)
+    out = from_relation(_rel((line, CREAM, field, stated, ["S1"], "contradicts", correct)), index, set())
+    got = hard_validate(out, passages, catalog, None, (), {CREAM}, line, fixes).claims[0].verdict
+    assert (got == "contradicted") is alert
+
+
+async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():
     from app.agents.split_judges import ComplianceJudge
     from app.models.agent_io import ComplianceOutput, ComplianceOutputR
 
@@ -203,6 +268,18 @@ async def test_d296_the_compliance_judge_asks_for_claim_made_only_in_the_arm():
         rt = await live_runtime(make_ctx(backend=ScriptedBackend(), FACT_RELATION=on))
         try:
             j = ComplianceJudge(rt.ctx.llm, rt.ctx.prompts, rt.catalog, rt.reflex)
-            assert j.output_model is model and (("`claim_made`" in j.system_instruction) is on)
+            assert j.output_model is model and (("`claim_kind`" in j.system_instruction) is on)
         finally:
             await close_env(rt)
+
+
+def test_d297_law_pack_rules_get_claim_kinds(pack):
+    from app.onboarding.lawpack import to_rules
+
+    from .test_q_fixes import _law_rule
+
+    for category, kinds in (("vulnerable_groups", ["safety_promise", "disease_treatment"]),
+                            ("disease", ["disease_treatment"]), ("safety", [])):
+        _, rec = _law_rule("HS-X", category)
+        r = to_rules("law_x_v1", rec, pack.lang_pack.categories)[0]
+        assert r.claim_kinds == kinds and r.needs_group is (category == "vulnerable_groups")

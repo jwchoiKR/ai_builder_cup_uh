@@ -152,6 +152,9 @@ def names_the_tester(text: str, say: str, lex, g5: bool = False) -> bool:
     return any(p.group(1) in panels for p in _PANEL.finditer(text))
 
 
+NO_HIGH_KINDS = frozenset({"usage_instruction", "composition_fact"})  # D-297 CK
+
+
 def _holds_term(text: str, terms) -> bool:
     """D-290 Q6: one of the terms starts a word of the text ("pregnan" holds "pregnant")."""
     low = text.lower()
@@ -287,14 +290,24 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
         kept.append(v)
     o.compliance.violations = kept
     fixes = fact_checker.fixes_of()
-    if fixes & {"Q6", "G4", "G7"}:
+    if fixes & {"Q6", "G4", "G7", "CK"}:
         fit = []
         for v in kept:
             r = rules[v.rule_id]
+            kind = getattr(v, "claim_kind", None)
+            if "CK" in fixes and kind and v.severity == "HIGH" and not v.is_negated:
+                # D-297 CK: the judge's claim kind must be the rule's own element; a usage direction or a composition
+                # fact is never a HIGH (a wrong one is the fact checker's). The word lists below are the fallback
+                why = ("carries no HIGH" if kind in NO_HIGH_KINDS
+                       else f"is not this rule's claim ({', '.join(r.claim_kinds)})" if r.claim_kinds and kind not in r.claim_kinds
+                       else "names no group" if r.needs_group and not getattr(v, "group", None) else None)
+                if why:
+                    _cdrop(v, f"CK: {kind} {why} ({r.rule_id})")
+                else:
+                    fit.append(v)
+                continue
             # D-294 G4: a test-result or evidence rule reads the previous final too (a result split over two finals)
             hay = f"{prev[0] if prev and r.terms_fix == 'G4' else ''} {text} {v.span or ''}"
-            if (claim := getattr(v, "claim_made", None)) and r.terms_fix != "G4":
-                hay = f"{claim} {v.span or ''}"  # D-296: the claim the judge says the line makes, not the whole line
             # D-295 G4: a test-result or evidence verdict stands on an evidence word or on a qualified result the
             # line is about by its words ("tear-free"); only a line with neither ("zinc at 2 percent") drops
             if (r.required_terms and r.terms_fix in fixes and not v.is_negated and not _holds_term(hay, r.required_terms)

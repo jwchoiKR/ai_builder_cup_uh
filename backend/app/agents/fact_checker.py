@@ -266,10 +266,9 @@ def _negates(lex, text: str) -> bool:
 def _quoted_then_rejected(cues, utterance: str, c, lex) -> bool:
     """D-294 G1: "Someone said 'you can share the brush'. Please don't, never share it.": the stated instruction
     comes after a quote cue or mark, the correction is a caution (it has a negation), and after the quote the line
-    negates a word of the caution ("never share")."""
+    negates a word of the caution ("never share"). D-297: a correction without a negation counts when the line rejects
+    the quote and says most of the correction's words."""
     correct = (c.correct_value or "").lower()
-    if not _negates(lex, correct):
-        return False
     text = utterance.lower()
     found = [(i, s) for s in (c.stated_value, c.span) if s and (i := text.find(s.lower())) >= 0]
     if not found:
@@ -280,7 +279,13 @@ def _quoted_then_rejected(cues, utterance: str, c, lex) -> bool:
         return False
     negs = set(lex.negation_words)
     stems = {w[:5] for w in re.findall(r"[a-z]+", correct) if w not in _GLUE and w not in negs and len(w) > 2}
-    tokens = re.findall(r"[a-z']+", text[at + len(s):])
+    after = text[at + len(s):]
+    tokens = re.findall(r"[a-z']+", after)
+    if not _negates(lex, correct):
+        # D-297: "Someone asked if it's alcohol-free. No, it contains alcohol.": after the quote the line rejects it
+        # and says most of the correction
+        heard = {w[:5] for w in tokens}
+        return _negates(lex, after) and bool(stems) and len(stems & heard) >= 0.5 * len(stems)
     return any((t in negs or t.endswith("n't")) and any(w[:5] in stems for w in tokens[k + 1:k + 3])
                for k, t in enumerate(tokens))
 
@@ -730,12 +735,15 @@ def _numbers(lex, t: str | None) -> set[str]:
 
 
 def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
-                  offers: Sequence[Promo], products: set[str]) -> FactCheckOutput:
+                  offers: Sequence[Promo], products: set[str], utterance: str | None = None,
+                  fixes: frozenset[str] = frozenset()) -> FactCheckOutput:
     """D-296 FACT_GUARDS=off: only the hard checks on a relation contradiction, no lexical guard. The claim is about a
     product of the show (or a set's price); its evidence sentence belongs to that product, which the line is about
     (on air, a pending switch's target, or named); the evidence is not the approved-claims passage (D-048); every
     number of the correction is in the evidence or is the record's own value (R1). A correction from ACTIVE_PROMO or
-    a running offer must be that promo's or offer's own term."""
+    a running offer must be that promo's or offer's own term. D-297: one lexical guard stays, the quote or question
+    the line rejects (Q2 for numbers, G1), since the relation model still read "a viewer asked 'X?' No, ..." as a
+    contradiction."""
     o = out.model_copy(deep=True)
     by_id = {p.passage_id: p for p in passages}
     set_ids = {s.set_id for s in catalog.set_offers}
@@ -747,6 +755,13 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         if c.verdict != "contradicted":
             continue
         right = _numbers(lex, c.correct_value)
+        if utterance and "Q2" in fixes and _quoted_then_corrected(catalog.pack.rules.quote_cues, utterance,
+                                                                  _numbers(lex, c.stated_value), right):
+            _drop(c, "Q2: the line quotes the value and states the right one")
+            continue
+        if utterance and "G1" in fixes and _quoted_then_rejected(catalog.pack.rules.quote_cues, utterance, c, lex):
+            _drop(c, "G1: the line quotes an instruction and rejects it with the caution")
+            continue
         p = by_id.get(c.passage_id) if c.passage_id else None
         failed = None
         if c.passage_id is None:
@@ -868,7 +883,8 @@ class FactChecker:
             else:
                 products = self.catalog.line_products(inp.on_air, inp.switch.target_product_id,
                                                       [inp.utterance, *inp.previous[-1:]])
-                res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products)
+                res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products,
+                                           inp.utterance, self.fixes)
             return res
         if res.output is not None:
             for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it

@@ -39,7 +39,10 @@ def test_data_dir() -> Path:
 def make_settings(**overrides) -> Settings:
     """Test settings: never read the developer's .env; mock providers by default; the test data dir (with the demo
     pack) unless a test names its own."""
-    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "DATA_DIR": str(test_data_dir()), **overrides}
+    # D-297: the older tests script fact outputs in the FactCheckOutput shape; the relation arm (the default) has its
+    # own tests (test_relation.py), which turn it on
+    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "DATA_DIR": str(test_data_dir()), "FACT_RELATION": False,
+              **overrides}
     return Settings(_env_file=None, **values)
 
 
