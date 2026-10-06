@@ -33,7 +33,7 @@ from app.providers.retriever import LocalRetriever  # noqa: E402
 
 RAW = [("agents-split3-prod.json", "utterance_cases.jsonl"), ("agents-split3-1005-v2.json", "utterance_cases.jsonl"),
        ("holdout-split3.json", "holdout_cases.jsonl"), ("holdout-split3-cache.json", "holdout_cases.jsonl")]
-FIXES = ["", "F1", "F2", "F3", "F4", "F5", "R1", "F1,F2,F3,F4,F5,R1"]
+FIXES = ["", "F1", "F2", "F3", "F4", "F5", "R1", "Q2", "Q4", "F1,F2,F3,F4,F5,R1,Q2,Q4"]
 
 
 async def main() -> None:
