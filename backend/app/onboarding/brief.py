@@ -9,6 +9,8 @@ and its points on the prompter; without a brief (a failure, or a release made be
 from __future__ import annotations
 
 import json
+import logging
+import re
 import time
 from pathlib import Path
 
@@ -17,6 +19,8 @@ from ..models.agent_io import BriefOutput
 from .record import ProductRecord, money_value
 from .release import record_facts
 from .storage import persisted
+
+log = logging.getLogger(__name__)
 
 MAX_POINTS = 10
 MAX_POINT_CHARS = 140
@@ -32,11 +36,38 @@ and the qualified claims that must be said. At most {max_points} points, each at
 claim the record lists as not approved, and never a value the DOCUMENT does not state."""
 # D-269 arm "terms" (blind brief grading: 0 of 17 offer points kept all their conditions)
 OFFER_POINT_CHARS = 240
+OFFER_POINTS = 3  # per offer, on top of MAX_POINTS
+# D-269 patch (blind grading of "terms": one point said "combines with other offers" for "only with the spend gift";
+# 4 points of 34-41 words were too dense to read aloud)
 OFFER_RULE = """
-D. Offers: one point per line under "Offers", with `source_section` "Offer <id>" (the id in brackets on that
-line) and `required=true`. The point states every term on its line: the amount or price, any code, the dates or
-duration, where and to whom it applies, whether it combines with other offers, and any limit. An offer point may be
-up to {offer_chars} characters."""
+D. Offers: for each line under "Offers", 2 or 3 points in this order, each with `source_section` "Offer <id>" (the id
+in brackets on that line) and `required=true`: (1) what the viewer gets: the amount or price and any code; (2) when
+and where: dates or duration, store or market, who qualifies; (3) the limits and what it does or does not combine
+with. Leave out a point with nothing to say. Each point is one full spoken sentence of about 25 words or fewer. Write
+dates, sizes and counts the way a host reads them aloud ("from 1 to 14 November", "two 30 ml tubes"), with no
+slashes, abbreviations or symbols. Every term on the line appears in one of its points. Say what it combines with
+exactly as the terms as written say; never widen it ("only with the spend gift" never becomes "with other offers").
+Offer points do not count toward the {max_points} points above."""
+
+
+def offer_misses(record: ProductRecord, points, lang: str, lexicon=None) -> list[str]:
+    """D-269: each offer condition its points do not carry (its numbers, and half its words by their first five
+    letters). Only when the record and the show share a language; the misses are logged, nothing is dropped.
+    Numbers count in digits or, with `lexicon`, in words ("thirty"); a lone "1" is not checked, as "one" alone is not
+    read as a number. ponytail: word stems, not meaning; a paraphrase can be reported as a miss."""
+    if record.language.split("-")[0].lower() != lang.split("-")[0].lower():
+        return []
+    misses = []
+    for o in record.offers:
+        said = " ".join(p.text for p in points if p.source_section == f"Offer {o.offer_id}").lower()
+        stems = {w[:5] for w in re.findall(r"[a-z]{4,}", said)}
+        nums = set(re.findall(r"\d+", said)) | (lexicon.spoken_numbers(said) if lexicon is not None else set())
+        for c in o.conditions:
+            words = re.findall(r"[a-z]{4,}", c.lower())
+            if (not set(re.findall(r"\d+", c)) - {"1"} <= nums
+                    or sum(w[:5] in stems for w in words) < len(words) / 2):
+                misses.append(f"{o.offer_id}: {c}")
+    return misses
 
 
 def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = (), offers: str = "sheet") -> str:
@@ -82,13 +113,19 @@ async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record
 
     texts = [(p.doc, p.text) for p in release_sources(str(root), release_id)[1]]
     extra = ADDENDUM.format(lang=lang, max_points=MAX_POINTS, max_chars=MAX_POINT_CHARS)
-    if offers == "terms":
-        extra += OFFER_RULE.format(offer_chars=OFFER_POINT_CHARS)
-    agent = BriefAgent(llm, prompt, reflex, extra=extra, max_points=MAX_POINTS, max_chars=MAX_POINT_CHARS,
-                       model=model, thinking=thinking, offer_chars=OFFER_POINT_CHARS if offers == "terms" else 0)
+    terms = offers == "terms"
+    if terms:
+        extra += OFFER_RULE.format(max_points=MAX_POINTS)
+    agent = BriefAgent(llm, prompt, reflex, extra=extra,
+                       max_points=MAX_POINTS + (OFFER_POINTS * len(record.offers) if terms else 0),
+                       max_chars=MAX_POINT_CHARS, model=model, thinking=thinking,
+                       offer_chars=OFFER_POINT_CHARS if terms else 0)
     t0 = time.perf_counter()
     res = await agent.run(BriefInput(product_id=release_id, document_text=release_document(record, texts, offers)),
                           deadline_ms=deadline_ms)
+    if terms and res.output is not None:
+        for miss in offer_misses(record, res.output.prompter_points, lang, reflex.lexicon):
+            log.info("brief offer condition not in its points: %s | release=%s", miss, release_id)
     return res, round(time.perf_counter() - t0, 1)
 
 

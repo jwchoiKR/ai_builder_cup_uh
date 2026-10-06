@@ -1691,3 +1691,18 @@ async def test_d271_an_age_band_that_states_the_cautions_range_is_no_contradicti
     row: dict = {}
     alerts = await _release_line(tmp_path, monkeypatch, {"cautions": facts}, line, claim, row)
     assert (alerts == []) is dropped
+
+
+def test_d269_offer_misses_lists_conditions_its_points_leave_out():
+    from app.models.agent_io import PointDraft
+    from app.onboarding.brief import offer_misses
+
+    rec = ProductRecord.model_validate(_record(offers=[
+        {"offer_id": "o1", "kind": "percent_off", "title": "Code SAVE10", "variant_ids": [], "percent": "10",
+         "amount": None, "buy": None, "get": None, "gift": None, "rounding": None, "starts": None, "ends": None,
+         "duration_min": None, "conditions": ["online store only", "first 200 orders"], "evidence": EV}]))
+    pts = [PointDraft(text="Use code SAVE10 for 10% off, only in our online store.", required=True,
+                      source_section="Offer o1"),
+           PointDraft(text="It is for the first 300 orders.", required=True, source_section="Offer o1")]
+    assert offer_misses(rec, pts, "en") == ["o1: first 200 orders"]  # the number differs
+    assert offer_misses(rec, pts, "ms") == []  # another language: not checked
