@@ -57,6 +57,12 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
   - Flash-Lite MEDIUM on both agents gave wrong HIGH 0 and false 9.3%, but the fact checker timed out.
   - 429s are shared capacity (DSQ), not a project quota: the Flash-Lite global limit is 50M tokens/min.
 - **Running at handoff:** `vm_litemed.sh` (a57cb46): Flash-Lite single with compliance MEDIUM and facts LOW, STANDARD, both voices, with COMPLIANCE_DOCS off and on. Results go to `results/arm_litemed*`. Score with cells_summary (SEMANTIC=1 RESTORE=1) per pool dir. Report false alerts, wrong HIGH and `ms_to_shown` mean/p95. If the pass lines are missed, stop and discuss.
+- **litemed result** (Flash-Lite single, compliance MEDIUM, facts LOW, STANDARD, no docs; voice A / B):
+  - detection 95.4 / 98.1%, false alerts 6.5 / 8.3%, wrong HIGH 0 / 0
+  - alert shown mean 2.0 s, p95 4.4-4.6 s
+  - Wrong HIGH and latency now pass. False alerts do not, so this arm is stopped for discussion.
+  - The 13 false lines over 216 safe ones: 7 quote-then-reject lines (TEST-QUALIFIER or promo alerts), 4 numbers said in words, 2 near numbers (fact checker at LOW: promo, volume, test_result).
+  - litemed_docs (the same with COMPLIANCE_DOCS) was still running. Each product hits a few 429s, so the 10-minute waits make a cell take about 2 h.
 - **Decks:** `docs/decks/live_logic_1006.html`, `fix_plan_1006.html`, `rule_code_1006.html`, `arch_llm_1006.html`. The arch deck still shows the R2 verifier and needs an update once the design settles.
 
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)
