@@ -65,6 +65,8 @@ export const KO_HOST: Record<string, string> = {
   "Say this instead.": "이렇게 말하세요.",
   "Waiting for your correction": "정정을 기다리는 중",
   "CHECK WORDING": "표현 확인",
+  "CHECK THIS LINE": "이 문장 확인",
+  "The check did not finish. Keep to approved wording.": "검사가 끝나지 않았습니다. 승인된 표현만 쓰세요.",
   "ADD 'IN OUR IN-HOUSE TEST'": "'자사 시험 기준' 붙이기",
   "Say the result with 'in our in-house test'.": "결과를 'in our in-house test'와 함께 말하세요.",
   "(not {value})": "({value} 아님)",

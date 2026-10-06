@@ -9,6 +9,7 @@ import { useMic, type MicSnapshot, type MicState } from "../../app/mic";
 import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
+  activeLineCheck,
   redBlocking,
   unansweredCount,
   activePdCard,
@@ -31,7 +32,7 @@ import { COLS_MAX, HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReading
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { Catalog } from "../../app/types";
 import { Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
-import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchBanner } from "./Banners";
+import { CorrectedBar, CueStrip, FactNote, LineCheckCard, MediumBanner, SwitchBanner } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
 import { useCorrectedToast, useHostScale } from "./hooks";
@@ -236,12 +237,13 @@ export function HostView({
   const onAir = runOfShow(state, catalog, now).find((i) => i.status === "on_air");
   const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
   const checking = provisionalAlerts(state).length > 0;
+  const lineCheck = activeLineCheck(state, clientNow); // D-288: below every alert
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
   // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
   // product box, in this order: HIGH, fact notes, MEDIUM.
   const prompterAlerts =
-    high || facts.length || mediums.length ? (
+    high || facts.length || mediums.length || lineCheck ? (
       <>
         {high && (
           <ComplianceOverlay
@@ -260,6 +262,7 @@ export function HostView({
         {mediums.map(({ alert: a, fact }) => (
           <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered} />
         ))}
+        {lineCheck && !high && <LineCheckCard key={lineCheck.transcript_id} check={lineCheck} />}
       </>
     ) : null;
 
