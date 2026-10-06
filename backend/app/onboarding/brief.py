@@ -15,6 +15,7 @@ from pathlib import Path
 from ..agents.brief import BriefAgent, BriefInput
 from ..models.agent_io import BriefOutput
 from .record import ProductRecord, money_value
+from .release import record_facts
 from .storage import persisted
 
 MAX_POINTS = 10
@@ -29,10 +30,19 @@ B. Prompter points, written in {lang}: the must-say items: the key approved clai
 conditions, the cautions the host must say, and the offers with their conditions. `required=true` for the cautions
 and the qualified claims that must be said. At most {max_points} points, each at most {max_chars} characters. Never a
 claim the record lists as not approved, and never a value the DOCUMENT does not state."""
+# D-269 arm "terms" (blind brief grading: 0 of 17 offer points kept all their conditions)
+OFFER_POINT_CHARS = 240
+OFFER_RULE = """
+D. Offers: one point per line under "Offers", with `source_section` "Offer <id>" (the id in brackets on that
+line) and `required=true`. The point states every term on its line: the amount or price, any code, the dates or
+duration, where and to whom it applies, whether it combines with other offers, and any limit. An offer point may be
+up to {offer_chars} characters."""
 
 
-def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = ()) -> str:
-    """The record as a sheet with section headings, then each source file's readable text."""
+def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = (), offers: str = "sheet") -> str:
+    """The record as a sheet with section headings, then each source file's readable text. D-269 `offers="terms"`:
+    each offer line carries every term the fact checker gets (percent, dates, combinability, conditions, the terms as
+    written) and its id."""
     lines = [f"# {record.product_name}", f"Brand: {record.brand}"]
     if record.short_names:
         lines.append("Also called: " + ", ".join(record.short_names))
@@ -45,9 +55,12 @@ def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = 
                 ("Test results", [f"{q.statement}{', ' + q.conditions if q.conditions else ''} ({q.qualifier})"
                                   for q in record.qualified_results]),
                 ("Cautions", [c.text for c in record.cautions]),
-                ("Offers", [o.title + "".join(f"; {c}" for c in o.conditions)
-                            + (f"; {money_value(o.amount.currency, o.amount.minor)} {o.amount.currency}" if o.amount
-                               else "") for o in record.offers]),
+                ("Offers", [f"[{k.removeprefix('offer-')}] {x.removeprefix('Offer: ')}" for k, x in record_facts(
+                    record, lambda m: f"{money_value(m.currency, m.minor)} {m.currency}") if k.startswith("offer-")]
+                 if offers == "terms" else
+                 [o.title + "".join(f"; {c}" for c in o.conditions)
+                  + (f"; {money_value(o.amount.currency, o.amount.minor)} {o.amount.currency}" if o.amount
+                     else "") for o in record.offers]),
                 ("How to use", [h.text for h in record.how_to_use]),
                 ("Key facts", [k.text for k in record.key_facts]),
                 ("Claims not approved", [c.text for c in record.not_approved_claims]))
@@ -61,17 +74,20 @@ def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = 
 
 
 async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record: ProductRecord, lang: str, *,
-                        model: str | None = None, thinking: str | None = None, deadline_ms: int = 60_000):
+                        model: str | None = None, thinking: str | None = None, deadline_ms: int = 60_000,
+                        offers: str = "sheet"):
     """(AgentResult, seconds) of the BriefAgent on a release. `model`/`thinking` override BRIEF_MODEL/BRIEF_THINKING
-    (scripts/eval_brief.py)."""
+    (scripts/eval_brief.py); `offers` is BRIEF_OFFERS (D-269)."""
     from .sources import release_sources
 
     texts = [(p.doc, p.text) for p in release_sources(str(root), release_id)[1]]
-    agent = BriefAgent(llm, prompt, reflex, extra=ADDENDUM.format(lang=lang, max_points=MAX_POINTS,
-                                                                   max_chars=MAX_POINT_CHARS),
-                       max_points=MAX_POINTS, max_chars=MAX_POINT_CHARS, model=model, thinking=thinking)
+    extra = ADDENDUM.format(lang=lang, max_points=MAX_POINTS, max_chars=MAX_POINT_CHARS)
+    if offers == "terms":
+        extra += OFFER_RULE.format(offer_chars=OFFER_POINT_CHARS)
+    agent = BriefAgent(llm, prompt, reflex, extra=extra, max_points=MAX_POINTS, max_chars=MAX_POINT_CHARS,
+                       model=model, thinking=thinking, offer_chars=OFFER_POINT_CHARS if offers == "terms" else 0)
     t0 = time.perf_counter()
-    res = await agent.run(BriefInput(product_id=release_id, document_text=release_document(record, texts)),
+    res = await agent.run(BriefInput(product_id=release_id, document_text=release_document(record, texts, offers)),
                           deadline_ms=deadline_ms)
     return res, round(time.perf_counter() - t0, 1)
 

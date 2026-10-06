@@ -97,6 +97,8 @@ class Settings(BaseSettings):
     BRIEF_TIMEOUT_MS: int = 60000
     BRIEF_MODEL: str = ""  # D-265: the BriefAgent's model; empty = LLM_QUALITY_MODEL
     BRIEF_THINKING: ThinkingLevel = "MEDIUM"  # D-265: MEDIUM (today) vs HIGH, measured on the sealed releases
+    # D-269 arm: "terms" gives the brief every offer term with its id and one point per offer up to 240 characters
+    BRIEF_OFFERS: Literal["sheet", "terms"] = "sheet"
     SUMMARY_TIMEOUT_MS: int = 30000
     MARKET: str = "SG"  # D-129: data/markets/<code>.json (law)
     BROADCAST_LANGUAGE: str = "en"  # D-129: data/lang/<code>.json (wording); must be offered by MARKET
