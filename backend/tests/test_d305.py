@@ -19,8 +19,8 @@ async def test_d305_a_compliance_alert_goes_through_the_verifier():
         [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
         assert (a.status, a.severity, a.unverified) == ("active", "HIGH", False)
         assert ("verifier", f"{line}|cures eczema") in llm.calls
-        assert await events(rt, "alert.created") and not any(  # no regex chip before the judge
-            e.payload["status"] == "provisional" for e in await events(rt, "alert.created"))
+        # D-308: the regex chip is back by default; it is only the grey chip, the HIGH shows once confirmed
+        assert all(e.payload["status"] == "provisional" for e in await events(rt, "alert.created"))
     finally:
         await close_env(rt)
 
@@ -39,7 +39,7 @@ async def test_d305_a_fact_alert_from_the_relation_arm():
 
 
 async def test_d305_a_failed_compliance_call_gives_the_check_card_without_the_regex():
-    rt, llm = await make_env(**SHIPPED)
+    rt, llm = await make_env(**(SHIPPED | {"REFLEX_SCAN": False}))  # D-308: an option, not the default
     try:
         line = "It feels light and soft."
         llm.fail("utterance_judge", line)

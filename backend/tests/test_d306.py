@@ -65,14 +65,17 @@ async def test_d306_the_chip_shows_only_while_the_verifier_works():
         llm.judge(LINE, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
         await speak(rt, LINE)
         await rt.utterances.drain()
-        evs = [e.type for e in await events(rt) if e.type in ("verify.started", "verify.done", "alert.created")]
-        assert evs[:2] == ["verify.started", "verify.done"] and "alert.created" in evs
+        evs = [(e.type, e.payload.get("status")) for e in await events(rt)
+               if e.type in ("verify.started", "verify.done", "alert.created", "alert.updated")]
+        started, done = evs.index(("verify.started", None)), evs.index(("verify.done", None))
+        active = [i for i, (_, status) in enumerate(evs) if status == "active"]
+        assert started < done and active and min(active) > started  # the alert is active only after the check
         assert await events(rt, "verify.health") == []  # every call answered
     finally:
         await close_env(rt)
 
 
-def test_d306_the_verifier_waits_5_s_and_is_hedged_at_2_s(settings, clock, ids, store, bus):
+def test_d306_the_verifier_waits_5_s_and_is_hedged_at_2_s_only_when_named(settings, clock, ids, store, bus):
     from app.config import Settings
     from app.context import StoreAudit
     from app.providers.llm import LLMClient
@@ -80,4 +83,7 @@ def test_d306_the_verifier_waits_5_s_and_is_hedged_at_2_s(settings, clock, ids, 
     defaults = {k: Settings.model_fields[k].default for k in ("VERIFY_TIMEOUT_MS", "HEDGED_AGENTS", "HEDGE_DELAYS")}
     assert defaults["VERIFY_TIMEOUT_MS"] == 5000
     client = LLMClient(ScriptedBackend(), settings.model_copy(update=defaults), clock, ids, StoreAudit(store, bus))
+    assert "verifier" not in client._hedged_agents  # D-308: off until compared
+    named = defaults | {"HEDGED_AGENTS": defaults["HEDGED_AGENTS"] + ",verifier"}
+    client = LLMClient(ScriptedBackend(), settings.model_copy(update=named), clock, ids, StoreAudit(store, bus))
     assert "verifier" in client._hedged_agents and client._hedge_delays["verifier"] == 2000
