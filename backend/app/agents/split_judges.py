@@ -41,8 +41,11 @@ class _SplitJudge:
         self.catalog = catalog
         self.reflex = reflex
         self.arm = llm.design_arm  # D-187
+        # D-304 VERBAL_CHECK=judge: the context judge alone answers with arm B's fields (numbers said, hedged)
+        self.b = arms.meaning_to_llm(self.arm) or (
+            self.name == "context_judge" and getattr(getattr(llm, "settings", None), "VERBAL_CHECK", "code") == "judge")
         self.system_instruction = arms.system_instruction(self.prompt.system_instruction, self.name, self.arm,
-                                                          llm.prompts_path)
+                                                          llm.prompts_path, extra_b=self.b)
         # D-242 arm FR: the record's test results and the qualifier each needs
         self.fact_record = getattr(getattr(llm, "settings", None), "FACT_MODE", "sheet") in ("record", "docs")
         fr = arms._addenda(str(llm.prompts_path)).get(("FR", self.name)) if self.fact_record else None
@@ -82,7 +85,7 @@ class _SplitJudge:
             pre = f'<data name="PRODUCT_FILE">{json.dumps(doc, ensure_ascii=False)}</data>\n'
             user, prefix = pre + user, pre + prefix
         user += self.extra_data()
-        b = arms.meaning_to_llm(self.arm)
+        b = self.b
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=getattr(self.llm, self.spec).model,
             thinking_level=getattr(self.llm, self.spec).thinking_level,

@@ -40,6 +40,7 @@ def find_group(
     slots: dict[str, str | None],
     canonical_question: str,
     candidate_id: str | None,
+    single_fallback: bool = True,
 ) -> QuestionGroup | None:
     def target(g: QuestionGroup) -> bool:
         return is_open(g) and g.product_id == product_id and g.intent == intent
@@ -59,7 +60,7 @@ def find_group(
             return g
     # D-135 (comment-flow recall 74-82%): for intents that hold one question per product and slots, the
     # only open group that fits is the same question, whatever the wording ("oily skin can use anot?")
-    if intent in SINGLE_QUESTION_INTENTS and len(open_groups) == 1:
+    if single_fallback and intent in SINGLE_QUESTION_INTENTS and len(open_groups) == 1:  # D-304 GROUP_JOIN
         return open_groups[0]
     return None
 

@@ -1804,3 +1804,19 @@ R2 window (c58712d) on the same text gave 96.3 / 0.9 / 0. The user's direction: 
   - `gemini-3.5-flash` is a GA model id; its thinking levels were not checked here.
   - Flash-Lite and 3.8 Flash ignore a custom temperature, so `VOTE_TEMPERATURE` had no effect. The vote arm (3/3 on 112 of 130 alerts) stays off.
 - **Tests:** `tests/test_d303.py` and a host-screen test. Suite: 1213 passed; frontend 179 passed.
+
+D-304: each code rule that judges meaning gets an on/off switch, with defaults unchanged. The user wants every such rule compared with the model's own judgment and removed only if it hurts. The planning session measures them in bundles: the STT sets, clean text, the multi-product pool M1 (items 1, 2 and 7) and the comment set (items 8-12). Provenance, schema and safety rules are not switched.
+1. **`SWITCH_ARM_NAME=false`:** a switch arms from the context judge's target and confidence alone; the next product's name need not be heard.
+2. **No new switch.** `UTTERANCE_MERGE_WINDOW_MS=0` already judges every final as it comes, with no merge and no Q5 hold; add `CONTEXT_WINDOW_MS` (D-303) for the context. Transcript ids still keep each final judged once.
+3. **`CORRECTION_CHECK=judge`:** the compliance judge's listed alerts are corrected with no word check, no replacement match and no late code correction. Arm B's quote-checked corrections need arm B's schema, so they stay with `DESIGN_ARM=B`.
+4. **`QUALIFIER_ADDON=false`:** no late "in our in-house test" add-on.
+5. **`VERBAL_CHECK=judge`:** the context judge alone answers with arm B's fields (numbers said, hedged; B addendum). A spoken answer's hold and the relink use them instead of the unsure regex and word coverage. The numbers must still be in the draft.
+6. **`REFLEX_SCAN=false`:** no regex pre-scan and no provisional chip. With `REFLEX_ON_FAIL=card`, every line whose compliance call failed gets the check card, with no phrase. Arm C remains the bundle.
+7. **`JUDGE_PRODUCTS=all`:** every show product's sheet and rules go to the judges, with no alias match. "The products the context judge names" is not possible without running it before the others, which adds latency.
+8. **`COMMENT_PRODUCT=triage`:** a comment's product is triage's (code checks it is a product), otherwise the product on air. There is no alias match, no exclusion cues and no set-question override.
+9. **`DRAFT_GATE=provenance`:** the draft code gate keeps citations, products and numbers (arm B's minimal gate), and a negated restricted mention passes. Gone are the length and sentence count, rule 6 (subject window) and rule 7 (in-house regex).
+10. **No new switch.** `PREFILTER=pii_only` already exists.
+11. **`GROUP_JOIN=model`:** no joining of the only open group of an intent, and no stem match of ingredients in the cached answer key. The model's group pick and the exact same question remain.
+12. **`SHOUTOUT=judge`:** triage labels shout-outs (arm B's field and addendum); no regex.
+- **Later (onboarding):** `lawpack._wording_for`, `release._rounded`, the lean check pinning, `brief._threshold`, the brief's restricted-phrase drop.
+- **Tests:** `tests/test_d304.py` (18 tests). Suite: 1231 passed.

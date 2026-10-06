@@ -75,7 +75,8 @@ class CommentTriage:
         self.model = llm.fast.model
         self.catalog = catalog
         self.settings = settings
-        self.b = arms.meaning_to_llm(settings.DESIGN_ARM)  # D-187 arm B: shout-outs are a triage label
+        # D-187 arm B: shout-outs are a triage label; D-304 SHOUTOUT=judge: that piece alone
+        self.b = arms.meaning_to_llm(settings.DESIGN_ARM) or getattr(settings, "SHOUTOUT", "regex") == "judge"
 
     def _groups(self, open_groups: list[QuestionGroup]):
         """OPEN_GROUPS for the prompt, their ids, and the fixture encode/decode of group ids."""
@@ -112,7 +113,8 @@ class CommentTriage:
             agent=self.name, model=self.llm.triage.model, thinking_level=self.llm.triage.thinking_level,
             prompt_version=self.prompt_version,
             system_instruction=arms.system_instruction(self.prompt.system_instruction, self.name,
-                                                       self.settings.DESIGN_ARM, self.settings.prompts_path),
+                                                       self.settings.DESIGN_ARM, self.settings.prompts_path,
+                                                       extra_b=self.b),
             user_message=user, output_model=CommentTriageOutputB if self.b else CommentTriageOutput,
             deadline_ms=deadline_ms,
             session_id=inp.session_id, mock_primary_text=inp.text, mock_scenario=inp.scenario,
@@ -145,7 +147,8 @@ class CommentTriage:
             agent="comment_triage_batch", model=self.llm.triage.model, thinking_level=self.llm.triage.thinking_level,
             prompt_version=self.batch_prompt.version,
             system_instruction=arms.system_instruction(self.batch_prompt.system_instruction, "comment_triage_batch",
-                                                       self.settings.DESIGN_ARM, self.settings.prompts_path),
+                                                       self.settings.DESIGN_ARM, self.settings.prompts_path,
+                                                       extra_b=self.b),
             user_message=user, output_model=CommentTriageBatchOutputB if self.b else CommentTriageBatchOutput,
             deadline_ms=deadline_ms,
             session_id=inps[0].session_id, mock_primary_text="\n".join(x.text for x in inps),

@@ -64,9 +64,12 @@ def _addenda(prompts_dir: str) -> dict[tuple[str, str], str]:
     return out
 
 
-def system_instruction(base: str, agent: str, arm: str, prompts_dir: Path | str) -> str:
-    """The agent's system instruction with its arm family's additions, if any."""
-    extras = [x for layer in LAYERS[family(arm)] if (x := _addenda(str(prompts_dir)).get((layer, agent)))]
+def system_instruction(base: str, agent: str, arm: str, prompts_dir: Path | str, extra_b: bool = False) -> str:
+    """The agent's system instruction with its arm family's additions, if any. D-304 `extra_b`: arm B's addition for
+    this agent alone (one piece of arm B switched on by itself)."""
+    layers = LAYERS[family(arm)]
+    layers = (*layers, "B") if extra_b and "B" not in layers else layers
+    extras = [x for layer in layers if (x := _addenda(str(prompts_dir)).get((layer, agent)))]
     return "\n\n".join([base, *extras])
 
 

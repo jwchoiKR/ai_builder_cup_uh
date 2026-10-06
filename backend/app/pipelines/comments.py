@@ -108,7 +108,8 @@ async def _finish_armored(rt, comment_id: str, verdict: str, detail: str, latenc
 def note_shoutout(rt: "SessionRuntime", comment: Comment, label: str | None = None) -> None:
     """D-113: a purchase, first-time or compliment reaction the AI PD may read out with the name. D-187 arm B: the
     kind is triage's label, never a regex (a reaction the prefilter settles has none)."""
-    kind = label if arms.meaning_to_llm(rt.settings.DESIGN_ARM) else shout_kind(comment.text)
+    kind = (label if arms.meaning_to_llm(rt.settings.DESIGN_ARM) or rt.settings.SHOUTOUT == "judge"  # D-304
+            else shout_kind(comment.text))
     if kind is not None:
         rt.shoutouts.append(ShoutOut(comment.comment_id, comment.author_name, kind, comment.received_at))
 
@@ -184,10 +185,11 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
             await _finish_non_question(rt, comment_id, output, context_pid, source, latency_ms)
             return
 
-        if set_question(output.intent, comment.text, rt.catalog):
+        triage_product = rt.settings.COMMENT_PRODUCT == "triage"  # D-304: no alias rules on the comment's product
+        if not triage_product and set_question(output.intent, comment.text, rt.catalog):
             output = output.model_copy(update={"intent": "set_price"})
         intent = rt.intent(output.intent)
-        pid, basis = attribute_product(comment.text, output, context_pid, rt.catalog, intent)
+        pid, basis = attribute_product(comment.text, output, context_pid, rt.catalog, intent, by_triage=triage_product)
         async with rt.lock:
             if attempt == 1 and source not in ("fallback", "unscreened") and await _missed_new_group(
                     rt, output, pid, intent.intent, seen):
@@ -255,7 +257,8 @@ async def _missed_new_group(rt, output: CommentTriageOutput, pid, intent: str, s
     groups = await rt.groups()
     slots = output.condition_slots.model_dump()
     if find_group(groups, product_id=pid, intent=intent, slots=slots, canonical_question=output.canonical_question,
-                  candidate_id=output.group_candidate_id) is not None:
+                  candidate_id=output.group_candidate_id,
+                  single_fallback=rt.settings.GROUP_JOIN == "code") is not None:
         return False
     return any(
         g.group_id not in seen and is_open(g) and g.product_id == pid and g.intent == intent
@@ -293,7 +296,8 @@ async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pi
     intent = rt.intent(output.intent)
     slots = output.condition_slots.model_dump()
     g = find_group(await rt.groups(), product_id=pid, intent=intent.intent, slots=slots,
-                   canonical_question=output.canonical_question, candidate_id=output.group_candidate_id)
+                   canonical_question=output.canonical_question, candidate_id=output.group_candidate_id,
+                   single_fallback=rt.settings.GROUP_JOIN == "code")  # D-304
     created = g is None
     if g is None:
         route, reason = ("OPERATOR", "ai_unavailable") if source == "fallback" else await _route(rt, intent, pid, slots)
@@ -352,7 +356,7 @@ async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
     # question was worded, so two groups of it share one draft. D-214: only those; "shelf life once opened" and
     # "unopened shelf life" are two answers
     question = "" if g.intent in ONE_ANSWER_INTENTS else g.canonical_question
-    if g.intent == "ingredient_amount" and g.product_id:
+    if g.intent == "ingredient_amount" and g.product_id and rt.settings.GROUP_JOIN == "code":  # D-304
         # D-176 (comment flow CF12): "percentage of panthenol in it?" and "… in the ampoule?" drafted twice; the
         # same ingredient's amount is one answer
         named = _ingredients_named(rt, g.product_id, g.canonical_question)
@@ -586,6 +590,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
         c for p in rt.catalog.products for c in p.not_approved_claims]
     ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
+                                 provenance=rt.settings.DRAFT_GATE == "provenance",
                                  not_approved=not_approved)
     variant = g.condition_slots.get("variant")
     if ok and variant and g.intent in ONE_ANSWER_INTENTS and not any(
@@ -608,13 +613,15 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     return answer
 
 
-def draft_code_gate(out, passages, product_id, *, arm: str, reflex, not_approved) -> tuple[bool, list[str]]:
+def draft_code_gate(out, passages, product_id, *, arm: str, reflex, not_approved,
+                    provenance: bool = False) -> tuple[bool, list[str]]:
     """The code layer a draft passes before the LLM draft verifier, per design arm (D-200: also what
     eval_draft_verifier scores). Arms D to F2 (D-191): none but the composer's own refusal."""
     if arms.agents_decide(arm):
         return (True, []) if out.grounded and out.answer.strip() else (False, ["not grounded"])
     return verify_answer(out, passages, product_id, multi=product_id is None, reflex=reflex,
-                         not_approved_claims=not_approved, minimal=arms.meaning_to_llm(arm))  # D-187 arm B
+                         not_approved_claims=not_approved, minimal=arms.meaning_to_llm(arm) or provenance,
+                         negated_ok=provenance)  # D-187 arm B; D-304 DRAFT_GATE=provenance
 
 
 UNCHECKED = frozenset({"draft_check_timeout", "draft_check_error", "draft_check_invalid"})
