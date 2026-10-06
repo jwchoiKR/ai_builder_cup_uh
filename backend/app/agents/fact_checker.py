@@ -210,6 +210,42 @@ def _only_another_ingredient(c, passages: Sequence[Passage], said: set) -> bool:
             and not _same_substance(c.stated_value, c.correct_value))
 
 
+# D-282 R1: the grounding checks a record value may stand in for; never the approved-claims passage (D-048), an
+# absence, or another substance
+_GROUNDING = frozenset({"unknown passage", "quote not in the passage", "a number of the correction is not in the quote"})
+
+
+def _record_holds(c, catalog: Catalog, right: set, host: str) -> bool:
+    """D-282 R1: every number of the correction is a structured value of the product's record for the claim's field:
+    a price of the variant the line names (the main one when it names none, never a guess between several), the
+    size, an ingredient amount of the ingredient the line names, or an offer's price, percent or threshold."""
+    if not catalog.is_product(c.product_id):
+        return False
+    p = catalog.get_product(c.product_id)
+    fmt = lambda x: number_set(f"{x}")  # noqa: E731
+    said_nums = number_set(host)
+    named = [v for v in p.variants if said_nums & number_set(v.label)]
+    if len(named) > 1:
+        return False
+    if c.field in PRICE_FIELDS:
+        values = {p.live_price, p.list_price} if not named else {named[0].live_price, named[0].list_price}
+        nums = set().union(*(fmt(v) for v in values))
+        if c.field == "promo":
+            for promo in catalog.pack.promos.promos:
+                if c.product_id in promo.applies_to or c.product_id in promo.promo_prices:
+                    nums |= fmt(promo.promo_prices.get(c.product_id, "")) | fmt(promo.discount_pct_off_live_price or "")
+                    nums |= fmt(promo.min_spend or "")
+        return right <= nums
+    if c.field == "volume":
+        return right <= (number_set(named[0].label) if named else number_set(p.volume))
+    if c.field == "ingredient_amount":
+        words = set(re.findall(r"[a-z]{4,}", host.lower()))
+        nums = set().union(*(fmt(v) for k, v in p.key_facts.items()
+                             if any(w[:5] in k.replace("_", " ") for w in words)), set())
+        return bool(nums) and right <= nums
+    return False
+
+
 def _field_of(p: Passage | None) -> str:
     """D-280 F1: the field of a source passage: an offer or its terms is promo; a market, channel or where it is sold
     is availability; anything else stays other."""
@@ -476,6 +512,13 @@ def _post_validate(o: FactCheckOutput, passages: Sequence[Passage], catalog: Cat
             c.field = _field_of(by_id.get(c.passage_id))
             if c.field == "other":
                 ok, failed = False, "field other with no field from its source"
+        if (not ok and "R1" in fixes and right and c.passage_id is not None and failed in _GROUNDING
+                and _record_holds(c, catalog, right, host)):
+            # D-282 R1: the correction's number is the approved record's own value for this field and variant (a
+            # quote that OCR spaced or a table cell broke); restatements were dropped above and never get here
+            log.info("grounded in record field: field=%s correct=%r product=%s", c.field, c.correct_value,
+                     c.product_id)
+            ok = True
         if not ok:
             _drop(c, (failed if c.passage_id is not None and failed else "no source check passed"))
         elif c.quote and ((not right

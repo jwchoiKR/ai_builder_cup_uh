@@ -60,3 +60,33 @@ def test_d280_f2_never_grounds_a_quote_in_another_product(catalog):
                        "quote": "Ethanol 78% v/v"}], "reason": "t"}
     out = post_validate(FactCheckOutput.model_validate(raw), [mine, other], catalog, None, "x", fixes=frozenset({"F2"}))
     assert out.claims[0].verdict == "not_in_sources"
+
+
+@pytest.mark.parametrize("field, stated, correct, quote, line, kept", [
+    # rescue: the right number, the quote OCR-spaced so the quote check fails
+    ("price", "S$32", "S$36.00", "Live broadcast price S$ 36 . 00", "the cream is only thirty-two dollars", True),
+    ("ingredient_amount", "10% panthenol", "5%", "Panthenol 5 %", "ten percent panthenol in it", True),
+    # no rescue: a number the record does not hold for this field, or for the ingredient the line names
+    ("price", "S$32", "S$38.00", "Live broadcast price S$ 38 . 00", "the cream is thirty-two dollars", False),
+    ("ingredient_amount", "10% squalane", "5%", "Panthenol 5 %", "ten percent squalane in it", False),
+])
+def test_d282_r1_a_record_value_grounds_a_correction_whose_quote_fails(catalog, field, stated, correct, quote, line,
+                                                                        kept):
+    p = passage("key-facts#live-broadcast-price", "Key facts", "Live broadcast price: S$36.00")
+    raw = {"claims": [{"span": line, "product_id": PID, "verdict": "contradicted", "passage_id": p.passage_id,
+                       "field": field, "stated_value": stated, "correct_value": correct, "quote": quote}],
+           "reason": "t"}
+    verdict = lambda fixes: post_validate(FactCheckOutput.model_validate(raw), [p], catalog, None, line,  # noqa: E731
+                                          fixes=frozenset(fixes)).claims[0].verdict
+    assert verdict(()) == "not_in_sources"
+    assert (verdict({"R1"}) == "contradicted") is kept
+
+
+def test_d282_r1_never_resurrects_a_restatement(catalog):
+    p = passage("key-facts#live-broadcast-price", "Key facts", "Live broadcast price: S$36.00")
+    raw = {"claims": [{"span": "x", "product_id": PID, "verdict": "contradicted", "passage_id": p.passage_id,
+                       "field": "price", "stated_value": "S$36", "correct_value": "S$36.00", "quote": "S$ 36"}],
+           "reason": "t"}
+    out = post_validate(FactCheckOutput.model_validate(raw), [p], catalog, None, "it is thirty-six dollars",
+                        fixes=frozenset({"R1"}))
+    assert out.claims[0].verdict == "not_in_sources"
