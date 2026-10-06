@@ -174,6 +174,7 @@ class Rule(BaseModel):
     say_instead_hint: str
     reflex_phrases: list[str]
     required_terms: list[str] = []  # D-290 Q6 (from the language pack's category wording)
+    category: str = ""  # D-302: the rule's category (market, law pack or test qualifier), for vote matching
     # D-294: the fix that switches the term check on ("G4" for the test-result and evidence categories)
     terms_fix: str = "Q6"
     # D-294 G7: a line with a direction to the group ("on their own") and no promise to it is a usage line

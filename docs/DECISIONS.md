@@ -1776,3 +1776,18 @@ D-301: verifier latency knobs, after an invalid R2 run. The verifier timed out o
 - **Already settings, no code:** `VERIFY_THINKING=MINIMAL`; Flash-Lite as the verifier (`VERIFY_MODEL=gemini-3.5-flash-lite`, `VERIFY_THINKING=MEDIUM`).
 - **An unverified alert (verifier timeout) is an active alert:** it has `shown_at` and is listed in the eval rows with `"unverified": true`. A drop in detection on that run is therefore not the timeouts dropping alerts.
 - **Tests:** suite 1188 passed.
+
+D-302: the vote arm (`JUDGE_ARM=vote`, off by default): model votes in place of the semantic code drops. The user wants every new direction tested as a switchable arm.
+- **First pass:** the Flash-Lite agents with the semantic code drops off, the same as the R2 flagger. Schema and provenance checks stay.
+- **Extra runs:** on a line where the first pass has a candidate (a non-negated, non-quoted violation, or a contradicted fact), the same agent runs twice more, in parallel, with the same prompt and inputs. They start as soon as the first pass returns. They send no second (hedged) request. `VOTE_TEMPERATURE` sets their temperature; empty means the model's default, 1.0 on Gemini 3, which Google advises keeping (D-008). A line with no candidate is not run again.
+- **Agreement:**
+  - A compliance vote is the same rule id or the same rule category, not negated or quoted, on a span that overlaps (one holds the other, or they share a word). Rules now carry their category: the market category, the law-pack `rule_category`, or "test_qualifier".
+  - A fact vote is the same field, contradicted, with the same correction (equal numbers after normalisation; for a correction without numbers, half the words of the shorter one).
+- **Votes:**
+  - 3/3 keeps the rule's severity.
+  - 2/3 keeps the candidate capped at MEDIUM.
+  - 1/3 drops it, logged as "vote: 1/3".
+  - A failed extra run is no vote. When both fail, the candidate is kept, unverified.
+- **On the alert:** `votes`, and for facts `evidence_ids` (the relation arm's sentence ids). The eval rows carry both. The pipeline logs "vote: compliance/facts added N ms" per line.
+- **`VOTE_CONFIDENCE=self`:** the compliance judge and the relation fact checker add a `confidence` (0-1) to each violation and claim. It is a log field only (in the eval rows' call outputs).
+- **Tests:** `tests/test_vote.py`. Suite: 1206 passed.

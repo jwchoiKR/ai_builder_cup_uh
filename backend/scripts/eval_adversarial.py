@@ -123,7 +123,8 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 "alerts": [{"kind": a.kind, "product_id": a.product_id, "rule_id": a.rule_id, "severity": a.severity,
                             "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
-                            "correct_value": a.correct_value, "status": a.status, "unverified": a.unverified}
+                            "correct_value": a.correct_value, "status": a.status, "unverified": a.unverified,
+                            "votes": a.votes, "evidence_ids": a.evidence_ids}
                            for a in alerts]}
     finally:
         await ctx.runtimes.drop(rt.sid)

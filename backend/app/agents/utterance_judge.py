@@ -264,7 +264,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
     # verifier decides what the code drops below decided
     from ..config import get_settings
 
-    drops = not (get_settings().JUDGE_ARM == "verify" if verify is None else verify)
+    drops = not (get_settings().JUDGE_ARM in ("verify", "vote") if verify is None else verify)
     for v in o.compliance.violations:
         if v.rule_id not in rules:
             _cdrop(v, "unknown rule")

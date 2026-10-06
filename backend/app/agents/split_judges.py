@@ -14,7 +14,8 @@ import json
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
-from ..models.agent_io import ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ContextOutput, ContextOutputB
+from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ComplianceOutputRC, ContextOutput,
+                               ContextOutputB)
 from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -67,7 +68,7 @@ class _SplitJudge:
     def validate(self, out, values: dict):
         raise NotImplementedError
 
-    async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None) -> AgentResult:
+    async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None, **opts) -> AgentResult:
         values = values if values is not None else build_judge_values(self.catalog, inp)
         encode, decode = symbolic_ids(values)
         # D-194 arm E: the rules differ per line, so they leave the cached prefix
@@ -87,7 +88,7 @@ class _SplitJudge:
             cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             session_id=inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: self.fallback(inp, values),
-            fixture_encode=encode, fixture_decode=decode, preview=inp.utterance,
+            fixture_encode=encode, fixture_decode=decode, preview=inp.utterance, **opts,
         ))
         if res.output is not None:
             res.output = self.validate(res.output.model_copy(deep=True), values)
@@ -107,11 +108,15 @@ class ComplianceJudge(_SplitJudge):
             self.output_model = ComplianceOutputR
             if extra := arms._addenda(str(llm.prompts_path)).get(("REL", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+            if getattr(llm.settings, "VOTE_CONFIDENCE", "off") == "self":  # D-302: a log field
+                self.output_model = ComplianceOutputRC
+                if extra := arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)):
+                    self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_compliance(inp, values, self.catalog, self.reflex)
 
-    async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None) -> AgentResult:
+    async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None, **opts) -> AgentResult:
         search = rule_search.for_settings(self.llm.settings) if self.arm == "E" else None
         if search is not None:  # D-194 arm E: only the rules the search picks for this line (every rule on failure)
             values = dict(values if values is not None else build_judge_values(self.catalog, inp))
@@ -120,13 +125,13 @@ class ComplianceJudge(_SplitJudge):
             if ids is not None:
                 by_id = {r["rule_id"]: r for r in values["rules_compact_json"]}
                 values["rules_compact_json"] = [by_id[i] for i in dict.fromkeys(ids) if i in by_id]
-        return await super().run(inp, deadline_ms=deadline_ms, values=values)
+        return await super().run(inp, deadline_ms=deadline_ms, values=values, **opts)
 
     def extra_data(self) -> str:
         if not arms.meaning_to_llm(self.arm):
             if not self.fact_record:
                 return ""
-            rel = self.output_model is ComplianceOutputR  # D-299: the judge names the result by id
+            rel = issubclass(self.output_model, ComplianceOutputR)  # D-299: the judge names the result by id
             results = [{"product_id": p.product_id, "say": r.say} | ({"result_id": r.result_id} if rel else {})
                        for p in self.catalog.products
                        for r in p.qualified_results]
@@ -138,7 +143,7 @@ class ComplianceJudge(_SplitJudge):
 
     def validate(self, out: ComplianceOutput, values: dict) -> ComplianceOutput:
         return validate_compliance(out, self.catalog, values, arm=self.arm,
-                                   verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") == "verify")  # D-300
+                                   verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") in ("verify", "vote"))
 
 
 class ContextJudge(_SplitJudge):

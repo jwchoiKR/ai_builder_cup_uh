@@ -19,6 +19,7 @@ class Violation(BaseModel):
     # D-300: set by the verifier (never in the schema): its severity, and "kept without a verdict" (timeout)
     _severity: str | None = PrivateAttr(default=None)
     _unverified: bool = PrivateAttr(default=False)
+    _votes: int | None = PrivateAttr(default=None)  # D-302: the runs (of 3) that agree
 
 
 class Compliance(BaseModel):
@@ -131,6 +132,18 @@ class ComplianceOutputR(ComplianceOutput, _ArmB):
     compliance: ComplianceR
 
 
+class ViolationRC(ViolationR):
+    confidence: float | None = None  # D-302 VOTE_CONFIDENCE=self: a log field only
+
+
+class ComplianceRC(ComplianceR):
+    violations: list[ViolationRC]
+
+
+class ComplianceOutputRC(ComplianceOutputR):
+    compliance: ComplianceRC
+
+
 class AnswerLinkB(AnswerLink, _ArmB):
     numbers_said: list[str] = []  # every number the host said, as digits, in the suggested answer's unit
     hedged: bool = False  # the host sounded unsure or took it back
@@ -158,6 +171,8 @@ class FactClaim(BaseModel):
     passage_id: str | None
     quote: str | None
     _unverified: bool = PrivateAttr(default=False)  # D-300: kept without the verifier's verdict (timeout)
+    _votes: int | None = PrivateAttr(default=None)  # D-302
+    _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
 
 
 class FactCheckOutput(BaseModel):
@@ -182,6 +197,14 @@ class FactRelationClaim(BaseModel):
 
 class FactRelationOutput(BaseModel):
     claims: list[FactRelationClaim]
+
+
+class FactRelationClaimC(FactRelationClaim):
+    confidence: float  # D-302 VOTE_CONFIDENCE=self: how sure the model is (0-1); a log field only
+
+
+class FactRelationOutputC(FactRelationOutput):
+    claims: list[FactRelationClaimC]
 
 
 class VerifyOutput(BaseModel):
