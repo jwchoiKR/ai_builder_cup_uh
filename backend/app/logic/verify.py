@@ -73,8 +73,9 @@ def number_set(text: str) -> set[str]:
 
 # D-117 B8: numbers are checked with their subject ("panthenol 5%"), not only "appears in some quote"
 _TOKEN = re.compile(r"\d+(?:\.\d+)?|[a-z][a-z'-]*")
-_UNITS = frozenset("""ml mls percent s sgd dollar dollars rm myr ringgit hour hours week weeks month months day days minute minutes
-pump pumps drop drops g x of and the a an is are has have with""".split())
+# D-278: units, currencies and fillers only; no product's own measure words (they were "pump" and "drop")
+_UNITS = frozenset("""ml mls l g kg mg percent s sgd dollar dollars rm myr ringgit hour hours week weeks month months day
+days minute minutes x of and the a an is are has have with""".split())
 SUBJECT_WINDOW = 3
 
 
@@ -198,13 +199,21 @@ def verify_answer(
         for n, subject in misattributed_numbers(answer, subjects):
             errors.append(f"number {n} is not the value of '{subject}' in the cited quotes")
 
-        # 7. D-126: a number from an in-house test result is said with "in-house" / "our test" (D007)
-        test_numbers: set[str] = set()
+        # 7. D-126: a number from an in-house test result is said with "in-house" / "our test" (D007). D-278: a
+        # release's result passage ends with its own qualifier ("(tested by Larkspur Labs)"), whoever ran the test;
+        # the answer names that qualifier, and only an in-house one is met by "our test"
+        lex = reflex.lexicon
         for p in cited:
-            if p.section == IN_HOUSE_SECTION:
-                test_numbers |= number_set(p.text)
-        if test_numbers & number_set(answer) and not reflex.lexicon.is_qualified(answer):
-            errors.append("in-house test result without 'in-house test'")
+            if p.section != IN_HOUSE_SECTION or not number_set(p.text) & number_set(answer):
+                continue
+            q = re.search(r"\(([^()]+)\)\W*$", p.text)
+            own = q is None or lex.is_qualified(q.group(1))
+            words = lex.content_words(q.group(1)) if q else []
+            if (words and lex.coverage(words, lex.content_words(answer)) >= 0.5) or (own and lex.is_qualified(answer)):
+                continue
+            errors.append("in-house test result without 'in-house test'" if own else
+                          f"test result without its qualifier ({q.group(1)})")
+            break
 
     # 5. no restricted wording, even negated
     hits = reflex.scan(answer)

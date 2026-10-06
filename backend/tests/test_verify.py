@@ -214,3 +214,21 @@ async def test_d190_an_efficacy_question_gets_the_approved_claims(pack, catalog)
     assert "DL-AM-01#approved-on-air-claims#approved" in {p.passage_id for p in got}
     assert {"say_not": "Removes wrinkles", "say": "Helps reduce the look of fine dryness lines."} in \
         inputs.avoid_saying_json(catalog, "ampoule_deep_hydration")
+
+
+def test_d278_a_third_party_result_needs_its_own_qualifier_not_in_house_wording(passages, reflex):
+    """A release puts every qualified result in the test-results section with its qualifier; a lab's result said with
+    the lab's name is right, and "in our in-house test" is not its qualifier."""
+    from app.models.data import Passage
+
+    p = Passage(passage_id="TT-01#in-house-test-results#result-1", product_id=CREAM, doc="sheet",
+                section="In-house test results", score=0.0,
+                text="Stays non-transferring for 8 hours, indoors (tested by Larkspur Labs, report LL-77)")
+    cite = [(p.passage_id, "Stays non-transferring for 8 hours")]
+    lab = out("Larkspur Labs tested it: it stays non-transferring for 8 hours indoors.", cite)
+    ours = out("In our in-house test it stays non-transferring for 8 hours.", cite)
+    bare = out("It stays non-transferring for 8 hours.", cite)
+    run = lambda o: verify_answer(o, [*passages, p], CREAM, multi=False, reflex=reflex, not_approved_claims=[])  # noqa: E731
+    assert run(lab)[0]
+    assert run(ours)[1] == ["test result without its qualifier (tested by Larkspur Labs, report LL-77)"]
+    assert run(bare)[1] == ["test result without its qualifier (tested by Larkspur Labs, report LL-77)"]
