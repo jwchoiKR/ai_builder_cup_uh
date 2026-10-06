@@ -1,11 +1,11 @@
 # Deploying to Cloud Run (test deployment)
 
-One test service in project `separk-cloocus` (and only there), behind IAP. Only `jaewoo@cloocus.com` may
+One test service in project `ai-budiler-cup-uh-team-pjt` (number 830408193168; and only there, D-289: moved from `separk-cloocus` on 10/6), behind IAP. Only `jaewoo@cloocus.com` may
 open it for now.
 
 | service | Cloud Run region | Speech-to-Text | Gemini | URL |
 |---|---|---|---|---|
-| `live-studio-us` | us-central1 | `us` (chirp_3) | `global` | https://live-studio-us-110085173686.us-central1.run.app |
+| `live-studio-us` | us-central1 | `us` (chirp_3) | `global` | https://live-studio-us-830408193168.us-central1.run.app (after the first deploy) |
 
 Cloud Run runs next to Speech-to-Text, so the audio stream stays in the US. An earlier plan also had
 `live-studio-sg` (asia-southeast1, near the viewers) to compare latency; it was dropped (user, 10/5).
@@ -19,7 +19,7 @@ words ("panthenol" as "penconazole"). gemini-3.5-flash-lite and gemini-3.8-flash
 ## Deploy
 
 ```sh
-gcloud auth login                       # an account with Owner or Editor on separk-cloocus
+gcloud auth login                       # an account with Owner or Editor on ai-budiler-cup-uh-team-pjt
 gcloud components update                # `run deploy --iap` needs a recent SDK
 deploy/cloudrun.sh                      # us-central1, IAP for jaewoo@cloocus.com
 IAP_MEMBERS="user:a@example.com,user:b@example.com" deploy/cloudrun.sh   # more people (ask first)
@@ -49,7 +49,9 @@ The script:
 - **Demo tools** stay on (`DEMO_TOOLS_ENABLED=true`) for testing; `APP_ENV=cloud` turns them off by
   default otherwise.
 
-## Google resources (created 10/5, user approved; all in us-central1)
+## Google resources (all in us-central1)
+
+In `ai-budiler-cup-uh-team-pjt` (10/6): the APIs above, the Model Armor template `live-studio-comments` (same filters), and what `deploy/cloudrun.sh` creates (the service account, its roles, the onboarding bucket, Artifact Registry). Firestore, Vertex AI Search and the docs bucket are not recreated; the default config does not use them. The test service account `live-studio-driver` must be created before `deploy/iap-token.sh` works. The table below is the old project's setup (10/5).
 
 | resource | name | used by |
 |---|---|---|
