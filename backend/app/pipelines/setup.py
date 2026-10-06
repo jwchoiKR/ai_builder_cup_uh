@@ -595,7 +595,8 @@ def _ingredient_term(key: str) -> str:
 def default_terms(ctx: "AppContext") -> tuple[GlossaryTerm, dict[str, list[GlossaryTerm]]]:
     """§8.15 default glossary: brand, product names and every ingredient in products.json key facts."""
     cat = _catalog(ctx)
-    brand = GlossaryTerm(term=cat.brand, kind="brand", spoken_forms=[cat.brand.lower()], source_section="products.json")
+    brand = (GlossaryTerm(term=cat.brand, kind="brand", spoken_forms=[cat.brand.lower()], source_section="products.json")
+             if cat.brand else None)  # D-278: a clean base has no demo brand
     per: dict[str, list[GlossaryTerm]] = {}
     for p in cat.products:
         terms = [GlossaryTerm(term=p.name, kind="product", spoken_forms=[p.name.lower(), p.short_name],
@@ -616,7 +617,7 @@ async def current_glossary(ctx: "AppContext") -> dict[str, Any]:
     brand, defaults = default_terms(ctx)
     terms: list[GlossaryTerm] = []
     seen: set[str] = set()
-    for t in [brand] + [t for pid in defaults for t in doc.terms_by_product.get(pid, defaults[pid])]:
+    for t in [brand] * (brand is not None) + [t for pid in defaults for t in doc.terms_by_product.get(pid, defaults[pid])]:
         if t.term.lower() not in seen:
             seen.add(t.term.lower())
             terms.append(t)
