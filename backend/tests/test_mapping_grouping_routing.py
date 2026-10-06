@@ -8,7 +8,7 @@ from app.models.agent_io import CommentTriageOutput, ConditionSlots
 from app.models.session import QuestionGroup, Segment
 
 CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
-NO_SLOTS = {"skin_type": None, "life_stage": None, "condition": None, "combined_with": None, "time_of_day": None}
+NO_SLOTS = {"person_type": None, "life_stage": None, "condition": None, "combined_with": None, "time_of_day": None}
 
 
 def triage(pid=None, basis="unknown", intent="price") -> CommentTriageOutput:
@@ -60,37 +60,37 @@ def test_grace_window_at_switch_boundary():
 # ---- grouping ---------------------------------------------------------------------------------
 
 
-def group(gid, intent="skin_type_suitability", slots=None, q="Is it suitable for oily skin?", pid=CREAM, status="ready", last_at=0):
-    return QuestionGroup(group_id=gid, product_id=pid, intent=intent, condition_slots=slots or {"skin_type": "oily"},
+def group(gid, intent="suitability", slots=None, q="Is it suitable for oily skin?", pid=CREAM, status="ready", last_at=0):
+    return QuestionGroup(group_id=gid, product_id=pid, intent=intent, condition_slots=slots or {"person_type": "oily"},
                          canonical_question=q, member_comment_ids=["c1"], unique_author_ids=["u1"], first_at=0,
                          last_at=last_at, route="HOST", route_reason="intent", status=status)
 
 
 def test_slot_compatibility():
-    assert slots_compatible({"skin_type": "oily"}, {"skin_type": "oily", "time_of_day": "night"})
-    assert slots_compatible({"skin_type": None}, {"skin_type": "dry"})
-    assert not slots_compatible({"skin_type": "oily"}, {"skin_type": "dry"})
+    assert slots_compatible({"person_type": "oily"}, {"person_type": "oily", "time_of_day": "night"})
+    assert slots_compatible({"person_type": None}, {"person_type": "dry"})
+    assert not slots_compatible({"person_type": "oily"}, {"person_type": "dry"})
     assert slots_compatible({}, {})
 
 
 def test_candidate_must_match_product_intent_slots():
     oily = group("g_oily")
-    args = dict(product_id=CREAM, intent="skin_type_suitability", canonical_question="Will it work for oily skin?")
-    assert find_group([oily], slots={"skin_type": "oily"}, candidate_id="g_oily", **args) is oily
-    assert find_group([oily], slots={"skin_type": "dry"}, candidate_id="g_oily", **args) is None
+    args = dict(product_id=CREAM, intent="suitability", canonical_question="Will it work for oily skin?")
+    assert find_group([oily], slots={"person_type": "oily"}, candidate_id="g_oily", **args) is oily
+    assert find_group([oily], slots={"person_type": "dry"}, candidate_id="g_oily", **args) is None
     # D-135: a single-question intent joins the only open group that fits, whatever the candidate id
-    assert find_group([oily], slots={"skin_type": "oily"}, candidate_id="g_missing", **args) is oily
+    assert find_group([oily], slots={"person_type": "oily"}, candidate_id="g_missing", **args) is oily
     how = dict(args, intent="how_to_use")
-    assert find_group([group("g_how", intent="how_to_use")], slots={"skin_type": "oily"}, candidate_id=None,
+    assert find_group([group("g_how", intent="how_to_use")], slots={"person_type": "oily"}, candidate_id=None,
                       **how) is None  # several questions share how_to_use: wording or candidate only
     closed = group("g_closed", status="closed")
-    assert find_group([closed], slots={"skin_type": "oily"}, candidate_id="g_closed", **args) is None
+    assert find_group([closed], slots={"person_type": "oily"}, candidate_id="g_closed", **args) is None
     wrong_product = dict(args, product_id=AMPOULE)
-    assert find_group([oily], slots={"skin_type": "oily"}, candidate_id="g_oily", **wrong_product) is None
+    assert find_group([oily], slots={"person_type": "oily"}, candidate_id="g_oily", **wrong_product) is None
 
 
 def test_same_canonical_question_joins_without_candidate():
-    g = group("g1", q="How much is it?", intent="price", slots={"skin_type": None})
+    g = group("g1", q="How much is it?", intent="price", slots={"person_type": None})
     found = find_group([g], product_id=CREAM, intent="price", slots={}, canonical_question="how much is it",
                        candidate_id=None)
     assert found is g
@@ -115,7 +115,7 @@ def test_routes(pack):
     i = pack.intents_by_name
     assert route_for(i["price"], CREAM) == ("AUTO", "intent")
     assert route_for(i["price"], None) == ("HOST", "unresolved_product")  # D-113: "Which product?"
-    assert route_for(i["skin_type_suitability"], CREAM) == ("HOST", "intent")
+    assert route_for(i["suitability"], CREAM) == ("HOST", "intent")
     assert route_for(i["pregnancy_breastfeeding"], CREAM) == ("HOST", "sensitive")  # D-113
     assert route_for(i["shipping"], None) == ("OPERATOR", "intent")
     assert route_for(i["product_comparison"], None) == ("HOST", "intent")
@@ -148,6 +148,6 @@ def test_d213_triage_decides_the_product_and_aliases_are_only_candidates(catalog
 
 def test_d214_an_empty_condition_is_not_any_condition():
     oily = group("g_oily")  # "Is it suitable for oily skin?"
-    args = dict(product_id=CREAM, intent="skin_type_suitability", canonical_question="Is it suitable for my skin?")
+    args = dict(product_id=CREAM, intent="suitability", canonical_question="Is it suitable for my skin?")
     assert find_group([oily], slots={}, candidate_id=None, **args) is None  # code alone: conditions differ
     assert find_group([oily], slots={}, candidate_id="g_oily", **args) is oily  # the model says same answer

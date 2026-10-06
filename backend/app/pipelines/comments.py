@@ -116,7 +116,7 @@ def note_shoutout(rt: "SessionRuntime", comment: Comment, label: str | None = No
 def _fallback_output(text: str) -> CommentTriageOutput:
     return CommentTriageOutput(
         kind="question", hide_category=None, product_id=None, product_basis="unknown", intent="other",
-        condition_slots=ConditionSlots(skin_type=None, life_stage=None, condition=None, combined_with=None, time_of_day=None),
+        condition_slots=ConditionSlots(person_type=None, life_stage=None, condition=None, combined_with=None, time_of_day=None),
         canonical_question=text.strip()[:120], group_candidate_id=None, reason="AI unavailable",
     )
 

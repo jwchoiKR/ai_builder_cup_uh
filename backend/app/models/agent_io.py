@@ -148,13 +148,13 @@ class JudgeSingleOutput(UtteranceJudgeOutput):
 
 # ---- CommentTriage (§7.5) --------------------------------------------------------------------
 
-SLOT_KEYS = ("skin_type", "life_stage", "condition", "combined_with", "time_of_day")
+SLOT_KEYS = ("person_type", "life_stage", "condition", "combined_with", "time_of_day")
 
 
 class ConditionSlots(BaseModel):
     """The five slot keys of intents.json, so the model sees them in the schema (D-011)."""
 
-    skin_type: str | None
+    person_type: str | None
     life_stage: str | None
     condition: str | None
     combined_with: str | None

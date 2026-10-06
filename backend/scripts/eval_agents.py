@@ -190,7 +190,7 @@ async def run(structure: str, runs: int, concurrency: int, cases: list[dict] | N
                         product_id=on_air, rule_id=a["rule_id"], severity=pack.rules_by_id[a["rule_id"]].severity,
                         span=a["span"], say_instead=a.get("say_instead"), created_at=now, shown_at=now)
                   for a in ctx.get("active_alerts", [])]
-        questions = [(_group({**q, "intent": "skin_type_suitability"}, now), q.get("suggested_answer"))
+        questions = [(_group({**q, "intent": "suitability"}, now), q.get("suggested_answer"))
                      for q in ctx.get("open_questions", [])]
         previous = ctx.get("recent_transcript", [])
         utt = case["utterance"]

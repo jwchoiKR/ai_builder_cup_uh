@@ -71,12 +71,12 @@ async def test_bursts_b1_to_b4(api):
 
     # ---- S04 / B2: grouping and host top 3 -----------------------------------------------------------
     state, viewer = await burst(client, scheduler, sid, "B2")
-    suit = by_question(state, "skin_type_suitability")
-    oily = next(g for g in suit if g["condition_slots"].get("skin_type") == "oily")
-    dry = next(g for g in suit if g["condition_slots"].get("skin_type") == "dry")
+    suit = by_question(state, "suitability")
+    oily = next(g for g in suit if g["condition_slots"].get("person_type") == "oily")
+    dry = next(g for g in suit if g["condition_slots"].get("person_type") == "dry")
     assert len(oily["unique_author_ids"]) == 7 and oily["status"] == "ready" and oily["route"] == "HOST"
     assert dry["group_id"] != oily["group_id"]
-    [makeup] = by_question(state, "makeup_compatibility")
+    [makeup] = by_question(state, "compatibility")
     assert len(makeup["unique_author_ids"]) == 4 and makeup["status"] == "ready"
     on_host = [s["group_id"] for s in state["host_slots"]]
     # D-113: an AI-answered question with 3+ askers also waits there, to be read out on air

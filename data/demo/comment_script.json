@@ -115,10 +115,10 @@
           "author_name": "Raj",
           "text": "Is it OK for oily skin?",
           "expect": {
-            "intent": "skin_type_suitability",
+            "intent": "suitability",
             "route": "HOST",
             "slots": {
-              "skin_type": "oily"
+              "person_type": "oily"
             }
           }
         },
@@ -173,7 +173,7 @@
           "author_name": "Ming",
           "text": "Can I use it under makeup?",
           "expect": {
-            "intent": "makeup_compatibility",
+            "intent": "compatibility",
             "route": "HOST"
           }
         },
@@ -201,9 +201,9 @@
           "author_name": "Kai",
           "text": "is it okay for dry skin too?",
           "expect": {
-            "intent": "skin_type_suitability",
+            "intent": "suitability",
             "slots": {
-              "skin_type": "dry"
+              "person_type": "dry"
             },
             "note": "different slot, separate group"
           }

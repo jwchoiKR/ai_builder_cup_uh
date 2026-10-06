@@ -10,7 +10,7 @@ from .catalog import Catalog
 Basis = Literal["explicit", "context", "content", "unknown", "operator"]
 # Questions about the products together: the answer is on each product sheet (set price, which goes
 # first), so "both products" falls back to the on-air product instead of "unresolved" (D-043).
-SET_INTENTS = frozenset({"set_price", "routine_order"})
+SET_INTENTS = frozenset({"set_price", "order_of_use"})
 
 
 def attribute_product(

@@ -146,7 +146,7 @@ def prompt_values(case: dict, catalog) -> dict:
                     product_id=on_air, rule_id=a["rule_id"], severity=catalog.pack.rules_by_id[a["rule_id"]].severity,
                     span=a["span"], say_instead=a.get("say_instead"), created_at=0, shown_at=0)
               for a in ctx.get("active_alerts", []) if a.get("kind", "compliance") == "compliance"]
-    questions = [(_group({**q, "intent": "skin_type_suitability"}, 0), q.get("suggested_answer"))
+    questions = [(_group({**q, "intent": "suitability"}, 0), q.get("suggested_answer"))
                  for q in ctx.get("open_questions", [])]
     inp = JudgeInput(utterance=case["utterance"], on_air=on_air, active_alerts=alerts,
                      open_questions=questions, previous=ctx.get("recent_transcript", []), scenario="eval",

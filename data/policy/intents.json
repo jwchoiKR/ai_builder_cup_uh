@@ -96,7 +96,7 @@
       "product_scope": "single"
     },
     {
-      "intent": "skin_type_suitability",
+      "intent": "suitability",
       "group": "product",
       "route": "HOST",
       "sensitive": false,
@@ -112,7 +112,7 @@
       "product_scope": "single"
     },
     {
-      "intent": "routine_order",
+      "intent": "order_of_use",
       "group": "product",
       "route": "HOST",
       "sensitive": false,
@@ -120,7 +120,7 @@
       "product_scope": "single"
     },
     {
-      "intent": "makeup_compatibility",
+      "intent": "compatibility",
       "group": "product",
       "route": "HOST",
       "sensitive": false,
@@ -233,36 +233,15 @@
     }
   ],
   "condition_slots": {
-    "skin_type": [
-      "dry",
-      "oily",
-      "combination",
-      "sensitive",
-      "normal",
-      "acne_prone"
-    ],
+    "person_type": [],
     "life_stage": [
       "pregnant",
       "breastfeeding",
       "teen",
       "child"
     ],
-    "condition": [
-      "eczema",
-      "dermatitis",
-      "rosacea",
-      "acne",
-      "allergy",
-      "other"
-    ],
-    "combined_with": [
-      "vitamin_c",
-      "retinol",
-      "aha_bha",
-      "sunscreen",
-      "makeup",
-      "other"
-    ],
+    "condition": [],
+    "combined_with": [],
     "time_of_day": [
       "morning",
       "night"
@@ -275,5 +254,6 @@
     "WAIT_TIEBREAK_PER_MIN": 0.1,
     "WAIT_TIEBREAK_MAX_MIN": 5
   },
-  "product_scope_note": "single: needs one resolved product; multi: may be about both products (product_id may be null, composer uses passages of all products); none: general question, product_id is always null."
+  "product_scope_note": "single: needs one resolved product; multi: may be about both products (product_id may be null, composer uses passages of all products); none: general question, product_id is always null.",
+  "slot_note": "D-278: an empty list is a free slot, a short lowercase phrase as the viewer gives it (\"oily skin\", \"curly hair\", \"diabetes\", \"another serum\"); a listed slot takes only its values."
 }

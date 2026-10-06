@@ -7,12 +7,12 @@ CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
 
 
 def test_answer_key_includes_promo_state_and_doc_version():
-    base = dict(product_id=CREAM, intent="price", slots={"skin_type": None}, canonical_question="How much is it?")
+    base = dict(product_id=CREAM, intent="price", slots={"person_type": None}, canonical_question="How much is it?")
     k1 = answer_cache_key(**base, promo_state="none", doc_version=0)
     assert k1 == answer_cache_key(**{**base, "canonical_question": "how much is it"}, promo_state="none", doc_version=0)
     assert k1 != answer_cache_key(**base, promo_state="promo_time_sale_10", doc_version=0)
     assert k1 != answer_cache_key(**base, promo_state="none", doc_version=1)
-    assert k1 != answer_cache_key(**{**base, "slots": {"skin_type": "oily"}}, promo_state="none", doc_version=0)
+    assert k1 != answer_cache_key(**{**base, "slots": {"person_type": "oily"}}, promo_state="none", doc_version=0)
 
 
 def test_answer_cache_invalidation_by_intent():
@@ -64,7 +64,7 @@ async def test_a_how_to_use_question_always_gets_the_how_to_use_steps(pack):
     from app.logic.catalog import Catalog
 
     r = LocalRetriever(pack.passages)
-    for intent in ("how_to_use", "routine_order"):
+    for intent in ("how_to_use", "order_of_use"):
         got = await gather_passages(r, Catalog(pack), {}, product_id=AMPOULE, intent=intent,
                                     canonical_question="How many drops?", promo=None, top_k=6)
         assert "DL-AM-01#how-to-use#steps" in {p.passage_id for p in got}

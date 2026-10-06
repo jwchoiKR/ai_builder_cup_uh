@@ -10,7 +10,7 @@ CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
 P = QueueParams(top_n=3, min_dwell_ms=20_000, repeat_threshold=5)
 
 
-def g(gid, *, askers=1, status="ready", route="HOST", pid=CREAM, intent="skin_type_suitability", first_at=0, **kw):
+def g(gid, *, askers=1, status="ready", route="HOST", pid=CREAM, intent="suitability", first_at=0, **kw):
     return QuestionGroup(group_id=gid, product_id=pid, intent=intent, condition_slots={}, canonical_question=gid,
                          member_comment_ids=[f"c{i}" for i in range(askers)],
                          unique_author_ids=[f"u{i}" for i in range(askers)], first_at=first_at, last_at=first_at,
@@ -30,7 +30,7 @@ def ids(slots):
 
 def test_score_formula(pack):
     w = pack.intents.ranking_weights
-    intent = pack.intents_by_name["skin_type_suitability"]  # purchase_impact 2
+    intent = pack.intents_by_name["suitability"]  # purchase_impact 2
     grp = g("a", askers=7, first_at=0)
     assert score(grp, intent, w, CREAM, now=3 * 60_000) == 2.0 * 7 + 1.5 * 2 + 3.0 + 0.1 * 3
     assert score(grp, intent, w, AMPOULE, now=60 * 60_000) == 2.0 * 7 + 1.5 * 2 + 0.1 * 5  # wait capped at 5 min

@@ -31,7 +31,7 @@ def jo(**kw) -> UtteranceJudgeOutput:
 
 
 def grp(**kw) -> QuestionGroup:
-    base = dict(group_id="g1", product_id=CREAM, intent="skin_type_suitability", condition_slots={},
+    base = dict(group_id="g1", product_id=CREAM, intent="suitability", condition_slots={},
                 canonical_question="Is it suitable for oily skin?", member_comment_ids=["c1"], unique_author_ids=["u1"],
                 first_at=0, last_at=0, route="HOST", route_reason="intent", status="ready", answer_id="a1")
     return QuestionGroup(**{**base, **kw})

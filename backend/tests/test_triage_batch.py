@@ -99,7 +99,7 @@ async def test_item_missing_from_the_batch_is_triaged_alone(env):
 async def test_batched_mock_replays_the_recorded_single_fixture(rt_free, tmp_path):
     rt = rt_free
     out = {"kind": "question", "hide_category": None, "product_id": "cream_hydra_barrier", "product_basis": "context",
-           "intent": "texture", "condition_slots": {"skin_type": None, "life_stage": None, "condition": None,
+           "intent": "texture", "condition_slots": {"person_type": None, "life_stage": None, "condition": None,
                                                     "combined_with": None, "time_of_day": None},
            "canonical_question": "Is it sticky?", "group_candidate_id": None, "reason": "recorded fixture"}
     path = tmp_path / "comment_triage" / f"{mock_key('comment_triage', 'so sticky or not', 'default')}.json"

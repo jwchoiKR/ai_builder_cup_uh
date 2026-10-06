@@ -3,9 +3,9 @@
  "hide_category": null,
  "product_id": "ampoule_deep_hydration",
  "product_basis": "context",
- "intent": "routine_order",
+ "intent": "order_of_use",
  "condition_slots": {
-  "skin_type": null,
+  "person_type": null,
   "life_stage": null,
   "condition": null,
   "combined_with": "vitamin_c",

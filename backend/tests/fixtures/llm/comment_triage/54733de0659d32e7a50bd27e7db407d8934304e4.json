@@ -5,7 +5,7 @@
  "product_basis": "context",
  "intent": "medical_condition",
  "condition_slots": {
-  "skin_type": null,
+  "person_type": null,
   "life_stage": "child",
   "condition": "eczema",
   "combined_with": null,

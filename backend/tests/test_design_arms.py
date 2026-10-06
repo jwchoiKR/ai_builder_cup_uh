@@ -153,7 +153,7 @@ async def test_arm_b_a_shout_out_is_triages_label(label):
         text = "Just bought two, so excited!!"
         llm.outputs[("comment_triage", text)] = {
             "kind": "reaction", "hide_category": None, "product_id": None, "product_basis": "unknown", "intent": None,
-            "condition_slots": {k: None for k in ("skin_type", "age_group", "life_stage", "condition", "combined_with",
+            "condition_slots": {k: None for k in ("person_type", "age_group", "life_stage", "condition", "combined_with",
                                                   "time_of_day")},
             "canonical_question": "", "group_candidate_id": None, "reason": "scripted", "shoutout": label}
         await say(rt, "Mei", text)
@@ -303,7 +303,7 @@ async def test_arm_f1_composer_answers_from_the_files_its_tool_step_asked_for():
     text = "How do I use the cream?"
     llm.outputs[("comment_triage", text)] = {
         "kind": "question", "hide_category": None, "product_id": CREAM, "product_basis": "explicit",
-        "intent": "how_to_use", "condition_slots": {k: None for k in ("skin_type", "age_group", "life_stage", "condition",
+        "intent": "how_to_use", "condition_slots": {k: None for k in ("person_type", "age_group", "life_stage", "condition",
                                                                      "combined_with", "time_of_day")},
         "canonical_question": text, "group_candidate_id": None, "reason": "scripted", "shoutout": None}
     try:

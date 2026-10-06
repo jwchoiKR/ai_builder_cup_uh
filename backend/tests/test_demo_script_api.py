@@ -92,8 +92,8 @@ async def test_demo_script_end_to_end(demo: Demo):
     await demo.refresh()
     [price] = demo.groups("price")
     assert price["status"] == "auto_answered" and len(price["unique_author_ids"]) == 4
-    oily = next(g for g in demo.groups("skin_type_suitability") if g["condition_slots"]["skin_type"] == "oily")
-    [makeup] = demo.groups("makeup_compatibility")
+    oily = next(g for g in demo.groups("suitability") if g["condition_slots"]["person_type"] == "oily")
+    [makeup] = demo.groups("compatibility")
     assert len(oily["unique_author_ids"]) == 7 and len(makeup["unique_author_ids"]) == 4
     assert {s["group_id"] for s in demo.state["host_slots"]} >= {oily["group_id"], makeup["group_id"]}
 

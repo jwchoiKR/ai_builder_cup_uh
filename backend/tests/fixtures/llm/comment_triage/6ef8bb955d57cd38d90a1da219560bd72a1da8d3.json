@@ -3,9 +3,9 @@
  "hide_category": null,
  "product_id": "cream_hydra_barrier",
  "product_basis": "context",
- "intent": "makeup_compatibility",
+ "intent": "compatibility",
  "condition_slots": {
-  "skin_type": null,
+  "person_type": null,
   "life_stage": null,
   "condition": null,
   "combined_with": "makeup",
