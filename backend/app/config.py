@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"
     # D-280: switchable fixes of fact-claim code drops ("F1,F2,..."); empty = today's checks
-    FACT_FIXES: str = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6"  # D-293 freeze: all on
+    FACT_FIXES: str = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7"  # D-293 freeze: all on; D-294 adds G1-G7
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"

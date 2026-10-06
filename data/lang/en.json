@@ -155,6 +155,8 @@
       ]
     },
     "vulnerable": {
+      "direction_terms": ["alone", "on their own", "on his own", "on her own", "on your own", "by themselves", "by himself", "by herself", "by yourself", "unsupervised", "without supervision", "without an adult", "without adult", "without help", "no adult", "no supervision", "adult supervision", "can skip", "skip the"],
+      "promise_terms": ["safe", "harmless", "gentle", "mild", "side effect", "no risk", "risk-free", "risk free", "suitable", "good for", "great for", "perfect for", "ideal for", "best for", "fine for", "ok for", "okay for", "made for", "designed for", "formulated for", "recommend", "approved", "cure", "heal", "help", "treat", "protect", "relie", "sooth", "prevent", "won't harm", "no harm", "can use", "can take", "can eat", "can apply", "can drink"],
       "required_terms": ["pregnan", "breastfeed", "nursing mother", "expecting mother", "mum-to-be", "mom-to-be", "baby", "babies", "infant", "newborn", "toddler", "child", "kid", "teen", "elderly", "senior", "eczema", "dermatitis", "psoriasis", "rosacea", "acne", "diabet", "allerg", "asthma", "condition", "disease", "patient", "people with", "those with", "anyone with", "everyone", "anyone", "everybody", "anybody", "all ages", "whole family", "every age"],
       "unacceptable_examples": [
         "It is safe for pregnant women.",
@@ -235,6 +237,8 @@
       ]
     },
     "test_qualifier": {
+      "required_terms": ["test", "study", "studies", "trial", "panel", "clinical", "lab", "dermatolog", "result", "participant", "people", "person", "user", "adult", "women", "men", "volunteer", "subject", "out of", "of us", "agree", "said", "say", "felt", "feel", "report", "saw", "see", "notic", "show", "prove", "found", "measur", "up", "down", "rise", "rose", "increas", "decreas", "reduc", "improv", "boost", "more", "less", "fewer", "better", "higher", "lower", "faster", "longer", "doubl", "tripl", "twice", "half", "times", "plus", "+", "after", "within", "hour", "day", "week", "month", "minute", "last", "stay", "kept", "keep", "remov", "absorb"],
+      "terms_fix": "G4",
       "unacceptable_examples": [
         "Softness goes up thirty percent after one week.",
         "Zero out of thirty-two people reacted in the patch test.",
@@ -295,6 +299,8 @@
       ]
     },
     "unsupported_evidence": {
+      "required_terms": ["prove", "proof", "evidence", "study", "studies", "studied", "clinical", "test", "lab", "scien", "research", "trial", "data", "result", "before and after", "before-and-after", "work", "effective", "guarantee", "certif", "review", "rated", "trust", "promise", "customer", "user", "people", "everyone", "out of", "doctor", "expert", "dermatolog", "show", "confirm", "backed", "fact"],
+      "terms_fix": "G4",
       "unacceptable_examples": [
         "It's proven to work, trust me.",
         "Here's my before and after, I won't say how many weeks apart."
@@ -576,6 +582,8 @@
     "affirmation_cues": ["and yes", "yes, that's", "yes, it does", "yes it does", "i agree", "i fully agree", "i totally agree", "agree with", "that's true", "that is true", "it's true", "so true", "exactly", "absolutely", "that's right", "that is right", "that's what it does", "that is what it does", "i'm with", "i'd say the same", "no exaggeration", "i believe", "i can confirm", "same happened to me", "every word"],
     "comparison_kinds": {"gt": ["more than", "over", "above", "exceeds", "exceed", "exceeding", "greater than"], "ge": ["at least", "minimum", "min", "or more", "and above", "or above", "and up", "and over", "or over", "and older", "or older"], "lt": ["less than", "under", "below"], "le": ["up to", "at most", "or less", "maximum", "max", "and under", "or under", "and below", "or below", "and younger", "or younger"], "eq": ["exactly"]},
     "multiplicatives": {"once": 1, "twice": 2, "thrice": 3},
+    "contrast_cues": ["not", "rather than", "instead of", "isn't", "aren't", "never"],
+    "homophones": {"to": 2, "too": 2, "for": 4, "fore": 4, "won": 1, "ate": 8},
     "absence_cues": [
       "no",
       "not",

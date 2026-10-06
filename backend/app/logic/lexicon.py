@@ -46,6 +46,8 @@ class Lexicon:
     affirmation: re.Pattern | None = None  # D-252
     negation_words: tuple[str, ...] = ()
     comparison_kinds: dict[str, re.Pattern] = field(default_factory=dict)  # D-259
+    contrast_cues: tuple[str, ...] = ()  # D-294 G2
+    homophones: dict[str, int] = field(default_factory=dict)  # D-294 G6
     multiplicatives: dict[str, int] = field(default_factory=dict)  # D-262  # D-252: the language's negation cues, to read "I don't agree"
 
     @classmethod
@@ -71,6 +73,8 @@ class Lexicon:
                          if lx.affirmation_cues else None),
             negation_words=tuple(c.lower() for c in lang.negation_cues),
             multiplicatives={k.lower(): v for k, v in lx.multiplicatives.items()},
+            contrast_cues=tuple(c.lower() for c in lx.contrast_cues),
+            homophones={k.lower(): v for k, v in lx.homophones.items()},
             comparison_kinds={k: re.compile("|".join(r"\b" + re.escape(w) + r"\b" for w in ws), re.I)
                               for k, ws in lx.comparison_kinds.items() if ws},
             phone=re.compile(market.phone_pattern),
