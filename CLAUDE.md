@@ -9,7 +9,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Never show or commit the sealed test sets (`D:\code_test\study\ai_builder_cup_git\sealed_sets\`). The dev session never reads that folder.
 - Design choices are made by measurement: build every candidate as a switchable arm (`DESIGN_ARM`) and pick by the same evals. Fixed pass lines are in `docs/eval/proof-plan.md`.
 - Viewer questions: post when the product info answers them, send to the operator when it does not.
-- Deploy only to project `separk-cloocus`, and only after the user approves (the user runs `! bash deploy/cloudrun.sh`).
+- Deploy only to project `ai-budiler-cup-uh-team-pjt` (moved from separk-cloocus on 10/6), and only after the user approves (the user runs `! bash deploy/cloudrun.sh`).
 - Never commit `.env` or keys. Run a key-pattern scan of the diff from origin before every push, and push only when it finds nothing. Never force-push.
 - Never edit agent permission or config files. Do not touch the user's Chrome.
 - Call peers with explicit models: `codex exec -m gpt-6-astra -c model_reasoning_effort=high`, `agy --model gemini-3.8-flash-high`.
@@ -31,7 +31,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Vertex AI Search defaults drop low-relevance hits ("It cures eczema" returned nothing). Use `relevanceThreshold: LOWEST`, `pageSize` 5-10 and the market filter.
 - Code may overrule a model verdict, but never silently: look for "fact claim dropped by code" and "compliance violation dropped by code" in the logs. `eval_adversarial` rows carry `dropped: [{reason, ...}]`. A right model answer with no alert is almost always one of these drops (D-248, D-250, D-260).
 - `FACT_MODE=docs` (FD, default) reads a release's original files from `<ONBOARDING_DIR>/<job_id>/files.json`. A release without stored files behaves as `record`. Record fields added after a release was made (pack counts, offer conditions, target group) appear only after re-onboarding.
-- In the cloud, onboarding state lives in `gs://separk-cloocus-live-studio-onboarding/onboarding/` (D-263). The bucket is the source of truth; the container's ONBOARDING_DIR is only a cache that is refilled at start. Never edit the bucket by hand: releases and packs are write-once.
+- In the cloud, onboarding state lives in `gs://ai-budiler-cup-uh-team-pjt-live-studio-onboarding/onboarding/` (D-263; bucket name since the 10/6 project move). The bucket is the source of truth; the container's ONBOARDING_DIR is only a cache that is refilled at start. Never edit the bucket by hand: releases and packs are write-once.
 - Approving a release also runs the BriefAgent (about 30 s, D-265) and writes `briefs/<release_id>.json` (write-once). A release approved before D-265 has no brief: its show keeps the approved claims as points and only brand, product and ingredient names as STT hints until it is approved again.
 
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)
