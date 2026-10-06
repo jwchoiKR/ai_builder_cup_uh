@@ -1,0 +1,938 @@
+{
+ "record": {
+  "brand": "DAON LAB",
+  "product_name": "Deep Hydration Ampoule",
+  "short_names": [],
+  "generic_word": "ampoule",
+  "category": "cosmetics",
+  "category_evidence": [
+   {
+    "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+    "locator": "page 1, section 2",
+    "quote": "Product type Ampoule serum (cosmetic product)"
+   }
+  ],
+  "target_group": [],
+  "target_group_evidence": [],
+  "language": "en",
+  "variants": [
+   {
+    "variant_id": "DL-AM-01",
+    "name": "Deep Hydration Ampoule",
+    "size_value": "30",
+    "size_unit": "ml",
+    "market": "SG",
+    "pack_count": null,
+    "pack_unit": null,
+    "prices": [
+     {
+      "currency": "SGD",
+      "minor": 4200,
+      "kind": "list",
+      "market": "SG",
+      "evidence": [
+       {
+        "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+        "locator": "page 1, section 2",
+        "quote": "List price S$42.00"
+       }
+      ]
+     },
+     {
+      "currency": "SGD",
+      "minor": 3200,
+      "kind": "live",
+      "market": "SG",
+      "evidence": [
+       {
+        "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+        "locator": "page 1, section 2",
+        "quote": "Live broadcast price S$32.00 (about 24% off list price, during the live broadcast only)"
+       }
+      ]
+     }
+    ],
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, header and section 2",
+      "quote": "Product code DL-AM-01 | Version 1.0 | Issued 1 October 2026"
+     },
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Volume 30 mL"
+     }
+    ]
+   }
+  ],
+  "offers": [
+   {
+    "offer_id": "live-broadcast-price",
+    "kind": "fixed_price",
+    "title": "Live broadcast price S$32.00",
+    "variant_ids": [
+     "DL-AM-01"
+    ],
+    "percent": "24",
+    "amount": {
+     "currency": "SGD",
+     "minor": 3200,
+     "kind": "live",
+     "market": "SG",
+     "evidence": [
+      {
+       "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+       "locator": "page 1, section 2",
+       "quote": "Live broadcast price S$32.00 (about 24% off list price, during the live broadcast only)"
+      }
+     ]
+    },
+    "buy": null,
+    "get": null,
+    "gift": null,
+    "rounding": null,
+    "starts": null,
+    "ends": null,
+    "duration_min": null,
+    "combinable": null,
+    "conditions": [
+     "during the live broadcast only",
+     "about 24% off list price"
+    ],
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Live broadcast price S$32.00 (about 24% off list price, during the live broadcast only)"
+     }
+    ]
+   },
+   {
+    "offer_id": "live-set-price",
+    "kind": "bundle",
+    "title": "Live set price S$62.00 for Deep Hydration Ampoule 30 mL + Hydra Barrier Cream 50 mL",
+    "variant_ids": [
+     "DL-AM-01"
+    ],
+    "percent": null,
+    "amount": {
+     "currency": "SGD",
+     "minor": 6200,
+     "kind": "live",
+     "market": "SG",
+     "evidence": [
+      {
+       "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+       "locator": "page 1, section 2",
+       "quote": "Live set price S$62.00 for Deep Hydration Ampoule 30 mL + Hydra Barrier Cream 50 mL"
+      }
+     ]
+    },
+    "buy": null,
+    "get": null,
+    "gift": null,
+    "rounding": null,
+    "starts": null,
+    "ends": null,
+    "duration_min": null,
+    "combinable": null,
+    "conditions": [
+     "for Deep Hydration Ampoule 30 mL + Hydra Barrier Cream 50 mL"
+    ],
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Live set price S$62.00 for Deep Hydration Ampoule 30 mL + Hydra Barrier Cream 50 mL"
+     }
+    ]
+   }
+  ],
+  "ingredients": [
+   {
+    "name": "Centella Asiatica Leaf Water",
+    "amount_value": "50",
+    "amount_unit": "%",
+    "per": null,
+    "purpose": "Base of the formula in place of plain water",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 3",
+      "quote": "Centella Asiatica Leaf Water 50% (formula base) Base of the formula in place of plain water"
+     }
+    ]
+   },
+   {
+    "name": "Niacinamide",
+    "amount_value": "4",
+    "amount_unit": "%",
+    "per": null,
+    "purpose": "Helps skin look more radiant and even-toned",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 3",
+      "quote": "Niacinamide 4% Helps skin look more radiant and even-toned"
+     }
+    ]
+   },
+   {
+    "name": "Sodium Hyaluronate (5 molecular weights)",
+    "amount_value": "2",
+    "amount_unit": "%",
+    "per": null,
+    "purpose": "Delivers instant hydration",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 3",
+      "quote": "Sodium Hyaluronate (5 molecular weights) 2% Delivers instant hydration"
+     }
+    ]
+   },
+   {
+    "name": "Beta-Glucan",
+    "amount_value": "1",
+    "amount_unit": "%",
+    "per": null,
+    "purpose": "Helps soothe the feeling of dryness",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 3",
+      "quote": "Beta-Glucan 1% Helps soothe the feeling of dryness"
+     }
+    ]
+   },
+   {
+    "name": "Panthenol",
+    "amount_value": "1",
+    "amount_unit": "%",
+    "per": null,
+    "purpose": "Helps relieve the feeling of dryness",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 3",
+      "quote": "Panthenol 1% Helps relieve the feeling of dryness"
+     }
+    ]
+   }
+  ],
+  "ingredient_list_complete": false,
+  "approved_claims": [
+   {
+    "text": "Delivers instant hydration.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Delivers instant hydration."
+     }
+    ]
+   },
+   {
+    "text": "Helps skin look more radiant and even-toned with continued use.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Helps skin look more radiant and even-toned with continued use."
+     }
+    ]
+   },
+   {
+    "text": "Helps reduce the look of fine dryness lines.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Helps reduce the look of fine dryness lines."
+     }
+    ]
+   },
+   {
+    "text": "Helps soothe the feeling of dryness.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Helps soothe the feeling of dryness."
+     }
+    ]
+   },
+   {
+    "text": "26 of 30 participants said their skin looked more radiant after 4 weeks. (in our in-house test)",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "26 of 30 participants said their skin looked more radiant after 4 weeks.*"
+     }
+    ]
+   },
+   {
+    "text": "No added fragrance and no essential oils.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "No added fragrance and no essential oils."
+     }
+    ]
+   }
+  ],
+  "not_approved_claims": [
+   {
+    "text": "Removes wrinkles or reverses skin ageing.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Removes wrinkles or reverses skin ageing."
+     }
+    ]
+   },
+   {
+    "text": "Whitens skin, or permanently changes skin colour.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Whitens skin, or permanently changes skin colour."
+     }
+    ]
+   },
+   {
+    "text": "Treats acne, acne scars, pigmentation disorders or any skin disease.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Treats acne, acne scars, pigmentation disorders or any skin disease."
+     }
+    ]
+   },
+   {
+    "text": "Repairs, heals or regenerates skin cells.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Repairs, heals or regenerates skin cells."
+     }
+    ]
+   },
+   {
+    "text": "Permanent results, or results without continued use.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Permanent results, or results without continued use."
+     }
+    ]
+   },
+   {
+    "text": "Completely safe for everyone, or safe during pregnancy.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Completely safe for everyone, or safe during pregnancy."
+     }
+    ]
+   },
+   {
+    "text": "Comparative or superlative claims, such as \"stronger than any other ampoule\".",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7",
+      "quote": "Comparative or superlative claims, such as \"stronger than any other ampoule\"."
+     }
+    ]
+   }
+  ],
+  "avoid_saying": [],
+  "qualified_results": [
+   {
+    "statement": "Skin hydration immediately after one application: +45% versus before application",
+    "numbers": [
+     "+45%"
+    ],
+    "provenance": "in_house",
+    "qualifier": "in our in-house test",
+    "marker": null,
+    "conditions": "In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Skin hydration measured with a corneometer.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 5",
+      "quote": "Skin hydration immediately after one application +45% versus before application"
+     }
+    ]
+   },
+   {
+    "statement": "26 of 30 participants said their skin looked more radiant after 4 weeks",
+    "numbers": [
+     "26 of 30",
+     "87%",
+     "4 weeks"
+    ],
+    "provenance": "in_house",
+    "qualifier": "in our in-house test",
+    "marker": "*",
+    "conditions": "In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Self-assessment by questionnaire.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 5 and section 7",
+      "quote": "26 of 30 participants said their skin looked more radiant after 4 weeks.*"
+     }
+    ]
+   },
+   {
+    "statement": "Participants who said skin tone looked more even after 4 weeks: 24 of 30 (80%)",
+    "numbers": [
+     "24 of 30",
+     "80%",
+     "4 weeks"
+    ],
+    "provenance": "in_house",
+    "qualifier": "in our in-house test",
+    "marker": null,
+    "conditions": "In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Self-assessment by questionnaire.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 5",
+      "quote": "Participants who said skin tone looked more even after 4 weeks 24 of 30 (80%)"
+     }
+    ]
+   },
+   {
+    "statement": "Irritation reactions in 48-hour patch test: 0 of 30 participants",
+    "numbers": [
+     "0 of 30",
+     "48 hours"
+    ],
+    "provenance": "in_house",
+    "qualifier": "in our in-house test",
+    "marker": null,
+    "conditions": "Patch test: 48 hours under dermatologist supervision.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 5",
+      "quote": "Irritation reactions in 48-hour patch test 0 of 30 participants"
+     }
+    ]
+   }
+  ],
+  "cautions": [
+   {
+    "text": "For external use only. Avoid contact with eyes. If the product gets into the eyes, rinse with water.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 6",
+      "quote": "For external use only. Avoid contact with eyes. If the product gets into the eyes, rinse with water."
+     }
+    ]
+   },
+   {
+    "text": "Sensitive skin may feel a mild, temporary tingling. Stop using and consult a dermatologist if redness, swelling or itching continues.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 6",
+      "quote": "Sensitive skin may feel a mild, temporary tingling. Stop using and consult a dermatologist if redness, swelling or itching continues."
+     }
+    ]
+   },
+   {
+    "text": "Do not apply to broken or damaged skin.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 6",
+      "quote": "Do not apply to broken or damaged skin."
+     }
+    ]
+   },
+   {
+    "text": "Keep out of reach of children.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 6",
+      "quote": "Keep out of reach of children."
+     }
+    ]
+   },
+   {
+    "text": "Store below 30°C and away from direct sunlight. Close the dropper tightly after use.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 6",
+      "quote": "Store below 30°C and away from direct sunlight. Close the dropper tightly after use."
+     }
+    ]
+   },
+   {
+    "text": "Pregnancy and breastfeeding: the product has not been specifically tested on pregnant or breastfeeding women. Customers who are pregnant or breastfeeding should consult their doctor before use.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 6",
+      "quote": "Pregnancy and breastfeeding: the product has not been specifically tested on pregnant or breastfeeding women. Customers who are pregnant or breastfeeding should consult their doctor before use."
+     }
+    ]
+   },
+   {
+    "text": "Live broadcast price S$32.00 is valid during the live broadcast only.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Live broadcast price S$32.00 (about 24% off list price, during the live broadcast only)"
+     }
+    ]
+   },
+   {
+    "text": "All prices, ingredient amounts and test results are illustrative and must not be used as real product data.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, header note",
+      "quote": "All prices, ingredient amounts and test results are illustrative and must not be used as real product data."
+     }
+    ]
+   },
+   {
+    "text": "S$32.00 (about 24% off list price, during the live broadcast only)",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2, Live broadcast price",
+      "quote": "S$32.00 (about 24% off list price, during the live broadcast only)"
+     }
+    ]
+   },
+   {
+    "text": "30 months unopened. Use within 12 months after opening",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2, Shelf life",
+      "quote": "30 months unopened. Use within 12 months after opening"
+     }
+    ]
+   },
+   {
+    "text": "If you are new to niacinamide, start with once a day for the first week.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 4, item 4",
+      "quote": "If you are new to niacinamide, start with once a day for the first week."
+     }
+    ]
+   },
+   {
+    "text": "In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Skin hydration measured with a corneometer. Self-assessment by questionnaire. Patch test: 48 hours under dermatologist supervision.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 5, introductory text",
+      "quote": "In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Skin hydration measured with a corneometer. Self-assessment by questionnaire. Patch test: 48 hours under dermatologist supervision."
+     }
+    ]
+   },
+   {
+    "text": "Results are from a small in-house study and describe cosmetic effects only.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 5, concluding note",
+      "quote": "Results are from a small in-house study and describe cosmetic effects only."
+     }
+    ]
+   },
+   {
+    "text": "Effects are not permanent and require continued use.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 5, concluding note",
+      "quote": "Effects are not permanent and require continued use."
+     }
+    ]
+   },
+   {
+    "text": "Claims marked * must be said together with \"in our in-house test\".",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 7, paragraph 1",
+      "quote": "Claims marked * must be said together with \"in our in-house test\"."
+     }
+    ]
+   },
+   {
+    "text": "In the morning, follow with moisturiser and sunscreen.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 3, section 8, \"Can I use it in the morning?\"",
+      "quote": "In the morning, follow with moisturiser and sunscreen."
+     }
+    ]
+   },
+   {
+    "text": "Please consult your doctor before use.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 3, section 8, \"Can I use it while pregnant or breastfeeding?\"",
+      "quote": "Please consult your doctor before use."
+     }
+    ]
+   }
+  ],
+  "how_to_use": [
+   {
+    "text": "Use morning and night after cleansing and toner.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 4",
+      "quote": "Use morning and night after cleansing and toner."
+     }
+    ]
+   },
+   {
+    "text": "Apply two to three drops to the face and pat gently until absorbed.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 4",
+      "quote": "Apply two to three drops to the face and pat gently until absorbed."
+     }
+    ]
+   },
+   {
+    "text": "Follow with Hydra Barrier Cream or your usual moisturiser.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 4",
+      "quote": "Follow with Hydra Barrier Cream or your usual moisturiser."
+     }
+    ]
+   },
+   {
+    "text": "If you are new to niacinamide, start with once a day for the first week.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 2, section 4",
+      "quote": "If you are new to niacinamide, start with once a day for the first week."
+     }
+    ]
+   },
+   {
+    "text": "Can I use it with vitamin C? Yes. Apply the vitamin C product first, wait until it is absorbed, then apply the ampoule.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 3, section 8",
+      "quote": "Yes. Apply the vitamin C product first, wait until it is absorbed, then apply the ampoule."
+     }
+    ]
+   },
+   {
+    "text": "In the morning, follow with moisturiser and sunscreen.",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 3, section 8",
+      "quote": "In the morning, follow with moisturiser and sunscreen."
+     }
+    ]
+   }
+  ],
+  "key_facts": [
+   {
+    "text": "Product type: Ampoule serum (cosmetic product)",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Product type Ampoule serum (cosmetic product)"
+     }
+    ]
+   },
+   {
+    "text": "Volume: 30 mL",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Volume 30 mL"
+     }
+    ]
+   },
+   {
+    "text": "Texture: Watery gel, absorbs quickly",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Texture Watery gel, absorbs quickly"
+     }
+    ]
+   },
+   {
+    "text": "Packaging: Glass bottle with dropper",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Packaging Glass bottle with dropper"
+     }
+    ]
+   },
+   {
+    "text": "Skin types: All skin types. Recommended for dry and dull-looking skin",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Skin types All skin types. Recommended for dry and dull-looking skin"
+     }
+    ]
+   },
+   {
+    "text": "Free from: Added fragrance, essential oils, ethanol (denatured alcohol)",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Free from Added fragrance, essential oils, ethanol (denatured alcohol)"
+     }
+    ]
+   },
+   {
+    "text": "pH: 5.5 to 6.0",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "pH 5.5 to 6.0"
+     }
+    ]
+   },
+   {
+    "text": "Shelf life: 30 months unopened. Use within 12 months after opening",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Shelf life 30 months unopened. Use within 12 months after opening"
+     }
+    ]
+   },
+   {
+    "text": "Made in Republic of Korea",
+    "evidence": [
+     {
+      "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+      "locator": "page 1, section 2",
+      "quote": "Made in Republic of Korea"
+     }
+    ]
+   }
+  ],
+  "missing": [
+   "target_group",
+   "short_names",
+   "avoid_saying",
+   "variants[].pack_count",
+   "variants[].pack_unit",
+   "offers[].rounding",
+   "offers[].starts",
+   "offers[].ends",
+   "offers[].duration_min"
+  ],
+  "conflicts": []
+ },
+ "files": [
+  {
+   "name": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+   "sha256": "3fcead03f5d882078adee5f98969ea3dd11fdcd234be0c5b0c202664f6ef1e89",
+   "media_type": "application/pdf",
+   "bytes": 8148
+  }
+ ],
+ "method": "gemini_whole",
+ "models": {
+  "read": "gemini-3.8-flash (HIGH)",
+  "cautions": "gemini-3.8-flash (MEDIUM)",
+  "route": "gemini-3.8-flash (MEDIUM)",
+  "category": "gemini-3.8-flash (LOW)",
+  "audit": "gemini-3.8-flash (MEDIUM)"
+ },
+ "seconds": 339.1,
+ "notes": [
+  "cautions: 10 added by the caution pass"
+ ],
+ "caution_pass_added": [
+  "All prices, ingredient amounts and test results are illustrative and must not be used as real product data.",
+  "S$32.00 (about 24% off list price, during the live broadcast only)",
+  "30 months unopened. Use within 12 months after opening",
+  "If you are new to niacinamide, start with once a day for the first week.",
+  "In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Skin hydration measured with a corneometer. Self-assessment by questionnaire. Patch test: 48 hours under dermatologist supervision.",
+  "Results are from a small in-house study and describe cosmetic effects only.",
+  "Effects are not permanent and require continued use.",
+  "Claims marked * must be said together with \"in our in-house test\".",
+  "In the morning, follow with moisturiser and sunscreen.",
+  "Please consult your doctor before use."
+ ],
+ "uncovered": [
+  {
+   "kind": "number",
+   "text": "Product information sheet issued date is 1 October 2026",
+   "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+   "locator": "page 1",
+   "quote": "Issued 1 October 2026",
+   "record_has": null,
+   "in_file_text": true
+  },
+  {
+   "kind": "caution",
+   "text": "DAON LAB is not a real brand and the product is fictional, created for a live-commerce AI demo",
+   "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+   "locator": "page 1",
+   "quote": "Fictional product created for a live-commerce AI demo. DAON LAB is not a real brand.",
+   "record_has": null,
+   "in_file_text": true
+  },
+  {
+   "kind": "claim",
+   "text": "The ampoule is not sticky",
+   "file": "DAON_LAB_Deep_Hydration_Ampoule.pdf",
+   "locator": "page 3, section 8",
+   "quote": "Is it sticky? No. The watery-gel texture absorbs quickly.",
+   "record_has": null,
+   "in_file_text": true
+  }
+ ],
+ "verify_mode": "lean",
+ "checks": [
+  {
+   "group": "product",
+   "label": "variants[].pack_count",
+   "reason": "missing or not a clear number in its quote"
+  },
+  {
+   "group": "product",
+   "label": "variants[].pack_unit",
+   "reason": "missing or not a clear number in its quote"
+  },
+  {
+   "group": "governance",
+   "label": "Skin hydration immediately after one application: +45% versus before application",
+   "reason": "say it with “in our in-house test”"
+  },
+  {
+   "group": "governance",
+   "label": "26 of 30 participants said their skin looked more radiant after 4 weeks",
+   "reason": "say it with “in our in-house test”"
+  },
+  {
+   "group": "governance",
+   "label": "Participants who said skin tone looked more even after 4 weeks: 24 of 30 (80%)",
+   "reason": "say it with “in our in-house test”"
+  },
+  {
+   "group": "governance",
+   "label": "Irritation reactions in 48-hour patch test: 0 of 30 participants",
+   "reason": "say it with “in our in-house test”"
+  },
+  {
+   "group": "coverage",
+   "label": "DAON LAB is not a real brand and the product is fictional, created for a live-commerce AI demo",
+   "reason": "in the files, not in the record: DAON_LAB_Deep_Hydration_Ampoule.pdf (page 1): “Fictional product created for a live-commerce AI demo. DAON LAB is not a real brand.”"
+  },
+  {
+   "group": "coverage",
+   "label": "The ampoule is not sticky",
+   "reason": "in the files, not in the record: DAON_LAB_Deep_Hydration_Ampoule.pdf (page 3, section 8): “Is it sticky? No. The watery-gel texture absorbs quickly.”"
+  },
+  {
+   "group": "audit",
+   "label": "Store below 30°C and away from direct sunlight. Close the dropper tightly after use.",
+   "reason": "audit sample: confirm it matches the document"
+  }
+ ],
+ "checks_collapsed": [],
+ "auto_accepted": [
+  {
+   "label": "All prices, ingredient amounts and test results are illustrative and must not be used as real product data.",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 1, header note): “All prices, ingredient amounts and test results are illustrative and must not be used as real product data.”"
+  },
+  {
+   "label": "S$32.00 (about 24% off list price, during the live broadcast only)",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 1, section 2, Live broadcast price): “S$32.00 (about 24% off list price, during the live broadcast only)”"
+  },
+  {
+   "label": "30 months unopened. Use within 12 months after opening",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 1, section 2, Shelf life): “30 months unopened. Use within 12 months after opening”"
+  },
+  {
+   "label": "If you are new to niacinamide, start with once a day for the first week.",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 2, section 4, item 4): “If you are new to niacinamide, start with once a day for the first week.”"
+  },
+  {
+   "label": "In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Skin hydration measured with a corneometer. Self-assessment by questionnaire. Patch test: 48 hours under dermatologist supervision.",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 2, section 5, introductory text): “In-house study, 30 participants aged 20 to 49 with dry or dull-looking skin, 4 weeks, twice-daily use. Skin hydration measured with a corneometer. Self-assessment by questionnaire. Patch test: 48 hours under dermatologist supervision.”"
+  },
+  {
+   "label": "Results are from a small in-house study and describe cosmetic effects only.",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 2, section 5, concluding note): “Results are from a small in-house study and describe cosmetic effects only.”"
+  },
+  {
+   "label": "Effects are not permanent and require continued use.",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 2, section 5, concluding note): “Effects are not permanent and require continued use.”"
+  },
+  {
+   "label": "Claims marked * must be said together with \"in our in-house test\".",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 2, section 7, paragraph 1): “Claims marked * must be said together with \"in our in-house test\".”"
+  },
+  {
+   "label": "In the morning, follow with moisturiser and sunscreen.",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 3, section 8, \"Can I use it in the morning?\"): “In the morning, follow with moisturiser and sunscreen.”"
+  },
+  {
+   "label": "Please consult your doctor before use.",
+   "source": "DAON_LAB_Deep_Hydration_Ampoule.pdf (page 3, section 8, \"Can I use it while pregnant or breastfeeding?\"): “Please consult your doctor before use.”"
+  }
+ ],
+ "check_summary": {
+  "to_check": 9,
+  "by_group": {
+   "product": 2,
+   "governance": 4,
+   "coverage": 2,
+   "audit": 1
+  },
+  "before": 21,
+  "collapsed": 0,
+  "auto_accepted": 10
+ }
+}
