@@ -37,10 +37,11 @@ async def main() -> int:
         record = load_release(root, args.release)
         res, seconds = await brief_release(ctx.llm, ctx.prompts["brief_agent"], ctx.reflex, root, args.release, record,
                                            ctx.pack.lang, model=args.model, thinking=args.thinking,
-                                           deadline_ms=settings.BRIEF_TIMEOUT_MS, offers=settings.BRIEF_OFFERS)
+                                           deadline_ms=settings.BRIEF_TIMEOUT_MS, offers=settings.BRIEF_OFFERS,
+                                           cautions=settings.BRIEF_CAUTIONS)
         out = {"release_id": args.release, "status": res.status, "error": res.error, "seconds": seconds,
                "model": args.model or ctx.llm.brief.model, "thinking": args.thinking or ctx.llm.brief.thinking_level,
-               "offers": settings.BRIEF_OFFERS}
+               "offers": settings.BRIEF_OFFERS, "cautions": settings.BRIEF_CAUTIONS}
         if res.output is not None:
             from app.api.audio_ws import default_glossary
 

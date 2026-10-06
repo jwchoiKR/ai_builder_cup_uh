@@ -48,6 +48,15 @@ OFFER_CODE_RULE = """
 D. Offers: write no point about an offer. The offer points are added from the record after yours. In
 `document_notes`, copy exactly every term on an "Offers" line that only describes the document itself (how it writes
 amounts, what one of its lines does or does not mean) and is not a term of the offer."""
+# D-276 arm "code" (blind brief grading: storage, children's reach, eyes, stop-on-irritation, allergen, medication and
+# pregnancy cautions dropped out of the points on every arm)
+CAUTION_CODE_RULE = """
+E. Cautions: write no point about a caution or a safety direction. In `cautions`, return one item for every line
+under "Cautions" and "How to use", by the id in brackets: `kind` "safety" for anything that protects the user (a
+warning, an age, allergen, pregnancy, medication or medical advice, eyes, stop or patch-test advice, storage or
+keep-away-from-children, a dose limit), "limit" for a market, channel, price or availability limit, and "direction"
+for a use step that protects no one; `say` is the line as a host says it in {lang}: short, the same meaning and
+strength, every number, group, body area and condition kept, nothing added, widened or softened."""
 # D-272 readability (blind grading of patch 1): an English condition that starts with its verb gets a subject
 _VERB_FIRST = frozenset({"is", "are", "can", "cannot", "can't", "may", "must", "does", "doesn't", "will", "applies",
                          "excludes", "includes"})
@@ -132,6 +141,50 @@ def _numbers(text: str, glued: bool = True) -> set[str]:
 def _with_subject(c: str) -> str:
     c = c.strip()
     return f"It {c}" if c.split(" ", 1)[0].lower() in _VERB_FIRST else c
+
+
+def _kept_meaning(said: str, record_text: str, lexicon, same_lang: bool) -> bool:
+    """D-276: a reworded caution keeps every number, the negation, and (same language) most content words."""
+    nums = lambda s: _numbers(s) | (lexicon.spoken_numbers(s) if lexicon is not None else set())  # noqa: E731
+    if not nums(record_text) <= nums(said):
+        return False
+    if not same_lang or lexicon is None:
+        return True
+    neg = lambda s: any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", s.lower()) for n in lexicon.negation_words)  # noqa: E731
+    return (neg(said) == neg(record_text)
+            and lexicon.coverage(lexicon.content_words(record_text), lexicon.content_words(said)) >= 0.6)
+
+
+def _with_cautions(out: BriefOutput, record: ProductRecord, lang: str, lexicon) -> list[PointDraft]:
+    """D-276 arm "code": the model's points without its caution points, then one required point per record caution
+    the model did not call a limit, and per direction it called safety. The model's wording is used when it keeps the
+    meaning (`_kept_meaning`), else the record's text. A caution the model left out still gets its point."""
+    kept = []
+    for p in out.prompter_points:
+        if "caution" in p.source_section.lower() or "warning" in p.source_section.lower():
+            log.info("brief point dropped by code: cautions come from the record | %r", p.text)
+        else:
+            kept.append(p)
+    said = {s.id: s for s in out.cautions}
+    same = record.language.split("-")[0].lower() == lang.split("-")[0].lower()
+    slots = []
+    for key, items, default in (("c", record.cautions, "safety"), ("d", record.how_to_use, "direction")):
+        for i, x in enumerate(items):
+            s = said.get(f"{key}{i}")
+            kind = s.kind if s is not None else default
+            if (kind == "limit") if key == "c" else (kind != "safety"):  # a caution unless a limit; a safe direction
+                if key == "c":
+                    log.info("brief caution left out: the model called it a %s | %r", kind, x.text)
+                continue
+            text = s.say.strip() if s is not None and s.say.strip() else ""
+            if not text or not _kept_meaning(text, x.text, lexicon, same):
+                if text:
+                    log.info("brief caution kept as written: the wording lost its meaning | %r -> %r", x.text, text)
+                text = x.text
+            if any(_norm(text) == _norm(s.text) for s in slots):  # the same line from a caution and a direction
+                continue
+            slots.append(PointDraft(text=text, required=True, source_section="Caution"))
+    return kept + slots
 
 
 def offer_lines(record: ProductRecord, lexicon=None, notes=()) -> list[tuple[str, list[str]]]:
@@ -222,7 +275,8 @@ async def offer_points(llm, record: ProductRecord, lang: str, session_id: str | 
     return [PointDraft(text=next(it), required=False, source_section=f"Offer {oid}") for oid, xs in built for _ in xs]
 
 
-def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = (), offers: str = "sheet") -> str:
+def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = (), offers: str = "sheet",
+                     ids: bool = False) -> str:
     """The record as a sheet with section headings, then each source file's readable text. D-269 `offers="terms"`:
     each offer line carries every term the fact checker gets (percent, dates, combinability, conditions, the terms as
     written) and its id."""
@@ -237,14 +291,14 @@ def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = 
     sections = (("Approved on-air claims", [c.text for c in record.approved_claims]),
                 ("Test results", [f"{q.statement}{', ' + q.conditions if q.conditions else ''} ({q.qualifier})"
                                   for q in record.qualified_results]),
-                ("Cautions", [c.text for c in record.cautions]),
+                ("Cautions", [f"[c{i}] {c.text}" if ids else c.text for i, c in enumerate(record.cautions)]),
                 ("Offers", [f"[{k.removeprefix('offer-')}] {x.removeprefix('Offer: ')}" for k, x in record_facts(
                     record, lambda m: f"{money_value(m.currency, m.minor)} {m.currency}") if k.startswith("offer-")]
                  if offers == "terms" else
                  [o.title + "".join(f"; {c}" for c in o.conditions)
                   + (f"; {money_value(o.amount.currency, o.amount.minor)} {o.amount.currency}" if o.amount
                      else "") for o in record.offers]),
-                ("How to use", [h.text for h in record.how_to_use]),
+                ("How to use", [f"[d{i}] {h.text}" if ids else h.text for i, h in enumerate(record.how_to_use)]),
                 ("Key facts", [k.text for k in record.key_facts]),
                 ("Claims not approved", [c.text for c in record.not_approved_claims]))
     for title, items in sections:
@@ -258,7 +312,7 @@ def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = 
 
 async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record: ProductRecord, lang: str, *,
                         model: str | None = None, thinking: str | None = None, deadline_ms: int = 60_000,
-                        offers: str = "code"):
+                        offers: str = "code", cautions: str = "model"):
     """(AgentResult, seconds) of the BriefAgent on a release. `model`/`thinking` override BRIEF_MODEL/BRIEF_THINKING
     (scripts/eval_brief.py); `offers` is BRIEF_OFFERS (D-269)."""
     from .sources import release_sources
@@ -269,11 +323,16 @@ async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record
         extra += OFFER_RULE.format(offer_chars=OFFER_POINT_CHARS)
     elif offers == "code":
         extra += OFFER_CODE_RULE
+    if cautions == "code":
+        extra += CAUTION_CODE_RULE.format(lang=lang)
     agent = BriefAgent(llm, prompt, reflex, extra=extra, max_points=MAX_POINTS, max_chars=MAX_POINT_CHARS,
                        model=model, thinking=thinking, offer_chars=OFFER_POINT_CHARS if offers == "terms" else 0)
     t0 = time.perf_counter()
-    res = await agent.run(BriefInput(product_id=release_id, document_text=release_document(record, texts, offers)),
+    res = await agent.run(BriefInput(product_id=release_id, document_text=release_document(record, texts, offers,
+                                                                                             cautions == "code")),
                           deadline_ms=deadline_ms)
+    if cautions == "code" and res.output is not None:
+        res.output.prompter_points = _with_cautions(res.output, record, lang, reflex.lexicon)
     if offers == "code" and res.output is not None:
         # D-272: the model's points first (claims and cautions are never pushed out), then the record's offers
         kept = []
