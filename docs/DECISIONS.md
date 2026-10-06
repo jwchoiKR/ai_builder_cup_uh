@@ -1471,3 +1471,9 @@ D-272: The brief's offer points are built in code from the record, as the arm va
 - **Language:** the sentences are English. When the show or the record is in another language, one translation call (the D-232 prompt) turns them into the show's language. A translated line is kept only if every number and code survived; otherwise the English line stays, and that is logged.
 - **Made-up lip balm, 5 runs:** both offers kept every condition and the code in all runs. The wording was the same every time, since it is code. Claims, cautions and directions came first. Times were 18-34 s against 14-51 s for the D-269 patch.
 - **Measure:** the same 9 releases, blind against "sheet": offers carried fully, wrong points (widening is critical), anything pushed out, time.
+
+D-273: A product with no approved claim keeps its fallback alert (sealed pool 4, f23d635: a release whose documents state no benefit claim lost 84 of 108 row-runs' compliance alerts; logic).
+- **Cause:** when the compliance call fails (§8.4.3), `say_instead_fallback` takes the product's first approved claim. With none, it raised IndexError, the background inference task died, and the reflex's HIGH alert for the line was never shown. Failed calls were frequent in that run because the network was timing out.
+- **Fix:** the same D-232 line as the say-instead picker, "(no approved wording in <lang>)". It is never the model's own sentence. The rule-based fallback (mock provider) shares the function.
+- **Other `[0]` on record lists:** none can be empty where they are indexed. A release needs a priced variant before `variants[0]`, a release pack has one product, and the test drive already guards its claim.
+- **Test:** a made-up release with no approved claim and a failing judge, through `eval_adversarial.run_case`: "It cures eczema." keeps its HIGH alert with the D-232 line.
