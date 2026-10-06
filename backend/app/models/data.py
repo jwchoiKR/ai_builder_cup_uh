@@ -174,6 +174,11 @@ class Rule(BaseModel):
     say_instead_hint: str
     reflex_phrases: list[str]
     required_terms: list[str] = []  # D-290 Q6 (from the language pack's category wording)
+    # D-294: the fix that switches the term check on ("G4" for the test-result and evidence categories)
+    terms_fix: str = "Q6"
+    # D-294 G7: a line with a direction to the group ("on their own") and no promise to it is a usage line
+    direction_terms: list[str] = []
+    promise_terms: list[str] = []
 
 
 class Currency(BaseModel):
@@ -223,6 +228,11 @@ class CategoryWording(BaseModel):
     # D-290 Q6: a line breaks a rule of this category only if it holds one of these (a group or condition for the
     # vulnerable-group rule, a permanence word for the permanent-results rule); empty = no such check
     required_terms: list[str] = []
+    # D-294: the fix that switches the term check on ("G4" for the test-result and evidence categories)
+    terms_fix: str = "Q6"
+    # D-294 G7: a line with a direction to the group ("on their own") and no promise to it is a usage line
+    direction_terms: list[str] = []
+    promise_terms: list[str] = []
 
 
 class NumberWords(BaseModel):
@@ -264,6 +274,8 @@ class LexiconData(BaseModel):
     affirmation_cues: list[str] = []
     comparison_kinds: dict[str, list[str]] = {}
     multiplicatives: dict[str, int] = {}  # D-262: "twice" is 2 ("brush twice daily")  # D-259: gt, ge, lt, le, eq: "above 40" is not "at least 40"  # D-252: "and yes", "I agree": the host endorses what they just quoted
+    contrast_cues: list[str] = []  # D-294 G2: "4.5 mL, not 45 mL": the value after one is not claimed
+    homophones: dict[str, int] = {}  # D-294 G6: speech-to-text sound-alikes of numbers ("too" for 2)
     duration_hours: dict[str, float] = {}  # D-174: "day": 24, "week": 168: "a day later" is "24 hours after"
 
 

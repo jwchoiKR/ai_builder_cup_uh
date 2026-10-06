@@ -256,6 +256,89 @@ def _quoted_then_corrected(cues, utterance: str, said: set, right: set) -> bool:
     return cue_before or asked
 
 
+_QUOTE_MARK = re.compile(r"""['"“‘]\s*$""")
+
+
+def _negates(lex, text: str) -> bool:
+    return "n't" in text or any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", text) for n in lex.negation_words)
+
+
+def _quoted_then_rejected(cues, utterance: str, c, lex) -> bool:
+    """D-294 G1: "Someone said 'you can share the brush'. Please don't, never share it.": the stated instruction
+    comes after a quote cue or mark, the correction is a caution (it has a negation), and after the quote the line
+    negates a word of the caution ("never share")."""
+    correct = (c.correct_value or "").lower()
+    if not _negates(lex, correct):
+        return False
+    text = utterance.lower()
+    found = [(i, s) for s in (c.stated_value, c.span) if s and (i := text.find(s.lower())) >= 0]
+    if not found:
+        return False
+    at, s = found[0]
+    if not (any(0 <= text.find(q) < at for q in (*cues, *_QUOTE_EXTRA))
+            or _QUOTE_MARK.search(text[:at]) or text[at:at + 1] in "'\"“‘"):
+        return False
+    negs = set(lex.negation_words)
+    stems = {w[:5] for w in re.findall(r"[a-z]+", correct) if w not in _GLUE and w not in negs and len(w) > 2}
+    tokens = re.findall(r"[a-z']+", text[at + len(s):])
+    return any((t in negs or t.endswith("n't")) and any(w[:5] in stems for w in tokens[k + 1:k + 3])
+               for k, t in enumerate(tokens))
+
+
+def _negated_beside_right(lex, utterance: str, said: set, right: set) -> bool:
+    """D-294 G2: "It's 4.5 mL, not 45 mL": every spot of the wrong number follows a contrast cue ("not", "rather
+    than"), and the right number is in the line without one.
+    ponytail: digits only; "not forty-five" in words is left to the model."""
+    if not said or not right or said & right or not lex.contrast_cues:
+        return False
+    text = utterance.lower()
+    cue = re.compile(r"(?<!\w)(?:" + "|".join(map(re.escape, lex.contrast_cues)) + r")\s+(?:[^\s\d]+\s*)?$")
+    spots = _number_spots(text)
+    wrong = [i for i, ns in spots if ns & said]
+    good = [i for i, ns in spots if ns & right and not ns & said]
+    return (bool(wrong) and bool(good) and all(cue.search(text[:i]) for i in wrong)
+            and not any(cue.search(text[:i]) for i in good))
+
+
+_MEETS = {"gt": lambda a, t: a > t, "ge": lambda a, t: a >= t, "lt": lambda a, t: a < t, "le": lambda a, t: a <= t}
+
+
+def _meets_threshold(lex, utterance: str, c, said: set, right: set) -> bool:
+    """D-294 G3: "an S$44 order qualifies, since it's above S$40": the line says the stated amount and the right
+    threshold with its comparison word, and the amount meets it (under the correction's own kind too). A line with
+    a negation is left to the model."""
+    if len(said) != 1 or len(right) != 1 or said == right:
+        return False
+    text = utterance.lower()
+    if _negates(lex, text):
+        return False
+    try:
+        a, t = float(next(iter(said))), float(next(iter(right)))
+    except ValueError:
+        return False
+    spots = list(re.finditer(r"\d[\d,]*(?:\.\d+)?", text))
+    if not any(number_set(m.group()) & said for m in spots):
+        return False
+    kinds = [_range_kind(lex, text[max(0, m.start() - 25):m.end() + 12]) for m in spots if number_set(m.group()) & right]
+    own = _range_kind(lex, c.correct_value or "")
+    return any(k in _MEETS and _MEETS[k](a, t) for k in kinds) and (own not in _MEETS or _MEETS[own](a, t))
+
+
+def _homophone_of_right(lex, utterance: str, c, right: set) -> bool:
+    """D-294 G6: speech-to-text wrote a number as a sound-alike ("uh too thin colour coats" for "two thin coats"):
+    the line has no number at all, and a sound-alike of the right number comes just before a word of the correction
+    (the thing counted). The claim is unverifiable, not a contradiction."""
+    if not lex.homophones or len(right) != 1:
+        return False
+    text = utterance.lower()
+    if re.search(r"\d", text) or lex.spoken_numbers(text) or lex.times_numbers(text):
+        return False
+    stems = {w[:4] for w in re.findall(r"[a-z]+", (c.correct_value or "").lower()) if len(w) > 2 and w not in _GLUE}
+    tokens = re.findall(r"[a-z']+", text)
+    return any(t in lex.homophones and str(lex.homophones[t]) in right
+               and any(w[:4] in stems for w in tokens[k + 1:k + 4]) for k, t in enumerate(tokens))
+
+
 def _record_holds(c, catalog: Catalog, right: set, host: str) -> bool:
     """D-282 R1: every number of the correction is a structured value of the product's record for the claim's field:
     a price of the variant the line names (the main one when it names none, never a guess between several), the
@@ -471,6 +554,18 @@ def _post_validate(o: FactCheckOutput, passages: Sequence[Passage], catalog: Cat
         threshold = _threshold_differs(lex, host, c, said) or _polarity_differs(lex, host, c.correct_value)
         if "Q2" in fixes and utterance and _quoted_then_corrected(catalog.pack.rules.quote_cues, utterance, said, right):
             _drop(c, "Q2: the line quotes the value and states the right one")
+            continue
+        if "G1" in fixes and utterance and _quoted_then_rejected(catalog.pack.rules.quote_cues, utterance, c, lex):
+            _drop(c, "G1: the line quotes an instruction and rejects it with the caution")
+            continue
+        if "G2" in fixes and utterance and _negated_beside_right(lex, utterance, said, right):
+            _drop(c, "G2: the line negates the wrong value next to the right one")
+            continue
+        if "G3" in fixes and utterance and _meets_threshold(lex, utterance, c, said, right):
+            _drop(c, "G3: the stated amount meets the threshold the line states")
+            continue
+        if "G6" in fixes and utterance and _homophone_of_right(lex, utterance, c, right):
+            _drop(c, "G6: the line has a sound-alike of the right number and no number")
             continue
         same_numbers = said and said == right and not units_differ
         if ("F4" in fixes and same_numbers and not _restates(c.correct_value, host)

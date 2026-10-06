@@ -112,21 +112,42 @@ def names_the_source(text: str, say: str, lex) -> bool:
 
 _ORG = re.compile(r"\b((?:[A-Z][\w&'-]*\s+){1,4})(?:Labs?|Laboratories|Laboratory|Institute|Clinic|University|"
                   r"Society|Centre|Center|Panel)\b")
+# D-294 G5: more tester names: "... Testing", "... Research", "Institute of ...", and the capitalised name after
+# "by" or "at" in the result ("tested by Quorvane Coating")
+_ORG_MORE = re.compile(r"\b((?:[A-Z][\w&'-]*\s+){1,4})(?:Testing|Research)\b|\b(?:Institute|Centre|Center|University|"
+                       r"Laborator(?:y|ies)|Society)\s+(?:of|for)\s+((?:[A-Z][\w&'-]*\s*){1,4})|"
+                       r"\b(?:by|at)\s+(?:the\s+)?((?:[A-Z][\w&'-]*\s*){1,5})")
 _PANEL = re.compile(r"\b(\d+)\s+(?:adults|participants|people|persons|women|men|users|volunteers|children|"
                     r"subjects|testers)\b", re.I)
 
 
-def names_the_tester(text: str, say: str, lex) -> bool:
+def names_the_tester(text: str, say: str, lex, g5: bool = False) -> bool:
     """D-284 Q1E: besides D-244 L7's source in the qualifier, a line names who tested an outside test when it says
     the organisation the result names anywhere ("Brightwell Labs: no transfer ...", with Labs, Institute, Clinic,
-    ...) or the panel ("20 adults") of a qualifier that is not ours. Our own test still needs our own words (D-250)."""
+    ...) or the panel ("20 adults") of a qualifier that is not ours. Our own test still needs our own words (D-250).
+    D-294 G5: also a result with no qualifier in brackets, more name forms (`_ORG_MORE`), and the name's own first
+    word ("Quorvane" of "Quorvane Coating Test Laboratory") when the result's statement does not use that word."""
     m = re.search(r"\(([^()]*)\)\s*$", say)
-    if m is None or lex.in_house.search(m.group(1)) or lex.is_qualified(m.group(1)):
+    qual = m.group(1) if m else (say if g5 else None)
+    if qual is None or lex.in_house.search(qual) or lex.is_qualified(qual):
         return False
     low = text.lower()
     orgs = {" ".join(g.group(1).split()).lower() for g in _ORG.finditer(say)}
     if any(o and o in low for o in orgs):
         return True
+    if g5:
+        names = {" ".join(n.split()) for g in _ORG_MORE.finditer(say) for n in g.groups() if n}
+        names |= {" ".join(g.group(1).split()) for g in _ORG.finditer(say)}
+        rest = say
+        for n in names:
+            rest = rest.replace(n, " ")
+        used = set(re.findall(r"[a-z]+", rest.lower()))
+        firsts = {n.split()[0].lower() for n in names if n.split()}
+        if any(re.search(rf"(?<!\w){re.escape(f)}", low) for f in firsts
+               if len(f) >= 4 and f not in _GENERIC_QUALIFIER and f not in used):
+            return True
+    if m is None:
+        return False
     panels = {p.group(1) for p in _PANEL.finditer(m.group(1))}
     return any(p.group(1) in panels for p in _PANEL.finditer(text))
 
@@ -230,6 +251,8 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             # the host endorses in the same line is the host's own claim
             v.is_quoted = False
     kept = []
+    g5 = "G5" in fact_checker.fixes_of()
+    tester_text = f"{prev[0]} {text}" if g5 and prev else text  # D-294 G5: the tester named in the previous final
     on_air_id = (values.get("current_product_json") or {}).get("product_id")
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
     for v in o.compliance.violations:
@@ -252,7 +275,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             if names_the_source(text, r.say, catalog.lexicon):
                 _cdrop(v, "D-244 L7: the line names the test's source")
                 continue  # D-244 L7: the host named who ran the test or certified it: that is the qualifier
-            if "Q1E" in fact_checker.fixes_of() and names_the_tester(text, r.say, catalog.lexicon):
+            if "Q1E" in fact_checker.fixes_of() and names_the_tester(tester_text, r.say, catalog.lexicon, g5):
                 _cdrop(v, "D-284 Q1E: the line names the tester or its panel")
                 continue
             v.say_instead = r.say
@@ -264,14 +287,22 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
         kept.append(v)
     o.compliance.violations = kept
     fixes = fact_checker.fixes_of()
-    if "Q6" in fixes:
+    if fixes & {"Q6", "G4", "G7"}:
         fit = []
         for v in kept:
-            terms = rules[v.rule_id].required_terms
-            if terms and not v.is_negated and not _holds_term(f"{text} {v.span or ''}", terms):
+            r = rules[v.rule_id]
+            # D-294 G4: a test-result or evidence rule reads the previous final too (a result split over two finals)
+            hay = f"{prev[0] if prev and r.terms_fix == 'G4' else ''} {text} {v.span or ''}"
+            if r.required_terms and r.terms_fix in fixes and not v.is_negated and not _holds_term(hay, r.required_terms):
                 # D-290 Q6: the rule's own element is not in the line ("zero side effects" names no group, "the
-                # best" says nothing permanent): the judge stretched a HIGH rule over another claim
-                _cdrop(v, f"Q6: rule needs one of its terms ({rules[v.rule_id].rule_id}: {', '.join(terms[:4])}, ...)")
+                # best" says nothing permanent): the judge stretched a HIGH rule over another claim. D-294 G4: a bare
+                # ingredient amount ("glycerin at two percent") states no test result and no evidence
+                _cdrop(v, f"{r.terms_fix}: rule needs one of its terms ({r.rule_id}: {', '.join(r.required_terms[:4])}, ...)")
+            elif ("G7" in fixes and r.direction_terms and not v.is_negated and _holds_term(hay, r.direction_terms)
+                  and not _holds_term(hay, r.promise_terms)):
+                # D-294 G7: "let the child brush alone" directs the group and promises it nothing; a wrong direction
+                # is the fact checker's
+                _cdrop(v, f"G7: a usage direction to the group with no promise ({r.rule_id})")
             else:
                 fit.append(v)
         kept[:] = fit
@@ -289,7 +320,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                                            lex) if generic and not qualified and not _HEDGE.search(text) else None
         heard = {w for w in lex.content_words(text) if w.isdigit()} | lex.spoken_numbers(text)
         if (r is not None and heard & qualifier.result_numbers(r, lex)
-                and not names_the_source(text, r.say, lex) and not names_the_tester(text, r.say, lex)):
+                and not names_the_source(text, r.say, lex) and not names_the_tester(tester_text, r.say, lex, g5)):
             # D-286 Q1T: a result said with only a generic "lab-tested" and no tester gets its qualifier alert
             log.info("compliance violation added by code: D-286 Q1T a generic test word | span=%r", generic.group())
             kept.append(Violation(span=generic.group(), rule_id=qualifier.RULE_ID,
