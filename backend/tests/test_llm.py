@@ -225,6 +225,15 @@ async def test_d184_a_fast_answer_or_another_agent_sends_one_request(make_hedged
     assert res.status == "timeout" and len(other.calls) == 1  # not on the alert path: no second request
 
 
+async def test_d287_hedged_agents_narrows_the_second_request(settings, clock, ids, store, bus):
+    s = settings.model_copy(update={"JUDGE_HEDGE_MS": 50, "HEDGED_AGENTS": "compliance"})
+    for agent, requests in (("compliance_judge", 2), ("context_judge", 1), ("fact_checker", 1)):
+        backend = FakeBackend(("sleep", 0.3), '{"answer":"x","n":1}')
+        client = LLMClient(backend, s, clock, ids, StoreAudit(store, bus))
+        await client.call(_req(agent=agent, deadline_ms=1000))
+        assert len(backend.calls) == requests, agent
+
+
 async def test_d184_an_error_on_one_request_waits_for_the_other(make_hedged):
     class Slow(FakeBackend):
         async def generate(self, req, timeout_ms):
