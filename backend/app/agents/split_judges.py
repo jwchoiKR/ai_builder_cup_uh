@@ -14,7 +14,7 @@ import json
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
-from ..models.agent_io import ComplianceOutput, ComplianceOutputB, ContextOutput, ContextOutputB
+from ..models.agent_io import ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ContextOutput, ContextOutputB
 from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -99,6 +99,14 @@ class ComplianceJudge(_SplitJudge):
     spec = "compliance"
     output_model = ComplianceOutput
     output_model_b = ComplianceOutputB
+
+    def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
+        super().__init__(llm, prompts, catalog, reflex)
+        if getattr(getattr(llm, "settings", None), "FACT_RELATION", False):
+            # D-296: a HIGH verdict names the claim the line makes; the rule-fit checks (Q6, G7) read it
+            self.output_model = ComplianceOutputR
+            if extra := arms._addenda(str(llm.prompts_path)).get(("REL", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_compliance(inp, values, self.catalog, self.reflex)

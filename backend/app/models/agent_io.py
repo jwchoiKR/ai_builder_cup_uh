@@ -109,6 +109,18 @@ class ComplianceOutputB(ComplianceOutput, _ArmB):
     correction: CorrectionB
 
 
+class ViolationR(Violation, _ArmB):
+    claim_made: str | None = None  # D-296: what the line asserts, for a HIGH rule only (Q6 and G7 read it)
+
+
+class ComplianceR(Compliance, _ArmB):
+    violations: list[ViolationR]
+
+
+class ComplianceOutputR(ComplianceOutput, _ArmB):
+    compliance: ComplianceR
+
+
 class AnswerLinkB(AnswerLink, _ArmB):
     numbers_said: list[str] = []  # every number the host said, as digits, in the suggested answer's unit
     hedged: bool = False  # the host sounded unsure or took it back
@@ -140,6 +152,25 @@ class FactClaim(BaseModel):
 class FactCheckOutput(BaseModel):
     claims: list[FactClaim]
     reason: str
+
+
+# ---- D-296 FACT_RELATION: the evidence by sentence id, then the relation; code builds the quote ------------------
+
+FactRelation = Literal["contradicts", "consistent", "not_in_documents", "uncertain"]
+
+
+class FactRelationClaim(BaseModel):
+    span: str
+    product_id: str
+    field: FactField
+    stated_value: str
+    evidence: list[str]  # SOURCE sentence ids ("S12"), "promo", or an offer's promo_id
+    relation: FactRelation
+    correct_value: str | None
+
+
+class FactRelationOutput(BaseModel):
+    claims: list[FactRelationClaim]
 
 
 class JudgeSingleOutput(UtteranceJudgeOutput):
