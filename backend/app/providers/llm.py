@@ -434,7 +434,9 @@ def write_usage_report(path: str) -> None:
 
 
 # D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
-HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker"})
+# D-301: "verifier" only when HEDGED_AGENTS names it (not in the default list)
+HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker",
+                           "verifier"})
 
 
 @dataclass(frozen=True)

@@ -49,6 +49,8 @@ class Settings(BaseSettings):
     VERIFY_MODEL: str = "gemini-3.8-flash"
     VERIFY_THINKING: ThinkingLevel = "LOW"
     VERIFY_TIMEOUT_MS: int = 3000  # a slower verifier keeps the candidate as an unverified alert
+    # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and two neighbours each side)
+    VERIFY_EVIDENCE: Literal["all", "window"] = "all"
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     FACT_GUARDS: Literal["on", "off"] = "off"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
