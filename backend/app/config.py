@@ -38,14 +38,14 @@ class Settings(BaseSettings):
     # D-274 arm: "show" puts every caution and direction into the show's language and merges repeats by meaning
     ONBOARDING_CAUTION_LANG: Literal["as_written", "show"] = "as_written"
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
-    PREFILTER: Literal["full", "pii_only"] = "full"
+    PREFILTER: Literal["full", "pii_only"] = "pii_only"  # D-305
     # D-280: switchable fixes of fact-claim code drops ("F1,F2,..."); empty = today's checks
     FACT_FIXES: str = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK"  # D-293 freeze: all on; D-294 G1-G7; D-297 CK
     # D-296: the fact checker returns evidence sentence ids and a relation (contradicts, consistent, not in the
     # documents, uncertain); code builds the quote. FACT_GUARDS=off keeps only the hard checks on its verdicts
     # D-300 R2: "verify" turns the flaggers' code drops off and sends each candidate alert to one stronger model
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
-    JUDGE_ARM: Literal["guards", "verify", "vote"] = "guards"
+    JUDGE_ARM: Literal["guards", "verify", "vote"] = "verify"  # D-305
     # D-302 vote: two more runs of the agent on a line with a candidate; empty = the model's default temperature
     # (1.0 on Gemini 3, which Google advises keeping)
     VOTE_TEMPERATURE: str = ""  # a number, e.g. "0.7"
@@ -55,26 +55,26 @@ class Settings(BaseSettings):
     VERIFY_THINKING: ThinkingLevel = "LOW"
     VERIFY_TIMEOUT_MS: int = 3000  # a slower verifier keeps the candidate as an unverified alert
     # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and two neighbours each side)
-    VERIFY_EVIDENCE: Literal["all", "window"] = "all"
+    VERIFY_EVIDENCE: Literal["all", "window"] = "window"  # D-305
     # D-303 (STT set): the judges and the verifier are told the line is speech-to-text (missing quote marks,
     # sound-alike names, misheard numbers, sentences in pieces)
-    STT_AWARE: bool = False
+    STT_AWARE: bool = True  # D-305
     # D-303: the judges read the finals of the last N ms (0 = the last two)
-    CONTEXT_WINDOW_MS: int = 0
+    CONTEXT_WINDOW_MS: int = 20000  # D-305
     # D-303: the verifier may answer "check" when the only mismatch is one number speech-to-text may have misheard;
     # the host sees "check what was said" with the heard words, not a correction
-    NUMBER_CHECK: bool = False
+    NUMBER_CHECK: bool = True  # D-305
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
-    SWITCH_ARM_NAME: bool = True  # False: arm a switch from the context judge's target and confidence alone
-    CORRECTION_CHECK: Literal["words", "judge"] = "words"  # judge: the compliance judge's listed alerts, unchecked
-    QUALIFIER_ADDON: bool = True  # False: no late "in our in-house test" add-on (D-151/155)
-    VERBAL_CHECK: Literal["code", "judge"] = "code"  # judge: numbers said and hedges from the context judge (arm B's)
-    REFLEX_SCAN: bool = True  # False: no regex pre-scan; with REFLEX_ON_FAIL=card, a card on every failed line
-    JUDGE_PRODUCTS: Literal["named", "all"] = "named"  # all: every show product in the judges' inputs
-    COMMENT_PRODUCT: Literal["code", "triage"] = "code"  # triage: the comment's product from triage, no alias rules
-    DRAFT_GATE: Literal["full", "provenance"] = "full"  # provenance: citations, products and numbers only
-    GROUP_JOIN: Literal["code", "model"] = "code"  # model: no only-open-group or stem joins
-    SHOUTOUT: Literal["regex", "judge"] = "regex"  # judge: triage labels shout-outs (arm B's)
+    SWITCH_ARM_NAME: bool = False  # D-305; # False: arm a switch from the context judge's target and confidence alone
+    CORRECTION_CHECK: Literal["words", "judge"] = "judge"  # D-305;  # judge: the compliance judge's listed alerts, unchecked
+    QUALIFIER_ADDON: bool = False  # D-305; # False: no late "in our in-house test" add-on (D-151/155)
+    VERBAL_CHECK: Literal["code", "judge"] = "judge"  # D-305;  # judge: numbers said and hedges from the context judge (arm B's)
+    REFLEX_SCAN: bool = False  # D-305; # False: no regex pre-scan; with REFLEX_ON_FAIL=card, a card on every failed line
+    JUDGE_PRODUCTS: Literal["named", "all"] = "all"  # D-305;  # all: every show product in the judges' inputs
+    COMMENT_PRODUCT: Literal["code", "triage"] = "triage"  # D-305;  # triage: the comment's product from triage, no alias rules
+    DRAFT_GATE: Literal["full", "provenance"] = "provenance"  # D-305;  # provenance: citations, products and numbers only
+    GROUP_JOIN: Literal["code", "model"] = "model"  # D-305;  # model: no only-open-group or stem joins
+    SHOUTOUT: Literal["regex", "judge"] = "judge"  # D-305;  # judge: triage labels shout-outs (arm B's)
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     FACT_GUARDS: Literal["on", "off"] = "off"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
@@ -124,7 +124,7 @@ class Settings(BaseSettings):
     HEDGE_DELAYS: str = "fact=3000,context=2000"  # D-293
     # D-288: when every compliance call fails, a reflex hit is a HIGH alert (today) or a neutral "check this line" card
     REFLEX_ON_FAIL: Literal["alert", "card"] = "card"  # D-293
-    UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
+    UTTERANCE_MERGE_WINDOW_MS: int = 0  # D-305 (was 3500)  # join a final with the previous unfinished one (D-088); 0 = off
     # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
     # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more
     FACT_TIMEOUT_MS: int = 5000
@@ -154,6 +154,8 @@ class Settings(BaseSettings):
     BROADCAST_LANGUAGE: str = "en"  # D-129: data/lang/<code>.json (wording); must be offered by MARKET
     STT_LOCATION: str = "us"
     STT_MODEL: str = "chirp_3"
+    # D-305: chirp_3 endpointing (STANDARD cut pieces 73 -> 21 of 240 at the same WER; to be measured end to end)
+    STT_ENDPOINTING: Literal["SHORT", "STANDARD", "SUPERSHORT"] = "SHORT"
     STT_LANGUAGE: str = ""  # empty: the market pack's code for BROADCAST_LANGUAGE (D-129)
     STT_PHRASE_HINTS_ENABLED: bool = True
     # D-186: also hint the market's claim words (the reflex phrases of its rules, in the broadcast language) after

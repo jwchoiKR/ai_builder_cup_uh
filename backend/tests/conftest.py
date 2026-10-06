@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import atexit
+import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -16,6 +17,20 @@ from app.logic.catalog import Catalog, DataPack
 from app.providers.prompts import load_prompts
 from app.store.memory import MemoryStore
 
+
+# D-305: the model-only settings are the shipped defaults. The older tests check the code paths as they were written,
+# so the test session pins those paths (environment, so get_settings() sees them too); a test turns any setting on
+# itself, and test_d305.py runs the shipped defaults (SHIPPED)
+LEGACY = {
+    "FACT_RELATION": "false", "JUDGE_ARM": "guards", "VERIFY_EVIDENCE": "all", "STT_AWARE": "false",
+    "CONTEXT_WINDOW_MS": "0", "NUMBER_CHECK": "false", "SWITCH_ARM_NAME": "true", "CORRECTION_CHECK": "words",
+    "QUALIFIER_ADDON": "true", "VERBAL_CHECK": "code", "REFLEX_SCAN": "true", "JUDGE_PRODUCTS": "named",
+    "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
+    "UTTERANCE_MERGE_WINDOW_MS": "3500",
+}
+for _key, _value in LEGACY.items():
+    os.environ.setdefault(_key, _value)
+SHIPPED = {k: Settings.model_fields[k].default for k in LEGACY}
 
 _REPO = Path(__file__).resolve().parents[2]
 _TEST_DATA: Path | None = None
@@ -39,10 +54,7 @@ def test_data_dir() -> Path:
 def make_settings(**overrides) -> Settings:
     """Test settings: never read the developer's .env; mock providers by default; the test data dir (with the demo
     pack) unless a test names its own."""
-    # D-297: the older tests script fact outputs in the FactCheckOutput shape; the relation arm (the default) has its
-    # own tests (test_relation.py), which turn it on
-    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "DATA_DIR": str(test_data_dir()), "FACT_RELATION": False,
-              **overrides}
+    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "DATA_DIR": str(test_data_dir()), **overrides}
     return Settings(_env_file=None, **values)
 
 
