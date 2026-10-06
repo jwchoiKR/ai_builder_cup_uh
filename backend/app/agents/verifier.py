@@ -58,6 +58,14 @@ class Verifier:
             return blocks
         ids, q = list(index), _flat(quote or "")
         hits = [i for i, sid in enumerate(ids) if q and (s := _flat(index[sid][1])) and (s in q or q in s)]
+        if q and not hits:
+            # D-309: the flagger's quote matches no sentence, so the verifier gets no documents for this fact
+            log.info("verifier window: no sentence matches the quote %r", (quote or "")[:120])
+            from .fact_checker import DROPS
+
+            if (sink := DROPS.get()) is not None:
+                sink.append({"reason": "verifier window: no sentence matches the quote", "field": None,
+                             "stated": None, "correct": None, "passage_id": None, "quote": quote})
         keep = {ids[j] for i in hits for j in range(max(0, i - WINDOW), min(len(ids), i + WINDOW + 1))}
         return [b | {"sentences": [s for s in b["sentences"] if s[0] in keep]} for b in blocks
                 if any(s[0] in keep for s in b["sentences"])]

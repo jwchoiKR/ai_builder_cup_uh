@@ -45,7 +45,9 @@ class Settings(BaseSettings):
     # documents, uncertain); code builds the quote. FACT_GUARDS=off keeps only the hard checks on its verdicts
     # D-300 R2: "verify" turns the flaggers' code drops off and sends each candidate alert to one stronger model
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
-    JUDGE_ARM: Literal["guards", "verify", "vote"] = "verify"  # D-305
+    # D-309 "single": the compliance judge and the fact checker on one model (SINGLE_MODEL, SINGLE_THINKING; unless
+    # COMPLIANCE_MODEL / FACTS_MODEL name another), no verifier, no code drops
+    JUDGE_ARM: Literal["guards", "verify", "vote", "single"] = "verify"  # D-305
     # D-302 vote: two more runs of the agent on a line with a candidate; empty = the model's default temperature
     # (1.0 on Gemini 3, which Google advises keeping)
     VOTE_TEMPERATURE: str = ""  # a number, e.g. "0.7"
@@ -95,6 +97,10 @@ class Settings(BaseSettings):
     COMPLIANCE_THINKING: ThinkingLevel = "LOW"
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
     FACTS_THINKING: ThinkingLevel = "LOW"  # D-255: sealed unseen products, 5 s budget
+    # D-309 JUDGE_ARM=single: the one model and thinking level of the compliance judge and the fact checker
+    SINGLE_MODEL: str = "gemini-3.8-flash"
+    SINGLE_THINKING: ThinkingLevel = "LOW"
+    COMPLIANCE_MODEL: str = ""  # D-309: the compliance judge's model; empty = LLM_FAST_MODEL (VERIFY_MODEL in single)
     FACTS_MODEL: str = ""  # D-246: the fact checker's model (base and FR); empty = LLM_FAST_MODEL
     TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1

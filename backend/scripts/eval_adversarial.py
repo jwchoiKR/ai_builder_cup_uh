@@ -39,7 +39,7 @@ from eval_holdout_sequences import ReplayClock  # noqa: E402
 from app.config import REPO_DIR, Settings, get_settings  # noqa: E402
 from app.context import build_context  # noqa: E402
 from app.logic.qualifier import RULE_ID as QUALIFIER  # noqa: E402
-from app.models.session import AgentCall, Event  # noqa: E402
+from app.models.session import AgentCall, Event, Transcript  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.pipelines.utterances import operator_switch  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
@@ -99,6 +99,7 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 await asyncio.sleep(PART_GAP_S)
         await rt.utterances.drain()
         alerts = [a for a in await rt.alerts() if a.shown_at is not None]
+        heard = {t.transcript_id: t.received_at for t in await rt.ctx.store.query(rt.path("transcripts"), Transcript)}
         calls = sorted(await rt.ctx.store.query(rt.path("agent_calls"), AgentCall), key=lambda c: c.started_at)
         # the fact checker's tries per line (D-203 retries once after a timeout or error): retried, final status
         tries = collections.defaultdict(list)
@@ -126,7 +127,10 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
                             "correct_value": a.correct_value, "status": a.status, "unverified": a.unverified,
                             "votes": a.votes, "evidence_ids": a.evidence_ids, "heard_check": a.heard_check,
-                            "unverified_reason": a.unverified_reason}
+                            "unverified_reason": a.unverified_reason,
+                            # D-309: from the final received to the alert created and to it shown (active)
+                            "ms_to_created": a.created_at - heard[a.transcript_id] if a.transcript_id in heard else None,
+                            "ms_to_shown": a.shown_at - heard[a.transcript_id] if a.transcript_id in heard else None}
                            for a in alerts]}
     finally:
         await ctx.runtimes.drop(rt.sid)

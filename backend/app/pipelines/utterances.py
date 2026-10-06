@@ -358,7 +358,9 @@ class UtterancePipeline:
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
                 comp_task = rt.spawn(self._vote_compliance(self._verify_compliance(self._once_more(
-                    lambda: self.compliance.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)),
+                    lambda: self.compliance.run(inp, deadline_ms=(rt.settings.VERIFY_TIMEOUT_MS  # D-309: the strong
+                                                                  if rt.settings.JUDGE_ARM == "single"  # model's 5 s
+                                                                  else rt.settings.JUDGE_TIMEOUT_MS), values=values)),
                     inp, on_air, t.transcript_id), inp, values), name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
                                                      values=values), name=f"context:{t.transcript_id}")
@@ -639,6 +641,8 @@ class UtterancePipeline:
             # §8.4.3 judge failed: fail toward warning
             changed = alert_logic.apply_judge_failure(provisional, hits, say_instead_fallback(rt.catalog, on_air), now)
             for a in changed:
+                if a.unverified and not a.unverified_reason:  # D-309: the judge's own failure type, shown honestly
+                    a.unverified_reason = res.meta.get("failure")
                 if a.rule_id in duplicate_rules:
                     a.status = "cleared"
                 self._reconcile_late_alert(a, t, now)

@@ -481,9 +481,15 @@ class LLMClient:
         self.quality = ModelSpec(settings.LLM_QUALITY_MODEL, settings.LLM_QUALITY_THINKING)  # Brief, Summary
         self.composer = ModelSpec(settings.LLM_QUALITY_MODEL, settings.COMPOSER_THINKING)
         # D-128: the fast model with a thinking level per agent
-        self.compliance = ModelSpec(settings.LLM_FAST_MODEL, settings.COMPLIANCE_THINKING)
+        # D-309 JUDGE_ARM=single: the compliance judge and the fact checker on the strong model
+        single = getattr(settings, "JUDGE_ARM", "") == "single"
+        strong = getattr(settings, "SINGLE_MODEL", settings.LLM_QUALITY_MODEL)
+        strong_thinking = getattr(settings, "SINGLE_THINKING", "LOW")
+        self.compliance = ModelSpec(getattr(settings, "COMPLIANCE_MODEL", "") or (strong if single else settings.LLM_FAST_MODEL),
+                                    strong_thinking if single else settings.COMPLIANCE_THINKING)
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
-        self.facts = ModelSpec(settings.FACTS_MODEL or settings.LLM_FAST_MODEL, settings.FACTS_THINKING)  # D-246
+        self.facts = ModelSpec(settings.FACTS_MODEL or (strong if single else settings.LLM_FAST_MODEL),
+                               strong_thinking if single else settings.FACTS_THINKING)  # D-246; D-309
         self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
         self.brief = ModelSpec(settings.BRIEF_MODEL or settings.LLM_QUALITY_MODEL, settings.BRIEF_THINKING)  # D-265
         self.verify = ModelSpec(getattr(settings, "VERIFY_MODEL", settings.LLM_QUALITY_MODEL),

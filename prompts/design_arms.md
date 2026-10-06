@@ -175,6 +175,11 @@ D-303: for a fact candidate whose only mismatch is one number that speech-to-tex
 such as "fifteen" for "fifty", a dropped or added digit), decide `check`: the host is asked to check what was said
 instead of being corrected. A wrong number that is clearly said ("thirty-two dollars" for S$36) is still `keep`.
 
+## SINGLE: compliance_judge
+
+D-309 (one strong judge, no verifier): `severity` is the rule's severity, or MEDIUM when the line makes only a lesser
+form of a HIGH rule's claim (a hedged or partial wording, not the claim itself). Never raise a MEDIUM rule to HIGH.
+
 ## CONF: compliance_judge
 
 D-302: for each violation, set `confidence` (0 to 1): how sure you are that the line breaks this rule as you say.
