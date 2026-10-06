@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 from functools import cached_property
 from pathlib import Path
@@ -161,6 +161,10 @@ class DataPack:
     market: MarketPack | None = None  # D-129: None only for packs built by hand in tests
     lang: str = "en"
     lang_pack: LangPack | None = None
+    # D-279: product_id -> release_id of a release show; a multi-release show's rule_id -> the products it came with
+    # (None: every rule applies to every product)
+    releases: dict[str, str] = field(default_factory=dict)
+    rule_products: dict[str, frozenset[str]] | None = None
 
     @cached_property
     def lexicon(self) -> Lexicon:
@@ -312,6 +316,19 @@ class Catalog:
     @property
     def brand(self) -> str:
         return self.pack.products.brand
+
+    def rules_for(self, product_ids) -> list[Rule]:
+        """D-279: the rules of these products in a multi-release show (another category's law is left out); every
+        rule otherwise."""
+        owners = self.pack.rule_products
+        ids = set(product_ids)
+        return [r for r in self.pack.rules.rules if owners is None or owners.get(r.rule_id, frozenset()) & ids]
+
+    def line_products(self, on_air: str, switch_target: str | None, texts) -> set[str]:
+        """D-279: the products a line can be about: the one on air, a pending switch's target, and any product the
+        line or the last lines name clearly (an ambiguous shared alias names none)."""
+        named = {self.product_by_alias(x) for x in texts if x}
+        return ({on_air, switch_target} | named) - {None}
 
     @property
     def products(self) -> list[Product]:

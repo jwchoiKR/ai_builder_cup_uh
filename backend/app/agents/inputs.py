@@ -150,11 +150,13 @@ def switch_context_json(catalog: Catalog, switch: SwitchState, on_air_product_id
 # ---- policy ----------------------------------------------------------------------------------
 
 
-def rules_compact_json(catalog: Catalog) -> list[dict]:
+def rules_compact_json(catalog: Catalog, product_ids=None) -> list[dict]:
+    """D-279: with `product_ids`, only those products' rules (a multi-release show)."""
+    rules = catalog.pack.rules.rules if product_ids is None else catalog.rules_for(product_ids)
     return [
         {"rule_id": r.rule_id, "title": r.title, "description": r.description,
          "severity": r.severity, "unacceptable_examples": r.unacceptable_examples}
-        for r in catalog.pack.rules.rules
+        for r in rules
     ]
 
 

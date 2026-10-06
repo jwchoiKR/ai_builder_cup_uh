@@ -87,8 +87,14 @@ async def audio(ws: WebSocket, session_id: str) -> None:
     _active[session_id] = ws
 
     # D-230: an onboarded product's show hints its own brand and names, not the shipped products'
-    release_id = (await rt.load_session()).release_id
-    glossary = (release_phrases(ctx, rt.catalog, release_id) if release_id else await glossary_phrases(ctx))
+    s = await rt.load_session()
+    if s.release_ids:  # D-279: every release's hints, the product on air first
+        seg = await rt.current_segment()
+        on_air = rt.pack.releases.get(seg.product_id) if seg else None
+        ordered = sorted(s.release_ids, key=lambda r: r != on_air)
+        glossary = list(dict.fromkeys(x for r in ordered for x in release_phrases(ctx, rt.catalog, r)))
+    else:
+        glossary = (release_phrases(ctx, rt.catalog, s.release_id) if s.release_id else await glossary_phrases(ctx))
     risk = risk_phrases(rt.pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
     phrases = with_risk_phrases(glossary, risk)
     # D-186: which hints this run's streams use, visible in Cloud Logging

@@ -246,6 +246,11 @@ class UtterancePipeline:
         async with rt.lock:
             seg = await rt.get_segment(t.segment_id) if t.segment_id else await rt.current_segment()
             on_air = seg.product_id if seg else rt.catalog.order[0]
+            if rt.pack.rule_products is not None and hits:  # D-279: no reflex chip from another product's law
+                s = await rt.load_session()
+                target = s.switch.target_product_id if s.switch.status in ("counting", "pending") else None
+                allowed = {r.rule_id for r in rt.catalog.rules_for(rt.catalog.line_products(on_air, target, [text]))}
+                hits = [h for h in hits if h.rule_id in allowed]
             alerts = await rt.alerts()
             provisional = alert_logic.provisional_from_reflex(hits, t, on_air, alerts, rt.new_id, rt.now())
             for a in provisional:
@@ -446,7 +451,7 @@ class UtterancePipeline:
 
     async def warm_facts_cache(self, on_air: str) -> None:
         """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
-        if self.facts.file_parts:
+        if self.facts._parts(on_air):
             switch = SwitchState()
             await self.facts.warm_cache(FactInput(utterance="", on_air=on_air, switch=switch, promo=None,
                                                   passages=await self._fact_passages("", on_air, switch),

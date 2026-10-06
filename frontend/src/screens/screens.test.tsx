@@ -136,6 +136,25 @@ describe("screens", () => {
     }
   });
 
+  it("D-279: Hub starts a show of two approved products in the order ticked", async () => {
+    responses["/api/onboarding/releases"] = [
+      { release_id: "rel_a_v1", product_name: "Night Cream", brand: "Lumen", category: "skincare", markets: ["SG"],
+        approved_at: 1790000000000, version: 1 },
+      { release_id: "rel_b_v1", product_name: "Quick Kettle", brand: "Larkmoor", category: "kitchen", markets: ["SG"],
+        approved_at: 1790000000000, version: 1 }];
+    responses["/api/sessions"] = { session_id: "ses_show" };
+    try {
+      render(<Hub sessionId="ses_000001" />);
+      fireEvent.click(await screen.findByTestId("hub-release-more-rel_b_v1"));
+      expect(screen.getByTestId("hub-release-more")).toHaveTextContent("2. Quick Kettle");
+      fireEvent.click(screen.getByTestId("hub-release-start"));
+      await waitFor(() => expect(window.location.search).toContain("session=ses_show"));
+    } finally {
+      delete responses["/api/onboarding/releases"];
+      delete responses["/api/sessions"];
+    }
+  });
+
   it("Hub shows the screens in the order of a show, under their phase, each card one link", () => {
     render(<Hub sessionId="ses_000001" />);
     const phases = screen.getAllByRole("region");

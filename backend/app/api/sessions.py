@@ -24,13 +24,14 @@ class CreateSessionBody(BaseModel):
     market: str | None = None  # D-142: default MARKET; the market must offer the language
     lang: str | None = None  # D-142: default BROADCAST_LANGUAGE
     release_id: str | None = None  # D-218: an onboarded product's release instead of the run sheet
+    release_ids: list[str] | None = None  # D-279: 2-3 releases in segment order, equal time each
 
 
 @router.post("/sessions", status_code=201)
 async def create_session(body: CreateSessionBody | None = None, ctx: AppContext = Depends(get_ctx)) -> Session:
     body = body or CreateSessionBody()
     return await _create(ctx, body.runsheet_id, body.show_mode, market=body.market, lang=body.lang,
-                         release_id=body.release_id)
+                         release_id=body.release_id, release_ids=body.release_ids)
 
 
 @router.post("/sessions/{session_id}/start")

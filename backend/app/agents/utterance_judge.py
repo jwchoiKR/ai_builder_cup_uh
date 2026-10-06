@@ -155,6 +155,9 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
     that were not in the input; severity comes from the rule. D-187 arm B: the qualifier replacement is the
     in-house result the judge picked by id, and correction quotes of unknown alerts are dropped."""
     rules = catalog.pack.rules_by_id
+    if "rules_compact_json" in values:  # D-279: a rule the line was not given (another category's) is no verdict
+        offered = {r["rule_id"] for r in values["rules_compact_json"]}
+        rules = {k: v for k, v in rules.items() if k in offered}
     text = values.get("utterance_text") or ""
     # D-105: a sentence that names our own test never breaks the test-qualifier rule
     # D-146 (sealed show replay): speech-to-text split "In our in-house test," from "skin hydration went up 38% ...";
@@ -245,13 +248,21 @@ def post_validate(out: UtteranceJudgeOutput, catalog: Catalog, values: dict) -> 
     return validate_context(validate_compliance(o, catalog, values), catalog, values)
 
 
+def judge_products(catalog: Catalog, inp: JudgeInput) -> set[str] | None:
+    """D-279: in a multi-release show, the products this line can be about (None: one-product rules as before)."""
+    if catalog.pack.rule_products is None:
+        return None
+    target = inp.switch.target_product_id if inp.switch.status in ("counting", "pending") else None
+    return catalog.line_products(inp.on_air, target, [*inp.previous[-2:], inp.utterance])
+
+
 def build_judge_values(catalog: Catalog, inp: JudgeInput, single: bool = False) -> dict:
     """Prompt values shared by the UtteranceJudge, judge_single and the split judges (D-099)."""
     values = {
         "current_product_json": inputs.current_product_json(catalog, inp.on_air),
         "run_sheet_compact_json": inputs.run_sheet_compact_json(catalog, inp.on_air),
         "approved_claims_of_current_product_json": inputs.approved_claims_of_current_product_json(catalog, inp.on_air),
-        "rules_compact_json": inputs.rules_compact_json(catalog),
+        "rules_compact_json": inputs.rules_compact_json(catalog, judge_products(catalog, inp)),
         "active_alerts_json": inputs.active_alerts_json(inp.active_alerts),
         "open_questions_json": inputs.open_questions_json(inp.open_questions, len(inp.open_questions),
                                                           inp.on_screen_group_id),

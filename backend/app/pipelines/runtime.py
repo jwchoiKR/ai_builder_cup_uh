@@ -72,7 +72,8 @@ class SessionRuntime:
         self.sid = session.session_id
         self.settings = ctx.settings
         # D-142: the session's (market, language) pack; never ctx.pack inside a session
-        self.pack, self.reflex = ctx.pack_for(session.market, session.lang, session.release_id)
+        self.pack, self.reflex = ctx.pack_for(session.market, session.lang,
+                                              tuple(session.release_ids) or session.release_id)
         self.catalog = Catalog(self.pack, session.runsheet_id)
         # D-150: a market or language below "live" (no sealed eval yet) is a preview: host cards only, nothing
         # is posted by itself, and the screens say so
@@ -96,7 +97,8 @@ class SessionRuntime:
                                     batch_prompt=ctx.prompts["comment_triage_batch"])
         self.composer = AnswerComposer(ctx.llm, ctx.prompts["answer_composer"], self.catalog)
         self.draft_verifier = DraftVerifier(ctx.llm, ctx.prompts["draft_verifier"], self.catalog)
-        self.feed = FeedEngine(self, demo=session.release_id is None)  # D-278: no demo comments in a release show
+        # D-278: no demo comments in a release show
+        self.feed = FeedEngine(self, demo=session.release_id is None and not session.release_ids)
         from .utterances import UtterancePipeline
 
         self.utterances = UtterancePipeline(self)
@@ -273,7 +275,8 @@ class SessionRuntime:
         await self.prefetch(first)
         await self.prefetch(self.catalog.next_product(first))
         self.spawn(self.ctx.llm.warm_up(), name="warm-up")
-        self.spawn(self.utterances.warm_facts_cache(first), name="facts-files-cache")  # D-247 arm FD
+        for pid in self.catalog.order:  # D-247 arm FD; D-279: every release's files at the start of the show
+            self.spawn(self.utterances.warm_facts_cache(pid), name=f"facts-files-cache:{pid}")
         self.ctx.scheduler.call_later(self.key("tick"), TICK_MS, self._tick)
         return s
 
@@ -663,7 +666,8 @@ class SessionRuntime:
 
 
 async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "solo", assistant: bool = True,
-                         market: str | None = None, lang: str | None = None, release_id: str | None = None) -> Session:
+                         market: str | None = None, lang: str | None = None, release_id: str | None = None,
+                         release_ids: list[str] | None = None) -> Session:
     """§8.1.1: a new session in status `ready`."""
     from ..logic.catalog import DataPackError
 
@@ -673,7 +677,24 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
         pack, _ = ctx.pack_for(market, lang)  # D-142: fails when the market does not offer the language
     except (DataPackError, FileNotFoundError) as e:
         raise ActionError(400, "unknown_market_language", f"{market}/{lang}: {e}") from None
-    if release_id is not None:  # D-218: an onboarded product's one-segment show
+    if release_ids and len(release_ids) == 1:
+        release_id, release_ids = release_ids[0], None
+    if release_ids:  # D-279: a show of 2-3 releases
+        from ..onboarding.show import MAX_RELEASES, show_id
+
+        if len(release_ids) > MAX_RELEASES or len(set(release_ids)) != len(release_ids):
+            raise ActionError(400, "bad_release_ids", f"2 to {MAX_RELEASES} different releases")
+        missing = [r for r in release_ids if not (ctx.settings.onboarding_path / "releases" / f"{r}.json").is_file()]
+        if missing:
+            raise ActionError(404, "unknown_release", f"no release {missing}")
+        try:
+            pack, _ = ctx.pack_for(market, lang, tuple(release_ids))
+        except FileNotFoundError as e:
+            raise ActionError(404, "unknown_release", str(e)) from None
+        except DataPackError as e:  # no price for this market, another currency, ...
+            raise ActionError(400, "show_not_buildable", str(e)) from None
+        runsheet_id = show_id(tuple(release_ids))
+    elif release_id is not None:  # D-218: an onboarded product's one-segment show
         try:
             pack, _ = ctx.pack_for(market, lang, release_id)
         except DataPackError as e:
@@ -698,6 +719,7 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
     session = Session(
         session_id=ctx.ids.new("ses_"), runsheet_id=runsheet.runsheet_id, title=runsheet.title, status="ready",
         show_mode=show_mode, assistant=assistant, market=market, lang=lang, release_id=release_id,
+        release_ids=list(release_ids or []),
         settings_snapshot=ctx.settings.snapshot(), doc_version=ctx.retriever.doc_version(),
         glossary_version=glossary_version, prompter_points=points, created_at=ctx.clock.now_ms(),
     )
