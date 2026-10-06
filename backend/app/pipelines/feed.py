@@ -19,22 +19,29 @@ log = logging.getLogger(__name__)
 ARM_GRACE_MS = 1000  # a burst armed within 1 s after a segment start fires at once
 
 
+NO_SCRIPT: dict[str, Any] = {"bursts": {}}
+NO_POOL: dict[str, Any] = {"playback": {"seed": 0}, "items": []}
+
+
 @lru_cache
 def load_script(data_dir: str) -> dict[str, Any]:
-    return json.loads((Path(data_dir) / "demo" / "comment_script.json").read_text(encoding="utf-8"))
+    path = Path(data_dir) / "demo" / "comment_script.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else NO_SCRIPT  # D-278: optional
 
 
 @lru_cache
 def load_pool(data_dir: str) -> dict[str, Any]:
-    return json.loads((Path(data_dir) / "demo" / "comment_pool.json").read_text(encoding="utf-8"))
+    path = Path(data_dir) / "demo" / "comment_pool.json"
+    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else NO_POOL  # D-278: optional
 
 
 class FeedEngine:
-    def __init__(self, rt: "SessionRuntime") -> None:
+    def __init__(self, rt: "SessionRuntime", demo: bool = True) -> None:
+        """D-278: `demo=False` (a release show) gets no demo bursts or chatter: they are about the demo products."""
         self.rt = rt
         data_dir = str(rt.settings.data_path)
-        self.script = load_script(data_dir)
-        self.pool = load_pool(data_dir)
+        self.script = load_script(data_dir) if demo else NO_SCRIPT
+        self.pool = load_pool(data_dir) if demo else NO_POOL
         self.pool_running = False
         self.armed: dict[str, dict] = {}
         self.fired: list[str] = []

@@ -24,6 +24,7 @@ from ..models.data import (
     Product,
     ProductsFile,
     Promo,
+    PromoRules,
     PromosFile,
     Rule,
     Runsheet,
@@ -172,14 +173,21 @@ class DataPack:
             rs = Runsheet.model_validate(_read_json(p))
             runsheets[rs.runsheet_id] = rs
         passages = []
-        with (data_dir / "products" / "passages.jsonl").open(encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    passages.append(Passage.model_validate_json(line))
+        if (data_dir / "products" / "passages.jsonl").is_file():  # D-278: the demo products are optional
+            with (data_dir / "products" / "passages.jsonl").open(encoding="utf-8") as f:
+                for line in f:
+                    if line.strip():
+                        passages.append(Passage.model_validate_json(line))
         market_pack = MarketPack.model_validate(_read_json(data_dir / "markets" / f"{market.lower()}.json"))
         lang_pack = LangPack.model_validate(_read_json(data_dir / "lang" / f"{lang}.json"))
-        products = ProductsFile.model_validate(_read_json(data_dir / "products" / "products.json"))
-        promos = PromosFile.model_validate(_read_json(data_dir / "promos" / "promos.json"))
+        # D-278: without the demo data the base pack has no products, run-sheets or promos; a show comes from a release
+        products = (ProductsFile.model_validate(_read_json(data_dir / "products" / "products.json"))
+                    if (data_dir / "products" / "products.json").is_file() else
+                    ProductsFile(brand="", currency=market_pack.currency.code,
+                                 currency_symbol=market_pack.currency.symbol, set_offers=[], products=[]))
+        promos = (PromosFile.model_validate(_read_json(data_dir / "promos" / "promos.json"))
+                  if (data_dir / "promos" / "promos.json").is_file() else
+                  PromosFile(promos=[], rules=PromoRules(max_active_price_promos=1, promo_prices_are_final=True)))
         if (products.currency_symbol != market_pack.currency.symbol
                 and market_pack.market in products.market_prices):
             products, promos, passages, runsheets = _priced_for(market_pack.market, products, promos, passages, runsheets)
@@ -216,7 +224,7 @@ class DataPack:
         unique("promo_id", [p.promo_id for p in self.promos.promos])
         unique("passage_id", [p.passage_id for p in self.passages])
         unique("point_id", [pt for ps in points.values() for pt in ps])
-        if not self.runsheets:
+        if self.products.products and not self.runsheets:  # D-278: no demo products, no run-sheets needed
             errors.append("no run-sheets in data/runsheets/")
         for s in self.products.set_offers:
             if missing := set(s.product_ids) - pids:
@@ -237,7 +245,7 @@ class DataPack:
         for p in self.passages:
             if p.product_id not in pids:
                 errors.append(f"passage {p.passage_id}: unknown product {p.product_id}")
-        if DEFAULT_RUNSHEET_ID not in self.runsheets:
+        if self.products.products and DEFAULT_RUNSHEET_ID not in self.runsheets:
             errors.append(f"default run-sheet {DEFAULT_RUNSHEET_ID} missing")
         if self.market is not None and self.products.currency_symbol != self.market.currency.symbol:
             errors.append(f"products are priced in {self.products.currency_symbol}, market "
@@ -271,7 +279,10 @@ class Catalog:
 
     def __init__(self, pack: DataPack, runsheet_id: str = DEFAULT_RUNSHEET_ID) -> None:
         self.pack = pack
-        self.runsheet = pack.runsheet(runsheet_id)
+        # D-278: a clean base (no demo products) has no run-sheet; its catalog is empty, a show comes from a release
+        self.runsheet = (pack.runsheet(runsheet_id) if pack.runsheets or pack.products.products else
+                         Runsheet(runsheet_id=runsheet_id, title="", brand="", language=pack.lang,
+                                  market=pack.market.market, items=[], promo_ids=[]))
         self._products = {p.product_id: p for p in pack.products.products}
         self._sets = {s.set_id: s for s in pack.products.set_offers}
         self.order = [item.product_id for item in sorted(self.runsheet.items, key=lambda i: i.order)]

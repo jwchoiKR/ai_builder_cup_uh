@@ -70,7 +70,7 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
 
     drops: list = []
     DROPS.set(drops)  # D-250: every right-or-wrong model verdict code overruled in this case, with the reason
-    s = await create_session(ctx, next(iter(ctx.pack.runsheets)), release_id=RELEASE)
+    s = await create_session(ctx, next(iter(ctx.pack.runsheets), ""), release_id=RELEASE)  # D-278: a release needs none
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None  # this eval isolates the utterance pipeline
     try:

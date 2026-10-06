@@ -45,8 +45,10 @@ class LocalRetriever:
         for p in self._passages:
             groups.setdefault(p.product_id, []).append(p)
         for key, ps in groups.items():
-            # Filter by product before scoring: one index per product.
-            self._index[key] = (ps, BM25Okapi([tokenize(p.text) for p in ps]))
+            # Filter by product before scoring: one index per product. D-278: no passages (a clean base before any
+            # release) is no index, not a BM25 over nothing
+            if ps:
+                self._index[key] = (ps, BM25Okapi([tokenize(p.text) for p in ps]))
 
     def replace_product(self, product_id: str, passages: Sequence[Passage]) -> int:
         """Swap one product's passages (a rebuilt sheet from /setup) and bump doc_version (§12.7).
