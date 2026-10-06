@@ -1,4 +1,4 @@
-# Prompt: fact_checker (version fact_checker_v1)
+# Prompt: fact_checker (version fact_checker_v2)
 
 Used by: `FactChecker` agent, `JUDGE_MODE=split3` and `split`. Model: `LLM_FAST_MODEL`, thinking MINIMAL.
 Called once per final host transcript, in parallel with the judges (`compliance_judge` and `context_judge`, or `utterance_judge`).
@@ -114,6 +114,6 @@ Example D
 ACTIVE_PROMO: {"promo_id":"promo_time_sale_10","promo_prices":{"product_a":32.40}}
 UTTERANCE: "With the time sale it's thirty dollars now."
 ```json
-{"claims":[{"span":"with the time sale it's thirty dollars now","field":"promo","product_id":"product_a","stated_value":"S$30","verdict":"contradicted","correct_value":"S$21.60","passage_id":null,"quote":null}],"reason":"Time sale price is S$21.60 per the active promo."}
+{"claims":[{"span":"with the time sale it's thirty dollars now","field":"promo","product_id":"product_a","stated_value":"S$30","verdict":"contradicted","correct_value":"S$32.40","passage_id":null,"quote":null}],"reason":"Time sale price is S$32.40 per the active promo."}
 ```
 Note for Example D: when the correct value comes from ACTIVE_PROMO, `passage_id` and `quote` are null and the server shows "Source: active promotion".

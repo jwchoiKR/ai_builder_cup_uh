@@ -39,7 +39,7 @@ OUTPUT_MODELS: dict[str, type[BaseModel]] = {
 def test_all_prompts_load_with_versions(prompts):
     assert set(prompts) == set(PROMPT_NAMES)
     for name, t in prompts.items():
-        assert t.version == f"{name}_v1"
+        assert re.fullmatch(rf"{name}_v\d+", t.version)  # D-275: a fixed example bumps its version
         assert "<data" in t.user_template
 
 

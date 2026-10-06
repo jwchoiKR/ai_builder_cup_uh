@@ -1,4 +1,4 @@
-# Prompt: brief_agent (version brief_agent_v1)
+# Prompt: brief_agent (version brief_agent_v2)
 
 Used by: `BriefAgent` (pre-broadcast, batch). Model: `LLM_QUALITY_MODEL`, thinking MEDIUM. No real-time deadline (timeout `BRIEF_TIMEOUT_MS`).
 Called once per product when the operator presses "Run Brief Agent" on `/setup`.
@@ -18,7 +18,7 @@ A. STT glossary
 B. Prompter point drafts
 - Write 4 to 6 short points the host can glance at. Each at most 90 characters.
 - Use only facts and approved wording from the document. Keep qualifiers like "(in-house test)".
-- Mark `required=true` for points the brand must have said on air: the key ingredient amount, the main tested claim, and any safety caution. At most 3 required points.
+- Mark `required=true` for points the brand must have said on air: the key ingredient amount, the main tested claim, and every safety caution the host must say.
 - Never write claims listed under "Claims not approved".
 
 Return JSON only.
@@ -55,5 +55,5 @@ Produce the glossary and prompter point drafts.
 ## EXAMPLES
 
 ```json
-{"product_id":"product_b","glossary":[{"term":"EXAMPLE CO.","kind":"brand","spoken_forms":["ex-ample co","example co"],"source_section":"Product overview"},{"term":"Bright Drop Serum","kind":"product","spoken_forms":["deep hydration serum","the serum"],"source_section":"Product overview"},{"term":"bisabolol","kind":"ingredient","spoken_forms":["nia-sin-a-mide","bisabolol"],"source_section":"Key ingredients"},{"term":"4% bisabolol","kind":"value","spoken_forms":["four percent bisabolol"],"source_section":"Key ingredients"}],"prompter_points":[{"text":"4% bisabolol, clearly stated.","required":true,"source_section":"Key ingredients"},{"text":"Skin softness: +30% after one week (in-house test).","required":true,"source_section":"In-house test results"}],"reason":"Terms and points taken from the sheet only."}
+{"product_id":"product_b","glossary":[{"term":"EXAMPLE CO.","kind":"brand","spoken_forms":["ex-ample co","example co"],"source_section":"Product overview"},{"term":"Bright Drop Serum","kind":"product","spoken_forms":["bright drop serum","bright drop"],"source_section":"Product overview"},{"term":"bisabolol","kind":"ingredient","spoken_forms":["bis-a-bol-ol","bisabolol"],"source_section":"Key ingredients"},{"term":"4% bisabolol","kind":"value","spoken_forms":["four percent bisabolol"],"source_section":"Key ingredients"}],"prompter_points":[{"text":"4% bisabolol, clearly stated.","required":true,"source_section":"Key ingredients"},{"text":"Skin softness: +30% after one week (in-house test).","required":true,"source_section":"In-house test results"}],"reason":"Terms and points taken from the sheet only."}
 ```

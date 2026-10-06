@@ -1486,3 +1486,9 @@ D-274: Cautions and directions in the show's language, with repeats merged by me
 - **Not in this arm:** price, market and channel limits stay among the cautions (D-257). Moving them to their own field is a record change on hold.
 - **Made-up sunscreen with an English and a Chinese section, gemini-3.8-flash:** "as_written" kept 10 cautions, four of them in Chinese, three of which repeated English lines. "show" kept 7. The three repeats were merged into their English lines, with both quotes as evidence. "Do not use on infants under 6 months of age" became the English line for a Chinese-only caution. The Chinese directions became an English line.
 - **To measure:** pools 2 and 3 with Flash and Pro on the same code: safety by meaning (cautions plus how_to_use), lines in the show language, repeats, check counts, seconds.
+
+D-275: Prompt example bugs fixed (a prompt audit, checked by the planning session; prompt text, versions bumped).
+- **fact_checker_v2, Example D:** the active promo's price is 32.40, but the example's correction said S$21.60, so the few-shot taught a correction its own evidence contradicts. The correction and its reason now say S$32.40. This may change promo corrections.
+- **brief_agent_v2, the example glossary:** "bisabolol" had a leftover niacinamide spoken form, and the product's spoken form was another product's name. Spoken forms are now the term's own ("bis-a-bol-ol", "bright drop serum").
+- **brief_agent_v2, required points:** the base text said "any safety caution" is required but also "at most 3 required points". No code caps required points, and the release addendum (D-265) already marks every must-say caution as required. The base text now says every safety caution the host must say is required.
+- `test_prompts` accepts any `_vN`, so a fixed prompt can bump its version.
