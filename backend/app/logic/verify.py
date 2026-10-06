@@ -146,6 +146,7 @@ def verify_answer(
     reflex: Reflex,
     not_approved_claims: Sequence[str],
     minimal: bool = False,
+    negated_ok: bool = False,
 ) -> tuple[bool, list[str]]:
     """D-187 arm B (`minimal`): only the digit-set compare, restricted phrases and the citations; the length and
     sentence limits, the subject word window (6) and the in-house wording (7) are left to the LLM draft verifier."""
@@ -216,7 +217,7 @@ def verify_answer(
             break
 
     # 5. no restricted wording, even negated
-    hits = reflex.scan(answer)
+    hits = [h for h in reflex.scan(answer) if not (negated_ok and h.negated)]  # D-304: a negated mention passes
     if hits:
         errors.append(f"restricted phrase '{hits[0].phrase}' ({hits[0].rule_id})")
     low = _ws(answer)

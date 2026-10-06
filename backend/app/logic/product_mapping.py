@@ -19,10 +19,16 @@ def attribute_product(
     context_product_id: str | None,
     catalog: Catalog,
     intent: Intent | None,
+    by_triage: bool = False,
 ) -> tuple[str | None, Basis]:
     scope = intent.product_scope if intent else "single"
     if scope == "none":
         return None, "unknown"  # general question: product null by design, not "unresolved"
+    if by_triage:
+        # D-304 COMMENT_PRODUCT=triage: triage's product (code checks it is one), else the product on air
+        if catalog.is_product(triage.product_id):
+            return triage.product_id, triage.product_basis
+        return (context_product_id, "context") if context_product_id is not None else (None, "unknown")
     named = catalog.products_meant(text)
     if intent is not None and intent.intent in SET_INTENTS:
         # D-147 (comment-flow CF10): the set is the same whichever product the comment names, so a set

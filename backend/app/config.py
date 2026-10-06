@@ -64,6 +64,17 @@ class Settings(BaseSettings):
     # D-303: the verifier may answer "check" when the only mismatch is one number speech-to-text may have misheard;
     # the host sees "check what was said" with the heard words, not a correction
     NUMBER_CHECK: bool = False
+    # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
+    SWITCH_ARM_NAME: bool = True  # False: arm a switch from the context judge's target and confidence alone
+    CORRECTION_CHECK: Literal["words", "judge"] = "words"  # judge: the compliance judge's listed alerts, unchecked
+    QUALIFIER_ADDON: bool = True  # False: no late "in our in-house test" add-on (D-151/155)
+    VERBAL_CHECK: Literal["code", "judge"] = "code"  # judge: numbers said and hedges from the context judge (arm B's)
+    REFLEX_SCAN: bool = True  # False: no regex pre-scan; with REFLEX_ON_FAIL=card, a card on every failed line
+    JUDGE_PRODUCTS: Literal["named", "all"] = "named"  # all: every show product in the judges' inputs
+    COMMENT_PRODUCT: Literal["code", "triage"] = "code"  # triage: the comment's product from triage, no alias rules
+    DRAFT_GATE: Literal["full", "provenance"] = "full"  # provenance: citations, products and numbers only
+    GROUP_JOIN: Literal["code", "model"] = "code"  # model: no only-open-group or stem joins
+    SHOUTOUT: Literal["regex", "judge"] = "regex"  # judge: triage labels shout-outs (arm B's)
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     FACT_GUARDS: Literal["on", "off"] = "off"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage

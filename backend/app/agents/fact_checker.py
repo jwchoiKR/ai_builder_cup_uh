@@ -495,6 +495,7 @@ async def gather_fact_passages(
     on_air: str,
     switch: SwitchState,
     search_timeout_ms: int,
+    all_products: bool = False,
 ) -> list[Passage]:
     """Full sheets, retaining original citation IDs, without search or network prefetch.
 
@@ -502,7 +503,8 @@ async def gather_fact_passages(
     remain available for comparisons, alongside the on-air product and a counting/pending target.
     Local uploaded sheets take precedence over the shipped catalog.
     """
-    others = catalog.products_mentioned(utterance) - {on_air}
+    # D-304 JUDGE_PRODUCTS=all: every show product's sheet, no alias match
+    others = set(catalog.order) if all_products else catalog.products_mentioned(utterance) - {on_air}
     if switch.status in ("counting", "pending"):
         others.add(switch.target_product_id or catalog.next_product(on_air) or on_air)
     others.discard(on_air)
@@ -955,8 +957,9 @@ class FactChecker:
                 res.output = post_validate(out, passages, self.catalog, inp.promo, inp.utterance, inp.offers,
                                            self.fixes)
             else:
-                products = self.catalog.line_products(inp.on_air, inp.switch.target_product_id,
-                                                      [inp.utterance, *inp.previous[-1:]])
+                products = (set(self.catalog.order) if getattr(self.llm.settings, "JUDGE_PRODUCTS", "named") == "all"
+                            else self.catalog.line_products(inp.on_air, inp.switch.target_product_id,
+                                                            [inp.utterance, *inp.previous[-1:]]))  # D-304
                 res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products,
                                            inp.utterance, self.fixes, inp.previous[-1] if inp.previous else None,
                                            verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") in ("verify", "vote"))

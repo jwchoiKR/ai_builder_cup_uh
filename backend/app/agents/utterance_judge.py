@@ -39,6 +39,7 @@ class JudgeInput:
     previous: list[str] = field(default_factory=list)
     points_by_product: dict[str, list[PrompterPoint]] | None = None
     recent: list[str] | None = None  # D-303 CONTEXT_WINDOW_MS: the finals of the window, in place of the last two
+    all_products: bool = False  # D-304 JUDGE_PRODUCTS=all: the rules of every show product
     session_id: str | None = None
     scenario: str = "default"
     # single mode only
@@ -428,6 +429,8 @@ def judge_products(catalog: Catalog, inp: JudgeInput) -> set[str] | None:
     """D-279: in a multi-release show, the products this line can be about (None: one-product rules as before)."""
     if catalog.pack.rule_products is None:
         return None
+    if inp.all_products:
+        return set(catalog.order)
     target = inp.switch.target_product_id if inp.switch.status in ("counting", "pending") else None
     return catalog.line_products(inp.on_air, target, [*inp.previous[-2:], inp.utterance])
 
