@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     LLM_CONTEXT_CACHE_TTL_SEC: int = 3600  # request session duration overrides this fallback
     JUDGE_MODE: Literal["split3", "split", "single"] = "split3"  # D-099; split = one UtteranceJudge (rollback)
     JUDGE_TIMEOUT_MS: int = 2500
+    # D-268: the compliance judge's own deadline per try (hedge and one more try unchanged); 0 = JUDGE_TIMEOUT_MS
+    COMPLIANCE_TIMEOUT_MS: int = 0
     # D-187: design arms compared by measurement (user decision 10/5). A = today; B = meaning to the LLM, code only
     # checks it; C = B without the reflex pre-scan; D = agents decide everything, code keeps deadlines, state, routing
     # and idempotency; E = D with the rules retrieved per utterance. The default stays A until a comparison picks one.
