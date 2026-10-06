@@ -1872,3 +1872,7 @@ D-310: `COMPLIANCE_DOCS` (off by default), the design for a Flash-Lite-only judg
   - In a multi-release show the documents are the on-air product's.
 - **Eval rows:** every agent's call now carries `usage` (prompt, output, thoughts, cached).
 - **Tests:** `tests/test_d310.py`. Suite: 1257 passed.
+
+D-311: `SINGLE_FACTS_THINKING` (empty means `SINGLE_THINKING`) sets the fact checker's thinking level apart in the single arm, so the compliance judge can run at MEDIUM and the fact checker at LOW on Flash-Lite. Why, from the Flash-Lite results on STT pool 5:
+- **LOW on both agents:** the alert showed in 1.4 s on average (p95 2.4-2.6 s). False alerts were 10-20% and wrong HIGH 4-13, almost all from the compliance judge, and `COMPLIANCE_DOCS` made wrong HIGH worse at LOW (4 to 11).
+- **MEDIUM on both:** wrong HIGH 0 and false alerts 9.3%, but the fact checker timed out often (47 client timeouts).

@@ -26,6 +26,10 @@ def test_d309_the_single_arm_s_models(settings, clock, ids, store, bus):
     lite = specs(JUDGE_ARM="single", SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="HIGH")  # cell A
     assert lite == (("gemini-3.5-flash-lite", "HIGH"), ("gemini-3.5-flash-lite", "HIGH"))
     assert specs(JUDGE_ARM="single", COMPLIANCE_MODEL="m1")[0][0] == "m1"
+    # D-311: compliance MEDIUM, facts LOW on Flash-Lite
+    split = specs(JUDGE_ARM="single", SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="MEDIUM",
+                  SINGLE_FACTS_THINKING="LOW")
+    assert split == (("gemini-3.5-flash-lite", "MEDIUM"), ("gemini-3.5-flash-lite", "LOW"))
 
 
 class _Record(ScriptedBackend):

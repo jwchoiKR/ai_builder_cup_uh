@@ -488,8 +488,9 @@ class LLMClient:
         self.compliance = ModelSpec(getattr(settings, "COMPLIANCE_MODEL", "") or (strong if single else settings.LLM_FAST_MODEL),
                                     strong_thinking if single else settings.COMPLIANCE_THINKING)
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
+        facts_thinking = getattr(settings, "SINGLE_FACTS_THINKING", "") or strong_thinking  # D-311
         self.facts = ModelSpec(settings.FACTS_MODEL or (strong if single else settings.LLM_FAST_MODEL),
-                               strong_thinking if single else settings.FACTS_THINKING)  # D-246; D-309
+                               facts_thinking if single else settings.FACTS_THINKING)  # D-246; D-309
         self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
         self.brief = ModelSpec(settings.BRIEF_MODEL or settings.LLM_QUALITY_MODEL, settings.BRIEF_THINKING)  # D-265
         self.verify = ModelSpec(getattr(settings, "VERIFY_MODEL", settings.LLM_QUALITY_MODEL),
