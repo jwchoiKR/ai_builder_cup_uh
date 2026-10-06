@@ -1710,20 +1710,18 @@ async def test_d272_offer_points_come_from_the_record_and_survive_translation_on
          "amount": money, "buy": None, "get": None, "gift": "pouch", "rounding": None, "starts": None, "ends": None,
          "duration_min": None, "combinable": None, "conditions": ["members only"], "evidence": EV}]))
     assert offer_lines(rec) == [
-        ("o1", ["Code SAVE10: 10% off.", "Valid from 1 November 2026 to 14 November 2026.",
-                "Terms: online store only; one per order; combinable with other offers or codes: no."]),
-        ("o2", ["Free pouch: minimum spend 30 SGD.", "Terms: members only."])]
-
+        ("o1", ["Code SAVE10: 10% off.", "Valid from 1 to 14 November 2026.", "Terms: online store only; one per order."]),
+        ("o2", ["Free pouch: when you spend the S$30 spend in the terms.", "Terms: members only."])]
     class Fake:
         async def call(self, req):
             lines = json.loads(req.user_message.split('<data name="LINES">')[1].split("</data>")[0])["lines"]
-            out = [x.replace("Valid", "Sah").replace("30 SGD", "3 SGD") for x in lines]  # one number broken
+            out = [x.replace("Valid", "Sah").replace("S$30", "S$3") for x in lines]  # one number broken
             return SimpleNamespace(status="ok", output=SimpleNamespace(lines=out))
 
     en = [p.text for p in await offer_points(Fake(), rec, "en")]  # an English record and show: no call
     ms = [p.text for p in await offer_points(Fake(), rec, "ms")]
-    assert en[1] == "Valid from 1 November 2026 to 14 November 2026." and ms[1] == "Sah from 1 November 2026 to 14 November 2026."
-    assert ms[3] == "Free pouch: minimum spend 30 SGD."  # the changed number keeps the English line
+    assert en[1] == "Valid from 1 to 14 November 2026." and ms[1] == "Sah from 1 to 14 November 2026."
+    assert ms[3] == "Free pouch: when you spend the S$30 spend in the terms."  # a changed number keeps the English
 
 
 async def test_d273_a_release_without_approved_claims_keeps_the_fallback_alert(tmp_path, monkeypatch):
@@ -1765,3 +1763,19 @@ async def test_d274_cautions_and_directions_in_the_show_language_and_repeats_mer
     assert [h.evidence[0].quote for h in rec.how_to_use] == ["每2小时补涂一次。"]  # the original stays the evidence
     assert notes == ["show language: 1 cautions or directions put into en, 1 repeats merged",
                      "show language: 1 lines kept as written (a number changed in translation)"]
+
+
+def test_d272_patch_offer_wording_follows_the_kind_and_the_terms_as_written(pack):
+    from app.onboarding.brief import offer_lines
+
+    ev = lambda q: [{"file": "f", "locator": "l", "quote": q}]  # noqa: E731
+    money = {"currency": "SGD", "minor": 4000, "kind": "promo", "market": "SG", "evidence": EV}
+    rec = ProductRecord.model_validate(_record(offers=[
+        {"offer_id": "g", "kind": "spend_threshold_gift", "title": "Free sleeve", "variant_ids": [], "percent": None,
+         "amount": money, "buy": 1, "get": 1, "gift": "travel sleeve", "rounding": None, "starts": "2026-10-01T00:00:00+08:00",
+         "ends": "2026-10-31T23:59:00+08:00", "duration_min": None, "combinable": True,
+         "conditions": ["combinable only with the member price"], "evidence": ev("orders above S$40 get a free sleeve")}]))
+    [(_, lines)] = offer_lines(rec, pack.lexicon)
+    assert lines == ["Free sleeve: get a free travel sleeve, when you spend above S$40.",
+                     "Valid from 1 to 31 October 2026.", "Terms: combinable only with the member price."]
+    assert not any("buy 1" in x or "combinable with other" in x or "00:00" in x for x in lines)
