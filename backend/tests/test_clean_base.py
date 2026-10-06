@@ -94,4 +94,7 @@ def test_d278_the_app_starts_and_serves_a_release_without_the_demo_data(tmp_path
         for path in (f"/api/catalog?session={sid}", f"/api/sessions/{sid}/state"):
             body = c.get(path)
             assert body.status_code == 200, (path, body.text)
-            # the screen text (notices) is made brand-free in step 3 of the clean-base workstream
+            assert DEMO_BRAND.lower() not in body.text.lower(), path  # step 3: brand-free screen text
+        notice = next(n for n in c.get(f"/api/catalog?session={sid}").json()["notices"]["correction_notices"]
+                      if n["template_id"] == "compliance_correction")
+        assert "{brand}" in notice["text"] and "skin" not in notice["text"].lower()
