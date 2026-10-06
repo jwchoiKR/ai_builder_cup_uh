@@ -25,7 +25,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from ..agents import arms
-from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
+from ..agents.fact_checker import FactChecker, FactInput, fixes_of, gather_fact_passages
 from ..agents.split_judges import ComplianceJudge, ContextJudge
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values, say_instead_fallback
 from ..logic import alerts as alert_logic
@@ -64,6 +64,23 @@ _KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever
 def ends_sentence(text: str) -> bool:
     """True when a final ends with . ? or ! (closing quotes and brackets ignored)."""
     return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
+
+
+# D-285 Q5: an English final that ends on one of these, or on a bare number, stops mid-clause ("The bottle at SGD 158
+# contains"); with the flag it is held until the next final joins it. ponytail: English words only; another language
+# gets no hold until its language pack names its own
+DANGLING = frozenset("""a an the of for at with and or to in on by from is are was were has have had contains contain
+includes include costs cost about than its our your their this that these those per under over into as like only
+just around nearly almost up down plus minus""".split())
+
+
+def mid_clause(text: str) -> bool:
+    """D-285 Q5: the final has no end mark and ends on a dangling word or a number."""
+    if ends_sentence(text):
+        return False
+    words = text.rstrip(" ,;:-").lower().split()
+    return bool(words) and (words[-1].strip("\"'") in DANGLING or words[-1].replace(".", "").replace(",", "").isdigit()
+                            or words[-1].startswith(("s$", "rm", "$")))
 
 
 LATE_QUALIFIER_MS = 10_000  # D-151: a qualifier add-on fixes a qualifier alert at most this old
@@ -129,6 +146,7 @@ class UtterancePipeline:
         self._segments: dict[str, str] = {}
         self._last: Transcript | None = None  # previous final in the main chain
         self._judged: dict[str, Judged] = {}
+        self._held: dict[str, tuple] = {}  # D-285 Q5: fragments waiting for the next final
         self._inputs: dict[str, JudgeInput] = {}  # D-146: kept with the judged prefix, for a later recheck
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
@@ -181,6 +199,9 @@ class UtterancePipeline:
     async def drain(self) -> None:
         if self._main_tail is not None:
             await asyncio.gather(self._main_tail, return_exceptions=True)
+        for tid in list(self._held):  # D-285 Q5: no more finals are coming, so a held fragment is judged now
+            self.rt.ctx.scheduler.cancel(self.rt.key(f"hold:{tid}"))
+            await self._release(tid)
         await asyncio.gather(*tuple(self._pending), return_exceptions=True)
 
     # ---- steps 1-4 -----------------------------------------------------------------------------
@@ -240,6 +261,28 @@ class UtterancePipeline:
         await rt.emit("transcript.final", t)
         if not rt.assistant:
             return  # D-139: no reflex chip, no judge, no prompter coverage
+        if merge is not None and merge.prev.transcript_id in self._held:  # D-285 Q5: the held fragment joins this one
+            self._held.pop(merge.prev.transcript_id)
+            rt.ctx.scheduler.cancel(rt.key(f"hold:{merge.prev.transcript_id}"))
+        window = rt.settings.UTTERANCE_MERGE_WINDOW_MS
+        if ("Q5" in fixes_of(rt.settings.FACT_FIXES) and window > 0 and mid_clause(t.text)
+                and len((merge.chain if merge else [])) + 1 < MAX_MERGED_FINALS):
+            # D-285 Q5: a fragment that stops mid-clause is judged with the next final, or alone when none comes
+            self._held[t.transcript_id] = (t, text, merge, scenario)
+            rt.ctx.scheduler.call_later(rt.key(f"hold:{t.transcript_id}"), window,
+                                        lambda tid=t.transcript_id: self._release(tid))
+            return
+        await self._judge(t, text, merge, scenario)
+
+    async def _release(self, tid: str) -> None:
+        """D-285 Q5: no final joined the held fragment within the window: it is judged on its own."""
+        held = self._held.pop(tid, None)
+        if held is not None:
+            log.info("held fragment %s judged alone after the merge window", tid)
+            await self._judge(*held)
+
+    async def _judge(self, t: Transcript, text: str, merge: Merge | None, scenario: str) -> None:
+        rt = self.rt
         # 2. reflex -> provisional alerts (D-189 arm C: no pre-scan, so no provisional chip and no fallback alert when
         # the judge fails; reflex still guards drafts through the restricted phrases of verify_answer)
         hits = [] if arms.no_reflex(rt.settings.DESIGN_ARM) else rt.reflex.scan(text)
