@@ -173,6 +173,7 @@ class Rule(BaseModel):
     unacceptable_examples: list[str]
     say_instead_hint: str
     reflex_phrases: list[str]
+    required_terms: list[str] = []  # D-290 Q6 (from the language pack's category wording)
 
 
 class Currency(BaseModel):
@@ -219,6 +220,9 @@ class CategoryWording(BaseModel):
     unacceptable_examples: list[str]
     say_instead_hint: str
     reflex_phrases: list[str]
+    # D-290 Q6: a line breaks a rule of this category only if it holds one of these (a group or condition for the
+    # vulnerable-group rule, a permanence word for the permanent-results rule); empty = no such check
+    required_terms: list[str] = []
 
 
 class NumberWords(BaseModel):

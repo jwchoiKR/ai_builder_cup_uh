@@ -250,3 +250,24 @@ async def test_d288_a1_a_failed_compliance_call_gives_a_check_card_not_a_rule_al
         assert len(await events(rt, "line.check")) == cards
     finally:
         await close_env(rt)
+
+
+V, P = "ASEAN-2D-VULNERABLE", "ASEAN-2E-PERMANENT"
+Q6 = [  # (category, line, span, rule, kept with Q6)
+    ("hand gel", "This hand gel has zero side effects, honestly.", "zero side effects", V, False),
+    ("supplement", "No side effects at all with these vitamins.", "No side effects at all", V, False),
+    ("haircare", "The best beard oil on the market.", "The best beard oil on the market", P, False),
+    ("kitchen", "Our kettle is the toughest one you can buy.", "the toughest one you can buy", P, False),
+    ("fragrance", "Safe for everyone, even sensitive noses.", "Safe for everyone", V, True),
+    ("supplement", "Totally safe in pregnancy.", "safe in pregnancy", V, True),
+    ("children", "Gentle enough for babies, no side effects.", "Gentle enough for babies, no side effects", V, True),
+    ("haircare", "Your dandruff will never come back.", "will never come back", P, True),
+    ("skincare", "The results are permanent.", "The results are permanent", P, True),
+]
+
+
+@pytest.mark.parametrize("category, line, span, rule, kept", Q6, ids=[f"{c[0]}-{i}" for i, c in enumerate(Q6)])
+def test_d290_q6_a_rule_needs_its_own_element_in_the_line(catalog, category, line, span, rule, kept):
+    v = {"span": span, "rule_id": rule, "severity": "HIGH", "is_negated": False, "is_quoted": False, "say_instead": "x"}
+    assert [x.rule_id for x in _validate(catalog, line, [v], ())] == [rule]  # today: the HIGH stands
+    assert [x.rule_id for x in _validate(catalog, line, [v], ("Q6",))] == ([rule] if kept else [])
