@@ -25,6 +25,7 @@
       ]
     },
     "permanent": {
+      "required_terms": ["forever", "permanent", "for good", "never come back", "never comes back", "never return", "won't come back", "once and for all", "for life", "lifetime", "never again", "never need", "no longer need", "cured for"],
       "unacceptable_examples": [
         "The results are permanent.",
         "Use it once and your skin is fixed for good.",
@@ -154,6 +155,7 @@
       ]
     },
     "vulnerable": {
+      "required_terms": ["pregnan", "breastfeed", "nursing mother", "expecting mother", "mum-to-be", "mom-to-be", "baby", "babies", "infant", "newborn", "toddler", "child", "kid", "teen", "elderly", "senior", "eczema", "dermatitis", "psoriasis", "rosacea", "acne", "diabet", "allerg", "asthma", "condition", "disease", "patient", "people with", "those with", "anyone with", "everyone", "anyone", "everybody", "anybody", "all ages", "whole family", "every age"],
       "unacceptable_examples": [
         "It is safe for pregnant women.",
         "Perfect for people with eczema.",

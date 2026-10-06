@@ -47,6 +47,12 @@ class _SplitJudge:
         fr = arms._addenda(str(llm.prompts_path)).get(("FR", self.name)) if self.fact_record else None
         if fr:
             self.system_instruction = f"{self.system_instruction}\n\n{fr}"
+        # D-290: a switched-on fix's prompt line for this judge (FACT_FIXES Q6)
+        from .fact_checker import fixes_of
+
+        for f in sorted(fixes_of(getattr(getattr(llm, "settings", None), "FACT_FIXES", "") or "")):
+            if extra := arms._addenda(str(llm.prompts_path)).get((f, self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         raise NotImplementedError

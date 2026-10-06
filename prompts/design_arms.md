@@ -144,6 +144,13 @@ D-280 F1: an offer's terms (what it covers, who qualifies, whether it combines, 
 where the product is sold, in which markets or channels, and whether it is in stock are field `availability`. Use
 `other` only for a statement no field fits.
 
+## Q6: compliance_judge
+
+D-290 Q6: a rule applies only when the sentence holds that rule's own element. The vulnerable-group rule needs a named
+group or condition (pregnancy, breastfeeding, babies, children, a skin or health condition) or an audience promise to
+everyone ("safe for everyone"); "zero side effects" alone names no group. A permanent-results rule needs permanence
+wording (forever, permanent, for good, never comes back); "the best on the market" is no permanence claim.
+
 ## F5: fact_checker
 
 D-280 F5: `correct_value` is always in the show's language, even when the quote is in another language: translate the

@@ -131,6 +131,12 @@ def names_the_tester(text: str, say: str, lex) -> bool:
     return any(p.group(1) in panels for p in _PANEL.finditer(text))
 
 
+def _holds_term(text: str, terms) -> bool:
+    """D-290 Q6: one of the terms starts a word of the text ("pregnan" holds "pregnant")."""
+    low = text.lower()
+    return any(re.search(r"(?<![a-z])" + re.escape(t.lower()), low) for t in terms)
+
+
 # D-286 Q1T: test words that name no tester; and the hedges of a line that states its limits
 _GENERIC_TEST = re.compile(r"\b(?:lab[- ]tested|laboratory[- ]tested|clinically (?:tested|proven)|dermatologically "
                            r"tested|scientifically proven|tests? (?:confirm|confirmed|show|showed|prove|proved)|"
@@ -253,6 +259,17 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
         kept.append(v)
     o.compliance.violations = kept
     fixes = fact_checker.fixes_of()
+    if "Q6" in fixes:
+        fit = []
+        for v in kept:
+            terms = rules[v.rule_id].required_terms
+            if terms and not v.is_negated and not _holds_term(f"{text} {v.span or ''}", terms):
+                # D-290 Q6: the rule's own element is not in the line ("zero side effects" names no group, "the
+                # best" says nothing permanent): the judge stretched a HIGH rule over another claim
+                _cdrop(v, f"Q6: rule needs one of its terms ({rules[v.rule_id].rule_id}: {', '.join(terms[:4])}, ...)")
+            else:
+                fit.append(v)
+        kept[:] = fit
     if "Q3" in fixes:
         for v in kept:
             if not v.is_negated and (_DENIED.search(v.span or "") or (_DENIED.search(text) and _GUARANTEE.search(v.span or ""))):
