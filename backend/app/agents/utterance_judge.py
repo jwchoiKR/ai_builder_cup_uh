@@ -246,7 +246,8 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
 LEAD_IN_MAX_WORDS = 8  # D-146: "In our in-house test," said as its own final
 
 
-def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verify: bool | None = None):
+def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verify: bool | None = None,
+                        model_severity: bool = False):
     """In place, on any output with `compliance` and `correction`: drop unknown rules and alert ids
     that were not in the input; severity comes from the rule. D-187 arm B: the qualifier replacement is the
     in-house result the judge picked by id, and correction quotes of unknown alerts are dropped."""
@@ -266,7 +267,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
     # verifier decides what the code drops below decided
     from ..config import get_settings
 
-    drops = not (get_settings().JUDGE_ARM in ("verify", "vote") if verify is None else verify)
+    drops = not (get_settings().JUDGE_ARM in ("verify", "vote", "single") if verify is None else verify)
     for v in o.compliance.violations:
         if v.rule_id not in rules:
             _cdrop(v, "unknown rule")
@@ -292,7 +293,10 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
     on_air_id = (values.get("current_product_json") or {}).get("product_id")
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
     for v in o.compliance.violations:
+        said = v.severity
         v.severity = rules[v.rule_id].severity
+        if model_severity and said == "MEDIUM" and v.severity == "HIGH":
+            v.severity = v._severity = "MEDIUM"  # D-309 single: the judge's lesser form of a HIGH rule
         # D-215 (full review P3): no code veto by word overlap with approved wording; the judge weighs it (prompt)
         if v.rule_id == qualifier.RULE_ID and arms.meaning_to_llm(arm):
             # D-187 arm B: the judge names the in-house result; code only checks the id exists

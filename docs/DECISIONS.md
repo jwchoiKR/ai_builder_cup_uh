@@ -1849,3 +1849,12 @@ D-308: back to the measured configuration (c58712d's R2 window run). The STT abl
 - **Display (D-306) kept:** the checking chip, the HIGH only after the verifier confirms (the regex chip is back, and it is only the grey chip), the 5 s timeout, the "unverified (AI response delayed)" label, the operator's cause card and the per-call failure type.
 - **The verifier hedge is a switch, off by default:** add "verifier" to `HEDGED_AGENTS`; its 2,000 ms delay stays in `HEDGE_DELAYS`.
 - **Tests:** suite 1247 passed.
+
+D-309: the single arm (`JUDGE_ARM=single`, off by default). The user asked why we do not use only the strong model. The user's latency rule is that an alert must appear within 3-5 s after the line ends, which a second stage struggles to meet.
+- **Models:** the compliance judge and the fact checker run on `SINGLE_MODEL` / `SINGLE_THINKING` (default gemini-3.8-flash LOW). The cells are gemini-3.5-flash-lite HIGH and gemini-3.8-flash LOW. A new `COMPLIANCE_MODEL`, and the existing `FACTS_MODEL`, override the model per agent. The context judge stays on Flash-Lite MINIMAL.
+- **Pipeline:** no verifier, no code drops (as in verify mode: provenance checks only). The compliance call's deadline is `VERIFY_TIMEOUT_MS` (5 s). The fact checker keeps the whole documents in its cache (FD).
+- **Severity:** the judge may lower a HIGH rule to MEDIUM for a lesser form of the claim (`SINGLE` addendum), as the verifier does. Otherwise it is the rule's severity, never raised.
+- **Display:** an alert made unverified by a failed judge call now carries the call's failure type (`unverified_reason`), so it reads "unverified (AI response delayed)". This applies in every arm.
+- **Window mode (verify):** when the flagger's quote matches no document sentence, the verifier gets no documents for that fact. This is now logged and listed in the eval rows' `dropped` as "verifier window: no sentence matches the quote".
+- **Eval rows:** each alert carries `ms_to_created` and `ms_to_shown`, from the final received to the alert created and to it shown (active), for p50 and p95 alert latency per arm.
+- **Tests:** `tests/test_d309.py`. Suite: 1253 passed.

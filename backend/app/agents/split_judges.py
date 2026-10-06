@@ -114,6 +114,9 @@ class ComplianceJudge(_SplitJudge):
             self.output_model = ComplianceOutputR
             if extra := arms._addenda(str(llm.prompts_path)).get(("REL", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+            if getattr(llm.settings, "JUDGE_ARM", "") == "single":  # D-309: the judge may lower a HIGH
+                if extra := arms._addenda(str(llm.prompts_path)).get(("SINGLE", self.name)):
+                    self.system_instruction = f"{self.system_instruction}\n\n{extra}"
             if getattr(llm.settings, "VOTE_CONFIDENCE", "off") == "self":  # D-302: a log field
                 self.output_model = ComplianceOutputRC
                 if extra := arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)):
@@ -148,8 +151,9 @@ class ComplianceJudge(_SplitJudge):
         return super().extra_data() + inputs.data_block("QUALIFIED_RESULTS", results)
 
     def validate(self, out: ComplianceOutput, values: dict) -> ComplianceOutput:
-        return validate_compliance(out, self.catalog, values, arm=self.arm,
-                                   verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") in ("verify", "vote"))
+        judge_arm = getattr(self.llm.settings, "JUDGE_ARM", "guards")
+        return validate_compliance(out, self.catalog, values, arm=self.arm, verify=judge_arm in ("verify", "vote", "single"),
+                                   model_severity=judge_arm == "single")  # D-309
 
 
 class ContextJudge(_SplitJudge):

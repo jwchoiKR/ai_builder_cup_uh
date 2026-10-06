@@ -962,7 +962,7 @@ class FactChecker:
                                                             [inp.utterance, *inp.previous[-1:]]))  # D-304
                 res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products,
                                            inp.utterance, self.fixes, inp.previous[-1] if inp.previous else None,
-                                           verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") in ("verify", "vote"))
+                                           verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") in ("verify", "vote", "single"))
             return res
         if res.output is not None:
             for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it
