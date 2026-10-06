@@ -282,20 +282,3 @@ async def test_simultaneously_ready_compliance_precedes_facts(env):
     release.set()
     await rt.utterances.drain()
     assert [e.payload['kind'] for e in await events(rt, 'alert.created')] == ['compliance', 'fact']
-
-
-@pytest.mark.parametrize("compliance_ms, alert", [(0, False), (1000, True)])
-async def test_d268_compliance_has_its_own_deadline(compliance_ms, alert):
-    """A compliance verdict slower than JUDGE_TIMEOUT_MS still lands within COMPLIANCE_TIMEOUT_MS; 0 keeps the judges'."""
-    llm = ScriptedBackend()
-    text = 'A slow compliance verdict.'
-    llm.judge(text, violations=[violation('ASEAN-3-SKIN-AGEING')])
-    llm.delays[('compliance_judge', text)] = 0.2
-    rt = await live_runtime(make_ctx(backend=llm, JUDGE_TIMEOUT_MS=100, COMPLIANCE_TIMEOUT_MS=compliance_ms))
-    try:
-        await speak(rt, text, wait=False)
-        await asyncio.wait_for(rt.utterances.drain(), 3)
-        assert any(e.payload['kind'] == 'compliance' for e in await events(rt, 'alert.created')) is alert
-        assert bool(await events(rt, 'judge.failed')) is not alert
-    finally:
-        await close_env(rt)

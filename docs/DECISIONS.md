@@ -1557,3 +1557,5 @@ D-279: A show of 2-3 approved releases (the user's minimal multi-product show, a
   - The demo scripts in `data/demo` now use the release product ids, and the host script uses the briefs' point ids: the closest brief point for each old one, with the required counters out of 5. The tests keep the legacy scripts in `tests/fixtures/demo_pack/demo/`.
   - Known: the cream release carries the reader's wrong "25% off" offer (S$27.00, see above), and its brief shows it as an offer point. A person would fix it on the approval screen; it was left as read.
   - Test: on a clean base, a demo reset opens the 2-release show with both products, and a second reset keeps it.
+
+D-268 result: scrapped. On pools 4 and 3, neither the 3.5 s compliance deadline nor the split vulnerable wording (D-270) beat the base. The reviewers (GPT, Gemini, Sonnet) agreed. `COMPLIANCE_TIMEOUT_MS` and its test are deleted. D-270's `VULNERABLE_WORDING` stays as an off arm for one targeted retest on a children's pool.
