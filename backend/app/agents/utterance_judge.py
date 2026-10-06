@@ -268,7 +268,7 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
         elif v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
             r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air],
-                                               catalog.lexicon)
+                                               catalog.lexicon, "G4" in fact_checker.fixes_of())
             if r is None:
                 _cdrop(v, "D-116: the line matches no test result")
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
@@ -293,7 +293,10 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             r = rules[v.rule_id]
             # D-294 G4: a test-result or evidence rule reads the previous final too (a result split over two finals)
             hay = f"{prev[0] if prev and r.terms_fix == 'G4' else ''} {text} {v.span or ''}"
-            if r.required_terms and r.terms_fix in fixes and not v.is_negated and not _holds_term(hay, r.required_terms):
+            # D-295 G4: a test-result or evidence verdict stands on an evidence word or on a qualified result the
+            # line is about by its words ("tear-free"); only a line with neither ("zinc at 2 percent") drops
+            if (r.required_terms and r.terms_fix in fixes and not v.is_negated and not _holds_term(hay, r.required_terms)
+                    and not (r.terms_fix == "G4" and qualifier.matches_result(hay, catalog.products, lex))):
                 # D-290 Q6: the rule's own element is not in the line ("zero side effects" names no group, "the
                 # best" says nothing permanent): the judge stretched a HIGH rule over another claim. D-294 G4: a bare
                 # ingredient amount ("glycerin at two percent") states no test result and no evidence

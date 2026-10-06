@@ -72,6 +72,17 @@ G4 = [  # (category, result, qualifier, line, span, kept with G4)
      "boils a litre in 3 minutes", True),
     ("supplement", "Absorbed 2 times faster than a standard tablet", "tested by Fenmore Labs",
      "Absorbed two times faster!", "Absorbed two times faster", True),
+    ("skincare", "Water-resistant for 80 minutes", "tested by Kestrel Labs", "It's water-resistant for eighty minutes.",
+     "water-resistant for eighty minutes", True),
+]
+# D-295: headline results said bare (no number, no result or evidence word): D-116 drops them today, because the
+# qualifier's words count against the match; with G4 they keep their alert by the result's own words
+HEADLINE = [
+    ("children", "Tear-free formula", "tested by Ardent Dental Institute", "This wash is tear-free.", "tear-free"),
+    ("children", "No tears, gentle cleansing", "tested by Ardent Dental Institute", "Gentle cleansing without tears.",
+     "Gentle cleansing without tears"),
+    ("haircare", "Frizz-free in humid weather", "independent lab test by Velmora Hair Research Centre, 30 adults",
+     "Frizz-free even in humid weather.", "Frizz-free even in humid weather"),
 ]
 
 
@@ -84,6 +95,18 @@ def test_d294_g4_a_composition_is_no_test_result(tmp_path, category, result, qua
          "say_instead": "x"}
     assert [x.rule_id for x in _validate(catalog, line, [v], ())] == [RULE_ID]  # today: the MEDIUM stands
     assert [x.rule_id for x in _validate(catalog, line, [v], ("G4",))] == ([RULE_ID] if kept else [])
+
+
+@pytest.mark.parametrize("category, result, qualifier, line, span", HEADLINE,
+                         ids=[f"{c[0]}-{i}" for i, c in enumerate(HEADLINE)])
+def test_d295_g4_a_headline_result_said_bare_keeps_its_alert(tmp_path, category, result, qualifier, line, span):
+    from app.logic.qualifier import RULE_ID
+
+    catalog = _release_catalog(tmp_path, result, qualifier, category)
+    v = {"span": span, "rule_id": RULE_ID, "severity": "MEDIUM", "is_negated": False, "is_quoted": False,
+         "say_instead": "x"}
+    assert _validate(catalog, line, [v], ()) == []  # today: D-116 finds no result
+    assert [x.rule_id for x in _validate(catalog, line, [v], ("G4",))] == [RULE_ID]
 
 
 def _validate_after(catalog, prev, line, violations, fixes):
