@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     # checks it; C = B without the reflex pre-scan; D = agents decide everything, code keeps deadlines, state, routing
     # and idempotency; E = D with the rules retrieved per utterance. The default stays A until a comparison picks one.
     DESIGN_ARM: Literal["A", "B", "C", "D", "E", "F1", "F2"] = "A"
+    # D-270 arm: the judges' target_group bullet; "split" = an age band or usage direction is not a vulnerable claim
+    VULNERABLE_WORDING: Literal["d256", "split"] = "d256"
     # D-187: write the calls and tokens per agent of this process as JSON to this path at exit ("" = off)
     LLM_USAGE_REPORT: str = ""
     # D-194 arm E: the Vertex AI Search serving config that picks the compliance rules for each spoken line

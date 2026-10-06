@@ -129,3 +129,11 @@ these results (the same numbers) without that qualifier breaks the test-result r
 who ran the test or who certified it (the laboratory or body in the qualifier) is saying the qualifier. A generic mention
 that names no one ("testing confirmed", "according to the tests", "clinically proven") is not the qualifier.
 
+## VS: target_group
+
+- CURRENT_PRODUCT `target_group`, when given, names who the product is made for (from its documents). Saying who it is
+  for or which ages may use it ("for children 4 to 12", "kids from 3 can use it") is fine, and so is a usage
+  direction. A promise of safety or harmlessness to a group with or at risk of a condition ("safe for kids", "gentle
+  enough for babies, no side effects"), a claim that it helps or suits their condition, or a claim that no medical
+  check is needed falls under the vulnerable-group rules in RULES. Whether an age or direction matches the documents
+  is not decided here.

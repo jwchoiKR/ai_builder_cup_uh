@@ -1649,3 +1649,19 @@ def test_d269_brief_offers_terms_arm_gives_every_offer_term_and_room_for_it():
     reflex = SimpleNamespace(scan=lambda text: [])  # no restricted wording here
     assert [p.source_section for p in post_validate(out, "r", "", reflex, 10, 140).prompter_points] == []
     assert [p.source_section for p in post_validate(out, "r", "", reflex, 10, 140, 240).prompter_points] == ["Offer o1"]
+
+
+@pytest.mark.parametrize("wording", ["d256", "split"])
+def test_d270_vulnerable_wording_arm_swaps_only_the_target_group_bullet(wording):
+    ctx = make_ctx(VULNERABLE_WORDING=wording)
+    try:
+        for name in ("compliance_judge", "utterance_judge", "judge_single"):
+            p = ctx.prompts[name]
+            assert ("suitability promise" in p.system_instruction) is (wording == "d256"), name
+            assert ("which ages may use it" in p.system_instruction) is (wording == "split"), name
+            assert p.version.endswith("+vs") is (wording == "split")
+            assert "- `is_quoted = true`" in p.system_instruction  # the next bullet is kept
+            assert "skin types" in p.system_instruction  # D-256's skin-type bullet is kept
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
