@@ -83,6 +83,9 @@ class Settings(BaseSettings):
     JUDGE_HEDGE_MS: int = 1500
     # D-287: which alert-path agents get the second request ("compliance,fact": names or prefixes); empty = all
     HEDGED_AGENTS: str = ""
+    # D-292: a later second request for some agents ("fact=3000,context=2000": name or prefix = ms); the others use
+    # JUDGE_HEDGE_MS. A delay at or past the agent's deadline sends no second request
+    HEDGE_DELAYS: str = ""
     # D-288: when every compliance call fails, a reflex hit is a HIGH alert (today) or a neutral "check this line" card
     REFLEX_ON_FAIL: Literal["alert", "card"] = "alert"
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off

@@ -234,6 +234,18 @@ async def test_d287_hedged_agents_narrows_the_second_request(settings, clock, id
         assert len(backend.calls) == requests, agent
 
 
+async def test_d292_a_delayed_hedge_fires_only_on_the_slow_tail(settings, clock, ids, store, bus):
+    s = settings.model_copy(update={"JUDGE_HEDGE_MS": 50, "HEDGED_AGENTS": "compliance,fact",
+                                    "HEDGE_DELAYS": "fact=400"})
+    for first, agent, requests in ((0.2, "fact_checker", 1),    # answered before 400 ms: one request
+                                   (0.8, "fact_checker", 2),    # the slow tail: a second request at 400 ms
+                                   (0.2, "compliance_judge", 2)):  # compliance keeps JUDGE_HEDGE_MS (50 ms)
+        backend = FakeBackend(("sleep", first), '{"answer":"x","n":1}')
+        client = LLMClient(backend, s, clock, ids, StoreAudit(store, bus))
+        await client.call(_req(agent=agent, deadline_ms=2000))
+        assert len(backend.calls) == requests, (agent, first)
+
+
 async def test_d184_an_error_on_one_request_waits_for_the_other(make_hedged):
     class Slow(FakeBackend):
         async def generate(self, req, timeout_ms):

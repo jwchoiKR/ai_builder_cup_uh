@@ -1654,3 +1654,7 @@ D-291: Q3 and Q6 cover law-pack rules too. Pool 4 on 0c1ed4d, all fixes, 1 run: 
   - "This protein powder cures kidney disease and has 50 g protein" keeps its cure HIGH: a fact error with a real rule.
   - On a vulnerable-groups law rule, untargeted "zero side effects" drops and "safe for kids" stays.
   - The category mapping is covered too: vulnerable_groups, permanent_results, safety and disease.
+
+D-292: `HEDGE_DELAYS` gives some agents a later second request, so it fires only on the slow tail (cost; logic). On pool 4 with HEDGED_AGENTS=compliance, timeouts rose to 2.1% (compliance 4/237, context 6/232, fact 5/237), and each fact timeout can be a miss.
+- **What:** a comma list such as `fact=3000,context=2000` (agent name or prefix = ms). A listed agent gets its second request only if the first has not answered by then; the others keep `JUDGE_HEDGE_MS` (1.5 s). A delay at or past the agent's own deadline sends no second request. The context judge's deadline is `JUDGE_TIMEOUT_MS` (2.5 s), so a 3 s delay would be a no-op for it, and 2 s is the latest delay that still fires. The fact checker's deadline is 5 s.
+- **Test:** with `fact=400`, a fact call answered at 200 ms sends one request and one answered at 800 ms sends two; compliance keeps the short delay.
