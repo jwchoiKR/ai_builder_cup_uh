@@ -62,7 +62,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
   - alert shown mean 2.0 s, p95 4.4-4.6 s
   - Wrong HIGH and latency now pass. False alerts do not, so this arm is stopped for discussion.
   - The 13 false lines over 216 safe ones: 7 quote-then-reject lines (TEST-QUALIFIER or promo alerts), 4 numbers said in words, 2 near numbers (fact checker at LOW: promo, volume, test_result).
-  - litemed_docs (the same with COMPLIANCE_DOCS) was still running. Each product hits a few 429s, so the 10-minute waits make a cell take about 2 h.
+  - litemed_docs (the same with COMPLIANCE_DOCS), voice A / B: detection 96.3 / 97.2%, false 6.5 / 6.5%, wrong HIGH 3 / 4, alert shown p95 5.0 / 9.2 s. The documents hurt again (wrong HIGH, latency), so keep COMPLIANCE_DOCS off. The 10-minute wait on any 429 makes a cell take about 2 h (24 waits in this run).
 - **Decks:** `docs/decks/live_logic_1006.html`, `fix_plan_1006.html`, `rule_code_1006.html`, `arch_llm_1006.html`. The arch deck still shows the R2 verifier and needs an update once the design settles.
 
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)
