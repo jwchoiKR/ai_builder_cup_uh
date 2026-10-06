@@ -11,7 +11,7 @@
 {"case_id": "C11", "comment": "my son has eczema, can he use it", "current_product_id": "cream_hydra_barrier", "expected": {"kind": "question", "intent": "medical_condition", "sensitive": true}}
 {"case_id": "C12", "comment": "will it get rid of my wrinkles?", "current_product_id": "cream_hydra_barrier", "expected": {"kind": "question", "intent": "efficacy_claim", "sensitive": true}}
 {"case_id": "C13", "comment": "Does the ampoule sting?", "current_product_id": "cream_hydra_barrier", "expected": {"kind": "question", "product_id": "ampoule_deep_hydration", "product_basis": "explicit", "intent": "allergy_sensitivity"}}
-{"case_id": "C14", "comment": "can I use it with vitamin C?", "current_product_id": "ampoule_deep_hydration", "expected": {"kind": "question", "intent": "how_to_use", "slots": {"combined_with": "vitamin_c"}}}
+{"case_id": "C14", "comment": "can I use it with vitamin C?", "current_product_id": "ampoule_deep_hydration", "expected": {"kind": "question", "intent": "compatibility", "slots": {"combined_with": "vitamin c"}}}
 {"case_id": "C15", "comment": "Do you ship to Malaysia?", "current_product_id": "cream_hydra_barrier", "expected": {"kind": "question", "intent": "shipping", "route": "OPERATOR"}}
 {"case_id": "C16", "comment": "can I return it if I don't like it", "current_product_id": "cream_hydra_barrier", "expected": {"kind": "question", "intent": "returns"}}
 {"case_id": "C17", "comment": "do you accept paynow?", "current_product_id": "cream_hydra_barrier", "expected": {"kind": "question", "intent": "payment"}}
