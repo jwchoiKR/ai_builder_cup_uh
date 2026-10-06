@@ -1693,16 +1693,32 @@ async def test_d271_an_age_band_that_states_the_cautions_range_is_no_contradicti
     assert (alerts == []) is dropped
 
 
-def test_d269_offer_misses_lists_conditions_its_points_leave_out():
-    from app.models.agent_io import PointDraft
-    from app.onboarding.brief import offer_misses
+async def test_d272_offer_points_come_from_the_record_and_survive_translation_only_intact():
+    from types import SimpleNamespace
 
+    from app.onboarding.brief import offer_lines, offer_points
+
+    money = {"currency": "SGD", "minor": 3000, "kind": "promo", "market": "SG", "evidence": EV}
     rec = ProductRecord.model_validate(_record(offers=[
         {"offer_id": "o1", "kind": "percent_off", "title": "Code SAVE10", "variant_ids": [], "percent": "10",
-         "amount": None, "buy": None, "get": None, "gift": None, "rounding": None, "starts": None, "ends": None,
-         "duration_min": None, "conditions": ["online store only", "first 200 orders"], "evidence": EV}]))
-    pts = [PointDraft(text="Use code SAVE10 for 10% off, only in our online store.", required=True,
-                      source_section="Offer o1"),
-           PointDraft(text="It is for the first 300 orders.", required=True, source_section="Offer o1")]
-    assert offer_misses(rec, pts, "en") == ["o1: first 200 orders"]  # the number differs
-    assert offer_misses(rec, pts, "ms") == []  # another language: not checked
+         "amount": None, "buy": None, "get": None, "gift": None, "rounding": None, "starts": "2026-11-01",
+         "ends": "2026-11-14", "duration_min": None, "combinable": False,
+         "conditions": ["online store only", "one per order"], "evidence": EV},
+        {"offer_id": "o2", "kind": "spend_threshold_gift", "title": "Free pouch", "variant_ids": [], "percent": None,
+         "amount": money, "buy": None, "get": None, "gift": "pouch", "rounding": None, "starts": None, "ends": None,
+         "duration_min": None, "combinable": None, "conditions": ["members only"], "evidence": EV}]))
+    assert offer_lines(rec) == [
+        ("o1", ["Code SAVE10: 10% off.", "Valid from 1 November 2026 to 14 November 2026.",
+                "Terms: online store only; one per order; combinable with other offers or codes: no."]),
+        ("o2", ["Free pouch: minimum spend 30 SGD.", "Terms: members only."])]
+
+    class Fake:
+        async def call(self, req):
+            lines = json.loads(req.user_message.split('<data name="LINES">')[1].split("</data>")[0])["lines"]
+            out = [x.replace("Valid", "Sah").replace("30 SGD", "3 SGD") for x in lines]  # one number broken
+            return SimpleNamespace(status="ok", output=SimpleNamespace(lines=out))
+
+    en = [p.text for p in await offer_points(Fake(), rec, "en")]  # an English record and show: no call
+    ms = [p.text for p in await offer_points(Fake(), rec, "ms")]
+    assert en[1] == "Valid from 1 November 2026 to 14 November 2026." and ms[1] == "Sah from 1 November 2026 to 14 November 2026."
+    assert ms[3] == "Free pouch: minimum spend 30 SGD."  # the changed number keeps the English line
