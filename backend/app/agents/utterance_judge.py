@@ -293,6 +293,8 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             r = rules[v.rule_id]
             # D-294 G4: a test-result or evidence rule reads the previous final too (a result split over two finals)
             hay = f"{prev[0] if prev and r.terms_fix == 'G4' else ''} {text} {v.span or ''}"
+            if (claim := getattr(v, "claim_made", None)) and r.terms_fix != "G4":
+                hay = f"{claim} {v.span or ''}"  # D-296: the claim the judge says the line makes, not the whole line
             # D-295 G4: a test-result or evidence verdict stands on an evidence word or on a qualified result the
             # line is about by its words ("tear-free"); only a line with neither ("zinc at 2 percent") drops
             if (r.required_terms and r.terms_fix in fixes and not v.is_negated and not _holds_term(hay, r.required_terms)

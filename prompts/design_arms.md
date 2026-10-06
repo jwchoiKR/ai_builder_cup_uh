@@ -121,6 +121,20 @@ Fact mode "docs" (D-247): the product's original files come before this message,
   checks the quote in the file.
 - Only contradict with a value a file or SOURCE states. When neither gives the value, the claim is `not_in_sources`.
 
+## RD: fact_checker
+
+Fact mode "docs" with the relation arm (D-296): the product's original files come before this message, each after a
+line "FILE <name>". Their text is also in SOURCE as numbered sentences (passages whose id starts with "file:"). The
+files are the authority: when a file and another passage disagree, the file is right. Cite the ids of the sentences
+that settle a fact. A fact you can see only in a file's picture or layout, in no sentence, is `uncertain`.
+
+## REL: compliance_judge
+
+D-296: for a violation of a HIGH rule, set `claim_made` to the claim the line itself makes, in a few of the line's own
+words: who it is about (a group or a condition, as the line names it) and what it promises or asserts ("safe for
+babies", "kids can brush alone", "cures eczema"). Never add a group or a promise the line does not say. For a MEDIUM
+rule, `claim_made` is null.
+
 ## FR: compliance_judge
 
 Fact mode "record" (D-242): QUALIFIED_RESULTS lists the product's test results, each with the qualifier it must be

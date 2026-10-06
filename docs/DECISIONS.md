@@ -1690,3 +1690,31 @@ D-295: the G4 gate keeps a headline test result. Sonnet checked G4 against the s
   - These still drop: "zinc at 2 percent", "60 percent argan oil", "4 percent xylitol", and the split "glycerin concentration is / three percent".
   - "Skin hydration went up / three percent" keeps its alert.
   - Suite: 1098 passed.
+
+D-296: the relation arm (`FACT_RELATION`, off by default). On 309dcc6, pools 4/3/2 gave detection 92.6/86.1/87.0, false alerts 0.9/1.9/2.8% and wrong HIGH 2/1/0. The pre-registered kill rule fired on the fact-validation layer: fact detection on pools 3 and 2 moved under 3 points in 2 rounds. GPT, Gemini and Sonnet agreed to stop adding word-list guards and to build a structured arm. It is measured against 309dcc6+G4 in three cells on pools 2-4.
+- **Fact checker (`prompts/fact_relation.md`):** SOURCE is numbered sentence by sentence; a line or a table row is a sentence, and "4.5 mL" stays whole. For each fact the model returns, in this order: span, product, field, stated value, `evidence` (sentence ids, "promo", or an offer's id), `relation`, and a correction for `contradicts` only. There is no free-text reason. The relations are:
+  - `contradicts`
+  - `consistent`: a restatement, a quote then rejected, a wrong value negated next to the right one, an example that meets a condition, a number sound-alike. These are taught with made-up few-shot pairs.
+  - `not_in_documents`
+  - `uncertain`
+- **From relation to claim (code):** code builds the quote from the cited sentences of the first cited passage.
+  - Only `contradicts` with a valid id can alert.
+  - A contradiction citing an id SOURCE does not have is dropped with a logged reason.
+  - `uncertain` never alerts. It is logged and counted in the eval's `dropped` rows as "relation uncertain".
+- **Docs mode:** the model still gets the files. Their text (and the record quotes) is numbered too, and the RD addendum replaces FD. A fact seen only in a picture is `uncertain`.
+- **`FACT_GUARDS`:**
+  - `on`: today's post-validation runs on the converted claims (all `FACT_FIXES`).
+  - `off`: only the hard checks run. The claim is about a show product or a set price. Its evidence sentence belongs to that product, and the line is about that product (on air, a pending switch's target, or named). The evidence is not the approved-claims passage (D-048). Every number of the correction is in the evidence or is the record's own value (R1). A promo or offer correction is that promo's or offer's own term.
+  - The D-148 stale-live-price upgrade is not in the `off` path; the prompt asks the model for it.
+- **Compliance:** with the arm on, the compliance judge returns `claim_made` (a few of the line's words: who and what is claimed) for a HIGH rule and null otherwise. The Q6 and G7 rule-fit checks read `claim_made` and the span instead of the whole line. A G4 rule still reads the line.
+- **Tokens (offline estimate; the eval's audit gives the measured numbers):**
+  - Fact output per claim: contradicted about 90 to 55 tokens (-39%), supported about 69 to 48 (-31%), nothing to check 14 to 3 (no quote, passage id or reason).
+  - Input: SOURCE grows 13% for the sentence ids (demo cream, 38 passages). In docs mode the files' text is added as well. Both are in the cached prefix.
+- **Tests:** `tests/test_relation.py` has 36 cases:
+  - numbering;
+  - the conversion;
+  - every D-294 guard line in both guard modes (a model that says consistent gives no alert; a model that still says contradicts is dropped by guards on and kept by guards off; a true line alerts in both);
+  - nine hard-check cases;
+  - the pipeline end to end (both guard modes, three relations);
+  - `claim_made` in the rule fit.
+  - Suite: 1134 passed.

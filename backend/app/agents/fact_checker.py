@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_file, quote_in_passage
-from ..models.agent_io import FactCheckOutput
+from ..models.agent_io import FactCheckOutput, FactClaim, FactRelationOutput
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -675,6 +675,99 @@ def _post_validate(o: FactCheckOutput, passages: Sequence[Passage], catalog: Cat
     return o
 
 
+# ---- D-296 FACT_RELATION ------------------------------------------------------------------------------------------
+
+_SENTENCE = re.compile(r"(?<=[.!?。！？])\s+")
+
+
+def sentence_index(passages: Sequence[Passage]) -> tuple[list[dict], dict[str, tuple[Passage, str]]]:
+    """D-296: SOURCE numbered sentence by sentence (a line, a table row, or a sentence of a line; "4.5 mL" stays whole),
+    as the model sees it, and the id -> (passage, sentence) map code builds quotes from. The same passages give the
+    same ids."""
+    blocks, index, seen = [], {}, set()
+    for p in passages:
+        if p.passage_id in seen:
+            continue
+        seen.add(p.passage_id)
+        sentences = []
+        for line in p.text.splitlines():
+            for s in _SENTENCE.split(line.strip()):
+                if s.strip():
+                    sid = f"S{len(index) + 1}"
+                    index[sid] = (p, s.strip())
+                    sentences.append([sid, s.strip()])
+        blocks.append({"passage_id": p.passage_id, "product_id": p.product_id, "section": p.section,
+                       "sentences": sentences})
+    return blocks, index
+
+
+def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]], terms: set[str]) -> FactCheckOutput:
+    """D-296: a relation verdict as a fact claim. `contradicts` is contradicted and `consistent` supported; the quote is
+    the evidence sentences of the first cited passage, joined. A contradiction with no valid evidence id (a sentence,
+    "promo" or a running offer's id) cannot alert; `uncertain` never alerts and is counted."""
+    claims = []
+    for r in out.claims:
+        ev = [index[i] for i in r.evidence if i in index]
+        verdict = {"contradicts": "contradicted", "consistent": "supported"}.get(r.relation, "not_in_sources")
+        p = ev[0][0] if ev else None
+        c = FactClaim(span=r.span, field=r.field, product_id=r.product_id, stated_value=r.stated_value, verdict=verdict,
+                      correct_value=r.correct_value, passage_id=p.passage_id if p else None,
+                      quote=" ".join(t for q, t in ev if q.passage_id == p.passage_id) if p else None)
+        if verdict == "contradicted" and not ev and not set(r.evidence) & terms:
+            _drop(c, f"relation: no valid evidence id ({', '.join(r.evidence) or 'none'})")
+        elif r.relation == "uncertain":
+            log.info("fact relation uncertain | field=%s stated=%r evidence=%s", r.field, r.stated_value, r.evidence)
+            if (sink := DROPS.get()) is not None:
+                sink.append({"reason": "relation uncertain", "field": r.field, "stated": r.stated_value,
+                             "correct": r.correct_value, "passage_id": c.passage_id, "quote": c.quote})
+        claims.append(c)
+    return FactCheckOutput(claims=claims, reason="relation")
+
+
+def _numbers(lex, t: str | None) -> set[str]:
+    return (number_set(t or "") | lex.spoken_numbers(t or "") | {plain_number(v) for v in numbers_in_text(t or "")}
+            | lex.times_numbers(t or ""))
+
+
+def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
+                  offers: Sequence[Promo], products: set[str]) -> FactCheckOutput:
+    """D-296 FACT_GUARDS=off: only the hard checks on a relation contradiction, no lexical guard. The claim is about a
+    product of the show (or a set's price); its evidence sentence belongs to that product, which the line is about
+    (on air, a pending switch's target, or named); the evidence is not the approved-claims passage (D-048); every
+    number of the correction is in the evidence or is the record's own value (R1). A correction from ACTIVE_PROMO or
+    a running offer must be that promo's or offer's own term."""
+    o = out.model_copy(deep=True)
+    by_id = {p.passage_id: p for p in passages}
+    set_ids = {s.set_id for s in catalog.set_offers}
+    lex = catalog.lexicon
+    for c in o.claims:
+        if not catalog.is_product(c.product_id) and not (c.field in PRICE_FIELDS and c.product_id in set_ids):
+            c.verdict = "not_in_sources"
+            continue
+        if c.verdict != "contradicted":
+            continue
+        right = _numbers(lex, c.correct_value)
+        p = by_id.get(c.passage_id) if c.passage_id else None
+        failed = None
+        if c.passage_id is None:
+            ok = ((promo is not None and promo.changes_prices and c.field in PRICE_FIELDS
+                   and (c.correct_value == catalog.price_display(c.product_id, promo) or _promo_term(c, promo)))
+                  or (c.field == "promo" and any(_offer_threshold(c, x) for x in offers)))
+            failed = None if ok else "relation: not a term of the active promo or offer"
+        elif p is None:
+            failed = "relation: unknown evidence"
+        elif c.product_id not in set_ids and (p.product_id != c.product_id or c.product_id not in products):
+            failed = "relation: evidence of a product the line is not about"
+        elif p.section == CLAIMS_SECTION:
+            failed = "an approved-claims passage"
+        elif right and not (right <= _numbers(lex, c.quote)
+                            or _record_holds(c, catalog, right, f"{c.stated_value or ''} {c.span or ''}")):
+            failed = "relation: a number of the correction is in neither the evidence nor the record"
+        if failed:
+            _drop(c, failed)
+    return o
+
+
 class FactChecker:
     name = "fact_checker"
 
@@ -688,7 +781,10 @@ class FactChecker:
         from . import arms
         settings = getattr(llm, "settings", None)
         mode = getattr(settings, "FACT_MODE", "sheet")
-        layers = {"record": ["FR"], "docs": ["FR", "FD"]}.get(mode, [])
+        # D-296: the relation arm cites file sentences by id (RD), not by "file:<name>" and a copied quote (FD)
+        self.relation = bool(getattr(settings, "FACT_RELATION", False))
+        self.guards = getattr(settings, "FACT_GUARDS", "on") != "off"
+        layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
@@ -723,7 +819,8 @@ class FactChecker:
         return LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
-            user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=session_id,
+            user_message=user, output_model=FactRelationOutput if self.relation else FactCheckOutput,
+            deadline_ms=deadline_ms, session_id=session_id,
             cache_prefix=prefix, cache_parts=parts,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
 
@@ -734,6 +831,10 @@ class FactChecker:
             _, prefix = self._render(inp)
             await self.llm.warm_cache(self._request(prefix, prefix, 60_000, inp.session_id, parts))
 
+    def _source(self, inp: FactInput) -> list[Passage]:
+        """D-296: what the relation arm numbers: the line's passages and the on-air product's file text."""
+        return [*inp.passages, *self.files.get(inp.on_air, ((), self.file_passages))[1]]
+
     def _render(self, inp: FactInput) -> tuple[str, str]:
         return self.prompt.render_cached({
             "current_product_compact_json": inputs.current_product_compact_json(self.catalog, inp.on_air),
@@ -741,7 +842,8 @@ class FactChecker:
             "active_promo_json_or_null": inputs.active_promo_json_or_null(self.catalog, inp.promo),
             "active_offers_json": inputs.active_offers_json(self.catalog, inp.offers),
             "set_offers_json": inputs.set_offers_json(self.catalog, inp.promo),
-            "passages_json": inputs.passages_json(inp.passages),
+            "passages_json": (sentence_index(self._source(inp))[0] if self.relation
+                              else inputs.passages_json(inp.passages)),
             "last_two_final_transcripts_json": inp.previous[-2:],
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
@@ -752,8 +854,22 @@ class FactChecker:
         res = await self.llm.call(self._request(
             user, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), mock_primary_text=inp.utterance,
             mock_scenario=inp.scenario,
-            mock_fallback=lambda _: {"claims": [], "reason": "rule-based: no fact check"}, preview=inp.utterance,
+            mock_fallback=lambda _: ({"claims": []} if self.relation
+                                     else {"claims": [], "reason": "rule-based: no fact check"}), preview=inp.utterance,
         ))
+        if res.output is not None and self.relation:
+            _, index = sentence_index(self._source(inp))
+            terms = ({"promo"} if inp.promo is not None else set()) | {o.promo_id for o in inp.offers}
+            out = from_relation(res.output, index, terms)
+            passages = [*inp.passages, *self.all_file_passages]
+            if self.guards:
+                res.output = post_validate(out, passages, self.catalog, inp.promo, inp.utterance, inp.offers,
+                                           self.fixes)
+            else:
+                products = self.catalog.line_products(inp.on_air, inp.switch.target_product_id,
+                                                      [inp.utterance, *inp.previous[-1:]])
+                res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products)
+            return res
         if res.output is not None:
             for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it
                 if c.passage_id and c.passage_id.startswith("file:"):
