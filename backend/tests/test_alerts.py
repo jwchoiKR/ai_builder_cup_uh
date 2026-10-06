@@ -18,7 +18,7 @@ FALLBACK_SAY = "Helps keep skin hydrated for up to 24 hours in our in-house test
 
 @pytest.fixture
 async def env():
-    rt, llm = await make_env()
+    rt, llm = await make_env(REFLEX_ON_FAIL="alert")  # D-293: the default is "card"; these tests check the alert path
     yield rt, llm
     await close_env(rt)
 

@@ -201,7 +201,7 @@ def test_vertex_config_uses_verified_fields():
 @pytest.fixture
 def make_hedged(settings, clock, ids, store, bus):
     def _make(backend, hedge_ms=50):
-        s = settings.model_copy(update={"JUDGE_HEDGE_MS": hedge_ms})
+        s = settings.model_copy(update={"JUDGE_HEDGE_MS": hedge_ms, "HEDGED_AGENTS": "", "HEDGE_DELAYS": ""})
         return LLMClient(backend, s, clock, ids, StoreAudit(store, bus))
     return _make
 

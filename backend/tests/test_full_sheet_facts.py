@@ -58,8 +58,8 @@ async def test_full_sheet_quotes_still_enforce_d048(catalog):
              "passage_id": price.passage_id, "quote": price.text}
     out = FactCheckOutput.model_validate({"claims": [claim], "reason": "test"})
     assert post_validate(out, passages, catalog, None).claims[0].verdict == "contradicted"
-    out.claims[0].quote = "An invented quote"
-    assert post_validate(out, passages, catalog, None).claims[0].verdict == "not_in_sources"
+    out.claims[0].quote = "An invented quote"  # D-293: the base guard; R1 (on by default) lets the record hold it
+    assert post_validate(out, passages, catalog, None, fixes=frozenset()).claims[0].verdict == "not_in_sources"
     approved = next(p for p in passages if p.section == "Approved on-air claims")
     out.claims[0].passage_id, out.claims[0].quote = approved.passage_id, approved.text
     out.claims[0].correct_value = "cosmetic"

@@ -68,11 +68,14 @@ async def test_contradiction_creates_active_note(env):
     claim("price", "contradicted", product_id="nope", stated="S$32", correct="S$36.00", passage_id=PRICE_PASSAGE,
           quote=PRICE_QUOTE),
 ])
-async def test_unbacked_contradiction_is_downgraded(env, bad):
-    rt, llm = env
-    llm.facts(WRONG, bad)
-    await speak(rt, WRONG)
-    assert await fact_alerts(rt) == []
+async def test_unbacked_contradiction_is_downgraded(bad):
+    rt, llm = await make_env(FACT_FIXES="")  # D-293: the base guard; F2 and R1 (on by default) have their own tests
+    try:
+        llm.facts(WRONG, bad)
+        await speak(rt, WRONG)
+        assert await fact_alerts(rt) == []
+    finally:
+        await close_env(rt)
 
 
 async def test_promo_price_contradiction_without_passage(env):
@@ -472,4 +475,5 @@ def test_d165_a_present_ingredient_is_not_contradicted_by_another_one(pack, cata
         "product_id": "ampoule_deep_hydration", "span": span}
     out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
     sheet = [p for p in pack.passages if p.product_id == "ampoule_deep_hydration"]
-    assert [x.verdict for x in post_validate(out, sheet, catalog, None, span + ".").claims] == [verdict]
+    # D-293: the base guard; F3 (on by default) has its own tests
+    assert [x.verdict for x in post_validate(out, sheet, catalog, None, span + ".", fixes=frozenset()).claims] == [verdict]

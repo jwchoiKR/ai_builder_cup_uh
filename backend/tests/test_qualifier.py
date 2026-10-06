@@ -165,7 +165,8 @@ async def test_d215_the_judges_verdict_on_approved_wording_stands(env):
     D-132, D-174 removed); the judge weighs approved wording under the rules (prompt)."""
     rt, llm = env
     text = "Contains no added fragrance and no essential oils, making it suitable for all skin types."
-    llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE", "suitable for all skin types")])
+    # D-293: a rule with no required terms (Q6 would drop the vulnerable-group rule here: no group is named)
+    llm.judge(text, violations=[violation("ASEAN-3-SKIN-AGEING", "suitable for all skin types")])
     await speak(rt, text)
     assert len(await compliance_alerts(rt)) == 1
 
