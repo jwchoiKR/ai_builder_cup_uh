@@ -1618,3 +1618,9 @@ D-287: `HEDGED_AGENTS` narrows the second request (D-184) to some alert-path age
 - **What:** a comma list of agent names or prefixes, for example `HEDGED_AGENTS=compliance`, so only the compliance judge gets the second request. Other agents send one request and keep their deadlines and retries.
 - **Measure, then decide:** the planning session runs `HEDGED_AGENTS=compliance` with `--concurrency 2` and reports detection, latency p95 and tokens. The default changes only if a measured cell shows no loss and the three reviewers agree.
 - **Test:** with `HEDGED_AGENTS=compliance`, a slow compliance call sends two requests, while a slow context or fact call sends one.
+
+D-288: A1: when every compliance call fails, `REFLEX_ON_FAIL=card` turns a reflex hit into a neutral "check this line" card instead of a rule alert. The default is "alert", today's behaviour (§8.4.3). This is logic.
+- **Why:** GPT-6 Astra reviewed the logic and Sonnet confirmed it in code. A single reflex word can turn an approved line into a HIGH alert when the judge fails: "It is suitable for eczema-prone skin." gets ASEAN-2D-DISEASE HIGH today. It is a path to a wrong HIGH, and wrong HIGH must be 0.
+- **What ("card"):** the provisional chips are cleared and no rule alert is made. If a reflex hit remains that is neither negated nor quoted, the event `line.check` is emitted with the line, the rule ids and the phrases. Corrections by replacement wording still apply (D-098). `eval_adversarial` rows count these cards in `reflex_card`, apart from alerts, so the recall cost is visible: a real cure claim with a failing judge also becomes only a card.
+- **Not built:** the host and operator screens do not render `line.check` yet. The frontend cannot be tested on this laptop, which has no node_modules.
+- **Tests:** with "alert", the approved eczema line gets today's HIGH. With "card", it gets 0 alerts and 1 card, and a cure claim gets 1 card. A line with no reflex word gets nothing.
