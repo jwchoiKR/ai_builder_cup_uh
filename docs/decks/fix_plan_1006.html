@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우려 사항 수정 계획</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#fff;--fg:#202124;--sub:#5f6368;--line:#dadce0;--box:#f1f3f4;--blue:#1a73e8;--red:#d93025;--green:#188038;--amber:#b06000}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#202124;--fg:#e8eaed;--sub:#9aa0a6;--line:#3c4043;--box:#2d2e31;--blue:#8ab4f8;--red:#f28b82;--green:#81c995;--amber:#fdd663}}
+:root[data-theme="dark"]{--bg:#202124;--fg:#e8eaed;--sub:#9aa0a6;--line:#3c4043;--box:#2d2e31;--blue:#8ab4f8;--red:#f28b82;--green:#81c995;--amber:#fdd663}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.7 'Noto Sans KR',sans-serif}
+main{max-width:960px;margin:0 auto;padding:32px 16px 80px}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:21px;margin:44px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:17px;margin:22px 0 8px}
+p,li{word-break:keep-all}
+.sub{color:var(--sub);font-size:14px}
+.sum{background:var(--box);border-left:4px solid var(--blue);padding:14px 18px;border-radius:6px}
+.ask{background:var(--box);border-left:4px solid var(--amber);padding:12px 18px;border-radius:6px}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:15px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--sub);font-weight:500}
+.wrap{overflow-x:auto}
+.ok{color:var(--green);font-weight:500}
+.bad{color:var(--red);font-weight:500}
+.warn{color:var(--amber);font-weight:500}
+a{color:var(--blue)}
+code{font-size:14px;background:var(--box);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<main>
+<h1>우려 사항 수정 계획</h1>
+<p class="sub">10/6 · 검토: GPT(gpt-6-astra high), Gemini(gemini-3.8-flash high), Sonnet · 공식 문서 리서치 · 기획/평가 세션 작성</p>
+
+<div class="sum">
+<p><b>요약</b></p>
+<ul>
+<li><b>판정:</b> 문장의 뜻을 판단하던 검증 코드는 모두 빼고 모델에 맡긴다. 코드는 근거 번호나 숫자가 문서에 실제로 있는지 같은 대조만 한다. 세 모델 모두 같은 의견이다. 판정 방식은 세 가지(상위 모델 최종 판정, Flash-Lite 최종 판정, 투표)를 모두 스위치로 만들어 같은 세트에서 비교한다.</li>
+<li><b>심각도:</b> "규정 위반은 HIGH, 제품 정보 오류는 MEDIUM"을 기본으로 하고 예외 두 가지를 둔다. 안전과 직결된 정보 오류는 HIGH, 조건만 붙이면 되는 규정 위반은 MEDIUM이다. HIGH는 판정이 확인된 경우에만 띄운다.</li>
+<li><b>STT:</b> 소리가 버려지는 곳 두 군데는 바로 고친다. 언어 섞임과 문장 끊김은 실제 음성으로 먼저 측정한다. 지금까지의 정확도 숫자는 STT를 거치지 않았다는 점이 가장 큰 빈틈이다.</li>
+<li><b>가용성:</b> 방송 설정과 온보딩 진행 상태를 저장소에 남겨 재시작해도 이어지게 한다. 429는 재시도로 처리한다.</li>
+<li><b>증명:</b> 이긴 안 하나를 새 6차 세트로 한 번만 돌리고, 실제 음성 측정 숫자를 함께 낸다.</li>
+</ul>
+</div>
+
+<h2>1. 판정을 코드가 아니라 모델이 하게</h2>
+<h3>합의된 것 (세 모델 + 리서치)</h3>
+<ul>
+<li>"시험 단어가 없으면 지운다" 같은 뜻 판단용 코드 규칙은 모두 끈다. 해당 내용은 판정 모델의 지시문으로 옮긴다.</li>
+<li>코드는 대조만 한다. 들은 규정이 실제로 있는지, 근거 문장 번호가 문서에 있는지, 맞는 값의 숫자가 그 제품 문서에 있는지를 본다.</li>
+<li>조용히 지우는 일은 없앤다. 먼저 "확인 중"으로 띄우고, 확인되면 경고로 바꾸고, 아니면 내린다. 시간 안에 확인하지 못하면 "미확인"으로 남긴다. 미확인 건수는 따로 센다.</li>
+<li>근거는 문서 전체가 아니라 관련 문장과 그 앞뒤만 넘긴다. 문서 전체를 넘긴 R2는 호출의 69%가 3초 안에 끝나지 못했다(275회 중 190회).</li>
+</ul>
+<h3>의견이 갈린 것</h3>
+<div class="wrap"><table>
+<tr><th></th><th>GPT</th><th>Gemini</th><th>Sonnet</th></tr>
+<tr><td>최종 판정 모델</td><td>Flash-Lite LOW부터, 3.8 Flash LOW와 비교해서 고른다</td><td>Flash-Lite, 생각 최소</td><td>Flash-Lite. 애매한 것만 3.8 Flash로 올린다</td></tr>
+<tr><td>넘길 근거 양</td><td>인용 문장과 주변 단서, 반대 근거까지 약 1,500~3,000토큰</td><td>인용 문장 1~3개</td><td>인용 문장, 앞뒤 문장, 같은 표의 행</td></tr>
+<tr><td>지연 목표</td><td>확인 중 표시 3초 이내, 확정 5초 이내</td><td>확정까지 1.2초</td><td>확인 중 표시 2.5초 이내, 확정 6초 이내</td></tr>
+</table></div>
+<p>지연 목표는 실측 후 정한다. 진행자는 보통 한 주제를 8~10초 이야기한다(Sonnet 추정, 측정 안 함). 그래서 확정까지 5초 안쪽이면 쓸모가 있다고 본다.</p>
+<h3>참고한 공개 사례</h3>
+<ul>
+<li>싼 모델로 넓게 거르고 큰 모델로 확인하는 구조: Filter-And-Refine(ACL 2025, 영상 검수), <a href="https://arxiv.org/abs/2507.17204">arxiv 2507.17204</a>. 전체를 큰 모델로 돌릴 때 대비 계산량 1.5%(논문 보고값).</li>
+<li>먼저 보여주고 나중에 거두는 방식: Azure OpenAI 비동기 필터, <a href="https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/content-streaming">Microsoft 문서</a>.</li>
+<li>문서 근거 대조 전용 작은 모델: MiniCheck(EMNLP 2024), <a href="https://arxiv.org/abs/2404.10774">arxiv 2404.10774</a>.</li>
+</ul>
+<h3>비교할 안 (모두 스위치로 켜고 끔)</h3>
+<div class="wrap"><table>
+<tr><th>안</th><th>내용</th><th>상태</th></tr>
+<tr><td>R3</td><td>검증 코드 마지막 패치</td><td>5차 97.2%, 4차 98.1% (둘 다 본 세트)</td></tr>
+<tr><td>R2</td><td>3.8 Flash가 문서 전체를 보고 최종 판정</td><td>3초 제한 무효, 10초 제한으로 재측정 중</td></tr>
+<tr><td>R2-창</td><td>근거를 관련 문장 앞뒤만 넘김</td><td>개발 완료 (<code>VERIFY_EVIDENCE=window</code>)</td></tr>
+<tr><td>R2-최소</td><td>생각 최소</td><td>개발 완료 (<code>VERIFY_THINKING=MINIMAL</code>)</td></tr>
+<tr><td>R2-Lite</td><td>최종 판정을 Flash-Lite MEDIUM으로</td><td>개발 완료</td></tr>
+<tr><td>투표안</td><td>후보가 나온 문장만 Flash-Lite 2회 더. 3/3이면 규정 등급 유지, 2/3이면 MEDIUM, 1/3이면 버리고 기록</td><td>개발 요청함</td></tr>
+<tr><td>자기 확신도</td><td>모델이 쓴 확률이 맞고 틀림을 가르는지 확인 (기록만)</td><td>개발 요청함</td></tr>
+</table></div>
+<p><b>판정 기준:</b> 제품마다 탐지 95% 이상, 오경고 1% 미만, 잘못된 HIGH 0. 추가로 확정까지 p95 지연, 미확인 비율 1% 미만, 맞는 경고를 잘못 내린 건수, 하루 비용을 본다. 순서는 5차에서 먼저 돌리고, 좋은 안만 4차로 넘긴다. 한 안에 약 3천 원이 든다(추정).</p>
+
+<h2>2. 심각도 기준</h2>
+<h3>누가 정하나 (지금)</h3>
+<ul>
+<li>기본 탑재 규정(ASEAN 화장품 지침)은 개발팀이 정했고, 사실상 전부 HIGH다.</li>
+<li>규제 문서를 올려 만드는 규정은 온보딩 모델이 정하고 사람이 승인한다. 기준은 "아예 금지면 HIGH, 조건을 붙이면 되면 MEDIUM"이다. 이 등급이 맞는지는 아직 잰 적이 없다.</li>
+<li>시험 단서 누락은 코드에 MEDIUM으로 고정돼 있다.</li>
+</ul>
+<h3>제안 (세 모델 합의, 공개 규정과도 맞음)</h3>
+<div class="wrap"><table>
+<tr><th>등급</th><th>대상</th><th>화면</th></tr>
+<tr><td class="bad">HIGH</td><td>규정이 아예 금지하는 주장(질병 치료·예방, 완치, 안전 보장, 의약품 같은 주장, 취약 계층 대상) + 안전과 직결된 제품 정보 오류(사용 연령, 복용량, 알레르기 성분, 사용 금지 대상)</td><td>화면 전체 경고</td></tr>
+<tr><td class="warn">MEDIUM</td><td>조건이나 근거를 붙이면 되는 규정 위반(시험 단서 누락, "최고" 같은 표현) + 그 밖의 제품 정보 오류(가격, 용량, 구성)</td><td>배너</td></tr>
+</table></div>
+<ul>
+<li><b>HIGH는 확인된 경우에만 띄운다.</b> 최종 판정 모델이 "진행자가 실제로 그 주장을 했다"고 확인하거나 투표가 3/3일 때만 HIGH다. 애매하면 MEDIUM으로 낮춘다. 주의 문구를 뒤집은 말이 대상 규정 HIGH로 잘못 가는 문제는 등급표로는 못 고친다. 분류를 다시 확인하는 단계가 있어야 고쳐진다.</li>
+<li><b>안전 정보 표시는 온보딩에서 한다.</b> 사용 연령, 복용량 같은 필드를 온보딩 모델이 "안전 정보"로 표시하고 사람이 승인한다. 단어 목록으로 정하지 않는다.</li>
+<li><b>Gemini의 다른 제안은 빼기로 했다.</b> Gemini는 "부정어가 있으면 HIGH를 막는 코드 규칙"을 제안했다. 하지만 코드로 뜻을 판단하지 않기로 한 방향과 맞지 않는다. 같은 일은 최종 판정 단계가 한다.</li>
+<li><b>근거:</b> 싱가포르 HSA는 건강기능식품 주장을 "금지(질병 치료·예방)"와 "허용(기능 주장, 근거 필요)"으로 나눈다(<a href="https://www.hsa.gov.sg/health-supplements/claims/">HSA</a>). Google Ads도 "금지"와 "제한(조건부 허용)"을 나눈다(<a href="https://support.google.com/adspolicy/answer/6008942">Google Ads 정책</a>).</li>
+<li><b>측정:</b> 잘못된 HIGH를 제품별로 센다. 낮춰진 진짜 HIGH 건수도 센다. 온보딩 모델이 매긴 규정 등급은 Sonnet이 문서만 보고 따로 매긴 등급과 비교한다. 이 비교는 Gemini 비용이 들지 않는다.</li>
+</ul>
+
+<h2>3. STT에서 빠지는 것</h2>
+<div class="wrap"><table>
+<tr><th>문제</th><th>고칠 방법 (합의)</th><th>시점</th></tr>
+<tr><td>a. 재연결 1~5초 동안 마이크 소리가 버려진다</td><td>브라우저에 10~30초 소리 버퍼를 둔다. 순번을 붙이고, 재연결되면 서버가 받지 못한 부분부터 다시 보낸다.</td><td>금요일 전</td></tr>
+<tr><td>b. 오류 뒤 최근 5초만 다시 보내고, 6번 넘게 실패하면 멈춘다</td><td>인식이 끝난 지점까지 소리를 보관했다가 그 이후를 다시 보낸다. 실패 횟수는 인식 결과가 나오면 0으로 되돌린다. 멈추면 화면에 "인식 중단"을 표시한다.</td><td>금요일 전</td></tr>
+<tr><td>c. 시작 버튼 전 말은 판정하지 않는다</td><td>마이크를 켜면 판정 대기 상태로 두거나, 시작 직전 5초를 보관했다가 판정한다. 우선순위 낮음.</td><td>이후</td></tr>
+<tr><td>d. 4분마다 연결을 바꿀 때 경계 단어가 빠질 수 있다</td><td>먼저 잰다. 10분 녹음을 돌려 경계마다 확인 단어가 남는지 본다. 빠지면 1초 겹쳐 보내고 시간으로 중복을 지운다(오디오 0.4% 증가).</td><td>측정 후</td></tr>
+<tr><td>e. 긴 말이 잘게 잘려 따로 판정된다</td><td>판정할 때 앞 2문장 대신 최근 15~20초를 함께 보낸다. 끊는 민감도 SHORT와 STANDARD를 비교한다.</td><td>측정 후</td></tr>
+<tr><td>f. 언어 섞임</td><td>아래 리서치 결과 참고. 바로 만들지 말고 먼저 시험한다.</td><td>측정 후</td></tr>
+<tr><td>g. 단어 힌트 500개 제한</td><td>금지어 자리를 따로 떼어 두고, 방송 중인 제품 단어를 먼저 넣는다. chirp_3 한도는 1,000개지만 Google은 적게 쓰라고 권한다.</td><td>금요일 전</td></tr>
+<tr><td>h. 숫자를 잘못 들음</td><td>경고에 "들은 말"을 그대로 보여 줘서 진행자가 STT 오류인지 바로 알게 한다. GPT는 숫자가 걸린 부분만 다시 받아쓰기하는 방법도 제안했다.</td><td>측정 후</td></tr>
+</table></div>
+<h3>언어 섞임 (리서치)</h3>
+<ul>
+<li>chirp_3 지원 목록에 <b>en-SG, en-MY가 없다.</b> 그래서 지금 싱가포르·말레이시아 방송은 en-US로 받아 적는다(<code>data/markets/sg.json</code>).</li>
+<li>ms-MY(미리보기), cmn-Hans-CN, ta-IN 등은 있다. <code>language_codes=["auto"]</code>는 "가장 많이 쓰인 언어"로 받아 적는다. 여러 언어 코드를 같이 줄 수도 있다(<a href="https://docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model">chirp_3 문서</a>).</li>
+<li>한 문장 안에서 언어가 바뀌는 경우를 처리하는지는 문서에 없다. 스트리밍에서 "auto"나 여러 언어 코드가 되는지도 확인하지 못했다. 그래서 직접 시험한다.</li>
+</ul>
+<h3>실제 음성 측정 (가장 먼저)</h3>
+<ul>
+<li><b>금요일 전:</b> 5차 216줄을 TTS로 음성으로 만든다(목소리 2개, 약한 소음). 같은 줄을 글자로 넣었을 때와 음성으로 넣었을 때의 탐지 차이가 "STT 때문에 잃는 몫"이다. 팀원 녹음 60줄 정도를 더한다. TTS만으로는 실제보다 좋게 나온다.</li>
+<li><b>10/18 전:</b> 사람 녹음을 늘린다. 언어가 섞인 문장 30% 이상, 소음, 말 고치기, 연결 교체 구간을 넣는다. 세 모델이 제안한 규모는 150~600줄로 서로 달랐다.</li>
+<li><b>잴 것:</b> 단어 오류율, 제품명·숫자 정확도, 음성 기준 탐지와 오경고, 말이 끝난 뒤 경고가 화면에 뜰 때까지의 p50/p95.</li>
+</ul>
+
+<h2>4. 새 제품에서 95%를 못 넘는 문제</h2>
+<ul>
+<li>세 모델 모두 지금 전체를 다시 만들 필요는 없다고 봤다. 막힌 곳은 판정 단계였고, 그 부분은 1절대로 바꾼다.</li>
+<li>R3의 97~98%는 본 세트 숫자다. 처음 보는 세트의 첫 측정은 84.6, 91.0, 92.6%였다. 이긴 안을 고정한 뒤 새 6차 세트로 한 번만 돌리고, 그 숫자로만 "새 제품 95%"를 말한다.</li>
+<li>놓친 줄은 원인별로 나눈다. 온보딩, 근거 찾기, 해석, 지우기, STT 중 어디서 놓쳤는지 본다. 다음 수정은 그 숫자를 보고 정한다.</li>
+</ul>
+
+<h2>5. 재시작에 버티게</h2>
+<ul>
+<li><b>금요일까지 최소:</b> 방송 설정(승인본, 언어, 진행 상태)과 온보딩 진행 상태를 저장소에 쓰고, 재시작하면 다시 읽는다. 진행 중이던 온보딩은 "중단됨, 다시 실행"으로 표시한다. 승인본과 브리프는 이미 버킷에 저장된다.</li>
+<li><b>429:</b> 재시도를 넣는다. 처음 1초를 기다리고 두 배씩 늘리며, 시간에 흔들림을 섞어 최대 4~5회까지 다시 보낸다. 새 프로젝트의 429는 고정 한도가 아니라 공용 자원이 일시적으로 붐빈 것이라서 재시도가 Google 권장 방법이다(<a href="https://docs.cloud.google.com/vertex-ai/generative-ai/docs/dynamic-shared-quota">Google 문서</a>).</li>
+<li><b>주의:</b> Cloud Run의 세션 고정(session affinity)과 최소 인스턴스는 "최선 노력"일 뿐이다. 상태는 반드시 서버 밖에 둬야 한다(<a href="https://docs.cloud.google.com/run/docs/configuring/session-affinity">Google 문서</a>). 여러 대로 늘리는 것은 <code>docs/SCALE_PLAN.md</code> 계획대로 이후에 한다.</li>
+<li><b>시험:</b> 방송 중과 온보딩 중에 서버를 20번 강제로 재시작한다. 잃은 작업 0, 중복 경고 0, 복구 p95 10초 이내를 본다.</li>
+</ul>
+
+<h2>심사위원 시각</h2>
+<p>세 모델이 공통으로 꼽은 점수 순서다.</p>
+<ol>
+<li>실제 음성으로 측정한 탐지율과 지연. "말로 해도 되나?"는 반드시 나오는 질문인데, 지금은 숫자가 없다.</li>
+<li>조용히 지우지 않는 흐름. 경고를 띄웠다 내릴 때도 이유를 남기면 "코드가 몰래 모델을 덮는다"는 지적을 피할 수 있다.</li>
+<li>잘못된 HIGH 0. 무대에서 잘못된 HIGH가 한 번 뜨면 놓친 MEDIUM 여러 건보다 손해가 크다.</li>
+<li>처음 보는 세트의 결과. 본 세트의 98%보다 새 세트의 92%를 더 믿는다.</li>
+<li>재시작 생존. 시연 중 방송이 사라지면 바로 눈에 띄는 실패다.</li>
+</ol>
+
+<h2>실행 순서</h2>
+<div class="wrap"><table>
+<tr><th>누가</th><th>할 일</th></tr>
+<tr><td>개발 세션</td><td>투표안과 자기 확신도 · 브라우저 소리 버퍼와 다시 보내기(a, b) · 단어 힌트 자리 나누기(g) · 판정 문맥을 최근 15~20초로(e, 스위치) · 방송 설정과 온보딩 상태 저장 · 429 재시도 · 안전 정보 표시와 HIGH 확인 조건</td></tr>
+<tr><td>기획/평가 세션</td><td>R2 변형과 투표안 측정(5차 먼저) · TTS 음성 세트 만들기와 STT 측정 · 언어 섞임 시험(auto, 여러 언어 코드) · 4분 교체 경계 측정 · 규정 등급 정확도 비교 · 새 6차 세트 만들기</td></tr>
+<tr><td>사용자</td><td>아래 세 가지 결정</td></tr>
+</table></div>
+
+<div class="ask">
+<p><b>결정이 필요한 것</b></p>
+<ol>
+<li><b>심각도 예외 두 가지:</b> 안전 정보 오류는 HIGH, 조건만 붙이면 되는 규정 위반은 MEDIUM. 이대로 갈지 정해 주셔야 한다.</li>
+<li><b>최소 인스턴스 1대 유지:</b> 행사·시연 기간에만 켤지 정해 주셔야 한다. 비용이 들고 설정 변경은 사용자 작업이다.</li>
+<li><b>녹음:</b> 팀원 녹음 60줄을 누가 할지 정해 주셔야 한다. 줄 목록은 봉인 세트가 아닌 별도 문장으로 준비한다.</li>
+</ol>
+</div>
+</main>
+</body>
+</html>
