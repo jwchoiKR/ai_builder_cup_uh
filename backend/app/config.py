@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     # thinking levels (MEDIUM; LOW for the category pick)
     ONBOARDING_PASS_MODEL: str = ""
     ONBOARDING_PASS_THINKING: str = ""
+    # D-274 arm: "show" puts every caution and direction into the show's language and merges repeats by meaning
+    ONBOARDING_CAUTION_LANG: Literal["as_written", "show"] = "as_written"
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage

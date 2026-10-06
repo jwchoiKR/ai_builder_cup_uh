@@ -66,6 +66,7 @@ def start_job(ctx: AppContext, data: list[tuple[str, bytes]], hints: str = "", o
                 result = await onboard_files(ctx.llm, ctx.settings.onboarding_path, job_id, data,
                                              hints=hints[:500], base_pack=ctx.pack,
                                              verify_mode=ctx.settings.VERIFY_MODE,
+                                             caution_lang=ctx.settings.ONBOARDING_CAUTION_LANG,
                                              **onboarding_models(ctx.settings))
                 out = result.model_dump(mode="json")
                 (ctx.settings.onboarding_path / job_id / "result.json").write_text(
