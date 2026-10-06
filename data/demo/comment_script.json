@@ -33,7 +33,7 @@
             "kind": "question",
             "intent": "price",
             "route": "AUTO",
-            "product_id": "cream_hydra_barrier"
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
           }
         },
         {
@@ -45,7 +45,7 @@
             "kind": "question",
             "intent": "price",
             "route": "AUTO",
-            "product_id": "cream_hydra_barrier"
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
           }
         },
         {
@@ -57,7 +57,7 @@
             "kind": "question",
             "intent": "price",
             "route": "AUTO",
-            "product_id": "cream_hydra_barrier",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77",
             "note": "joins the price group; answered in the same coalesced reply or instantly if the answer is already verified"
           }
         },
@@ -388,7 +388,7 @@
           "author_name": "Mei",
           "text": "how much?",
           "expect": {
-            "product_id": "cream_hydra_barrier",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77",
             "product_basis": "context",
             "note": "within STREAM_GRACE_SEC=2 of the switch, mapped to the previous product"
           }
@@ -399,7 +399,7 @@
           "author_name": "Chloe",
           "text": "is the cream fragrance free?",
           "expect": {
-            "product_id": "cream_hydra_barrier",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77",
             "product_basis": "explicit"
           }
         },
@@ -409,7 +409,7 @@
           "author_name": "Arjun",
           "text": "Does the ampoule sting?",
           "expect": {
-            "product_id": "ampoule_deep_hydration",
+            "product_id": "daon_lab_deep_hydration__2d51f429",
             "intent": "allergy_sensitivity",
             "route": "OPERATOR"
           }
@@ -420,7 +420,7 @@
           "author_name": "Hafiz",
           "text": "can I use it with vitamin C?",
           "expect": {
-            "product_id": "ampoule_deep_hydration",
+            "product_id": "daon_lab_deep_hydration__2d51f429",
             "intent": "how_to_use",
             "route": "HOST",
             "slots": {
@@ -434,7 +434,7 @@
           "author_name": "Siti",
           "text": "how much is the ampoule?",
           "expect": {
-            "product_id": "ampoule_deep_hydration",
+            "product_id": "daon_lab_deep_hydration__2d51f429",
             "intent": "price",
             "route": "AUTO"
           }
@@ -445,7 +445,7 @@
           "author_name": "Ben",
           "text": "how much niacinamide is in it?",
           "expect": {
-            "product_id": "ampoule_deep_hydration",
+            "product_id": "daon_lab_deep_hydration__2d51f429",
             "intent": "ingredient_amount",
             "route": "AUTO"
           }
@@ -456,7 +456,7 @@
           "author_name": "Ravi",
           "text": "can i use the ampoule in the morning",
           "expect": {
-            "product_id": "ampoule_deep_hydration",
+            "product_id": "daon_lab_deep_hydration__2d51f429",
             "intent": "how_to_use",
             "route": "HOST"
           }

@@ -12,6 +12,7 @@ from ..models.session import Session
 from ..pipelines.comments import submit_comment
 from ..pipelines.demo_script import load_host_script
 from ..pipelines.runtime import create_session, latest_session
+from ..onboarding.demo import demo_release_ids
 from .errors import ApiError
 
 router = APIRouter()
@@ -77,7 +78,19 @@ async def demo_script(ctx: AppContext = Depends(get_ctx)) -> dict:
 @router.get("/demo/current")
 async def demo_current(ctx: AppContext = Depends(get_ctx)) -> Session:
     s = await latest_session(ctx)
-    return s if s is not None else await create_session(ctx, DEFAULT_RUNSHEET_ID)
+    return s if s is not None else await _demo_show(ctx)
+
+
+async def _demo_show(ctx: AppContext, show_mode: str = "solo", assistant: bool = True,
+                     previous: Session | None = None) -> Session:
+    """D-278: the demo is a show of its onboarded releases (D-279); the old run-sheet only where a demo pack still
+    has it (the tests)."""
+    if previous is not None and previous.release_ids:
+        return await create_session(ctx, "", show_mode, assistant=assistant, release_ids=previous.release_ids)
+    if DEFAULT_RUNSHEET_ID in ctx.pack.runsheets or previous is not None:
+        return await create_session(ctx, previous.runsheet_id if previous else DEFAULT_RUNSHEET_ID, show_mode,
+                                    assistant=assistant)
+    return await create_session(ctx, "", show_mode, assistant=assistant, release_ids=demo_release_ids(ctx))
 
 
 class ResetBody(BaseModel):
@@ -89,13 +102,13 @@ class ResetBody(BaseModel):
 async def demo_reset(body: ResetBody | None = None, ctx: AppContext = Depends(demo_tools)) -> Session:
     body = body or ResetBody()
     s = await latest_session(ctx)
-    runsheet_id, show_mode = DEFAULT_RUNSHEET_ID, "solo"
+    show_mode = "solo"
     if s is not None:
-        runsheet_id, show_mode = s.runsheet_id, s.show_mode  # a reset keeps the show mode
+        show_mode = s.show_mode  # a reset keeps the show mode and the show
         await ctx.runtimes.drop(s.session_id)
         await ctx.store.delete_session(s.session_id)
         ctx.bus.forget_session(s.session_id)
-    return await create_session(ctx, runsheet_id, body.show_mode or show_mode, assistant=body.assistant)
+    return await _demo_show(ctx, body.show_mode or show_mode, body.assistant, s)
 
 
 @router.post("/demo/sessions", status_code=201)
@@ -103,7 +116,7 @@ async def demo_session(body: ResetBody | None = None, ctx: AppContext = Depends(
     """D-139: a new session for a driver (voice rehearsal, show replay) that deletes nothing, so several
     drivers and the studio can share one service. Drivers end their session when they finish."""
     body = body or ResetBody()
-    return await create_session(ctx, DEFAULT_RUNSHEET_ID, body.show_mode or "solo", assistant=body.assistant)
+    return await _demo_show(ctx, body.show_mode or "solo", body.assistant)
 
 
 class ScriptCommentBody(BaseModel):

@@ -1,0 +1,363 @@
+{
+  "pool_id": "daon_background_v1",
+  "playback": {
+    "min_gap_ms": 2500,
+    "max_gap_ms": 6000,
+    "hide_item_every_n": 15,
+    "seed": 7
+  },
+  "items": [
+    {
+      "pool_id": "bg000",
+      "product_tag": "any",
+      "author_id": "u_amy",
+      "text": "hello from Jurong!",
+      "author_name": "Amy"
+    },
+    {
+      "pool_id": "bg001",
+      "product_tag": "any",
+      "author_id": "u_raj",
+      "text": "hi everyone",
+      "author_name": "Raj"
+    },
+    {
+      "pool_id": "bg002",
+      "product_tag": "any",
+      "author_id": "u_lee",
+      "text": "first time watching",
+      "author_name": "Lee"
+    },
+    {
+      "pool_id": "bg003",
+      "product_tag": "any",
+      "author_id": "u_tom",
+      "text": "love this brand",
+      "author_name": "Tom"
+    },
+    {
+      "pool_id": "bg004",
+      "product_tag": "any",
+      "author_id": "u_siti",
+      "text": "the lighting is so nice",
+      "author_name": "Siti"
+    },
+    {
+      "pool_id": "bg005",
+      "product_tag": "any",
+      "author_id": "u_weiling",
+      "text": "wow",
+      "author_name": "Wei Ling"
+    },
+    {
+      "pool_id": "bg006",
+      "product_tag": "any",
+      "author_id": "u_kumar",
+      "text": "nice",
+      "author_name": "Kumar"
+    },
+    {
+      "pool_id": "bg007",
+      "product_tag": "any",
+      "author_id": "u_nur",
+      "text": "😍",
+      "author_name": "Nur"
+    },
+    {
+      "pool_id": "bg008",
+      "product_tag": "any",
+      "author_id": "u_jiahui",
+      "text": "👏👏",
+      "author_name": "Jia Hui"
+    },
+    {
+      "pool_id": "bg009",
+      "product_tag": "any",
+      "author_id": "u_daniel",
+      "text": "hi hi",
+      "author_name": "Daniel"
+    },
+    {
+      "pool_id": "bg010",
+      "product_tag": "any",
+      "author_id": "u_priya",
+      "text": "watching from Tampines",
+      "author_name": "Priya"
+    },
+    {
+      "pool_id": "bg011",
+      "product_tag": "any",
+      "author_id": "u_hafiz",
+      "text": "so calm watching this",
+      "author_name": "Hafiz"
+    },
+    {
+      "pool_id": "bg012",
+      "product_tag": "any",
+      "author_id": "u_mei",
+      "text": "your skin is glowing",
+      "author_name": "Mei"
+    },
+    {
+      "pool_id": "bg013",
+      "product_tag": "any",
+      "author_id": "u_arjun",
+      "text": "lol",
+      "author_name": "Arjun"
+    },
+    {
+      "pool_id": "bg014",
+      "product_tag": "any",
+      "author_id": "u_chloe",
+      "text": "same",
+      "author_name": "Chloe"
+    },
+    {
+      "pool_id": "bg015",
+      "product_tag": "any",
+      "author_id": "u_ming",
+      "text": "yesss",
+      "author_name": "Ming"
+    },
+    {
+      "pool_id": "bg016",
+      "product_tag": "any",
+      "author_id": "u_farah",
+      "text": "this is my fav live",
+      "author_name": "Farah"
+    },
+    {
+      "pool_id": "bg017",
+      "product_tag": "any",
+      "author_id": "u_ben",
+      "text": "hello host!",
+      "author_name": "Ben"
+    },
+    {
+      "pool_id": "bg018",
+      "product_tag": "any",
+      "author_id": "u_aisha",
+      "text": "can't wait",
+      "author_name": "Aisha"
+    },
+    {
+      "pool_id": "bg019",
+      "product_tag": "any",
+      "author_id": "u_kai",
+      "text": "ok I'm convinced",
+      "author_name": "Kai"
+    },
+    {
+      "pool_id": "bg020",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_sofia",
+      "text": "is it sticky?",
+      "author_name": "Sofia"
+    },
+    {
+      "pool_id": "bg021",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_ravi",
+      "text": "does it absorb fast?",
+      "author_name": "Ravi"
+    },
+    {
+      "pool_id": "bg022",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_hannah",
+      "text": "how long does a tube last",
+      "author_name": "Hannah"
+    },
+    {
+      "pool_id": "bg023",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_jun",
+      "text": "can men use it?",
+      "author_name": "Jun"
+    },
+    {
+      "pool_id": "bg024",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_nadia",
+      "text": "is it good for dry skin",
+      "author_name": "Nadia"
+    },
+    {
+      "pool_id": "bg025",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_amy",
+      "text": "where is it made?",
+      "author_name": "Amy"
+    },
+    {
+      "pool_id": "bg026",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_raj",
+      "text": "how many ml?",
+      "author_name": "Raj"
+    },
+    {
+      "pool_id": "bg027",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_lee",
+      "text": "is it fragrance free",
+      "author_name": "Lee"
+    },
+    {
+      "pool_id": "bg028",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_tom",
+      "text": "pump or jar?",
+      "author_name": "Tom"
+    },
+    {
+      "pool_id": "bg029",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_siti",
+      "text": "can I use it at night only?",
+      "author_name": "Siti"
+    },
+    {
+      "pool_id": "bg030",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_weiling",
+      "text": "the texture looks so light",
+      "author_name": "Wei Ling"
+    },
+    {
+      "pool_id": "bg031",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_kumar",
+      "text": "I need this for my dry cheeks",
+      "author_name": "Kumar"
+    },
+    {
+      "pool_id": "bg032",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_nur",
+      "text": "looks hydrating",
+      "author_name": "Nur"
+    },
+    {
+      "pool_id": "bg033",
+      "product_tag": "cream_hydra_barrier",
+      "author_id": "u_jiahui",
+      "text": "adding to cart",
+      "author_name": "Jia Hui"
+    },
+    {
+      "pool_id": "bg034",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_daniel",
+      "text": "is the ampoule sticky?",
+      "author_name": "Daniel"
+    },
+    {
+      "pool_id": "bg035",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_priya",
+      "text": "how many drops?",
+      "author_name": "Priya"
+    },
+    {
+      "pool_id": "bg036",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_hafiz",
+      "text": "can I mix it with my cream",
+      "author_name": "Hafiz"
+    },
+    {
+      "pool_id": "bg037",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_mei",
+      "text": "what's the texture like",
+      "author_name": "Mei"
+    },
+    {
+      "pool_id": "bg038",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_arjun",
+      "text": "does it have niacinamide?",
+      "author_name": "Arjun"
+    },
+    {
+      "pool_id": "bg039",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_chloe",
+      "text": "how many ml is the ampoule",
+      "author_name": "Chloe"
+    },
+    {
+      "pool_id": "bg040",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_ming",
+      "text": "morning or night?",
+      "author_name": "Ming"
+    },
+    {
+      "pool_id": "bg041",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_farah",
+      "text": "glass bottle?",
+      "author_name": "Farah"
+    },
+    {
+      "pool_id": "bg042",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_ben",
+      "text": "ooh the dropper is cute",
+      "author_name": "Ben"
+    },
+    {
+      "pool_id": "bg043",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_aisha",
+      "text": "that looks so watery",
+      "author_name": "Aisha"
+    },
+    {
+      "pool_id": "bg044",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_kai",
+      "text": "niacinamide fan here",
+      "author_name": "Kai"
+    },
+    {
+      "pool_id": "bg045",
+      "product_tag": "ampoule_deep_hydration",
+      "author_id": "u_sofia",
+      "text": "need this ampoule",
+      "author_name": "Sofia"
+    },
+    {
+      "pool_id": "bg046",
+      "product_tag": "any",
+      "author_id": "u_spam1",
+      "text": "Free followers at bit.ly/free-follow-example",
+      "expect": {
+        "kind": "hide"
+      },
+      "author_name": "deals4u"
+    },
+    {
+      "pool_id": "bg047",
+      "product_tag": "any",
+      "author_id": "u_spam2",
+      "text": "Message me on WhatsApp 8123 4567 for wholesale",
+      "expect": {
+        "kind": "hide"
+      },
+      "author_name": "glowqueen_shop"
+    },
+    {
+      "pool_id": "bg048",
+      "product_tag": "any",
+      "author_id": "u_rude",
+      "text": "this is a scam lol stupid",
+      "expect": {
+        "kind": "hide"
+      },
+      "author_name": "xx_troll"
+    }
+  ]
+}
