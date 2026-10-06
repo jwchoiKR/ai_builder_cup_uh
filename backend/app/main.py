@@ -71,6 +71,11 @@ async def catalog(session: str | None = None, ctx: AppContext = Depends(get_ctx)
         d = p.model_dump(mode="json")
         d["list_price_display"] = cat.money(p.list_price)
         d["live_price_display"] = cat.money(p.live_price)
+        if p.variants:  # D-281: with several sizes no single price or size is "the" one on screen
+            first = f" ({p.variants[0].label})"
+            d["list_price_display"] += first
+            d["live_price_display"] += first
+            d["variants_display"] = [f"{v.label}: {cat.money(v.live_price)}" for v in p.variants]
         products.append(d)
     promos = []
     for promo in pack.promos.promos:

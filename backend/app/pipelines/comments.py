@@ -296,7 +296,7 @@ async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pi
                    canonical_question=output.canonical_question, candidate_id=output.group_candidate_id)
     created = g is None
     if g is None:
-        route, reason = ("OPERATOR", "ai_unavailable") if source == "fallback" else await _route(rt, intent, pid)
+        route, reason = ("OPERATOR", "ai_unavailable") if source == "fallback" else await _route(rt, intent, pid, slots)
         g = QuestionGroup(
             group_id=rt.new_id("grp_"), product_id=pid, intent=intent.intent, condition_slots=slots,
             canonical_question=output.canonical_question, member_comment_ids=[comment_id],
@@ -393,9 +393,14 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
     rt.spawn(compose_for_group(rt, g.group_id, key, scenario), name=f"compose:{g.group_id}")
 
 
-async def _route(rt: "SessionRuntime", intent, product_id: str | None) -> tuple[str, str]:
+async def _route(rt: "SessionRuntime", intent, product_id: str | None, slots: dict | None = None
+                 ) -> tuple[str, str]:
     """The intent's route (§8.9.2); D-178: a host question about a product already shown and no longer on air goes
-    to the operator (team) or the host's unanswered count (solo)."""
+    to the operator (team) or the host's unanswered count (solo). D-281: a price or size question that names no
+    variant, about a product whose variants differ, goes to the operator: one size's value is never "the" answer."""
+    if (intent.intent in ONE_ANSWER_INTENTS and product_id is not None and not (slots or {}).get("variant")
+            and len({(v.live_price, v.label) for v in rt.catalog.get_product(product_id).variants}) > 1):
+        return "OPERATOR", "several_variants"
     route, reason = route_for(intent, product_id)
     if route == "HOST" and product_id is not None:
         seg = await rt.current_segment()
@@ -427,7 +432,7 @@ async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: An
     g.answer_id = answer.answer_id
     if answer.verified and g.route_reason in ("no_verified_answer", "needs_human"):
         # D-135: an earlier draft failed (or timed out); a verified one now takes the intent's own route
-        g.route, g.route_reason = await _route(rt, rt.intent(g.intent), g.product_id)
+        g.route, g.route_reason = await _route(rt, rt.intent(g.intent), g.product_id, g.condition_slots)
     if not answer.verified:
         await no_draft_locked(rt, g)
         return
@@ -582,6 +587,10 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
         c for p in rt.catalog.products for c in p.not_approved_claims]
     ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
                                  not_approved=not_approved)
+    variant = g.condition_slots.get("variant")
+    if ok and variant and g.intent in ONE_ANSWER_INTENTS and not any(
+            number_set(variant) <= number_set(c.quote) for c in out.citations):
+        ok, errors = False, [f"the answer cites no source of the asked variant ({variant})"]  # D-281
     if ok:
         asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
         ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario,

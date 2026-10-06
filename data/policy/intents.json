@@ -245,7 +245,8 @@
     "time_of_day": [
       "morning",
       "night"
-    ]
+    ],
+    "variant": []
   },
   "ranking_weights": {
     "W_VIEWERS": 2.0,

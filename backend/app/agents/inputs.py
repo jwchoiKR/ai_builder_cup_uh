@@ -36,7 +36,9 @@ def product_compact_json(catalog: Catalog, product_id: str | None) -> dict | Non
         "volume": p.volume,
         "list_price": catalog.money(p.list_price),
         "live_price": catalog.money(p.live_price),
-    }
+    } | ({"variants": [{"variant": v.label, "list_price": catalog.money(v.list_price),
+                        "live_price": catalog.money(v.live_price)} for v in p.variants],
+          "note": "volume and prices above are the first variant's"} if p.variants else {})  # D-281
 
 
 current_product_compact_json = product_compact_json

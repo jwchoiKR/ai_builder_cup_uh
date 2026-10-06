@@ -148,7 +148,7 @@ class JudgeSingleOutput(UtteranceJudgeOutput):
 
 # ---- CommentTriage (§7.5) --------------------------------------------------------------------
 
-SLOT_KEYS = ("person_type", "life_stage", "condition", "combined_with", "time_of_day")
+SLOT_KEYS = ("person_type", "life_stage", "condition", "combined_with", "time_of_day", "variant")
 
 
 class ConditionSlots(BaseModel):
@@ -159,6 +159,7 @@ class ConditionSlots(BaseModel):
     condition: str | None
     combined_with: str | None
     time_of_day: str | None
+    variant: str | None = None  # D-281: the size or variant the viewer names, matched to the product's variants
 
 
 class CommentTriageOutput(BaseModel):

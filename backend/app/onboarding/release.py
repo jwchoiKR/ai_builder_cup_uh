@@ -18,6 +18,7 @@ from pathlib import Path
 
 from ..logic.catalog import DataPack, DataPackError
 from ..models.data import (
+    ProductVariant,
     AvoidSaying, Passage, PrompterPoint, Product, ProductsFile, Promo, PromosFile, QualifiedResult, Runsheet,
     RunsheetItem,
 )
@@ -275,6 +276,12 @@ def record_facts(record: ProductRecord, money_of, unit: Decimal | None = None, f
     return out
 
 
+def _variant_label(v) -> str:
+    """D-281: a variant's name, with its size when the name does not already say it."""
+    size = f"{v.size_value or ''} {v.size_unit or ''}".strip()
+    return v.name if not size or size.lower().replace(" ", "") in v.name.lower().replace(" ", "") else f"{v.name} {size}"
+
+
 def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpacks: Path | None = None,
                  translations: dict | None = None, fact_mode: str = "docs", brief=None) -> DataPack:
     """The base pack's market, language, rules and intents, with this release's one product, passages and show."""
@@ -376,6 +383,9 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
                            for i, q in enumerate(record.qualified_results)],
         target_group=list(record.target_group),
         cautions=[c.text for c in record.cautions],
+        # D-281: every priced variant, so a question about one size is never answered with another's price
+        variants=[ProductVariant(label=_variant_label(v), list_price=float(lp or live), live_price=float(live or lp))
+                  for v, lp, live in priced] if len(priced) > 1 else [],
         avoid_saying=[AvoidSaying(say_not=a.say_not, say=a.say) for a in record.avoid_saying],
     )
     promos = promos_from_offers(record, pid, main.variant_id, live_price, cur, market)

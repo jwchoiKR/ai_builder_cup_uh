@@ -52,6 +52,8 @@ def post_validate(out: CommentTriageOutput, catalog: Catalog, text: str, open_gr
             setattr(o.condition_slots, key, value)
         elif value not in allowed[key]:
             setattr(o.condition_slots, key, None)
+    # D-281: a variant slot names one of the product's variants or nothing
+    o.condition_slots.variant = variant_of(catalog, o.product_id, o.condition_slots.variant)
     if o.group_candidate_id not in open_group_ids:
         o.group_candidate_id = None
     if o.kind == "question" and not o.canonical_question.strip():
@@ -184,6 +186,21 @@ class CommentTriage:
 # ---- rule-based fallback for unit tests (mock provider without a fixture) -----------------------
 
 MAX_SLOT_CHARS = 40
+
+
+def variant_of(catalog, product_id: str | None, phrase: str | None) -> str | None:
+    """D-281: the product's variant a phrase names ("100ml", "the big one" names none): every number of the phrase is
+    in exactly one variant's label, or its words are; else None."""
+    if not phrase or not product_id or not catalog.is_product(product_id):
+        return None
+    variants = catalog.get_product(product_id).variants
+    from ..logic.verify import number_set
+
+    said = number_set(phrase)
+    words = set(re.findall(r"[a-z]{3,}", phrase.lower()))
+    hits = [v.label for v in variants if (said and said <= number_set(v.label))
+            or (not said and words and words <= set(re.findall(r"[a-z]{3,}", v.label.lower())))]
+    return hits[0] if len(hits) == 1 else None
 _INTENT_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("pregnancy_breastfeeding", ("pregnan", "breastfeed")),
     ("medical_condition", ("eczema", "dermatitis", "rosacea")),
