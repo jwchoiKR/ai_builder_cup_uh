@@ -334,7 +334,9 @@ class GoogleV2Stt:
         )
         features = cs.StreamingRecognitionFeatures(
             interim_results=True,
-            endpointing_sensitivity=cs.StreamingRecognitionFeatures.EndpointingSensitivity.ENDPOINTING_SENSITIVITY_SHORT,
+            # D-305: STT_ENDPOINTING (SHORT, STANDARD, SUPERSHORT)
+            endpointing_sensitivity=getattr(cs.StreamingRecognitionFeatures.EndpointingSensitivity,
+                                            f"ENDPOINTING_SENSITIVITY_{s.STT_ENDPOINTING}"),
         )
         return cs.StreamingRecognizeRequest(
             recognizer=f"projects/{s.GCP_PROJECT}/locations/{s.STT_LOCATION}/recognizers/_",

@@ -1820,3 +1820,15 @@ D-304: each code rule that judges meaning gets an on/off switch, with defaults u
 12. **`SHOUTOUT=judge`:** triage labels shout-outs (arm B's field and addendum); no regex.
 - **Later (onboarding):** `lawpack._wording_for`, `release._rounded`, the lean check pinning, `brief._threshold`, the brief's restricted-phrase drop.
 - **Tests:** `tests/test_d304.py` (18 tests). Suite: 1231 passed.
+
+D-305: the model-only settings are the defaults (user decision: LLM judgment only, code checks provenance only). Every code path stays switchable for comparison; nothing is deleted.
+- **Defaults:**
+  - Facts and verifier: `JUDGE_ARM=verify`, `FACT_RELATION=true`, `VERIFY_EVIDENCE=window` (verifier gemini-3.8-flash LOW, `VERIFY_TIMEOUT_MS=3000`; a timeout keeps the alert, shown, marked unverified).
+  - STT: `STT_AWARE=true`, `CONTEXT_WINDOW_MS=20000`, `NUMBER_CHECK=true`.
+  - Live rules: `SWITCH_ARM_NAME=false`, `UTTERANCE_MERGE_WINDOW_MS=0`, `CORRECTION_CHECK=judge`, `QUALIFIER_ADDON=false`, `VERBAL_CHECK=judge`, `REFLEX_SCAN=false` (with `REFLEX_ON_FAIL=card`, every line whose compliance call failed gets the check card), `JUDGE_PRODUCTS=all`.
+  - Comments: `COMMENT_PRODUCT=triage`, `DRAFT_GATE=provenance`, `PREFILTER=pii_only`, `GROUP_JOIN=model`, `SHOUTOUT=judge`.
+  - `FACT_FIXES` and `FACT_GUARDS` are left as they were; they do not apply in verify mode.
+- **New `STT_ENDPOINTING` (SHORT, STANDARD, SUPERSHORT), default SHORT:** STANDARD cut the pieces from 73 to 21 of 240 units at the same WER. It is measured end to end before any flip.
+- **Multi-release shows:** with `JUDGE_PRODUCTS=all`, every release's law reaches every line. On a cream-and-kettle show, the made-up kettle line "It heals eczema while it boils" now meets the cosmetics rules. Only the judge and the verifier decide whether they apply, where before code withheld another category's law from a line that names no product of it (D-279). The demo show (two cosmetics releases, one law) is not affected. `JUDGE_PRODUCTS=named` restores the D-279 behaviour.
+- **Tests:** the older tests script the code paths as written, so `tests/conftest.py` pins them (LEGACY, through the environment so `get_settings()` sees them too). `tests/test_d305.py` runs the shipped defaults end to end: a compliance alert through the verifier with no regex chip, a relation fact alert with evidence ids, the check card without the regex, a viewer question grouped, the demo show starting. Suite: 1236 passed.
+- **Deploy:** Cloud Run revision live-studio-us-00002-hcg was built from the working tree while this change was uncommitted. Its runtime files (`config.py`, `providers/stt.py`) are the ones committed here, unchanged since 20:48:30. The image tag (app:5a9e124) names the commit before this one.
