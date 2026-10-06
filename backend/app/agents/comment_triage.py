@@ -45,7 +45,12 @@ def post_validate(out: CommentTriageOutput, catalog: Catalog, text: str, open_gr
     allowed = catalog.pack.intents.condition_slots
     for key in SLOT_KEYS:
         value = getattr(o.condition_slots, key)
-        if value is not None and value not in allowed.get(key, []):
+        if value is None:
+            continue
+        if not allowed.get(key):  # D-278: a free slot (person type, condition, combined with): a short phrase
+            value = " ".join(value.lower().split())[:MAX_SLOT_CHARS] or None
+            setattr(o.condition_slots, key, value)
+        elif value not in allowed[key]:
             setattr(o.condition_slots, key, None)
     if o.group_candidate_id not in open_group_ids:
         o.group_candidate_id = None
@@ -178,6 +183,7 @@ class CommentTriage:
 
 # ---- rule-based fallback for unit tests (mock provider without a fixture) -----------------------
 
+MAX_SLOT_CHARS = 40
 _INTENT_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("pregnancy_breastfeeding", ("pregnan", "breastfeed")),
     ("medical_condition", ("eczema", "dermatitis", "rosacea")),
@@ -188,23 +194,23 @@ _INTENT_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("payment", ("paynow", "payment", "pay ")),
     ("set_price", ("set price", "the set", "set with")),
     ("promo", ("time sale", "promo", "discount")),
-    ("ingredient_amount", ("how much niacinamide", "percent", "%")),
+    ("ingredient_amount", ("how much of the", "percent", "%")),
     ("price", ("price", "how much", "cost")),
     ("volume", (" ml", "how big", "size")),
     ("fragrance", ("fragrance", "scent", "smell")),
-    ("makeup_compatibility", ("makeup", "foundation")),
-    ("skin_type_suitability", ("oily", "dry skin", "combination skin", "sensitive skin")),
-    ("how_to_use", ("vitamin c", "morning", "night", "how to use", "drops", "mix")),
+    ("compatibility", ("use it under", "use it over", "use it with", "together with", "use with", "combine")),
+    ("suitability", ("suitable for", "good for", "ok for", "okay for", "work for me")),
+    ("how_to_use", ("morning", "night", "how to use", "how often", "mix")),
     ("texture", ("sticky", "texture", "heavy", "greasy")),
     ("origin", ("made",)),
-    ("ingredients", ("ingredient", "niacinamide")),
+    ("ingredients", ("ingredient", "contain")),
 ]
 _QUESTION_HINT = re.compile(r"\?|\b(how|what|can|is|does|do|will|which|where|when|pls|please)\b", re.IGNORECASE)
 
 
 def rule_based_triage(text: str, context_product_id: str | None, catalog: Catalog) -> dict:
     t = f" {text.lower()} "
-    empty_slots = ConditionSlots(skin_type=None, life_stage=None, condition=None, combined_with=None, time_of_day=None)
+    empty_slots = ConditionSlots(person_type=None, life_stage=None, condition=None, combined_with=None, time_of_day=None)
     if "[link removed]" in text and not _QUESTION_HINT.search(text):
         # D-234: the no-LLM stand-in (unit tests, mock demo) hides a link comment that asks nothing; the real triage
         # decides spam vs question itself
@@ -217,15 +223,14 @@ def rule_based_triage(text: str, context_product_id: str | None, catalog: Catalo
                                    group_candidate_id=None, reason="rule-based: no question").model_dump()
     intent = next((name for name, keys in _INTENT_RULES if any(k in t for k in keys)), "other")
     slots = empty_slots.model_copy()
-    for skin in ("oily", "dry", "combination", "sensitive"):
-        if skin in t:
-            slots.skin_type = skin
+    if m := re.search(r"\b(?:suitable|good|ok|okay|fine) for (?:my\s+)?([a-z]+(?: [a-z]+)?)", t):  # D-278: any person type
+        slots.person_type = m.group(1)
     if "pregnan" in t:
         slots.life_stage = "pregnant"
     elif "breastfeed" in t:
         slots.life_stage = "breastfeeding"
-    if "vitamin c" in t:
-        slots.combined_with = "vitamin_c"
+    if m := re.search(r"\b(?:together with|use with|combine with)\s+(?:my\s+|a\s+|the\s+)?([a-z]+(?: [a-z]+)?)", t):
+        slots.combined_with = m.group(1)
     named = catalog.product_by_alias(text)
     scope = catalog.pack.intents_by_name[intent].product_scope
     if scope == "none":

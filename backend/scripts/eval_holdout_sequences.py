@@ -137,7 +137,7 @@ async def run_sequence(ctx, sequence: dict, run_no: int) -> dict:
         gid = rt.new_id("grp_")
         symbols[q["group_id"]] = gid
         group = _group({**q, "group_id": gid, "product_id": q.get("product_id", sequence["current_product_id"]),
-                        "intent": q.get("intent", "skin_type_suitability")}, rt.now())
+                        "intent": q.get("intent", "suitability")}, rt.now())
         if q.get("suggested_answer"):
             aid = rt.new_id("ans_")
             await rt.save_answer(Answer(answer_id=aid, group_id=gid, text=q["suggested_answer"], citations=[],

@@ -5,7 +5,7 @@
  "product_basis": "context",
  "intent": "pregnancy_breastfeeding",
  "condition_slots": {
-  "skin_type": null,
+  "person_type": null,
   "life_stage": "pregnant",
   "condition": null,
   "combined_with": null,

@@ -5,7 +5,7 @@
  "product_basis": "explicit",
  "intent": "price",
  "condition_slots": {
-  "skin_type": null,
+  "person_type": null,
   "life_stage": null,
   "condition": null,
   "combined_with": null,

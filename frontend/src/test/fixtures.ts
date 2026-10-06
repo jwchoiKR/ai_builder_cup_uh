@@ -60,8 +60,8 @@ export function group(over: Partial<QuestionGroup> = {}): QuestionGroup {
   return {
     group_id: "grp_000001",
     product_id: CREAM,
-    intent: "skin_type_suitability",
-    condition_slots: { skin_type: "oily" },
+    intent: "suitability",
+    condition_slots: { person_type: "oily" },
     canonical_question: "Is it suitable for oily skin?",
     member_comment_ids: ["cm_000001"],
     unique_author_ids: ["u_raj"],

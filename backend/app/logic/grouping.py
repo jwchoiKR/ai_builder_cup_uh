@@ -29,7 +29,7 @@ def normalise_question(q: str) -> str:
 
 SINGLE_QUESTION_INTENTS = frozenset({
     "price", "set_price", "volume", "fragrance", "texture", "shelf_life", "origin", "packaging",
-    "skin_type_suitability", "pregnancy_breastfeeding", "age_suitability",
+    "suitability", "pregnancy_breastfeeding", "age_suitability",
 })
 
 def find_group(

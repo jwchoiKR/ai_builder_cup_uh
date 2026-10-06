@@ -194,7 +194,7 @@ def test_vertex_config_uses_verified_fields():
     assert cfg.http_options is None  # no X-Server-Timeout (D-047); asyncio.wait_for enforces the deadline
     assert cfg.system_instruction == "sys"
     assert set(schema["$defs"]["ConditionSlots"]["required"]) == {
-        "skin_type", "life_stage", "condition", "combined_with", "time_of_day",
+        "person_type", "life_stage", "condition", "combined_with", "time_of_day",
     }
 
 

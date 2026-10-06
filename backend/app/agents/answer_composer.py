@@ -23,7 +23,7 @@ SECTION_INTENTS: dict[str, tuple[str, ...]] = {
     "ingredients": ("Key ingredients",), "allergy_sensitivity": ("Cautions",),
     "pregnancy_breastfeeding": ("Cautions",), "medical_condition": ("Cautions",), "age_suitability": ("Cautions",),
     # D-153 (00007 show replays): "How many drops?" never retrieved "Apply two to three drops ..."
-    "how_to_use": ("How to use",), "routine_order": ("How to use",),
+    "how_to_use": ("How to use",), "order_of_use": ("How to use",),
     # D-190 (comment flow CF06: "will this ampoule remove wrinkles?" drafted nothing, because search found the
     # not-approved list but not the approved "Helps reduce the look of fine dryness lines"): an efficacy question is
     # answered from the approved claims

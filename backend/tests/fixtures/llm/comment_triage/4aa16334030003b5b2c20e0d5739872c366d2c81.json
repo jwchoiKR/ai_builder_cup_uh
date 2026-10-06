@@ -5,7 +5,7 @@
  "product_basis": "context",
  "intent": "age_suitability",
  "condition_slots": {
-  "skin_type": null,
+  "person_type": null,
   "life_stage": "teen",
   "condition": null,
   "combined_with": null,

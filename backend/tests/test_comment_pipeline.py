@@ -84,7 +84,7 @@ async def test_key_level_cache_after_group_closes(rt):
 async def test_host_route_goes_to_host_slots(rt):
     await say(rt, "Raj", "Is it OK for oily skin?")
     [g] = await groups(rt)
-    assert g.route == "HOST" and g.status == "ready" and g.condition_slots["skin_type"] == "oily"
+    assert g.route == "HOST" and g.status == "ready" and g.condition_slots["person_type"] == "oily skin"
     s = await rt.load_session()
     assert [sl.group_id for sl in s.host_slots] == [g.group_id] and g.host_slot == "on_host"
     await say(rt, "Kai", "is it okay for dry skin too?")
@@ -170,7 +170,7 @@ async def test_operator_actions(rt):
     assert g.status == "answered" and m.kind == "brand_answer" and m.reply_to_author_names == ["Tom"]
 
     await say(rt, "Raj", "Is it OK for oily skin?")
-    oily = next(x for x in await groups(rt) if x.intent == "skin_type_suitability")
+    oily = next(x for x in await groups(rt) if x.intent == "suitability")
     await ops.recall_from_host(rt, oily.group_id)
     assert (await rt.load_session()).host_slots == []
     await ops.push_to_host(rt, oily.group_id)
@@ -859,7 +859,7 @@ async def test_a_switch_moves_the_previous_products_questions_to_the_operator(sh
     try:
         await say(rt, "Raj", "Is the cream OK for oily skin?")
         await say(rt, "Lee", "How much is the cream?")
-        oily = next(g for g in await groups(rt) if g.intent == "skin_type_suitability")
+        oily = next(g for g in await groups(rt) if g.intent == "suitability")
         price = next(g for g in await groups(rt) if g.intent == "price")
         assert oily.route == "HOST" and price.status == "auto_answered"
         assert [sl.group_id for sl in (await rt.load_session()).host_slots] == [oily.group_id]
