@@ -1021,6 +1021,13 @@
 .alertFact .alertMeta {
   font-size: calc(16px * var(--hs));
 }
+/* D-288: a line the judge could not check: neutral, so it never reads as a rule alert */
+.alertCheck {
+  background: var(--surface-2);
+  border-color: var(--border);
+  border-style: dashed;
+  color: var(--text);
+}
 .alertMedium {
   background: var(--fact-bg);
   border-color: var(--fact-border);

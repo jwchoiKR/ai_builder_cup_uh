@@ -46,6 +46,17 @@ export interface JudgeFailure {
   alert_ids?: string[];
 }
 
+/** D-288: a reflex hit whose judge failed (REFLEX_ON_FAIL=card): a neutral card, not an alert */
+export interface LineCheck {
+  seq: number;
+  transcript_id: string;
+  text: string;
+  rule_ids: string[];
+  phrases: string[];
+  /** client time it arrived, for how long the card shows */
+  at: number;
+}
+
 export interface OperatorAction {
   seq: number;
   payload: Record<string, unknown>;
@@ -77,6 +88,7 @@ export interface ClientState {
   overtime: Record<string, OvertimeInfo>;
   missingPoints: MissingPoints[];
   judgeFailures: JudgeFailure[];
+  lineChecks: LineCheck[]; // oldest first, max 10
   /** D-137: judges that failed on the last finals in a row (empty: healthy) */
   judgeDegraded: string[];
   /** D-150: market and language of the session (null before the snapshot) */
@@ -127,6 +139,7 @@ export function emptyState(role: Role): ClientState {
     overtime: {},
     missingPoints: [],
     judgeFailures: [],
+    lineChecks: [],
     summaryReady: false,
     needsResync: false,
   };
@@ -421,6 +434,13 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
     case "judge.failed":
       if (state.judgeFailures.some((j) => j.transcript_id === p.transcript_id)) return state;
       return { ...state, judgeFailures: [...state.judgeFailures, { ...p, seq: ev.seq } as JudgeFailure] };
+
+    case "line.check":
+      if (state.lineChecks.some((c) => c.transcript_id === p.transcript_id)) return state;
+      return {
+        ...state,
+        lineChecks: [...state.lineChecks, { ...p, seq: ev.seq, at: clientNow } as LineCheck].slice(-10),
+      };
 
     case "judge.health":
       return { ...state, judgeDegraded: (p.degraded as string[]) ?? [] };

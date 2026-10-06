@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
 import { TEST_QUALIFIER_RULE } from "../../app/selectors";
+import type { LineCheck } from "../../app/state";
 import type { Alert, Catalog, HostCue } from "../../app/types";
 import { factContext, factSayLine, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
@@ -111,6 +112,28 @@ export function MediumBanner({
       </span>
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>{rule.title}</span>
+      </span>
+    </div>
+  );
+}
+
+/** D-288: the judge could not check a line with a risky phrase; neutral, not a rule alert */
+export function LineCheckCard({ check }: { check: LineCheck }) {
+  const t = useT();
+  return (
+    <div className={cx(styles.alertBlock, styles.alertCheck)} data-testid="host-line-check" role="status">
+      <div className={styles.alertTop}>
+        <span className={styles.warnBadge}>
+          <CircleAlert aria-hidden />
+          {t("CHECK THIS LINE")}
+        </span>
+        <span className={styles.alertSaid}>
+          {t("Heard:")} "{check.text}"
+        </span>
+      </div>
+      <span className={styles.alertMeta}>
+        {t("The check did not finish. Keep to approved wording.")}
+        {check.phrases.length ? ` (${check.phrases.join(", ")})` : ""}
       </span>
     </div>
   );

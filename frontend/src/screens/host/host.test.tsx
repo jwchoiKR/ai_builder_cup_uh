@@ -2,8 +2,8 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { describe, expect, it, vi } from "vitest";
 
 import { setLang } from "../../app/i18n";
-import { RED_BLOCK_MS } from "../../app/selectors";
-import { reduceSnapshot } from "../../app/state";
+import { activeLineCheck, LINE_CHECK_MS, RED_BLOCK_MS } from "../../app/selectors";
+import { reduceEvent, reduceSnapshot } from "../../app/state";
 import type { Catalog, StateSnapshot } from "../../app/types";
 import { alert, AMPOULE, answer, catalog, comment, CREAM, group, message, pdCard, segment, session, snapshot, T0 } from "../../test/fixtures";
 import { factContext, fieldLabel, shortRef } from "./hostSelectors";
@@ -766,5 +766,24 @@ describe("preview market (D-150)", () => {
     expect(screen.queryByTestId("host-preview")).toBeNull();
     rerender(view({ market: { market: "MY", name: "Malaysia", lang: "en", tier: "preview" } }));
     expect(screen.getByTestId("host-preview")).toHaveTextContent("PREVIEW · Malaysia");
+  });
+});
+
+describe("line check (D-288)", () => {
+  const ev = { seq: 11, type: "line.check", payload: { transcript_id: "tr_000009", text: "It suits eczema-prone skin.",
+    rule_ids: ["ASEAN-2D-VULNERABLE"], phrases: ["eczema"] } };
+
+  it("shows a neutral card below the alerts for 15 s, once per line", () => {
+    const at = Date.now();
+    const base = reduceSnapshot(snapshot(), "host", at);
+    const s = reduceEvent(reduceEvent(base, ev, at), { ...ev, seq: 12 }, at);
+    expect(s.lineChecks).toHaveLength(1);
+    expect(activeLineCheck(s, at + LINE_CHECK_MS - 1)?.transcript_id).toBe("tr_000009");
+    expect(activeLineCheck(s, at + LINE_CHECK_MS)).toBeNull();
+    render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
+    const card = within(screen.getByTestId("host-prompter-alerts")).getByTestId("host-line-check");
+    expect(card).toHaveTextContent("It suits eczema-prone skin.");
+    expect(card).toHaveTextContent("(eczema)");
+    expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
   });
 });
