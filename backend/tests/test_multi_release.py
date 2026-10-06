@@ -105,3 +105,26 @@ async def test_d279_the_api_takes_2_to_3_releases(tmp_path):
         assert [p["name"] for p in cat["products"]] == ["Lumen Night Cream", "Larkmoor Quick Kettle"]
         assert c.post("/api/sessions", json={"release_ids": [*ids, *ids]}).status_code == 400
         assert c.post("/api/sessions", json={"release_ids": [ids[0], "rel_nope_v1"]}).status_code == 404
+
+
+async def test_d279_eval_runs_a_case_on_its_segment_of_a_show(tmp_path, monkeypatch):
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import eval_adversarial
+
+    onb = tmp_path / "onb"
+    ids = [save_release(onb, cream(), "job_c"), save_release(onb, kettle(), "job_k")]
+    monkeypatch.setattr(eval_adversarial, "RELEASES", ids)
+    real_sleep = __import__("asyncio").sleep
+    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
+    ctx = make_ctx(backend=ScriptedBackend(), DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(onb))
+    try:
+        for on_air, want in ((1, product_key(cream())), (2, product_key(kettle())), (ids[1], product_key(kettle()))):
+            case = {"case_id": "M", "show": "s1", "on_air": on_air, "about": want, "type": "t",
+                    "utterance": "It is lovely.", "expected": {"risky": False}}
+            assert (await eval_adversarial.run_case(ctx, case, 0))["on_air"] == want
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

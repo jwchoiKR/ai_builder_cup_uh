@@ -48,6 +48,9 @@ PART_GAP_S = 0.4
 # D-222: --release <release_id> runs every case on that onboarded product's show (one product, so the case's
 # current_product_id is ignored and cases may name the product by role)
 RELEASE: str | None = None
+# D-279: --releases r1,r2[,r3] runs every case on one show of these releases; a case's "on_air" (a 1-based position
+# in --releases, or a release id) is the segment on air when its line is spoken
+RELEASES: list[str] = []
 # D-197: the labels name a fact by what the host said ("live_price", "panthenol"); the fact checker's fields are
 # app.models.agent_io.FactField
 LABEL_FIELDS = {"live_price": "price", "list_price": "price", "panthenol": "ingredient_amount",
@@ -64,19 +67,31 @@ def load_cases(name: str) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def _on_air(rt, on_air) -> str:
+    """The product of a case's "on_air": a 1-based position in --releases or a release id; default the first."""
+    rid = RELEASES[int(on_air) - 1] if isinstance(on_air, int) or str(on_air or "1").isdigit() else on_air
+    return next(pid for pid, r in rt.pack.releases.items() if r == rid)
+
+
 async def run_case(ctx, case: dict, run_no: int) -> dict:
     """The alerts the host would see for this case: every compliance or fact alert that became active."""
     from app.agents.fact_checker import DROPS
 
     drops: list = []
     DROPS.set(drops)  # D-250: every right-or-wrong model verdict code overruled in this case, with the reason
-    s = await create_session(ctx, next(iter(ctx.pack.runsheets), ""), release_id=RELEASE)  # D-278: a release needs none
+    s = await create_session(ctx, next(iter(ctx.pack.runsheets), ""), release_id=RELEASE,  # D-278: a release needs none
+                             release_ids=RELEASES or None)
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None  # this eval isolates the utterance pipeline
     try:
         await rt.start()
-        if RELEASE is None and (await rt.current_segment()).product_id != case["current_product_id"]:
+        if RELEASES:  # D-279: switch to the case's segment before its line
+            target = _on_air(rt, case.get("on_air"))
+            if target != (await rt.current_segment()).product_id:
+                await operator_switch(rt, target)
+        elif RELEASE is None and (await rt.current_segment()).product_id != case["current_product_id"]:
             await operator_switch(rt, case["current_product_id"])
+        on_air_pid = (await rt.current_segment()).product_id
         parts = case.get("parts") or [case["utterance"]]
         for i, text in enumerate(parts):
             await rt.utterances.submit(text, source="injected", speech_end_at=rt.now(), scenario="eval")
@@ -101,7 +116,9 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 # per line: the fact check's whole time, retry included, and how it ended
                 "facts": [{"input": k, "ms": sum(c.latency_ms for c in v), "tries": len(v), "final_status": v[-1].status,
                            "timeouts": sum(c.status == "timeout" for c in v)} for k, v in tries.items()],
-                "alerts": [{"kind": a.kind, "rule_id": a.rule_id, "severity": a.severity, "field": a.field,
+                "on_air": on_air_pid,  # D-279: the product on air when the line was spoken
+                "alerts": [{"kind": a.kind, "product_id": a.product_id, "rule_id": a.rule_id, "severity": a.severity,
+                            "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
                             "correct_value": a.correct_value, "status": a.status} for a in alerts]}
     finally:
@@ -255,13 +272,15 @@ async def main() -> int:
     ap.add_argument("--runs", type=int, default=3)
     ap.add_argument("--cases", default="adversarial_cases.jsonl")
     ap.add_argument("--release", default=None, help="an onboarded release id (ONBOARDING_DIR/releases)")
+    ap.add_argument("--releases", default=None, help="D-279: 2-3 release ids, comma-separated: one show of them")
     ap.add_argument("--out", type=Path, default=REPO_DIR / "docs/eval/adversarial.md")
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument("--from-json", type=Path, default=None, help="re-score saved outputs without calling the models")
     args = ap.parse_args()
     cases = load_cases(args.cases)
-    global RELEASE
+    global RELEASE, RELEASES
     RELEASE = args.release
+    RELEASES = [x.strip() for x in (args.releases or "").split(",") if x.strip()]
     if args.from_json:
         raw = json.loads(args.from_json.read_text(encoding="utf-8"))
     else:
