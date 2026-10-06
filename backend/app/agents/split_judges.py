@@ -40,6 +40,8 @@ class _SplitJudge:
         self.model = llm.fast.model
         self.catalog = catalog
         self.reflex = reflex
+        self.docs: dict[str, tuple[tuple, tuple]] = {}  # D-310: product -> (file parts, file passages), as facts has
+        self.with_docs = False
         self.arm = llm.design_arm  # D-187
         # D-304 VERBAL_CHECK=judge: the context judge alone answers with arm B's fields (numbers said, hedged)
         self.b = arms.meaning_to_llm(self.arm) or (
@@ -84,6 +86,10 @@ class _SplitJudge:
             doc = LocalDocStore(self.catalog).get_product(inp.on_air)
             pre = f'<data name="PRODUCT_FILE">{json.dumps(doc, ensure_ascii=False)}</data>\n'
             user, prefix = pre + user, pre + prefix
+        parts: tuple = ()
+        if self.with_docs:  # D-310: the on-air product's documents, cached with the rules
+            pre, parts = self.documents(inp.on_air)
+            user, prefix = pre + user, pre + prefix
         user += self.extra_data()
         b = self.b
         res = await self.llm.call(LLMRequest(
@@ -92,6 +98,7 @@ class _SplitJudge:
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=self.output_model_b if b else self.output_model, deadline_ms=deadline_ms,
             cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
+            cache_parts=parts,
             session_id=inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
             mock_fallback=lambda _: self.fallback(inp, values),
             fixture_encode=encode, fixture_decode=decode, preview=inp.utterance, **opts,
@@ -99,6 +106,11 @@ class _SplitJudge:
         if res.output is not None:
             res.output = self.validate(res.output.model_copy(deep=True), values)
         return res
+
+
+def _documents_block(passages) -> str:
+    text = json.dumps(inputs.passages_json(passages), ensure_ascii=False).replace("</", "<\\/")
+    return f'<data name="PRODUCT_DOCUMENTS">{text}</data>\n'
 
 
 class ComplianceJudge(_SplitJudge):
@@ -109,6 +121,9 @@ class ComplianceJudge(_SplitJudge):
 
     def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
         super().__init__(llm, prompts, catalog, reflex)
+        self.with_docs = bool(getattr(getattr(llm, "settings", None), "COMPLIANCE_DOCS", False))  # D-310
+        if self.with_docs and (extra := arms._addenda(str(llm.prompts_path)).get(("DOCS", self.name))):
+            self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "FACT_RELATION", False):
             # D-296: a HIGH verdict names the claim the line makes; the rule-fit checks (Q6, G7) read it
             self.output_model = ComplianceOutputR
@@ -121,6 +136,24 @@ class ComplianceJudge(_SplitJudge):
                 self.output_model = ComplianceOutputRC
                 if extra := arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)):
                     self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+
+    def documents(self, pid: str) -> tuple[str, tuple]:
+        """D-310: the product's documents as a data block (its passages and its files' text) and its file parts."""
+        parts, file_passages = self.docs.get(pid, ((), ()))
+        passages = [p for p in self.catalog.pack.passages if p.product_id == pid] + list(file_passages)
+        return _documents_block(passages), parts
+
+    async def warm(self, pid: str, session_id: str | None) -> None:
+        """D-310: this product's rules-and-documents cache, made at session start."""
+        values = build_judge_values(self.catalog, JudgeInput(utterance="", on_air=pid, session_id=session_id))
+        _, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
+        pre, parts = self.documents(pid)
+        await self.llm.warm_cache(LLMRequest(
+            agent=self.name, model=self.llm.compliance.model, thinking_level=self.llm.compliance.thinking_level,
+            prompt_version=self.prompt_version, system_instruction=self.system_instruction,
+            user_message=pre + prefix, output_model=self.output_model, deadline_ms=60_000, cache_prefix=pre + prefix,
+            cache_parts=parts, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
+            session_id=session_id))
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_compliance(inp, values, self.catalog, self.reflex)

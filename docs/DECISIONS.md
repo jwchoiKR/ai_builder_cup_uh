@@ -1858,3 +1858,17 @@ D-309: the single arm (`JUDGE_ARM=single`, off by default). The user asked why w
 - **Window mode (verify):** when the flagger's quote matches no document sentence, the verifier gets no documents for that fact. This is now logged and listed in the eval rows' `dropped` as "verifier window: no sentence matches the quote".
 - **Eval rows:** each alert carries `ms_to_created` and `ms_to_shown`, from the final received to the alert created and to it shown (active), for p50 and p95 alert latency per arm.
 - **Tests:** `tests/test_d309.py`. Suite: 1253 passed.
+
+D-310: `COMPLIANCE_DOCS` (off by default), the design for a Flash-Lite-only judge (the user and the planning session). gemini-3.8-flash is ruled out by speed (about 3.5 s mean in the path) and cost.
+- **Flash-Lite single cells need no code:** `JUDGE_ARM=single`, `SINGLE_MODEL=gemini-3.5-flash-lite`, `SINGLE_THINKING=LOW` or `MEDIUM`.
+- **Why the documents:**
+  - The compliance judge's prefix (system plus rules) is about 3.3k tokens on the demo cream, under Gemini 3's 4,096-token cache minimum, so no cache was ever made.
+  - On the STT set, 14 of 22 Flash-Lite false candidates on safe lines were compliance ones. The biggest class was a TEST-QUALIFIER raised when the line did name the tester, but speech-to-text misheard the name.
+- **What it does:**
+  - With the switch on, the prefix also holds the on-air product's documents: a PRODUCT_DOCUMENTS block of its passages and its files' text, with the release files as cached parts (the fact checker's FD files).
+  - The prefix is then about 5.8k tokens on the demo cream (more with files), so it is cached.
+  - A DOCS addendum says the documents are not rules: use them to recognise a sound-alike tester, lab, brand or ingredient.
+  - Every product's compliance cache is warmed at the start of the show (the warm-up already ran per product for the fact checker).
+  - In a multi-release show the documents are the on-air product's.
+- **Eval rows:** every agent's call now carries `usage` (prompt, output, thoughts, cached).
+- **Tests:** `tests/test_d310.py`. Suite: 1257 passed.

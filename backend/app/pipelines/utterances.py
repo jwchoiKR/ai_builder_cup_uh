@@ -133,6 +133,7 @@ class UtterancePipeline:
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_relation" if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296
+        self.compliance.docs = self.facts.files  # D-310: the same documents for COMPLIANCE_DOCS
         # D-300 R2: one verifier call per candidate alert, after the flaggers (their code drops off)
         self.verifier = (Verifier(ctx.llm, ctx.prompts["verifier"], rt.catalog, self.facts.files)
                          if rt.settings.JUDGE_ARM == "verify" else None)
@@ -567,6 +568,8 @@ class UtterancePipeline:
         """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
         if self.verifier is not None:  # D-301: and the verifier's documents cache
             self.rt.spawn(self.verifier.warm(on_air, self.rt.sid), name=f"verifier-cache:{on_air}")
+        if self.compliance.with_docs:  # D-310: and the compliance judge's rules-and-documents cache
+            self.rt.spawn(self.compliance.warm(on_air, self.rt.sid), name=f"compliance-cache:{on_air}")
         if self.facts._parts(on_air):
             switch = SwitchState()
             await self.facts.warm_cache(FactInput(utterance="", on_air=on_air, switch=switch, promo=None,
