@@ -1581,3 +1581,13 @@ D-281: A product with several sizes never gets one size's price posted as "the" 
 - **Draft check:** an answer to a question that names a variant must cite a source that names that variant's numbers. Otherwise it is not posted ("the answer cites no source of the asked variant").
 - **C2, screens and agents:** the catalog shows a multi-variant product's price with its variant ("S$60.00 (Eau de Parfum 30 mL)") plus every variant's price (`variants_display`). The product block that the judges, the fact checker and the composer get lists every variant, and notes that volume and prices are the first variant's.
 - **Tests (`tests/test_variants.py`, a made-up perfume in 30, 50 and 100 mL):** in three orders of asking, only the asked sizes' prices are posted (100 mL S$140, 30 mL S$60). A 50 mL answer that cites the 30 mL price is not posted. A bare "how much?" goes to the operator. The catalog and the agent input name every variant.
+
+D-282: R1 record-slot rescue, `FACT_FIXES` value "R1" (off by default; agreed by Gemini and Sonnet; logic).
+- **What:** when a correction fails only a grounding check (an unknown passage, a quote not in its passage, or a number not in the quote), it is accepted if every number of the correction is the approved record's own value for that field. The values are the price of the variant the line names (the main one when it names none; no guess between several), the size, the amount of the ingredient the line names, or an offer's price, percent or threshold. Each rescue is logged as "grounded in record field".
+- **Never rescued:** a restatement (D-151, D-261, D-123 and D-165 drop before the source checks, so a claim the host already said never gets here); an approved-claims passage (D-048); an absence; another substance; a claim with no passage.
+- **Guards:**
+  - The suite with R1 on changes 3 pinned cases. In each, the host said a wrong price (S$32, S$28), the correction is the record's live price (S$36), and the quote was wrong or invented. The alert is right, so this is R1's intent.
+  - D-048 still drops.
+  - Saved real outputs (`fact_guard.py`): 0 lines changed, alone or with F1-F5.
+- **Tests:** two rescues (an OCR-spaced price quote, an amount quote with a space before %); two non-rescues (a number the record does not hold, and an amount of another ingredient); and no rescue of a restatement.
+- **Planning session's kill rule for the next measurement:** if fact detection is below 90% and at least half the remaining misses are still code drops, or two patch rounds move it less than 3 points, the lexical guards after the model are rewritten as structured record-slot and evidence checks. The guards stay separate, named checks, so they can be replaced.
