@@ -129,6 +129,7 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     unverified: bool = False
     votes: int | None = None  # D-302 JUDGE_ARM=vote: the runs (of 3) that agreed
     evidence_ids: list[str] = []  # D-302: the relation arm's evidence sentence ids
+    heard_check: bool = False  # D-303: a fact note shown as "check what was said", not as a correction
     # fact
     field: str | None = None
     stated_value: str | None = None

@@ -481,6 +481,7 @@ class FactInput:
     previous: list[str] = field(default_factory=list)
     offers: list[Promo] = field(default_factory=list)  # D-149: running offers that change no price
     parts: list[str] = field(default_factory=list)  # D-167: the finals a merged utterance joins, oldest first
+    recent: list[str] | None = None  # D-303 CONTEXT_WINDOW_MS: the finals of the window, in place of the last two
     session_id: str | None = None
     scenario: str = "default"
 
@@ -876,6 +877,8 @@ class FactChecker:
         extras += [fix_addenda.get((f, self.name)) for f in sorted(self.fixes)]
         if self.confidence:  # D-302
             extras.append(arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)))
+        if getattr(settings, "STT_AWARE", False):  # D-303
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("STT", self.name)))
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
         lang = getattr(getattr(catalog, "pack", None), "lang", None)
         if lang:  # D-259: the host reads the correction aloud in the show's language
@@ -930,7 +933,7 @@ class FactChecker:
             "set_offers_json": inputs.set_offers_json(self.catalog, inp.promo),
             "passages_json": (sentence_index(self._source(inp))[0] if self.relation
                               else inputs.passages_json(inp.passages)),
-            "last_two_final_transcripts_json": inp.previous[-2:],
+            "last_two_final_transcripts_json": inp.recent if inp.recent is not None else inp.previous[-2:],
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
         }, {"current_product_compact_json", "passages_json"})

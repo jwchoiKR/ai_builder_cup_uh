@@ -147,6 +147,34 @@ it promises safety to a group such as babies or pregnant women. For a TEST-QUALI
 meaning: "complete coverage" states "100% of strands"). For a MEDIUM rule, `claim_kind` and `group` are null; for
 every rule but TEST-QUALIFIER, `qualified_result_id` is null.
 
+## STT: compliance_judge
+
+D-303: UTTERANCE and RECENT_TRANSCRIPT come from speech-to-text. Quote marks are often missing: words such as
+"someone asks", "a viewer says", "they asked if" start a quote even without marks, and a quoted claim the host then
+rejects is not the host's claim. A name may come out as a sound-alike ("Marlo Fenn" for "Marlow Fen"): a name that
+sounds like one in the product's data is that name. A sentence may arrive in pieces across finals ("This balm is
+not." / "A replacement for sunscreen."): read RECENT_TRANSCRIPT and judge the whole sentence.
+
+## STT: fact_checker
+
+D-303: UTTERANCE and RECENT_TRANSCRIPT come from speech-to-text. Quote marks are often missing: words such as
+"someone asks" or "a viewer says" start a quote. Names may be sound-alikes of the documents' names. A number may be
+misheard ("fifteen" for "fifty"). A sentence may arrive in pieces across finals: read RECENT_TRANSCRIPT and check the
+whole sentence.
+
+## STT: verifier
+
+D-303: the line and RECENT_TRANSCRIPT come from speech-to-text. Quote marks are often missing: words such as
+"someone asks" or "a viewer says" start a quote. A name may be a sound-alike of the product's or tester's name
+("Marlo Fenn" for "Marlow Fen"), and then it names them. A number may be misheard. A sentence may arrive in pieces
+across finals ("This balm is not." / "A replacement for sunscreen." is one denial): judge the whole sentence.
+
+## CHECK: verifier
+
+D-303: for a fact candidate whose only mismatch is one number that speech-to-text may have misheard (a sound-alike
+such as "fifteen" for "fifty", a dropped or added digit), decide `check`: the host is asked to check what was said
+instead of being corrected. A wrong number that is clearly said ("thirty-two dollars" for S$36) is still `keep`.
+
 ## CONF: compliance_judge
 
 D-302: for each violation, set `confidence` (0 to 1): how sure you are that the line breaks this rule as you say.

@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from ..logic import qualifier
 from ..logic.catalog import Catalog
 from ..logic.verify import _flat
-from ..models.agent_io import ComplianceOutput, FactCheckOutput, VerifyOutput
+from ..models.agent_io import ComplianceOutput, FactCheckOutput, VerifyOutput, VerifyOutputC
 from ..models.data import Passage
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
@@ -33,6 +33,14 @@ class Verifier:
         self._sources: dict[str, tuple[list[dict], dict]] = {}
         # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and their neighbours)
         self.window = getattr(llm.settings, "VERIFY_EVIDENCE", "all") == "window"
+        # D-303: speech-to-text awareness, and the "check" decision for one misheard number
+        from . import arms
+
+        s, addenda = llm.settings, arms._addenda(str(llm.prompts_path))
+        self.number_check = getattr(s, "NUMBER_CHECK", False)
+        extra = [addenda.get(("STT", self.name)) if getattr(s, "STT_AWARE", False) else None,
+                 addenda.get(("CHECK", self.name)) if self.number_check else None]
+        self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extra if x)])
 
     def source(self, pid: str) -> tuple[list[dict], dict]:
         """The product's documents, numbered once per product (the cached prefix of every call)."""
@@ -57,11 +65,12 @@ class Verifier:
                  session_id: str | None) -> LLMRequest:
         user, prefix = self.prompt.render_cached({
             "passages_json": blocks, "candidate_json": cand,
-            "last_two_final_transcripts_json": list(previous)[-2:], "utterance_text": line}, {"passages_json"})
+            "last_two_final_transcripts_json": list(previous), "utterance_text": line}, {"passages_json"})
         return LLMRequest(
             agent=self.name, model=self.llm.verify.model, thinking_level=self.llm.verify.thinking_level,
-            prompt_version=self.prompt.version, system_instruction=self.prompt.system_instruction, user_message=user,
-            output_model=VerifyOutput, deadline_ms=self.llm.settings.VERIFY_TIMEOUT_MS, session_id=session_id,
+            prompt_version=self.prompt.version, system_instruction=self.system_instruction, user_message=user,
+            output_model=VerifyOutputC if self.number_check else VerifyOutput,
+            deadline_ms=self.llm.settings.VERIFY_TIMEOUT_MS, session_id=session_id,
             cache_prefix="" if self.window else prefix,
             cache_parts=() if self.window else self.files.get(pid, ((), ()))[0],
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
@@ -110,6 +119,8 @@ class Verifier:
             elif o.decision == "reject":
                 _cdrop(v, f"verifier: {o.reason}")
                 rejected.add(id(v))
+            elif o.decision == "check":  # D-303: only for facts; a compliance "check" is kept as it is
+                v._severity = rules[v.rule_id].severity
             else:
                 v._severity = o.severity or rules[v.rule_id].severity
                 if o.evidence and o.evidence not in index:
@@ -142,6 +153,9 @@ class Verifier:
                 log.info("verifier %s: fact kept unverified | field=%s stated=%r", res.status, c.field, c.stated_value)
             elif o.decision == "reject":
                 _drop(c, f"verifier: {o.reason}")
+            elif o.decision == "check":
+                c._check = True  # D-303: "check what was said", the heard words shown
+                log.info("verifier: check what was said | field=%s stated=%r", c.field, c.stated_value)
             elif o.evidence and o.evidence not in index:
                 c._unverified = True
                 log.info("verifier: unknown evidence id %s | field=%s", o.evidence, c.field)

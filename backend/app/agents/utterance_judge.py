@@ -38,6 +38,7 @@ class JudgeInput:
     cue: HostCue | None = None
     previous: list[str] = field(default_factory=list)
     points_by_product: dict[str, list[PrompterPoint]] | None = None
+    recent: list[str] | None = None  # D-303 CONTEXT_WINDOW_MS: the finals of the window, in place of the last two
     session_id: str | None = None
     scenario: str = "default"
     # single mode only
@@ -443,7 +444,7 @@ def build_judge_values(catalog: Catalog, inp: JudgeInput, single: bool = False) 
                                                           inp.on_screen_group_id),
         "prompter_points_json": inputs.prompter_points_json(catalog, inp.on_air, inp.points_by_product),
         "host_cues_json": inputs.host_cues_json(inp.cue),
-        "last_two_final_transcripts_json": inp.previous[-2:],
+        "last_two_final_transcripts_json": inp.recent if inp.recent is not None else inp.previous[-2:],
         "utterance_text": inputs.utterance_text(inp.utterance),
     }
     if single:

@@ -124,7 +124,7 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                             "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
                             "correct_value": a.correct_value, "status": a.status, "unverified": a.unverified,
-                            "votes": a.votes, "evidence_ids": a.evidence_ids}
+                            "votes": a.votes, "evidence_ids": a.evidence_ids, "heard_check": a.heard_check}
                            for a in alerts]}
     finally:
         await ctx.runtimes.drop(rt.sid)

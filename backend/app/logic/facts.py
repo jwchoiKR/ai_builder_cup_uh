@@ -68,7 +68,8 @@ def apply_fact_check(
                       product_id=c.product_id, field=c.field, stated_value=c.stated_value,
                       correct_value=c.correct_value, passage_id=c.passage_id, quote=c.quote,
                       span=c.span, created_at=now, shown_at=now, unverified=getattr(c, "_unverified", False),
-                      votes=getattr(c, "_votes", None), evidence_ids=list(getattr(c, "_evidence", [])))
+                      votes=getattr(c, "_votes", None), evidence_ids=list(getattr(c, "_evidence", [])),
+                      heard_check=getattr(c, "_check", False))
             active[key] = a
             created.append(a)
     fresh = {a.alert_id for a in created + reshown}
