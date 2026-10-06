@@ -269,7 +269,7 @@ export function factNotesForHost(state: ClientState): Alert[] {
 }
 
 /** D-105: a test number said without "in our in-house test". */
-export const TEST_QUALIFIER_RULE = "BRAND-TEST-QUALIFIER";
+export const TEST_QUALIFIER_RULE = "TEST-QUALIFIER";
 
 /** Host banners. D-105: a test-qualifier banner and a fact note on the same sentence show as one
  *  card (the note joins the banner when the fact checker finishes); alerts and logs keep both. */

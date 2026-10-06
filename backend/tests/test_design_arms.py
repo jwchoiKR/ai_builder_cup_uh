@@ -95,13 +95,13 @@ async def test_arm_b_the_qualifier_replacement_is_the_result_the_judge_picked(ri
     rt, llm = await make_env(DESIGN_ARM="B")
     try:
         line = "Skin hydration goes up thirty-eight percent right away."
-        v = violation("BRAND-TEST-QUALIFIER", "goes up thirty-eight percent", severity="MEDIUM") | {
+        v = violation("TEST-QUALIFIER", "goes up thirty-eight percent", severity="MEDIUM") | {
             "qualified_result_id": rid}
         llm.outputs[("compliance_judge", line)] = {"compliance": {"violations": [v]},
                                                    "correction": {"corrects_alert_ids": [], "quotes": []},
                                                    "reason": "scripted"}
         await speak(rt, line)
-        alerts = [x for x in await rt.alerts() if x.rule_id == "BRAND-TEST-QUALIFIER" and x.status == "active"]
+        alerts = [x for x in await rt.alerts() if x.rule_id == "TEST-QUALIFIER" and x.status == "active"]
         assert [x.say_instead for x in alerts] == ([say] if say else [])
     finally:
         await close_env(rt)

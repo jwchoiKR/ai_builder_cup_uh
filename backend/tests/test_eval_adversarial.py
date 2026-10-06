@@ -28,7 +28,7 @@ def perfect(case):
     if exp["kind"] == "fact":
         return [alert("fact", field=_field(exp.get("field")), correct=exp.get("correct_value"))]
     if exp["kind"] == "qualifier":
-        return [alert(rule_id="BRAND-TEST-QUALIFIER", severity="MEDIUM", say=exp.get("correct_value") or "x")]
+        return [alert(rule_id="TEST-QUALIFIER", severity="MEDIUM", say=exp.get("correct_value") or "x")]
     return [alert(rule_id=exp.get("rule_id"), severity="HIGH")]
 
 

@@ -19,8 +19,10 @@ from ..models.data import (
     IntentsFile,
     LangPack,
     MarketPack,
+    MarketRule,
     NoticesFile,
     Passage,
+    PolicySource,
     Product,
     ProductsFile,
     Promo,
@@ -52,6 +54,18 @@ def claim_rules(market: MarketPack, lang: LangPack) -> ClaimRulesFile:
 
 
 log = logging.getLogger(__name__)
+
+
+def _with_qualifier(rules: ClaimRulesFile, products: ProductsFile, lang: LangPack) -> ClaimRulesFile:
+    """D-278: the test-qualifier rule joins the rules when a product has qualified results."""
+    from . import qualifier
+
+    if not any(p.qualified_results for p in products.products):
+        return rules
+    source = PolicySource(source_id=qualifier.SOURCE_ID, title="The product's own test results",
+                          file="the product's documents", note="Each result's qualifier as the documents state it.")
+    return rules.model_copy(update={"rules": [*rules.rules, qualifier.rule(lang)],
+                                    "sources": [*rules.sources, source]})
 
 
 def _priced_for(market: str, products: ProductsFile, promos: PromosFile, passages: list[Passage],
@@ -184,6 +198,13 @@ class DataPack:
         promos = (PromosFile.model_validate(_read_json(data_dir / "promos" / "promos.json"))
                   if (data_dir / "promos" / "promos.json").is_file() else
                   PromosFile(promos=[], rules=PromoRules(max_active_price_promos=1, promo_prices_are_final=True)))
+        if products.products and (data_dir / "products" / "brand_rules.json").is_file():
+            # D-278: the demo products' own brand policy, only with the demo products; never a release's base
+            br = _read_json(data_dir / "products" / "brand_rules.json")
+            market_pack = market_pack.model_copy(update={
+                "rules": [*market_pack.rules, *(MarketRule.model_validate(r)
+                                                for r in br["rules"].get(market_pack.market, []))],
+                "sources": [*market_pack.sources, *(PolicySource.model_validate(s) for s in br["sources"])]})
         if (products.currency_symbol != market_pack.currency.symbol
                 and market_pack.market in products.market_prices):
             products, promos, passages, runsheets = _priced_for(market_pack.market, products, promos, passages, runsheets)
@@ -191,7 +212,7 @@ class DataPack:
             products=products,
             runsheets=runsheets,
             promos=promos,
-            rules=claim_rules(market_pack, lang_pack),
+            rules=_with_qualifier(claim_rules(market_pack, lang_pack), products, lang_pack),
             intents=IntentsFile.model_validate(_read_json(data_dir / "policy" / "intents.json")),
             notices=NoticesFile.model_validate(_read_json(data_dir / "templates" / "notices.json")),
             passages=passages,

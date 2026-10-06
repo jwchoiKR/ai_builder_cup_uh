@@ -98,3 +98,23 @@ def test_d278_the_app_starts_and_serves_a_release_without_the_demo_data(tmp_path
         notice = next(n for n in c.get(f"/api/catalog?session={sid}").json()["notices"]["correction_notices"]
                       if n["template_id"] == "compliance_correction")
         assert "{brand}" in notice["text"] and "skin" not in notice["text"].lower()
+
+
+def test_d278_a_release_gets_no_demo_brand_rules_and_its_qualifier_rule_from_its_results(tmp_path):
+    from app.logic.qualifier import RULE_ID
+
+    data, onb = clean_data(tmp_path), tmp_path / "onb"
+    ctx = make_ctx(DATA_DIR=str(data), ONBOARDING_DIR=str(onb))
+    try:
+        assert not any(r.rule_id.startswith("BRAND-") for r in ctx.pack.rules.rules)
+        plain = release_pack(ctx.pack, kettle(), "rel_k_v1", onb)
+        rec = ProductRecord.model_validate(kettle().model_dump() | {"qualified_results": [{
+            "statement": "Boils 1 litre in 3 minutes", "provenance": "third_party_lab", "qualifier": "tested by Fenmore Labs",
+            "conditions": None, "evidence": EV}]})
+        tested = release_pack(ctx.pack, rec, "rel_k_v2", onb)
+        assert RULE_ID not in {r.rule_id for r in plain.rules.rules}
+        assert RULE_ID in {r.rule_id for r in tested.rules.rules}
+        assert not any(r.rule_id.startswith("BRAND-") for r in tested.rules.rules)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()

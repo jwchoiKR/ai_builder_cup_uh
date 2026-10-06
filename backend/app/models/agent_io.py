@@ -97,7 +97,7 @@ class CorrectionB(Correction, _ArmB):
 
 
 class ViolationB(Violation, _ArmB):
-    qualified_result_id: str | None = None  # BRAND-TEST-QUALIFIER: the in-house result the host stated
+    qualified_result_id: str | None = None  # TEST-QUALIFIER: the result the host stated
 
 
 class ComplianceB(Compliance, _ArmB):

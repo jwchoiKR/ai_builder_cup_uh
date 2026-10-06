@@ -402,10 +402,11 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
 
     if record.qualified_results and QUALIFIER_RULE not in {x.rule_id for x in rules.rules}:
         # D-248 (sealed run: a supplement under a law pack built from documents never got the qualifier alert): the
-        # test-result qualifier rule comes with the record's qualified results, whatever law pack the category gets
-        rule = next((x for x in base.rules.rules if x.rule_id == QUALIFIER_RULE), None)
-        if rule is not None:
-            rules = rules.model_copy(update={"rules": [*rules.rules, rule]})
+        # test-result qualifier rule comes with the record's qualified results, whatever law pack the category gets.
+        # D-278: built from the language pack, not copied from a demo brand rule in the base
+        from ..logic.qualifier import rule as qualifier_rule
+
+        rules = rules.model_copy(update={"rules": [*rules.rules, qualifier_rule(base.lang_pack)]})
     if lawpacks is not None:
         # D-241: the brand's own approved rules are added on top (restrict only: no law rule is removed or replaced)
         from .lawpack import brandpack_for, to_rules as _to_rules

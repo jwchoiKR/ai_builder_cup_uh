@@ -175,8 +175,8 @@ async def test_sequence_with_open_questions_runs_on_the_mock_runtime(monkeypatch
 
 
 def test_qualifier_ok_allows_only_a_lone_qualifier_medium():
-    """H090: a BRAND-TEST-QUALIFIER MEDIUM is allowed there, not required; any other alert is still a leak."""
-    q = {"rule_id": "BRAND-TEST-QUALIFIER", "severity": "MEDIUM"}
+    """H090: a TEST-QUALIFIER MEDIUM is allowed there, not required; any other alert is still a leak."""
+    q = {"rule_id": "TEST-QUALIFIER", "severity": "MEDIUM"}
     other = {"rule_id": "ASEAN-3-SKIN-AGEING", "severity": "HIGH"}
     judge = lambda *vs: {"compliance": {"violations": list(vs)}}  # noqa: E731
     exp = {"compliance": False, "qualifier_ok": True}

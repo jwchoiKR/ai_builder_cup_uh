@@ -1,5 +1,6 @@
-"""BRAND-TEST-QUALIFIER (D-105, PLANNING 5.1.3): an in-house test number said without "in our
-in-house test". The judge decides the meaning; this module keeps the rule's alert safe:
+"""TEST-QUALIFIER (D-105, PLANNING 5.1.3; D-278: was BRAND-TEST-QUALIFIER, a demo brand rule in the market packs):
+a test result said without its qualifier. The rule comes with a product's qualified results (its own documents),
+never from a market or a demo brand. The judge decides the meaning; this module keeps the rule's alert safe:
 
 - a sentence that already names our own test never gets this alert;
 - "Say this instead" is always approved wording (`Product.qualified_results`), never the model's;
@@ -10,11 +11,24 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from ..models.data import Product, QualifiedResult
+from ..models.data import LangPack, Product, QualifiedResult, Rule
 from ..models.session import Alert
 from .lexicon import Lexicon
 
-RULE_ID = "BRAND-TEST-QUALIFIER"
+RULE_ID = "TEST-QUALIFIER"
+SOURCE_ID = "PRODUCT_RESULTS"
+
+
+def rule(lang: LangPack) -> Rule:
+    """D-278: the rule for a product that has qualified results; its wording is the language pack's
+    "test_qualifier" category (language, not a product's data)."""
+    return Rule(rule_id=RULE_ID, source_id=SOURCE_ID, source_ref="the product's test results and their qualifiers",
+                title="Test result without its qualifier",
+                description=("A result of a test, study or certification (a percentage, a count of participants "
+                             "such as '21 of 24', or a measured time such as '12 hours') is said together with its "
+                             "qualifier from the product's data: who ran or certified it. This applies whoever ran "
+                             "the test."),
+                severity="MEDIUM", **lang.categories["test_qualifier"].model_dump())
 MIN_COVERAGE = 0.4  # without a matching number, this share of the approved wording must be heard
 
 def result_numbers(r: QualifiedResult, lex: Lexicon) -> set[str]:
