@@ -1,6 +1,8 @@
 """Compliance corrections need correcting content, not just an apology (D-089)."""
 from __future__ import annotations
 
+from .conftest import make_settings  # D-278: the test data dir
+
 import pytest
 
 from app.logic.corrections import check_correction
@@ -32,7 +34,7 @@ def reflex():
     from app.logic.catalog import DataPack
     from app.logic.reflex import Reflex
 
-    pack = DataPack.load(get_settings().data_path)
+    pack = DataPack.load(make_settings().data_path)
     return Reflex(pack.rules, pack.lexicon)
 
 

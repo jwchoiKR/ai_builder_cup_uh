@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .conftest import make_settings  # D-278: the test data dir
+
 import pytest
 
 from app.logic.promos import promo_passage
@@ -141,9 +143,9 @@ def test_rule6_keeps_good_drafts_whose_labels_contain_numbers():
     from app.config import get_settings
     from app.logic.catalog import Catalog, DataPack
 
-    pack = DataPack.load(get_settings().data_path)
+    pack = DataPack.load(make_settings().data_path)
     catalog, rfx = Catalog(pack), Reflex(pack.rules, pack.lexicon)
-    path = Path(get_settings().data_path) / "eval" / "draft_verifier_cases.jsonl"
+    path = Path(make_settings().data_path) / "eval" / "draft_verifier_cases.jsonl"
     blocked = []
     for line in path.read_text(encoding="utf-8").splitlines():
         c = json.loads(line)
