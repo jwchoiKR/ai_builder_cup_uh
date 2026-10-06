@@ -147,6 +147,14 @@ it promises safety to a group such as babies or pregnant women. For a TEST-QUALI
 meaning: "complete coverage" states "100% of strands"). For a MEDIUM rule, `claim_kind` and `group` are null; for
 every rule but TEST-QUALIFIER, `qualified_result_id` is null.
 
+## CONF: compliance_judge
+
+D-302: for each violation, set `confidence` (0 to 1): how sure you are that the line breaks this rule as you say.
+
+## CONF: fact_checker
+
+D-302: for each claim, set `confidence` (0 to 1): how sure you are of its relation.
+
 ## FR: compliance_judge
 
 Fact mode "record" (D-242): QUALIFIED_RESULTS lists the product's test results, each with the qualifier it must be

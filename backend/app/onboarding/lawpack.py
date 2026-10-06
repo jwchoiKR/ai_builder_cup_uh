@@ -192,4 +192,4 @@ def to_rules(pack_id: str, rec: LawPackRecord, wording: dict | None = None) -> l
     return [Rule(rule_id=r.rule_id, source_id=pack_id, source_ref="; ".join(f"{e.file} {e.locator}" for e in r.evidence),
                  title=r.title, description=r.description, severity=r.severity,
                  unacceptable_examples=r.unacceptable_examples, say_instead_hint=r.say_instead_hint,
-                 reflex_phrases=[], **_terms(r.rule_category, wording)) for r in rec.rules]
+                 reflex_phrases=[], category=r.rule_category, **_terms(r.rule_category, wording)) for r in rec.rules]

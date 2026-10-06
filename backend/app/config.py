@@ -45,7 +45,12 @@ class Settings(BaseSettings):
     # documents, uncertain); code builds the quote. FACT_GUARDS=off keeps only the hard checks on its verdicts
     # D-300 R2: "verify" turns the flaggers' code drops off and sends each candidate alert to one stronger model
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
-    JUDGE_ARM: Literal["guards", "verify"] = "guards"
+    JUDGE_ARM: Literal["guards", "verify", "vote"] = "guards"
+    # D-302 vote: two more runs of the agent on a line with a candidate; empty = the model's default temperature
+    # (1.0 on Gemini 3, which Google advises keeping)
+    VOTE_TEMPERATURE: str = ""  # a number, e.g. "0.7"
+    # D-302: "self" adds a confidence (0-1) to each violation and claim, a log field only
+    VOTE_CONFIDENCE: Literal["off", "self"] = "off"
     VERIFY_MODEL: str = "gemini-3.8-flash"
     VERIFY_THINKING: ThinkingLevel = "LOW"
     VERIFY_TIMEOUT_MS: int = 3000  # a slower verifier keeps the candidate as an unverified alert

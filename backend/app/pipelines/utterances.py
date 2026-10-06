@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from ..agents import arms
 from ..agents.fact_checker import FactChecker, FactInput, fixes_of, gather_fact_passages
 from ..agents.split_judges import ComplianceJudge, ContextJudge
+from ..agents import vote
 from ..agents.verifier import Verifier
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values, say_instead_fallback
 from ..logic import alerts as alert_logic
@@ -353,9 +354,9 @@ class UtterancePipeline:
                 inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
-                comp_task = rt.spawn(self._verify_compliance(self._once_more(lambda: self.compliance.run(
-                    inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)), inp, on_air),
-                    name=f"compliance:{t.transcript_id}")
+                comp_task = rt.spawn(self._vote_compliance(self._verify_compliance(self._once_more(
+                    lambda: self.compliance.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values)),
+                    inp, on_air), inp, values), name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
                                                      values=values), name=f"context:{t.transcript_id}")
             else:
@@ -487,6 +488,22 @@ class UtterancePipeline:
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS)
 
+    def _vote_opts(self) -> dict:
+        t = self.rt.settings.VOTE_TEMPERATURE
+        return {"temperature": float(t) if t else None, "hedge": False}
+
+    async def _vote_compliance(self, call, inp: JudgeInput, values: dict):
+        """D-302 vote: a line with a compliance candidate gets two more runs of the judge, in parallel."""
+        res = await call
+        if self.rt.settings.JUDGE_ARM != "vote" or res.status != "ok" or not vote.candidates(res.output, "compliance"):
+            return res
+        start = self.rt.ctx.clock.now_ms()
+        extras = await asyncio.gather(*(self.compliance.run(inp, deadline_ms=self.rt.settings.JUDGE_TIMEOUT_MS,
+                                                            values=values, **self._vote_opts()) for _ in range(2)))
+        res.output = vote.compliance_votes(res.output, list(extras), self.rt.catalog)
+        log.info("vote: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
+        return res
+
     async def _verify_compliance(self, call, inp: JudgeInput, on_air: str):
         """D-300 R2: the compliance verdicts, each checked by the verifier (in parallel)."""
         res = await call
@@ -532,6 +549,12 @@ class UtterancePipeline:
             # own deadline; the publish decision waits for it
             log.info("fact check %s for %r: once more", res.status, text[:80])
             res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)
+        if self.rt.settings.JUDGE_ARM == "vote" and res.status == "ok" and vote.candidates(res.output, "facts"):
+            start = self.rt.ctx.clock.now_ms()  # D-302: two more runs of the fact check, in parallel
+            extras = await asyncio.gather(*(self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS,
+                                                           **self._vote_opts()) for _ in range(2)))
+            res.output = vote.fact_votes(res.output, list(extras), self.rt.catalog)
+            log.info("vote: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
         if self.verifier is not None and res.status == "ok" and res.output is not None:
             start = self.rt.ctx.clock.now_ms()  # D-300 R2
             res.output = await self.verifier.check_facts(res.output, text, inp.previous, on_air,

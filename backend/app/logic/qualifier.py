@@ -23,6 +23,7 @@ def rule(lang: LangPack) -> Rule:
     """D-278: the rule for a product that has qualified results; its wording is the language pack's
     "test_qualifier" category (language, not a product's data)."""
     return Rule(rule_id=RULE_ID, source_id=SOURCE_ID, source_ref="the product's test results and their qualifiers",
+                category="test_qualifier",
                 title="Test result without its qualifier",
                 description=("A result of a test, study or certification (a percentage, a count of participants "
                              "such as '21 of 24', or a measured time such as '12 hours') is said together with its "

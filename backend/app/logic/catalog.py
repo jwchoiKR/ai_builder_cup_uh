@@ -47,7 +47,7 @@ def claim_rules(market: MarketPack, lang: LangPack) -> ClaimRulesFile:
     return ClaimRulesFile(
         policy_id=market.policy_id, market=market.market, category=market.category, sources=market.sources,
         severity_display=market.severity_display,
-        rules=[Rule(**r.model_dump(exclude={"category"}), **lang.categories[r.category].model_dump())
+        rules=[Rule(**r.model_dump(), **lang.categories[r.category].model_dump())
                for r in market.rules],
         negation_cues=lang.negation_cues, quote_cues=lang.quote_cues,
     )

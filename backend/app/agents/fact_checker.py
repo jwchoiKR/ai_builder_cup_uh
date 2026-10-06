@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_file, quote_in_passage
-from ..models.agent_io import FactCheckOutput, FactClaim, FactRelationOutput
+from ..models.agent_io import FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -746,6 +746,7 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
         c = FactClaim(span=r.span, field=r.field, product_id=r.product_id, stated_value=r.stated_value, verdict=verdict,
                       correct_value=r.correct_value, passage_id=p.passage_id if p else None,
                       quote=" ".join(t for q, t in ev if q.passage_id == p.passage_id) if p else None)
+        c._evidence = [i for i in r.evidence if i in index or i in terms]  # D-302: carried to the alert
         if verdict == "contradicted" and not ev and not set(r.evidence) & terms:
             _drop(c, f"relation: no valid evidence id ({', '.join(r.evidence) or 'none'})")
         elif r.relation == "uncertain":
@@ -864,12 +865,17 @@ class FactChecker:
         # D-296: the relation arm cites file sentences by id (RD), not by "file:<name>" and a copied quote (FD)
         self.relation = bool(getattr(settings, "FACT_RELATION", False))
         self.guards = getattr(settings, "FACT_GUARDS", "on") != "off"
+        # D-302: VOTE_CONFIDENCE=self asks for a confidence per claim (a log field)
+        self.confidence = getattr(settings, "VOTE_CONFIDENCE", "off") == "self"
+        self.relation_model = FactRelationOutputC if self.confidence else FactRelationOutput
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
         fix_addenda = arms._addenda(str(llm.prompts_path)) if self.fixes else {}
         extras += [fix_addenda.get((f, self.name)) for f in sorted(self.fixes)]
+        if self.confidence:  # D-302
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)))
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
         lang = getattr(getattr(catalog, "pack", None), "lang", None)
         if lang:  # D-259: the host reads the correction aloud in the show's language
@@ -899,7 +905,7 @@ class FactChecker:
         return LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
-            user_message=user, output_model=FactRelationOutput if self.relation else FactCheckOutput,
+            user_message=user, output_model=(self.relation_model if self.relation else FactCheckOutput),
             deadline_ms=deadline_ms, session_id=session_id,
             cache_prefix=prefix, cache_parts=parts,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
@@ -929,10 +935,10 @@ class FactChecker:
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
         }, {"current_product_compact_json", "passages_json"})
 
-    async def run(self, inp: FactInput, *, deadline_ms: int) -> AgentResult[FactCheckOutput]:
+    async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:
         user, prefix = self._render(inp)
         res = await self.llm.call(self._request(
-            user, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), mock_primary_text=inp.utterance,
+            user, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), **opts, mock_primary_text=inp.utterance,
             mock_scenario=inp.scenario,
             mock_fallback=lambda _: ({"claims": []} if self.relation
                                      else {"claims": [], "reason": "rule-based: no fact check"}), preview=inp.utterance,
@@ -950,7 +956,7 @@ class FactChecker:
                                                       [inp.utterance, *inp.previous[-1:]])
                 res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products,
                                            inp.utterance, self.fixes, inp.previous[-1] if inp.previous else None,
-                                           verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") == "verify")
+                                           verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") in ("verify", "vote"))
             return res
         if res.output is not None:
             for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it

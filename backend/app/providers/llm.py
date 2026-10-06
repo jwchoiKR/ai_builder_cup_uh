@@ -71,6 +71,8 @@ class LLMRequest(Generic[T]):
     # D-247 arm FD: (bytes, mime type) files cached with the system instruction (before cache_prefix); sent
     # uncached before user_message while the cache is not ready
     cache_parts: tuple = ()
+    temperature: float | None = None  # D-302: a vote run's sampling temperature; None = the model's default
+    hedge: bool = True  # D-302: False sends no second request (vote runs)
 
 
 @dataclass
@@ -194,6 +196,7 @@ def vertex_config(req: LLMRequest, timeout_ms: int, schema: dict):
         response_json_schema=schema,
         thinking_config=types.ThinkingConfig(thinking_level=req.thinking_level),
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+        **({"temperature": req.temperature} if req.temperature is not None else {}),  # D-302 vote runs
     )
 
 
@@ -511,7 +514,7 @@ class LLMClient:
         meta: dict[str, Any] = {}
         try:
             hedge_ms = (self._hedge_delays.get(req.agent, self._settings.JUDGE_HEDGE_MS)
-                        if req.agent in self._hedged_agents else 0)
+                        if req.agent in self._hedged_agents and req.hedge else 0)
             work = self._hedged(req, t0, hedge_ms) if 0 < hedge_ms < req.deadline_ms else self._generate(req, t0)
             raw = await asyncio.wait_for(work, timeout=req.deadline_ms / 1000)
             meta = {"model_version": raw.model_version, "usage": raw.usage, "finish_reason": raw.finish_reason}

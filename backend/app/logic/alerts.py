@@ -69,12 +69,13 @@ def apply_judge_compliance(
         if a is not None:
             a.status, a.span, a.say_instead, a.severity, a.shown_at = "active", v.span, v.say_instead or None, severity, now
             a.unverified = a.unverified or getattr(v, "_unverified", False)
+            a.votes = getattr(v, "_votes", None)  # D-302
             changed.append(a)
         else:
             created.append(Alert(alert_id=new_id("al_"), kind="compliance", status="active", transcript_id=t.transcript_id,
                                  product_id=product_id, rule_id=v.rule_id, severity=severity, span=v.span,
                                  say_instead=v.say_instead or None, created_at=now, shown_at=now,
-                                 unverified=getattr(v, "_unverified", False)))
+                                 unverified=getattr(v, "_unverified", False), votes=getattr(v, "_votes", None)))
     for a in pending.values():
         if a.status == "provisional":  # not confirmed by the judge
             a.status = "cleared"

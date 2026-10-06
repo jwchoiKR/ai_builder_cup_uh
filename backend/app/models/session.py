@@ -127,6 +127,8 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     span: str | None = None
     say_instead: str | None = None
     unverified: bool = False
+    votes: int | None = None  # D-302 JUDGE_ARM=vote: the runs (of 3) that agreed
+    evidence_ids: list[str] = []  # D-302: the relation arm's evidence sentence ids
     # fact
     field: str | None = None
     stated_value: str | None = None
