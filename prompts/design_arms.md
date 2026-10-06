@@ -130,10 +130,18 @@ that settle a fact. A fact you can see only in a file's picture or layout, in no
 
 ## REL: compliance_judge
 
-D-296: for a violation of a HIGH rule, set `claim_made` to the claim the line itself makes, in a few of the line's own
-words: who it is about (a group or a condition, as the line names it) and what it promises or asserts ("safe for
-babies", "kids can brush alone", "cures eczema"). Never add a group or a promise the line does not say. For a MEDIUM
-rule, `claim_made` is null.
+D-297: for a violation of a HIGH rule, set `claim_kind` to what the line itself asserts:
+- `safety_promise`: safe, harmless, gentle, no side effects, suits or is fine for someone;
+- `disease_treatment`: cures, treats, heals or prevents a disease or a medical condition;
+- `medical_or_physiological_effect`: changes the body (regenerates cells, removes wrinkles, burns fat, numbs);
+- `permanence`: results last forever or never come back;
+- `comparative_or_superlative`: the best, better than others;
+- `usage_instruction`: how to use it, even a wrong or unsafe direction ("let the child brush alone");
+- `composition_fact`: what it contains or how much;
+- `other`.
+Set `group` to the group or condition the line names for the claim ("babies", "people with eczema", "everyone"), or
+null. Name only what the line says. A cosmetic state (chapped lips, dry skin, dull hair) is no disease. For a MEDIUM
+rule, both are null.
 
 ## FR: compliance_judge
 

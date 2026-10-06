@@ -170,10 +170,10 @@ def required_terms_for(category: str, wording: dict | None) -> list[str]:
     return list(w.required_terms) if w else []
 
 
-def _wording_for(category: str, wording: dict | None):
+def _wording_for(category: str, wording: dict | None, need=lambda w: bool(w.required_terms)):
     words = set(category.split("_"))
     for name, w in (wording or {}).items():
-        if w.required_terms and (name == category or name in words):
+        if need(w) and (name == category or name in words):
             return w
     return None
 
@@ -181,8 +181,11 @@ def _wording_for(category: str, wording: dict | None):
 def _terms(category: str, wording: dict | None) -> dict:
     """D-294: the category's term checks (Q6 required terms, G4's switch, G7's direction and promise words)."""
     w = _wording_for(category, wording)
-    return {} if w is None else {"required_terms": list(w.required_terms), "terms_fix": w.terms_fix,
-                                 "direction_terms": list(w.direction_terms), "promise_terms": list(w.promise_terms)}
+    out = {} if w is None else {"required_terms": list(w.required_terms), "terms_fix": w.terms_fix,
+                                "direction_terms": list(w.direction_terms), "promise_terms": list(w.promise_terms)}
+    if k := _wording_for(category, wording, lambda w: bool(w.claim_kinds)):  # D-297 CK
+        out |= {"claim_kinds": list(k.claim_kinds), "needs_group": k.needs_group}
+    return out
 
 
 def to_rules(pack_id: str, rec: LawPackRecord, wording: dict | None = None) -> list[Rule]:

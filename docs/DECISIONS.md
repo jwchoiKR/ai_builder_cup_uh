@@ -1718,3 +1718,20 @@ D-296: the relation arm (`FACT_RELATION`, off by default). On 309dcc6, pools 4/3
   - the pipeline end to end (both guard modes, three relations);
   - `claim_made` in the rule fit.
   - Suite: 1134 passed.
+
+D-297: the hybrid, the new default candidate. Relation arm on pools 2-4 (one run, clean-base labels): detection was 86.7% (old code), 87.3% (relation with guards) and 91.7% (relation only; fact detection up 7-10 points). False alerts were 1.6, 1.6 and 2.2%; wrong HIGH 3 in each cell. GPT, Gemini and Sonnet agreed on a hybrid; Sonnet's change (a claim kind, not word lists, for compliance HIGH) was adopted.
+- **Facts:** `FACT_RELATION=true`, `FACT_GUARDS=off`. The one lexical guard kept in the off path is the quote or question the line rejects (Q2 for numbers, G1), because the relation model still read "a viewer asked 'X?' No, ..." as a contradiction. G1 now also covers a correction without a negation: the line rejects the quote and says most of the correction ("Someone asked if it's alcohol-free. No, it contains alcohol.").
+- **Compliance guards (Q3, Q6, G4, G5, G7) do not depend on `FACT_GUARDS`.** They read `FACT_FIXES` only. In the relation-only cell they were off because that cell's `FACT_FIXES` was empty.
+- **CK (new `FACT_FIXES` switch, on):** for a HIGH verdict the compliance judge returns `claim_kind`, one of: safety_promise, disease_treatment, medical_or_physiological_effect, permanence, comparative_or_superlative, usage_instruction, composition_fact, other. It also returns `group`, the group or condition the line names. This replaces D-296's `claim_made`. Code checks the fit:
+  - A usage instruction or a composition fact never carries a HIGH; a wrong one is the fact checker's.
+  - The rule's category must allow the kind. The table is in the language pack, `claim_kinds` per category. vulnerable takes safety_promise or disease_treatment, with a named group ("everyone" counts). disease takes disease_treatment. permanent takes permanence. The skin and physiological categories take an effect, a treatment or permanence. superlative and comparative take comparative_or_superlative.
+  - A category without a list accepts any kind except the two above.
+  - Law-pack rules get the table through their category name.
+  - The Q6 and G7 word lists remain only as the fallback when the judge gives no kind.
+- **Paired tests (GPT), each failure class next to its true positive:**
+  - "Someone asked if it's alcohol-free. No, it contains alcohol." gives no alert; "... Yes, it's alcohol-free." alerts.
+  - A comment's wrong size price, corrected in the line, gives no alert; "The 50 mL is S$20." alerts.
+  - A split price line gets no TEST-QUALIFIER; "it lasts 4 hours" said bare does.
+  - "Have your child swallow the toothpaste" gets no vulnerable HIGH and is a fact (caution) alert; "Safe for babies" gets a HIGH.
+  - "Fine on chapped lips" gets no disease HIGH; "It cures eczema" does.
+- **Tests:** the older tests script fact outputs in the old shape, so `make_settings` pins `FACT_RELATION=false`; the relation arm has its own tests (`tests/test_relation.py`, 50). Suite: 1148 passed.

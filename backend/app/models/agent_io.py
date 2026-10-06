@@ -109,8 +109,14 @@ class ComplianceOutputB(ComplianceOutput, _ArmB):
     correction: CorrectionB
 
 
+ClaimKind = Literal["safety_promise", "disease_treatment", "medical_or_physiological_effect", "permanence",
+                    "comparative_or_superlative", "usage_instruction", "composition_fact", "other"]
+
+
 class ViolationR(Violation, _ArmB):
-    claim_made: str | None = None  # D-296: what the line asserts, for a HIGH rule only (Q6 and G7 read it)
+    # D-297: for a HIGH rule only, what kind of claim the line makes and the group it names (code checks the fit)
+    claim_kind: ClaimKind | None = None
+    group: str | None = None
 
 
 class ComplianceR(Compliance, _ArmB):

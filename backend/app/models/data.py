@@ -179,6 +179,10 @@ class Rule(BaseModel):
     # D-294 G7: a line with a direction to the group ("on their own") and no promise to it is a usage line
     direction_terms: list[str] = []
     promise_terms: list[str] = []
+    # D-297 CK: the claim kinds (the compliance judge's `claim_kind`) a HIGH of this category needs, and whether it
+    # needs a named group; empty = any kind but a usage instruction or a composition fact
+    claim_kinds: list[str] = []
+    needs_group: bool = False
 
 
 class Currency(BaseModel):
@@ -233,6 +237,10 @@ class CategoryWording(BaseModel):
     # D-294 G7: a line with a direction to the group ("on their own") and no promise to it is a usage line
     direction_terms: list[str] = []
     promise_terms: list[str] = []
+    # D-297 CK: the claim kinds (the compliance judge's `claim_kind`) a HIGH of this category needs, and whether it
+    # needs a named group; empty = any kind but a usage instruction or a composition fact
+    claim_kinds: list[str] = []
+    needs_group: bool = False
 
 
 class NumberWords(BaseModel):
