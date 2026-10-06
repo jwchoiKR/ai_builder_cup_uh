@@ -51,7 +51,9 @@ def matches_result(text: str, products: Sequence[Product], lex: Lexicon) -> bool
         for r in p.qualified_results:
             statement = r.say[:r.say.rfind("(")] if "(" in r.say else r.say
             words = [w for w in lex.claim_words(statement) if not any(ch.isdigit() for ch in w)]
-            if (words and lex.coverage(words, words_heard) >= MIN_COVERAGE) or len(numbers & result_numbers(r, lex)) >= 2:
+            hits = numbers & result_numbers(r, lex)
+            # D-299: one decimal number is as specific as two ("SPF 22.5"); one whole number is not ("2 percent")
+            if (words and lex.coverage(words, words_heard) >= MIN_COVERAGE) or len(hits) >= 2 or any("." in n for n in hits):
                 return True
     return False
 

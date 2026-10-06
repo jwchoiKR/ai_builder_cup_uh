@@ -155,6 +155,21 @@ def names_the_tester(text: str, say: str, lex, g5: bool = False) -> bool:
 NO_HIGH_KINDS = frozenset({"usage_instruction", "composition_fact"})  # D-297 CK
 
 
+def _named_result(v, catalog: Catalog):
+    """D-299: the recorded result a TEST-QUALIFIER verdict names by id (relation arm), or None."""
+    rid = getattr(v, "qualified_result_id", None)
+    return next((x for p in catalog.products for x in p.qualified_results if x.result_id == rid), None) if rid else None
+
+
+def _caution_state(group: str, product, terms) -> bool:
+    """D-299 CK: "Irritated skin? Go ahead and use it.": the group is a state a product caution names (irritation),
+    not a group of the rule's own; the line reverses a caution, which is the fact checker's."""
+    if product is None or not product.cautions or _holds_term(group, terms):
+        return False
+    stems = {w[:5] for w in re.findall(r"\w+", group.casefold()) if len(w) >= 5}
+    return bool(stems & {w[:5] for c in product.cautions for w in re.findall(r"\w+", c.casefold())})
+
+
 def _group_said(group: str, line: str, terms) -> bool:
     """D-298 CK: the judge's group is in the line or the previous final (a word of it, by its first five letters), or
     the line names a group of the rule's own ("kids", "everyone"); "absolutely no harmful effects" names none."""
@@ -281,8 +296,11 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             v.say_instead = r.say
         elif v.rule_id == qualifier.RULE_ID:  # approved wording only, never the model's (D-105)
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
-            r = qualifier.approved_replacement(text, on_air, [p for p in catalog.products if p is not on_air],
-                                               catalog.lexicon, "G4" in fact_checker.fixes_of())
+            # D-299: the result the judge names by id ("complete coverage of every grey hair" states "100% of
+            # assessed strands"); otherwise D-116's match by numbers and words
+            r = _named_result(v, catalog) or qualifier.approved_replacement(
+                text, on_air, [p for p in catalog.products if p is not on_air], catalog.lexicon,
+                "G4" in fact_checker.fixes_of())
             if r is None:
                 _cdrop(v, "D-116: the line matches no test result")
                 continue  # D-116: the sentence matches no in-house test result (an amount, price or volume)
@@ -313,7 +331,9 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                        else f"is not this rule's claim ({', '.join(r.claim_kinds)})" if r.claim_kinds and kind not in r.claim_kinds
                        else "names no group" if r.needs_group and not getattr(v, "group", None)
                        else "group not in line" if r.needs_group and not _group_said(
-                           v.group, f"{prev[0] if prev else ''} {text}", r.required_terms) else None)
+                           v.group, f"{prev[0] if prev else ''} {text}", r.required_terms)
+                       else "group is a caution's state" if r.needs_group and _caution_state(
+                           v.group, on_air_product, r.required_terms) else None)
                 if why:
                     _cdrop(v, f"CK: {kind} {why} ({r.rule_id})")
                 else:
@@ -324,7 +344,8 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
             # D-295 G4: a test-result or evidence verdict stands on an evidence word or on a qualified result the
             # line is about by its words ("tear-free"); only a line with neither ("zinc at 2 percent") drops
             if (r.required_terms and r.terms_fix in fixes and not v.is_negated and not _holds_term(hay, r.required_terms)
-                    and not (r.terms_fix == "G4" and qualifier.matches_result(hay, catalog.products, lex))):
+                    and not (r.terms_fix == "G4" and (qualifier.matches_result(hay, catalog.products, lex)
+                                                      or _named_result(v, catalog) is not None))):
                 # D-290 Q6: the rule's own element is not in the line ("zero side effects" names no group, "the
                 # best" says nothing permanent): the judge stretched a HIGH rule over another claim. D-294 G4: a bare
                 # ingredient amount ("glycerin at two percent") states no test result and no evidence

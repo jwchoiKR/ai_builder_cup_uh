@@ -762,13 +762,29 @@ def _numbers(lex, t: str | None) -> set[str]:
             | lex.times_numbers(t or ""))
 
 
+def _product_numbers(lex, catalog: Catalog, pid: str, passages: Sequence[Passage]) -> set[str]:
+    """D-299: every number the product's documents and record give: all its passages (not only the cited one: "the
+    60-tablet tub" when the quote was the 30 pack), its sizes, variants, prices and key facts."""
+    nums: set[str] = set()
+    for p in (*passages, *catalog.pack.passages):
+        if p.product_id == pid:
+            nums |= _numbers(lex, p.text)
+    if catalog.is_product(pid):
+        prod = catalog.get_product(pid)
+        for text in (prod.volume, f"{prod.live_price}", f"{prod.list_price}", *map(str, prod.key_facts.values()),
+                     *(f"{v.label} {v.live_price} {v.list_price}" for v in prod.variants)):
+            nums |= _numbers(lex, text)
+    return nums
+
+
 def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
                   offers: Sequence[Promo], products: set[str], utterance: str | None = None,
                   fixes: frozenset[str] = frozenset(), previous: str | None = None) -> FactCheckOutput:
     """D-296 FACT_GUARDS=off: only the hard checks on a relation contradiction, no lexical guard. The claim is about a
     product of the show (or a set's price); its evidence sentence belongs to that product, which the line is about
     (on air, a pending switch's target, or named); the evidence is not the approved-claims passage (D-048); every
-    number of the correction is in the evidence or is the record's own value (R1). A correction from ACTIVE_PROMO or
+    number of the correction is in the evidence, is the record's own value (R1), or is in another passage or recorded
+    value of the same product (D-299). A correction from ACTIVE_PROMO or
     a running offer must be that promo's or offer's own term. D-297: one lexical guard stays, the quote or question
     the line rejects (Q2 for numbers, G1), since the relation model still read "a viewer asked 'X?' No, ..." as a
     contradiction."""
@@ -808,7 +824,8 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
         elif p.section == CLAIMS_SECTION:
             failed = "an approved-claims passage"
         elif right and not (right <= _numbers(lex, c.quote)
-                            or _record_holds(c, catalog, right, f"{c.stated_value or ''} {c.span or ''}")):
+                            or _record_holds(c, catalog, right, f"{c.stated_value or ''} {c.span or ''}")
+                            or right <= _product_numbers(lex, catalog, c.product_id, passages)):
             failed = "relation: a number of the correction is in neither the evidence nor the record"
         if failed:
             _drop(c, failed)
