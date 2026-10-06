@@ -65,7 +65,9 @@ export const onboardingApi = {
   preview: (jobId: string, record?: ProductRecord) =>
     request<{ translations: Translations; live: { law?: string; price?: string; error?: string } }>(
       "POST", `/onboarding/jobs/${encodeURIComponent(jobId)}/preview`, record ? { record } : {}),
-  startShow: (releaseId: string) => request<Session>("POST", "/sessions", { release_id: releaseId }),
+  // D-279: one release, or 2-3 in segment order
+  startShow: (releaseIds: string[]) => request<Session>("POST", "/sessions",
+    releaseIds.length === 1 ? { release_id: releaseIds[0] } : { release_ids: releaseIds }),
   // D-264: approved products a show can start from, newest first (also after a cold start)
   releases: () => request<ReleaseRow[]>("GET", "/onboarding/releases"),
   // D-266: the release's brief (STT names, prompter points) runs after approval: done, running, failed (...), none

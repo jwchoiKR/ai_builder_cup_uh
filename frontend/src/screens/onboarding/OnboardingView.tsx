@@ -426,7 +426,7 @@ export function OnboardingView() {
               <BriefStatus releaseId={release.release_id} />
               <Button variant="primary" disabled={busy}
                       onClick={() => act(async () => {
-                        const s = await onboardingApi.startShow(release.release_id);
+                        const s = await onboardingApi.startShow([release.release_id]);
                         navigate(`/studio?session=${encodeURIComponent(s.session_id)}`);
                       })}>
                 Start a show with this product

@@ -418,4 +418,5 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
                      if f"BR-{x.rule_id}" not in have]
             rules = rules.model_copy(update={"rules": [*rules.rules, *extra]})
     return dataclasses.replace(base, products=products, runsheets={release_id: runsheet}, rules=rules,
-                               promos=PromosFile(promos=promos, rules=base.promos.rules), passages=unique)
+                               promos=PromosFile(promos=promos, rules=base.promos.rules), passages=unique,
+                               releases={pid: release_id})

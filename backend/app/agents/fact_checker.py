@@ -436,30 +436,40 @@ class FactChecker:
         if lang:  # D-259: the host reads the correction aloud in the show's language
             self.system_instruction += (f"\n\nThe show's language is {lang}. Write `correct_value` in it (translate a "
                                         "value SOURCE writes in another language); keep `quote` verbatim.")
-        self.file_parts: tuple = ()
-        self.file_passages: tuple = ()
+        # D-279: each product's release files (one release, or each release of a multi-release show)
+        self.files: dict[str, tuple[tuple, tuple]] = {}
+        releases = dict(getattr(getattr(catalog, "pack", None), "releases", None) or {})
         release_id = getattr(getattr(catalog, "runsheet", None), "runsheet_id", "")
-        if mode == "docs" and release_id.startswith("rel_"):
+        if not releases and release_id.startswith("rel_"):
+            releases = {p.product_id: release_id for p in catalog.products}
+        if mode == "docs":
             from ..onboarding.sources import release_sources
 
-            self.file_parts, self.file_passages = release_sources(str(settings.onboarding_path), release_id)
+            self.files = {pid: release_sources(str(settings.onboarding_path), rid) for pid, rid in releases.items()}
+        first = next(iter(self.files.values()), ((), ()))
+        self.file_parts, self.file_passages = first  # the first product's (one-release shows, the eval)
+        self.all_file_passages = tuple(x for _, ps in self.files.values() for x in ps)
 
-    def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None, **mock) -> LLMRequest:
+    def _parts(self, on_air: str) -> tuple:
+        return self.files.get(on_air, (self.file_parts,))[0]
+
+    def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None, parts: tuple = (),
+                 **mock) -> LLMRequest:
         # D-247: with files, the cache holds the system instruction, the files and the product and full-sheet blocks
         # (the same on every line of a one-product release)
         return LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=FactCheckOutput, deadline_ms=deadline_ms, session_id=session_id,
-            cache_prefix=prefix, cache_parts=self.file_parts,
+            cache_prefix=prefix, cache_parts=parts,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
 
     async def warm_cache(self, inp: FactInput) -> None:
         """D-247: the files' context cache is made at session start (with the first line's static blocks), not on
         the first line."""
-        if self.file_parts:
+        if parts := self._parts(inp.on_air):
             _, prefix = self._render(inp)
-            await self.llm.warm_cache(self._request(prefix, prefix, 60_000, inp.session_id))
+            await self.llm.warm_cache(self._request(prefix, prefix, 60_000, inp.session_id, parts))
 
     def _render(self, inp: FactInput) -> tuple[str, str]:
         return self.prompt.render_cached({
@@ -477,13 +487,14 @@ class FactChecker:
     async def run(self, inp: FactInput, *, deadline_ms: int) -> AgentResult[FactCheckOutput]:
         user, prefix = self._render(inp)
         res = await self.llm.call(self._request(
-            user, prefix, deadline_ms, inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
+            user, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), mock_primary_text=inp.utterance,
+            mock_scenario=inp.scenario,
             mock_fallback=lambda _: {"claims": [], "reason": "rule-based: no fact check"}, preview=inp.utterance,
         ))
         if res.output is not None:
             for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it
                 if c.passage_id and c.passage_id.startswith("file:"):
                     c.passage_id = c.passage_id.split("#", 1)[0]
-            res.output = post_validate(res.output, [*inp.passages, *self.file_passages], self.catalog, inp.promo,
+            res.output = post_validate(res.output, [*inp.passages, *self.all_file_passages], self.catalog, inp.promo,
                                        inp.utterance, inp.offers)
         return res

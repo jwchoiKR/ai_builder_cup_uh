@@ -59,6 +59,7 @@ function ReleasePicker() {
   const t = useT();
   const [rows, setRows] = useState<ReleaseRow[] | null>(null);
   const [picked, setPicked] = useState("");
+  const [more, setMore] = useState<string[]>([]);  // D-279: up to 2 more products, in the order ticked
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -79,7 +80,7 @@ function ReleasePicker() {
     setBusy(true);
     setError(null);
     try {
-      const s = await onboardingApi.startShow(picked);
+      const s = await onboardingApi.startShow([picked, ...more.filter((id) => id !== picked)]);
       navigate(`/studio?session=${encodeURIComponent(s.session_id)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -100,6 +101,22 @@ function ReleasePicker() {
           ))}
         </select>
       </label>
+      {rows.length > 1 && (
+        <span className={styles.hubStudioNote} data-testid="hub-release-more">
+          {t("Then")}{" "}
+          {rows.filter((r) => r.release_id !== picked).map((r) => {
+            const at = more.indexOf(r.release_id);
+            return (
+              <label key={r.release_id}>
+                <input type="checkbox" checked={at >= 0} disabled={at < 0 && more.length >= 2}
+                  onChange={() => setMore((m) => (at >= 0 ? m.filter((x) => x !== r.release_id) : [...m, r.release_id]))}
+                  data-testid={`hub-release-more-${r.release_id}`} />
+                {at >= 0 ? `${at + 2}. ` : ""}{r.product_name}{" "}
+              </label>
+            );
+          })}
+        </span>
+      )}
       <Button disabled={busy || !picked} onClick={start} data-testid="hub-release-start">
         {t("Start a show")}
       </Button>

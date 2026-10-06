@@ -68,6 +68,7 @@ class Session(BaseModel):  # [sessions/{session_id}]
     market: str = "SG"
     lang: str = "en"
     release_id: str | None = None  # D-218: an onboarded product's release; None for the shipped catalog
+    release_ids: list[str] = []  # D-279: a show of 2-3 releases, in segment order (release_id is then None)
     started_at: int | None = None
     ended_at: int | None = None
     current_segment_id: str | None = None

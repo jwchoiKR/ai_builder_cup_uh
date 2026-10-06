@@ -63,14 +63,24 @@ class AppContext:
 
     def forget_release(self, release_id: str) -> None:
         """D-266: the next show from this release is built again (its brief has landed)."""
-        for key in [k for k in self._packs if len(k) == 3 and k[2] == release_id]:
+        for key in [k for k in self._packs if len(k) == 3 and (k[2] == release_id or
+                                                              (isinstance(k[2], tuple) and release_id in k[2]))]:
             del self._packs[key]
 
-    def pack_for(self, market: str, lang: str, release_id: str | None = None) -> tuple[DataPack, Reflex]:
+    def pack_for(self, market: str, lang: str, release_id: str | tuple[str, ...] | None = None
+                 ) -> tuple[DataPack, Reflex]:
         """D-142: the data pack and reflex of one (market, language), loaded once. The settings' pair is
         `pack`/`reflex`; others load from the same data folder (DataPackError when not offered).
         D-218: with a release, that onboarded product's pack on the same market and language; its passages join the
         retriever's index once."""
+        if isinstance(release_id, tuple):  # D-279: a show of several releases, each built as on its own
+            rkey = (market.upper(), lang, release_id)
+            if rkey not in self._packs:
+                from .onboarding.show import show_pack
+
+                pack = show_pack([self.pack_for(market, lang, r)[0] for r in release_id], release_id)
+                self._packs[rkey] = (pack, Reflex(pack.rules, pack.lexicon))
+            return self._packs[rkey]
         if release_id is not None:
             rkey = (market.upper(), lang, release_id)
             if rkey not in self._packs:
