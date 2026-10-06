@@ -24,9 +24,10 @@ class BriefInput:
 
 
 def post_validate(out: BriefOutput, product_id: str, document_text: str, reflex: Reflex,
-                  max_points: int = MAX_POINTS, max_chars: int = MAX_POINT_CHARS) -> BriefOutput:
+                  max_points: int = MAX_POINTS, max_chars: int = MAX_POINT_CHARS, offer_chars: int = 0) -> BriefOutput:
     """Drop terms the document does not contain and drafts that are too long or carry restricted
-    wording; keep at most 40 terms and 6 points."""
+    wording; keep at most 40 terms and 6 points. D-269: an offer point (`source_section` "Offer ...") may be
+    `offer_chars` long."""
     o = out.model_copy(deep=True)
     o.product_id = product_id
     doc = document_text.lower()
@@ -41,8 +42,9 @@ def post_validate(out: BriefOutput, product_id: str, document_text: str, reflex:
         t.spoken_forms = [s.strip() for s in t.spoken_forms if s.strip()][:3]
         terms.append(t)
     o.glossary = terms[:MAX_TERMS]
+    limit = lambda p: max(max_chars, offer_chars) if p.source_section.startswith("Offer") else max_chars  # noqa: E731
     o.prompter_points = [p for p in o.prompter_points
-                         if 0 < len(p.text.strip()) <= max_chars and not reflex.scan(p.text)][:max_points]
+                         if 0 < len(p.text.strip()) <= limit(p) and not reflex.scan(p.text)][:max_points]
     return o
 
 
@@ -51,7 +53,7 @@ class BriefAgent:
 
     def __init__(self, llm: LLMClient, prompt: PromptTemplate, reflex: Reflex, *, extra: str = "",
                  max_points: int = MAX_POINTS, max_chars: int = MAX_POINT_CHARS, model: str | None = None,
-                 thinking: str | None = None) -> None:
+                 thinking: str | None = None, offer_chars: int = 0) -> None:
         self.llm = llm
         self.prompt = prompt
         self.prompt_version = prompt.version
@@ -59,7 +61,7 @@ class BriefAgent:
         spec = getattr(llm, "brief", None) or llm.quality
         self.model, self.thinking = model or spec.model, thinking or spec.thinking_level
         self.system_instruction = f"{prompt.system_instruction}\n\n{extra}" if extra else prompt.system_instruction
-        self.max_points, self.max_chars = max_points, max_chars
+        self.max_points, self.max_chars, self.offer_chars = max_points, max_chars, offer_chars
         self.reflex = reflex
 
     async def run(self, inp: BriefInput, *, deadline_ms: int) -> AgentResult[BriefOutput]:
@@ -77,7 +79,7 @@ class BriefAgent:
         ))
         if res.output is not None:
             res.output = post_validate(res.output, inp.product_id, inp.document_text, self.reflex, self.max_points,
-                                       self.max_chars)
+                                       self.max_chars, self.offer_chars)
         return res
 
 

@@ -1621,3 +1621,31 @@ def test_d266_a_show_started_before_the_brief_lands_keeps_todays_points_and_the_
             time.sleep(0.02)
         late = c.post("/api/sessions", json={"release_id": rid}).json()["session_id"]
         assert points(c, late) == ["Patch test first."]
+
+
+def test_d269_brief_offers_terms_arm_gives_every_offer_term_and_room_for_it():
+    from app.agents.brief import post_validate
+    from types import SimpleNamespace
+
+    from app.models.agent_io import BriefOutput
+    from app.onboarding.brief import release_document
+
+    ev = [{"file": "f", "locator": "l", "quote": "Code SAVE10: 10% off, online only, one per order"}]
+    rec = ProductRecord.model_validate(_record(offers=[
+        {"offer_id": "o1", "kind": "percent_off", "title": "Code SAVE10", "variant_ids": [], "percent": "10",
+         "amount": None, "buy": None, "get": None, "gift": None, "rounding": None, "starts": "2026-11-01",
+         "ends": "2026-11-14", "duration_min": None, "combinable": False, "conditions": ["one per order"],
+         "evidence": ev}]))
+    sheet, terms = release_document(rec), release_document(rec, offers="terms")
+    assert "2026-11-14" not in sheet and "combinable" not in sheet  # today's sheet drops them
+    line = next(x for x in terms.splitlines() if x.startswith("- [o1]"))
+    for want in ("10% off", "2026-11-01", "2026-11-14", "combinable with other offers or codes: no",
+                 "condition: one per order", "online only"):
+        assert want in line
+    long = "Code SAVE10: 10% off, online store only, 1 to 14 Nov, not with other offers, one per order. " * 2
+    out = BriefOutput(product_id="r", glossary=[], reason="t", prompter_points=[
+        {"text": long, "required": True, "source_section": "Offer o1"},
+        {"text": long, "required": False, "source_section": "Claims"}])
+    reflex = SimpleNamespace(scan=lambda text: [])  # no restricted wording here
+    assert [p.source_section for p in post_validate(out, "r", "", reflex, 10, 140).prompter_points] == []
+    assert [p.source_section for p in post_validate(out, "r", "", reflex, 10, 140, 240).prompter_points] == ["Offer o1"]
