@@ -1735,3 +1735,33 @@ async def test_d273_a_release_without_approved_claims_keeps_the_fallback_alert(t
                         fail=("compliance_judge", "utterance_judge"))
     [a] = [a for a in row["alerts"] if a["kind"] == "compliance"]
     assert a["severity"] == "HIGH" and a["say_instead"] == "(no approved wording in en)"
+
+
+async def test_d274_cautions_and_directions_in_the_show_language_and_repeats_merged():
+    from types import SimpleNamespace
+
+    from app.onboarding.translate import show_language_lines
+
+    ev = lambda q: [{"file": "f", "locator": "l", "quote": q}]  # noqa: E731
+    rec = ProductRecord.model_validate(_record(
+        cautions=[{"text": "Keep out of reach of children.", "evidence": ev("Keep out of reach of children.")},
+                  {"text": "请放在儿童接触不到的地方。", "evidence": ev("请放在儿童接触不到的地方。")},
+                  {"text": "勿超过每日2粒。", "evidence": ev("勿超过每日2粒。")}],
+        how_to_use=[{"text": "每2小时补涂一次。", "evidence": ev("每2小时补涂一次。")}]))
+    answer = {"cautions-0": ("Keep out of reach of children.", None),
+              "cautions-1": ("Keep out of reach of children.", "cautions-0"),  # the same caution in Chinese
+              "cautions-2": ("Do not exceed the daily dose.", None),  # the number was lost: kept as written
+              "how_to_use-0": ("Reapply every 2 hours.", None)}
+
+    class Fake:
+        async def call(self, req):
+            return SimpleNamespace(status="ok", output=SimpleNamespace(items=[
+                SimpleNamespace(id=k, text=t, same_as=s) for k, (t, s) in answer.items()]))
+
+    notes = await show_language_lines(Fake(), rec, "en")
+    assert [c.text for c in rec.cautions] == ["Keep out of reach of children.", "勿超过每日2粒。"]
+    assert [e.quote for e in rec.cautions[0].evidence] == ["Keep out of reach of children.", "请放在儿童接触不到的地方。"]
+    assert [h.text for h in rec.how_to_use] == ["Reapply every 2 hours."]
+    assert [h.evidence[0].quote for h in rec.how_to_use] == ["每2小时补涂一次。"]  # the original stays the evidence
+    assert notes == ["show language: 1 cautions or directions put into en, 1 repeats merged",
+                     "show language: 1 lines kept as written (a number changed in translation)"]

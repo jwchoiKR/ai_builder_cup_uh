@@ -41,6 +41,7 @@ async def main() -> int:
         result = await onboard_files(ctx.llm, settings.onboarding_path, args.files.name,
                                      [(p.name, p.read_bytes()) for p in files], hints=args.hints,
                                      base_pack=ctx.pack, verify_mode=args.verify_mode or settings.VERIFY_MODE,
+                                     caution_lang=settings.ONBOARDING_CAUTION_LANG,
                                      **(onboarding_models(settings) | {k: v for k, v in (
                                          ("model", args.model), ("thinking", args.thinking),
                                          ("pass_model", args.pass_model), ("pass_thinking", args.pass_thinking)) if v}))

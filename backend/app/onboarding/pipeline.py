@@ -13,12 +13,20 @@ from .release import has_law, release_pack
 
 async def onboard_files(llm: LLMClient, root: Path, draft_id: str, files: list[tuple[str, bytes]], *,
                         hints: str = "", session_id: str | None = None, base_pack=None, verify_mode: str = "full",
-                        **read_kw) -> OnboardingResult:
+                        caution_lang: str = "as_written", **read_kw) -> OnboardingResult:
     stored = [store(root, draft_id, name, data) for name, data in files]
     parts = [model_part(name, data) for name, data in files]
     result = await read_product(llm, parts, hints=hints, session_id=session_id,
                                 categories=category_list(base_pack, root),
                                 covered=covered_categories(base_pack, root), **read_kw)
+    if caution_lang == "show" and base_pack is not None:  # D-274 arm
+        from .translate import show_language_lines
+
+        model = read_kw.get("pass_model") or read_kw.get("model")
+        result.notes += await show_language_lines(
+            llm, result.record, base_pack.lang, session_id=session_id,
+            **({"model": model} if model else {}),
+            **({"thinking": read_kw["pass_thinking"]} if read_kw.get("pass_thinking") else {}))
     result.files = [{"name": s.name, "sha256": s.sha256, "media_type": media_type(s.name), "bytes": s.size}
                     for s in stored]
     # D-236: what a person must check (VERIFY_MODE), with the law pack the show would get
