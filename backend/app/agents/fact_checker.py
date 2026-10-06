@@ -263,6 +263,32 @@ def _negates(lex, text: str) -> bool:
     return "n't" in text or any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", text) for n in lex.negation_words)
 
 
+# D-298: a plain rejection of what was just quoted ("That is wrong", "Not true"), and a final that starts with one
+_REJECT = re.compile(r"\b(?:not true|that[’']?s (?:not right|not true|wrong|incorrect)|that is (?:not right|not true|"
+                     r"wrong|incorrect))\b")
+_REJECT_START = re.compile(r"^\W*(?:(?:no|nope)\s*[,.!;:—-]|(?:not true|wrong|incorrect|that[’']?s (?:not right|"
+                           r"not true|wrong|incorrect)|that is (?:not right|not true|wrong|incorrect))\b)")
+
+
+def _rejects_previous_quote(cues, utterance: str, previous: str | None, c, lex) -> bool:
+    """D-298: "Someone asked if it's fragrance-free." / "No, it contains fragrance.": the previous final quotes or asks
+    the stated value (its numbers, or most of its words), this final starts with a rejection, and it says the
+    correction (its numbers, or most of its words). "No, it cures eczema." or "No, it's S$15." after a question still
+    alerts: the line asserts its own claim."""
+    if not previous or not _REJECT_START.search(utterance.strip().lower()):
+        return False
+    prev = previous.lower()
+    if not (any(q in prev for q in (*cues, *_QUOTE_EXTRA)) or "?" in prev):
+        return False
+    def says(value: str | None, text: str) -> bool:
+        if nums := _numbers(lex, value):
+            return nums <= _numbers(lex, text)
+        words = {w[:5] for w in re.findall(r"[a-z]+", (value or "").lower()) if w not in _GLUE and len(w) > 2}
+        return bool(words) and len(words & {w[:5] for w in re.findall(r"[a-z]+", text.lower())}) >= 0.5 * len(words)
+
+    return says(c.stated_value, prev) and says(c.correct_value, utterance)
+
+
 def _quoted_then_rejected(cues, utterance: str, c, lex) -> bool:
     """D-294 G1: "Someone said 'you can share the brush'. Please don't, never share it.": the stated instruction
     comes after a quote cue or mark, the correction is a caution (it has a negation), and after the quote the line
@@ -280,6 +306,8 @@ def _quoted_then_rejected(cues, utterance: str, c, lex) -> bool:
     negs = set(lex.negation_words)
     stems = {w[:5] for w in re.findall(r"[a-z]+", correct) if w not in _GLUE and w not in negs and len(w) > 2}
     after = text[at + len(s):]
+    if _REJECT.search(after):  # D-298: "Someone wrote, 'No reapplication needed.' That is wrong; ..."
+        return True
     tokens = re.findall(r"[a-z']+", after)
     if not _negates(lex, correct):
         # D-297: "Someone asked if it's alcohol-free. No, it contains alcohol.": after the quote the line rejects it
@@ -736,7 +764,7 @@ def _numbers(lex, t: str | None) -> set[str]:
 
 def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Catalog, promo: Promo | None,
                   offers: Sequence[Promo], products: set[str], utterance: str | None = None,
-                  fixes: frozenset[str] = frozenset()) -> FactCheckOutput:
+                  fixes: frozenset[str] = frozenset(), previous: str | None = None) -> FactCheckOutput:
     """D-296 FACT_GUARDS=off: only the hard checks on a relation contradiction, no lexical guard. The claim is about a
     product of the show (or a set's price); its evidence sentence belongs to that product, which the line is about
     (on air, a pending switch's target, or named); the evidence is not the approved-claims passage (D-048); every
@@ -761,6 +789,10 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             continue
         if utterance and "G1" in fixes and _quoted_then_rejected(catalog.pack.rules.quote_cues, utterance, c, lex):
             _drop(c, "G1: the line quotes an instruction and rejects it with the caution")
+            continue
+        if (utterance and fixes & {"Q2", "G1"}
+                and _rejects_previous_quote(catalog.pack.rules.quote_cues, utterance, previous, c, lex)):
+            _drop(c, "G1: the previous final quotes the value and this one rejects it")
             continue
         p = by_id.get(c.passage_id) if c.passage_id else None
         failed = None
@@ -884,7 +916,7 @@ class FactChecker:
                 products = self.catalog.line_products(inp.on_air, inp.switch.target_product_id,
                                                       [inp.utterance, *inp.previous[-1:]])
                 res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products,
-                                           inp.utterance, self.fixes)
+                                           inp.utterance, self.fixes, inp.previous[-1] if inp.previous else None)
             return res
         if res.output is not None:
             for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file; the quote is checked in it

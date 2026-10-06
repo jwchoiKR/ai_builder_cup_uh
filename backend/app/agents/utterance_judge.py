@@ -155,6 +155,17 @@ def names_the_tester(text: str, say: str, lex, g5: bool = False) -> bool:
 NO_HIGH_KINDS = frozenset({"usage_instruction", "composition_fact"})  # D-297 CK
 
 
+def _group_said(group: str, line: str, terms) -> bool:
+    """D-298 CK: the judge's group is in the line or the previous final (a word of it, by its first five letters), or
+    the line names a group of the rule's own ("kids", "everyone"); "absolutely no harmful effects" names none."""
+    g, low = group.casefold().strip(), line.casefold()
+    if g and g in low:  # any script: the judge copies the line's own words
+        return True
+    heard = {w[:5] for w in re.findall(r"\w+", low)}
+    words = [w for w in re.findall(r"\w+", g) if len(w) > 2 and w not in ("the", "and", "with", "for")]
+    return any(w[:5] in heard for w in words) or _holds_term(line, terms)
+
+
 def _holds_term(text: str, terms) -> bool:
     """D-290 Q6: one of the terms starts a word of the text ("pregnan" holds "pregnant")."""
     low = text.lower()
@@ -300,7 +311,9 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A"):
                 # fact is never a HIGH (a wrong one is the fact checker's). The word lists below are the fallback
                 why = ("carries no HIGH" if kind in NO_HIGH_KINDS
                        else f"is not this rule's claim ({', '.join(r.claim_kinds)})" if r.claim_kinds and kind not in r.claim_kinds
-                       else "names no group" if r.needs_group and not getattr(v, "group", None) else None)
+                       else "names no group" if r.needs_group and not getattr(v, "group", None)
+                       else "group not in line" if r.needs_group and not _group_said(
+                           v.group, f"{prev[0] if prev else ''} {text}", r.required_terms) else None)
                 if why:
                     _cdrop(v, f"CK: {kind} {why} ({r.rule_id})")
                 else:
