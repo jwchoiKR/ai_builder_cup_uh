@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     FACT_FIXES: str = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK"  # D-293 freeze: all on; D-294 G1-G7; D-297 CK
     # D-296: the fact checker returns evidence sentence ids and a relation (contradicts, consistent, not in the
     # documents, uncertain); code builds the quote. FACT_GUARDS=off keeps only the hard checks on its verdicts
+    # D-300 R2: "verify" turns the flaggers' code drops off and sends each candidate alert to one stronger model
+    # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
+    JUDGE_ARM: Literal["guards", "verify"] = "guards"
+    VERIFY_MODEL: str = "gemini-3.8-flash"
+    VERIFY_THINKING: ThinkingLevel = "LOW"
+    VERIFY_TIMEOUT_MS: int = 3000  # a slower verifier keeps the candidate as an unverified alert
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     FACT_GUARDS: Literal["on", "off"] = "off"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage

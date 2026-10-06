@@ -20,7 +20,7 @@ from typing import Any
 PROMPT_NAMES = (
     "utterance_judge", "judge_single", "compliance_judge", "context_judge", "fact_checker", "fact_relation",
     "comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier", "brief_agent",
-    "broadcast_summary",
+    "broadcast_summary", "verifier",
 )
 
 # Rendered as plain text; every other placeholder must contain `_json` and is rendered as JSON.

@@ -108,11 +108,11 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
         return {"id": case["case_id"], "run": run_no, "dropped": drops,
                 # every judge and fact output with its reason, to diagnose a miss or a false alert
                 "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output,
-                           "latency_ms": c.latency_ms}
+                           "latency_ms": c.latency_ms} | ({"usage": c.usage} if c.agent == "verifier" else {})
                           | ({"retried": len(tries[c.input_preview]) > 1,
                               "final_status": tries[c.input_preview][-1].status} if c.agent == "fact_checker" else {})
                           for c in calls if c.agent in ("compliance_judge", "context_judge", "fact_checker",
-                                                        "utterance_judge", "judge_single")],
+                                                        "utterance_judge", "judge_single", "verifier")],
                 # per line: the fact check's whole time, retry included, and how it ended
                 "facts": [{"input": k, "ms": sum(c.latency_ms for c in v), "tries": len(v), "final_status": v[-1].status,
                            "timeouts": sum(c.status == "timeout" for c in v)} for k, v in tries.items()],
@@ -123,7 +123,8 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 "alerts": [{"kind": a.kind, "product_id": a.product_id, "rule_id": a.rule_id, "severity": a.severity,
                             "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
-                            "correct_value": a.correct_value, "status": a.status} for a in alerts]}
+                            "correct_value": a.correct_value, "status": a.status, "unverified": a.unverified}
+                           for a in alerts]}
     finally:
         await ctx.runtimes.drop(rt.sid)
 

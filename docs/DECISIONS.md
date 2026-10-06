@@ -1753,3 +1753,18 @@ D-299: pool 5's failure classes, patched (not rewritten). On bc9c186 (scorer v3)
 - **Bounds (prompt):** the relation prompt says "below 25 °C" excludes 25 itself and "up to 25 °C" includes it.
 - **Wrong HIGH, reversed caution:** a vulnerable HIGH drops when its group is a state a product caution names ("damaged skin", "irritated skin") and no group of the rule's own ("pregnant women" stays). The prompt also says a line that reverses a caution is `usage_instruction`.
 - **Tests:** `tests/test_d299.py`, each class next to its pair. Suite: 1175 passed.
+
+D-300: R2, the verifier arm (`JUDGE_ARM=verify`, off by default). On pools 2-5, with no code drops detection would be 94-97% but false alerts 0.9-6.5%: the guards trade recall for precision, and neither setting passes. GPT, Gemini and Sonnet agreed to move the precision decision from hand-written gates to a model that reads the evidence. b14047f (R3) is the last guard round.
+- **Kill rule (fixed before measuring):** R3 stays only if pool 5 has every product at 95% or more, false alerts below 1% and wrong HIGH 0, and pool 4 holds. Otherwise R2 must reach the same on pools 4 and 5, within p95 added latency of 3 s and at most 2x the cost. No more guard patches either way. The winner runs once on a fresh pool 6.
+- **Flagger:** the same Flash-Lite agents with every code drop off. On the compliance side that means the own-test, single-word topic, D-116, L7, Q1E, Q6/G4/G7/CK and Q3 drops; on the fact side (relation arm), Q2/G1, line attribution and the approved-claims passage. Schema checks stay: a rule the line was given, a valid evidence id, a promo or offer term.
+- **Verifier (`prompts/verifier.md`, `app/agents/verifier.py`):** one `VERIFY_MODEL` call (gemini-3.8-flash, `VERIFY_THINKING=LOW`) per candidate, in parallel, run only on lines with a candidate.
+  - Inputs: the line, the last two finals, the candidate (kind, rule text or field, span, stated value, correction, claim kind, group, recorded results for TEST-QUALIFIER), and the product's documents as numbered sentences, with the release files as cached parts in docs mode. The documents are the cached prefix.
+  - Output: evidence id, one-sentence reason, keep or reject, and the final severity (compliance).
+  - A reject is dropped and logged with its reason ("verifier: ...").
+  - A kept compliance alert takes the verifier's severity.
+  - A timeout or error keeps the candidate as an alert marked `unverified`.
+  - Unknown evidence ids keep the candidate, unverified.
+  - Code checks only provenance: a correction's number must be in a passage or recorded value of the product.
+- **Latency:** the verifier runs after the flagger, so the added time per line is the slowest of its parallel calls. It is logged ("verifier: compliance/facts added N ms"), and the eval rows carry each verifier call's latency and token usage.
+- **Tokens (offline, demo cream):** system about 1.1k, SOURCE about 2.7k (cached), the candidate and line about 0.25k; in docs mode the files come on top (cached). The Gemini explicit cache needs a prefix of 4,096 tokens, so a small product without files may not get one. Output is about 50 tokens plus LOW thinking.
+- **Tests:** `tests/test_verifier.py`: keep or reject or failure on compliance and on facts end to end; severity from the verifier; guards drop what the verifier now decides; provenance still drops an invented number. Suite: 1185 passed.
