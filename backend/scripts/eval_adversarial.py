@@ -39,7 +39,7 @@ from eval_holdout_sequences import ReplayClock  # noqa: E402
 from app.config import REPO_DIR, Settings, get_settings  # noqa: E402
 from app.context import build_context  # noqa: E402
 from app.logic.qualifier import RULE_ID as QUALIFIER  # noqa: E402
-from app.models.session import AgentCall  # noqa: E402
+from app.models.session import AgentCall, Event  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.pipelines.utterances import operator_switch  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
@@ -117,6 +117,9 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 "facts": [{"input": k, "ms": sum(c.latency_ms for c in v), "tries": len(v), "final_status": v[-1].status,
                            "timeouts": sum(c.status == "timeout" for c in v)} for k, v in tries.items()],
                 "on_air": on_air_pid,  # D-279: the product on air when the line was spoken
+                # D-288: "check this line" cards (REFLEX_ON_FAIL=card), counted apart from alerts
+                "reflex_card": [e.payload for e in await rt.ctx.store.query(rt.path("events"), Event)
+                                if e.type == "line.check"],
                 "alerts": [{"kind": a.kind, "product_id": a.product_id, "rule_id": a.rule_id, "severity": a.severity,
                             "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,

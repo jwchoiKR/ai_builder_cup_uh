@@ -84,6 +84,8 @@ class Settings(BaseSettings):
     JUDGE_HEDGE_MS: int = 1500
     # D-287: which alert-path agents get the second request ("compliance,fact": names or prefixes); empty = all
     HEDGED_AGENTS: str = ""
+    # D-288: when every compliance call fails, a reflex hit is a HIGH alert (today) or a neutral "check this line" card
+    REFLEX_ON_FAIL: Literal["alert", "card"] = "alert"
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # join a final with the previous unfinished one (D-088); 0 = off
     # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
     # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more

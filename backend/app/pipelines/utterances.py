@@ -535,7 +535,20 @@ class UtterancePipeline:
                            and (a.transcript_id in protected or
                                 (a.transcript_id != t.transcript_id and
                                  t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain))}
-        if judge is None:
+        if judge is None and rt.settings.REFLEX_ON_FAIL == "card":
+            # D-288 (A1): no rule alert from a regex alone ("suitable for eczema-prone skin" is approved wording); the
+            # host and the operator get a neutral card to check the line, counted apart from alerts
+            for a in provisional:
+                a.status = "cleared"
+                await self._save_alert_change_locked(a)
+            live = [h for h in hits if not h.negated and not h.quoted]
+            if live:
+                await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text,
+                                             "rule_ids": sorted({h.rule_id for h in live}),
+                                             "phrases": sorted({h.phrase for h in live})})
+            await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": []})
+            await self._apply_corrections_locked(t, text, [], protected, now)
+        elif judge is None:
             # §8.4.3 judge failed: fail toward warning
             changed = alert_logic.apply_judge_failure(provisional, hits, say_instead_fallback(rt.catalog, on_air), now)
             for a in changed:
