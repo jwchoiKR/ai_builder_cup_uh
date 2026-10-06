@@ -236,7 +236,8 @@ export function HostView({
   const { mediums, facts } = hostBanners(state);
   const onAir = runOfShow(state, catalog, now).find((i) => i.status === "on_air");
   const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
-  const checking = provisionalAlerts(state).length > 0;
+  // D-306: also while the verifier checks a line's candidates (an alert shows only once it answers)
+  const checking = provisionalAlerts(state).length > 0 || Object.keys(state.verifying).length > 0;
   const lineCheck = activeLineCheck(state, clientNow); // D-288: below every alert
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;

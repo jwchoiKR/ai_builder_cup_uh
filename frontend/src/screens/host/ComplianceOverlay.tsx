@@ -45,7 +45,7 @@ export function ComplianceOverlay({
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
             <ShieldQuestionMark aria-hidden />
-            {t("AI check unavailable")}
+            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
           </span>
         )}
         <span className={styles.alertSaid}>

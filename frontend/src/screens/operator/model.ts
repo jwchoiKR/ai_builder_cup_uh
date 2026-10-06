@@ -238,10 +238,17 @@ export function alertLatencyMs(a: Alert, transcripts: Record<string, Transcript>
 
 export interface SystemCard {
   key: string;
-  kind: "missing_points" | "judge_failed" | "overtime";
+  kind: "missing_points" | "judge_failed" | "overtime" | "ai_delay";
   text: string;
   missingTexts?: string[];
 }
+
+const VERIFY_CAUSES: Record<string, string> = {
+  http_504: "Google shared capacity busy",
+  http_429: "Google shared capacity busy",
+  client_timeout: "AI response delayed",
+  other_error: "AI error",
+};
 
 export function systemCards(state: ClientState, catalog: Catalog | null, now: number, t: Translate = EN): SystemCard[] {
   const cards: SystemCard[] = [];
@@ -260,6 +267,16 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
   }
   for (const j of state.judgeFailures) {
     cards.push({ key: `judge:${j.transcript_id}`, kind: "judge_failed", text: t("AI check unavailable for the last sentence") });
+  }
+  const vh = state.verifyHealth;
+  if (vh && vh.no_answer > 0) {
+    // D-306: verifier calls with no answer, with their most common cause; a new failure shows the card again
+    const top = Object.entries(vh.by).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "other_error";
+    cards.push({
+      key: `verify:${vh.no_answer}`,
+      kind: "ai_delay",
+      text: t("No AI answer: {n} · {cause}", { n: vh.no_answer, cause: t(VERIFY_CAUSES[top] ?? "AI error") }),
+    });
   }
   const onAir = onAirSegment(state);
   for (const o of Object.values(state.overtime)) {

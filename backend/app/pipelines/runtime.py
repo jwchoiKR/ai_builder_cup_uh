@@ -649,6 +649,7 @@ class SessionRuntime:
             "metrics": await self.compute_metrics(),
             "feed": self.feed.state(),
             "judge_health": {"degraded": list(self.utterances.degraded)},  # D-137
+            "verify_health": self.utterances.verify_health(),  # D-306
             "market": {"market": self.pack.market.market, "name": self.pack.market.name, "lang": self.pack.lang,
                        "tier": self.tier,  # D-150
                        # D-228: no law pack covers this release's category: no compliance checks run

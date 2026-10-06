@@ -60,7 +60,9 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
         <ShieldAlert size={16} aria-hidden />
         <span className={styles.alertTitle}>{complianceTitle(a, now, t)}</span>
         <Chip tone="risk">{t(a.severity ?? "HIGH")}</Chip>
-        {a.unverified && <Chip tone="fact">{t("AI check unavailable")}</Chip>}
+        {a.unverified && (
+          <Chip tone="fact">{a.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}</Chip>
+        )}
       </header>
       {corrected ? (
         <p className={styles.alertText}>{corrected}</p>

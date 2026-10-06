@@ -23,6 +23,7 @@ import type {
   StateSnapshot,
   SwitchState,
   Transcript,
+  VerifyHealth,
 } from "./types";
 
 export interface OvertimeInfo {
@@ -91,6 +92,10 @@ export interface ClientState {
   lineChecks: LineCheck[]; // oldest first, max 10
   /** D-137: judges that failed on the last finals in a row (empty: healthy) */
   judgeDegraded: string[];
+  /** D-306: lines whose candidates the verifier is checking (transcript id -> kind): the host's grey chip */
+  verifying: Record<string, string>;
+  /** D-306: verifier calls with no answer, by cause (operator only) */
+  verifyHealth: VerifyHealth | null;
   /** D-150: market and language of the session (null before the snapshot) */
   market: SessionMarket | null;
   summaryReady: boolean;
@@ -132,6 +137,8 @@ export function emptyState(role: Role): ClientState {
     metrics: {},
     feed: null,
     judgeDegraded: [],
+    verifying: {},
+    verifyHealth: null,
     market: null,
     agentCalls: [],
     actions: [],
@@ -177,6 +184,7 @@ export function reduceSnapshot(snap: StateSnapshot, role: Role, clientNow: numbe
     metrics: snap.metrics ?? {},
     feed: snap.feed ?? null,
     judgeDegraded: snap.judge_health?.degraded ?? [],
+    verifyHealth: snap.verify_health ?? null,
     market: snap.market ?? null,
     agentCalls: [...(snap.agent_calls ?? [])].reverse().slice(0, MAX_LOG),
   };
@@ -444,6 +452,18 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
 
     case "judge.health":
       return { ...state, judgeDegraded: (p.degraded as string[]) ?? [] };
+
+    case "verify.started":
+      return { ...state, verifying: { ...state.verifying, [String(p.transcript_id)]: String(p.kind) } };
+
+    case "verify.done": {
+      const verifying = { ...state.verifying };
+      delete verifying[String(p.transcript_id)];
+      return { ...state, verifying };
+    }
+
+    case "verify.health":
+      return { ...state, verifyHealth: p as unknown as VerifyHealth };
 
     case "summary.ready":
       return { ...state, summaryReady: true };

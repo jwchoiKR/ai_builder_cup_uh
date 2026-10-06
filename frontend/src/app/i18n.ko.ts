@@ -60,6 +60,7 @@ export const KO_HOST: Record<string, string> = {
   "High-risk claim": "고위험 표현",
   "HIGH-RISK CLAIM": "고위험 표현",
   "AI check unavailable": "AI 확인 불가",
+  "Unverified (AI response delayed)": "미확인 (AI 응답 지연)",
   "Heard:": "들린 말:",
   "{a} of {b}": "{b}개 중 {a}",
   "Say this instead.": "이렇게 말하세요.",

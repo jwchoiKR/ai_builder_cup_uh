@@ -130,6 +130,8 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     votes: int | None = None  # D-302 JUDGE_ARM=vote: the runs (of 3) that agreed
     evidence_ids: list[str] = []  # D-302: the relation arm's evidence sentence ids
     heard_check: bool = False  # D-303: a fact note shown as "check what was said", not as a correction
+    # D-306: why an alert is unverified: the verifier's failure (http_504, client_timeout, http_429, other_error)
+    unverified_reason: str | None = None
     # fact
     field: str | None = None
     stated_value: str | None = None
@@ -244,6 +246,7 @@ class AgentCall(BaseModel):  # [sessions/{sid}/agent_calls/{id}] audit
     output: dict | None = None
     error: str | None = None
     usage: dict | None = None  # D-187: tokens {prompt, output, thoughts, cached} as the model reported them
+    failure: str | None = None  # D-306: http_504, client_timeout, http_429 or other_error (None when ok)
 
 
 class Event(BaseModel):  # [sessions/{sid}/events/{seq}]

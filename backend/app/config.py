@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     VOTE_CONFIDENCE: Literal["off", "self"] = "off"
     VERIFY_MODEL: str = "gemini-3.8-flash"
     VERIFY_THINKING: ThinkingLevel = "LOW"
-    VERIFY_TIMEOUT_MS: int = 3000  # a slower verifier keeps the candidate as an unverified alert
+    VERIFY_TIMEOUT_MS: int = 5000  # D-306 (was 3000): a slower verifier keeps the alert, "unverified (AI delayed)"
     # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and two neighbours each side)
     VERIFY_EVIDENCE: Literal["all", "window"] = "window"  # D-305
     # D-303 (STT set): the judges and the verifier are told the line is speech-to-text (missing quote marks,
@@ -118,10 +118,10 @@ class Settings(BaseSettings):
     # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
     JUDGE_HEDGE_MS: int = 1500
     # D-287: which alert-path agents get the second request ("compliance,fact": names or prefixes); empty = all
-    HEDGED_AGENTS: str = "compliance,fact,context"  # D-293
+    HEDGED_AGENTS: str = "compliance,fact,context,verifier"  # D-293; D-306 adds the verifier
     # D-292: a later second request for some agents ("fact=3000,context=2000": name or prefix = ms); the others use
     # JUDGE_HEDGE_MS. A delay at or past the agent's deadline sends no second request
-    HEDGE_DELAYS: str = "fact=3000,context=2000"  # D-293
+    HEDGE_DELAYS: str = "fact=3000,context=2000,verifier=2000"  # D-293; D-306 verifier
     # D-288: when every compliance call fails, a reflex hit is a HIGH alert (today) or a neutral "check this line" card
     REFLEX_ON_FAIL: Literal["alert", "card"] = "card"  # D-293
     UTTERANCE_MERGE_WINDOW_MS: int = 0  # D-305 (was 3500)  # join a final with the previous unfinished one (D-088); 0 = off
