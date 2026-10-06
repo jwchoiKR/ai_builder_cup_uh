@@ -59,7 +59,8 @@ def test_d150_the_malaysia_pack_builds_in_rm(settings, tmp_path):
     my = MarketPack.model_validate(json.loads((data / "markets" / "my.json").read_text(encoding="utf-8")))
     en = LangPack.model_validate(json.loads((data / "lang" / "en.json").read_text(encoding="utf-8")))
     rules = claim_rules(my, en)
-    assert my.tier == "preview" and len(rules.rules) == 23
+    assert my.tier == "preview" and len(rules.rules) == 19  # D-278: the demo brand's 4 rules left the market pack
+    assert not any(r.rule_id.startswith("BRAND-") or r.source_id == "PRODUCT_SHEET" for r in rules.rules)
     assert {"MY-HALAL-UNVERIFIED", "MY-AUTHORITY-APPROVAL"} <= {r.rule_id for r in rules.rules}
     pack = DataPack.load(data, "MY", "en")
     assert pack.products.currency_symbol == "RM"

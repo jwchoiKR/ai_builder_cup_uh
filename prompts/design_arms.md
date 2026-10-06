@@ -10,7 +10,7 @@ Design arm B: the server checks your output instead of judging the wording itsel
 - Correction quotes: for every alert_id you put in `corrects_alert_ids`, also add `{"alert_id": ..., "quote": ...}`
   to `correction.quotes`. `quote` is the exact words of UTTERANCE that make the correction, copied verbatim, at
   least two words. The server accepts a correction only when it finds your quote in UTTERANCE.
-- Test results: every violation has `qualified_result_id`. For a BRAND-TEST-QUALIFIER violation, set it to the
+- Test results: every violation has `qualified_result_id`. For a TEST-QUALIFIER violation, set it to the
   `result_id` in QUALIFIED_RESULTS whose result the host stated (the same numbers); null when none matches, and the
   server then drops the violation. For every other rule it is null.
 

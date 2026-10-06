@@ -4,7 +4,7 @@ from __future__ import annotations
 KNOWN_KEYS = frozenset({"compliance", "rule_id", "severity", "negated", "quoted", "fact", "field",
                         "correct_value", "answer", "matched_group", "consistent_with_suggested",
                         "covered_points", "switch", "target", "corrects_alert_ids", "note", "qualifier_ok"})
-QUALIFIER_RULE = "BRAND-TEST-QUALIFIER"
+QUALIFIER_RULE = "TEST-QUALIFIER"
 PRICE_FIELDS = frozenset({"price", "set_price", "promo"})  # a time-sale price is filed as either (holdout H046)
 
 
@@ -29,7 +29,7 @@ def expectation_checks(expected: dict, judge: dict, facts: dict, same_value,
         checks.append(("comp", "catches the violation (right rule)", ok, str(active)))
     else:
         name = "no alert on negated/quoted/approved wording" if "compliance" in expected else "leak: alert on a sentence with no compliance claim"
-        # qualifier_ok: a lone BRAND-TEST-QUALIFIER MEDIUM is allowed here, not required; any other alert is a leak
+        # qualifier_ok: a lone TEST-QUALIFIER MEDIUM is allowed here, not required; any other alert is a leak
         allowed = (expected.get("qualifier_ok") is True and len(active) == 1
                    and active[0].get("rule_id") == QUALIFIER_RULE and active[0].get("severity") == "MEDIUM")
         checks.append(("comp", name, not active or allowed, str(active)))

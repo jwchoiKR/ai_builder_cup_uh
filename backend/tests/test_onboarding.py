@@ -1257,7 +1257,7 @@ async def test_d258_a_capitalised_word_is_no_named_source(tmp_path, monkeypatch,
     rid = save_release(tmp_path, rec, "job")
     monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
     backend = ScriptedBackend()
-    backend.judge(line, violations=[violation("BRAND-TEST-QUALIFIER", "SPF50+ PA++++", severity="MEDIUM")])
+    backend.judge(line, violations=[violation("TEST-QUALIFIER", "SPF50+ PA++++", severity="MEDIUM")])
     ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
     case = {"case_id": "Q", "type": "t", "current_product_id": product_key(rec), "utterance": line,
             "expected": {"risky": True, "kind": "compliance"}}
@@ -1266,7 +1266,7 @@ async def test_d258_a_capitalised_word_is_no_named_source(tmp_path, monkeypatch,
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-    assert bool([a for a in row["alerts"] if a["rule_id"] == "BRAND-TEST-QUALIFIER"]) is alert
+    assert bool([a for a in row["alerts"] if a["rule_id"] == "TEST-QUALIFIER"]) is alert
 
 
 @pytest.mark.parametrize("line, stated, alert", [
@@ -1350,7 +1350,7 @@ async def test_d260_a_result_said_in_number_words_keeps_its_qualifier_alert(tmp_
     rid = save_release(tmp_path, rec, "job")
     monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
     backend = ScriptedBackend()
-    backend.judge(line, violations=[violation("BRAND-TEST-QUALIFIER", "stays non-transferring for eight hours",
+    backend.judge(line, violations=[violation("TEST-QUALIFIER", "stays non-transferring for eight hours",
                                               severity="MEDIUM")])
     ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
     case = {"case_id": "Q", "type": "t", "current_product_id": product_key(rec), "utterance": line,
@@ -1360,7 +1360,7 @@ async def test_d260_a_result_said_in_number_words_keeps_its_qualifier_alert(tmp_
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-    assert [a["rule_id"] for a in row["alerts"]] == ["BRAND-TEST-QUALIFIER"] and row["dropped"] == []
+    assert [a["rule_id"] for a in row["alerts"]] == ["TEST-QUALIFIER"] and row["dropped"] == []
 
 
 async def test_d260_opposite_polarity_is_no_restatement_and_availability_is_a_field(tmp_path, monkeypatch):

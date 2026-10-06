@@ -15,7 +15,7 @@ class PrompterPoint(BaseModel):
 
 
 class QualifiedResult(BaseModel):
-    """Approved wording of one in-house test number, with its qualifier (BRAND-TEST-QUALIFIER, D-105)."""
+    """Approved wording of one in-house test number, with its qualifier (TEST-QUALIFIER, D-105)."""
     result_id: str
     numbers: list[str]  # digits as heard after normalisation: "45", "0", "32"
     say: str

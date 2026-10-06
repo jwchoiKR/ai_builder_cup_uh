@@ -1,4 +1,4 @@
-"""BRAND-TEST-QUALIFIER (D-105, PLANNING 5.1.3): test numbers need "in our in-house test"."""
+"""TEST-QUALIFIER (D-105, PLANNING 5.1.3): test numbers need "in our in-house test"."""
 from __future__ import annotations
 
 import pytest

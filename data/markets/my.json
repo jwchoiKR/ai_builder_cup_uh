@@ -47,12 +47,6 @@
       "note": "Minister under Trade Descriptions Act 2011; gazetted 30 December 2011, effective 1 January 2012. Paragraphs 3-5. Check current recognized foreign certification bodies separately."
     },
     {
-      "source_id": "PRODUCT_SHEET",
-      "title": "Brand claims policy (fictional brand)",
-      "file": "data/products/*.pdf",
-      "note": "Fictional brand policy, not legislation; same product restrictions as SG. Publication date not specified."
-    },
-    {
       "source_id": "GOOGLE_STT",
       "title": "Chirp 3 Transcription: Enhanced multilingual accuracy",
       "publisher_url": "https://docs.cloud.google.com/speech-to-text/docs/models/chirp-3",
@@ -80,7 +74,7 @@
       "source_id": "MY_CLAIMS",
       "source_ref": "2.d",
       "title": "Disease treatment or prevention",
-      "description": "same: no medicinal presentation.",
+      "description": "A cosmetic must not be presented as treating or preventing disease in human beings. This covers spoken claims made in the broadcast. Malaysia: No medicinal presentation.",
       "severity": "HIGH"
     },
     {
@@ -89,7 +83,7 @@
       "source_id": "MY_CLAIMS",
       "source_ref": "2.e",
       "title": "Permanent results",
-      "description": "same: effects ordinarily require continued use.",
+      "description": "Cosmetic effects are typically not permanent and require regular use to be maintained. Claims of permanent results are not cosmetic. Malaysia: Effects ordinarily require continued use.",
       "severity": "HIGH"
     },
     {
@@ -98,7 +92,7 @@
       "source_id": "MY_CLAIMS",
       "source_ref": "Decision process step 5; 3, Skin product",
       "title": "Physiological modification",
-      "description": "HIGH unchanged; local examples additionally cover cellular mechanisms.",
+      "description": "A product that permanently restores, corrects or modifies physiological function by a pharmacological, immunological or metabolic action is not a cosmetic. Malaysia: Local examples additionally cover cellular mechanisms.",
       "severity": "HIGH"
     },
     {
@@ -107,7 +101,7 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "3, Skin products; MY_CLAIMS 3",
       "title": "Ageing reversal",
-      "description": "same: physiological ageing claims.",
+      "description": "Listed as unacceptable for skin products: 'Prevents, reduces or reverses the physiological changes and degeneration conditions brought about by aging'. Malaysia: Physiological ageing claims.",
       "severity": "HIGH"
     },
     {
@@ -116,7 +110,7 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "3, Skin products",
       "title": "Scar removal",
-      "description": "same.",
+      "description": "Listed as unacceptable for skin products: 'Removes scars'.",
       "severity": "HIGH"
     },
     {
@@ -125,7 +119,7 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "3, Skin products; MY_CLAIMS 3",
       "title": "Acne treatment",
-      "description": "same for these moisturisers; assess permitted secondary claims separately.",
+      "description": "Listed as unacceptable for skin products: 'Prevents, heals, treats or stops acne'. Malaysia: Assess permitted secondary claims separately.",
       "severity": "HIGH"
     },
     {
@@ -134,7 +128,7 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "3, Skin products",
       "title": "Body modification",
-      "description": "same: cellulite treatment, slimming, swelling or fat removal.",
+      "description": "Listed as unacceptable for skin products: treatment of cellulite, lose centimetres, reduces/controls swelling/oedema, removes/burns fat. Malaysia: Cellulite treatment, slimming, swelling or fat removal.",
       "severity": "HIGH"
     },
     {
@@ -143,7 +137,7 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "3, Skin products",
       "title": "Numbing",
-      "description": "same; temporary tingling is not automatically numbing.",
+      "description": "Listed as unacceptable for skin products: 'Numbing effect'. Not this rule: describing a mild, temporary sensation that the product's own data states (such as a light tingle), with its caution. Malaysia: Temporary tingling is not automatically numbing.",
       "severity": "HIGH"
     },
     {
@@ -152,26 +146,17 @@
       "source_id": "ASEAN_APPENDIX_III",
       "source_ref": "3, Skin products; MY_CLAIMS 3, Others",
       "title": "Fungicidal or virucidal action",
-      "description": "same; do not blanket-ban authorized antibacterial product categories.",
+      "description": "Listed as unacceptable for skin products: 'Fungicidal action', 'Virucidal action'. Malaysia: Do not blanket-ban authorized antibacterial product categories.",
       "severity": "HIGH"
     },
     {
       "rule_id": "ASEAN-2D-VULNERABLE",
       "category": "vulnerable",
       "source_id": "MY_CLAIMS",
-      "source_ref": "2.d.vi; PRODUCT_SHEET",
+      "source_ref": "2.d.vi",
       "title": "Unsupported vulnerable-user assurances",
-      "description": "same product policy; population targeting alone is not a blanket prohibition.",
+      "description": "Product presentation includes marketing aimed at population groups with, or particularly vulnerable to, specific diseases or adverse conditions. Not this rule: telling pregnant or breastfeeding viewers that the product was not tested for them, or that they should check with their doctor first. Not this rule either: a skin-type suitability statement (\"suitable for all skin types\", \"good for sensitive or oily skin\"); skin types are not a vulnerable group. This rule is about named groups with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema) or safety promises to them (\"safe for everyone\"). Malaysia: Population targeting alone is not a blanket prohibition.",
       "severity": "HIGH"
-    },
-    {
-      "rule_id": "BRAND-SUPERLATIVE",
-      "category": "superlative",
-      "source_id": "PRODUCT_SHEET",
-      "source_ref": "7; MY_ADVERTISING 8",
-      "title": "Unapproved superlatives",
-      "description": "MEDIUM unchanged; law permits substantiated superlatives, brand remains stricter.",
-      "severity": "MEDIUM"
     },
     {
       "rule_id": "MY-ABSOLUTE-SAFETY",
@@ -180,33 +165,6 @@
       "source_ref": "3.a.iii",
       "title": "Absolute safety",
       "description": "Claims or implies freedom from side effects or harm, or safety because ingredients are natural. Excludes bounded, substantiated test results, cautions and denials.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "BRAND-MEDICINE-LIKE",
-      "category": "medicine_like",
-      "source_id": "PRODUCT_SHEET",
-      "source_ref": "7; MY_ADVERTISING 3",
-      "title": "Medicine comparison",
-      "description": "MEDIUM unchanged for analogy; actual medicinal efficacy also triggers disease HIGH.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "BRAND-WHITENING",
-      "category": "whitening",
-      "source_id": "PRODUCT_SHEET",
-      "source_ref": "7; MY_CLAIMS 3, Skin product",
-      "title": "Unapproved whitening",
-      "description": "same brand ban; not a blanket Malaysian whitening prohibition.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "BRAND-TEST-QUALIFIER",
-      "category": "test_qualifier",
-      "source_id": "PRODUCT_SHEET",
-      "source_ref": "5 and 7",
-      "title": "Test result without its qualifier",
-      "description": "Brand policy: a result of a test, study or certification must be said together with its qualifier from the product's data (who ran or certified it); the exact spoken qualifier is brand policy. This applies whoever ran the test: in-house, an independent laboratory, a clinical study, a consumer panel or a certification body. A generic mention that names no one ('testing confirmed', 'according to the tests', 'clinically proven', 'lab-tested') is not the qualifier.",
       "severity": "MEDIUM"
     },
     {

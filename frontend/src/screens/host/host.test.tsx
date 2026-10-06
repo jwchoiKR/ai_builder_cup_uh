@@ -291,7 +291,7 @@ describe("compliance", () => {
   const qualifier = alert({
     alert_id: "al_000002",
     transcript_id: "tr_000007",
-    rule_id: "BRAND-TEST-QUALIFIER",
+    rule_id: "TEST-QUALIFIER",
     severity: "MEDIUM",
     span: "increased by seventy percent",
     say_instead: "In our in-house test, skin hydration went up 45% right after one use.",
