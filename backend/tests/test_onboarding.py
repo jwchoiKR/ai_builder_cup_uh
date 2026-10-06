@@ -1665,3 +1665,29 @@ def test_d270_vulnerable_wording_arm_swaps_only_the_target_group_bullet(wording)
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+def test_d271_comparison_kind_takes_the_longest_phrase(pack):
+    lex = pack.lexicon
+    assert lex.comparison_kind("S$40 and above") == "ge"  # "above" alone is gt
+    assert lex.comparison_kind("for children 4 and up") == "ge"
+    assert lex.comparison_kind("ages 12 and under") == "le"
+    assert lex.comparison_kind("above S$40") == "gt"
+
+
+@pytest.mark.parametrize("line, stated, dropped", [
+    ("For children 4 and up.", "children 4 and up", True),  # the same range as "not ... under 4"
+    ("For children 3 and up.", "children 3 and up", False),  # another number
+    ("For children under 4 too.", "children under 4", False),  # the opposite range
+])
+async def test_d271_an_age_band_that_states_the_cautions_range_is_no_contradiction(tmp_path, monkeypatch, line,
+                                                                                   stated, dropped):
+    facts = [{"text": "Not suitable for children under 4 years.", "evidence": EV}]
+
+    def claim(pid, ps):
+        p = next(p for p in ps if p.text == facts[0]["text"])
+        return _claim(pid, p, field="caution", stated_value=stated, correct_value=facts[0]["text"])
+
+    row: dict = {}
+    alerts = await _release_line(tmp_path, monkeypatch, {"cautions": facts}, line, claim, row)
+    assert (alerts == []) is dropped
