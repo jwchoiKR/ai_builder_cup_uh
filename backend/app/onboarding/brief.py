@@ -34,7 +34,8 @@ instead. Up to 40 terms.
 B. Prompter points, written in {lang}: the must-say items: the key approved claims with their qualifiers and test
 conditions, the cautions the host must say, and the offers with their conditions. `required=true` for the cautions
 and the qualified claims that must be said. At most {max_points} points, each at most {max_chars} characters. Never a
-claim the record lists as not approved, and never a value the DOCUMENT does not state."""
+claim the record lists as not approved, and never a value the DOCUMENT does not state. In a point, name an ingredient
+the way a host can say it; an acronym with no spoken form (such as a UV filter's code) stays in the glossary only."""
 # D-269 arm "terms" (blind brief grading: 0 of 17 offer points kept all their conditions)
 OFFER_POINT_CHARS = 240
 OFFER_RULE = """
@@ -44,7 +45,12 @@ duration, where and to whom it applies, whether it combines with other offers, a
 up to {offer_chars} characters."""
 # D-272 arm "code" (blind grading: model-written offer points widened or narrowed offers and pushed out cautions)
 OFFER_CODE_RULE = """
-D. Offers: write no point about an offer. The offer points are added from the record after yours."""
+D. Offers: write no point about an offer. The offer points are added from the record after yours. In
+`document_notes`, copy exactly every term on an "Offers" line that only describes the document itself (how it writes
+amounts, what one of its lines does or does not mean) and is not a term of the offer."""
+# D-272 readability (blind grading of patch 1): an English condition that starts with its verb gets a subject
+_VERB_FIRST = frozenset({"is", "are", "can", "cannot", "can't", "may", "must", "does", "doesn't", "will", "applies",
+                         "excludes", "includes"})
 _SYMBOL = {"SGD": "S$", "MYR": "RM", "USD": "US$", "HKD": "HK$", "AUD": "A$", "GBP": "£", "EUR": "€", "JPY": "¥"}
 _COMPARE = {"gt": "above {}", "ge": "{} or more", "lt": "below {}", "le": "up to {}"}
 
@@ -115,7 +121,20 @@ def _norm(s: str) -> str:
     return " ".join(re.findall(r"\w+", s.lower()))
 
 
-def offer_lines(record: ProductRecord, lexicon=None) -> list[tuple[str, list[str]]]:
+def _numbers(text: str, glued: bool = True) -> set[str]:
+    """Every number as a plain value ("4.00" is "4"); `glued=False` leaves out one stuck to letters (SAVE10)."""
+    from decimal import Decimal
+
+    rx = r"\d+(?:\.\d+)?" if glued else r"(?<![A-Za-z])\d+(?:\.\d+)?"
+    return {format(Decimal(x).normalize(), "f") for x in re.findall(rx, text)}
+
+
+def _with_subject(c: str) -> str:
+    c = c.strip()
+    return f"It {c}" if c.split(" ", 1)[0].lower() in _VERB_FIRST else c
+
+
+def offer_lines(record: ProductRecord, lexicon=None, notes=()) -> list[tuple[str, list[str]]]:
     """D-272: (offer_id, sentences) per offer, from the record's own fields, in a fixed order: what the viewer gets;
     when; the terms as written. Patch 1 (blind grading: the combinable yes/no widened offers, a gift with purchase
     read as "buy 1, get 1", "minimum spend" for "above S$40", timestamps and key: value phrases): the combinable
@@ -123,13 +142,20 @@ def offer_lines(record: ProductRecord, lexicon=None) -> list[tuple[str, list[str
     decides the wording, so only a multibuy says "buy N, get M"; a spend threshold keeps the comparison its terms
     use; dates are said once, without times; money as "S$4". A value the title or a condition already says is not
     repeated. A code (capitals with a digit) the evidence quotes hold and the fields do not is added."""
+    drop = {_norm(n) for n in notes if _norm(n)}
     out = []
     for o in record.offers:
-        own = " ".join([o.title, *o.conditions])
-        nums = set(re.findall(r"(?<![A-Za-z])\d+(?:\.\d+)?", own))  # not the 10 of a code SAVE10
-        new = lambda m: str(money_value(m.currency, m.minor)).split(".")[0] not in nums  # noqa: E731
+        conditions = []
+        for c in o.conditions:
+            if _norm(c) in drop:
+                log.info("brief offer term dropped by code: the model marked it a note on the document | %r", c)
+            elif _norm(c) not in _norm(o.title):
+                conditions.append(c)
+        own = " ".join([o.title, *conditions])
+        nums, every = _numbers(own, glued=False), _numbers(own)  # a percent never matches the 10 of SAVE10
+        new = lambda m: format(money_value(m.currency, m.minor).normalize(), "f") not in every  # noqa: E731
         got = []
-        if o.kind == "percent_off" and o.percent and o.percent not in nums:
+        if o.kind == "percent_off" and o.percent and _numbers(o.percent).isdisjoint(nums):
             got.append(f"{o.percent}% off")
         elif o.kind == "amount_off" and o.amount is not None and new(o.amount):
             got.append(f"{_money(o.amount)} off")
@@ -143,14 +169,16 @@ def offer_lines(record: ProductRecord, lexicon=None) -> list[tuple[str, list[str
             got.append(f"when you spend {_threshold(o, lexicon)}")
         got += [f"with code {c}" for c in dict.fromkeys(_CODE.findall(" ".join(e.quote or "" for e in o.evidence)))
                 if c not in own]
-        lines = [o.title.strip().rstrip(".") + (": " + ", ".join(got) if got else "") + "."]
         dates = [d for d in (_date(o.starts or ""), _date(o.ends or "")) if d]
         when = None if dates and all(_said(d, own) for d in dates) else _when(o.starts, o.ends)
-        when = ", ".join(x for x in (when, f"for {o.duration_min} minutes" if o.duration_min else None) if x)
-        if when:
-            lines.append(f"Valid {when}.")
-        lines += _sentences([c for c in o.conditions if _norm(c) not in _norm(o.title)], "Terms: ")
-        out.append((o.offer_id, lines))
+        got += [x for x in (when, f"for {o.duration_min} minutes" if o.duration_min else None) if x]
+        # one headline, then at most two terms lines (D-272 readability)
+        lines = [o.title.strip().rstrip(".") + (": " + ", ".join(got) if got else "") + "."]
+        terms = [_with_subject(c) for c in conditions]
+        limit = MAX_POINT_CHARS
+        while len(cut := _sentences(terms, "Terms: ", limit)) > 2:
+            limit += 40
+        out.append((o.offer_id, lines + cut))
     return out
 
 
@@ -159,7 +187,7 @@ _KEEP = re.compile(r"\d+(?:[.,]\d+)?|\b[A-Z][A-Z0-9]*\d[A-Z0-9]*\b")  # numbers 
 
 
 async def offer_points(llm, record: ProductRecord, lang: str, session_id: str | None = None,
-                       lexicon=None) -> list[PointDraft]:
+                       lexicon=None, notes=()) -> list[PointDraft]:
     """D-272: the offer points in the show's language. The sentences are built in English from the record; another
     show language, or a record in another language, gets them translated (the D-232 prompt), and a translated line
     keeps its place only if every number and code survived, else the English line stays (logged)."""
@@ -167,7 +195,7 @@ async def offer_points(llm, record: ProductRecord, lang: str, session_id: str | 
     from .record import _Model
     from .translate import PROMPT
 
-    built = offer_lines(record, lexicon)
+    built = offer_lines(record, lexicon, notes)
     flat = [x for _, xs in built for x in xs]
     if flat and (lang.split("-")[0].lower() != "en" or record.language.split("-")[0].lower() != "en"):
         class Lines(_Model):
@@ -230,7 +258,7 @@ def release_document(record: ProductRecord, file_texts: list[tuple[str, str]] = 
 
 async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record: ProductRecord, lang: str, *,
                         model: str | None = None, thinking: str | None = None, deadline_ms: int = 60_000,
-                        offers: str = "sheet"):
+                        offers: str = "code"):
     """(AgentResult, seconds) of the BriefAgent on a release. `model`/`thinking` override BRIEF_MODEL/BRIEF_THINKING
     (scripts/eval_brief.py); `offers` is BRIEF_OFFERS (D-269)."""
     from .sources import release_sources
@@ -254,7 +282,8 @@ async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record
                 log.info("brief point dropped by code: offers come from the record | %r", p.text)
             else:
                 kept.append(p)
-        res.output.prompter_points = kept + await offer_points(llm, record, lang, lexicon=reflex.lexicon)
+        res.output.prompter_points = kept + await offer_points(llm, record, lang, lexicon=reflex.lexicon,
+                                                                notes=res.output.document_notes)
     return res, round(time.perf_counter() - t0, 1)
 
 
