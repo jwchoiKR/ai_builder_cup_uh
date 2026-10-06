@@ -81,14 +81,32 @@ async def _settle(rt) -> None:
         await PACE.sleep(0.5)
 
 
+DEMO_IDS = ("cream_hydra_barrier", "ampoule_deep_hydration")  # the cases' demo products, in the demo show's order
+
+
+async def show_session(ctx, release: str | None, show_mode: str = "solo"):
+    """D-307: the case's show and a map from the cases' product ids to the show's. A pack with a run-sheet (the test
+    pack) or a --release runs as before; a base without run-sheets (D-278) starts the demo show from its onboarded
+    releases (as /api/demo/reset does), whose products have release ids."""
+    runsheet = next(iter(ctx.pack.runsheets), "")
+    if release is not None or runsheet:
+        return await create_session(ctx, runsheet, show_mode, release_id=release), {}
+    from app.onboarding.demo import demo_release_ids
+
+    s = await create_session(ctx, "", show_mode, release_ids=demo_release_ids(ctx))
+    rt = await ctx.runtimes.get(s.session_id)
+    return s, dict(zip(DEMO_IDS, rt.catalog.order))
+
+
 async def run_scenario(ctx, case: dict, run_no: int) -> dict:
-    s = await create_session(ctx, next(iter(ctx.pack.runsheets)), case.get("show_mode", "solo"), release_id=RELEASE)
+    s, ids = await show_session(ctx, RELEASE, case.get("show_mode", "solo"))
     rt = await ctx.runtimes.get(s.session_id)
     rt.pd.agent = None
     try:
         await rt.start()
-        if RELEASE is None and (await rt.current_segment()).product_id != case["current_product_id"]:
-            await operator_switch(rt, case["current_product_id"])
+        current = ids.get(case["current_product_id"], case["current_product_id"])
+        if RELEASE is None and (await rt.current_segment()).product_id != current:
+            await operator_switch(rt, current)
         for pid in case.get("active_promos", []):
             await rt.start_promo(pid if isinstance(pid, str) else pid["promo_id"])
         t0 = PACE.now()
@@ -115,8 +133,8 @@ async def run_scenario(ctx, case: dict, run_no: int) -> dict:
                     pass  # its own timer already ended it (a slow run)
                 event_at["promo_end"] = rt.now()
             elif kind == "document_change":
-                pid = e["product_id"]
-                ctx.retriever.replace_product(pid, [p for p in ctx.pack.passages if p.product_id == pid])
+                pid = ids.get(e["product_id"], e["product_id"])
+                ctx.retriever.replace_product(pid, [p for p in rt.pack.passages if p.product_id == pid])
                 rt.sync_doc_version()
                 event_at["document_change"] = rt.now()
             elif kind == "host_confirm":
