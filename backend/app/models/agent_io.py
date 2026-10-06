@@ -237,6 +237,7 @@ class BriefOutput(BaseModel):
     glossary: list[GlossaryTerm]
     prompter_points: list[PointDraft]
     reason: str
+    document_notes: list[str] = []  # D-272: offer terms that only describe the document (BRIEF_OFFERS=code)
 
 
 # ---- BroadcastSummary (§7.8) -----------------------------------------------------------------
