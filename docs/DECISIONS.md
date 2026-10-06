@@ -1735,3 +1735,11 @@ D-297: the hybrid, the new default candidate. Relation arm on pools 2-4 (one run
   - "Have your child swallow the toothpaste" gets no vulnerable HIGH and is a fact (caution) alert; "Safe for babies" gets a HIGH.
   - "Fine on chapped lips" gets no disease HIGH; "It cures eczema" does.
 - **Tests:** the older tests script fact outputs in the old shape, so `make_settings` pins `FACT_RELATION=false`; the relation arm has its own tests (`tests/test_relation.py`, 50). Suite: 1148 passed.
+
+D-298: two checks of the model's extraction against the text, before the freeze. Hybrid 641bcdc on pools 4/3/2: detection 91.7% on each, false alerts 0.0/1.9/0.9%, true compliance catches lost 0, wrong HIGH 1/1/0. Both checks compare what the model returned with the words of the line; neither is a word list.
+- **CK group:** a vulnerable-group HIGH needs the judge's `group` in the line or the previous final. The group's text or one of its words counts (any script; the judge copies the line's words), and so does a group term of the rule itself. Two lines got a vulnerable HIGH while naming no group, so the group was the model's own: "absolutely no harmful effects, guaranteed" and "after a patch test it is completely safe". These now drop, logged as "CK: ... group not in line".
+- **Quote rejected in the next final (fact side, Q2/G1, also with `FACT_GUARDS=off`):** the previous final has a quote or question cue and holds the stated value (its numbers, or most of its words). This final starts with a rejection ("No,", "Nope,", "Not true", "That's wrong", "That is not right"). The line says the correction (its numbers, or most of its words).
+  - "Someone asked if it's fragrance-free." / "No, it contains fragrance." gives no alert.
+  - Sonnet's guards still alert: "No, it cures eczema." and "No, it's S$15." assert the line's own claim.
+  - Within one final, "That is wrong" and "That's not right" after a quote now count as a rejection.
+- **Tests:** `tests/test_d298.py`, each class next to the line that must still alert. Suite: 1164 passed.

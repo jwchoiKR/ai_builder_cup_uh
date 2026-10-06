@@ -155,8 +155,8 @@ async def test_d296_the_relation_arm_end_to_end(guards, relation, alerts):
         await close_env(rt)
 
 
-def _validate_r(catalog, line, violations, fixes):
-    """`_validate` with the relation arm's compliance output (`claim_made`)."""
+def _validate_r(catalog, line, violations, fixes, prev=None):
+    """`_validate` with the relation arm's compliance output (`claim_kind`, `group`), and a previous final."""
     import os
 
     from app.agents.utterance_judge import JudgeInput, build_judge_values, validate_compliance
@@ -164,6 +164,8 @@ def _validate_r(catalog, line, violations, fixes):
     from app.models.agent_io import ComplianceOutputR
 
     values = build_judge_values(catalog, JudgeInput(utterance=line, on_air=catalog.products[0].product_id))
+    if prev is not None:
+        values["last_two_final_transcripts_json"] = [prev]
     out = ComplianceOutputR.model_validate({"compliance": {"violations": violations},
                                             "correction": {"corrects_alert_ids": []}, "reason": "t"})
     old = os.environ.get("FACT_FIXES")
