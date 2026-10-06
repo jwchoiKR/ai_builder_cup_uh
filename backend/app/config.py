@@ -75,8 +75,7 @@ class Settings(BaseSettings):
     # D-187: write the calls and tokens per agent of this process as JSON to this path at exit ("" = off)
     LLM_USAGE_REPORT: str = ""
     # D-194 arm E: the Vertex AI Search serving config that picks the compliance rules for each spoken line
-    RULE_SEARCH_SERVING_CONFIG: str = ("projects/separk-cloocus/locations/global/collections/default_collection/"
-                                       "engines/live-studio-rules-engine/servingConfigs/default_search")
+    RULE_SEARCH_SERVING_CONFIG: str = ""  # D-289: not recreated in the new project (arm E only)
     RULE_SEARCH_PAGE_SIZE: int = 8
     RULE_SEARCH_TIMEOUT_MS: int = 1000
     # D-184: a judge or fact call still unanswered after this sends one identical second request; the first answer

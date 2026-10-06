@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Deploy Live Studio to Cloud Run with IAP (see docs/DEPLOY.md). Test deployments only.
 #   deploy/cloudrun.sh                     # us-central1, next to Speech-to-Text "us" (user, 10/5)
-# Env: IAP_MEMBERS (comma list; default user:jaewoo@cloocus.com). The project is fixed to separk-cloocus.
+# Env: IAP_MEMBERS (comma list; default user:jaewoo@cloocus.com). The project is fixed to ai-budiler-cup-uh-team-pjt (D-289; was separk-cloocus).
 set -euo pipefail
 
-PROJECT="separk-cloocus"  # never another project
+PROJECT="ai-budiler-cup-uh-team-pjt"  # never another project
 REGION="${1:-us-central1}"
 case "$REGION" in
   us-central1) SERVICE="live-studio-us" ;;
@@ -14,7 +14,7 @@ IAP_MEMBERS="${IAP_MEMBERS:-user:jaewoo@cloocus.com}"
 SA_NAME="live-studio-run"
 SA="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 REPO="live-studio"
-BUCKET="separk-cloocus-live-studio-onboarding"  # D-263: onboarding state (uploads, releases, law and brand packs)
+BUCKET="ai-budiler-cup-uh-team-pjt-live-studio-onboarding"  # D-263: onboarding state (uploads, releases, law and brand packs)
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/app:$(git rev-parse --short HEAD)"
 G="gcloud --project=${PROJECT}"
 
