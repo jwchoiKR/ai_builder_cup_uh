@@ -1641,3 +1641,16 @@ D-290: Q6 rule fit. A compliance verdict stands only if the line holds its rule 
   - Law-pack rules read at onboarding do not carry category wording yet, so Q6 does not touch them.
 - **Guards (made up, five or more categories):** 4 drops: "zero side effects" (hand gel, supplement) and superlatives (beard oil, kettle). 5 keeps stay HIGH: safe for everyone, safe in pregnancy, gentle enough for babies, never comes back, results are permanent.
 - **Suite with Q6 on:** one pinned case changes by design. "... suitable for all skin types" no longer keeps a scripted vulnerable HIGH, because the judge prompt already says skin-type suitability is not vulnerable marketing.
+
+D-291: Q3 and Q6 cover law-pack rules too. Pool 4 on 0c1ed4d, all fixes, 1 run: detection 96.3%, false alerts 0.9% (from 4.6%), wrong HIGH 1 (from 7). The last wrong HIGH was a disclaimer on a supplement that got a law-pack HIGH. This is logic.
+- **Q6:** `to_rules` (law and brand packs read at onboarding) now takes the language pack's category wording. A rule whose `rule_category` is a language category, or has one as a word ("vulnerable_groups" -> vulnerable, "permanent_results" -> permanent), gets that category's required terms.
+- **Q3:**
+  - Q3 applies whatever the rule's source.
+  - It also negates a violation when the line disclaims the claim itself, for example "these documents give no lab result that supports a no-side-effects claim", "we cannot claim" or "there is no evidence that shows".
+  - "Guarantees no ..." counts as a denial only for results or outcomes. "Guaranteed no side effects" stays a guarantee.
+- **Guards (made-up supplement lines on made-up law-pack rules):**
+  - The disclaimer and "we cannot claim" are negated.
+  - "Guaranteed no side effects" keeps its HIGH.
+  - "This protein powder cures kidney disease and has 50 g protein" keeps its cure HIGH: a fact error with a real rule.
+  - On a vulnerable-groups law rule, untargeted "zero side effects" drops and "safe for kids" stays.
+  - The category mapping is covered too: vulnerable_groups, permanent_results, safety and disease.
