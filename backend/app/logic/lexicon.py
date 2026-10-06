@@ -212,14 +212,13 @@ class Lexicon:
         return {str(v) for k, v in self.multiplicatives.items() if k in words}
 
     def comparison_kind(self, text: str) -> str | None:
-        """D-259: the kind of threshold a text words ("gt" for "above 40" or "> 40", "ge" for "at least 40")."""
+        """D-259: the kind of threshold a text words ("gt" for "above 40" or "> 40", "ge" for "at least 40").
+        D-271: the longest phrase wins, so "40 and above" is "ge", not the "gt" of "above"."""
         for sym, kind in (("≥", "ge"), (">=", "ge"), ("≤", "le"), ("<=", "le"), (">", "gt"), ("<", "lt")):
             if sym in text:
                 return kind
-        for kind, rx in self.comparison_kinds.items():
-            if rx.search(text):
-                return kind
-        return None
+        found = [(len(m.group()), kind) for kind, rx in self.comparison_kinds.items() for m in rx.finditer(text)]
+        return max(found)[1] if found else None
 
     def affirms(self, text: str) -> bool:
         """D-252: the line endorses something ("and yes, that's what it does", "I fully agree"); "I don't agree" is

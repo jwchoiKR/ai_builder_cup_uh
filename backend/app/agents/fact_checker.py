@@ -45,9 +45,34 @@ _FRAME = frozenset({"does", "contain", "includes", "include", "included", "made"
                     "states", "listed", "there", "have", "from", "that", "which", "only", "also", "said", "says"})
 
 
+_FLIP = {"gt": "le", "ge": "lt", "lt": "ge", "le": "gt"}
+
+
+def _negated_threshold(lex, text: str) -> bool:
+    """D-271: a negation before the threshold and before any number negates the threshold itself ("Not suitable for
+    children under 4" is a range of 4 and up; "no more than 2" is at most 2). In "S$40 does not qualify (above S$40)"
+    a number comes first, so the negation is about the number, not the threshold.
+    ponytail: digits only; a number in words before the negation still counts as no number."""
+    first = min((m.start() for rx in lex.comparison_kinds.values() if (m := rx.search(text))), default=None)
+    if first is None:
+        return False
+    before = text[:first].lower()
+    at = [m.start() for n in lex.negation_words if (m := re.search(rf"(?<!\w){re.escape(n)}(?!\w)", before))]
+    return bool(at) and not re.search(r"\d", before[:min(at)])
+
+
+def _range_kind(lex, text: str) -> str | None:
+    """The threshold kind a text states, with a negated threshold turned round (D-271)."""
+    kind = lex.comparison_kind(text)
+    return _FLIP.get(kind, kind) if kind and _negated_threshold(lex, text) else kind
+
+
 def _polarity_differs(lex, host: str, correct: str | None) -> bool:
     """D-260: "exactly S$40 qualifies" against "Exactly S$40 does not qualify": the same number, the opposite fact.
-    D-261: with a strict threshold on either side, "S$40 does not qualify" and "above S$40" agree."""
+    D-261: with a strict threshold on either side, "S$40 does not qualify" and "above S$40" agree.
+    D-271: a negated threshold is compared as its range (`_threshold_differs`), not as a polarity."""
+    if _negated_threshold(lex, host) or _negated_threshold(lex, correct or ""):
+        return False
     if {lex.comparison_kind(host), lex.comparison_kind(correct or "")} & {"gt", "lt"}:
         return False
     neg = lambda t: any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", (t or "").lower())  # noqa: E731
@@ -103,17 +128,17 @@ def _threshold_differs(lex, host: str, c, said: set) -> bool:
     """D-248: "> SGD 90" or "exceeds S$90" is a threshold; "exactly S$90" is not the same value. D-259: the kind of
     threshold counts too ("at least S$40" is not "above S$40"). True when the correction or the quote words the number
     as a threshold of another kind than the host's (no word: exact)."""
-    kind = lex.comparison_kind(c.correct_value or "")
+    kind = _range_kind(lex, c.correct_value or "")  # D-271: a negated threshold is its range
     if kind is None:
         q = c.quote or ""
         for m in re.finditer(r"\d[\d,]*(?:\.\d+)?", q):
             if number_set(m.group()) & said:
-                kind = lex.comparison_kind(q[max(0, m.start() - 20):m.end() + 15])
+                kind = _range_kind(lex, q[max(0, m.start() - 20):m.end() + 15])
                 if kind is not None:
                     break
     if kind is None:
         return False
-    host_kind = lex.comparison_kind(host)
+    host_kind = _range_kind(lex, host)
     if host_kind is None and lex.comparison.search(host):
         return False  # a language without kinds: any threshold word is the same threshold (D-248)
     return host_kind != kind
