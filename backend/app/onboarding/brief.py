@@ -45,8 +45,8 @@ up to {offer_chars} characters."""
 # D-272 arm "code" (blind grading: model-written offer points widened or narrowed offers and pushed out cautions)
 OFFER_CODE_RULE = """
 D. Offers: write no point about an offer. The offer points are added from the record after yours."""
-_AMOUNT = {"amount_off": "amount off", "fixed_price": "price", "spend_threshold_gift": "minimum spend",
-           "bundle": "bundle price"}
+_SYMBOL = {"SGD": "S$", "MYR": "RM", "USD": "US$", "HKD": "HK$", "AUD": "A$", "GBP": "£", "EUR": "€", "JPY": "¥"}
+_COMPARE = {"gt": "above {}", "ge": "{} or more", "lt": "below {}", "le": "up to {}"}
 
 
 def _sentences(items: list[str], head: str, limit: int = MAX_POINT_CHARS) -> list[str]:
@@ -62,51 +62,94 @@ def _sentences(items: list[str], head: str, limit: int = MAX_POINT_CHARS) -> lis
     return out + ([cur + "."] if cur != head else [])
 
 
-def _day(value: str) -> str:
-    """An ISO date as a host reads it ("2026-11-01" -> "1 November 2026"); anything else as written."""
+def _money(m) -> str:
+    """As a host says it: "S$4", "S$7.50", "RM119"; another currency by its code."""
+    v = money_value(m.currency, m.minor)
+    num = f"{v:,.0f}" if v == v.to_integral_value() else f"{v:,.2f}"
+    return f"{_SYMBOL[m.currency]}{num}" if m.currency in _SYMBOL else f"{num} {m.currency}"
+
+
+def _date(value: str):
     import datetime as dt
 
     try:
-        d = dt.date.fromisoformat(value[:10])
-    except ValueError:
-        return value
-    return f"{d.day} {d.strftime('%B')} {d.year}" + value[10:].replace("T", " ")
+        return dt.date.fromisoformat(value[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _when(starts: str | None, ends: str | None) -> str | None:
+    """Dates once, as said ("from 1 to 31 October 2026"); no times. A value that is not an ISO date stays as written."""
+    a, b = _date(starts or ""), _date(ends or "")
+    day = lambda d, month=True, year=True: f"{d.day}" + (f" {d.strftime('%B')}" if month else "") + (  # noqa: E731
+        f" {d.year}" if year else "")
+    if a and b:
+        return (f"from {day(a, a.month != b.month, a.year != b.year)} to {day(b)}"
+                if a != b else f"on {day(a)}")
+    if starts or ends:
+        return (f"from {day(a) if a else starts}" if starts else "") + (" " if starts and ends else "") + (
+            f"until {day(b) if b else ends}" if ends else "")
+    return None
+
+
+def _said(d, text: str) -> bool:
+    """The text already gives this date (its day number and its month's name or first three letters)."""
+    low = text.lower()
+    return (str(d.day) in re.findall(r"\d+", text)
+            and (d.strftime("%B").lower() in low or d.strftime("%b").lower() in low or f"{d.month:02d}" in text))
+
+
+def _threshold(o, lexicon) -> str:
+    """The spend threshold as the terms word it ("above S$40", "S$40 or more"); never a comparison of our own."""
+    amount = _money(o.amount)
+    num = str(money_value(o.amount.currency, o.amount.minor)).split(".")[0]
+    for q in (e.quote or "" for e in o.evidence):
+        for m in re.finditer(re.escape(num), q):
+            kind = lexicon.comparison_kind(q[max(0, m.start() - 20):m.end() + 15]) if lexicon is not None else None
+            if kind in _COMPARE:
+                return _COMPARE[kind].format(amount)
+    return f"the {amount} spend in the terms"
 
 
 def _norm(s: str) -> str:
     return " ".join(re.findall(r"\w+", s.lower()))
 
 
-def offer_lines(record: ProductRecord) -> list[tuple[str, list[str]]]:
-    """D-272: (offer_id, sentences) per offer, from the record's own fields only, in a fixed order: what the viewer
-    gets; when; the terms (each condition as written, then the record's combinability unless a condition already
-    words it). Nothing is generalised: the kind, amounts, dates and conditions are copied. The record has no code
-    field, so a code (capitals with a digit, "SAVE10") its evidence quotes and its own fields do not say is taken
-    from the quotes; a condition the title already says is left out.
-    ponytail: "combin" spots a condition about combining in English only; another language also gets the yes/no."""
+def offer_lines(record: ProductRecord, lexicon=None) -> list[tuple[str, list[str]]]:
+    """D-272: (offer_id, sentences) per offer, from the record's own fields, in a fixed order: what the viewer gets;
+    when; the terms as written. Patch 1 (blind grading: the combinable yes/no widened offers, a gift with purchase
+    read as "buy 1, get 1", "minimum spend" for "above S$40", timestamps and key: value phrases): the combinable
+    field is never printed (a condition that names what it combines with is printed as written); the offer's kind
+    decides the wording, so only a multibuy says "buy N, get M"; a spend threshold keeps the comparison its terms
+    use; dates are said once, without times; money as "S$4". A value the title or a condition already says is not
+    repeated. A code (capitals with a digit) the evidence quotes hold and the fields do not is added."""
     out = []
     for o in record.offers:
         own = " ".join([o.title, *o.conditions])
-        codes = [c for c in dict.fromkeys(_CODE.findall(" ".join(e.quote or "" for e in o.evidence))) if c not in own]
-        got = [f"code {c}" for c in codes]
-        if o.percent and f"{o.percent}%" not in o.title:
+        nums = set(re.findall(r"(?<![A-Za-z])\d+(?:\.\d+)?", own))  # not the 10 of a code SAVE10
+        new = lambda m: str(money_value(m.currency, m.minor)).split(".")[0] not in nums  # noqa: E731
+        got = []
+        if o.kind == "percent_off" and o.percent and o.percent not in nums:
             got.append(f"{o.percent}% off")
-        if o.amount is not None:
-            got.append(f"{_AMOUNT.get(o.kind, 'amount')} {money_value(o.amount.currency, o.amount.minor)} "
-                       f"{o.amount.currency}")
-        if o.buy and o.get:
+        elif o.kind == "amount_off" and o.amount is not None and new(o.amount):
+            got.append(f"{_money(o.amount)} off")
+        elif o.kind in ("fixed_price", "bundle") and o.amount is not None and new(o.amount):
+            got.append(f"for {_money(o.amount)}" + (f" for {o.buy}" if o.kind == "bundle" and o.buy else ""))
+        elif o.kind == "buy_x_get_y" and o.buy and o.get and not {str(o.buy), str(o.get)} <= nums:
             got.append(f"buy {o.buy}, get {o.get}")
-        if o.gift and o.gift.lower() not in o.title.lower():
-            got.append(f"gift: {o.gift}")
+        if o.gift and o.gift.lower() not in own.lower():
+            got.append(f"get a free {o.gift}")
+        if o.kind == "spend_threshold_gift" and o.amount is not None and new(o.amount):
+            got.append(f"when you spend {_threshold(o, lexicon)}")
+        got += [f"with code {c}" for c in dict.fromkeys(_CODE.findall(" ".join(e.quote or "" for e in o.evidence)))
+                if c not in own]
         lines = [o.title.strip().rstrip(".") + (": " + ", ".join(got) if got else "") + "."]
-        when = ([f"from {_day(o.starts)} to {_day(o.ends)}"] if o.starts and o.ends else [f"from {_day(o.starts)}"]
-                if o.starts else [f"until {_day(o.ends)}"] if o.ends else []) + ([f"for {o.duration_min} minutes"] if o.duration_min else [])
+        dates = [d for d in (_date(o.starts or ""), _date(o.ends or "")) if d]
+        when = None if dates and all(_said(d, own) for d in dates) else _when(o.starts, o.ends)
+        when = ", ".join(x for x in (when, f"for {o.duration_min} minutes" if o.duration_min else None) if x)
         if when:
-            lines.append("Valid " + ", ".join(when) + ".")
-        terms = [c for c in o.conditions if _norm(c) not in _norm(o.title)]
-        if o.combinable is not None and not any("combin" in c.lower() for c in terms):
-            terms.append(f"combinable with other offers or codes: {'yes' if o.combinable else 'no'}")
-        lines += _sentences(terms, "Terms: ")
+            lines.append(f"Valid {when}.")
+        lines += _sentences([c for c in o.conditions if _norm(c) not in _norm(o.title)], "Terms: ")
         out.append((o.offer_id, lines))
     return out
 
@@ -115,7 +158,8 @@ _CODE = re.compile(r"\b[A-Z][A-Z0-9]*\d[A-Z0-9]*\b")  # an offer code such as SA
 _KEEP = re.compile(r"\d+(?:[.,]\d+)?|\b[A-Z][A-Z0-9]*\d[A-Z0-9]*\b")  # numbers and codes such as SAVE10
 
 
-async def offer_points(llm, record: ProductRecord, lang: str, session_id: str | None = None) -> list[PointDraft]:
+async def offer_points(llm, record: ProductRecord, lang: str, session_id: str | None = None,
+                       lexicon=None) -> list[PointDraft]:
     """D-272: the offer points in the show's language. The sentences are built in English from the record; another
     show language, or a record in another language, gets them translated (the D-232 prompt), and a translated line
     keeps its place only if every number and code survived, else the English line stays (logged)."""
@@ -123,7 +167,7 @@ async def offer_points(llm, record: ProductRecord, lang: str, session_id: str | 
     from .record import _Model
     from .translate import PROMPT
 
-    built = offer_lines(record)
+    built = offer_lines(record, lexicon)
     flat = [x for _, xs in built for x in xs]
     if flat and (lang.split("-")[0].lower() != "en" or record.language.split("-")[0].lower() != "en"):
         class Lines(_Model):
@@ -210,7 +254,7 @@ async def brief_release(llm, prompt, reflex, root: Path, release_id: str, record
                 log.info("brief point dropped by code: offers come from the record | %r", p.text)
             else:
                 kept.append(p)
-        res.output.prompter_points = kept + await offer_points(llm, record, lang)
+        res.output.prompter_points = kept + await offer_points(llm, record, lang, lexicon=reflex.lexicon)
     return res, round(time.perf_counter() - t0, 1)
 
 
