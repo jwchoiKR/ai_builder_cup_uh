@@ -49,10 +49,11 @@ export function FactNote({ alert, catalog, onRendered, pricePromoTitle = null }:
       <div className={styles.alertTop}>
         <span className={styles.warnBadge}>
           <CircleAlert aria-hidden />
-          {t(label).toUpperCase()} {t("CORRECTION")}
+          {alert.heard_check ? t("CHECK WHAT WAS SAID") : `${t(label).toUpperCase()} ${t("CORRECTION")}`}
         </span>
         <span className={styles.alertSaid} data-testid="host-fact-wrong">
-          {t("Heard:")} ✕ {alert.stated_value}
+          {/* D-303: a possibly misheard number is shown as heard, without the wrong mark */}
+          {t("Heard:")} {alert.heard_check ? "" : "✕ "}{alert.stated_value}
         </span>
       </div>
       {/* D-136: one line the host can read out, with the product and the promo condition */}

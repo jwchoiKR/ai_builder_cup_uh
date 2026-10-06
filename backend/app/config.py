@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     VERIFY_TIMEOUT_MS: int = 3000  # a slower verifier keeps the candidate as an unverified alert
     # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and two neighbours each side)
     VERIFY_EVIDENCE: Literal["all", "window"] = "all"
+    # D-303 (STT set): the judges and the verifier are told the line is speech-to-text (missing quote marks,
+    # sound-alike names, misheard numbers, sentences in pieces)
+    STT_AWARE: bool = False
+    # D-303: the judges read the finals of the last N ms (0 = the last two)
+    CONTEXT_WINDOW_MS: int = 0
+    # D-303: the verifier may answer "check" when the only mismatch is one number speech-to-text may have misheard;
+    # the host sees "check what was said" with the heard words, not a correction
+    NUMBER_CHECK: bool = False
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     FACT_GUARDS: Literal["on", "off"] = "off"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage

@@ -128,6 +128,8 @@ export interface Alert {
   span: string | null;
   say_instead: string | null;
   unverified: boolean;
+  /** D-303: a fact note shown as "check what was said" (one misheard number), not a correction */
+  heard_check?: boolean;
   field: string | null;
   stated_value: string | null;
   correct_value: string | null;

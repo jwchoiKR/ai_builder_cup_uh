@@ -173,6 +173,7 @@ class FactClaim(BaseModel):
     _unverified: bool = PrivateAttr(default=False)  # D-300: kept without the verifier's verdict (timeout)
     _votes: int | None = PrivateAttr(default=None)  # D-302
     _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
+    _check: bool = PrivateAttr(default=False)  # D-303: "check what was said" (one misheard number), not a correction
 
 
 class FactCheckOutput(BaseModel):
@@ -213,6 +214,11 @@ class VerifyOutput(BaseModel):
     reason: str
     decision: Literal["keep", "reject"]
     severity: Literal["HIGH", "MEDIUM"] | None  # compliance: the final severity; a fact: null
+
+
+class VerifyOutputC(VerifyOutput):
+    """D-303 NUMBER_CHECK: "check" when the only mismatch is one number speech-to-text may have misheard."""
+    decision: Literal["keep", "reject", "check"]
 
 
 class JudgeSingleOutput(UtteranceJudgeOutput):

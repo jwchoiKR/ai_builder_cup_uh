@@ -447,16 +447,20 @@ class UtterancePipeline:
         alerts = [a for a in await rt.alerts() if a.transcript_id != t.transcript_id]
         inside = {t.transcript_id, *(merge.chain if merge else [])}  # already in the utterance text
         # D-117 B9: a bounded tail, not every transcript of the session
+        window = rt.settings.CONTEXT_WINDOW_MS  # D-303: the finals of the last N ms, in place of the last two
         tail = await rt.ctx.store.query(rt.path("transcripts"), Transcript, order_by="received_at", descending=True,
-                                        limit=len(inside) + 4)
+                                        limit=len(inside) + (30 if window else 4))
         previous = [x.text for x in reversed(tail) if x.transcript_id not in inside][-2:]
+        recent = ([x.text for x in reversed(tail) if x.transcript_id not in inside and x.is_final
+                   and x.received_at >= t.received_at - window] if window else None)
         questions = await self._open_questions_locked(s, on_air)
         promo = rt.promo(s.active_promo_id)
         card = s.pd_card  # D-112: the answer card on screen, else the first question slot
         on_screen = (card.ref_id if card is not None and card.status == "active" and card.kind == "answer_question"
                      else s.host_slots[0].group_id if s.host_slots else None)
         inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
-                         cue=s.cue, previous=previous, points_by_product=rt.points or None, session_id=rt.sid, scenario=scenario,
+                         cue=s.cue, previous=previous, recent=recent, points_by_product=rt.points or None,
+                         session_id=rt.sid, scenario=scenario,
                          switch=s.switch, promo=promo, on_screen_group_id=on_screen)
         # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
         offered: dict[str, Answer | None] = {}
@@ -509,8 +513,9 @@ class UtterancePipeline:
         res = await call
         if self.verifier is not None and res.status == "ok" and res.output is not None:
             start = self.rt.ctx.clock.now_ms()
-            res.output = await self.verifier.check_compliance(res.output, inp.utterance, inp.previous, on_air,
-                                                              self.rt.sid)
+            res.output = await self.verifier.check_compliance(res.output, inp.utterance,
+                                                              inp.recent if inp.recent is not None else inp.previous,
+                                                              on_air, self.rt.sid)
             log.info("verifier: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
         return res
 
@@ -541,7 +546,8 @@ class UtterancePipeline:
         s = await self.rt.load_session()
         offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
         inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
-                        passages=passages, previous=judge_input.previous, session_id=self.rt.sid, scenario=scenario,
+                        passages=passages, previous=judge_input.previous, recent=judge_input.recent,
+                        session_id=self.rt.sid, scenario=scenario,
                         offers=offers, parts=parts or [])
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
         if res.status in ("timeout", "error") and self.rt.catalog.lexicon.spoken_numbers(text):
@@ -557,7 +563,8 @@ class UtterancePipeline:
             log.info("vote: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
         if self.verifier is not None and res.status == "ok" and res.output is not None:
             start = self.rt.ctx.clock.now_ms()  # D-300 R2
-            res.output = await self.verifier.check_facts(res.output, text, inp.previous, on_air,
+            res.output = await self.verifier.check_facts(res.output, text,
+                                                         inp.recent if inp.recent is not None else inp.previous, on_air,
                                                          [*passages, *self.facts.all_file_passages], self.rt.sid)
             log.info("verifier: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
         return res

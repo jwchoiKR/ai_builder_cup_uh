@@ -1791,3 +1791,16 @@ D-302: the vote arm (`JUDGE_ARM=vote`, off by default): model votes in place of 
 - **On the alert:** `votes`, and for facts `evidence_ids` (the relation arm's sentence ids). The eval rows carry both. The pipeline logs "vote: compliance/facts added N ms" per line.
 - **`VOTE_CONFIDENCE=self`:** the compliance judge and the relation fact checker add a `confidence` (0-1) to each violation and claim. It is a log field only (in the eval rows' call outputs).
 - **Tests:** `tests/test_vote.py`. Suite: 1206 passed.
+
+D-303: switches for speech-to-text input. Pool 5 lines went through TTS (two voices) and our STT path. R3's code gates rose from 0.9% to 19.4% and 15.7% false alerts and from 0 to 5 and 3 wrong HIGH, for three reasons:
+- STT drops quote marks.
+- A brand comes out as a sound-alike, so the own-test check fails.
+- A sentence is split at a pause.
+R2 window (c58712d) on the same text gave 96.3 / 0.9 / 0. The user's direction: LLM judgment only, and code checks provenance and nothing else. The verify arm is the candidate, and no more code gates on meaning are added or tuned in guards mode.
+- **`STT_AWARE`:** the compliance judge, the fact checker and the verifier are told the line is speech-to-text. Quote marks may be missing, so words such as "someone asks" start a quote. Names may be sound-alikes. Numbers may be misheard. A sentence may arrive in pieces. Prompt addenda `STT` in `prompts/design_arms.md`, with made-up names.
+- **`CONTEXT_WINDOW_MS`:** the judges, the fact checker and the verifier read the finals of the last N ms (`recent`) as RECENT_TRANSCRIPT, in place of the last two; 0 keeps the last two.
+- **`NUMBER_CHECK`:** the verifier may decide `check` for a fact whose only mismatch is one number speech-to-text may have misheard (`VerifyOutputC`, CHECK addendum). The alert is kept with `heard_check`. The host screen shows "CHECK WHAT WAS SAID" with the heard words, without the wrong mark. The eval rows carry `heard_check`.
+- **Model notes (docs/VERIFIED.md):**
+  - `gemini-3.5-flash` is a GA model id; its thinking levels were not checked here.
+  - Flash-Lite and 3.8 Flash ignore a custom temperature, so `VOTE_TEMPERATURE` had no effect. The vote arm (3/3 on 112 of 130 alerts) stays off.
+- **Tests:** `tests/test_d303.py` and a host-screen test. Suite: 1213 passed; frontend 179 passed.

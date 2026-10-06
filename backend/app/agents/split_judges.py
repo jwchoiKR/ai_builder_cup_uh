@@ -54,6 +54,9 @@ class _SplitJudge:
         for f in sorted(fixes_of(getattr(getattr(llm, "settings", None), "FACT_FIXES", "") or "")):
             if extra := arms._addenda(str(llm.prompts_path)).get((f, self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        if getattr(getattr(llm, "settings", None), "STT_AWARE", False):  # D-303
+            if extra := arms._addenda(str(llm.prompts_path)).get(("STT", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         raise NotImplementedError

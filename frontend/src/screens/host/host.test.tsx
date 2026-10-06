@@ -787,3 +787,19 @@ describe("line check (D-288)", () => {
     expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
   });
 });
+
+describe("check what was said (D-303)", () => {
+  it("shows a possibly misheard number as heard, without the wrong mark", () => {
+    const base = { alert_id: "fx_000009", kind: "fact" as const, rule_id: null, severity: null, field: "price",
+      stated_value: "S$15", correct_value: "S$50.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price",
+      quote: "Live broadcast price: S$50.00" };
+    render(view({ alerts: [alert({ ...base, heard_check: true })] }));
+    const note = screen.getByTestId("host-fact-note");
+    expect(note).toHaveTextContent("CHECK WHAT WAS SAID");
+    expect(screen.getByTestId("host-fact-wrong")).toHaveTextContent("Heard: S$15");
+    expect(screen.getByTestId("host-fact-wrong")).not.toHaveTextContent("✕");
+    cleanup();
+    render(view({ alerts: [alert(base)] }));
+    expect(screen.getByTestId("host-fact-wrong")).toHaveTextContent("✕ S$15");
+  });
+});

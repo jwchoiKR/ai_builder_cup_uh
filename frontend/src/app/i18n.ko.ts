@@ -72,6 +72,7 @@ export const KO_HOST: Record<string, string> = {
   "(not {value})": "({value} 아님)",
   CORRECTION: "정정",
   "Source:": "출처:",
+  "CHECK WHAT WAS SAID": "말한 내용 확인",
   Corrected: "정정 완료",
   Fact: "사실",
   Price: "가격",
