@@ -18,6 +18,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Manual steps are design flaws: never ask a customer to match a template; absorb any document format; humans only approve.
 - If our logic misses its pass lines after a small patch budget (1-2 rounds), scrap it and rebuild; set kill criteria before testing.
 - Decks and explainer HTML go in `docs/decks/` (build scripts in `docs/decks/build/`).
+- Scope (user, 10/6, restated 10/7): this team (the user, the planning session and dev) works only on the STT-driven live path: speech-to-text, the judges on its text, alert display and latency. Viewer comments (classification, answers, posting) and pre-broadcast tasks (onboarding, approval, brief) belong to other people: do not change their code, prompts or settings, and do not measure or tune them. A change that would touch them goes to the user first.
 
 ## Quirks
 
