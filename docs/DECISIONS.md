@@ -1979,3 +1979,11 @@ D-322: fixes from codex's review of D-320 and D-321, made before any push or dep
   - `tests/test_onboarding.py`: `/go` admission.
   - `src/screens/studio.voice.test.tsx`: mute and unmute.
   - `src/app/state.test.ts`: the chip per kind.
+
+D-323: fixes from codex's second review of the test drive (46d9a05).
+- **A failed `/go` can be retried:** when approval or the show's start fails, `release` gives the job its admission back. Before, every retry got 429.
+- **A final spanning two lines covers both:** a final that also holds most (60%) of the words of the lines just before its own ("A B" heard as one) marks those lines as heard. None of them falls back to text and is judged twice. A final with another line's words alone still leaves a line unheard, so that line still falls back.
+- **One frame of grace at a line's start:** speech-to-text stamps a frame at the end of its audio, and the voice stamps a line at its first frame's write. A final up to one frame before the line's start now belongs to it.
+- **The voice owns its warm-up:** the scene's speech made ahead runs as tasks the voice owns, cancelled when it closes. A line waiting for its speech gives up when the show ends: a watcher checks every 0.25 s.
+- **The hold starts with the drive:** the voice holds the session's speech-to-text from the start of the drive, before the warm-up, so a mic cannot connect in between.
+- **Tests:** `tests/test_d320.py` (`d323_*`).

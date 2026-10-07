@@ -255,3 +255,107 @@ def test_d322_the_mic_waits_while_the_voice_holds_the_session():
             assert msg["state"] == "error" and "AI voice" in msg["message"]
         finally:
             td.voice_sessions.discard(sid)
+
+
+async def _played(voice, n: int) -> None:
+    for _ in range(60):
+        if len(voice.lines) >= n and all(x.done.is_set() for x in voice.lines[:n]):
+            return
+        await asyncio.sleep(0.05)
+    raise AssertionError("lines did not play")
+
+
+async def test_d323_a_final_spanning_two_lines_covers_both(monkeypatch):
+    """"A B" heard as one final: both lines count as heard, so A does not fall back and get judged twice."""
+    monkeypatch.setattr(td, "FALLBACK_S", 0.4)
+    rt = await _rt(_Stt())
+    try:
+        voice = await td._voice(rt, [], _Tts())
+        assert await voice.say("The serum is light (unheard).")
+        assert await voice.say("It sinks in fast (unheard).")
+        await _played(voice, 2)
+        b = voice.lines[1]
+        await voice.stream.q.put(SttResult("The serum is light. It sinks in fast.", True, b.start_ms + 50, b.end_ms))
+        await asyncio.sleep(0.8)  # past both fallbacks
+        found = await rt.ctx.store.query(rt.path("transcripts"), Transcript)
+        assert [(t.source, t.text) for t in found] == [("mic", "The serum is light. It sinks in fast.")]
+        assert [x.outcome for x in voice.lines] == ["stt", "stt"]
+        await voice.close()
+    finally:
+        await close_env(rt)
+
+
+async def test_d323_a_final_stamped_one_frame_before_its_line_belongs_to_it(monkeypatch):
+    """A frame is stamped at the end of its audio, the line at its first frame's write: one frame of grace."""
+    monkeypatch.setattr(td, "FALLBACK_S", 0.4)
+    rt = await _rt(_Stt())
+    try:
+        voice = await td._voice(rt, [], _Tts())
+        assert await voice.say("Short (unheard).")
+        await _played(voice, 1)
+        line = voice.lines[0]
+        await voice.stream.q.put(SttResult("Short.", True, line.start_ms - 50, line.start_ms))
+        await asyncio.sleep(0.8)
+        found = await rt.ctx.store.query(rt.path("transcripts"), Transcript)
+        assert [(t.source, t.text) for t in found] == [("mic", "Short.")] and line.outcome == "stt"
+        await voice.close()
+    finally:
+        await close_env(rt)
+
+
+async def test_d323_the_voice_holds_the_show_from_the_warm_up():
+    rt = await _rt(_Stt())
+    try:
+        making = asyncio.create_task(td._voice(rt, ["Hi"], _Tts(delay=0.5)))
+        await asyncio.sleep(0.1)
+        assert rt.sid in td.voice_sessions  # a mic connecting now is refused
+        voice = await making
+        await voice.close()
+        assert rt.sid not in td.voice_sessions
+    finally:
+        await close_env(rt)
+
+
+def test_d323_a_failed_go_can_be_retried(tmp_path, monkeypatch):
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from app.api import testdrive as api_td
+    from app.main import create_app
+    from app.pipelines.runtime import ActionError
+
+    from .helpers import make_settings
+    from .judge_fakes import ScriptedBackend
+    from .test_onboarding import _record
+
+    monkeypatch.setattr(td, "_starts", [])
+    monkeypatch.setattr(td, "_admitted", {})
+    monkeypatch.setattr(td, "_running", set())
+
+    async def no_scene(rt, tts=None):
+        return None
+
+    monkeypatch.setattr(td, "play", no_scene)
+    real = api_td.approve_job
+    calls = []
+
+    async def flaky(job_id, body, ctx):
+        calls.append(job_id)
+        if len(calls) == 1:
+            raise ActionError(503, "busy", "approval failed once")
+        return await real(job_id, body, ctx)
+
+    monkeypatch.setattr(api_td, "approve_job", flaky)
+    backend = ScriptedBackend()
+    settings = make_settings(ONBOARDING_DIR=str(tmp_path))
+    names = "|".join(n for n, _ in td.sample_files(settings.data_path))
+    backend.outputs[("onboarding_read", names)] = _record(brand="Lumen", product_name="Night Serum")
+    with TestClient(create_app(settings, llm_backend=backend)) as c:
+        job = c.post("/api/testdrive/start").json()["job_id"]
+        for _ in range(100):
+            if c.get(f"/api/onboarding/jobs/{job}").json()["status"] == "done":
+                break
+            time.sleep(0.02)
+        assert c.post(f"/api/testdrive/{job}/go").status_code == 503
+        assert c.post(f"/api/testdrive/{job}/go").status_code == 200  # the admission came back

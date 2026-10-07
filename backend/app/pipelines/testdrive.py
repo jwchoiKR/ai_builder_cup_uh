@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +56,12 @@ def claim(job_id: str) -> None:
 
 def finish(job_id: str) -> None:
     _running.discard(job_id)
+
+
+def release(job_id: str) -> None:
+    """D-323: a /go that failed before the show started gives the job its admission back, so it can be retried."""
+    _running.discard(job_id)
+    admit(job_id)
 
 
 def sample_files(data_path: Path) -> list[tuple[str, bytes]]:
@@ -106,7 +113,12 @@ FALLBACK_S = 6.0  # no final this long after a line's audio ends: the line goes 
 SYNTH_WAIT_S = 5.0  # the host lines' speech is made before the scene starts (about 1 s for five lines)
 SAY_TTS_S = 4.0  # a line whose speech is not ready this long after it is due goes in as text
 LATE_MS = 1500  # a final whose speech ended this long after a line's audio still belongs to that line
+SPAN_WORDS = 0.6  # D-323: a final holding this share of an earlier line's words also covers that line
 voice_sessions: set[str] = set()  # sessions whose speech-to-text the test drive's voice holds (the mic waits)
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9']+", text.lower())
 
 
 @dataclass
@@ -131,18 +143,42 @@ class Voice:
         self.queue: asyncio.Queue[_Line] = asyncio.Queue()
         self.lines: list[_Line] = []
         self.closed = False
+        self.stop = asyncio.Event()  # D-323: set when the show ends, so a line waiting for its speech gives up
         voice_sessions.add(rt.sid)
-        self.tasks = {rt.spawn(self._pump(), name=f"testdrive-voice:{rt.sid}"),
-                      rt.spawn(self._listen(), name=f"testdrive-stt:{rt.sid}")}
+        self.tasks: set[asyncio.Task] = set()
+        for coro, name in ((self._pump(), "testdrive-voice"), (self._listen(), "testdrive-stt"),
+                           (self._watch_end(), "testdrive-end")):
+            self._own(coro, name)
+
+    def warm(self, lines: list[str]) -> list[asyncio.Task]:
+        """D-323: the scene's lines made ahead, as tasks the voice owns (cancelled when it closes)."""
+        async def one(text: str) -> None:
+            try:
+                await self.tts.wav(text)
+            except Exception as e:  # noqa: BLE001 - made again when the line is said
+                log.warning("testdrive tts warm-up failed (%s): %r", type(e).__name__, text[:80])
+
+        return [self._own(one(x), "testdrive-tts") for x in lines]
 
     async def say(self, text: str) -> bool:
-        """Queues the line's speech; False when it cannot be made in time (the caller injects the text)."""
+        """Queues the line's speech; False when it cannot be made in time or the show ended (the caller injects the
+        text)."""
         from ..providers.tts import path_of, pcm_of
 
+        made = self._own(self.tts.wav(text), "testdrive-tts")
+        stop = asyncio.ensure_future(self.stop.wait())
         try:
-            key = await asyncio.wait_for(self.tts.wav(text), SAY_TTS_S)
+            await asyncio.wait({made, stop}, timeout=SAY_TTS_S, return_when=asyncio.FIRST_COMPLETED)
+        finally:
+            stop.cancel()
+        if not made.done():
+            made.cancel()
+            log.warning("testdrive tts failed (%s): %r", "show ended" if self.stop.is_set() else "timeout", text[:80])
+            return False
+        try:
+            key = made.result()
             line = _Line(key, text, pcm_of(path_of(key).read_bytes()))
-        except Exception as e:  # noqa: BLE001 - TimeoutError included
+        except Exception as e:  # noqa: BLE001
             log.warning("testdrive tts failed (%s): %r", type(e).__name__, text[:80])
             return False
         self.lines.append(line)
@@ -150,10 +186,16 @@ class Voice:
         self._own(self._watch(line), "testdrive-watch")
         return True
 
-    def _own(self, coro, name: str) -> None:
+    def _own(self, coro, name: str) -> asyncio.Task:
         task = self.rt.spawn(coro, name=f"{name}:{self.rt.sid}")
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
+        return task
+
+    async def _watch_end(self) -> None:
+        while not await _ended(self.rt):
+            await asyncio.sleep(0.25)
+        self.stop.set()
 
     async def _pump(self) -> None:
         silence = b"\x00" * FRAME_BYTES
@@ -175,14 +217,28 @@ class Voice:
             due += FRAME_MS / 1000
             await asyncio.sleep(max(0.0, due - time.monotonic()))
 
-    def _line_of(self, speech_end_at: int | None) -> _Line | None:
-        """The line whose audio this final's speech came from: it started before the speech ended, and the speech
-        ended before its audio did (plus LATE_MS); without a time, the last line that started."""
+    def _lines_of(self, speech_end_at: int | None, text: str) -> list[_Line]:
+        """The lines this final's speech came from. Its last line: it started before the speech ended (one frame of
+        grace: a frame is stamped at the end of its audio, D-323) and the speech ended before its audio did (plus
+        LATE_MS); without a time, the last line that started. D-323: a final that also holds the words of the lines
+        just before it ("A B" heard as one) covers those too, so none of them falls back to text and is judged
+        twice."""
         started = [x for x in self.lines if x.start_ms]
         if speech_end_at is None:
-            return started[-1] if started else None
-        return next((x for x in reversed(started) if x.start_ms <= speech_end_at
-                     and (not x.end_ms or speech_end_at <= x.end_ms + LATE_MS)), None)
+            last = started[-1] if started else None
+        else:
+            last = next((x for x in reversed(started) if x.start_ms - FRAME_MS <= speech_end_at
+                         and (not x.end_ms or speech_end_at <= x.end_ms + LATE_MS)), None)
+        if last is None:
+            return []
+        heard = set(_words(text))
+        out = [last]
+        for x in reversed(started[:started.index(last)]):
+            words = _words(x.text)
+            if x.outcome == "text" or not words or sum(w in heard for w in words) / len(words) < SPAN_WORDS:
+                break
+            out.insert(0, x)
+        return out
 
     async def _listen(self) -> None:
         from .runtime import ActionError
@@ -190,12 +246,13 @@ class Voice:
         async for r in self.stream.results():
             if not r.is_final:
                 continue
-            line = self._line_of(r.speech_end_at)
-            if line is None or line.outcome == "text":
+            lines = self._lines_of(r.speech_end_at, r.text)
+            if not lines or lines[-1].outcome == "text":
                 log.info("testdrive stt final dropped %s (%s): %r", self.rt.sid,
-                         "no line" if line is None else "its line went in as text", r.text[:80])
+                         "its line went in as text" if lines else "no line", r.text[:80])
                 continue
-            line.outcome = "stt"
+            for line in lines:
+                line.outcome = "stt"
             try:
                 t = await self.rt.utterances.submit(r.text, source="mic", speech_end_at=r.speech_end_at)
                 log.info("testdrive stt final %s %s: %r", self.rt.sid, t.transcript_id, r.text[:100])
@@ -229,18 +286,17 @@ async def _voice(rt, lines: list[str], tts=None) -> Voice | None:
     stt = getattr(rt.ctx, "stt", None)
     if stt is None:
         return None
-    tts = tts or Tts()
-    jobs = [asyncio.ensure_future(tts.wav(x)) for x in lines]
-    for j in jobs:
-        j.add_done_callback(lambda f: f.cancelled() or f.exception())  # a failed line is retried when said
-    if jobs:  # a line not made in time keeps going and is ready (or made) when said
-        await asyncio.wait(jobs, timeout=SYNTH_WAIT_S)
+    voice_sessions.add(rt.sid)  # D-323: held from the drive's start, so a mic cannot slip in during the warm-up
     try:
         phrases, language = await stream_setup(rt.ctx, rt)
-        return Voice(rt, tts, stt.open(phrases, language))
+        voice = Voice(rt, tts or Tts(), stt.open(phrases, language))
     except Exception as e:  # noqa: BLE001 - the scene plays as text
+        voice_sessions.discard(rt.sid)
         log.warning("testdrive voice off for %s: %s", rt.sid, e)
         return None
+    if jobs := voice.warm(lines):  # a line not made in time keeps going and is ready (or made) when said
+        await asyncio.wait(jobs, timeout=SYNTH_WAIT_S)
+    return voice
 
 
 async def _ended(rt) -> bool:
