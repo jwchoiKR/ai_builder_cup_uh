@@ -7,6 +7,7 @@ const SIZE_KEY = "ls.host.size";
 const MIC_KEY = "ls.mic.device";
 const LAYOUT_KEY = "ls.layout.host";
 const MIC_LANG_KEY = "ls.mic.lang";
+const LABS_KEY = "ls.labs";
 
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
@@ -71,12 +72,30 @@ export const STT_LANGUAGES = [
   { code: "fil-PH", name: "Filipino (fil-PH)" },
   { code: "auto", name: "자동 감지 (auto)" },
 ] as const;
+// D-317: languages with measured judging accuracy; the others show only in labs mode. Measure one, add it here.
+export const MEASURED_LANGUAGES: ReadonlySet<string> = new Set(["en-US"]);
+let labs: boolean | undefined;
 let micLang: string | undefined;
+
+/** D-317: internal labs mode, switched on by opening any page with ?labs=1 (off with ?labs=0), kept per browser. */
+export function isLabs(): boolean {
+  if (labs === undefined) {
+    const flag = new URLSearchParams(window.location.search).get("labs");
+    if (flag === "1" || flag === "0") write(LABS_KEY, flag === "1" ? "1" : null);
+    labs = read(LABS_KEY) === "1";
+  }
+  return labs;
+}
+
+/** The languages this browser may pick: the measured ones, and every listed one in labs mode. */
+export function micLanguages(): (typeof STT_LANGUAGES)[number][] {
+  return STT_LANGUAGES.filter((l) => MEASURED_LANGUAGES.has(l.code) || isLabs());
+}
 
 export function getMicLang(): string {
   if (micLang === undefined) {
     const v = read(MIC_LANG_KEY);
-    micLang = STT_LANGUAGES.some((l) => l.code === v) ? v! : "en-US";
+    micLang = micLanguages().some((l) => l.code === v) ? v! : "en-US";
   }
   return micLang;
 }
