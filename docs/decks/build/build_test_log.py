@@ -129,6 +129,16 @@ slide("s5", "5단계 · 10/7 · 규정 MEDIUM", "규정 판정을 MEDIUM으로 �
     gap=20),
     notes="v2에서 바꾼 것(프롬프트만): 진행자가 주장한 것만 확인, 소리가 비슷한 값은 보류, 문서 값을 먼저 적고 비교. a57cb46(litemed), 65f1e8d(v2, D-312). Flash-Lite LOW는 생각 토큰 0(512회 중). v2 MEDIUM은 사실 확인 시간 초과 18·45건으로 목소리 B 탐지 93.5%.")
 
+slide("s6", "6단계 · 10/7 · v3와 seed", "앞 줄 동의까지 확인하는 v3, 흔들림을 줄이는 seed", col(
+    table(HEAD, rows([
+        ("+ 사실 프롬프트 v3", "factv3_LOW", ["onboarding5_sttzs", "onboarding5_sttds"]),
+        ("v3 · 사실 MEDIUM", "factv3_MEDIUM", ["onboarding5_sttzs", "onboarding5_sttds"]),
+        ("v3 · seed 없음 (2회차)", "seed0_r2", ["onboarding5_sttzs", "onboarding5_sttds"]),
+        ("v3 · seed 7 (1회차)", "seed7_r1", ["onboarding5_sttzs", "onboarding5_sttds"]),
+    ]), W),
+    gap=20),
+    notes="25596c7(v3, D-313), 0ebdc1a(seed, D-314). seed 7·11 각 2회: 같은 설정 2회 사이 바뀐 줄 seed 없음 3/1, seed 7 0/1, seed 11 3/0(2줄은 시간 초과). 상세: docs/decks/live_logic_1007.html")
+
 slide("old", "그 이전 · 10/5~6", "STT 없이 원문으로 잰 1~4차 세트에서는 탐지가 84~91%였다", table(
     ["세트", "커밋", "탐지", "오경고", "잘못된 HIGH", "비고"],
     [["2차 (Q1~6)", "fbb8aa7 무렵", "83~84%", "", "", "새 제품 기준 첫 측정"],
