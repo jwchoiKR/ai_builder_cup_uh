@@ -1883,3 +1883,9 @@ D-312: `FACT_PROMPT=v2` (default `v1`, today's prompt) switches the fact checker
 - **The documents' value first:** the schema (`FactRelationOutputV2`) adds `source_value` after `evidence` and before `relation`, and the relation is decided by comparing `stated_value` with it. It is logged in the raw call output, in the eval rows, and in the "relation uncertain" drop entry. `VOTE_CONFIDENCE=self` adds no confidence field under v2.
 - **Compliance judge:** the same switch adds the `V2: compliance_judge` addendum: a tester or lab named in a sound-alike spelling still states the qualifier.
 - **Tests:** `tests/test_d312.py`.
+
+D-313: `FACT_PROMPT=v3` is `fact_relation_v2.md` plus one rule, in `prompts/fact_relation_v3.md` (v2 stays fixed for comparison). Why: v2 (D-312) cut false alerts on STT pool 5 from 6.5 / 8.3% to 0.9 / 1.9% (voices A / B), with detection 97.2 / 98.1%, but it made a new miss in both voices. "Someone says <a wrong term>." followed by "Correct." gave no claim on either line: the first is someone else's words, and the second has no fact of its own, because v2 checks only facts the host states or endorses in the line.
+- **The rule:** a line that endorses what the last line of RECENT_TRANSCRIPT reported or asked ("Correct.", "Yes, that's right.", "Exactly.", "Yes, you can.") makes that line's facts the host's own claims, with `span` from the previous line's words. A rejection ("No.", "Not true.") gives no claim.
+- **Examples:** a made-up pair sits next to Example I, the read-out question. Example J is an endorsement that contradicts, with the right value. Example K is the same line rejected, with empty claims. The merged-number example is now L.
+- The schema and the compliance line are v2's. Prompt only, no code.
+- **Tests:** `tests/test_d312.py` (now v1 / v2 / v3).
