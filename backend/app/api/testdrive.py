@@ -27,6 +27,7 @@ async def start(ctx: AppContext = Depends(get_ctx)) -> dict:
     cached = td.load_cached(root, key)
     job = done_job(files, cached) if cached else start_job(
         ctx, files, on_done=lambda out: td.save_cached(root, key, out))
+    td.admit(job["job_id"])
     return {"job_id": job["job_id"], "status": job["status"], "files": [n for n, _ in files], "cached": bool(cached)}
 
 
@@ -41,10 +42,26 @@ async def audio(name: str) -> FileResponse:
 
 @router.post("/{job_id}/go")
 async def go(job_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
-    """The approval click: approve the read as it is (translations as read), start the show, play the scene."""
-    approved = await approve_job(job_id, ApproveBody(), ctx)
-    s = await create_session(ctx, "testdrive", release_id=approved["release_id"])
-    rt = await ctx.runtimes.get(s.session_id)
-    await rt.start()
-    ctx.scheduler.spawn(td.play(rt), name=f"testdrive:{s.session_id}")
+    """The approval click: approve the read as it is (translations as read), start the show, play the scene.
+    D-322: only for the job its /start admitted, once, and one drive at a time (the spend cap)."""
+    try:
+        td.claim(job_id)
+    except td.TestDriveBusy as e:
+        raise ActionError(429, "testdrive_busy", str(e)) from None
+    try:
+        approved = await approve_job(job_id, ApproveBody(), ctx)
+        s = await create_session(ctx, "testdrive", release_id=approved["release_id"])
+        rt = await ctx.runtimes.get(s.session_id)
+        await rt.start()
+    except BaseException:
+        td.finish(job_id)
+        raise
+
+    async def drive() -> None:
+        try:
+            await td.play(rt)
+        finally:
+            td.finish(job_id)
+
+    ctx.scheduler.spawn(drive(), name=f"testdrive:{s.session_id}")
     return {"session_id": s.session_id, **approved}

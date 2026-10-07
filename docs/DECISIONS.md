@@ -1965,3 +1965,17 @@ D-321: two changes after the D-320 pre-test, in which the planner ran each host 
   - With STANDARD, lines 1-3 came back word for word, with the final 1.1-1.5 s after the audio ended.
   - On pool 5, STANDARD cut split lines from 73 to 21 and lowered false alerts. The latency pass line still held.
   - The code default (SHORT) is unchanged. The setting takes effect when the user deploys.
+
+D-322: fixes from codex's review of D-320 and D-321, made before any push or deploy.
+- **Admission:** `/testdrive/{job}/go` now plays only the job its `/start` admitted, once (`claim`), and never next to another drive. An admitted start counts as busy for 15 minutes. Before, repeated `/go` calls, or any finished onboarding job, could start paid drives past the cap.
+- **One outcome per line:** a final goes to the line whose audio it came from. The final's speech end must fall between the line's audio start and its end plus 1.5 s. Each line ends with its finals or the text fallback, never both. A late final after the fallback is dropped and logged. A final from another line no longer stops a line's fallback.
+- **Stopping:** a show ended early (by the operator) stops the scene within a second. The voice's `close()` cancels and awaits every task it owns (the pump, the listener, the watchers) and closes the stream.
+- **One speech-to-text stream per show:** while the voice holds a session, the mic WebSocket answers "The test drive's AI voice is using speech recognition for this show."
+- **Per-line deadline:** the speech for a line must be ready within 4 s of the line being due, else the line goes in as text.
+- **Checking chip:** `verifying` is keyed by line and kind, so a fact check finishing first no longer clears the chip while the compliance check runs.
+- **Mute:** a line that arrives while muted counts as played, so unmuting affects only later lines.
+- **Tests:**
+  - `tests/test_d320.py`: the late final, a final from another line, slow speech, an early end, the mic guard.
+  - `tests/test_onboarding.py`: `/go` admission.
+  - `src/screens/studio.voice.test.tsx`: mute and unmute.
+  - `src/app/state.test.ts`: the chip per kind.

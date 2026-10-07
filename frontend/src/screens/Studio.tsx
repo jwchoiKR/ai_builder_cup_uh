@@ -83,7 +83,7 @@ function Pane({
 
 /** D-320: the test drive's host voice. Each line's audio plays when the server starts streaming it into
  * speech-to-text; a note says it is an AI voice, and a toggle mutes it (kept per browser). */
-function TestDriveVoice({ sessionId }: { sessionId: string | null }) {
+export function TestDriveVoice({ sessionId }: { sessionId: string | null }) {
   const { state } = useSession(sessionId, "host");
   const line = state.voiceLine;
   const [muted, setMuted] = useState(() => {
@@ -96,14 +96,17 @@ function TestDriveVoice({ sessionId }: { sessionId: string | null }) {
   const [blocked, setBlocked] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   const played = useRef(0);
+  const mutedNow = useRef(muted);
+  mutedNow.current = muted;
   useEffect(() => {
-    if (!line || muted || line.seq === played.current) return;  // each line once; unmuting does not replay it
-    played.current = line.seq;
+    if (!line || line.seq === played.current) return;
+    played.current = line.seq;  // D-322: a line that came while muted counts as played; unmuting affects later lines
+    if (mutedNow.current) return;
     const a = new Audio(line.url);
     audio.current = a;
     a.play().then(() => setBlocked(false), () => setBlocked(true));  // autoplay may be refused until a click
     return () => a.pause();
-  }, [line, muted]);
+  }, [line]);
   if (!line) return null;
   const toggle = () => {
     if (blocked && !muted) {  // the click is the gesture the browser waited for
