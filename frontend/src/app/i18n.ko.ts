@@ -179,6 +179,7 @@ export const KO_HUB: Record<string, string> = {
   "Alerts, corrections, answered questions and an AI recap.": "경고, 정정, 답한 질문, AI가 쓴 방송 요약.",
   // D-315: approved products as cards, the show's line-up, and a show lost to a server restart
   "Previously approved products": "승인된 제품",
+  "Start with approved products": "승인된 제품으로 시작",
   "Pick up to {n}, in the order of the show.": "방송 순서대로 최대 {n}개를 고르세요.",
   "Product {n}": "{n}번 제품",
   "brief running": "브리프 생성 중",

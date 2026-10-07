@@ -1927,3 +1927,10 @@ D-318: fixes from codex's review of fd62170..HEAD, made before the deploy.
   - `src/app/router.test.tsx`: a replacement session loads for a URL session and for a `/demo/current` session; a late 404 is ignored.
   - `tests/test_d312.py`: the v3 endorsement and rejection pair through `run_case`, single arm.
   - `tests/test_d314.py`: bad values fail at startup.
+
+D-319: the approved-products picker of D-315 moves out of the Hub hero into a popover. Why: the user saw the cards at the top of the hero after the deploy and called it "주객전도"; they are not the Hub's main action.
+- **Hero row:** the main actions stay as before (Open Studio, Try it with a sample product, Onboard a new product). The row gains one secondary button, "Start with approved products ▾" (승인된 제품으로 시작), with a count badge. It is hidden when there are no approved releases.
+- **Panel:** the button opens an anchored panel, a styled dialog and not a native select. It holds the same rows (brand, name, market chips, version and date, brief chip), now compact and in one column. The line-up behaviour of D-315 is unchanged: click order, numbered badges, at most 3, the summary with × and Clear. The "Start a show with N products" button is at the bottom of the panel.
+- **Behaviour:** Escape, an outside pointer-down and a started show close the panel. Focus moves to the first row on open and back to the button on close. The button carries `aria-haspopup`, `aria-expanded` and `aria-controls`, and the rows keep `aria-pressed`.
+- **Phone width (under 700 px):** the panel becomes a bottom sheet, full width, at most 70vh and scrolling.
+- **Tests:** `src/screens/screens.test.tsx` adds the open step, focus in and out, Escape, an outside click and closing on start.
