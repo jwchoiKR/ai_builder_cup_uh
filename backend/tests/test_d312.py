@@ -35,11 +35,11 @@ class _V2Backend(ScriptedBackend):
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
 
 
-@pytest.mark.parametrize("prompt", ["v1", "v2"])
+@pytest.mark.parametrize("prompt", ["v1", "v2", "v3"])
 async def test_d312_the_switch_picks_the_prompt_and_schema(prompt):
     from .helpers import live_runtime, make_ctx
 
-    v2 = prompt == "v2"
+    v2 = prompt != "v1"
     llm = _V2Backend("S$36.00")
     rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT=prompt))
     try:
@@ -50,6 +50,7 @@ async def test_d312_the_switch_picks_the_prompt_and_schema(prompt):
         assert (fact.output_model is FactRelationOutputV2) is v2 and (fact.output_model is FactRelationOutput) is not v2
         assert ("Only what the host asserts" in fact.system_instruction) is v2
         assert ("Marro Bey labs" in comp.system_instruction) is v2
+        assert ('"Correct."' in fact.system_instruction) is (prompt == "v3")  # D-313: endorsements
         [a] = [a for a in await rt.alerts() if a.kind == "fact"]  # the same alert either way
         assert a.correct_value == "S$36.00"
         if v2:
