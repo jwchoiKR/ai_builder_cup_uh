@@ -131,8 +131,8 @@ class UtterancePipeline:
         self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex, single=self.single)
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
-        relation = {"v2": "fact_relation_v2", "v3": "fact_relation_v3"}.get(rt.settings.FACT_PROMPT,
-                                                                             "fact_relation")  # D-312, D-313
+        relation = {"v2": "fact_relation_v2", "v3": "fact_relation_v3",
+                    "v4": "fact_relation_v4"}.get(rt.settings.FACT_PROMPT, "fact_relation")  # D-312, D-313, D-325
         self.facts = FactChecker(ctx.llm, ctx.prompts[relation if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296
         self.compliance.docs = self.facts.files  # D-310: the same documents for COMPLIANCE_DOCS

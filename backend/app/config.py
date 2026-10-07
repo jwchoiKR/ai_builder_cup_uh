@@ -86,7 +86,8 @@ class Settings(BaseSettings):
     # D-312 v2: fact_relation_v2.md (only the host's own assertions, sound-alike values uncertain, the documents' value
     # before the relation) and the compliance judge's sound-alike tester-name line; D-313 v3: v2 plus endorsements
     # ("Correct.") of the previous line's facts
-    FACT_PROMPT: Literal["v1", "v2", "v3"] = "v1"
+    # D-325 v4: v3 plus "a documents' value with a condition, said without it, contradicts"
+    FACT_PROMPT: Literal["v1", "v2", "v3", "v4"] = "v1"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
