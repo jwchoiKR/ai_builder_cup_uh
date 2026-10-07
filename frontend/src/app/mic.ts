@@ -76,11 +76,7 @@ class MicClient {
   private connect() {
     const sid = this.snap.sessionId;
     if (!sid || !this.wanted) return;
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    // D-316: the speech-recognition language picked in the demo console, if any (else the server's)
-    const lang = getMicLang();
-    const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
-    const ws = new WebSocket(`${proto}://${window.location.host}/api/sessions/${sid}/audio${query}`);
+    const ws = new WebSocket(audioUrl(sid));
     ws.binaryType = "arraybuffer";
     this.ws = ws;
     this.set({ state: "connecting" });
@@ -149,6 +145,15 @@ class MicClient {
       await this.start(sid);
     }
   }
+}
+
+/** The audio WebSocket; D-316: with the speech-recognition language picked in the demo console, if any (else the
+ *  server's). */
+export function audioUrl(sid: string): string {
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+  const lang = getMicLang();
+  const query = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+  return `${proto}://${window.location.host}/api/sessions/${sid}/audio${query}`;
 }
 
 export const mic = new MicClient();
