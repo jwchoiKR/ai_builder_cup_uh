@@ -1910,3 +1910,10 @@ D-316: the demo console's Mic section has a speech-recognition language select, 
   - Silence checks only that the config is accepted, not recognition quality.
 - **Logs:** a line at open says the language, the code asked for and the hint count. A line for each final gives `stt final <session> <transcript_id> lang=<code>`, next to the existing `final ...: '<text>'` line. The listening status message carries `lang`.
 - **Tests:** `tests/test_audio_ws.py` (ko-KR, auto without hints, an unknown code, no code) and `src/app/prefs.test.ts`.
+
+D-317: the mic language select of D-316 shows only languages with measured judging accuracy by default (`MEASURED_LANGUAGES` in `frontend/src/app/prefs.ts`, today en-US alone). With one language the select is hidden. Why: a judge who picks an unmeasured language and sees poor alerts would count it against the product.
+- **Labs mode:** opening any page with `?labs=1` turns on labs mode for that browser (`ls.labs`); `?labs=0` turns it off. In labs mode every D-316 code appears, still marked "실험 중 · 정확도 미측정".
+- **Stored choice:** outside labs mode, a stored unmeasured choice falls back to en-US, so the mic never sends it.
+- **Backend:** the allow-list is unchanged, so internal tests work on the deployed build.
+- **Measuring a language:** add its code to `MEASURED_LANGUAGES` (one line).
+- **Tests:** `src/app/prefs.test.ts`.
