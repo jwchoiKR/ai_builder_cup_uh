@@ -19,8 +19,10 @@ log = logging.getLogger(__name__)
 
 SAMPLE_DIR = "onboarding_dev/p1_lumen_serum"  # fictional brand, every format incl. a label photo (D-216)
 MAX_PER_HOUR = 6
+ADMIT_S = 900  # D-322: an admitted start must reach /go within this long
 _starts: list[float] = []
-_running: set[str] = set()
+_admitted: dict[str, float] = {}  # job id -> when /start admitted it
+_running: set[str] = set()  # the job ids of drives playing now
 
 
 class TestDriveBusy(Exception):
@@ -28,12 +30,31 @@ class TestDriveBusy(Exception):
 
 
 def allow_start(now: float | None = None) -> None:
-    """At most MAX_PER_HOUR test drives per hour and one at a time per process (spend cap)."""
+    """At most MAX_PER_HOUR test drives per hour and one at a time per process (spend cap). D-322: one at a time
+    counts a start admitted and not yet played, too."""
     now = now or time.time()
     _starts[:] = [t for t in _starts if now - t < 3600]
-    if _running or len(_starts) >= MAX_PER_HOUR:
+    for job_id, at in list(_admitted.items()):
+        if now - at > ADMIT_S:
+            del _admitted[job_id]
+    if _running or _admitted or len(_starts) >= MAX_PER_HOUR:
         raise TestDriveBusy("the test drive is busy; try again in a few minutes")
     _starts.append(now)
+
+
+def admit(job_id: str, now: float | None = None) -> None:
+    _admitted[job_id] = now or time.time()
+
+
+def claim(job_id: str) -> None:
+    """D-322: /go plays only a job its /start admitted, once, and never next to another drive."""
+    if _running or _admitted.pop(job_id, None) is None:
+        raise TestDriveBusy("start the test drive first, or wait for the one playing")
+    _running.add(job_id)
+
+
+def finish(job_id: str) -> None:
+    _running.discard(job_id)
 
 
 def sample_files(data_path: Path) -> list[tuple[str, bytes]]:
@@ -83,6 +104,9 @@ FRAME_MS = 100  # as the browser mic sends
 FRAME_BYTES = 16_000 * 2 * FRAME_MS // 1000
 FALLBACK_S = 6.0  # no final this long after a line's audio ends: the line goes in as text
 SYNTH_WAIT_S = 5.0  # the host lines' speech is made before the scene starts (about 1 s for five lines)
+SAY_TTS_S = 4.0  # a line whose speech is not ready this long after it is due goes in as text
+LATE_MS = 1500  # a final whose speech ended this long after a line's audio still belongs to that line
+voice_sessions: set[str] = set()  # sessions whose speech-to-text the test drive's voice holds (the mic waits)
 
 
 @dataclass
@@ -90,36 +114,46 @@ class _Line:
     key: str
     text: str
     pcm: bytes
-    started: float = 0.0
+    start_ms: int = 0  # server time its audio started and ended streaming
+    end_ms: int = 0
+    outcome: str = "pending"  # then "stt" (its finals) or "text" (the fallback): never both
     done: asyncio.Event = field(default_factory=asyncio.Event)
 
 
 class Voice:
     """D-320: the host's lines as speech in the session's speech-to-text stream, paced as a mic is (100 ms frames,
     silence between lines), so their finals take the normal path to the judges. The browser plays each line's audio
-    when its streaming starts (event `testdrive.audio`)."""
+    when its streaming starts (event `testdrive.audio`). D-322: a final goes to the line whose audio it came from, and
+    each line has one outcome, its finals or the text fallback; the voice holds the session's speech-to-text."""
 
     def __init__(self, rt, tts, stream) -> None:
         self.rt, self.tts, self.stream = rt, tts, stream
         self.queue: asyncio.Queue[_Line] = asyncio.Queue()
-        self.finals: list[float] = []  # when each final came (monotonic)
+        self.lines: list[_Line] = []
         self.closed = False
-        self.tasks = [rt.spawn(self._pump(), name=f"testdrive-voice:{rt.sid}"),
-                      rt.spawn(self._listen(), name=f"testdrive-stt:{rt.sid}")]
+        voice_sessions.add(rt.sid)
+        self.tasks = {rt.spawn(self._pump(), name=f"testdrive-voice:{rt.sid}"),
+                      rt.spawn(self._listen(), name=f"testdrive-stt:{rt.sid}")}
 
     async def say(self, text: str) -> bool:
-        """Queues the line's speech; False when it cannot be made (the caller injects the text)."""
+        """Queues the line's speech; False when it cannot be made in time (the caller injects the text)."""
         from ..providers.tts import path_of, pcm_of
 
         try:
-            key = await self.tts.wav(text)
+            key = await asyncio.wait_for(self.tts.wav(text), SAY_TTS_S)
             line = _Line(key, text, pcm_of(path_of(key).read_bytes()))
-        except Exception as e:  # noqa: BLE001
-            log.warning("testdrive tts failed (%s): %r", e, text[:80])
+        except Exception as e:  # noqa: BLE001 - TimeoutError included
+            log.warning("testdrive tts failed (%s): %r", type(e).__name__, text[:80])
             return False
+        self.lines.append(line)
         self.queue.put_nowait(line)
-        self.rt.spawn(self._watch(line), name=f"testdrive-watch:{self.rt.sid}")
+        self._own(self._watch(line), "testdrive-watch")
         return True
+
+    def _own(self, coro, name: str) -> None:
+        task = self.rt.spawn(coro, name=f"{name}:{self.rt.sid}")
+        self.tasks.add(task)
+        task.add_done_callback(self.tasks.discard)
 
     async def _pump(self) -> None:
         silence = b"\x00" * FRAME_BYTES
@@ -128,17 +162,27 @@ class Voice:
         due = time.monotonic()
         while not self.closed:
             if not frames and line is not None:
+                line.end_ms = self.rt.now()
                 line.done.set()
                 line = None
             if not frames and not self.queue.empty():
                 line = self.queue.get_nowait()
                 frames = [line.pcm[i:i + FRAME_BYTES] for i in range(0, len(line.pcm), FRAME_BYTES)]
-                line.started = time.monotonic()
+                line.start_ms = self.rt.now()
                 await self.rt.emit("testdrive.audio", {"url": f"/api/testdrive/audio/{line.key}.wav",
                                                        "text": line.text, "duration_ms": len(line.pcm) // 32})
             await self.stream.write(frames.pop(0) if frames else silence)
             due += FRAME_MS / 1000
             await asyncio.sleep(max(0.0, due - time.monotonic()))
+
+    def _line_of(self, speech_end_at: int | None) -> _Line | None:
+        """The line whose audio this final's speech came from: it started before the speech ended, and the speech
+        ended before its audio did (plus LATE_MS); without a time, the last line that started."""
+        started = [x for x in self.lines if x.start_ms]
+        if speech_end_at is None:
+            return started[-1] if started else None
+        return next((x for x in reversed(started) if x.start_ms <= speech_end_at
+                     and (not x.end_ms or speech_end_at <= x.end_ms + LATE_MS)), None)
 
     async def _listen(self) -> None:
         from .runtime import ActionError
@@ -146,7 +190,12 @@ class Voice:
         async for r in self.stream.results():
             if not r.is_final:
                 continue
-            self.finals.append(time.monotonic())
+            line = self._line_of(r.speech_end_at)
+            if line is None or line.outcome == "text":
+                log.info("testdrive stt final dropped %s (%s): %r", self.rt.sid,
+                         "no line" if line is None else "its line went in as text", r.text[:80])
+                continue
+            line.outcome = "stt"
             try:
                 t = await self.rt.utterances.submit(r.text, source="mic", speech_end_at=r.speech_end_at)
                 log.info("testdrive stt final %s %s: %r", self.rt.sid, t.transcript_id, r.text[:100])
@@ -156,15 +205,20 @@ class Voice:
     async def _watch(self, line: _Line) -> None:
         await line.done.wait()
         await asyncio.sleep(FALLBACK_S)
-        if not self.closed and not any(t >= line.started for t in self.finals):
+        if line.outcome == "pending" and not self.closed:
+            line.outcome = "text"  # before the await: a final arriving now is dropped
             log.info("testdrive stt fallback %s: %r", self.rt.sid, line.text[:80])
             await self.rt.inject_transcript(line.text, scenario="testdrive")
 
     async def close(self) -> None:
+        """Stops the voice: every task it owns is cancelled and awaited, the stream closed, the mic free again."""
         self.closed = True
-        await self.stream.close()
-        for t in self.tasks:
+        voice_sessions.discard(self.rt.sid)
+        tasks = list(self.tasks)
+        for t in tasks:
             t.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        await self.stream.close()
 
 
 async def _voice(rt, lines: list[str], tts=None) -> Voice | None:
@@ -189,19 +243,26 @@ async def _voice(rt, lines: list[str], tts=None) -> Voice | None:
         return None
 
 
+async def _ended(rt) -> bool:
+    return (await rt.load_session()).status == "ended"
+
+
 async def play(rt, tts=None) -> None:
-    """Runs the scene on the live session in real time, then ends it (the reset)."""
+    """Runs the scene on the live session in real time, then ends it (the reset). D-322: a show ended early (by the
+    operator) stops the scene and its voice at once."""
     from .comments import submit_comment
 
-    _running.add(rt.sid)
     steps = scene(rt)
     voice = await _voice(rt, [text for _, kind, _, text in steps if kind == "host"], tts)
     t0 = time.monotonic()
     try:
         for at, kind, author, text in steps:
-            wait = at - (time.monotonic() - t0)
-            if wait > 0:
-                await asyncio.sleep(wait)
+            while (wait := at - (time.monotonic() - t0)) > 0:
+                if await _ended(rt):
+                    return
+                await asyncio.sleep(min(wait, 1.0))
+            if await _ended(rt):
+                return
             if kind == "host":
                 if not (voice and await voice.say(text)):
                     await rt.inject_transcript(text, scenario="testdrive")
@@ -227,4 +288,3 @@ async def play(rt, tts=None) -> None:
     finally:
         if voice is not None:
             await voice.close()
-        _running.discard(rt.sid)

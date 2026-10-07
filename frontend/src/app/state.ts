@@ -92,7 +92,7 @@ export interface ClientState {
   lineChecks: LineCheck[]; // oldest first, max 10
   /** D-137: judges that failed on the last finals in a row (empty: healthy) */
   judgeDegraded: string[];
-  /** D-306: lines whose candidates the verifier is checking (transcript id -> kind): the host's grey chip */
+  /** D-306: lines whose candidates the verifier is checking ("transcript id|kind" -> kind): the host's grey chip */
   verifying: Record<string, string>;
   /** D-306: verifier calls with no answer, by cause (operator only) */
   verifyHealth: VerifyHealth | null;
@@ -462,12 +462,13 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
     case "judge.health":
       return { ...state, judgeDegraded: (p.degraded as string[]) ?? [] };
 
+    // D-322: keyed by line and kind, so a fact check finishing first does not clear the compliance check's chip
     case "verify.started":
-      return { ...state, verifying: { ...state.verifying, [String(p.transcript_id)]: String(p.kind) } };
+      return { ...state, verifying: { ...state.verifying, [`${p.transcript_id}|${p.kind}`]: String(p.kind) } };
 
     case "verify.done": {
       const verifying = { ...state.verifying };
-      delete verifying[String(p.transcript_id)];
+      delete verifying[`${p.transcript_id}|${p.kind}`];
       return { ...state, verifying };
     }
 

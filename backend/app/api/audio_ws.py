@@ -112,6 +112,13 @@ async def audio(ws: WebSocket, session_id: str) -> None:
         await _send(ws, {"type": "status", "state": "error", "message": e.message})
         await ws.close(code=4404)
         return
+    from ..pipelines.testdrive import voice_sessions
+
+    if session_id in voice_sessions:  # D-322: one speech-to-text stream per show; the voice would be heard twice
+        await _send(ws, {"type": "status", "state": "error",
+                         "message": "The test drive's AI voice is using speech recognition for this show."})
+        await ws.close(code=4409)
+        return
     previous = _active.get(session_id)
     if previous is not None:  # one microphone per session: the newest wins
         await _send(previous, {"type": "status", "state": "stopped", "message": "Another microphone connected."})

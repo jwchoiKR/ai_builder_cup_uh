@@ -430,6 +430,8 @@ def test_d238_test_drive_reads_the_sample_approves_and_starts_a_live_show(tmp_pa
     from .helpers import make_settings
 
     monkeypatch.setattr(td, "_starts", [])
+    monkeypatch.setattr(td, "_admitted", {})
+    monkeypatch.setattr(td, "_running", set())
     monkeypatch.setattr(td, "MAX_PER_HOUR", 1)
     played = []
 
@@ -448,9 +450,11 @@ def test_d238_test_drive_reads_the_sample_approves_and_starts_a_live_show(tmp_pa
             if c.get(f"/api/onboarding/jobs/{start['job_id']}").json()["status"] == "done":
                 break
             time.sleep(0.02)
+        assert c.post("/api/testdrive/job_other/go").status_code == 429  # D-322: only the admitted job
         go = c.post(f"/api/testdrive/{start['job_id']}/go").json()
         state = c.get(f"/api/sessions/{go['session_id']}/state?role=host").json()
         assert state["session"]["status"] == "live" and played == [go["session_id"]]
+        assert c.post(f"/api/testdrive/{start['job_id']}/go").status_code == 429  # D-322: once
         assert c.post("/api/testdrive/start").status_code == 429  # the hourly cap
         monkeypatch.setattr(td, "_starts", [])
         again = c.post("/api/testdrive/start").json()

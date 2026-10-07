@@ -263,3 +263,16 @@ describe("D-320: the test drive's host voice", () => {
     }
   });
 });
+
+describe("D-322: the checking chip per line and kind", () => {
+  it("stays while the other check of the same line still runs", () => {
+    let s = reduceSnapshot(snapshot(), "host");
+    const v = (seq: number, type: string, kind: string): SessionEvent => ({ seq, type, payload: { transcript_id: "tr_1", kind } });
+    s = reduceEvent(s, v(901, "verify.started", "compliance"));
+    s = reduceEvent(s, v(902, "verify.started", "fact"));
+    s = reduceEvent(s, v(903, "verify.done", "fact"));
+    expect(Object.keys(s.verifying)).toEqual(["tr_1|compliance"]);
+    s = reduceEvent(s, v(904, "verify.done", "compliance"));
+    expect(s.verifying).toEqual({});
+  });
+});
