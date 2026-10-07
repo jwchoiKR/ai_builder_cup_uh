@@ -2008,3 +2008,18 @@ D-326: the v4 rule of D-325 is narrower (fact_relation_v4_v2). Codex's review: a
 - **When it contradicts:** only when the line asserts the value in a way the condition makes untrue or misleading. Examples: live cultures "now" against "at manufacture"; a laboratory result stated as everyday performance.
 - **New counter-example N:** the 50 mL size was named in the line before, and the host says "And it costs thirty-nine dollars." The relation is `consistent`. The merged-number example is now O.
 - The default stays v1.
+
+D-327: `STT_HINTS=record` (default `base`, today's hints) adds each on-show release's own terms from its approved record to the speech hints. Why: STT still mishears product-specific words, such as a lab name ("Tessel Quay" heard as "Tessle Keys"), test and report names, and pack sizes said in words. Live path only: the existing record and brief are read, and nothing in onboarding or the brief changes.
+- **Terms (`audio_ws.record_terms`):** they come after the brief glossary and the base names, under the same 500 cap, deduplicated case-insensitively, in this order:
+  - brand and product;
+  - short names and variant names;
+  - names and ids in the test results' qualifier, statement and conditions (labs, testers, panels, certificates, report ids);
+  - variant sizes in figures ("30 ml", "24 sachets");
+  - proper names in the key facts.
+- **What counts as a name:** two or more capitalised words, a capitalised word that does not start its sentence, or an id with digits ("TQ-2291", "ISO 22716"). Prices, bare numbers and sentences are left out.
+- **Boost:** `STT_HINT_BOOST` (0-20, empty means none, as today) puts one boost on the phrase set.
+  - Probe 10/7 (chirp_3, region us): boosts 5, 10 and 20 were accepted.
+  - On a test line ("…confirmed by Tessel Quay Labs in report TQ-2291"), the hints alone fixed the name, which was "Tessco Labs … TQ2291" without hints. The boost changed nothing there.
+- **Eval hook:** `audio_ws.phrases_for_release(ctx, release_id, mode=None, market=None, lang=None)` returns exactly the hints a one-release show's stream sends (the mic and the test drive), brief glossary included. A test checks it against the stream.
+- **Logs:** the hint log at stream open now names `STT_HINTS` and the boost.
+- **Tests:** `tests/test_d327.py`.

@@ -321,8 +321,9 @@ class GoogleV2Stt:
         s = self.settings
         adaptation = None
         if phrases and s.STT_PHRASE_HINTS_ENABLED:
+            boost = {"boost": float(s.STT_HINT_BOOST)} if s.STT_HINT_BOOST else {}  # D-327
             adaptation = cs.SpeechAdaptation(phrase_sets=[cs.SpeechAdaptation.AdaptationPhraseSet(
-                inline_phrase_set=cs.PhraseSet(phrases=[{"value": p} for p in phrases]))])
+                inline_phrase_set=cs.PhraseSet(phrases=[{"value": p} for p in phrases], **boost))])
         config = cs.RecognitionConfig(
             explicit_decoding_config=cs.ExplicitDecodingConfig(
                 encoding=cs.ExplicitDecodingConfig.AudioEncoding.LINEAR16, sample_rate_hertz=SAMPLE_RATE,
