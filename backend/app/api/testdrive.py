@@ -54,7 +54,7 @@ async def go(job_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
         rt = await ctx.runtimes.get(s.session_id)
         await rt.start()
     except BaseException:
-        td.finish(job_id)
+        td.release(job_id)  # D-323: the job can be tried again
         raise
 
     async def drive() -> None:
