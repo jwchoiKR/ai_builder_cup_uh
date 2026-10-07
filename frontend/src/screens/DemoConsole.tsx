@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, 
 import { api } from "../app/api";
 import { navigate, withSession } from "../app/nav";
 import { useMic } from "../app/mic";
+import { STT_LANGUAGES, setMicLang, useMicLang } from "../app/prefs";
 import { onAirSegment } from "../app/selectors";
 import { useDemoScript, useHealth, useSession } from "../app/store";
 import type { FeedState } from "../app/types";
@@ -64,6 +65,7 @@ export function DemoConsole({
   const [injected, setInjected] = useState<Set<number>>(new Set());
   const [freeText, setFreeText] = useState("");
   const mic = useMic();
+  const micLang = useMicLang();
   const health = useHealth();
   const drawer = useRef<HTMLElement>(null);
   const [height, setHeight] = useState<number | null>(() => readConsoleHeight());
@@ -274,6 +276,13 @@ export function DemoConsole({
               <Button size="sm" disabled={mic.state === "off"} onClick={() => mic.stop()}>
                 Stop
               </Button>
+              <select value={micLang} onChange={(e) => setMicLang(e.target.value)} disabled={mic.state !== "off"}
+                aria-label="Speech-recognition language" data-testid="console-mic-lang"
+                title={mic.state !== "off" ? "Stop the mic to change the language" : undefined}>
+                {STT_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>{l.code === "en-US" ? l.name : `${l.name} · 실험 중 · 정확도 미측정`}</option>
+                ))}
+              </select>
               <span className={styles.micState} data-testid="console-mic">
                 {mic.state === "listening" ? "Listening" : mic.state === "connecting" ? "Connecting…" : mic.state === "error" ? (mic.message ?? "Error") : "Off"}
                 {mic.lastFinal ? ` · "${mic.lastFinal}"` : ""}

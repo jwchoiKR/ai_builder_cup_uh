@@ -3,7 +3,7 @@
 // Demo Console show the same state. Reconnects automatically while the user wants it on.
 import { useSyncExternalStore } from "react";
 
-import { getMicDevice, setMicDevice } from "./prefs";
+import { getMicDevice, getMicLang, setMicDevice } from "./prefs";
 
 export type MicState = "off" | "connecting" | "listening" | "error";
 
@@ -77,7 +77,9 @@ class MicClient {
     const sid = this.snap.sessionId;
     if (!sid || !this.wanted) return;
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(`${proto}://${window.location.host}/api/sessions/${sid}/audio`);
+    // D-316: the speech-recognition language chosen in the demo console (one choice per browser)
+    const lang = encodeURIComponent(getMicLang());
+    const ws = new WebSocket(`${proto}://${window.location.host}/api/sessions/${sid}/audio?lang=${lang}`);
     ws.binaryType = "arraybuffer";
     this.ws = ws;
     this.set({ state: "connecting" });

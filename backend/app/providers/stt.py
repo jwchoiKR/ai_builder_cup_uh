@@ -327,8 +327,8 @@ class GoogleV2Stt:
             explicit_decoding_config=cs.ExplicitDecodingConfig(
                 encoding=cs.ExplicitDecodingConfig.AudioEncoding.LINEAR16, sample_rate_hertz=SAMPLE_RATE,
                 audio_channel_count=1),
-            # D-142: STT_LANGUAGE overrides; else the session pack's chirp_3 code
-            language_codes=[s.STT_LANGUAGE or language or "en-US"], model=s.STT_MODEL,
+            # D-142: the caller's code (the mic's choice, else STT_LANGUAGE or the session pack's chirp_3 code)
+            language_codes=[language or s.STT_LANGUAGE or "en-US"], model=s.STT_MODEL,
             features=cs.RecognitionFeatures(enable_automatic_punctuation=True),
             adaptation=adaptation,
         )

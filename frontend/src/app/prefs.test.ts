@@ -62,3 +62,19 @@ describe("host panel sizes (D-181)", () => {
     expect(prefs.getHostLayout().cols).toBe(0.7);
   });
 });
+
+describe("the mic's speech-recognition language (D-316)", () => {
+  it("defaults to en-US, remembers a listed code and ignores an unknown one", async () => {
+    let prefs = await import("./prefs");
+    expect(prefs.getMicLang()).toBe("en-US");
+    prefs.setMicLang("ko-KR");
+    expect(window.localStorage.getItem("ls.mic.lang")).toBe("ko-KR");
+    vi.resetModules();
+    prefs = await import("./prefs");
+    expect(prefs.getMicLang()).toBe("ko-KR");
+    window.localStorage.setItem("ls.mic.lang", "xx-YY");
+    vi.resetModules();
+    prefs = await import("./prefs");
+    expect(prefs.getMicLang()).toBe("en-US");
+  });
+});
