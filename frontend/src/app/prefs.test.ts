@@ -68,7 +68,7 @@ describe("the mic's speech-recognition language (D-316)", () => {
     let prefs = await import("./prefs");
     expect(prefs.micLanguages().map((l) => l.code)).toEqual(["en-US"]);
     window.localStorage.setItem("ls.mic.lang", "ko-KR");  // chosen in labs mode earlier
-    expect(prefs.getMicLang()).toBe("en-US");
+    expect(prefs.getMicLang()).toBe("");
     window.history.replaceState(null, "", "/studio?labs=1");
     vi.resetModules();
     prefs = await import("./prefs");
@@ -85,10 +85,10 @@ describe("the mic's speech-recognition language (D-316)", () => {
     window.history.replaceState(null, "", "/");
   });
 
-  it("defaults to en-US, remembers a listed code and ignores an unknown one", async () => {
+  it("defaults to none (the server's language), remembers a listed code and ignores an unknown one", async () => {
     window.localStorage.setItem("ls.labs", "1");
     let prefs = await import("./prefs");
-    expect(prefs.getMicLang()).toBe("en-US");
+    expect(prefs.getMicLang()).toBe("");
     prefs.setMicLang("ko-KR");
     expect(window.localStorage.getItem("ls.mic.lang")).toBe("ko-KR");
     vi.resetModules();
@@ -97,6 +97,6 @@ describe("the mic's speech-recognition language (D-316)", () => {
     window.localStorage.setItem("ls.mic.lang", "xx-YY");
     vi.resetModules();
     prefs = await import("./prefs");
-    expect(prefs.getMicLang()).toBe("en-US");
+    expect(prefs.getMicLang()).toBe("");
   });
 });

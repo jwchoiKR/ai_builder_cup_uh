@@ -25,11 +25,12 @@ export class ApiError extends Error {
 
 type Method = "GET" | "POST" | "DELETE";
 
-// D-315: a 404 for the session (the server restarted: STORE=memory) tells the app, which drops the stale id
-let staleSession: (() => void) | null = null;
-export function onStaleSession(fn: (() => void) | null): void {
+// D-315: a 404 for a session (the server restarted: STORE=memory) tells the app which session is gone
+let staleSession: ((sessionId: string) => void) | null = null;
+export function onStaleSession(fn: ((sessionId: string) => void) | null): void {
   staleSession = fn;
 }
+const SESSION_IN_PATH = /\/sessions\/([^/?]+)|[?&]session=([^&]+)/;
 
 export async function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
   let res: Response;
@@ -53,7 +54,8 @@ export async function request<T>(method: Method, path: string, body?: unknown): 
   }
   if (!res.ok) {
     const err = (data as { error?: { code?: string; message?: string } } | null)?.error;
-    if (res.status === 404 && err?.code === "session_not_found") staleSession?.();
+    const gone = res.status === 404 && err?.code === "session_not_found" ? SESSION_IN_PATH.exec(path) : null;
+    if (gone) staleSession?.(decodeURIComponent(gone[1] ?? gone[2]));
     throw new ApiError(res.status, err?.code ?? "http_error", err?.message ?? `HTTP ${res.status}`);
   }
   return data as T;

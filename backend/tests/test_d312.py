@@ -73,3 +73,56 @@ def test_d312_an_uncertain_verdict_logs_the_source_value():
         DROPS.reset(token)
     assert c.verdict == "not_in_sources"
     assert [(d["reason"], d["source"]) for d in sink] == [("relation uncertain", "50 mL")]
+
+
+class _V3Backend(ScriptedBackend):
+    """A model that follows v3: someone else's words give no claim; "Correct." makes the previous line's fact the
+    host's claim (span from that line); a rejection gives none."""
+
+    def __init__(self):
+        super().__init__()
+        self.fact_inputs = []
+
+    async def generate(self, req, timeout_ms):
+        if req.agent != "fact_checker":
+            return await super().generate(req, timeout_ms)
+        from app.providers.llm import RawReply
+
+        self.fact_inputs.append(req.user_message)
+        m = re.search(r'\["(S\d+)",\s*"Live broadcast price', req.user_message)
+        recent = req.user_message.split('<data name="RECENT_TRANSCRIPT">')[1].split("</data>")[0]
+        claims = [] if not (m and req.mock_primary_text == "Correct." and "thirty-two" in recent) else [{
+            "span": "the live price is thirty-two dollars", "product_id": CREAM, "field": "price",
+            "stated_value": "S$32", "evidence": [m.group(1)], "source_value": "S$36.00", "relation": "contradicts",
+            "correct_value": "S$36.00"}]
+        return RawReply(json.dumps({"claims": claims}), model_version="scripted")
+
+
+@pytest.mark.parametrize("answer, alerts", [("Correct.", 1), ("No, that's not right.", 0)])
+async def test_d313_an_endorsement_of_the_previous_line_alerts_through_run_case(answer, alerts, monkeypatch):
+    """D-313: "Someone says <a wrong price>." then "Correct." alerts on the second line, with the span from the first;
+    a rejection does not. Through eval_adversarial.run_case with the single arm, as measured."""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import eval_adversarial
+
+    from .helpers import make_ctx
+
+    real_sleep = __import__("asyncio").sleep
+    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
+    llm = _V3Backend()
+    ctx = make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT="v3", JUDGE_ARM="single")
+    try:
+        row = await eval_adversarial.run_case(ctx, {
+            "case_id": "E", "type": "t", "utterance": "", "current_product_id": CREAM,
+            "parts": ["Someone says the live price is thirty-two dollars.", answer], "expected": {"risky": True}}, 0)
+    finally:
+        ctx.runtimes.shutdown()
+        ctx.scheduler.shutdown()
+    facts = [a for a in row["alerts"] if a["kind"] == "fact"]
+    assert len(facts) == alerts, row["dropped"]
+    assert len(llm.fact_inputs) == 2  # each line checked on its own, the first line in the second's RECENT_TRANSCRIPT
+    if alerts:
+        assert facts[0]["correct_value"] == "S$36.00"

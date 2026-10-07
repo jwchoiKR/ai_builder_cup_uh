@@ -1,5 +1,5 @@
 // Pathname routes (DEV_SPEC §12.1). Session from ?session=<sid>, else GET /api/demo/current.
-import { useCallback, useEffect, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 
 import { Host } from "../screens/Host";
 import { Hub } from "../screens/Hub";
@@ -36,11 +36,13 @@ export function useSessionId(): {
   loading: boolean;
   error: string | null;
   setSessionId: (sid: string) => void;
+  refresh: () => void;
 } {
   const { pathname, search } = useLocation();
   const fromUrl = new URLSearchParams(search).get("session");
   const [current, setCurrent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [epoch, setEpoch] = useState(0);  // D-315: a bump fetches /demo/current again
 
   useEffect(() => {
     if (fromUrl) return;
@@ -52,11 +54,16 @@ export function useSessionId(): {
     return () => {
       cancelled = true;
     };
-  }, [fromUrl]);
+  }, [fromUrl, epoch]);
 
   const setSessionId = useCallback((sid: string) => navigate(withSession(pathname, sid)), [pathname]);
+  const refresh = useCallback(() => {
+    setCurrent(null);
+    setError(null);
+    setEpoch((e) => e + 1);
+  }, []);
   const sessionId = fromUrl ?? current;
-  return { sessionId, loading: !sessionId && !error, error, setSessionId };
+  return { sessionId, loading: !sessionId && !error, error, setSessionId, refresh };
 }
 
 /** D-315: the show in the URL is gone (the server restarted). No raw error: say so, and start the current demo. */
@@ -77,16 +84,24 @@ function SessionEnded({ onNew }: { onNew: () => void }) {
 
 export function App() {
   const { pathname } = useLocation();
-  const { sessionId, setSessionId } = useSessionId();
+  const { sessionId, setSessionId, refresh } = useSessionId();
   const [ended, setEnded] = useState(false);
+  const current = useRef(sessionId);
+  current.current = sessionId;
   useEffect(() => {
-    onStaleSession(() => setEnded(true));
+    // a late 404 from a session this page has left is ignored
+    onStaleSession((sid) => sid === current.current && setEnded(true));
     return () => onStaleSession(null);
   }, []);
   const Screen = ROUTES[pathname.replace(/\/+$/, "") || "/"] ?? Hub;
   if (ended) {
     // drop the stale id: without ?session the app takes /api/demo/current (the demo show, made if none is left)
-    return <SessionEnded onNew={() => { setEnded(false); navigate(pathname, true); }} />;
+    const onNew = () => {
+      setEnded(false);
+      navigate(pathname, true);
+      refresh();
+    };
+    return <SessionEnded onNew={onNew} />;
   }
   return <Screen sessionId={sessionId} onSessionChange={setSessionId} />;
 }

@@ -1917,3 +1917,13 @@ D-317: the mic language select of D-316 shows only languages with measured judgi
 - **Backend:** the allow-list is unchanged, so internal tests work on the deployed build.
 - **Measuring a language:** add its code to `MEASURED_LANGUAGES` (one line).
 - **Tests:** `src/app/prefs.test.ts`.
+
+D-318: fixes from codex's review of fd62170..HEAD, made before the deploy.
+- **D-316, mic language:** the mic sent `?lang=en-US` even with no choice, which overrode a server `STT_LANGUAGE`. It now sends `lang` only when this browser picked one. The select gained "Session default" (no `lang` sent), so the server's setting, then the pack's code, apply as before. Test: `test_d316_with_no_choice_the_server_setting_keeps_its_language` and `test_d316_the_recognizer_s_language_code`.
+- **D-315, "Start a new show" with a session from `/demo/current`:** the button returned to the ended screen, because nothing fetched the session again. `useSessionId` now has `refresh()`, which the button calls.
+- **D-315, stale-session callback:** it had no session identity, so a late 404 from a session the page had left replaced a valid screen. `request()` now passes the session id from the path (`/sessions/<id>` or `?session=<id>`), and the app acts only on its current session.
+- **D-314, sampling settings:** a bad `JUDGE_TEMPERATURE` or `JUDGE_SEED` raised ValueError inside a judge call. Settings now check them at load, so a bad env fails at startup.
+- **Tests:**
+  - `src/app/router.test.tsx`: a replacement session loads for a URL session and for a `/demo/current` session; a late 404 is ignored.
+  - `tests/test_d312.py`: the v3 endorsement and rejection pair through `run_case`, single arm.
+  - `tests/test_d314.py`: bad values fail at startup.
