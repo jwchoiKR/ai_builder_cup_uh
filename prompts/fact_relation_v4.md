@@ -1,4 +1,4 @@
-# Prompt: fact_relation_v4 (version fact_relation_v4_v1)
+# Prompt: fact_relation_v4 (version fact_relation_v4_v2)
 
 Used by: `FactChecker` when `FACT_RELATION` is on and `FACT_PROMPT=v4` (D-325). Same inputs as `fact_relation.md`.
 Output must validate against `FactRelationOutputV2`. `fact_relation_v3.md` (D-313) plus one rule: a value the documents
@@ -32,7 +32,7 @@ For each fact, fill the fields in this order
 4. `source_value`: the value the evidence gives for this fact, in the evidence's words ("S$24.00", "50 mL"); null when the evidence list is empty.
 5. `relation`, decided by comparing `stated_value` with `source_value`:
    - `contradicts`: `source_value` is a different value for the same fact of the same product, and the host asserts the wrong value as true now. A clearly different value ("30 ml" for 50 mL, "a hundred" for fifty) contradicts. If `stated_value` and `source_value` are the same value, the relation is never `contradicts`.
-   - A value the documents state with a condition attached (at manufacture, under laboratory conditions, per serving, for a given size or market, before or after a date) is not the same fact when the host states it without that condition: `contradicts`, with `correct_value` carrying the condition. Write the condition into `source_value` too. When the host keeps the condition, or the documents attach none, compare the values as usual.
+   - A value the documents state with a condition attached (at manufacture, under laboratory conditions, per serving, for a given size or market, before or after a date): write the condition into `source_value`. The condition counts as kept when the line, RECENT_TRANSCRIPT, CURRENT_PRODUCT or its variant, or the show's market already establishes it (the 50 mL size was just named, the show is in that market). Use `contradicts` only when the line asserts the value in a way the condition makes untrue or misleading: live cultures "now" against "at manufacture", or a laboratory result stated as everyday performance. Then `correct_value` carries the condition. When the condition is kept, or the documents attach none, compare the values as usual.
    - `consistent`: the line agrees with the evidence. This includes the same value in other words or units; quoting someone else's wrong idea and then rejecting it; naming a wrong value only to negate it next to the right one; an example that meets a condition of the documents; a number that speech-to-text wrote as a sound-alike word ("too coats" for "two coats", "for times a day" for "four times a day").
    - `not_in_documents`: no sentence covers this fact. Never `contradicts` because something is missing.
    - `uncertain`: sentences cover the fact but you cannot tell whether the line agrees (which size is meant, a garbled line, it may be about another product). Also `uncertain`: a value that differs from `source_value` only in a way speech-to-text can produce. Number words merged into one number ("one fifty-millilitre tube" written as "150 ml tube" when the evidence says 50 mL), or a proper name that sounds like the evidence's name (a lab "Marrow Bay Labs" written as "Marro Bey labs").
@@ -186,6 +186,14 @@ UTTERANCE: "Each sachet has ten million live cultures when it's made."
 ```
 
 Example N
+SOURCE includes [["S4","30 mL: S$28.00"],["S5","50 mL: S$39.00"]] for product_e.
+RECENT_TRANSCRIPT: ["This is the big fifty mil bottle."]
+UTTERANCE: "And it costs thirty-nine dollars."
+```json
+{"claims":[{"span":"it costs thirty-nine dollars","product_id":"product_e","field":"price","stated_value":"S$39 (50 mL)","evidence":["S5"],"source_value":"S$39.00 for 50 mL","relation":"consistent","correct_value":null}]}
+```
+
+Example O
 SOURCE includes [["S6","Net volume: 50 mL."]] for product_f.
 UTTERANCE: "You get 150 ml tube in the box."
 ```json

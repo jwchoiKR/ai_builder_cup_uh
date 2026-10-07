@@ -2002,3 +2002,9 @@ D-325: `FACT_PROMPT=v4` is `fact_relation_v3.md` plus one rule, in `prompts/fact
   - M: the host keeps the condition. Result: `consistent`.
   - v3's merged-number example is now N.
 - **Tests:** `tests/test_d312.py` (v1 to v4).
+
+D-326: the v4 rule of D-325 is narrower (fact_relation_v4_v2). Codex's review: as written, the rule raised a correction whenever the host left out a condition, size and market included. "It costs S$39" right after the 50 mL size was named is consistent with "50 mL: S$39".
+- **When the condition counts as kept:** the line, RECENT_TRANSCRIPT, CURRENT_PRODUCT or its variant, or the show's market already establishes it.
+- **When it contradicts:** only when the line asserts the value in a way the condition makes untrue or misleading. Examples: live cultures "now" against "at manufacture"; a laboratory result stated as everyday performance.
+- **New counter-example N:** the 50 mL size was named in the line before, and the host says "And it costs thirty-nine dollars." The relation is `consistent`. The merged-number example is now O.
+- The default stays v1.
