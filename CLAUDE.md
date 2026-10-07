@@ -63,7 +63,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
   - Wrong HIGH and latency now pass. False alerts do not, so this arm is stopped for discussion.
   - The 13 false lines over 216 safe ones: 7 quote-then-reject lines (TEST-QUALIFIER or promo alerts), 4 numbers said in words, 2 near numbers (fact checker at LOW: promo, volume, test_result).
   - litemed_docs (the same with COMPLIANCE_DOCS), voice A / B: detection 96.3 / 97.2%, false 6.5 / 6.5%, wrong HIGH 3 / 4, alert shown p95 5.0 / 9.2 s. The documents hurt again (wrong HIGH, latency), so keep COMPLIANCE_DOCS off. The 10-minute wait on any 429 makes a cell take about 2 h (24 waits in this run).
-- **Decks:** `docs/decks/live_logic_1006.html`, `fix_plan_1006.html`, `rule_code_1006.html`, `arch_llm_1006.html`. The arch deck still shows the R2 verifier and needs an update once the design settles.
+- **Decks:** `docs/decks/old/live_logic_1006.html`, `fix_plan_1006.html`, `rule_code_1006.html`, `arch_llm_1006.html` (all earlier decks moved to `docs/decks/old/` on 10/7). The arch deck still shows the R2 verifier and needs an update once the design settles.
 
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)
 
@@ -104,7 +104,7 @@ Cloud: `live-studio-us` revision 00009-qcf runs 41411fd (deployed 10/6 morning, 
 ### Team (humans, user's plan 10/5)
 - Dev lead (user): decisions, merges, deploy approval, IAP removal, Gemini Live timing.
 - Host tester: one real host session with the assistant off/on (correction success, intervention time, alerts per hour), real voice latency.
-- Workflow/performance verifier: owns pool 4+ and reruns; reads `docs/decks/workflow_detail.html` and proof-plan first.
+- Workflow/performance verifier: owns pool 4+ and reruns; reads `docs/decks/old/workflow_detail.html` and proof-plan first.
 
 ### Next deploy: GCS onboarding store (user-approved 10/6 morning, option A)
 - Why: Cloud Run scales to zero and `ONBOARDING_DIR` lived inside the container, so uploads, releases, law packs and brand packs vanished after idle time or a redeploy. Now they are written through to `gs://separk-cloocus-live-studio-onboarding` (setting `ONBOARDING_GCS_BUCKET`); `VERIFY_MODE` defaults to `lean`.

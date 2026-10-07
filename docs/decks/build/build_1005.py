@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
 from deck import *  # noqa: E402,F403
 
-OUT = Path(__file__).parent.parent / "team_update_1005.html"
+OUT = Path(__file__).parent.parent / "old" / "team_update_1005.html"
 
 
 def stat(value, label, base, color, bg):

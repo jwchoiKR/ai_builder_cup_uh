@@ -8,7 +8,7 @@ from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
-OUT = Path(__file__).parent.parent / "rule_code_1006.html"
+OUT = Path(__file__).parent.parent / "old" / "rule_code_1006.html"
 S = 24  # table text
 
 slide("sum", "10/6 · 코드 규칙 점검", "뜻을 판단하는 코드가 STT 앞에서 무너졌다", col(
