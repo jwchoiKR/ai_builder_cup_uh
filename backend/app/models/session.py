@@ -247,6 +247,8 @@ class AgentCall(BaseModel):  # [sessions/{sid}/agent_calls/{id}] audit
     error: str | None = None
     usage: dict | None = None  # D-187: tokens {prompt, output, thoughts, cached} as the model reported them
     failure: str | None = None  # D-306: http_504, client_timeout, http_429 or other_error (None when ok)
+    temperature: float | None = None  # D-314: the sampling sent (None = the model's default)
+    seed: int | None = None
 
 
 class Event(BaseModel):  # [sessions/{sid}/events/{seq}]

@@ -111,6 +111,7 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output,
                            "latency_ms": c.latency_ms, "failure": c.failure}
                           | {"usage": c.usage}  # D-310: every agent's tokens (prompt, output, thoughts, cached)
+                          | {"temperature": c.temperature, "seed": c.seed}  # D-314: the sampling sent
                           | ({"retried": len(tries[c.input_preview]) > 1,
                               "final_status": tries[c.input_preview][-1].status} if c.agent == "fact_checker" else {})
                           for c in calls if c.agent in ("compliance_judge", "context_judge", "fact_checker",

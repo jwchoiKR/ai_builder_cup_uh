@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # D-302 vote: two more runs of the agent on a line with a candidate; empty = the model's default temperature
     # (1.0 on Gemini 3, which Google advises keeping)
     VOTE_TEMPERATURE: str = ""  # a number, e.g. "0.7"
+    # D-314 (eval): the live judges' sampling (compliance_judge, fact_checker, context_judge); empty = not sent (the
+    # model's default, D-008). JUDGE_TEMPERATURE is a number ("0"), JUDGE_SEED an integer ("7")
+    JUDGE_TEMPERATURE: str = ""
+    JUDGE_SEED: str = ""
     # D-302: "self" adds a confidence (0-1) to each violation and claim, a log field only
     VOTE_CONFIDENCE: Literal["off", "self"] = "off"
     VERIFY_MODEL: str = "gemini-3.8-flash"

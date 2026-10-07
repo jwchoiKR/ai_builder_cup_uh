@@ -76,6 +76,7 @@ The spec (§7.1) says to set temperature 0. The docs say otherwise [doc]:
 - For `gemini-3.8-flash`: temperature, top_k and top_p "are ignored by the backend".
 - For Gemini 3 in general: "strongly recommended to keep the temperature parameter at its default value of 1.0 ... setting it to less than 1.0 may lead to unexpected behavior, such as looping or degraded performance."
 - What happened live: sending `temperature=0` was accepted (HTTP 200).
+- Probe 10/7 (D-314) [live], `gemini-3.5-flash-lite` at LOW, one creative prompt sent 5 times per cell. The default gave 5 different answers out of 5. `temperature=0` also gave 5 out of 5, so the temperature is ignored. `seed=7` gave 1 answer out of 5, so the seed is applied. `temperature=0` with `seed=7` gave that same answer.
 
 **Decision D-008: temperature is not sent.**
 
