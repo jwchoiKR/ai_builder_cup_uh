@@ -1994,3 +1994,11 @@ D-324: the test drive's final-to-line matching is simpler. Codex's third review 
 - **Fallback:** a line with no final in its window 6 s after its audio ends goes in as text. A later final in that window is dropped and logged.
 - **Show end:** the end of the show now also ends the wait for the warm-up (up to 5 s before).
 - **Tests:** `tests/test_d320.py` covers codex's two cases (an unheard line next to a near-identical heard line falls back; a final at the boundary is the earlier line's, and the unheard later line falls back), the gap, and the end during warm-up. It keeps the late-final and failed-`/go` tests.
+
+D-325: `FACT_PROMPT=v4` is `fact_relation_v3.md` plus one rule, in `prompts/fact_relation_v4.md` (user-approved 10/7, prompt only). The default stays v1, and v2 and v3 are unchanged for comparison.
+- **The rule:** the documents may attach a condition to a value: at manufacture, under laboratory conditions, per serving, for a given size or market, before or after a date. When the host states the value without that condition, it is not the same fact. The relation is `contradicts`, and `correct_value` carries the condition. `source_value` carries the condition too. When the host keeps the condition, or the documents attach none, values are compared as usual.
+- **Examples (made up):**
+  - L: the documents say "10 million per sachet at manufacture"; the host says "each sachet has ten million live cultures". Result: `contradicts`, correct "10 million per sachet at manufacture".
+  - M: the host keeps the condition. Result: `consistent`.
+  - v3's merged-number example is now N.
+- **Tests:** `tests/test_d312.py` (v1 to v4).

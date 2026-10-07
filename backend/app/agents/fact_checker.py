@@ -873,7 +873,7 @@ class FactChecker:
         # D-302: VOTE_CONFIDENCE=self asks for a confidence per claim (a log field)
         self.confidence = getattr(settings, "VOTE_CONFIDENCE", "off") == "self"
         self.relation_model = FactRelationOutputC if self.confidence else FactRelationOutput
-        if getattr(settings, "FACT_PROMPT", "v1") in ("v2", "v3"):  # D-312, D-313: source_value before relation (no confidence field)
+        if getattr(settings, "FACT_PROMPT", "v1") in ("v2", "v3", "v4"):  # D-312, D-313, D-325: source_value before relation (no confidence field)
             self.relation_model = FactRelationOutputV2
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
