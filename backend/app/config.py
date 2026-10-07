@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
@@ -207,6 +207,15 @@ class Settings(BaseSettings):
     VIEWER_INPUT_ENABLED: bool = False
     DEMO_TOOLS_ENABLED: bool = True
     LOG_LEVEL: str = "INFO"
+
+    @field_validator("JUDGE_TEMPERATURE", "JUDGE_SEED")
+    @classmethod
+    def _sampling(cls, v: str, info) -> str:
+        """D-314: a bad sampling value fails at startup, not inside a judge call."""
+        v = v.strip()
+        if v:
+            (float if info.field_name == "JUDGE_TEMPERATURE" else int)(v)
+        return v
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":

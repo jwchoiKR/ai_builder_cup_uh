@@ -281,6 +281,7 @@ export function DemoConsole({
                 <select value={micLang} onChange={(e) => setMicLang(e.target.value)} disabled={mic.state !== "off"}
                   aria-label="Speech-recognition language" data-testid="console-mic-lang"
                   title={mic.state !== "off" ? "Stop the mic to change the language" : undefined}>
+                  <option value="">Session default</option>
                   {micLanguages().map((l) => (
                     <option key={l.code} value={l.code}>
                       {MEASURED_LANGUAGES.has(l.code) ? l.name : `${l.name} · 실험 중 · 정확도 미측정`}

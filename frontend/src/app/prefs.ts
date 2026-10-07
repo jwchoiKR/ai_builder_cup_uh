@@ -92,22 +92,23 @@ export function micLanguages(): (typeof STT_LANGUAGES)[number][] {
   return STT_LANGUAGES.filter((l) => MEASURED_LANGUAGES.has(l.code) || isLabs());
 }
 
+/** The language this browser picked, or "" for none: the server then uses its setting, else the session's. */
 export function getMicLang(): string {
   if (micLang === undefined) {
     const v = read(MIC_LANG_KEY);
-    micLang = micLanguages().some((l) => l.code === v) ? v! : "en-US";
+    micLang = micLanguages().some((l) => l.code === v) ? v! : "";
   }
   return micLang;
 }
 
 export function setMicLang(code: string): void {
   micLang = code;
-  write(MIC_LANG_KEY, code);
+  write(MIC_LANG_KEY, code || null);
   notify();
 }
 
 export function useMicLang(): string {
-  return useSyncExternalStore(subscribe, getMicLang, () => "en-US");
+  return useSyncExternalStore(subscribe, getMicLang, () => "");
 }
 
 function subscribe(l: () => void): () => void {

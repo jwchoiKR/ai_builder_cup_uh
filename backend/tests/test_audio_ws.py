@@ -138,3 +138,24 @@ def test_phrases_from_glossary_dedupes_and_limits():
                    {"term": "niacinamide", "spoken_forms": ["nia-sin-a-mide"]}]}
     assert phrases_from_glossary(g) == ["DAON LAB", "day-on lab", "niacinamide", "nia-sin-a-mide"]
     assert len(phrases_from_glossary(g, limit=2)) == 2
+
+
+@pytest.mark.parametrize("asked, language", [("", "ko-KR"), ("ja-JP", "ja-JP")])
+def test_d316_with_no_choice_the_server_setting_keeps_its_language(asked, language):
+    """D-316 (review): a mic with no language choice sends no ?lang, so STT_LANGUAGE still applies; a choice wins."""
+    app = create_app(make_settings(STT_LANGUAGE="ko-KR"))
+    app.state.ctx.stt = FakeStt()
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions").json()["session_id"]
+        with client.websocket_connect(f"/api/sessions/{sid}/audio" + (f"?lang={asked}" if asked else "")) as ws:
+            assert json.loads(ws.receive_text())["lang"] == language
+    assert app.state.ctx.stt.languages == [language]
+
+
+@pytest.mark.parametrize("given, setting, sent", [(None, "", "en-US"), (None, "ko-KR", "ko-KR"), ("ja-JP", "ko-KR", "ja-JP")])
+def test_d316_the_recognizer_s_language_code(given, setting, sent):
+    from app.clock import SystemClock
+    from app.providers.stt import GoogleV2Stt
+
+    stt = GoogleV2Stt(make_settings(STT_LANGUAGE=setting, GCP_PROJECT="p"), SystemClock())
+    assert list(stt.first_request([], given).streaming_config.config.language_codes) == [sent]

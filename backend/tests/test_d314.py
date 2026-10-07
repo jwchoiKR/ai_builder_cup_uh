@@ -49,3 +49,14 @@ def test_d314_vertex_config_sends_them_only_when_set():
     req.temperature, req.seed = 0.0, 7
     cfg = vertex_config(req, 5000, {})
     assert (cfg.temperature, cfg.seed) == (0.0, 7)
+
+
+@pytest.mark.parametrize("field, value", [("JUDGE_TEMPERATURE", "oops"), ("JUDGE_SEED", "1.5")])
+def test_d314_a_bad_sampling_value_fails_at_startup(field, value):
+    from pydantic import ValidationError
+
+    from .conftest import make_settings
+
+    with pytest.raises(ValidationError):
+        make_settings(**{field: value})
+    assert make_settings(**{field: " 7 "}).model_dump()[field] == "7"

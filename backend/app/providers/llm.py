@@ -531,7 +531,7 @@ class LLMClient:
 
     async def call(self, req: LLMRequest[T]) -> AgentResult[T]:
         if req.agent in SAMPLED_AGENTS:  # D-314: the live judges' sampling, when set (a vote run keeps its own)
-            t, s = self._settings.JUDGE_TEMPERATURE.strip(), self._settings.JUDGE_SEED.strip()
+            t, s = self._settings.JUDGE_TEMPERATURE, self._settings.JUDGE_SEED  # checked at startup
             req = replace(req, temperature=float(t) if t and req.temperature is None else req.temperature,
                           seed=int(s) if s and req.seed is None else req.seed)
         call_id = self._ids.new("call_", req.session_id)
