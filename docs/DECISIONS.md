@@ -1957,3 +1957,11 @@ D-320: the judge test drive (D-238) speaks the host's lines into our speech-to-t
 - **Tests:**
   - `tests/test_d320.py`: speech goes through STT as `mic`; the fallback; no STT or no TTS; the audio endpoint; event subscriptions.
   - `src/app/state.test.ts`.
+
+D-321: two changes after the D-320 pre-test, in which the planner ran each host line through Cloud TTS (the Leda voice) and chirp_3 10 times. The 10 runs gave the same text each time.
+- **The viewer in the test-drive scene is now "Sarah", not "Siti".** STT heard "Siti" as "City" with STANDARD endpointing and as "CD" with SHORT, 10 runs out of 10. Only the scene script changed: the comment author and the host's "... asked about pregnancy." line.
+- **`deploy/cloudrun.sh` now sets `STT_ENDPOINTING=STANDARD`.**
+  - With SHORT, the cloud's setting until now, 3 of the 4 demo lines split into two or more finals in every run, and words changed ("welcome to Today", "Help skin").
+  - With STANDARD, lines 1-3 came back word for word, with the final 1.1-1.5 s after the audio ended.
+  - On pool 5, STANDARD cut split lines from 73 to 21 and lowered false alerts. The latency pass line still held.
+  - The code default (SHORT) is unchanged. The setting takes effect when the user deploys.

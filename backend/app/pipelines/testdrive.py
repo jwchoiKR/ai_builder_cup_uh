@@ -72,8 +72,8 @@ def scene(rt) -> list[tuple[float, str, str, str]]:
         (17.0, "comment", "Mei", "how much is it?"),
         (17.8, "comment", "Raj", "price pls"),
         (18.6, "comment", "Ana", "how much is this one?"),
-        (21.0, "comment", "Siti", "can I use it while pregnant?"),
-        (38.0, "host_answer", "Host", "Siti asked about pregnancy."),  # then the verified draft, read aloud
+        (21.0, "comment", "Sarah", "can I use it while pregnant?"),
+        (38.0, "host_answer", "Host", "Sarah asked about pregnancy."),  # then the verified draft, read aloud
         (46.0, "comment", "Tom", "Just bought two, so excited!!"),
         (75.0, "end", "", ""),
     ]
