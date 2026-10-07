@@ -1934,3 +1934,26 @@ D-319: the approved-products picker of D-315 moves out of the Hub hero into a po
 - **Behaviour:** Escape, an outside pointer-down and a started show close the panel. Focus moves to the first row on open and back to the button on close. The button carries `aria-haspopup`, `aria-expanded` and `aria-controls`, and the rows keep `aria-pressed`.
 - **Phone width (under 700 px):** the panel becomes a bottom sheet, full width, at most 70vh and scrolling.
 - **Tests:** `src/screens/screens.test.tsx` adds the open step, focus in and out, Escape, an outside click and closing on start.
+
+D-320: the judge test drive (D-238) speaks the host's lines into our speech-to-text path instead of injecting text, so a judge hears the host, sees the STT caption, then the alert, with the real latency. Comments in the scene are unchanged.
+- **Speech:** Cloud TTS voice `en-US-Chirp3-HD-Leda`, LINEAR16 16 kHz mono WAV, which the STT stream takes and the browser plays. Each line is cached on disk by the hash of voice and text (option (a), from the scene's actual line text).
+  - Probe 10/7: five lines in parallel took 1.1 s warm and 6.7 s on a cold laptop client.
+  - The host lines are made before the scene starts, waiting at most 5 s. A line not ready by then keeps going in the background, or is made when it is said.
+  - The host_answer line (with the verified draft) is made at that moment.
+- **Server (`testdrive.Voice`):** one STT stream per test drive, set up as the mic's (`audio_ws.stream_setup`: phrase hints, language).
+  - The voice writes 100 ms frames in real time: each line's PCM, and silence between lines.
+  - Finals go to `utterances.submit(source="mic")`, the normal path to the judges, logged as `testdrive stt final`.
+  - When a line's streaming starts, the session emits `testdrive.audio` {url, text, duration_ms}.
+  - Probe 10/7, real TTS into chirp_3: both lines came back word-for-word, 1.4-1.6 s after the line ended.
+- **Fallbacks:** the scene never stalls.
+  - A line with no final within 6 s of its audio ending is injected as text (`testdrive stt fallback`).
+  - Without speech-to-text (STT_PROVIDER=mock), or when the stream cannot open, the scene plays as text as before.
+  - A line whose speech cannot be made is injected as text.
+  - The 6-per-hour cap and the one-at-a-time rule are unchanged.
+- **Browser:** the Studio plays each `testdrive.audio` line when it arrives. A small pill, "AI voice (demo)", with a mute toggle (kept per browser) shows from the first line. If the browser refuses autoplay, the toggle reads "Sound blocked: click to allow". `GET /api/testdrive/audio/<key>.wav` serves only cached keys.
+- **Fixed on the way:** the browser never subscribed to `line.check` (D-298), `verify.started` / `verify.done` / `verify.health` (D-306) or `feed.updated`, so those showed only after a reload. They are in `EVENT_TYPES` now. A backend test fails when an emitted event type is not subscribed.
+- **Not verified:** that the Cloud Run service account may call Cloud TTS. The API answered for the project from this laptop. If the service account is refused, every line falls back to text and the log says `testdrive tts failed`.
+- **Dependency:** `google-cloud-texttospeech`.
+- **Tests:**
+  - `tests/test_d320.py`: speech goes through STT as `mic`; the fallback; no STT or no TTS; the audio endpoint; event subscriptions.
+  - `src/app/state.test.ts`.

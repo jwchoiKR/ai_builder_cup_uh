@@ -1,9 +1,10 @@
 // Studio (§12.6): Host, Operator and Viewer side by side for screen recording at 1920x1080,
 // with layout presets, recording mode (R) and the Demo Console drawer (D).
-import { useEffect, useState, type ComponentType } from "react";
+import { Volume2, VolumeX } from "lucide-react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 
 import type { ScreenProps } from "../app/nav";
-import { useHealth } from "../app/store";
+import { useHealth, useSession } from "../app/store";
 import { useTheme, type ScreenKey } from "../app/theme";
 import { Eyebrow, HubLink, SettingsButton } from "../components";
 import { DemoConsole } from "./DemoConsole";
@@ -11,6 +12,8 @@ import { Host } from "./Host";
 import { Operator } from "./Operator";
 import styles from "./studio.module.css";
 import { Viewer } from "./Viewer";
+
+const VOICE_MUTE_KEY = "ls.testdrive.muted";
 
 type PaneScreen = Extract<ScreenKey, "host" | "operator" | "viewer">;
 export type PresetKey = "host_operator" | "host_viewer" | "all";
@@ -78,6 +81,56 @@ function Pane({
   );
 }
 
+/** D-320: the test drive's host voice. Each line's audio plays when the server starts streaming it into
+ * speech-to-text; a note says it is an AI voice, and a toggle mutes it (kept per browser). */
+function TestDriveVoice({ sessionId }: { sessionId: string | null }) {
+  const { state } = useSession(sessionId, "host");
+  const line = state.voiceLine;
+  const [muted, setMuted] = useState(() => {
+    try {
+      return window.localStorage.getItem(VOICE_MUTE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [blocked, setBlocked] = useState(false);
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const played = useRef(0);
+  useEffect(() => {
+    if (!line || muted || line.seq === played.current) return;  // each line once; unmuting does not replay it
+    played.current = line.seq;
+    const a = new Audio(line.url);
+    audio.current = a;
+    a.play().then(() => setBlocked(false), () => setBlocked(true));  // autoplay may be refused until a click
+    return () => a.pause();
+  }, [line, muted]);
+  if (!line) return null;
+  const toggle = () => {
+    if (blocked && !muted) {  // the click is the gesture the browser waited for
+      audio.current?.play().then(() => setBlocked(false), () => undefined);
+      return;
+    }
+    const next = !muted;
+    setMuted(next);
+    if (next) audio.current?.pause();
+    try {
+      window.localStorage.setItem(VOICE_MUTE_KEY, next ? "1" : "0");
+    } catch {
+      // not remembered
+    }
+  };
+  return (
+    <div className={styles.voice} data-testid="testdrive-voice">
+      <span>AI voice (demo)</span>
+      <button type="button" className={styles.voiceToggle} aria-pressed={muted} onClick={toggle}
+        data-testid="testdrive-voice-mute">
+        {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+        {muted ? "Unmute" : blocked ? "Sound blocked: click to allow" : "Mute"}
+      </button>
+    </div>
+  );
+}
+
 export function Studio({ sessionId, onSessionChange }: ScreenProps) {
   const [chrome, , setTheme, themePref] = useTheme();
   const health = useHealth();
@@ -106,6 +159,7 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
 
   return (
     <div className={styles.root} data-theme={chrome}>
+      <TestDriveVoice sessionId={sessionId} />
       {!recording && (
         <div className={styles.topbar}>
           <div className={styles.brand}>

@@ -3,10 +3,13 @@ once, then reused), approved with one visible click, and a short scene plays on 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse
 
 from ..context import AppContext, get_ctx
 from ..pipelines import testdrive as td
 from ..pipelines.runtime import ActionError, create_session
+from ..providers import tts
+from .errors import ApiError
 from .onboarding import ApproveBody, approve_job, done_job, start_job
 
 router = APIRouter(prefix="/testdrive")
@@ -25,6 +28,15 @@ async def start(ctx: AppContext = Depends(get_ctx)) -> dict:
     job = done_job(files, cached) if cached else start_job(
         ctx, files, on_done=lambda out: td.save_cached(root, key, out))
     return {"job_id": job["job_id"], "status": job["status"], "files": [n for n, _ in files], "cached": bool(cached)}
+
+
+@router.get("/audio/{name}")
+async def audio(name: str) -> FileResponse:
+    """D-320: a host line's speech, as the scene streams it into speech-to-text."""
+    path = tts.path_of(name.removesuffix(".wav")) if name.endswith(".wav") else None
+    if path is None:
+        raise ApiError(404, "no_audio", "no such line audio")
+    return FileResponse(path, media_type="audio/wav")
 
 
 @router.post("/{job_id}/go")
