@@ -180,6 +180,9 @@ class Settings(BaseSettings):
     # D-186: also hint the market's claim words (the reflex phrases of its rules, in the broadcast language) after
     # the glossary, so a risky word is not heard as a harmless sound-alike ("widens" for "whitens"). Off until measured
     STT_RISK_HINTS: bool = False
+    # D-327: "record" adds each on-show release's names, sizes and test names from its approved record to the hints
+    STT_HINTS: Literal["base", "record"] = "base"
+    STT_HINT_BOOST: str = ""  # D-327: a boost (0-20) on the phrase set; empty = none (chirp_3 accepts it, probe 10/7)
     VERTEX_SEARCH_LOCATION: str = "global"
     VERTEX_SEARCH_DATA_STORE_ID: str = ""
     GCS_BUCKET: str = ""
@@ -209,13 +212,15 @@ class Settings(BaseSettings):
     DEMO_TOOLS_ENABLED: bool = True
     LOG_LEVEL: str = "INFO"
 
-    @field_validator("JUDGE_TEMPERATURE", "JUDGE_SEED")
+    @field_validator("JUDGE_TEMPERATURE", "JUDGE_SEED", "STT_HINT_BOOST")
     @classmethod
     def _sampling(cls, v: str, info) -> str:
-        """D-314: a bad sampling value fails at startup, not inside a judge call."""
+        """D-314: a bad sampling value fails at startup, not inside a judge call (D-327: and the hint boost)."""
         v = v.strip()
         if v:
-            (float if info.field_name == "JUDGE_TEMPERATURE" else int)(v)
+            n = (int if info.field_name == "JUDGE_SEED" else float)(v)
+            if info.field_name == "STT_HINT_BOOST" and not 0 <= n <= 20:
+                raise ValueError("STT_HINT_BOOST must be between 0 and 20")
         return v
 
     @model_validator(mode="after")
