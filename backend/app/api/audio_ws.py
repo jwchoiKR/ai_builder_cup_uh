@@ -65,6 +65,12 @@ async def _send(ws: WebSocket, payload: dict) -> None:
         pass
 
 
+# D-316: the mic's speech-recognition language (?lang=), chirp_3 codes that opened a stream in region us (10/7).
+# Anything else uses the session's language. "auto" (code-switching) takes no phrase hints: it answers 404 with them.
+STT_CHOICES = frozenset({"en-US", "ko-KR", "ja-JP", "cmn-Hans-CN", "cmn-Hant-TW", "id-ID", "ms-MY", "th-TH", "vi-VN",
+                         "fil-PH", "auto"})
+
+
 @router.websocket("/sessions/{session_id}/audio")
 async def audio(ws: WebSocket, session_id: str) -> None:
     ctx = ws.app.state.ctx
@@ -101,8 +107,14 @@ async def audio(ws: WebSocket, session_id: str) -> None:
     log.info("stt phrase hints for %s: glossary %d, risk %d (STT_RISK_HINTS=%s, hints %s)", session_id, len(glossary),
              len(phrases) - len(glossary), ctx.settings.STT_RISK_HINTS,
              "on" if ctx.settings.STT_PHRASE_HINTS_ENABLED else "off")
-    stream = stt.open(phrases, rt.pack.stt_language)  # D-142: the session's broadcast language
-    await _send(ws, {"type": "status", "state": "listening", "phrases": len(phrases)})
+    asked = ws.query_params.get("lang") or ""
+    # D-142: the session's broadcast language (STT_LANGUAGE overrides); D-316: the mic's choice first
+    language = asked if asked in STT_CHOICES else (ctx.settings.STT_LANGUAGE or rt.pack.stt_language)
+    if language == "auto":
+        phrases = []
+    log.info("stt language for %s: %s (asked %r, hints %d)", session_id, language, asked, len(phrases))
+    stream = stt.open(phrases, language)
+    await _send(ws, {"type": "status", "state": "listening", "phrases": len(phrases), "lang": language})
 
     async def consume() -> None:
         last_interim = 0
@@ -111,6 +123,7 @@ async def audio(ws: WebSocket, session_id: str) -> None:
                 if r.is_final:
                     try:
                         t = await rt.utterances.submit(r.text, source="mic", speech_end_at=r.speech_end_at)
+                        log.info("stt final %s %s lang=%s", session_id, t.transcript_id, language)  # D-316
                         await _send(ws, {"type": "final", "text": r.text, "transcript_id": t.transcript_id})
                     except ActionError as e:  # e.g. not live yet: the line is not judged
                         await _send(ws, {"type": "final", "text": r.text, "transcript_id": None, "note": e.message})

@@ -6,6 +6,7 @@ export const READING_SIZES = [1, 1.25, 1.5] as const;
 const SIZE_KEY = "ls.host.size";
 const MIC_KEY = "ls.mic.device";
 const LAYOUT_KEY = "ls.layout.host";
+const MIC_LANG_KEY = "ls.mic.lang";
 
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
@@ -54,6 +55,40 @@ export function setMicDevice(id: string | null): void {
   micDevice = id;
   write(MIC_KEY, id);
   notify();
+}
+
+// D-316: the mic's speech-recognition language (chirp_3 codes); only en-US is measured
+export const STT_LANGUAGES = [
+  { code: "en-US", name: "English (en-US)" },
+  { code: "ko-KR", name: "한국어 (ko-KR)" },
+  { code: "ja-JP", name: "日本語 (ja-JP)" },
+  { code: "cmn-Hans-CN", name: "中文(简体) (cmn-Hans-CN)" },
+  { code: "cmn-Hant-TW", name: "中文(繁體) (cmn-Hant-TW)" },
+  { code: "id-ID", name: "Bahasa Indonesia (id-ID)" },
+  { code: "ms-MY", name: "Bahasa Melayu (ms-MY)" },
+  { code: "th-TH", name: "ไทย (th-TH)" },
+  { code: "vi-VN", name: "Tiếng Việt (vi-VN)" },
+  { code: "fil-PH", name: "Filipino (fil-PH)" },
+  { code: "auto", name: "자동 감지 (auto)" },
+] as const;
+let micLang: string | undefined;
+
+export function getMicLang(): string {
+  if (micLang === undefined) {
+    const v = read(MIC_LANG_KEY);
+    micLang = STT_LANGUAGES.some((l) => l.code === v) ? v! : "en-US";
+  }
+  return micLang;
+}
+
+export function setMicLang(code: string): void {
+  micLang = code;
+  write(MIC_LANG_KEY, code);
+  notify();
+}
+
+export function useMicLang(): string {
+  return useSyncExternalStore(subscribe, getMicLang, () => "en-US");
 }
 
 function subscribe(l: () => void): () => void {

@@ -39,9 +39,11 @@ class FakeStt:
 
     def __init__(self) -> None:
         self.opened: list[list[str]] = []
+        self.languages: list[str | None] = []
 
     def open(self, phrases, language=None):
         self.opened.append(phrases)
+        self.languages.append(language)
         return FakeStream()
 
 
@@ -53,7 +55,7 @@ def test_mic_finals_go_to_the_utterance_pipeline():
         client.post(f"/api/sessions/{sid}/start")
         with client.websocket_connect(f"/api/sessions/{sid}/audio") as ws:
             status = json.loads(ws.receive_text())
-            assert status == {"type": "status", "state": "listening", "phrases": status["phrases"]}
+            assert status == {"type": "status", "state": "listening", "phrases": status["phrases"], "lang": "en-US"}
             assert status["phrases"] > 5  # glossary phrase hints were sent
             ws.send_bytes(b"\x00" * 3200)
             ws.send_bytes(b"SAY:It's a lightweight gel-cream, so it absorbs really quickly.")
@@ -81,6 +83,26 @@ def test_d186_the_markets_claim_words_follow_the_glossary_only_with_the_flag(fla
     if flag:
         assert opened.index("whitens") > opened.index("DAON LAB")
     assert any(f"STT_RISK_HINTS={flag}" in r.getMessage() and "glossary" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.parametrize("asked, language, hints", [
+    ("ko-KR", "ko-KR", True), ("auto", "auto", False), ("xx-YY", "en-US", True), ("", "en-US", True)])
+def test_d316_the_mic_s_language(asked, language, hints, caplog):
+    """D-316: the demo console's language choice (?lang=) opens the stream in that code; a code off the list falls
+    back to the session's; "auto" takes no phrase hints (chirp_3 answers 404 with them). Each final logs its code."""
+    app = create_app(make_settings())
+    app.state.ctx.stt = FakeStt()
+    caplog.set_level("INFO", logger="app.api.audio_ws")
+    with TestClient(app) as client:
+        sid = client.post("/api/sessions").json()["session_id"]
+        client.post(f"/api/sessions/{sid}/start")
+        with client.websocket_connect(f"/api/sessions/{sid}/audio" + (f"?lang={asked}" if asked else "")) as ws:
+            assert json.loads(ws.receive_text())["lang"] == language
+            ws.send_bytes(b"SAY:It feels light.")
+            final = json.loads(ws.receive_text())
+    assert app.state.ctx.stt.languages == [language]
+    assert bool(app.state.ctx.stt.opened[0]) is hints
+    assert any(f"{final['transcript_id']} lang={language}" in r.getMessage() for r in caplog.records)
 
 
 def test_d186_risk_phrases_dedupe_and_keep_the_cap(pack):
