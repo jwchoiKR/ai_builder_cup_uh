@@ -182,6 +182,12 @@ rules. Use them to recognise what the line refers to: a tester, laboratory, bran
 by speech-to-text ("Marlo Fenn" for "Marlow Fen") is that name, and a line that names the tester of a result states
 its qualifier.
 
+## V2: compliance_judge
+
+D-312: speech-to-text may spell a tester, laboratory or test name as a sound-alike ("Marro Bey labs" for "Marrow Bay
+Labs"). A line that names the tester of a result in such a spelling states its qualifier. Do not report a missing or
+wrong qualifier only because the name is spelled differently from APPROVED_CLAIMS or the product's data.
+
 ## SINGLE: compliance_judge
 
 D-309 (one strong judge, no verifier): `severity` is the rule's severity, or MEDIUM when the line makes only a lesser

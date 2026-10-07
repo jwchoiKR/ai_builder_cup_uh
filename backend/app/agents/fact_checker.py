@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_file, quote_in_passage
-from ..models.agent_io import FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC
+from ..models.agent_io import FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC, FactRelationOutputV2
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -753,10 +753,12 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
         if verdict == "contradicted" and not ev and not set(r.evidence) & terms:
             _drop(c, f"relation: no valid evidence id ({', '.join(r.evidence) or 'none'})")
         elif r.relation == "uncertain":
-            log.info("fact relation uncertain | field=%s stated=%r evidence=%s", r.field, r.stated_value, r.evidence)
+            log.info("fact relation uncertain | field=%s stated=%r source=%r evidence=%s", r.field, r.stated_value,
+                     getattr(r, "source_value", None), r.evidence)
             if (sink := DROPS.get()) is not None:
                 sink.append({"reason": "relation uncertain", "field": r.field, "stated": r.stated_value,
-                             "correct": r.correct_value, "passage_id": c.passage_id, "quote": c.quote})
+                             "correct": r.correct_value, "passage_id": c.passage_id, "quote": c.quote}
+                            | ({"source": r.source_value} if hasattr(r, "source_value") else {}))  # D-312
         claims.append(c)
     return FactCheckOutput(claims=claims, reason="relation")
 
@@ -871,6 +873,8 @@ class FactChecker:
         # D-302: VOTE_CONFIDENCE=self asks for a confidence per claim (a log field)
         self.confidence = getattr(settings, "VOTE_CONFIDENCE", "off") == "self"
         self.relation_model = FactRelationOutputC if self.confidence else FactRelationOutput
+        if getattr(settings, "FACT_PROMPT", "v1") == "v2":  # D-312: source_value before relation (no confidence field)
+            self.relation_model = FactRelationOutputV2
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]

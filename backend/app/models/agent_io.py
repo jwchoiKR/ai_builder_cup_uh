@@ -210,6 +210,22 @@ class FactRelationOutputC(FactRelationOutput):
     claims: list[FactRelationClaimC]
 
 
+class FactRelationClaimV2(BaseModel):
+    """D-312 FACT_PROMPT=v2: the documents' value is written before the relation is decided."""
+    span: str
+    product_id: str
+    field: FactField
+    stated_value: str
+    evidence: list[str]
+    source_value: str | None  # the value the evidence gives, in its words
+    relation: FactRelation
+    correct_value: str | None
+
+
+class FactRelationOutputV2(BaseModel):
+    claims: list[FactRelationClaimV2]
+
+
 class VerifyOutput(BaseModel):
     """D-300: the verifier's verdict on one candidate alert."""
     evidence: str | None  # the SOURCE sentence id that settles it
