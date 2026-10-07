@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     SHOUTOUT: Literal["regex", "judge"] = "regex"  # D-308: back;  # judge: triage labels shout-outs (arm B's)
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     FACT_GUARDS: Literal["on", "off"] = "off"
+    # D-312 v2: fact_relation_v2.md (only the host's own assertions, sound-alike values uncertain, the documents' value
+    # before the relation) and the compliance judge's sound-alike tester-name line
+    FACT_PROMPT: Literal["v1", "v2"] = "v1"
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"

@@ -131,7 +131,8 @@ class UtterancePipeline:
         self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex, single=self.single)
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
-        self.facts = FactChecker(ctx.llm, ctx.prompts["fact_relation" if rt.settings.FACT_RELATION else "fact_checker"],
+        relation = "fact_relation_v2" if rt.settings.FACT_PROMPT == "v2" else "fact_relation"  # D-312
+        self.facts = FactChecker(ctx.llm, ctx.prompts[relation if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296
         self.compliance.docs = self.facts.files  # D-310: the same documents for COMPLIANCE_DOCS
         # D-300 R2: one verifier call per candidate alert, after the flaggers (their code drops off)
