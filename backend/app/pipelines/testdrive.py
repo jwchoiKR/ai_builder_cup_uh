@@ -11,7 +11,6 @@ import asyncio
 import hashlib
 import json
 import logging
-import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -112,13 +111,8 @@ FRAME_BYTES = 16_000 * 2 * FRAME_MS // 1000
 FALLBACK_S = 6.0  # no final this long after a line's audio ends: the line goes in as text
 SYNTH_WAIT_S = 5.0  # the host lines' speech is made before the scene starts (about 1 s for five lines)
 SAY_TTS_S = 4.0  # a line whose speech is not ready this long after it is due goes in as text
-LATE_MS = 1500  # a final whose speech ended this long after a line's audio still belongs to that line
-SPAN_WORDS = 0.6  # D-323: a final holding this share of an earlier line's words also covers that line
+GAP_MS = 1500  # D-324: at least this much silence between two lines, so each line is finalized on its own
 voice_sessions: set[str] = set()  # sessions whose speech-to-text the test drive's voice holds (the mic waits)
-
-
-def _words(text: str) -> list[str]:
-    return re.findall(r"[a-z0-9']+", text.lower())
 
 
 @dataclass
@@ -135,8 +129,10 @@ class _Line:
 class Voice:
     """D-320: the host's lines as speech in the session's speech-to-text stream, paced as a mic is (100 ms frames,
     silence between lines), so their finals take the normal path to the judges. The browser plays each line's audio
-    when its streaming starts (event `testdrive.audio`). D-322: a final goes to the line whose audio it came from, and
-    each line has one outcome, its finals or the text fallback; the voice holds the session's speech-to-text."""
+    when its streaming starts (event `testdrive.audio`). D-322: each line has one outcome, its finals or the text
+    fallback; the voice holds the session's speech-to-text. D-324: lines are GAP_MS of silence apart, and each owns one
+    window of time, from its audio's start to the next line's (a boundary belongs to the earlier line); a final goes
+    to the window its speech ended in."""
 
     def __init__(self, rt, tts, stream) -> None:
         self.rt, self.tts, self.stream = rt, tts, stream
@@ -201,44 +197,36 @@ class Voice:
         silence = b"\x00" * FRAME_BYTES
         frames: list[bytes] = []
         line: _Line | None = None
+        quiet = GAP_MS // FRAME_MS  # silence frames still owed before the next line
         due = time.monotonic()
         while not self.closed:
             if not frames and line is not None:
                 line.end_ms = self.rt.now()
                 line.done.set()
                 line = None
-            if not frames and not self.queue.empty():
+                quiet = GAP_MS // FRAME_MS
+            if not frames and quiet <= 0 and not self.queue.empty():
                 line = self.queue.get_nowait()
                 frames = [line.pcm[i:i + FRAME_BYTES] for i in range(0, len(line.pcm), FRAME_BYTES)]
                 line.start_ms = self.rt.now()
                 await self.rt.emit("testdrive.audio", {"url": f"/api/testdrive/audio/{line.key}.wav",
                                                        "text": line.text, "duration_ms": len(line.pcm) // 32})
+            if not frames:
+                quiet -= 1
             await self.stream.write(frames.pop(0) if frames else silence)
             due += FRAME_MS / 1000
             await asyncio.sleep(max(0.0, due - time.monotonic()))
 
-    def _lines_of(self, speech_end_at: int | None, text: str) -> list[_Line]:
-        """The lines this final's speech came from. Its last line: it started before the speech ended (one frame of
-        grace: a frame is stamped at the end of its audio, D-323) and the speech ended before its audio did (plus
-        LATE_MS); without a time, the last line that started. D-323: a final that also holds the words of the lines
-        just before it ("A B" heard as one) covers those too, so none of them falls back to text and is judged
-        twice."""
+    def _line_of(self, speech_end_at: int | None) -> _Line | None:
+        """D-324: the line whose window holds the speech's end: from its audio's start up to and including the next
+        line's start. Without a time, the last line that started."""
         started = [x for x in self.lines if x.start_ms]
         if speech_end_at is None:
-            last = started[-1] if started else None
-        else:
-            last = next((x for x in reversed(started) if x.start_ms - FRAME_MS <= speech_end_at
-                         and (not x.end_ms or speech_end_at <= x.end_ms + LATE_MS)), None)
-        if last is None:
-            return []
-        heard = set(_words(text))
-        out = [last]
-        for x in reversed(started[:started.index(last)]):
-            words = _words(x.text)
-            if x.outcome == "text" or not words or sum(w in heard for w in words) / len(words) < SPAN_WORDS:
-                break
-            out.insert(0, x)
-        return out
+            return started[-1] if started else None
+        for x, after in zip(started, [*started[1:], None]):
+            if x.start_ms <= speech_end_at and (after is None or speech_end_at <= after.start_ms):
+                return x
+        return None
 
     async def _listen(self) -> None:
         from .runtime import ActionError
@@ -246,13 +234,12 @@ class Voice:
         async for r in self.stream.results():
             if not r.is_final:
                 continue
-            lines = self._lines_of(r.speech_end_at, r.text)
-            if not lines or lines[-1].outcome == "text":
+            line = self._line_of(r.speech_end_at)
+            if line is None or line.outcome == "text":
                 log.info("testdrive stt final dropped %s (%s): %r", self.rt.sid,
-                         "its line went in as text" if lines else "no line", r.text[:80])
+                         "its line went in as text" if line else "no line", r.text[:80])
                 continue
-            for line in lines:
-                line.outcome = "stt"
+            line.outcome = "stt"
             try:
                 t = await self.rt.utterances.submit(r.text, source="mic", speech_end_at=r.speech_end_at)
                 log.info("testdrive stt final %s %s: %r", self.rt.sid, t.transcript_id, r.text[:100])
@@ -295,7 +282,11 @@ async def _voice(rt, lines: list[str], tts=None) -> Voice | None:
         log.warning("testdrive voice off for %s: %s", rt.sid, e)
         return None
     if jobs := voice.warm(lines):  # a line not made in time keeps going and is ready (or made) when said
-        await asyncio.wait(jobs, timeout=SYNTH_WAIT_S)
+        made = asyncio.ensure_future(asyncio.wait(jobs))
+        stop = asyncio.ensure_future(voice.stop.wait())  # D-324: the show's end stops the wait too
+        await asyncio.wait({made, stop}, timeout=SYNTH_WAIT_S, return_when=asyncio.FIRST_COMPLETED)
+        made.cancel()
+        stop.cancel()
     return voice
 
 

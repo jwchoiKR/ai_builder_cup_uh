@@ -1987,3 +1987,10 @@ D-323: fixes from codex's second review of the test drive (46d9a05).
 - **The voice owns its warm-up:** the scene's speech made ahead runs as tasks the voice owns, cancelled when it closes. A line waiting for its speech gives up when the show ends: a watcher checks every 0.25 s.
 - **The hold starts with the drive:** the voice holds the session's speech-to-text from the start of the drive, before the warm-up, so a mic cannot connect in between.
 - **Tests:** `tests/test_d320.py` (`d323_*`).
+
+D-324: the test drive's final-to-line matching is simpler. Codex's third review showed that the D-323 rules hid lines. Under the 60% word-overlap rule, a risky line STT did not hear counted as heard when the next line used nearly the same words, so it never reached the judges. The 100 ms start grace let the next line claim a final at the boundary. Both rules are gone.
+- **Silence between lines:** lines are at least 1.5 s apart (`GAP_MS`). With STANDARD endpointing, each line is then finalized on its own.
+- **One window per line:** each line owns one window, from its audio's start to the next line's start. A boundary belongs to the earlier line. A final goes to the window its speech ended in.
+- **Fallback:** a line with no final in its window 6 s after its audio ends goes in as text. A later final in that window is dropped and logged.
+- **Show end:** the end of the show now also ends the wait for the warm-up (up to 5 s before).
+- **Tests:** `tests/test_d320.py` covers codex's two cases (an unheard line next to a near-identical heard line falls back; a final at the boundary is the earlier line's, and the unheard later line falls back), the gap, and the end during warm-up. It keeps the late-final and failed-`/go` tests.

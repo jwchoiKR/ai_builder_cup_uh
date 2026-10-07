@@ -90,6 +90,7 @@ async def _transcripts(rt, n: int, timeout: float = 3.0) -> list[Transcript]:
 @pytest.fixture(autouse=True)
 def _cache(tmp_path, monkeypatch):
     monkeypatch.setattr(tts_mod, "CACHE", tmp_path / "tts")
+    monkeypatch.setattr(td, "GAP_MS", 200)  # D-324: a short gap keeps the tests fast
 
 
 async def _rt(stt):
@@ -265,39 +266,66 @@ async def _played(voice, n: int) -> None:
     raise AssertionError("lines did not play")
 
 
-async def test_d323_a_final_spanning_two_lines_covers_both(monkeypatch):
-    """"A B" heard as one final: both lines count as heard, so A does not fall back and get judged twice."""
-    monkeypatch.setattr(td, "FALLBACK_S", 0.4)
+async def test_d324_a_line_stt_did_not_hear_falls_back_even_if_the_next_is_alike(monkeypatch):
+    """Codex: STT hears only B, whose words are nearly A's. A must still go in as text (it is the risky line)."""
+    monkeypatch.setattr(td, "FALLBACK_S", 0.3)
     rt = await _rt(_Stt())
     try:
         voice = await td._voice(rt, [], _Tts())
-        assert await voice.say("The serum is light (unheard).")
-        assert await voice.say("It sinks in fast (unheard).")
-        await _played(voice, 2)
-        b = voice.lines[1]
-        await voice.stream.q.put(SttResult("The serum is light. It sinks in fast.", True, b.start_ms + 50, b.end_ms))
-        await asyncio.sleep(0.8)  # past both fallbacks
-        found = await rt.ctx.store.query(rt.path("transcripts"), Transcript)
-        assert [(t.source, t.text) for t in found] == [("mic", "The serum is light. It sinks in fast.")]
-        assert [x.outcome for x in voice.lines] == ["stt", "stt"]
+        assert await voice.say("This serum erases wrinkles completely for everyone (unheard).")
+        assert await voice.say("This serum does not erase wrinkles completely for everyone.")
+        found = await _transcripts(rt, 2)
+        assert sorted((t.source, t.text) for t in found) == [
+            ("injected", "This serum erases wrinkles completely for everyone (unheard)."),
+            ("mic", "This serum does not erase wrinkles completely for everyone.")]
+        assert [x.outcome for x in voice.lines] == ["text", "stt"]
         await voice.close()
     finally:
         await close_env(rt)
 
 
-async def test_d323_a_final_stamped_one_frame_before_its_line_belongs_to_it(monkeypatch):
-    """A frame is stamped at the end of its audio, the line at its first frame's write: one frame of grace."""
+@pytest.mark.parametrize("offset", [0, -50])
+async def test_d324_a_final_at_the_boundary_belongs_to_the_earlier_line(monkeypatch, offset):
+    """Codex: A's final stamped at (or just before) B's start is A's; B, which STT did not hear, falls back."""
     monkeypatch.setattr(td, "FALLBACK_S", 0.4)
     rt = await _rt(_Stt())
     try:
         voice = await td._voice(rt, [], _Tts())
-        assert await voice.say("Short (unheard).")
-        await _played(voice, 1)
-        line = voice.lines[0]
-        await voice.stream.q.put(SttResult("Short.", True, line.start_ms - 50, line.start_ms))
-        await asyncio.sleep(0.8)
-        found = await rt.ctx.store.query(rt.path("transcripts"), Transcript)
-        assert [(t.source, t.text) for t in found] == [("mic", "Short.")] and line.outcome == "stt"
+        assert await voice.say("Line A (unheard).")
+        assert await voice.say("Line B (unheard).")
+        await _played(voice, 2)
+        b = voice.lines[1]
+        await voice.stream.q.put(SttResult("Line A.", True, b.start_ms + offset, b.start_ms))
+        found = await _transcripts(rt, 2)
+        assert sorted((t.source, t.text) for t in found) == [("injected", "Line B (unheard)."), ("mic", "Line A.")]
+        assert [x.outcome for x in voice.lines] == ["stt", "text"]
+        await voice.close()
+    finally:
+        await close_env(rt)
+
+
+async def test_d324_lines_are_a_silence_gap_apart(monkeypatch):
+    monkeypatch.setattr(td, "GAP_MS", 500)
+    rt = await _rt(_Stt())
+    try:
+        voice = await td._voice(rt, [], _Tts())
+        assert await voice.say("One.")
+        assert await voice.say("Two.")
+        await _played(voice, 2)
+        a, b = voice.lines
+        assert b.start_ms - a.end_ms >= 500  # the session clock moves 100 ms per frame
+        await voice.close()
+    finally:
+        await close_env(rt)
+
+
+async def test_d324_the_show_s_end_stops_the_warm_up_wait():
+    rt = await _rt(_Stt())
+    try:
+        making = asyncio.create_task(td._voice(rt, ["Hi"], _Tts(delay=3.0)))
+        await asyncio.sleep(0.2)
+        await rt.end()
+        voice = await asyncio.wait_for(making, 1.5)  # not the 5 s warm-up limit
         await voice.close()
     finally:
         await close_env(rt)
