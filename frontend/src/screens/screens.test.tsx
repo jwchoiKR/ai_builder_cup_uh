@@ -125,7 +125,14 @@ describe("screens", () => {
     responses["/api/sessions"] = { session_id: "ses_rel" };
     try {
       render(<Hub sessionId="ses_000001" />);
+      const open = await screen.findByTestId("hub-releases-open");
+      expect(open).toHaveTextContent("Start with approved products1");  // the count badge
+      expect(open).toHaveAttribute("aria-expanded", "false");
+      expect(screen.queryByTestId("hub-releases")).toBeNull();  // D-319: the rows are in a popover
+      fireEvent.click(open);
+      expect(open).toHaveAttribute("aria-expanded", "true");
       const card = await screen.findByTestId("hub-release-rel_lumen_v2");
+      expect(document.activeElement).toBe(card);  // focus moves into the panel
       expect(card).toHaveTextContent("Lumen");
       expect(card).toHaveTextContent("Night Serum");
       expect(card).toHaveTextContent("SG");
@@ -152,6 +159,7 @@ describe("screens", () => {
     responses["/api/sessions"] = { session_id: "ses_show" };
     try {
       render(<Hub sessionId="ses_000001" />);
+      fireEvent.click(await screen.findByTestId("hub-releases-open"));
       for (const id of ["rel_c", "rel_a", "rel_b"]) fireEvent.click(await screen.findByTestId(`hub-release-${id}`));
       expect(screen.getByTestId("hub-lineup")).toHaveTextContent("1. Cream→ 2. Serum→ 3. Ampoule");
       expect(screen.getByTestId("hub-release-rel_d")).toBeDisabled();  // max 3
@@ -161,6 +169,8 @@ describe("screens", () => {
       expect(screen.getByTestId("hub-release-start")).toHaveTextContent("Start a show with 2 products");
       fireEvent.click(screen.getByTestId("hub-release-start"));
       await waitFor(() => expect(window.location.search).toContain("session=ses_show"));
+      expect(screen.queryByTestId("hub-releases")).toBeNull();  // closed on start
+      fireEvent.click(screen.getByTestId("hub-releases-open"));
       const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
       const body = calls.filter(([u]) => u === "/api/sessions").map(([, init]) => JSON.parse(String(init?.body)));
       expect(body.at(-1)).toEqual({ release_ids: ["rel_c", "rel_b"] });
@@ -169,6 +179,28 @@ describe("screens", () => {
     } finally {
       delete responses["/api/onboarding/releases"];
       delete responses["/api/sessions"];
+    }
+  });
+
+  it("D-319: the approved-products popover closes on Escape and on an outside click, focus back on its button", async () => {
+    responses["/api/onboarding/releases"] = [{ release_id: "rel_a", product_name: "Serum", brand: "Lumen",
+      category: "skincare", markets: ["SG"], approved_at: 1790000000000, version: 1, brief: "done" }];
+    try {
+      render(<Hub sessionId="ses_000001" />);
+      const open = await screen.findByTestId("hub-releases-open");
+      expect(open).toHaveAttribute("aria-controls", "hub-releases");
+      fireEvent.click(open);
+      expect(screen.getByRole("dialog")).toHaveAttribute("id", "hub-releases");
+      fireEvent.keyDown(document, { key: "Escape" });
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(open);
+      fireEvent.click(open);
+      fireEvent.pointerDown(screen.getByTestId("hub-release-rel_a"));  // inside: stays open
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      fireEvent.pointerDown(document.body);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    } finally {
+      delete responses["/api/onboarding/releases"];
     }
   });
 

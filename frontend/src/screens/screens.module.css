@@ -189,12 +189,88 @@
   font-size: var(--fs-14);
   color: var(--text-2);
 }
-/* D-315: approved products as cards; the picked ones, in order, are the show's line-up */
-.hubReleases {
+/* D-315: approved products; the picked ones, in order, are the show's line-up. D-319: in a popover under a secondary
+   button of the hero row, a bottom sheet at phone width */
+.hubPicker {
+  position: relative;
+}
+.hubPickerButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.hubPickerButton:hover,
+.hubPickerButton[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+.hubPickerButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.hubPickerCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: var(--fs-12);
+}
+.hubPickerChevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 140ms var(--ease);
+}
+.hubPickerButton[aria-expanded="true"] .hubPickerChevron {
+  transform: rotate(180deg);
+}
+.hubPickerPanel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 20;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin-top: var(--space-5);
+  width: min(440px, 90vw);
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
+}
+@media (max-width: 699px) {
+  .hubPicker {
+    width: 100%;
+  }
+  .hubPickerButton {
+    width: 100%;
+    justify-content: center;
+  }
+  .hubPickerPanel {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: auto;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+  }
 }
 .hubReleasesHead {
   display: flex;
@@ -208,20 +284,20 @@
   font-weight: var(--fw-semibold);
 }
 .hubReleaseGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 .hubRelease {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-1);
-  padding: var(--space-4);
+  gap: 2px;
+  padding: var(--space-3);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-control);
   color: var(--text);
   font: inherit;
   text-align: left;
@@ -244,8 +320,9 @@
 }
 .hubReleaseOrder {
   position: absolute;
-  top: var(--space-3);
+  top: 50%;
   right: var(--space-3);
+  margin-top: -13px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -263,7 +340,7 @@
 }
 .hubReleaseName {
   padding-right: 32px;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: var(--fw-semibold);
   line-height: 1.3;
 }
