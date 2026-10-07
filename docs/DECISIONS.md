@@ -1889,3 +1889,9 @@ D-313: `FACT_PROMPT=v3` is `fact_relation_v2.md` plus one rule, in `prompts/fact
 - **Examples:** a made-up pair sits next to Example I, the read-out question. Example J is an endorsement that contradicts, with the right value. Example K is the same line rejected, with empty claims. The merged-number example is now L.
 - The schema and the compliance line are v2's. Prompt only, no code.
 - **Tests:** `tests/test_d312.py` (now v1 / v2 / v3).
+
+D-314 (eval): `JUDGE_TEMPERATURE` and `JUDGE_SEED` set the sampling of the live judges' calls: compliance_judge, fact_checker and context_judge, including the single arm. Both are empty by default, and then nothing is sent (D-008). Why: identical STT text got different verdicts across runs. A contradicts with stated == correct came 2 times in 8, and a compliance HIGH 6 times in 8, so one flip moved false alerts by 0.9 points and arms could not be told apart.
+- **Where it is set:** in `LLMClient.call`, for those agents only. A vote run's own temperature is kept. Onboarding, brief, comments and the verifier are untouched. Each `AgentCall` and each eval row records the `temperature` and `seed` that were sent.
+- **Probe (VERIFIED 2.3):** on `gemini-3.5-flash-lite`, Vertex accepts both settings. It ignores `temperature` (temperature 0 still gave 5 different answers out of 5) and applies `seed` (1 answer out of 5).
+- **Limits:** a seed fixes the answer only for an identical request. A line whose prompt differs between runs (RECENT_TRANSCRIPT, promo state, a split merged differently) can still flip. A hedged second request with the same seed repeats the first. With `JUDGE_ARM=vote`, a seed would make the extra runs identical.
+- **Tests:** `tests/test_d314.py`.

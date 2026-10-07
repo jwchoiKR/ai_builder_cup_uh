@@ -15,7 +15,7 @@ import logging
 import re
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Generic, Literal, Protocol, TypeVar
 
@@ -72,6 +72,7 @@ class LLMRequest(Generic[T]):
     # uncached before user_message while the cache is not ready
     cache_parts: tuple = ()
     temperature: float | None = None  # D-302: a vote run's sampling temperature; None = the model's default
+    seed: int | None = None  # D-314: the sampling seed; None = not sent
     hedge: bool = True  # D-302: False sends no second request (vote runs)
 
 
@@ -197,6 +198,7 @@ def vertex_config(req: LLMRequest, timeout_ms: int, schema: dict):
         thinking_config=types.ThinkingConfig(thinking_level=req.thinking_level),
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         **({"temperature": req.temperature} if req.temperature is not None else {}),  # D-302 vote runs
+        **({"seed": req.seed} if req.seed is not None else {}),  # D-314
     )
 
 
@@ -453,6 +455,7 @@ def write_usage_report(path: str) -> None:
 
 # D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
 # D-301: "verifier" only when HEDGED_AGENTS names it (not in the default list)
+SAMPLED_AGENTS = frozenset({"compliance_judge", "fact_checker", "context_judge"})  # D-314
 HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker",
                            "verifier"})
 
@@ -527,6 +530,10 @@ class LLMClient:
         return self._settings.prompts_path
 
     async def call(self, req: LLMRequest[T]) -> AgentResult[T]:
+        if req.agent in SAMPLED_AGENTS:  # D-314: the live judges' sampling, when set (a vote run keeps its own)
+            t, s = self._settings.JUDGE_TEMPERATURE.strip(), self._settings.JUDGE_SEED.strip()
+            req = replace(req, temperature=float(t) if t and req.temperature is None else req.temperature,
+                          seed=int(s) if s and req.seed is None else req.seed)
         call_id = self._ids.new("call_", req.session_id)
         started_at = self._clock.now_ms()
         t0 = time.perf_counter()
@@ -567,6 +574,7 @@ class LLMClient:
             input_hash=hashlib.sha1(f"{req.prompt_version}\n{req.user_message}".encode()).hexdigest(),
             input_preview=(req.preview or req.mock_primary_text or req.user_message)[:300],
             output=logged_output, error=error, usage=usage, failure=failure_kind(status, error),
+            temperature=req.temperature, seed=req.seed,
         )
         meta["failure"] = call.failure
         if self._audit is not None:
