@@ -7,7 +7,7 @@ from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
-OUT = Path(__file__).parent.parent / "onboarding_flow.html"
+OUT = Path(__file__).parent.parent / "old" / "onboarding_flow.html"
 
 # ---- 0 user flow
 slide("userflow", "사용자 흐름", "운영자는 문서를 올리고, 확인하고, 방송을 시작한다", col(
@@ -25,7 +25,7 @@ def img(path, maxh=560):
     b = base64.b64encode(Path(path).read_bytes()).decode()
     return (f'<img src="data:image/png;base64,{b}" alt="" style="display:block; max-width:100%; max-height:{maxh}px; '
             f'border:2px solid {LINE}; border-radius:16px; margin:0 auto">')
-IMG = Path(__file__).parent.parent / "img"
+IMG = Path(__file__).parent.parent / "old" / "img"
 slide("approve", "사용자 흐름", "확인 화면은 충돌과 빠진 값을 맨 위에 보여 준다", col(
     img(IMG / "onb-3-review.png", 600),
     t("실제 화면 (0dac8c7, 실제 Gemini, 개발용 가상 제품 문서 4개, 읽기 122초). 9월·10월 가격표가 달라 충돌 3개를 날짜와 원문 위치로 표시했다.", 23, SUB), gap=16),

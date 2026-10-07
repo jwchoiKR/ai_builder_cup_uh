@@ -8,7 +8,7 @@ from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
-OUT = Path(__file__).parent.parent / "arch_llm_1006.html"
+OUT = Path(__file__).parent.parent / "old" / "arch_llm_1006.html"
 S = 24
 
 slide("sum", "10/6 · 아키텍처 변경", "뜻은 모델이 판단하고, 코드는 대조만 한다", col(

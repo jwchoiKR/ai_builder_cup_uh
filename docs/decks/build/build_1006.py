@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
 HERE = Path(__file__).parent
-OUT = HERE.parent / "team_update_1006.html"
+OUT = HERE.parent / "old" / "team_update_1006.html"
 RES = Path(r"D:\code_test\study\ai_builder_cup_git\sealed_sets\results")  # numbers only; sealed text never shown
 
 

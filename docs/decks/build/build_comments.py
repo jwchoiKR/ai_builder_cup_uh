@@ -7,7 +7,7 @@ from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
-OUT = Path(__file__).parent.parent / "comment_flow.html"
+OUT = Path(__file__).parent.parent / "old" / "comment_flow.html"
 
 # ---- 1 overview
 slide("overview", "댓글 처리", "댓글 하나가 들어오면 이 순서로 간다", col(

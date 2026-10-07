@@ -8,7 +8,7 @@ from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
-OUT = Path(__file__).parent.parent / "repo_compare_1006.html"
+OUT = Path(__file__).parent.parent / "old" / "repo_compare_1006.html"
 
 
 def ok(x):

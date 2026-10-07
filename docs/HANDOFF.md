@@ -112,7 +112,7 @@
 3. 사람 진행자 방송 1회, 실제 음성으로 지연 측정.
 4. 점수 올릴 항목(레포 재비교 + codex 검토): Firestore 저장·재시작·동시 실행, 방송 1시간 비용 실측, "Gemini 단독" 대비표.
 5. 배포(사용자 승인), 로그인 제거(사용자).
-6. 문서: `docs/decks/team_update_1006.html`(간단), `docs/decks/workflow_detail.html`(상세 워크플로, 시험 전부), `docs/research/repo-rescore-1006.md`.
+6. 문서: `docs/decks/old/team_update_1006.html`(간단), `docs/decks/old/workflow_detail.html`(상세 워크플로, 시험 전부), `docs/research/repo-rescore-1006.md`.
 
 ## 8. 팀 역할 분담 (사용자 안, 10/5)
 
