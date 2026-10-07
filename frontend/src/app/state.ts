@@ -99,6 +99,8 @@ export interface ClientState {
   /** D-150: market and language of the session (null before the snapshot) */
   market: SessionMarket | null;
   summaryReady: boolean;
+  /** D-320: the test drive's latest host line as speech (its audio is streaming into speech-to-text now) */
+  voiceLine: VoiceLine | null;
   /** an event referenced data the client does not have yet (e.g. a new answer): refetch /state */
   needsResync: boolean;
 }
@@ -148,8 +150,15 @@ export function emptyState(role: Role): ClientState {
     judgeFailures: [],
     lineChecks: [],
     summaryReady: false,
+    voiceLine: null,
     needsResync: false,
   };
+}
+
+export interface VoiceLine {
+  url: string;
+  text: string;
+  seq: number;
 }
 
 function byId<T, K extends keyof T>(items: T[] | undefined, key: K): Record<string, T> {
@@ -467,6 +476,9 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
 
     case "summary.ready":
       return { ...state, summaryReady: true };
+
+    case "testdrive.audio":
+      return { ...state, voiceLine: { url: String(p.url), text: String(p.text), seq: ev.seq } };
 
     default:
       return state;

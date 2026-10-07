@@ -71,6 +71,32 @@ STT_CHOICES = frozenset({"en-US", "ko-KR", "ja-JP", "cmn-Hans-CN", "cmn-Hant-TW"
                          "fil-PH", "auto"})
 
 
+async def stream_setup(ctx, rt, asked: str = "") -> tuple[list[str], str]:
+    """A speech stream's phrase hints and language code for this session (the mic, and the test drive's voice)."""
+    session_id = rt.sid
+    # D-230: an onboarded product's show hints its own brand and names, not the shipped products'
+    s = await rt.load_session()
+    if s.release_ids:  # D-279: every release's hints, the product on air first
+        seg = await rt.current_segment()
+        on_air = rt.pack.releases.get(seg.product_id) if seg else None
+        ordered = sorted(s.release_ids, key=lambda r: r != on_air)
+        glossary = list(dict.fromkeys(x for r in ordered for x in release_phrases(ctx, rt.catalog, r)))
+    else:
+        glossary = (release_phrases(ctx, rt.catalog, s.release_id) if s.release_id else await glossary_phrases(ctx))
+    risk = risk_phrases(rt.pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
+    phrases = with_risk_phrases(glossary, risk)
+    # D-186: which hints this run's streams use, visible in Cloud Logging
+    log.info("stt phrase hints for %s: glossary %d, risk %d (STT_RISK_HINTS=%s, hints %s)", session_id, len(glossary),
+             len(phrases) - len(glossary), ctx.settings.STT_RISK_HINTS,
+             "on" if ctx.settings.STT_PHRASE_HINTS_ENABLED else "off")
+    # D-142: the session's broadcast language (STT_LANGUAGE overrides); D-316: the mic's choice first
+    language = asked if asked in STT_CHOICES else (ctx.settings.STT_LANGUAGE or rt.pack.stt_language)
+    if language == "auto":
+        phrases = []
+    log.info("stt language for %s: %s (asked %r, hints %d)", session_id, language, asked, len(phrases))
+    return phrases, language
+
+
 @router.websocket("/sessions/{session_id}/audio")
 async def audio(ws: WebSocket, session_id: str) -> None:
     ctx = ws.app.state.ctx
@@ -92,27 +118,7 @@ async def audio(ws: WebSocket, session_id: str) -> None:
         await previous.close(code=4409)
     _active[session_id] = ws
 
-    # D-230: an onboarded product's show hints its own brand and names, not the shipped products'
-    s = await rt.load_session()
-    if s.release_ids:  # D-279: every release's hints, the product on air first
-        seg = await rt.current_segment()
-        on_air = rt.pack.releases.get(seg.product_id) if seg else None
-        ordered = sorted(s.release_ids, key=lambda r: r != on_air)
-        glossary = list(dict.fromkeys(x for r in ordered for x in release_phrases(ctx, rt.catalog, r)))
-    else:
-        glossary = (release_phrases(ctx, rt.catalog, s.release_id) if s.release_id else await glossary_phrases(ctx))
-    risk = risk_phrases(rt.pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
-    phrases = with_risk_phrases(glossary, risk)
-    # D-186: which hints this run's streams use, visible in Cloud Logging
-    log.info("stt phrase hints for %s: glossary %d, risk %d (STT_RISK_HINTS=%s, hints %s)", session_id, len(glossary),
-             len(phrases) - len(glossary), ctx.settings.STT_RISK_HINTS,
-             "on" if ctx.settings.STT_PHRASE_HINTS_ENABLED else "off")
-    asked = ws.query_params.get("lang") or ""
-    # D-142: the session's broadcast language (STT_LANGUAGE overrides); D-316: the mic's choice first
-    language = asked if asked in STT_CHOICES else (ctx.settings.STT_LANGUAGE or rt.pack.stt_language)
-    if language == "auto":
-        phrases = []
-    log.info("stt language for %s: %s (asked %r, hints %d)", session_id, language, asked, len(phrases))
+    phrases, language = await stream_setup(ctx, rt, ws.query_params.get("lang") or "")
     stream = stt.open(phrases, language)
     await _send(ws, {"type": "status", "state": "listening", "phrases": len(phrases), "lang": language})
 

@@ -363,6 +363,22 @@ wheels = [
 ]
 
 [[package]]
+name = "google-cloud-texttospeech"
+version = "2.38.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a1/1b/1d0044f402f13dc7765f3a9f74eace951893bf2d440c28b41f6adc2dbf71/google_cloud_texttospeech-2.38.0.tar.gz", hash = "sha256:c9a50f609ae0ccd0465a91029333848011ba713fadf189bdd110ec07c3d22cc1", size = 191253, upload-time = "2026-10-01T18:18:32.568Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/92/a59d62405b3e4f8cbbb9dc6f7e3c81beda9585bb49dfbc02ae773de839ae/google_cloud_texttospeech-2.38.0-py3-none-any.whl", hash = "sha256:a9a4e5cf3b848c2c93e24e769b8acb11442c64a2fffff14a98be80379919bc5e", size = 198330, upload-time = "2026-10-01T18:12:45.443Z" },
+]
+
+[[package]]
 name = "google-crc32c"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -582,6 +598,7 @@ dependencies = [
     { name = "google-adk" },
     { name = "google-cloud-speech" },
     { name = "google-cloud-storage" },
+    { name = "google-cloud-texttospeech" },
     { name = "google-genai" },
     { name = "httpx" },
     { name = "openpyxl" },
@@ -606,6 +623,7 @@ requires-dist = [
     { name = "google-adk", specifier = ">=2.11,<2.12" },
     { name = "google-cloud-speech", specifier = ">=2.37" },
     { name = "google-cloud-storage", specifier = ">=2.19" },
+    { name = "google-cloud-texttospeech", specifier = ">=2.38.0" },
     { name = "google-genai", specifier = ">=2.26" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "openpyxl", specifier = ">=3.1.5" },

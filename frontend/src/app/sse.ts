@@ -45,6 +45,13 @@ export const EVENT_TYPES = [
   "judge.health",
   "segment.extended",
   "summary.ready",
+  // D-320: emitted but never subscribed before (D-298 line.check, D-306 verify.*), and the test drive's voice
+  "feed.updated",
+  "line.check",
+  "verify.started",
+  "verify.done",
+  "verify.health",
+  "testdrive.audio",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
