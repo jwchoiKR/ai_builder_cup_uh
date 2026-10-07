@@ -100,3 +100,21 @@ describe("the mic's speech-recognition language (D-316)", () => {
     expect(prefs.getMicLang()).toBe("");
   });
 });
+
+describe("the mic's WebSocket URL (D-316/D-318)", () => {
+  it("sends ?lang= only for a language picked in labs mode, none by default or for Session default", async () => {
+    const url = async () => (await import("./mic")).audioUrl("ses_1");
+    expect(await url()).toMatch(/\/api\/sessions\/ses_1\/audio$/);  // default: no choice
+    window.localStorage.setItem("ls.labs", "1");
+    vi.resetModules();
+    const prefs = await import("./prefs");
+    prefs.setMicLang("ko-KR");
+    expect(await url()).toMatch(/\/audio\?lang=ko-KR$/);
+    prefs.setMicLang("");  // Session default
+    expect(await url()).toMatch(/\/audio$/);
+    window.localStorage.setItem("ls.mic.lang", "ko-KR");
+    window.localStorage.removeItem("ls.labs");  // labs off: the stored pick is not sent
+    vi.resetModules();
+    expect(await url()).toMatch(/\/audio$/);
+  });
+});
