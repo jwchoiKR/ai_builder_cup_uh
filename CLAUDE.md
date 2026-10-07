@@ -63,6 +63,10 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
   - Wrong HIGH and latency now pass. False alerts do not, so this arm is stopped for discussion.
   - The 13 false lines over 216 safe ones: 7 quote-then-reject lines (TEST-QUALIFIER or promo alerts), 4 numbers said in words, 2 near numbers (fact checker at LOW: promo, volume, test_result).
   - litemed_docs (the same with COMPLIANCE_DOCS), voice A / B: detection 96.3 / 97.2%, false 6.5 / 6.5%, wrong HIGH 3 / 4, alert shown p95 5.0 / 9.2 s. The documents hurt again (wrong HIGH, latency), so keep COMPLIANCE_DOCS off. The 10-minute wait on any 429 makes a cell take about 2 h (24 waits in this run).
+- **10/7 day:** Flash-Lite at LOW used 0 thinking tokens in 512 fact-checker calls; LOW is effectively no thinking, so prompt wording and field order matter. With the user, the fact prompt was changed (no code): D-312 `FACT_PROMPT=v2` (65f1e8d): host assertions only, sound-alike values `uncertain`, `source_value` before `relation`.
+  - factv2 (litemed settings + v2), voice A / B: detection 97.2 / 98.1%, false 0.9 / 1.9% (was 6.5 / 8.3), wrong HIGH 1 / 1, alert p95 4.2 / 4.1 s, no 429.
+  - Left: "150 ml" for "one fifty-ml" still `contradicts` (2 lines); a negation line ("don't read X as proof of Y") taken as the claim (1); new miss: "someone says X" then "Correct." on the next line (endorsement not checked); wrong HIGH: a line telling people with an irritated scalp they can apply a hair dye gets ASEAN-2D-VULNERABLE HIGH (label says fact only; 6 of 8 arms do this, so it needs a critic ruling).
+  - Decks: earlier decks are in `docs/decks/old/`; the COMPLIANCE_DOCS tests are in `docs/decks/docs_test_1007.html`.
 - **Decks:** `docs/decks/old/live_logic_1006.html`, `fix_plan_1006.html`, `rule_code_1006.html`, `arch_llm_1006.html` (all earlier decks moved to `docs/decks/old/` on 10/7). The arch deck still shows the R2 verifier and needs an update once the design settles.
 
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)
