@@ -10,8 +10,12 @@ import { Setup } from "../screens/Setup";
 import { Studio } from "../screens/Studio";
 import { Summary } from "../screens/Summary";
 import { Viewer } from "../screens/Viewer";
-import { api } from "./api";
+import { Button } from "../components";
+import styles from "../screens/screens.module.css";
+import { api, onStaleSession } from "./api";
+import { useLang, useT } from "./i18n";
 import { navigate, useLocation, withSession, type ScreenProps } from "./nav";
+import { useTheme } from "./theme";
 
 export { navigate, useLocation, withSession, type ScreenProps };
 
@@ -55,9 +59,34 @@ export function useSessionId(): {
   return { sessionId, loading: !sessionId && !error, error, setSessionId };
 }
 
+/** D-315: the show in the URL is gone (the server restarted). No raw error: say so, and start the current demo. */
+function SessionEnded({ onNew }: { onNew: () => void }) {
+  const t = useT();
+  const lang = useLang();
+  const [theme] = useTheme();
+  return (
+    <div className={styles.root} data-theme={theme} lang={lang}>
+      <main className={styles.sessionEnded} role="alert" data-testid="session-ended">
+        <h1 className={styles.hubReleasesTitle}>{t("This show ended (server restarted).")}</h1>
+        <p className={styles.hubStudioNote}>{t("Start a new one to keep going.")}</p>
+        <Button variant="primary" onClick={onNew} data-testid="session-ended-new">{t("Start a new show")}</Button>
+      </main>
+    </div>
+  );
+}
+
 export function App() {
   const { pathname } = useLocation();
   const { sessionId, setSessionId } = useSessionId();
+  const [ended, setEnded] = useState(false);
+  useEffect(() => {
+    onStaleSession(() => setEnded(true));
+    return () => onStaleSession(null);
+  }, []);
   const Screen = ROUTES[pathname.replace(/\/+$/, "") || "/"] ?? Hub;
+  if (ended) {
+    // drop the stale id: without ?session the app takes /api/demo/current (the demo show, made if none is left)
+    return <SessionEnded onNew={() => { setEnded(false); navigate(pathname, true); }} />;
+  }
   return <Screen sessionId={sessionId} onSessionChange={setSessionId} />;
 }

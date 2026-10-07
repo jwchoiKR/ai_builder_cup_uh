@@ -177,6 +177,22 @@ export const KO_HUB: Record<string, string> = {
   Summary: "요약",
   "For the team": "팀용",
   "Alerts, corrections, answered questions and an AI recap.": "경고, 정정, 답한 질문, AI가 쓴 방송 요약.",
+  // D-315: approved products as cards, the show's line-up, and a show lost to a server restart
+  "Previously approved products": "승인된 제품",
+  "Pick up to {n}, in the order of the show.": "방송 순서대로 최대 {n}개를 고르세요.",
+  "Product {n}": "{n}번 제품",
+  "brief running": "브리프 생성 중",
+  ready: "준비됨",
+  "Show line-up": "방송 순서",
+  "Remove {name}": "{name} 빼기",
+  "No product picked yet.": "아직 고른 제품이 없습니다.",
+  "Start a show with 1 product": "제품 1개로 방송 시작",
+  "Start a show with {n} products": "제품 {n}개로 방송 시작",
+  "The brief (speech-recognition names, prompter points) is still running, about 30 s. A show started now uses the approved claims as points; wait for the full prompter.":
+    "브리프(음성 인식 이름, 프롬프터 포인트)를 아직 만드는 중입니다(약 30초). 지금 시작하면 승인된 문구만 포인트로 씁니다. 프롬프터를 다 쓰려면 잠시 기다려 주세요.",
+  "This show ended (server restarted).": "이 방송은 끝났습니다 (서버가 다시 시작됨).",
+  "Start a new one to keep going.": "계속하려면 새 방송을 시작하세요.",
+  "Start a new show": "새 방송 시작",
 };
 
 export const KO: Record<string, string> = { ...KO_OPERATOR, ...KO_HOST, ...KO_HUB };

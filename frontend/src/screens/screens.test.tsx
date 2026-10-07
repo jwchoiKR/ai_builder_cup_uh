@@ -32,7 +32,7 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (url: string) => {
       const path = url.split("?")[0];
-      const body = path.endsWith("/state") ? snapshot({ feed: { pool_running: false, armed: [], fired: [], bursts: [] } }) : responses[path] ?? {};
+      const body = path.endsWith("/state") ? snapshot({ feed: { pool_running: false, armed: [], fired: [], bursts: [] } }) : responses[path] ?? (path.endsWith("/releases") ? [] : {});
       return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     }),
   );
@@ -119,14 +119,22 @@ describe("screens", () => {
     expect(screen.getByText(/ses_000001/)).toBeInTheDocument();
   });
 
-  it("D-264: Hub starts a show from a product approved earlier", async () => {
+  it("D-264/D-315: Hub starts a show from a product card approved earlier", async () => {
     responses["/api/onboarding/releases"] = [{ release_id: "rel_lumen_v2", product_name: "Night Serum", brand: "Lumen",
-      category: "skincare", markets: ["SG"], approved_at: 1790000000000, version: 2 }];
+      category: "skincare", markets: ["SG"], approved_at: 1790000000000, version: 2, brief: "done" }];
     responses["/api/sessions"] = { session_id: "ses_rel" };
     try {
       render(<Hub sessionId="ses_000001" />);
-      const select = await screen.findByTestId("hub-release-select");
-      expect(select).toHaveTextContent("Lumen · Night Serum (v2, SG");
+      const card = await screen.findByTestId("hub-release-rel_lumen_v2");
+      expect(card).toHaveTextContent("Lumen");
+      expect(card).toHaveTextContent("Night Serum");
+      expect(card).toHaveTextContent("SG");
+      expect(card).toHaveTextContent("ready");
+      expect(card).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByTestId("hub-release-start")).toBeDisabled();
+      fireEvent.click(card);
+      expect(card).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByTestId("hub-release-start")).toHaveTextContent("Start a show with 1 product");
       fireEvent.click(screen.getByTestId("hub-release-start"));
       await waitFor(() => expect(window.location.search).toContain("session=ses_rel"));
       expect(window.location.pathname).toBe("/studio");
@@ -136,19 +144,28 @@ describe("screens", () => {
     }
   });
 
-  it("D-279: Hub starts a show of two approved products in the order ticked", async () => {
-    responses["/api/onboarding/releases"] = [
-      { release_id: "rel_a_v1", product_name: "Night Cream", brand: "Lumen", category: "skincare", markets: ["SG"],
-        approved_at: 1790000000000, version: 1 },
-      { release_id: "rel_b_v1", product_name: "Quick Kettle", brand: "Larkmoor", category: "kitchen", markets: ["SG"],
-        approved_at: 1790000000000, version: 1 }];
+  it("D-279/D-315: Hub builds the line-up in the order picked, at most 3, and can remove or clear", async () => {
+    const row = (id: string, name: string) => ({ release_id: id, product_name: name, brand: "Lumen", category: "skincare",
+      markets: ["SG"], approved_at: 1790000000000, version: 1, brief: id === "rel_b" ? "running" : "done" });
+    responses["/api/onboarding/releases"] = [row("rel_a", "Serum"), row("rel_b", "Ampoule"), row("rel_c", "Cream"),
+      row("rel_d", "Toner")];
     responses["/api/sessions"] = { session_id: "ses_show" };
     try {
       render(<Hub sessionId="ses_000001" />);
-      fireEvent.click(await screen.findByTestId("hub-release-more-rel_b_v1"));
-      expect(screen.getByTestId("hub-release-more")).toHaveTextContent("2. Quick Kettle");
+      for (const id of ["rel_c", "rel_a", "rel_b"]) fireEvent.click(await screen.findByTestId(`hub-release-${id}`));
+      expect(screen.getByTestId("hub-lineup")).toHaveTextContent("1. Cream→ 2. Serum→ 3. Ampoule");
+      expect(screen.getByTestId("hub-release-rel_d")).toBeDisabled();  // max 3
+      expect(screen.getByTestId("hub-brief-running")).toBeInTheDocument();  // a picked brief still runs
+      fireEvent.click(screen.getByRole("button", { name: "Remove Serum" }));
+      expect(screen.getByTestId("hub-lineup")).toHaveTextContent("1. Cream→ 2. Ampoule");
+      expect(screen.getByTestId("hub-release-start")).toHaveTextContent("Start a show with 2 products");
       fireEvent.click(screen.getByTestId("hub-release-start"));
       await waitFor(() => expect(window.location.search).toContain("session=ses_show"));
+      const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+      const body = calls.filter(([u]) => u === "/api/sessions").map(([, init]) => JSON.parse(String(init?.body)));
+      expect(body.at(-1)).toEqual({ release_ids: ["rel_c", "rel_b"] });
+      fireEvent.click(screen.getByTestId("hub-lineup-clear"));
+      expect(screen.getByTestId("hub-release-start")).toBeDisabled();
     } finally {
       delete responses["/api/onboarding/releases"];
       delete responses["/api/sessions"];

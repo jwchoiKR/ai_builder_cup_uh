@@ -189,6 +189,157 @@
   font-size: var(--fs-14);
   color: var(--text-2);
 }
+/* D-315: approved products as cards; the picked ones, in order, are the show's line-up */
+.hubReleases {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+.hubReleasesHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+.hubReleasesTitle {
+  margin: 0;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-semibold);
+}
+.hubReleaseGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+}
+.hubRelease {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.hubRelease:hover:not(:disabled),
+.hubRelease:focus-visible {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  outline: none;
+}
+.hubRelease[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.hubRelease:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.hubReleaseOrder {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+}
+.hubReleaseBrand {
+  font-size: 13px;
+  color: var(--text-2);
+}
+.hubReleaseName {
+  padding-right: 32px;
+  font-size: 17px;
+  font-weight: var(--fw-semibold);
+  line-height: 1.3;
+}
+.hubReleaseMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: 13px;
+  color: var(--text-2);
+}
+.spin {
+  width: 12px;
+  height: 12px;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+}
+.hubLineup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 32px;
+}
+.hubLineupList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: var(--fw-semibold);
+}
+.hubLineupList li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.hubLineupRemove,
+.hubLineupClear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 var(--space-1);
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-14);
+  cursor: pointer;
+}
+.hubLineupRemove svg {
+  width: 14px;
+  height: 14px;
+}
+.hubLineupRemove:hover,
+.hubLineupClear:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.hubLineupClear {
+  text-decoration: underline;
+}
 /* Before | During | After, columns 1 : 3 : 1, a chevron in each gutter */
 .hubPhases {
   display: grid;
@@ -321,4 +472,15 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* D-315: the show in the URL is gone (server restarted) */
+.sessionEnded {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  max-width: 480px;
+  margin: 15vh auto 0;
+  padding: 0 var(--space-4);
 }
