@@ -133,7 +133,6 @@ function FactCard({ alert: a }: { alert: Alert }) {
         <span className={styles.alertTitle}>
           {t("{field} correction", { field: sentenceCase(label) })} · {a.stated_value} → {a.correct_value}
         </span>
-        {state === "hidden_from_host" && <Chip tone="risk">{t("Not corrected")}</Chip>}
       </header>
       {corrected ? (
         <p className={styles.alertText}>{corrected}</p>

@@ -40,28 +40,6 @@ def test_d362_the_snapshot_holds_the_set_the_ui_shows_and_every_caution(catalog)
     assert all(c in texts for c in cautions)  # all six: the host can open "+N more"
 
 
-async def test_d362_the_fact_note_hide_timer_is_re_armed_after_a_read_back():
-    from app.pipelines.runtime import Runtimes
-
-    from .helpers import live_runtime, make_ctx
-    from .judge_fakes import ScriptedBackend, close_env, price_contradiction, speak
-
-    llm = ScriptedBackend()
-    line = "It's only thirty-two dollars today."
-    llm.facts(line, price_contradiction("S$32"))
-    ctx = make_ctx(backend=llm)
-    rt = await live_runtime(ctx)
-    await speak(rt, line)
-    [a] = [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"]
-    due = ctx.scheduler.due_at(rt.key(f"facthide:{a.alert_id}"))
-    rt.shutdown()
-    fresh = await Runtimes(ctx).get(rt.sid)
-    try:
-        assert ctx.scheduler.due_at(fresh.key(f"facthide:{a.alert_id}")) == due  # the same time, from when shown
-    finally:
-        await close_env(fresh)
-
-
 def test_d362_a_pack_with_some_files_missing_is_not_kept(tmp_path):
     from app.agents.originals import _load
     from app.onboarding.files import store

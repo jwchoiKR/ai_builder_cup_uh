@@ -145,7 +145,7 @@ class PdDirector:
             text = promo_cue(p, rt.catalog, price, ap.ends_at, now, offers) if p is not None else None
             if text is not None:
                 promos.append(pdl.PromoState(ap.promo_id, text, ap.started_at, ap.ends_at))
-        high = pdl.red_blocks(await rt.alerts(), now)
+        block = pdl.alert_blocks(await rt.alerts(), now)
         nxt = rt.catalog.next_product(seg.product_id)
         return pdl.PdState(
             now=now, segment_id=seg.segment_id, product_id=seg.product_id,
@@ -153,7 +153,7 @@ class PdDirector:
             planned_ms=seg.planned_duration_sec * 1000, points=points_of(rt.catalog, seg.product_id, rt.points),
             required_ids=required_ids(rt.catalog, seg.product_id), covered_ids=list(seg.covered_point_ids),
             next_product=(nxt, rt.catalog.get_product(nxt).name) if nxt else None, questions=questions,
-            promos=promos, high_alert_active=high, last_final_at=self.last_final_at, recent_lines=list(self.recent),
+            promos=promos, alert_block=block, last_final_at=self.last_final_at, recent_lines=list(self.recent),
             dismissed_refs=frozenset(self.dismissed[seg.segment_id]),
             product_names=[rt.catalog.get_product(i.product_id).name for i in rt.catalog.runsheet.items],
             last_question_card_at=self.last_question_card_at, last_shout_at=self.last_shout_at, pull=self._pull,
@@ -186,9 +186,9 @@ class PdDirector:
                 if self.is_done(card, st):
                     await self._end_locked(card, "done")
                     card = None
-                elif st.high_alert_active or st.now < card.hold_until:
+                elif st.alert_block or st.now < card.hold_until:
                     return
-            if st.high_alert_active:
+            if st.alert_block:
                 return
             cands = pdl.candidates(st)
             if card is not None and card.kind in pdl.QUESTION_KINDS:
@@ -230,7 +230,7 @@ class PdDirector:
             return
         async with rt.lock:
             st = await self._state()  # the show moved on while the model thought: re-check
-            if st is None or st.high_alert_active or chosen.cid not in {c.cid for c in pdl.candidates(st)}:
+            if st is None or st.alert_block or chosen.cid not in {c.cid for c in pdl.candidates(st)}:
                 return
             s = await rt.load_session()
             old = s.pd_card

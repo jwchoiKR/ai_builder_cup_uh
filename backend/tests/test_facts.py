@@ -48,7 +48,7 @@ async def test_contradiction_creates_active_note(env):
     assert a.alert_id.startswith("fx_") and a.status == "active" and a.transcript_id == t.transcript_id
     assert (a.field, a.stated_value, a.correct_value) == ("price", "S$32", "S$36.00")
     assert (a.passage_id, a.quote, a.product_id) == (PRICE_PASSAGE, PRICE_QUOTE, CREAM)
-    assert a.shown_at is not None and a.host_hidden_at is None
+    assert a.shown_at is not None
     [created] = [e for e in await events(rt, "alert.created") if e.payload["kind"] == "fact"]
     assert created.payload["alert_id"] == a.alert_id
 
@@ -98,8 +98,6 @@ async def test_supported_claim_corrects_the_note(env):
     [a] = await fact_alerts(rt)
     assert a.status == "corrected" and a.resolved_at == a.shown_at + 4000
     assert a.corrected_by_transcript_id == t.transcript_id and a.corrected_text == RIGHT
-    await advance(rt, 60_000)
-    assert (await fact_alerts(rt))[0].host_hidden_at is None  # no hide after correction
 
 
 async def test_supported_other_field_does_not_correct(env):
@@ -111,23 +109,16 @@ async def test_supported_other_field_does_not_correct(env):
     assert (await fact_alerts(rt))[0].status == "active"
 
 
-async def test_host_hide_after_max_seconds_and_resend(env):
+async def test_d402_a_note_stays_until_closed_and_resend_makes_it_newest(env):
     rt, llm = env
     llm.facts(WRONG, price_contradiction())
     await speak(rt, WRONG)
     [a] = await fact_alerts(rt)
-    await advance(rt, 44_999)
-    assert (await fact_alerts(rt))[0].host_hidden_at is None
-    await advance(rt, 1)
-    a = (await fact_alerts(rt))[0]
-    assert a.status == "active" and a.host_hidden_at == a.shown_at + 45_000  # operator keeps it
+    await advance(rt, 600_000)  # D-402: no host-hide timer: ten minutes later it is still on the host
+    assert (await fact_alerts(rt))[0].status == "active"
     await utt.resend_fact(rt, rt.utterances, a.alert_id)
     resent = (await fact_alerts(rt))[0]
-    assert resent.host_hidden_at is None and resent.status == "active"
-    await advance(rt, 44_000)
-    assert (await fact_alerts(rt))[0].host_hidden_at is None  # timer restarted
-    await advance(rt, 1_000)
-    assert (await fact_alerts(rt))[0].host_hidden_at is not None
+    assert resent.status == "active" and resent.shown_at == a.shown_at + 600_000
 
 
 async def test_resend_only_active_fact_notes(env):

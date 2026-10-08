@@ -1209,7 +1209,6 @@ class UtterancePipeline:
             created = [a for a in created if a.passage_id not in closed]
         for old in chain:
             old.status, old.resolved_at = "cleared", now
-            rt.ctx.scheduler.cancel(rt.key(f"facthide:{old.alert_id}"))
             await rt.save_alert(old)
             await rt.emit("alert.updated", old)
         if protected and chain:
@@ -1218,7 +1217,6 @@ class UtterancePipeline:
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
-            self.schedule_fact_hide(a)
             self._on_fact_note_active(a)
         return {a.alert_id for a in created}
 
@@ -1234,7 +1232,6 @@ class UtterancePipeline:
             log.info("fact notes %s t=%s: fix of %s skipped, the note was shown again by a later line", rt.sid,
                      t.transcript_id, sorted(stale))
         for a in fact_logic.correct_notes(set(note_ids) - stale, alerts, t, rt.now(), fresh):
-            rt.ctx.scheduler.cancel(rt.key(f"facthide:{a.alert_id}"))
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
 
@@ -1352,22 +1349,6 @@ class UtterancePipeline:
         if res.status == "ok" and res.output is not None:  # D-373: the re-check's supported claims tick too
             async with rt.lock:
                 await self._tick_prompter_locked(t, res.output.claims)
-
-    def schedule_fact_hide(self, a: Alert) -> None:
-        """§8.5: the host stops showing an uncorrected note after FACT_NOTE_HOST_MAX_SEC."""
-        rt = self.rt
-
-        async def hide() -> None:
-            async with rt.lock:
-                cur = await rt.get_alert(a.alert_id)
-                if cur is not None and cur.status == "active" and cur.host_hidden_at is None:
-                    cur.host_hidden_at = rt.now()
-                    await rt.save_alert(cur)
-                    await rt.emit("alert.updated", cur)
-
-        # D-362: from when the note was shown, so a re-armed timer (a session read back) keeps its time
-        rt.ctx.scheduler.call_at(rt.key(f"facthide:{a.alert_id}"),
-                                 (a.shown_at or rt.now()) + rt.settings.FACT_NOTE_HOST_MAX_SEC * 1000, hide)
 
     async def _publish_locked(self, t: Transcript, judge: UtteranceJudgeOutput, facts: FactCheckOutput | None,
                               offered: dict[str, Answer | None], merge: Merge | None = None) -> None:
@@ -1855,7 +1836,6 @@ async def dismiss_alert(rt: "SessionRuntime", aid: str) -> None:
         if not alert_logic.dismiss(a, rt.now()):
             raise ActionError(409, "invalid_state", f"alert is {a.status}")
         rt.ctx.scheduler.cancel(rt.key(f"escalate:{aid}"))
-        rt.ctx.scheduler.cancel(rt.key(f"facthide:{aid}"))
         await rt.save_alert(a)
         await rt.emit("alert.updated", a)
         await rt.emit("operator.action", {"actor": "operator", "action": "dismiss_alert", "alert_id": aid, "at": rt.now()})
@@ -1871,14 +1851,14 @@ async def correction_cue(rt: "SessionRuntime", aid: str) -> HostCue:
 
 
 async def resend_fact(rt: "SessionRuntime", pipeline: UtterancePipeline, aid: str) -> None:
+    """D-402: a note never leaves the host until it is closed; resending makes it the newest (first in the stack)."""
     async with rt.lock:
         a = await _alert_or_404(rt, aid)
         if a.kind != "fact" or a.status != "active":
             raise ActionError(409, "invalid_state", "only an active fact note can be resent")
-        a.host_hidden_at, a.shown_at = None, rt.now()
+        a.shown_at = rt.now()
         await rt.save_alert(a)
         await rt.emit("alert.updated", a)
-        pipeline.schedule_fact_hide(a)
         await rt.emit("operator.action", {"actor": "operator", "action": "resend", "alert_id": aid, "at": rt.now()})
 
 

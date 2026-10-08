@@ -95,12 +95,12 @@ describe("alerts", () => {
     expect(activeMediumAlerts(s).map((a) => a.alert_id)).toEqual(["al_3"]);
   });
 
-  it("fact notes leave the host after host_hidden_at; corrected toast lasts 1.5 s", () => {
+  it("fact notes stay on the host until closed (D-402); corrected toast lasts 1.5 s", () => {
     const s = reduceSnapshot(
       snapshot({
         alerts: [
           alert({ alert_id: "fx_1", kind: "fact", field: "price", severity: null, rule_id: null }),
-          alert({ alert_id: "fx_2", kind: "fact", field: "volume", severity: null, rule_id: null, host_hidden_at: T0 + 50_000 }),
+          alert({ alert_id: "fx_2", kind: "fact", field: "volume", severity: null, rule_id: null, status: "dismissed" }),
           alert({ alert_id: "al_c", status: "corrected", resolved_at: T0 + 10_000 }),
         ],
       }),

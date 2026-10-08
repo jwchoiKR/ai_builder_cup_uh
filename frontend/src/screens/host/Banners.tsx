@@ -31,12 +31,29 @@ export function CueStrip({ cue }: { cue: HostCue }) {
   );
 }
 
-export function FactNote({ alert, catalog, onRendered, count = 1 }: {
+/** D-402 (user): red and orange at the same level: a large text label says which, so colour alone never carries it */
+export function KindLabel({ law = false }: { law?: boolean }) {
+  const t = useT();
+  return (
+    <span className={styles.kindLabel} data-testid="host-alert-kind">
+      {law ? t("Regulation") : t("Product info")}
+    </span>
+  );
+}
+
+/** D-402: at most two alert boxes show; the last one shown carries "+N", the active alerts not shown */
+export function AlertMore({ n }: { n: number }) {
+  return n > 0 ? <span className={styles.alertCount} data-testid="host-alert-more">+{n}</span> : null;
+}
+
+export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
   alert: Alert;
   catalog: Catalog | null;
   onRendered?: (alertId: string) => void;
   /** D-399: how many active notes cite this note's passage (this one is the newest) */
   count?: number;
+  /** D-402: active alerts the stack does not show */
+  more?: number;
 }) {
   // D-107: wrong product information is as urgent as a compliance alert, so it takes the prompter's
   // product box too: what was heard small, the right value as the biggest text.
@@ -51,11 +68,13 @@ export function FactNote({ alert, catalog, onRendered, count = 1 }: {
   return (
     <div className={cx(styles.alertBlock, styles.alertFact)} data-testid="host-fact-note" role="alert">
       <div className={styles.alertTop}>
+        <KindLabel />
         <span className={styles.warnBadge}>
           <CircleAlert aria-hidden />
           {alert.heard_check ? t("CHECK WHAT WAS SAID") : `${t(label).toUpperCase()} ${t("CORRECTION")}`}
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
+        <AlertMore n={more} />
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
             {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
@@ -87,6 +106,7 @@ export function MediumBanner({
   onRendered,
   serverOffsetMs = 0,
   count = 1,
+  more = 0,
 }: {
   alert: Alert;
   catalog: Catalog | null;
@@ -97,6 +117,8 @@ export function MediumBanner({
   onRendered?: (alertId: string) => void;
   /** D-399: how many unresolved MEDIUM alerts cite this rule (this one is the newest) */
   count?: number;
+  /** D-402: active alerts the stack does not show */
+  more?: number;
 }) {
   // D-106: a block at the top of the prompter card, yellow, with the replacement as the biggest text.
   const t = useT();
@@ -112,6 +134,7 @@ export function MediumBanner({
   return (
     <div className={cx(styles.alertBlock, styles.alertMedium)} data-testid="host-medium-banner" role="alert">
       <div className={styles.alertTop}>
+        <KindLabel />
         <span className={styles.warnBadge}>
           <ShieldAlert aria-hidden />
           {/* D-355: a suggestion; any wording that says where the result comes from corrects it */}
@@ -119,6 +142,7 @@ export function MediumBanner({
             : t("CHECK WORDING")}
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
+        <AlertMore n={more} />
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
             {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}

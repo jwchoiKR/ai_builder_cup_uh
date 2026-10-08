@@ -215,7 +215,6 @@ class Settings(BaseSettings):
     GCS_BUCKET: str = ""
     COMPLIANCE_ESCALATE_SEC: int = 5
     CORRECTED_TOAST_MS: int = 1500
-    FACT_NOTE_HOST_MAX_SEC: int = 45
     PUBLISH_CANCEL_WINDOW_MS: int = 2000
     SWITCH_CONSECUTIVE_CUES: int = 2
     SWITCH_CUE_WINDOW_SEC: int = 30

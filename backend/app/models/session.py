@@ -155,7 +155,6 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     resolved_at: int | None = None
     corrected_by_transcript_id: str | None = None
     corrected_text: str | None = None
-    host_hidden_at: int | None = None  # fact notes only
     dismissed_reason: str | None = None
 
 

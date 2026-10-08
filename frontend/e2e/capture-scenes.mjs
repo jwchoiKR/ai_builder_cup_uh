@@ -80,7 +80,7 @@ await sleep(2500); await shot("S05-host-answer", "Host answer");
 await say(4); await shot("S06-fact-error", "Price correction");
 await say(5); await sleep(2500); await shot("S06-corrected");
 
-await say(6); await shot("S07-compliance", "HIGH-RISK CLAIM");
+await say(6); await shot("S07-compliance", "Regulation");
 await soloShot("host", "full-host-S07-compliance");
 await sleep(5500); await shot("S07-not-corrected", "Not corrected");
 await say(7); await shot("S07-corrected", "Corrected");

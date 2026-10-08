@@ -77,7 +77,7 @@ class PdState:
     next_product: tuple[str, str] | None  # (product_id, name)
     questions: list[Question] = field(default_factory=list)
     promos: list[PromoState] = field(default_factory=list)
-    high_alert_active: bool = False
+    alert_block: bool = False  # D-402: a new alert of any colour, for RED_BLOCK_MS
     last_final_at: int | None = None
     recent_lines: list[str] = field(default_factory=list)
     dismissed_refs: frozenset[str] = frozenset()
@@ -117,15 +117,16 @@ class Candidate:
     forced: bool = False  # D-153: a pulled, pushed or due question: the model may not answer "none" to it
 
 
-def red_blocks(alerts, now: int) -> bool:
-    """D-161, D-177: an active HIGH compliance alert created less than RED_BLOCK_MS ago."""
-    return any(a.kind == "compliance" and a.status == "active" and a.severity == "HIGH"
+def alert_blocks(alerts, now: int) -> bool:
+    """D-161, D-177: an active alert created less than RED_BLOCK_MS ago. D-402 (user): every alert, red or orange
+    (a MEDIUM compliance alert or a fact note), blocks AI PD cards the same way."""
+    return any(a.kind in ("compliance", "fact") and a.status == "active"
                and now - a.created_at < RED_BLOCK_MS for a in alerts)
 
 
 def candidates(st: PdState) -> list[Candidate]:
     """Every card the AI PD may show now, in rule order. Empty during a red alert."""
-    if st.high_alert_active:
+    if st.alert_block:
         return []
     out: list[Candidate] = []
     for p in st.promos:

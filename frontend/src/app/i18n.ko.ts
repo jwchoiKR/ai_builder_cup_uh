@@ -59,7 +59,9 @@ export const KO_HOST: Record<string, string> = {
   "+{time} over": "{time} 초과",
   // alerts
   "High-risk claim": "고위험 표현",
-  "HIGH-RISK CLAIM": "고위험 표현",
+  // D-402: the large label on every alert box (colour alone never carries the meaning)
+  "Regulation": "법규",
+  "Product info": "제품 정보",
   "AI check unavailable": "AI 확인 불가",
   "Unverified (AI response delayed)": "미확인 (AI 응답 지연)",
   "Heard:": "들린 말:",
