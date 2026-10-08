@@ -1,6 +1,7 @@
 // Pre-broadcast setup page (DEV_SPEC §12.7): documents, Brief Agent results, glossary confirmation.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { PDF_ACCEPT, pdfOnly } from "../../app/pdfOnly";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { PrompterPoint, Product } from "../../app/types";
 import { Button, Chip, Eyebrow, HubLink, Panel, SettingsButton } from "../../components";
@@ -243,12 +244,15 @@ export function SetupView({ products, brand, client, theme, themePref, onSetThem
               <input
                 ref={fileInput}
                 type="file"
-                accept="application/pdf,.pdf"
+                accept={PDF_ACCEPT}
                 hidden
                 data-testid="setup-file-input"
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) void onUpload(f);
+                  const pick = pdfOnly(Array.from(e.target.files ?? []));  // D-368 (user): PDF only
+                  if (pick.error) {
+                    setDocMessage({ tone: "risk", text: pick.error });
+                    e.target.value = "";
+                  } else if (pick.files[0]) void onUpload(pick.files[0]);
                 }}
               />
               <Button disabled={uploading} onClick={() => fileInput.current?.click()}>

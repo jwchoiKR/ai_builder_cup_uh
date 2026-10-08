@@ -164,6 +164,17 @@ describe("Setup page", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Already indexed");
   });
 
+  it("accepts PDF files only (D-368)", async () => {
+    const c = client();
+    renderView(c);
+    await screen.findByTestId("setup-documents");
+    const input = screen.getByTestId("setup-file-input");
+    expect(input).toHaveAttribute("accept", ".pdf,application/pdf");
+    fireEvent.change(input, { target: { files: [new File(["<html>"], "page.html", { type: "text/html" })] } });
+    expect(await screen.findByRole("status")).toHaveTextContent("PDF files only. Not a PDF: page.html");
+    expect(c.upload).not.toHaveBeenCalled();
+  });
+
   it("shows each upload stage as the backend reports it (D-093)", async () => {
     const indexed = { status: "indexed" as const, message: "Indexed locally · 38 passages" };
     const c = client({

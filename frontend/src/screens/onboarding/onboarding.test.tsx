@@ -42,7 +42,7 @@ describe("OnboardingView (D-224)", () => {
   it("reads, shows every field with its evidence and conflicts, and approves a release", async () => {
     render(<OnboardingView />);
     const input = screen.getByTestId("onb-files") as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [new File(["x"], "spec.docx")] } });
+    fireEvent.change(input, { target: { files: [new File(["x"], "spec.pdf")] } });
     fireEvent.click(screen.getByTestId("onb-read"));
     expect(await screen.findByTestId("onb-summary", {}, { timeout: 4000 })).toHaveTextContent("Night Serum");
     expect(screen.getByTestId("onb-conflicts")).toHaveTextContent("Use S$44.00 (2026-10-01, newest)");
@@ -62,5 +62,17 @@ describe("OnboardingView (D-224)", () => {
     expect(screen.getByRole("checkbox", { name: /Uji tampalan dahulu/ })).toBeChecked();
     fireEvent.click(screen.getByTestId("onb-approve"));
     await waitFor(() => expect(screen.getByTestId("onb-release")).toHaveTextContent("rel_lumen_v1"));
+  });
+
+  it("accepts PDF files only (D-368)", () => {
+    render(<OnboardingView />);
+    const input = screen.getByTestId("onb-files");
+    expect(input).toHaveAttribute("accept", ".pdf,application/pdf");
+    fireEvent.change(input, { target: { files: [new File(["x"], "spec.pdf"), new File(["x"], "label.jpg")] } });
+    expect(screen.getByText("PDF files only. Not a PDF: label.jpg")).toBeInTheDocument();
+    expect(screen.getByTestId("onb-read")).toBeDisabled();
+    fireEvent.change(input, { target: { files: [new File(["x"], "spec.pdf")] } });
+    expect(screen.queryByText(/PDF files only/)).toBeNull();
+    expect(screen.getByTestId("onb-read")).toBeEnabled();
   });
 });

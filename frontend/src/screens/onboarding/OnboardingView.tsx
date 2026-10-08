@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Button, Chip, Eyebrow, HubLink } from "../../components";
 import { navigate } from "../../app/nav";
+import { PDF_ACCEPT, pdfOnly } from "../../app/pdfOnly";
 import {
   BRIEF_RUNNING_NOTE, onboardingApi, type Evidence, type Job, type Line, type ProductRecord, type TextItem, type Translations,
 } from "./onboardingApi";
@@ -284,14 +285,19 @@ export function OnboardingView() {
         </Eyebrow>
         <h1 className={styles.title}>Onboard a product</h1>
         <p className={styles.muted}>
-          Any documents of one product: spec sheets, label photos, price lists, brochures, in any layout or language. Every
+          PDF documents of one product (PDF only): spec sheets, labels, price lists, brochures, in any layout or language. Every
           value comes with the place it was read from. Nothing is live until you approve it.
         </p>
       </header>
 
       <section className={styles.block}>
-        <input type="file" multiple data-testid="onb-files"
-               onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+        <input type="file" multiple accept={PDF_ACCEPT} data-testid="onb-files"
+               onChange={(e) => {
+                 const pick = pdfOnly(Array.from(e.target.files ?? []));  // D-368 (user): PDF only
+                 setError(pick.error);
+                 setFiles(pick.files);
+                 if (pick.error) e.target.value = "";
+               }} />
         <input className={styles.input} placeholder="Optional hints (brand, market)" value={hints}
                onChange={(e) => setHints(e.target.value)} />
         <Button variant="primary" disabled={busy || files.length === 0} data-testid="onb-read"
