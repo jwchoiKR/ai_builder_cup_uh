@@ -1016,8 +1016,10 @@ class FactChecker:
         if not inp.notes:
             return "", {}
         handles = {f"F{i}": a.alert_id for i, a in enumerate(inp.notes, 1)}
-        rows = [{"handle": h, "product_id": a.product_id, "field": a.field, "stated_value": a.stated_value,
-                 "correct_value": a.correct_value, "status": a.status} for h, a in zip(handles, inp.notes)]
+        # D-364: the host's words and the source sentence say WHAT the note is about (panthenol vs niacinamide)
+        rows = [{"handle": h, "product_id": a.product_id, "field": a.field, "host_said": a.span,
+                 "subject": a.quote, "stated_value": a.stated_value, "correct_value": a.correct_value,
+                 "status": a.status} for h, a in zip(handles, inp.notes)]
         return "\n" + inputs.data_block("ACTIVE_FACT_NOTES", rows), handles
 
     async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:

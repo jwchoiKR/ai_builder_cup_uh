@@ -2549,3 +2549,9 @@ D-363: two user decisions after the codex review of D-362.
   - `tests/test_d363.py`: an active panthenol 5% note plus a right squalane 3% line leaves the note open, and "Sorry, panthenol is five percent" closes it; the request shows handles and no ids; `note_checks` comes first in the schema; a supported claim alone closes nothing; a note that appears after its fix was checked is asked again and closed.
   - `test_d362`: the originals load once and stay fixed for the show.
   - The fact tests script the fix by handle.
+
+D-364: fixes from the codex review of D-363.
+- **P1, corrections in line order:** a fact note is closed only by a fix from a line said after the note's latest showing. Sequence: T1 wrong, T2 fix, T3 wrong again, T2's verdict arriving after T3's. T2 no longer closes the note T3 re-showed. The skip is logged.
+- **P1, notes the model can tell apart:** each ACTIVE_FACT_NOTES entry also carries `host_said` (the host's words) and `subject` (the source sentence: which ingredient, size or offer). Two notes with the same field and values, one panthenol and one niacinamide, are no longer identical to the model. The NOTES addendum says so. Compliance handles already carry the span.
+- **P2, a re-check runs in the line's own context:** each line's fact-check input is kept (pruned with the line's other state), and a late-note re-check sends that same input plus the note. Before, it was rebuilt with the note's product, no previous lines and an empty switch state, so a line about product B after a switch could be re-checked as A.
+- Tests: `tests/test_d364.py` (the T1/T2/T3 order, which fails on the old code; two notes told apart by subject; the re-check's request equals the line's own plus the notes block).

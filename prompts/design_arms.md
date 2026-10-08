@@ -269,7 +269,9 @@ a report by someone, not a claim of [this line].
 ## NOTES: fact_checker
 
 D-363: ACTIVE_FACT_NOTES, when given, lists the fact notes already shown to the host, each with a `handle` (F1, F2
-...), its product, `field`, the wrong `stated_value`, the `correct_value` and `status`. Your answer then starts with
+...), its product, `field`, `host_said` (the host's words), `subject` (the source sentence: which ingredient, size or
+offer), the wrong `stated_value`, the `correct_value` and `status`. Two notes can share a field and values; tell
+them apart by `subject` and `host_said`. Your answer then starts with
 `note_checks`: exactly one `{"handle": ..., "fixed_by_this_line": true or false}` per listed note. Judge by meaning in
 context: `fixed_by_this_line` is true when this line, read with the line before it, states that note's fact correctly
 (the host corrects themselves: "Sorry, it's 5%", "let me fix that, the 50 ml one"). A right value of ANOTHER fact (another
