@@ -122,6 +122,15 @@ def build_context(
 
     clock = clock or SystemClock()
     ids = Ids(clock, deterministic=settings.LLM_PROVIDER == "mock")
+    if settings.JUDGE_MODE != "split3":
+        # D-361 (D-358): JUDGE_MODE=split and single read the rule JSON; production judges only on the regulation
+        # originals (split3). Those modes stay for the test suite (pinned) and the mock provider's recordings.
+        from .agents import split_judges
+
+        allowed = (settings.LLM_PROVIDER == "mock") if split_judges.LEGACY_RULES is None else split_judges.LEGACY_RULES
+        if not allowed:
+            raise ValueError(f"JUDGE_MODE={settings.JUDGE_MODE} reads the rule JSON; production runs split3 only "
+                             "(D-358)")
     if settings.ONBOARDING_GCS_BUCKET:  # D-263: the bucket is the source of truth for onboarding state
         from .onboarding import storage
 

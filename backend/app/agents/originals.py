@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,8 +30,9 @@ class Original:
 
 
 def squash(text: str) -> str:
-    """Letters and digits only, lower case: PDF text extraction splits and joins words ("pro ducts")."""
-    return re.sub(r"[^0-9a-z]", "", text.casefold())
+    """Letters and digits only (any script), lower case: PDF text extraction splits and joins words ("pro ducts").
+    D-361: Korean, Chinese, Malay or Thai text keeps its letters (it was Latin only)."""
+    return "".join(ch for ch in unicodedata.normalize("NFKC", text).casefold() if ch.isalnum())
 
 
 def _slug(text: str) -> str:
@@ -92,25 +94,32 @@ def _pack_files(source_id: str, root: Path) -> list[Original]:
     return []
 
 
-_LOADED: dict[tuple, tuple] = {}
+_FOUND: dict[tuple, tuple[Original, ...]] = {}  # (source, root) -> its originals; a miss is never kept (D-360)
+_WARNED: set[tuple] = set()
 
 
 def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, ...]]:
-    """D-360: a complete result is kept; one with a source missing is looked up again next time (a file read back from
-    the bucket later, or a pack approved after the first show), never cached as missing."""
-    if (sources, root) in _LOADED:
-        return _LOADED[(sources, root)]
+    """Each source's originals, looked up once when found; a source with none is looked up again next time (a file
+    read back from the bucket later, or a pack approved after the first show). D-361: two packs may each upload a file
+    of the same name; both are kept, the later one named "<source id>:<name>"."""
     found, missing = [], []
     for sid, title, file in sources:
-        docs = _local(sid, title, file) or _pack_files(sid, Path(root))
-        if docs:
-            found.extend(d for d in docs if d.name not in {x.name for x in found})
-        else:
-            missing.append(sid)
-    out = (tuple(found), tuple(missing))
-    if not missing:
-        _LOADED[(sources, root)] = out
-    return out
+        key = (sid, title, file, root)
+        if key not in _FOUND:
+            docs = tuple(_local(sid, title, file) or _pack_files(sid, Path(root)))
+            if not docs:
+                missing.append(sid)
+                if key not in _WARNED:  # said once per process; the lookup itself runs every time
+                    _WARNED.add(key)
+                    log.warning("compliance originals missing for source %s: its documents are not given to the "
+                                "judge", sid)
+                continue
+            _FOUND[key] = docs
+        names = {x.name for x in found}
+        for d in _FOUND[key]:
+            found.append(d if d.name not in names else Original(f"{sid}:{d.name}", d.title, d.source_id, d.data,
+                                                                 d.mime, d.text))
+    return tuple(found), tuple(missing)
 
 
 def originals_of_rules(rules, sources, onboarding_root: Path) -> tuple[tuple[Original, ...], tuple[str, ...]]:
@@ -123,8 +132,4 @@ def originals_of_rules(rules, sources, onboarding_root: Path) -> tuple[tuple[Ori
 def originals_for(catalog, onboarding_root: Path, product_ids) -> tuple[tuple[Original, ...], tuple[str, ...]]:
     """The originals behind the rules of these products, and the source ids that have no original (logged)."""
     rules = catalog.rules_for(set(product_ids)) if catalog.pack.rule_products is not None else catalog.pack.rules.rules
-    found, missing = originals_of_rules(rules, catalog.pack.rules.sources, onboarding_root)
-    if missing:
-        log.warning("compliance originals missing for sources %s: those rules' documents are not given to the judge",
-                    list(missing))
-    return found, missing
+    return originals_of_rules(rules, catalog.pack.rules.sources, onboarding_root)

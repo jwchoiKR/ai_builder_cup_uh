@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import time
 from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
@@ -32,8 +31,9 @@ log = logging.getLogger(__name__)
 BATCH_MAX = 500  # Firestore's limit on writes in one batch
 DOC_MAX_BYTES = 1_000_000  # under Firestore's 1 MiB document limit, with room for field names and overhead
 JSON_FIELD = "_json"  # a document with nested arrays, stored as one JSON string
+RETRY_FIRST_SEC = 0.5
 RETRY_MAX_SEC = 30.0
-READ_BACK_RETRY_SEC = 30.0  # after a failed read-back, memory serves alone this long before the next try
+READ_BACK_TRIES = 3  # D-361: a session is read back whole or not at all; after these tries the call fails
 _DELETE_SESSION = object()  # queue marker: delete the session document and every subcollection under it
 
 
@@ -89,7 +89,7 @@ class FirestoreStore(MemoryStore):
         self._flusher: asyncio.Task | None = None
         self._loaded: set[str] = set()  # sessions (and other top-level collections) read back from Firestore
         self._load_locks: dict[str, asyncio.Lock] = {}
-        self._load_failed: dict[str, float] = {}  # key -> when its read-back last failed (monotonic)
+        self._retry_now = asyncio.Event()  # D-361: a flush wakes a write retry that is waiting
         self.failures = 0  # writes Firestore refused or that failed and were retried
 
     # ---- writes: memory now, Firestore behind -------------------------------------------------------------
@@ -147,22 +147,26 @@ class FirestoreStore(MemoryStore):
     async def _ensure_loaded(self, path: str, doc_id: str | None) -> None:
         sid = _session_of(path, doc_id)
         key = sid if sid is not None else path.split("/")[0]
-        if key in self._loaded or time.monotonic() - self._load_failed.get(key, -1e9) < READ_BACK_RETRY_SEC:
+        if key in self._loaded:
             return
         lock = self._load_locks.setdefault(key, asyncio.Lock())
         async with lock:
             if key in self._loaded:
                 return
-            try:
-                if sid is not None:
-                    await self._load_session(sid)
-                else:  # a top-level collection; for `sessions`, the session documents only (each session's
-                    await self._load_collection(key)  # subcollections load on its first touch)
-            except Exception:  # noqa: BLE001 - said loudly; memory serves until the next try
-                self._load_failed[key] = time.monotonic()
-                log.exception("firestore: could not read back %s; serving memory only, next try in %.0f s", key,
-                              READ_BACK_RETRY_SEC)
-                return
+            # D-361: all or nothing. A partial read-back (the session but not its events) would restart the event seq
+            # and overwrite stored events, so the read is tried again and, failing that, the call fails loudly.
+            for attempt in range(1, READ_BACK_TRIES + 1):
+                try:
+                    if sid is not None:
+                        await self._load_session(sid)
+                    else:  # a top-level collection; for `sessions`, the session documents only (each session's
+                        await self._load_collection(key)  # subcollections load on its first touch)
+                    break
+                except Exception as e:  # noqa: BLE001 - said loudly; never served partially
+                    log.exception("firestore: read-back of %s failed (try %d of %d)", key, attempt, READ_BACK_TRIES)
+                    if attempt == READ_BACK_TRIES:
+                        raise RuntimeError(f"firestore: could not read back {key}; not serving it partially") from e
+                    await asyncio.sleep(0.2 * attempt)
             self._loaded.add(key)
 
     def _fill(self, path: str, doc_id: str, data: dict) -> None:
@@ -172,25 +176,29 @@ class FirestoreStore(MemoryStore):
         self._data.setdefault(path, {}).setdefault(doc_id, decode(data))
 
     async def _load_session(self, sid: str) -> None:
+        """Every document of the session is read first; memory is filled only when all reads succeeded."""
         snap = await self._client.collection(SESSIONS).document(sid).get()
         if not snap.exists:
             return
-        self._fill(SESSIONS, sid, snap.to_dict())
+        staged = [(SESSIONS, sid, snap.to_dict())]
         for name in SUBCOLLECTIONS:
             path = f"{SESSIONS}/{sid}/{name}"
             async for d in self._client.collection(path).stream():
-                self._fill(path, d.id, d.to_dict())
+                staged.append((path, d.id, d.to_dict()))
+        for path, doc_id, data in staged:
+            self._fill(path, doc_id, data)
         log.info("firestore: session %s read back (%d events)", sid,
                  len(self._data.get(f"{SESSIONS}/{sid}/events", {})))
 
     async def _load_collection(self, path: str) -> None:
-        async for d in self._client.collection(path).stream():
-            self._fill(path, d.id, d.to_dict())
+        staged = [(d.id, d.to_dict()) async for d in self._client.collection(path).stream()]
+        for doc_id, data in staged:
+            self._fill(path, doc_id, data)
 
     # ---- the writer ---------------------------------------------------------------------------------------
 
     async def _run(self) -> None:
-        delay = 0.5
+        delay = RETRY_FIRST_SEC
         while True:
             if not self._queue:
                 self._idle.set()
@@ -199,11 +207,15 @@ class FirestoreStore(MemoryStore):
                 continue
             try:
                 await self._write_some()
-                delay = 0.5
+                delay = RETRY_FIRST_SEC
             except Exception:  # noqa: BLE001 - the queue keeps every write; retry with backoff
                 self.failures += 1
                 log.exception("firestore: write failed; %d writes queued, retry in %.1f s", len(self._queue), delay)
-                await asyncio.sleep(delay)
+                self._retry_now.clear()
+                try:  # D-361: a flush (show end, SIGTERM) cuts the wait short and tries again at once
+                    await asyncio.wait_for(self._retry_now.wait(), delay)
+                except TimeoutError:
+                    pass
                 delay = min(delay * 2, RETRY_MAX_SEC)
 
     async def _write_some(self) -> None:
@@ -268,7 +280,8 @@ class FirestoreStore(MemoryStore):
         """Wait until every queued write is in Firestore (session end, shutdown). False when it timed out."""
         if self._queue and (self._flusher is None or self._flusher.done()):
             self._flusher = asyncio.get_running_loop().create_task(self._run(), name="firestore-flusher")
-            self._wake.set()
+        self._wake.set()
+        self._retry_now.set()  # D-361: a retry waiting on its backoff tries once more now
         try:
             await asyncio.wait_for(self._idle.wait(), timeout)
             return True

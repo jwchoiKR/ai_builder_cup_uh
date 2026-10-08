@@ -894,6 +894,7 @@ class FactChecker:
         from . import arms
         settings = getattr(llm, "settings", None)
         mode = getattr(settings, "FACT_MODE", "sheet")
+        self.mode = mode
         # D-296: the relation arm cites file sentences by id (RD), not by "file:<name>" and a copied quote (FD)
         self.relation = bool(getattr(settings, "FACT_RELATION", False))
         self.guards = getattr(settings, "FACT_GUARDS", "on") != "off"
@@ -988,12 +989,17 @@ class FactChecker:
         return user, prefix
 
     def _render_template(self, inp: FactInput) -> tuple[str, str]:
+        # D-361 FACT_MODE=prompter: nothing but the prompter snapshot (the passages) carries facts: the product block
+        # names the product only, and the promo, offer and set blocks are empty (their prices are in the snapshot)
+        shown = self.mode == "prompter"
+        product = inputs.current_product_compact_json(self.catalog, inp.on_air)
         return self.prompt.render_cached({
-            "current_product_compact_json": inputs.current_product_compact_json(self.catalog, inp.on_air),
+            "current_product_compact_json": ({"product_id": product["product_id"], "name": product["name"]}
+                                             if shown and product else product),
             "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
-            "active_promo_json_or_null": inputs.active_promo_json_or_null(self.catalog, inp.promo),
-            "active_offers_json": inputs.active_offers_json(self.catalog, inp.offers),
-            "set_offers_json": inputs.set_offers_json(self.catalog, inp.promo),
+            "active_promo_json_or_null": None if shown else inputs.active_promo_json_or_null(self.catalog, inp.promo),
+            "active_offers_json": [] if shown else inputs.active_offers_json(self.catalog, inp.offers),
+            "set_offers_json": [] if shown else inputs.set_offers_json(self.catalog, inp.promo),
             "passages_json": (sentence_index(self._source(inp))[0] if self.relation
                               else inputs.passages_json(inp.passages)),
             "last_two_final_transcripts_json": inp.recent if inp.recent is not None else inp.previous[-2:],

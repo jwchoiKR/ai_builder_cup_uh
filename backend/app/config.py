@@ -234,7 +234,7 @@ class Settings(BaseSettings):
     SWITCH_CANCEL_WINDOW_SEC: int = 5
     # D-349 arm: immediate = the context judge's transition verdict alone switches at once (no name match, no confirm,
     # no 5 s pending); for SWITCH_DUAL_SCOPE_SEC after a switch or an undo the judges get both products, labelled
-    SWITCH_MODE: Literal["two_step", "immediate"] = "two_step"
+    SWITCH_MODE: Literal["two_step", "immediate"] = "immediate"  # D-361: the user's rule (D-351) is the default
     SWITCH_DUAL_SCOPE_SEC: int = 10
     # D-351: the context call and its one retry share this deadline (immediate switch arm only)
     CONTEXT_RETRY_TOTAL_MS: int = 4000

@@ -69,6 +69,7 @@ def prompter_view(catalog: Catalog, segment: Segment | None,
 
 SHOWN_AMOUNT = re.compile(r"^\d+(\.\d+)?\s*(%|mg|mcg|µg|g|iu)$", re.IGNORECASE)  # the host screen's PERCENT
 SHOWN_INGREDIENTS = 4  # the host screen's MAX_INGREDIENTS
+SHOWN_CAUTIONS = 4  # the host screen's CAUTIONS_SHOWN (the rest sit behind "+N more", not shown)
 
 
 def _ingredient_name(key: str) -> str:
@@ -79,8 +80,9 @@ def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, li
                       promo=None) -> list[Passage]:
     """What the host prompter shows for this product, as passages (the same rules as the host screen's
     ProductPanel): the price (a time-sale price while a price promo runs), the list or live price, the set price,
-    the first ingredient amounts, the points (minus a price point that is not required), the in-house test results
-    and every caution. Nothing else of the record reaches the fact checker."""
+    the first ingredient amounts, the points (minus a price point that is not required) and the first cautions. D-361:
+    exactly what it renders: no caution behind "+N more", no test result (the prompter shows none). Nothing else of
+    the record reaches the fact checker."""
     from ..agents.fact_checker import CLAIMS_SECTION
 
     p = catalog.get_product(product_id)
@@ -108,8 +110,6 @@ def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, li
     for pt in points_of(catalog, product_id, overrides):
         if pt.required or not symbol or symbol not in pt.text:
             add(CLAIMS_SECTION, f"point-{pt.point_id}", pt.text)  # D-338: never a correction source
-    for r in p.qualified_results:
-        add("In-house test results", f"result-{r.result_id}", r.say)
-    for i, c in enumerate(p.cautions, 1):
+    for i, c in enumerate(p.cautions[:SHOWN_CAUTIONS], 1):
         add("Cautions", f"caution-{i}", c)
     return out

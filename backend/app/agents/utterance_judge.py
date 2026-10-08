@@ -444,10 +444,10 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
             product = catalog.get_product(v.product_id)
         cite, quote = (v.citation or "").strip(), squash(v.quote or "")
         if cite.upper() == qualifier.RULE_ID:
-            r = results.get(getattr(v, "qualified_result_id", None)) or next(
-                (x for x in results.values() if quote and quote in squash(x.say)), None)
+            # D-361: the recorded result named by id (provenance), its wording the say_instead; no text matching
+            r = results.get(getattr(v, "qualified_result_id", None))
             if r is None:
-                _cdrop(v, "provenance: a TEST-QUALIFIER verdict that names no recorded test result")
+                _cdrop(v, "provenance: a TEST-QUALIFIER verdict that names no recorded test result by id")
                 continue
             v.rule_id, v.say_instead = qualifier.RULE_ID, r.say
         else:
@@ -460,7 +460,7 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
                 _cdrop(v, f"provenance: the quote is not in {d.name} ({(v.quote or '')[:80]!r})")
                 continue
             v.rule_id = citation_rule_id(d.name, section or "document")
-            v.say_instead = approved_say(v.say_instead, product, catalog)
+            # D-361: the model's own say_instead (the prompt builds it from APPROVED_CLAIMS); no code word matching
         kept.append(v)
     o.compliance.violations = kept
     return _check_correction_ids(o, values)
