@@ -63,7 +63,7 @@ async def test_promo_price_contradiction_without_passage(env):
     assert a.correct_value == "S$32.40" and a.passage_id is None
 
 
-async def test_same_product_and_field_is_reshown_not_duplicated(env):
+async def test_d398_each_wrong_claim_is_its_own_note(env):
     rt, llm = env
     llm.facts(WRONG, price_contradiction("S$32"))
     llm.facts(WRONGER, price_contradiction("S$30"))
@@ -71,10 +71,9 @@ async def test_same_product_and_field_is_reshown_not_duplicated(env):
     first = (await fact_alerts(rt))[0]
     await advance(rt, 3000)
     t2 = await speak(rt, WRONGER)
-    [a] = await fact_alerts(rt)
-    assert a.alert_id == first.alert_id and a.stated_value == "S$30" and a.shown_at == first.shown_at + 3000
-    assert a.transcript_id == t2.transcript_id
-    assert any(e.payload["alert_id"] == a.alert_id for e in await events(rt, "alert.updated"))
+    notes = await fact_alerts(rt)  # D-398: one note per claim, no re-show of the first
+    assert [(a.stated_value, a.transcript_id) for a in notes] == [("S$32", first.transcript_id),
+                                                                  ("S$30", t2.transcript_id)]
 
 
 async def test_other_product_gets_its_own_note(env):
@@ -163,15 +162,13 @@ def test_apply_fact_check_pure(ids):
                    segment_id="seg_1")
     new_id = lambda p: ids.new(p, "s")  # noqa: E731
     c = FactClaim.model_validate(price_contradiction("S$32"))
-    created, reshown = fact_logic.apply_fact_check([c], [], t, new_id, now=100)
-    assert len(created) == 1 and not reshown
-    alerts = created
-    c2 = FactClaim.model_validate(price_contradiction("S$31"))
-    created, reshown = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200)
-    assert not created and reshown[0].stated_value == "S$31" and reshown[0].shown_at == 200
+    alerts = fact_logic.apply_fact_check([c], t, new_id, now=100)
+    assert len(alerts) == 1
+    c2 = FactClaim.model_validate(price_contradiction("S$31"))  # D-398: its own note, not a re-show
+    assert [a.stated_value for a in fact_logic.apply_fact_check([c2], t, new_id, now=200)] == ["S$31"]
     # D-363: a supported claim corrects nothing by itself; the model's handle (mapped to the id) does
     sup = FactClaim.model_validate(claim("price", "supported", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE))
-    assert fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300) == ([], [])
+    assert fact_logic.apply_fact_check([sup], t, new_id, now=300) == []
     corrected = fact_logic.correct_notes({alerts[0].alert_id}, alerts, t, now=300)
     assert corrected and corrected[0].status == "corrected" and corrected[0].resolved_at == 300
     assert fact_logic.PURCHASE_FIELDS >= {"price", "volume", "ingredient_amount"}
