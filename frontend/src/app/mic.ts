@@ -21,6 +21,7 @@ class MicClient {
   private snap: MicSnapshot = { state: "off", level: 0, message: null, sessionId: null, lastFinal: null };
   private listeners = new Set<Listener>();
   private ws: WebSocket | null = null;
+  private lastMark = 0;
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
   private node: AudioWorkletNode | null = null;
@@ -61,7 +62,15 @@ class MicClient {
       const source = this.ctx.createMediaStreamSource(this.stream);
       this.node = new AudioWorkletNode(this.ctx, "pcm-worklet");
       this.node.port.onmessage = (e: MessageEvent<{ pcm: ArrayBuffer; level: number }>) => {
-        if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(e.data.pcm);
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(e.data.pcm);
+          // D-339: about once a second, the capture time, so the server can tell late audio from a late answer
+          const now = Date.now();
+          if (now - this.lastMark >= 1000) {
+            this.lastMark = now;
+            this.ws.send(JSON.stringify({ type: "mark", t: now }));
+          }
+        }
         this.set({ level: Math.min(1, e.data.level * 4) });
       };
       source.connect(this.node);
@@ -86,6 +95,9 @@ class MicClient {
       if (msg.type === "status" && msg.state === "listening") {
         this.retries = 0;
         this.set({ state: "listening", message: null });
+      } else if (msg.type === "status" && msg.state === "reconnecting") {
+        // D-339: the server restarted a stalled speech stream; the mic keeps sending
+        this.set({ state: "connecting", message: "Reconnecting…" });
       } else if (msg.type === "status" && msg.state === "error") {
         this.set({ state: "error", message: msg.message ?? "Speech recognition error" });
       } else if (msg.type === "final") {
@@ -96,10 +108,10 @@ class MicClient {
       if (this.ws !== ws) return;
       this.ws = null;
       if (!this.wanted) return;
-      if (e.code === 4400 || e.code === 4404 || e.code === 4409) {
-        // STT off, unknown session, or another microphone took over: do not retry
+      if (e.code === 4400 || e.code === 4404 || e.code === 4409 || e.code === 4410) {
+        // STT off, unknown session, another microphone took over, or the show ended (D-339): do not retry
         this.wanted = false;
-        this.set({ state: e.code === 4409 ? "off" : "error" });
+        this.set({ state: e.code === 4409 || e.code === 4410 ? "off" : "error" });
         void this.release();
         return;
       }

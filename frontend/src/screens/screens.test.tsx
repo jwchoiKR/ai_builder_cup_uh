@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { catalog, snapshot } from "../test/fixtures";
+import type { FeedState } from "../app/types";
 import { setLang } from "../app/i18n";
 import { Hub } from "./Hub";
 import { Studio } from "./Studio";
@@ -28,7 +29,7 @@ const responses: Record<string, unknown> = {
 
 // the demo show's feed: chatter and bursts B1-B5 (D-337: a release show has none, and its buttons are hidden)
 const burst = (burst_id: string) => ({ burst_id, scene: "S01", description: "", anchor: "trigger", count: 3 });
-let demoFeed: object = { pool_running: false, pool_available: true, armed: [], fired: [],
+let demoFeed: FeedState = { pool_running: false, pool_available: true, armed: [], fired: [],
   bursts: ["B1_price", "B2_oily", "B3_sensitive", "B4_timesale", "B5_switch"].map(burst) };
 
 beforeEach(() => {
