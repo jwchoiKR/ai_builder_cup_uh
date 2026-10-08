@@ -151,13 +151,12 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
     applied as given: no check of the quote's wording or of the cited document (both are shown as the model wrote
     them, as its citation and summary); the alert's rule id is the document and the section, normalised, for
     duplicate suppression only. D-400: the severity comes from the citation type (a regulation document HIGH,
-    TEST-QUALIFIER MEDIUM), never from the model. TEST-QUALIFIER takes the recorded result's wording by
-    `qualified_result_id`, else keeps the model's. Only a verdict that cannot be applied is skipped and logged: a
-    product id that is not in the show."""
+    TEST-QUALIFIER MEDIUM), never from the model. D-414 (user): TEST-QUALIFIER keeps the model's own say_instead too
+    (the prompt asks for the host's sentence with the source added). Only a verdict that cannot be applied is skipped
+    and logged: a product id that is not in the show."""
     from .originals import citation_rule_id
 
     by_name = {d.name.casefold(): d for d in originals}
-    results = {r.result_id: r for p in catalog.products for r in p.qualified_results}
     scope = values.get("scope_product_ids")  # D-349: two products in scope right after a switch
     kept = []
     for v in o.compliance.violations:
@@ -174,12 +173,7 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
         # test result said without its source is orange (MEDIUM); the model does not grade
         v.severity = "MEDIUM" if cite.upper() == qualifier.RULE_ID else "HIGH"
         if cite.upper() == qualifier.RULE_ID:
-            # D-361: the recorded result named by id, its wording the say_instead; no text matching
-            r = results.get(getattr(v, "qualified_result_id", None))
-            if r is None:
-                log.info("compliance TEST-QUALIFIER verdict names no recorded result (%r): the model's say_instead "
-                         "stays | span=%r", getattr(v, "qualified_result_id", None), v.span)
-            v.rule_id, v.say_instead = qualifier.RULE_ID, (r.say if r is not None else v.say_instead)
+            v.rule_id = qualifier.RULE_ID  # D-414: the model's say_instead as given
         else:
             doc, _, section = cite.partition("#")
             d = by_name.get(doc.strip().casefold())

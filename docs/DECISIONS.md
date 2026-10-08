@@ -2704,3 +2704,11 @@ D-413 (user, item 15: "ㅇㅇ ㄱ"): leftover cleanup.
 2. deploy/cloudrun.sh no longer sets CORRECTION_CHECK or QUALIFIER_ADDON (both deleted in D-390); no other value changed.
 3. .env.example: `verifier=2000` is removed from HEDGE_DELAYS, and the FACT_GUARDS line is removed. Nothing reads either any more. test_config requires .env.example to match the code defaults, so the Settings default of HEDGE_DELAYS drops the verifier entry too, and the unread Settings.FACT_GUARDS is deleted.
 Tests: the D-341 host test is deleted. test_d296 loses its FACT_GUARDS parameter.
+
+D-414 (user, item B: D-385 redone on the current code): a TEST-QUALIFIER verdict keeps the model's own say_instead. Code no longer replaces it with the recorded result's wording.
+- Prompt: compliance_judge.md gets one line: for a TEST-QUALIFIER violation, `say_instead` is the host's own sentence with the source added ("In our own test, " + what the host said). Example E now shows "In Kelmar's own panel test, nine out of ten people said their hands felt softer.".
+- `qualified_result_id` is deleted from ViolationO (the production schema), from the prompt's rules, schema and examples, and from validate_original's lookup.
+- The originals path's QUALIFIED_RESULTS block no longer sends result ids.
+- The legacy rules-path arms (ViolationR, ViolationB; test-only) keep theirs.
+- The held D-385 stash is dropped.
+Test: test_d414 in tests/test_d358.py (the model's say_instead stays whatever id it sends; the field is not in the schema).

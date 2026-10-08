@@ -315,7 +315,7 @@ class ComplianceJudge(_SplitJudge):
         if not arms.meaning_to_llm(self.arm):
             if not self.fact_record:
                 return ""
-            rel = self.originals or issubclass(self.output_model, ComplianceOutputR)  # D-299: by id
+            rel = issubclass(self.output_model, ComplianceOutputR)  # D-299: by id (D-414: not the originals path)
             results = [{"product_id": p.product_id, "say": r.say} | ({"result_id": r.result_id} if rel else {})
                        for p in self.catalog.products
                        for r in p.qualified_results]

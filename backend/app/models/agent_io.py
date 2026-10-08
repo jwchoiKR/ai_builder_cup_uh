@@ -249,7 +249,6 @@ class ViolationO(Violation, _ArmB):
     quote: str
     rule_id: str = ""
     severity: Literal["HIGH", "MEDIUM"] = "HIGH"  # D-400: set by code from the citation type, never asked
-    qualified_result_id: str | None = None  # the QUALIFIED_RESULTS entry a TEST-QUALIFIER verdict states
 
 
 class ComplianceO(Compliance, _ArmB):
