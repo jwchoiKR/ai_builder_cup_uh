@@ -191,7 +191,7 @@ async def test_d349_eval_show_replays_a_show_and_scores_its_switches(tmp_path):
     assert raw["lines"][1]["labels"] == {"risky": True}
     # the effective settings are written with each show
     assert raw["settings"]["STORE"] == "memory" and raw["settings"]["SWITCH_MODE"] == "immediate"
-    assert {"FIRESTORE_DATABASE", "COMPLIANCE_RESAY", "CORRECTION_CHECK", "REFLEX_SCAN", "JUDGE_PRODUCTS",
+    assert {"FIRESTORE_DATABASE", "COMPLIANCE_RESAY", "REFLEX_SCAN", "JUDGE_PRODUCTS",
             "FACT_PROMPT", "FACT_MODE", "PREFIX_TOKENS"} <= set(raw["settings"])  # D-366
     assert all(c["usage"] is None or isinstance(c["usage"], dict) for c in raw["calls"])
     assert {"lines", "switch_events", "alerts", "prompter", "chips", "judge", "calls", "timeline"} <= set(raw)

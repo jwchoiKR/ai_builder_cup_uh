@@ -76,13 +76,13 @@ async def case_02_compliance_violation(rt, llm):
     assert (await rt.get_alert(a.alert_id)).escalated_at is not None  # not corrected in 5 s
 
 
-async def case_03_apology_is_not_a_correction(rt, llm):
-    """The judge lists the alert as corrected, but an apology alone is not accepted (D-089)."""
+async def case_03_the_judge_decides_a_correction(rt, llm):
+    """D-390: the judge lists the alert as corrected; its verdict is applied as given (D-089's word check is gone)."""
     a = await violate(rt, llm)
     await advance(rt, GAP_MS)
     llm.judge(APOLOGY, corrects=[a.alert_id], utterance_type="correction")
     await speak(rt, APOLOGY)
-    assert (await rt.get_alert(a.alert_id)).status == "active"
+    assert (await rt.get_alert(a.alert_id)).status == "corrected"
 
 
 async def case_04_correction(rt, llm):
@@ -158,7 +158,7 @@ async def case_10_product_switch(rt, llm):
     assert await events(rt, "segment.started")
 
 
-CASES = [case_01_prompter_point, case_02_compliance_violation, case_03_apology_is_not_a_correction,
+CASES = [case_01_prompter_point, case_02_compliance_violation, case_03_the_judge_decides_a_correction,
          case_04_correction, case_05_negated_claim, case_06_quoted_claim, case_07_wrong_fact,
          case_08_fact_corrected, case_09_host_answer_published, case_10_product_switch]
 

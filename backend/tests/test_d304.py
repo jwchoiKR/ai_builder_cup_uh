@@ -22,9 +22,8 @@ async def test_d304_switch_arming_without_the_name(by_name, counting):
         await close_env(rt)
 
 
-@pytest.mark.parametrize("check, status", [("words", "active"), ("judge", "corrected")])
-async def test_d304_correction_by_the_judge_alone(check, status):
-    rt, llm = await make_env(CORRECTION_CHECK=check, REFLEX_ON_FAIL="alert")
+async def test_d304_correction_by_the_judge_alone():
+    rt, llm = await make_env(REFLEX_ON_FAIL="alert")  # D-390: the judge's listed correction is the only path
     try:
         line = "It kills the bacteria on your skin."
         llm.judge(line, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL")])
@@ -33,22 +32,7 @@ async def test_d304_correction_by_the_judge_alone(check, status):
         llm.judge("Sorry.", corrects=[a.alert_id], utterance_type="correction")  # D-089: words alone say no
         await speak(rt, "Sorry.")
         [a] = await rt.alerts()
-        assert a.status == status
-    finally:
-        await close_env(rt)
-
-
-@pytest.mark.parametrize("addon, status", [(True, "corrected"), (False, "active")])
-async def test_d304_the_late_in_house_add_on(addon, status):
-    from app.logic.qualifier import RULE_ID
-
-    rt, llm = await make_env(QUALIFIER_ADDON=addon)
-    try:
-        llm.judge(QUALIFIED_LINE, violations=[violation(RULE_ID, "went up 45%", severity="MEDIUM")])
-        await speak(rt, QUALIFIED_LINE)
-        await speak(rt, "That's from our in-house test.")
-        [a] = [a for a in await rt.alerts() if a.rule_id == RULE_ID]
-        assert a.status == status
+        assert a.status == "corrected"
     finally:
         await close_env(rt)
 
