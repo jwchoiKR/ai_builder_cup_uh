@@ -428,6 +428,9 @@ describe("compliance", () => {
     expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("“Hydration went up 45%.”");
     expect(banner).toHaveTextContent("Also say where the result comes from (e.g. 'in our in-house test')");
     expect(banner).not.toHaveTextContent("went up 45% right after one use");  // the model's say_instead is not shown too
+    // D-422: a blank say falls back to the correct value
+    rerender(view({ alerts: [qualifier, { ...wrongNumber, say: "  " }] }));
+    expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact")).toHaveTextContent("“+45%”");
     // D-418: once the note is corrected, the card keeps its right line (the old number never comes back)
     rerender(view({ alerts: [qualifier, { ...said, status: "corrected", resolved_at: now() }] }));
     expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact"))

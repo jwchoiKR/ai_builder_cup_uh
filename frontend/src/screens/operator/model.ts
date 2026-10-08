@@ -284,7 +284,10 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
   for (const j of state.unchecked) lines.set(j.transcript_id, [...(lines.get(j.transcript_id) ?? []), j]);
   for (const [tid, fs] of lines) {
     const causes = fs.map((j) => `${t(FAILURE_JUDGES[j.agent ?? ""] ?? "AI check")}: ${t(FAILURE_CAUSES[j.cause ?? ""] ?? "AI error")}`);
-    cards.push({ key: `judge:${tid}`, kind: "judge_failed",
+    // D-422: the key is the failures the card covers, so a later failure on the line shows it again (live and after a
+    // refresh, which carries the same events)
+    const covered = fs.map((j) => j.agent ?? "").sort().join(",");
+    cards.push({ key: `judge:${tid}:${covered}`, kind: "judge_failed",
       text: `${t("AI check unavailable for the last sentence")} · ${causes.join(" · ")}` });
   }
   // D-412/D-416: the failure events of the last 5 minutes, by cause (one per line and judge, as the server counts

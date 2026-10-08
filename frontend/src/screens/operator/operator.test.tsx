@@ -115,6 +115,10 @@ describe("alert cards", () => {
       "AI check unavailable for the last sentence · Compliance check: AI busy (429) · Fact check: AI timed out");
     expect(texts.filter((x) => x.startsWith("AI check unavailable"))).toHaveLength(3);  // tr_old, tr_1, tr_2
     expect(texts).toContain("Last 5 min: AI busy (429) 2 · AI timed out 1");  // tr_old is older than 5 minutes
+    // D-422: a later failure on a line gets a new card key, so a dismissed card shows again
+    const key = (u: typeof failures) => systemCards({ ...st, unchecked: u }, catalog, T0)
+      .find((x) => x.text.startsWith("AI check unavailable"))?.key;
+    expect(key(failures.slice(2, 3))).not.toBe(key(failures.slice(2, 4)));
   });
   it("stale questions turn amber after STALE_COMMENT_SEC", () => {
     expect(isStale(group({ status: "needs_review", first_at: T0 }), T0 + 300_000, 300)).toBe(true);

@@ -196,3 +196,19 @@ async def test_d419_the_mock_only_judge_modes_switch_too(mode):
         assert (await rt.current_segment()).product_id == AMPOULE
     finally:
         await close_env(rt)
+
+
+@pytest.mark.parametrize("mode", ["split", "single"])
+async def test_d422_a_transition_that_does_not_name_the_next_product_does_not_switch(mode):
+    rt, llm = await make_env(JUDGE_MODE=mode)
+    try:
+        line = "Okay, let's move on."
+        llm.judge(line, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
+        llm.named[line] = False  # the model: moving on, but the next product is not named
+        if mode == "single":
+            llm.outputs[("judge_single", line)] = llm.outputs[("utterance_judge", line)] | {
+                "facts": {"claims": [], "reason": "scripted"}}
+        await speak(rt, line)
+        assert (await rt.current_segment()).product_id == CREAM
+    finally:
+        await close_env(rt)
