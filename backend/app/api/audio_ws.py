@@ -14,12 +14,15 @@ import re
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..pipelines.runtime import ActionError
-from ..providers.stt import phrases_from_glossary, risk_phrases, with_risk_phrases
+from ..providers.stt import SttStatus, phrases_from_glossary, risk_phrases, with_risk_phrases
 
 log = logging.getLogger(__name__)
 router = APIRouter()
 
 INTERIM_MIN_GAP_MS = 300
+END_POLL_S = 1.0  # D-339 (review H14): how often an open mic checks that its show is still on
+SHOW_ENDED = 4410  # close code: the show ended (the mic does not reconnect)
+LATE_LOG_MS = 1_000  # D-339: the mic's audio this much later than its best is logged
 _active: dict[str, WebSocket] = {}
 
 
@@ -195,6 +198,9 @@ async def audio(ws: WebSocket, session_id: str) -> None:
         last_interim = 0
         try:
             async for r in stream.results():
+                if isinstance(r, SttStatus):  # D-339: a stall restart, and hearing again after it
+                    await _send(ws, {"type": "status", "state": r.state})
+                    continue
                 if r.is_final:
                     try:
                         t = await rt.utterances.submit(r.text, source="mic", speech_end_at=r.speech_end_at)
@@ -211,7 +217,17 @@ async def audio(ws: WebSocket, session_id: str) -> None:
             await _send(ws, {"type": "status", "state": "error", "message": "Speech recognition stopped. Reconnecting…"})
             await ws.close(code=1011)
 
+    async def watch_end() -> None:
+        """D-339 (review H14): when the show ends, the mic's audio and its speech stream are closed."""
+        while (await rt.load_session()).status != "ended":
+            await asyncio.sleep(END_POLL_S)
+        log.info("stt stream closed for %s: the show ended", session_id)
+        await _send(ws, {"type": "status", "state": "stopped", "message": "The show ended."})
+        await ws.close(code=SHOW_ENDED)
+
     consumer = asyncio.create_task(consume(), name=f"stt-consume:{session_id}")
+    watcher = asyncio.create_task(watch_end(), name=f"stt-show-end:{session_id}")
+    best: int | None = None
     try:
         while True:
             msg = await ws.receive()
@@ -219,11 +235,23 @@ async def audio(ws: WebSocket, session_id: str) -> None:
                 break
             if msg.get("bytes"):
                 await stream.write(msg["bytes"])
-            elif msg.get("text") and json.loads(msg["text"]).get("type") == "stop":
-                break
-    except WebSocketDisconnect:
+            elif msg.get("text"):
+                data = json.loads(msg["text"])
+                if data.get("type") == "stop":
+                    break
+                if data.get("type") == "mark" and isinstance(data.get("t"), (int, float)):
+                    # D-339: the mic's capture clock against ours; the smallest gap is the baseline, more is lateness
+                    gap = ctx.clock.now_ms() - int(data["t"])
+                    best = gap if best is None else min(best, gap)
+                    late = gap - best
+                    if (late > LATE_LOG_MS) != (getattr(stream, "client_late_ms", 0) > LATE_LOG_MS):
+                        log.info("mic audio for %s %s: %d ms later than its best", session_id,
+                                 "late" if late > LATE_LOG_MS else "on time again", late)
+                    stream.client_late_ms = late
+    except (WebSocketDisconnect, RuntimeError):  # RuntimeError: closed by watch_end while receiving
         pass
     finally:
+        watcher.cancel()
         if _active.get(session_id) is ws:
             del _active[session_id]
         await stream.close()

@@ -2145,3 +2145,16 @@ D-337 (review-1008 A2, A3, E6): no 404/500 buttons and no raw server or infra st
 
 D-338 (review-1008 H3/H4, provenance only): in the single and verifier arms, `hard_validate` (`verify=True`) returned before its approved-claims check. A fact contradiction could cite the "Approved on-air claims" section, which holds the approved and the not-approved claim lists, and the host then got a fact note quoting the not-approved list. The verify branch now drops such a claim and logs "provenance: an approved-claims passage (claim wording is compliance's)". Claim wording stays with the compliance judge.
 - **Test (`tests/test_d338.py`):** the host says a not-approved phrase of the demo-fixture cream. The result is one compliance alert, no fact note, and the drop in the log. The test fails without the fix.
+
+D-339 (review-1008 H13/H14, with the planner's correction and addendum): a speech-stream watchdog, timing logs, and the mic stream closed at show end.
+- **Trigger:** chirp_3 sends no interim results, and STANDARD endpointing waits through continuous speech, so "no result for 8-10 s" would misfire. The trigger instead uses the existing speech-energy check. If the live stream heard speech after its last final, then a pause, and no final came within `STALL_MS` (5 s) of that pause, it is restarted. Before its first result the limit is `COLD_STALL_MS` (8 s), and speech within 1 s of the last final counts as that final's tail.
+- **Restart:** the restart re-sends up to `BRIDGE_STALL_MS` (20 s) of unfinalized audio, up from 5 s, so the speech is not dropped. The mic is told "reconnecting" (chip: "Reconnecting…") and "listening" again at the new stream's first result.
+- **No restart loops:**
+  - A stream opened by a stall restart is not stall-restarted again until it returns a result.
+  - If the mic's own audio is late, a restart would not help, so there is no restart: the stall is logged and the chip shows once. The mic sends a capture-time mark about once a second; the smallest server-minus-client gap is the baseline, more than 2 s over it counts as late, and over 1 s is logged.
+- **The 36 s gap of review §4.3 was a delayed burst, not silence.**
+  - Each final now logs its timing: audio end offset, server receipt, sent to Google (with the queue lag), and final arrival (Google's time).
+  - Each stream ("lane") logs on its end: bytes in, audio seconds, results, last response, and why it ended (switch, limit, stall, error, closed).
+- **Not twice:** a final whose speech end is not after the latest reported one is dropped and logged. This covers late finals of a replaced stream and finals of re-sent audio.
+- **Show end (H14):** an open mic checks the show once a second. When the show ends, it sends "The show ended." and closes with code 4410, which the mic does not retry; the speech stream closes with it.
+- **Tests (`tests/test_d339.py`):** a stream that stops answering is restarted and its speech re-heard; a late but working stream is not restarted; a cold-start stall restarts once, with no loop; the old stream's late burst after a restart is reported once (this test fails without the drop); late mic audio shows the chip with no restart; the stream closes at show end.

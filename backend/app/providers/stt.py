@@ -26,6 +26,14 @@ PREWARM_MS = 165_000  # D-145: open the standby stream this long into the live o
 SWITCH_MARGIN_MS = 300  # standby results ending this close after the switch point are still the old stream's
 SPEECH_PEAK = 1_000  # 16-bit peak above which a frame counts as speech (log only)
 BRIDGE_MAX_MS = 5_000  # re-send at most this much unfinalized audio into the new stream
+# D-339 (review H13): a stream that heard speech, then a pause, and returned no final within STALL_MS of the pause
+# (COLD_STALL_MS before its first result) is restarted, its unfinalized audio re-sent (up to BRIDGE_STALL_MS). A
+# stream opened by a stall restart is not stall-restarted again before it returns a result (noise is no restart loop)
+STALL_MS = 5_000
+COLD_STALL_MS = 8_000
+STALL_SLACK_MS = 1_000  # speech this close after the last final is that final's tail, not new speech
+BRIDGE_STALL_MS = 20_000
+CLIENT_LATE_MS = 2_000  # D-339: the mic's audio reaches us this much later than its best: a restart would not help
 MAX_CHUNK_BYTES = 15_360  # smallest documented per-request audio limit
 MAX_PHRASES = 500  # chirp_3 allows up to 1,000; fewer entries degrade less (VERIFIED §4.5)
 
@@ -39,11 +47,20 @@ class SttResult:
 
 
 @dataclass
+class SttStatus:
+    """D-339: a change the mic should show ("reconnecting" after a stall restart, "listening" when it hears again)."""
+    state: str
+    text: str = ""
+    is_final: bool = False
+
+
+@dataclass
 class _Chunk:
     offset_ms: float  # start of this chunk in the current stream's audio
     duration_ms: float
     arrival_ms: int  # server time the chunk arrived (end of its audio)
     data: bytes
+    sent_ms: int = 0  # D-339: server time it was handed to Google
 
 
 @dataclass
@@ -52,10 +69,13 @@ class _StreamState:
     audio_ms: float = 0.0
     last_final_ms: float = 0.0  # end offset of the last final result
 
-    def add(self, data: bytes, arrival_ms: int) -> None:
+    def add(self, data: bytes, arrival_ms: int, sent_ms: int = 0) -> None:
         dur = len(data) / BYTES_PER_MS
-        self.chunks.append(_Chunk(self.audio_ms, dur, arrival_ms, data))
+        self.chunks.append(_Chunk(self.audio_ms, dur, arrival_ms, data, sent_ms))
         self.audio_ms += dur
+
+    def chunk_at(self, offset_ms: float) -> _Chunk | None:
+        return next((c for c in self.chunks if c.offset_ms <= offset_ms <= c.offset_ms + c.duration_ms), None)
 
     def time_at(self, offset_ms: float) -> int | None:
         for c in self.chunks:
@@ -105,6 +125,9 @@ class GoogleV2Stream:
         self._results: asyncio.Queue[SttResult | Exception | None] = asyncio.Queue()
         self._closed = False
         self.restarts = 0
+        self.client_late_ms = 0  # D-339: how much later than its best the mic's audio arrives (from its marks)
+        self._late_noted = False
+        self._last_end_at: int | None = None  # D-339: the latest speech end reported (no word reported twice)
         self._task = asyncio.create_task(self._run(), name="stt-stream")
 
     async def write(self, pcm: bytes) -> None:
@@ -158,6 +181,23 @@ class GoogleV2Stream:
                 for lane in (cur, nxt):
                     if lane is not None:
                         lane.feed.put_nowait(item)
+                        lane.fed_ms += len(item[0]) / BYTES_PER_MS
+                        if _is_speech(item[0]):
+                            lane.speech_end_ms = lane.fed_ms
+                if self._stalled(cur):  # D-339: speech, a pause, and no final: the stream is restarted
+                    if self.client_late_ms > CLIENT_LATE_MS:
+                        # the audio itself comes late (browser or network): a restart would not help
+                        if not self._late_noted:
+                            self._late_noted = True
+                            log.info("speech stream stall while the mic's audio is %d ms late: no restart",
+                                     self.client_late_ms)
+                            await self._results.put(SttStatus("reconnecting"))
+                        continue
+                    cur = self._restart(cur, "stall", BRIDGE_STALL_MS)
+                    cur.from_stall = True
+                    await self._results.put(SttStatus("reconnecting"))
+                    continue
+                self._late_noted = False
                 st = cur.state
                 if nxt is not None and nxt.task.done():
                     nxt = None  # the standby failed; a new one opens below
@@ -176,6 +216,7 @@ class GoogleV2Stream:
                     elif nxt is not None and soft and switch_at is not None and nxt.started_at <= switch_at:
                         nxt.emit_after, nxt.active, nxt.activated = switch_at, True, time.monotonic()
                         cur.emit_before = switch_at  # its audio is cut here: a fragment it finalizes later is not reported
+                        cur.reason = "switch"
                         cur.feed.put_nowait(None)
                         self.restarts += 1
                         nxt.number = self.restarts
@@ -193,13 +234,28 @@ class GoogleV2Stream:
 
     def _lane(self, bridge: list[_Chunk], *, active: bool) -> "_Lane":
         lane = _Lane(active=active, started_at=self._stt.clock.now_ms())
+        for c in bridge:  # D-339: the re-sent audio counts for the stall check too
+            lane.fed_ms += c.duration_ms
+            if _is_speech(c.data):
+                lane.speech_end_ms = lane.fed_ms
         lane.task = asyncio.create_task(self._one_stream(lane, bridge), name="stt-lane")
         return lane
 
-    def _restart(self, cur: "_Lane", why: str) -> "_Lane":
+    @staticmethod
+    def _stalled(lane: "_Lane") -> bool:
+        """D-339: the lane heard speech after its last final, the pause since has lasted STALL_MS (COLD_STALL_MS
+        before its first result), and it is not a stall restart still waiting for its first result."""
+        if lane.from_stall and not lane.results:
+            return False
+        pending = lane.speech_end_ms > lane.state.last_final_ms + STALL_SLACK_MS
+        limit = STALL_MS if lane.results else COLD_STALL_MS
+        return pending and lane.fed_ms - lane.speech_end_ms >= limit
+
+    def _restart(self, cur: "_Lane", why: str, bridge_ms: float = BRIDGE_MAX_MS) -> "_Lane":
         """The old restart: close the stream, open a new one with the audio after its last final."""
+        cur.reason = why
         cur.feed.put_nowait(None)
-        bridge = cur.state.tail_after(cur.state.last_final_ms)
+        bridge = cur.state.tail_after(cur.state.last_final_ms, bridge_ms)
         self.restarts += 1
         # proof-plan §2: every restart with its cause, so a slow final can be matched to it in the logs
         log.info("speech stream restart #%d (%s) after %.0f s of audio; re-sending %d ms",
@@ -219,23 +275,25 @@ class GoogleV2Stream:
         async def requests():
             yield self._stt.first_request(self._phrases, self._language)
             for c in bridge:  # re-send audio after the previous stream's last final result
-                state.add(c.data, c.arrival_ms)
+                state.add(c.data, c.arrival_ms, self._stt.clock.now_ms())
                 yield cs.StreamingRecognizeRequest(audio=c.data)
             while True:
                 item = await lane.feed.get()
                 if item is None:
                     return
                 data, arrival = item
+                lane.bytes_in += len(data)
                 if lane.active and lane.first_speech is None and _is_speech(data):
                     lane.first_speech = time.monotonic()
                 for i in range(0, len(data), MAX_CHUNK_BYTES):
                     part = data[i:i + MAX_CHUNK_BYTES]
-                    state.add(part, arrival)
+                    state.add(part, arrival, self._stt.clock.now_ms())
                     yield cs.StreamingRecognizeRequest(audio=part)
 
         try:
             responses = await self._stt.client().streaming_recognize(requests=requests())
             async for resp in responses:
+                lane.last_response = time.monotonic()
                 for r in resp.results:
                     lane.results += 1
                     alt = r.alternatives[0].transcript.strip() if r.alternatives else ""
@@ -259,16 +317,37 @@ class GoogleV2Stream:
                                   if lane.first_speech is not None else "")
                         log.info("speech stream #%d first result %.0f ms after it took over%s", self.restarts,
                                  (time.monotonic() - lane.activated) * 1000, speech)
+                        if lane.from_stall:  # D-339: heard again after a stall restart
+                            await self._results.put(SttStatus("listening"))
                     if r.is_final:
                         now = self._stt.clock.now_ms()
                         if end_at is not None:  # D-157: a slow final, matched to its stream and a switch
                             log.info("stt final %d ms after speech end, stream #%d", now - end_at, lane.number)
+                            # D-339: where the time went: server receipt -> sent to Google -> final back
+                            c = state.chunk_at(end_ms)
+                            if c is not None:
+                                log.info("stt final timing stream #%d: audio end %.0f ms, received %d, sent %d "
+                                         "(+%d ms), final %d (+%d ms after sending)", lane.number, end_ms,
+                                         c.arrival_ms, c.sent_ms, c.sent_ms - c.arrival_ms, now, now - c.sent_ms)
+                            if self._last_end_at is not None and end_at <= self._last_end_at:
+                                # D-339: a late final of a replaced stream, or a re-sent one, already reported
+                                log.info("stt final dropped: its audio (to %d) was already reported (to %d): %r",
+                                         end_at, self._last_end_at, alt[:60])
+                                continue
+                            self._last_end_at = end_at
                         await self._results.put(SttResult(alt, True, end_at, now))
                     else:
                         await self._results.put(SttResult(alt, False, None, self._stt.clock.now_ms()))
         except (gexc.GoogleAPICallError, gexc.RetryError) as e:
             log.warning("speech stream error (%s)", e)
+            lane.reason = lane.reason or "error"
             return "error"
+        finally:
+            # D-339: per lane, what went in and when it last answered, to find the cause of a gap in the logs
+            last = f"{time.monotonic() - lane.last_response:.1f} s ago" if lane.last_response else "never"
+            log.info("stt lane #%d ended (%s): %d bytes in (%.1f s of audio), %d results, last response %s",
+                     lane.number, lane.reason or "closed", lane.bytes_in, lane.bytes_in / BYTES_PER_MS / 1000,
+                     lane.results, last)
         return "closed"
 
 
@@ -288,6 +367,12 @@ class _Lane:
     number: int = 0  # D-157: restarts count when it took over, for the per-final log
     results: int = 0  # D-157: results it returned, also while standing by
     waited: bool = False  # D-160: a switch already waited for its first result (logged once)
+    fed_ms: float = 0.0  # D-339: audio given to it (bridge included), and where its last speech frame ended
+    speech_end_ms: float = 0.0
+    from_stall: bool = False
+    bytes_in: int = 0
+    last_response: float | None = None  # monotonic
+    reason: str | None = None  # why it ended: switch, limit, stall, error
 
 
 def _is_speech(pcm: bytes) -> bool:
