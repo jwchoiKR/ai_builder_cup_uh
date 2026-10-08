@@ -255,12 +255,18 @@ describe("fact note", () => {
     expect(screen.queryByTestId("host-alert-more")).toBeNull();
   });
 
-  it("D-404: +N counts every active alert not visible, by id: another red, D-342-held ones", () => {
-    const red1 = alert({ alert_id: "al_r1", span: "erases wrinkles", transcript_id: "tr_r1", shown_at: now() - 1000 });
-    const red2 = alert({ alert_id: "al_r2", span: "cures acne", transcript_id: "tr_r2", shown_at: now() - 5000 });
+  it("D-407: two reds take the two boxes, the ring on the newest only; the rest is in +N (D-404, by id)", () => {
+    const red1 = alert({ alert_id: "al_r1", span: "erases wrinkles", transcript_id: "tr_r1", created_at: now() - 1000,
+      shown_at: now() - 1000 });
+    const red2 = alert({ alert_id: "al_r2", span: "cures acne", transcript_id: "tr_r2", created_at: now() - 5000,
+      shown_at: now() - 5000 });
     const note = { ...fx, transcript_id: "tr_fact" };
     const { rerender } = render(view({ alerts: [red1, red2, note] }));
-    expect(within(screen.getByTestId("host-fact-note")).getByTestId("host-alert-more")).toHaveTextContent("+1");
+    const reds = screen.getAllByTestId("host-compliance-overlay");
+    expect(reds.map((r) => r.getAttribute("data-fresh"))).toEqual(["true", "false"]);
+    expect(reds[0]).toHaveTextContent("erases wrinkles");
+    expect(screen.queryByTestId("host-fact-note")).toBeNull();
+    expect(within(reds[1]).getByTestId("host-alert-more")).toHaveTextContent("+1");
     // a MEDIUM on the red's own line is held back by D-342: counted too
     const held = alert({ alert_id: "al_held", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
       transcript_id: "tr_r1" });
@@ -328,7 +334,8 @@ describe("compliance", () => {
     const older = alert({ alert_id: "al_000001", span: "older claim", shown_at: now() - 5000 });
     const newer = alert({ alert_id: "al_000002", span: "your wrinkles will disappear overnight", shown_at: now() - 1000 });
     render(view({ alerts: [older, newer] }, acts));
-    const overlay = within(screen.getByTestId("host-prompter")).getByTestId("host-compliance-overlay");
+    // D-407: both reds have a box, the newest first
+    const overlay = within(screen.getByTestId("host-prompter")).getAllByTestId("host-compliance-overlay")[0];
     expect(screen.queryByTestId("host-point-cr-p1")).toBeNull(); // the product info gives way, nothing else moves
     expect(overlay).toHaveTextContent("Regulation");
     expect(overlay).toHaveTextContent("Say this instead.");
@@ -336,7 +343,7 @@ describe("compliance", () => {
     expect(overlay).toHaveTextContent('Heard: "your wrinkles will disappear overnight"');
     expect(overlay).toHaveTextContent("Prevents, reduces or reverses physiological changes of ageing · Appendix III §3");
     expect(overlay).toHaveTextContent("Waiting for your correction");
-    expect(screen.getByTestId("host-overlay-count")).toHaveTextContent("1 of 2");
+    expect(screen.getAllByTestId("host-overlay-count").map((c) => c.textContent)).toEqual(["1 of 2", "2 of 2"]);
     expect(screen.queryByTestId("host-unverified")).toBeNull();
     expect(acts.rendered).toHaveBeenCalledWith("al_000002");
   });
@@ -713,16 +720,17 @@ describe("AI PD card", () => {
   it("D-177: a red not corrected within 20 s stays full size and the card shows below it", () => {
     const card = pdCard({ card_id: "card_ai_5", status: "active" });
     const old = alert({ alert_id: "al_old", span: "erases wrinkles", created_at: T0 - RED_BLOCK_MS - 1000,
-      escalated_at: T0 - RED_BLOCK_MS + 4000 });
+      shown_at: T0 - RED_BLOCK_MS - 1000, escalated_at: T0 - RED_BLOCK_MS + 4000 });
     render(view({ session: session({ pd_card: card }), alerts: [old] }));
     expect(screen.getByTestId("host-compliance-overlay")).toHaveAttribute("data-fresh", "false");
     expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
     expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("take the top one now");
     cleanup();
     // the same claim said again is a new alert: highlighted, and cards wait 20 s again
-    const again = alert({ alert_id: "al_again", span: "erases wrinkles", created_at: T0 - 1000 });
+    const again = alert({ alert_id: "al_again", span: "erases wrinkles", created_at: T0 - 1000, shown_at: T0 - 1000 });
     render(view({ session: session({ pd_card: card }), alerts: [old, again] }));
-    expect(screen.getByTestId("host-compliance-overlay")).toHaveAttribute("data-fresh", "true");
+    // D-407: the ring only on the newest red
+    expect(screen.getAllByTestId("host-compliance-overlay").map((o) => o.getAttribute("data-fresh"))).toEqual(["true", "false"]);
     expect(screen.queryByTestId("host-pd-card")).toBeNull();
   });
 

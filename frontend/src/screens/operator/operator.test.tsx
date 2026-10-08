@@ -244,6 +244,21 @@ describe("Operator screen", () => {
     expect(await seen("fx_2")).toBe("more");
   });
 
+  it("D-407: with two reds both are shown and the fact note is in +N", async () => {
+    const red1 = alert({ alert_id: "al_r1", transcript_id: "tr_r1", span: "erases wrinkles" });
+    const red2 = alert({ alert_id: "al_r2", transcript_id: "tr_r2", span: "cures acne", created_at: T0 - 5000,
+      shown_at: T0 - 5000 });
+    const fact = alert({ alert_id: "fx_1", kind: "fact", transcript_id: "tr_f1", rule_id: null, severity: null,
+      field: "price", passage_id: "P#1" });
+    snap = snapshot({ alerts: [red1, red2, fact] });
+    render(<Operator sessionId="ses_op_two_reds" />);
+    const host = async (id: string) =>
+      within(await screen.findByTestId(`op-alert-${id}`)).getByTestId("op-alert-host");
+    expect(await host("al_r1")).toHaveTextContent("The host sees this alert now.");
+    expect(await host("al_r2")).toHaveTextContent("The host sees this alert now.");
+    expect(await host("fx_1")).toHaveTextContent('Not on the host screen yet: counted in "+N".');
+  });
+
   it("D-374: shows the model's citation and summary, labelled as the AI's", async () => {
     snap = snapshot({ alerts: [alert({ citation: "guideline.pdf#3", quote: "Removes wrinkles or reverses skin ageing." })] });
     render(<Operator sessionId="ses_op_citation" />);

@@ -58,7 +58,7 @@ export const KO_OPERATOR: Record<string, string> = {
   // D-404: where the alert is on the host screen now
   "The host sees this alert now.": "진행자 화면에 지금 보이는 알림입니다.",
   "Waiting on the host screen: a red alert on the same line shows first.": "진행자 화면 대기 중: 같은 문장의 빨간 알림이 먼저 보입니다.",
-  'Not on the host screen yet: counted in "+N" behind the two alerts shown.': '아직 진행자 화면에 없음: 보이는 알림 두 개 뒤 "+N"에 포함됩니다.',
+  'Not on the host screen yet: counted in "+N".': '아직 진행자 화면에 없음: "+N"에 포함됩니다.',
   "Send correction cue": "정정 신호 보내기",
   "Post notice": "공지 올리기",
   "Dismiss false alert": "오탐으로 닫기",
