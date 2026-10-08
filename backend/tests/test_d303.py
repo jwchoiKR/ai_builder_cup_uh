@@ -15,11 +15,11 @@ async def test_d303_stt_aware_prompts(on):
 
     from .helpers import live_runtime, make_ctx
 
-    rt = await live_runtime(make_ctx(backend=ScriptedBackend(), STT_AWARE=on, JUDGE_ARM="verify"))
+    rt = await live_runtime(make_ctx(backend=ScriptedBackend(), STT_AWARE=on, JUDGE_ARM="single"))  # D-392: no verifier
     try:
         j = ComplianceJudge(rt.ctx.llm, rt.ctx.prompts, rt.catalog, rt.reflex)
         u = rt.utterances
-        for instruction in (j.system_instruction, u.facts.system_instruction, u.verifier.system_instruction):
+        for instruction in (j.system_instruction, u.facts.system_instruction):
             assert ("Quote marks are often missing" in instruction) is on
     finally:
         await close_env(rt)
@@ -55,30 +55,3 @@ async def test_d303_the_context_window(window, sees_first):
     finally:
         await close_env(rt)
 
-
-@pytest.mark.parametrize("number_check, decision, alerts, heard_check", [
-    (True, "check", 1, True),  # shown as "check what was said"
-    (True, "keep", 1, False),
-    (False, "keep", 1, False),
-])
-async def test_d303_number_check(number_check, decision, alerts, heard_check):
-    from app.models.agent_io import VerifyOutput, VerifyOutputC
-
-    from .helpers import live_runtime, make_ctx
-
-    line, span = "It's only thirty-two dollars today.", "thirty-two dollars"
-    llm = _RelationBackend("contradicts")
-    llm.outputs[("verifier", f"{line}|{span}")] = {"evidence": None, "reason": "scripted", "decision": decision,
-                                                   "severity": None}
-    rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True, JUDGE_ARM="verify", NUMBER_CHECK=number_check))
-    try:
-        assert rt.utterances.verifier.number_check is number_check
-        await speak(rt, line)
-        await rt.utterances.drain()
-        facts = [a for a in await rt.alerts() if a.kind == "fact"]
-        assert [a.heard_check for a in facts] == [heard_check] * alerts
-    finally:
-        await close_env(rt)
-    assert VerifyOutputC.model_validate({"evidence": None, "reason": "r", "decision": "check", "severity": None})
-    with pytest.raises(ValueError):
-        VerifyOutput.model_validate({"evidence": None, "reason": "r", "decision": "check", "severity": None})

@@ -25,8 +25,8 @@ from app.store.memory import MemoryStore
 ALL_FIXES = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK"
 
 LEGACY = {
-    "FACT_RELATION": "false", "JUDGE_ARM": "guards", "VERIFY_EVIDENCE": "all", "STT_AWARE": "false",
-    "CONTEXT_WINDOW_MS": "0", "NUMBER_CHECK": "false", "SWITCH_ARM_NAME": "true",
+    "FACT_RELATION": "false", "JUDGE_ARM": "guards", "STT_AWARE": "false",
+    "CONTEXT_WINDOW_MS": "0", "SWITCH_ARM_NAME": "true",
     "VERBAL_CHECK": "code", "REFLEX_SCAN": "true", "JUDGE_PRODUCTS": "named",
     "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
     "UTTERANCE_MERGE_WINDOW_MS": "3500",
@@ -41,7 +41,8 @@ for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)
 SHIPPED = {k: Settings.model_fields[k].default for k in LEGACY}
 # D-336: the verifier arm as it shipped from D-305 to D-335 (the default is now the single arm)
-VERIFY_SHIPPED = SHIPPED | {"JUDGE_ARM": "verify", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "QUESTION_HOLD": False,
+# D-392: the verify arm is gone; these shipped-default tests run the single arm
+VERIFY_SHIPPED = SHIPPED | {"JUDGE_ARM": "single", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "QUESTION_HOLD": False,
                             "FACT_MODE": "docs", "SINGLE_THINKING": "MEDIUM"}  # D-360: as it shipped
 
 _REPO = Path(__file__).resolve().parents[2]

@@ -57,7 +57,6 @@ async def test_d309_one_judge_no_verifier_no_drops(said, severity):
         assert a.severity == severity  # the judge may lower a HIGH rule to MEDIUM
         assert not any(r.agent == "verifier" for r in llm.reqs) and await events(rt, "verify.started") == []
         assert {r.deadline_ms for r in llm.reqs if r.agent == "compliance_judge"} == {5000}
-        assert rt.utterances.verifier is None
     finally:
         await close_env(rt)
 
@@ -77,22 +76,6 @@ async def test_d309_a_failed_judge_s_unverified_alert_says_why():
         await rt.utterances.drain()
         [a] = [a for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
         assert (a.unverified, a.unverified_reason) == (True, "http_504")
-    finally:
-        await close_env(rt)
-
-
-async def test_d309_a_window_with_no_matching_sentence_is_logged():
-    from app.agents.fact_checker import DROPS
-
-    rt, _ = await make_env(**VERIFY_SHIPPED)
-    try:
-        sink: list = []
-        token = DROPS.set(sink)
-        try:
-            assert rt.utterances.verifier.evidence(CREAM, "A quote that is in no document at all") == []
-        finally:
-            DROPS.reset(token)
-        assert [d["reason"] for d in sink] == ["verifier window: no sentence matches the quote"]
     finally:
         await close_env(rt)
 
