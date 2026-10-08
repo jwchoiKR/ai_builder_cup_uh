@@ -97,7 +97,8 @@ async def test_d408_the_retried_result_counts_the_failed_call_s_time():
 # ---- D-411/D-417: one fact deadline for the line, from its end; the time left is measured by the clock ------------
 
 
-async def _deadline_run(first_ms: int, end_ago_ms: int = 0, status: str = "invalid"):
+async def _deadline_run(first_ms: int, end_ago_ms: int = 0, status: str = "invalid", step_back_ms: int = 0,
+                        latency_ms: int | None = None, lookup_ms: int = 0):
     """_run_facts on a line that ended `end_ago_ms` ago; the first call takes `first_ms` of clock time (its audit save
     included) and comes back `status`. Returns (calls as (deadline_ms, opts), result)."""
     from app.agents.utterance_judge import JudgeInput
@@ -108,21 +109,32 @@ async def _deadline_run(first_ms: int, end_ago_ms: int = 0, status: str = "inval
     t = Transcript(transcript_id="tr_x", text=LINE, is_final=True, speech_end_at=now - end_ago_ms, received_at=now,
                    source="injected", segment_id="seg_x")
     rt.utterances._prepared["tr_x"] = (t, LINE, None)
-    calls = []
+    calls, lookups = [], []
 
     async def run(inp, *, deadline_ms, **opts):
         calls.append((deadline_ms, opts))
         if len(calls) == 1:
             rt.ctx.clock.advance(first_ms)
-            return AgentResult(status=status, output=None, latency_ms=first_ms, call_id="c1")
+            rt.ctx.clock.set(rt.ctx.clock.now_ms() - step_back_ms)  # D-421: a wall-clock step back
+            return AgentResult(status=status, output=None,
+                               latency_ms=first_ms if latency_ms is None else latency_ms, call_id="c1")
         return AgentResult(status="ok", output=None, latency_ms=10, call_id="c2")
 
+    real_passages = rt.utterances._fact_passages
+
+    async def passages(*args, **kw):  # D-421: a slow lookup before the call
+        lookups.append(1)
+        rt.ctx.clock.advance(lookup_ms)
+        return await real_passages(*args, **kw)
+
     rt.utterances.facts.run = run
+    rt.utterances._fact_passages = passages
     try:
         res = await rt.utterances._run_facts(LINE, CREAM, JudgeInput(utterance=LINE, on_air=CREAM), "default",
                                              transcript_id="tr_x")
     finally:
         await close_env(rt)
+    _deadline_run.lookups = lookups
     return calls, res
 
 
@@ -144,3 +156,26 @@ async def test_d417_the_retry_needs_1_s_left_by_the_clock(first_ms, retried):
     assert len(calls) == (2 if retried else 1)
     if retried:
         assert calls[1] == (5000 - first_ms, {"seeded": False})
+
+
+# ---- D-421: monotonic time spent; the deadline checked before the lookups and before the call -------------------
+
+
+async def test_d421_a_wall_clock_step_back_does_not_allow_a_retry():
+    calls, _ = await _deadline_run(first_ms=4500, step_back_ms=3000)  # 500 ms really left; the wall says 3500
+    assert len(calls) == 1
+
+
+async def test_d421_an_expired_line_fails_before_its_lookups():
+    calls, res = await _deadline_run(first_ms=0, end_ago_ms=6000)
+    assert calls == [] and _deadline_run.lookups == [] and res.status == "timeout"
+
+
+async def test_d421_a_slow_lookup_that_uses_the_deadline_up_fails_without_a_call():
+    calls, res = await _deadline_run(first_ms=0, end_ago_ms=1000, lookup_ms=4500)
+    assert calls == [] and _deadline_run.lookups == [1] and res.status == "timeout"
+
+
+async def test_d421_the_audit_save_counts_though_the_latency_says_less():
+    calls, _ = await _deadline_run(first_ms=4500, latency_ms=100)  # 100 ms of model time, 4.5 s by the clock
+    assert len(calls) == 1
