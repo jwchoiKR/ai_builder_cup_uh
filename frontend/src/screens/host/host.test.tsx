@@ -826,3 +826,17 @@ describe("verifier wait (D-306)", () => {
     expect(screen.getByTestId("host-unverified")).toHaveTextContent("Unverified (AI response delayed)");
   });
 });
+
+describe("D-332: UI QA", () => {
+  it("shows the first 4 cautions and the rest behind +N more", () => {
+    const many = Array.from({ length: 7 }, (_, i) => `Caution number ${i + 1}.`);
+    const c7: Catalog = { ...cat, products: cat.products.map((p) => (p.product_id === CREAM ? { ...p, cautions: many } : p)) };
+    const state = { ...reduceSnapshot(snapshot(), "host", Date.now()), serverOffsetMs: 0 };
+    render(<HostView state={state} catalog={c7} connection="connected" theme="dark" actions={actions()} />);
+    const box = screen.getByTestId("host-cautions");
+    expect(within(box).getAllByText(/^Caution number/)).toHaveLength(4);
+    fireEvent.click(screen.getByTestId("host-cautions-more"));
+    expect(within(box).getAllByText(/^Caution number/)).toHaveLength(7);
+    expect(screen.getByTestId("host-cautions-more")).toHaveTextContent("Show fewer");
+  });
+});

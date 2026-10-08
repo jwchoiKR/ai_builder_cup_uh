@@ -43,7 +43,8 @@
   overflow: auto;
   padding: var(--space-4);
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.2fr) minmax(360px, 2.4fr) minmax(200px, 0.9fr);
+  /* D-332: columns shrink with the window, then wrap to two; nothing scrolls sideways */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 2.4fr) minmax(0, 0.9fr);
   gap: var(--space-4);
   min-height: 0;
 }
@@ -132,4 +133,17 @@
   background: var(--surface);
   color: var(--text);
   font-size: var(--fs-14);
+}
+
+@media (max-width: 1100px) {
+  .content {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.section select {
+  max-width: 100%;
+}
+.micState {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

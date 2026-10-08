@@ -119,6 +119,24 @@ describe("screens", () => {
     expect(screen.getByText(/ses_000001/)).toBeInTheDocument();
   });
 
+  it("D-332: Hub lists each product once, its latest version; older versions behind a toggle", async () => {
+    const row = (v: number) => ({ release_id: `rel_lumen_serum_v${v}`, product_name: "Overnight Renewal Serum",
+      brand: "Lumen", category: "skincare", markets: ["SG"], approved_at: 1790000000000 + v, version: v, brief: "done" });
+    responses["/api/onboarding/releases"] = [row(2), row(1)];
+    try {
+      render(<Hub sessionId="ses_000001" />);
+      const open = await screen.findByTestId("hub-releases-open");
+      expect(open).toHaveTextContent("Start with approved products1");
+      fireEvent.click(open);
+      expect(screen.getByTestId("hub-release-rel_lumen_serum_v2")).toBeInTheDocument();
+      expect(screen.queryByTestId("hub-release-rel_lumen_serum_v1")).toBeNull();
+      fireEvent.click(screen.getByTestId("hub-releases-older"));
+      expect(screen.getByTestId("hub-release-rel_lumen_serum_v1")).toHaveTextContent("older version");
+    } finally {
+      delete responses["/api/onboarding/releases"];
+    }
+  });
+
   it("D-264/D-315: Hub starts a show from a product card approved earlier", async () => {
     responses["/api/onboarding/releases"] = [{ release_id: "rel_lumen_v2", product_name: "Night Serum", brand: "Lumen",
       category: "skincare", markets: ["SG"], approved_at: 1790000000000, version: 2, brief: "done" }];

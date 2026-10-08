@@ -110,6 +110,9 @@
     linear-gradient(170deg, var(--surface-2), var(--bg));
 }
 .productMark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 64px;
   height: 96px;
   border-radius: 18px 18px 12px 12px;
@@ -570,4 +573,11 @@
   gap: var(--space-1);
   padding-top: var(--space-1);
   font-size: var(--fs-12);
+}
+
+.productMarkText {
+  font-size: var(--fs-22);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  color: var(--accent);
 }

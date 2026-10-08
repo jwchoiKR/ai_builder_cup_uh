@@ -2071,3 +2071,18 @@ D-331: `FACT_PROMPT=v5` (`prompts/fact_relation_v5.md`) is v3 plus a `stance` pe
     - O: a tag question the host asserts, `HOST_ASSERTS`.
     - P: a co-host's question, `REPORTS_OR_ASKS`.
 - **Tests:** `tests/test_d331.py`.
+
+D-332: UI fixes from the planner's QA of cloud revision 00005 (UI only, no judge change).
+- **/host, /operator and /viewer opened without ?session showed an empty show ("NOW —", "No product on air"):**
+  - Cause 1 (frontend): `cachedResource` fetched only on first mount, so when the session id arrived later the session's catalog was never loaded. It now fetches per resource.
+  - Cause 2 (backend): `/demo/current` returned the newest session of any kind, ended or not, test drives included. It now returns the newest demo show that has not ended, or makes a new one.
+  - With no required points, the host's status line no longer says "All required points said".
+- **Studio host pane:** "Host + Operator" is 68/32 (was 60/40), and the host screen in a Studio pane never scales below 0.7. Cautions measured 10.5 px (was 9 px; QA saw 7-8 px) at 1440×900 in headless Edge.
+- **Cautions:** the prompter shows the first 4 in record order, the rest behind "+N more" / "Show fewer".
+- **Demo console:** columns shrink with the window (`minmax(0, …)`), wrap to two below 1100 px, and the select and mic text stay inside. Headless Edge with ?labs=1 at 1440, 1280 and 1024 px showed no horizontal scroll, and the select fit the window.
+- **Operator:** the "LLM –k tokens/h" chip is hidden until there is a number.
+- **Hub picker:** each product is listed once, at its latest version. Older versions sit behind "Older versions (n)" and carry an "older version" label. The count badge counts products.
+- **Viewer without a product image:** the card shows the brand's initials, not an empty frame.
+- **Tests:**
+  - `tests/test_d332.py` and `src/app/router.test.tsx`: the catalog of a late session id; this test fails without the fix.
+  - `src/screens/host/host.test.tsx` (+N more), `src/screens/ui_qa.test.tsx` (points line, token chip), `src/screens/screens.test.tsx` (older versions), `viewer.test.tsx` (initials).

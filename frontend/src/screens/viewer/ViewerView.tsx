@@ -99,8 +99,13 @@ export function ViewerView({
           )}
           {camera.state !== "on" && (
             <div className={styles.placeholder}>
-              <div className={styles.productMark} aria-hidden />
-              {product?.eyebrow && <span className={cx("eyebrow", styles.placeholderEyebrow)}>{product.eyebrow}</span>}
+              <div className={styles.productMark} aria-hidden>
+                {/* D-332: no product image: the brand's initials on a neutral card, not an empty frame */}
+                <span className={styles.productMarkText}>{initials(brand || product?.name || "")}</span>
+              </div>
+              {(product?.eyebrow || brand) && (
+                <span className={cx("eyebrow", styles.placeholderEyebrow)}>{product?.eyebrow ?? brand}</span>
+              )}
               <span className={styles.placeholderName}>{product?.name ?? brand}</span>
               <span className={styles.placeholderNote}>Sample product preview</span>
             </div>
@@ -192,6 +197,11 @@ export function ViewerView({
       </div>
     </div>
   );
+}
+
+/** D-332: up to two initials of a brand ("Lumen Labs" -> "LL"). */
+function initials(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
 }
 
 /** The card already carries the "TIME SALE" label; drop it from the start of the promo text. */

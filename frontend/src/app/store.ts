@@ -212,9 +212,10 @@ function cachedResource<T>(load: () => Promise<T>) {
       },
       () => value,
     );
+    // D-332: keyed by the resource, so a screen whose session id arrives later (no ?session) loads that catalog
     useEffect(() => {
       if (value === null) void fetchOnce().catch(() => undefined);
-    }, []);
+    }, [fetchOnce]);
     return v;
   };
 }

@@ -60,7 +60,8 @@ export function impactChips(metrics: { impact?: Impact } | undefined, t: Transla
     t("Askers answered: AI {a} · host {h} · operator {o} of {n}",
       { a: String(q.ai), h: String(q.host), o: String(q.operator), n: String(q.of_askers) }),
     t("Operator actions {n}", { n: String(i.operator_actions) }),
-    t("LLM {k}k tokens/h", { k: i.llm.tokens_per_hour === null ? NO_VALUE : String(Math.round(i.llm.tokens_per_hour / 1000)) }),
+    // D-332: no "LLM –k tokens/h" placeholder before the first number
+    ...(i.llm.tokens_per_hour === null ? [] : [t("LLM {k}k tokens/h", { k: String(Math.round(i.llm.tokens_per_hour / 1000)) })]),
   ];
 }
 

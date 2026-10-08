@@ -11,7 +11,7 @@ from ..logic.catalog import DEFAULT_RUNSHEET_ID
 from ..models.session import Session
 from ..pipelines.comments import submit_comment
 from ..pipelines.demo_script import load_host_script
-from ..pipelines.runtime import create_session, latest_session
+from ..pipelines.runtime import SESSIONS, create_session, latest_session
 from ..onboarding.demo import demo_release_ids
 from .errors import ApiError
 
@@ -75,9 +75,17 @@ async def demo_script(ctx: AppContext = Depends(get_ctx)) -> dict:
     return {"steps": [s.as_dict() for s in load_host_script(str(ctx.settings.data_path))]}
 
 
+def _is_demo(ctx: AppContext, s: Session) -> bool:
+    """D-332: a demo show: the shipped run-sheet's, or the demo releases' (not a test drive or a release show)."""
+    return s.runsheet_id == DEFAULT_RUNSHEET_ID or (bool(s.release_ids) and s.release_ids == demo_release_ids(ctx))
+
+
 @router.get("/demo/current")
 async def demo_current(ctx: AppContext = Depends(get_ctx)) -> Session:
-    s = await latest_session(ctx)
+    """The demo show every screen opened without ?session joins (the Studio's too). D-332: the newest demo show that
+    has not ended; a new one when there is none (an ended show or a test drive is never picked)."""
+    found = await ctx.store.query(SESSIONS, Session, order_by="created_at", descending=True, limit=20)
+    s = next((x for x in found if x.status != "ended" and _is_demo(ctx, x)), None)
     return s if s is not None else await _demo_show(ctx)
 
 
