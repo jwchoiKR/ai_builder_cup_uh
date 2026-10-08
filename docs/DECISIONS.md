@@ -2698,3 +2698,9 @@ Tests:
 - host.test.tsx: one strip for two lines with the latest cause and no alert box; the strip kept from the snapshot; the KO wording.
 - operator.test.tsx: causes with codes, and the 5-minute counts.
 - state.test.ts: the new event type.
+
+D-413 (user, item 15: "ㅇㅇ ㄱ"): leftover cleanup.
+1. Host: the D-341 10 s branch of the TEST-QUALIFIER banner is deleted, together with QUALIFIER_ADDON_MS, `late`, the useNow it needed and MediumBanner's serverOffsetMs. The "Say the result again ..." text and its KO string are gone too. The badge always reads "Say where the result comes from (e.g. 'in our in-house test')".
+2. deploy/cloudrun.sh no longer sets CORRECTION_CHECK or QUALIFIER_ADDON (both deleted in D-390); no other value changed.
+3. .env.example: `verifier=2000` is removed from HEDGE_DELAYS, and the FACT_GUARDS line is removed. Nothing reads either any more. test_config requires .env.example to match the code defaults, so the Settings default of HEDGE_DELAYS drops the verifier entry too, and the unread Settings.FACT_GUARDS is deleted.
+Tests: the D-341 host test is deleted. test_d296 loses its FACT_GUARDS parameter.

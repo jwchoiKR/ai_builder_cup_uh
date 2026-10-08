@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # Was "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK" (D-293, D-294, D-297)
     FACT_FIXES: str = "F1,F5,Q6"
     # D-296: the fact checker returns evidence sentence ids and a relation (contradicts, consistent, not in the
-    # documents, uncertain); code builds the quote. FACT_GUARDS=off keeps only the hard checks on its verdicts
+    # documents, uncertain); code builds the quote
     # D-300 R2: "verify" turns the flaggers' code drops off and sends each candidate alert to one stronger model
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
     # D-309 "single": the compliance judge and the fact checker on one model (SINGLE_MODEL, SINGLE_THINKING; unless
@@ -74,7 +74,6 @@ class Settings(BaseSettings):
     GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins
     SHOUTOUT: Literal["regex", "judge"] = "regex"  # D-308: back;  # judge: triage labels shout-outs (arm B's)
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
-    FACT_GUARDS: Literal["on", "off"] = "off"
     # D-312 v2: fact_relation_v2.md (only the host's own assertions, sound-alike values uncertain, the documents' value
     # before the relation) and the compliance judge's sound-alike tester-name line; D-313 v3: v2 plus endorsements
     # ("Correct.") of the previous line's facts
@@ -166,7 +165,7 @@ class Settings(BaseSettings):
     HEDGED_AGENTS: str = "compliance,fact,context"  # D-293; D-308: add "verifier" to hedge it (off until compared)
     # D-292: a later second request for some agents ("fact=3000,context=2000": name or prefix = ms); the others use
     # JUDGE_HEDGE_MS. A delay at or past the agent's deadline sends no second request
-    HEDGE_DELAYS: str = "fact=3000,context=2000,verifier=2000"  # D-293; D-306 verifier
+    HEDGE_DELAYS: str = "fact=3000,context=2000"  # D-293 (D-413: the verifier entry is gone with its agent)
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # D-308: back  # join a final with the previous unfinished one (D-088); 0 = off
     # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
     # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more

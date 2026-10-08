@@ -1,5 +1,5 @@
 """D-296: the relation arm (FACT_RELATION). The fact checker names its evidence by SOURCE sentence id and states a
-relation; code builds the quote. FACT_GUARDS=on runs today's post-validation on it, off keeps only the hard checks.
+relation; code builds the quote.
 Made-up lines and passages across categories (skincare, a supplement, a children's product, a fragrance, a kettle)."""
 from __future__ import annotations
 
@@ -76,13 +76,12 @@ class _RelationBackend(ScriptedBackend):
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
 
 
-@pytest.mark.parametrize("guards", ["on", "off"])
 @pytest.mark.parametrize("relation, alerts", [("contradicts", 1), ("consistent", 0), ("uncertain", 0)])
-async def test_d296_the_relation_arm_end_to_end(guards, relation, alerts):
+async def test_d296_the_relation_arm_end_to_end(relation, alerts):
     from .helpers import live_runtime, make_ctx
 
     llm = _RelationBackend(relation)
-    rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True, FACT_GUARDS=guards))
+    rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True))
     try:
         await speak(rt, "It's only thirty-two dollars today.")
         await rt.utterances.drain()
