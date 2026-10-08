@@ -45,16 +45,18 @@ export interface JudgeFailure {
   transcript_id: string;
   status?: string;
   alert_ids?: string[];
-  /** D-412: "busy" (429), "timeout", "invalid" or "error", and when (server time) */
+  /** D-412: "busy" (429), "timeout", "invalid" or "error", and when (server time); D-416: which judge */
   cause?: string;
   at?: number;
+  agent?: string;
 }
 
 /** D-412: the lines no judge could check since the judges last answered a line normally */
 export interface Unchecked {
   ids: string[];
-  /** the most recent failure's cause */
+  /** the most recent failure's cause and time (on a tie, the later event) */
   cause: string | null;
+  at?: number | null;
 }
 
 export interface OperatorAction {
@@ -422,19 +424,28 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       };
     }
 
-    case "judge.failed":
-      if (state.judgeFailures.some((j) => j.transcript_id === p.transcript_id)) return state;
-      return { ...state, judgeFailures: [...state.judgeFailures, { ...p, seq: ev.seq } as JudgeFailure] };
-
-    case "line.check": {
-      // D-412: one more unchecked line (once per line); the strip names the most recent cause
+    case "judge.failed": {
+      // D-416: the server's rule: each failure event (line, judge) counts once; the line is unchecked, and the strip
+      // names the latest failure's cause (on a tie, the later event), as the snapshot rebuilds it
+      if (state.judgeFailures.some((j) => j.transcript_id === p.transcript_id && j.agent === p.agent)) return state;
+      const failures = [...state.judgeFailures, { ...p, seq: ev.seq } as JudgeFailure];
       const id = p.transcript_id as string;
       const ids = state.unchecked.ids.includes(id) ? state.unchecked.ids : [...state.unchecked.ids, id];
-      return { ...state, unchecked: { ids, cause: (p.cause as string | undefined) ?? state.unchecked.cause } };
+      const later = p.at === undefined || state.unchecked.at == null || p.at >= state.unchecked.at;
+      const unchecked = later ? { ids, cause: (p.cause as string | undefined) ?? state.unchecked.cause, at: p.at ?? null }
+        : { ...state.unchecked, ids };
+      return { ...state, judgeFailures: failures, unchecked };
     }
 
-    case "checks.recovered":
-      return { ...state, unchecked: { ids: [], cause: null } };
+    case "line.check":
+      return state;  // D-416: judge.failed carries the same line and cause
+
+    case "checks.recovered": {
+      // D-416: only the lines the server cleared (said at or before the line that was answered normally)
+      const cleared = new Set((p.cleared as string[] | undefined) ?? state.unchecked.ids);
+      const ids = state.unchecked.ids.filter((x) => !cleared.has(x));
+      return { ...state, unchecked: ids.length ? { ...state.unchecked, ids } : { ids: [], cause: null, at: null } };
+    }
 
     case "judge.health":
       return { ...state, judgeDegraded: (p.degraded as string[]) ?? [] };
