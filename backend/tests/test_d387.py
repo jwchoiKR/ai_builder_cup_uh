@@ -28,7 +28,7 @@ async def test_d387_two_claims_under_one_section_are_two_alerts(tmp_path):
         await close_env(rt)
 
 
-async def test_d387_one_verdict_with_two_claims_gives_two_alerts_and_a_repeated_span_one(tmp_path):
+async def test_d397_one_verdict_with_three_violations_gives_three_alerts(tmp_path):
     llm = _Backend()
     line = "It cures eczema and prevents diabetes, it cures eczema."
     out = _verdict("kelmar_code.pdf#2.1", "must not be presented", span="cures eczema")
@@ -38,7 +38,8 @@ async def test_d387_one_verdict_with_two_claims_gives_two_alerts_and_a_repeated_
     rt = await _show(tmp_path, llm)
     try:
         await speak(rt, line)
-        assert sorted(a.span for a in await rt.alerts() if a.kind == "compliance") == ["cures eczema",
+        # D-397: no span-text dedupe, also inside one verdict
+        assert sorted(a.span for a in await rt.alerts() if a.kind == "compliance") == ["Cures  eczema", "cures eczema",
                                                                                      "prevents diabetes"]
     finally:
         await close_env(rt)

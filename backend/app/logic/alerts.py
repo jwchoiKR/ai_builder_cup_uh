@@ -6,7 +6,7 @@ the pipeline stores them and emits events.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Sequence
 
 from ..models.agent_io import UtteranceJudgeOutput
 from ..models.data import Rule
@@ -39,37 +39,24 @@ def provisional_from_reflex(
     return out
 
 
-def claim_key(span: str | None) -> str:
-    """D-387: one claim, by its span (the model's words for it), for the one dedupe left."""
-    return " ".join((span or "").casefold().split())
-
-
 def apply_judge_compliance(
     judge: UtteranceJudgeOutput, t: Transcript, product_id: str, provisional: Sequence[Alert],
-    rules: dict[str, Rule], new_id: NewId, now: int, same_claims: Collection[str] = (),
+    rules: dict[str, Rule], new_id: NewId, now: int,
 ) -> tuple[list[Alert], list[Alert]]:
     """§8.4.1. Returns (changed, created).
 
-    D-387 (user): each violation the model returns is its own alert, also two claims under one rule or section. The
-    only dedupe: the SAME claim (same span) of the same line, arriving again through the merge of that line
-    (`same_claims`, the spans already raised for it), and the same span twice in one verdict."""
+    D-387 (user): each violation the model returns is its own alert, also two claims under one rule or section. D-397:
+    no text dedupe; a merged line's verdict replaces its chain's alerts (pipelines/utterances.py)."""
     changed: list[Alert] = []
     created: list[Alert] = []
     pending = {a.rule_id: a for a in provisional if a.status == "provisional" and a.transcript_id == t.transcript_id}
-    handled: set[str] = set()
     for v in judge.compliance.violations:
-        key = claim_key(v.span)
-        if key in handled:
-            continue
         if v.is_negated or v.is_quoted:
             a = pending.pop(v.rule_id, None)
             if a is not None and a.status == "provisional":
                 a.status = "cleared"
                 changed.append(a)
             continue
-        handled.add(key)
-        if key in same_claims:
-            continue  # the same claim of this line, already raised (a provisional of its rule is cleared below)
         # D-300: the verifier's; D-358: else the verdict's own (the legacy rules path set it from the rule)
         severity = getattr(v, "_severity", None) or v.severity
         a = pending.pop(v.rule_id, None)

@@ -131,13 +131,12 @@ async def test_s07_split_mid_claim_gives_exactly_one_alert(env, fragment_flagged
     rt, llm = env
     if fragment_flagged:
         llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
-    # D-387: the merge keeps one alert for the SAME claim (same span) of the line
-    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles" if fragment_flagged
-                                         else "your wrinkles will disappear overnight")])
+    # D-397: the merged line's verdict replaces the fragment's alert (same rule: the same alert id, no flicker)
+    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
     a, b = await split(rt, S07_A, S07_B)
     [alert] = compliance(await rt.alerts())
     assert alert.status == "active" and alert.rule_id == "ASEAN-3-SKIN-AGEING"
-    assert alert.transcript_id == (a if fragment_flagged else b).transcript_id
+    assert alert.transcript_id == b.transcript_id and alert.span == "your wrinkles will disappear overnight"
     assert len(await events(rt, "alert.created")) == 1
 
 
@@ -264,3 +263,43 @@ async def test_a_bare_continuation_can_be_checked_against_the_product_just_named
     await rt.ctx.scheduler.advance(5000)  # past the merge window: judged alone
     await speak(rt, "regular price 42")
     assert "DL-AM-01" in seen[-1] and "DL-CR-01" in seen[-1]  # the ampoule just named, and the cream on air
+
+
+# ---- D-397: a merged line's verdict replaces its chain's alerts --------------------------------------
+
+
+async def test_d397_a_fragment_claim_the_merged_sentence_negates_is_cleared(env):
+    rt, llm = env
+    llm.judge(S08_A, violations=[violation("ASEAN-3-SKIN-ACNE", "treat acne")])  # the fragment alone reads as a claim
+    llm.judge(S08, violations=[violation("ASEAN-3-SKIN-ACNE", "treat acne", negated=True)])
+    await split(rt, S08_A, S08_B)
+    assert [a.status for a in compliance(await rt.alerts())] == ["cleared"]
+
+
+async def test_d397_two_claims_of_one_rule_5_s_apart_are_two_alerts(env):
+    rt, llm = env
+    first, second = "It treats acne overnight.", "And honestly it treats acne for good."
+    llm.judge(first, violations=[violation("ASEAN-3-SKIN-ACNE", "treats acne overnight")])
+    llm.judge(second, violations=[violation("ASEAN-3-SKIN-ACNE", "treats acne for good")])
+    await speak(rt, first)
+    await advance(rt, 5000)
+    await speak(rt, second)
+    assert sorted(a.span for a in compliance(await rt.alerts()) if a.status == "active") == [
+        "treats acne for good", "treats acne overnight"]
+
+
+async def test_d397_a_fragment_verdict_that_lands_after_the_merged_one_is_not_applied(env):
+    import asyncio
+
+    rt, llm = env
+    llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
+    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
+    llm.delays[("compliance_judge", S07_A)] = 0.4  # the fragment's verdict arrives last
+    await rt.inject_transcript(S07_A)
+    await advance(rt, 1200)
+    await rt.inject_transcript(S07_B)
+    await rt.utterances.drain()
+    await asyncio.sleep(0.5)
+    await rt.ctx.scheduler.idle()
+    assert [a.span for a in compliance(await rt.alerts()) if a.status == "active"] == [
+        "your wrinkles will disappear overnight"]

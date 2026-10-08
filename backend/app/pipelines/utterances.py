@@ -668,12 +668,6 @@ class UtterancePipeline:
         text = merge.text if merge else t.text
         high_before = alert_logic.high_alert_active(alerts)
         judge = res.output if res.status == "ok" else None
-        # D-387 (user): the one dedupe left: the same claim (same span) of this line, already raised through the merge
-        # of this line (its fragments' alerts) or by this line itself
-        same_claims = {alert_logic.claim_key(a.span) for a in alerts if a.kind == "compliance"
-                       and (a.transcript_id in protected or a.transcript_id == t.transcript_id
-                            or t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain)
-                       and a.status in ("active", "corrected", "dismissed")}
         if judge is None and rt.settings.REFLEX_ON_FAIL == "card":
             # D-288 (A1): no rule alert from a regex alone ("suitable for eczema-prone skin" is approved wording); the
             # host and the operator get a neutral card to check the line, counted apart from alerts
@@ -693,8 +687,6 @@ class UtterancePipeline:
             for a in changed:
                 if a.unverified and not a.unverified_reason:  # D-309: the judge's own failure type, shown honestly
                     a.unverified_reason = res.meta.get("failure")
-                if alert_logic.claim_key(a.span) in same_claims:
-                    a.status = "cleared"
                 await self._save_alert_change_locked(a)
                 await self._on_active_locked(a)
             await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
@@ -702,10 +694,38 @@ class UtterancePipeline:
             # D-098: the replacement wording still corrects an alert without the judge
             await self._apply_corrections_locked(t, text, [], protected, now)
         else:
-            # D-387 (user): every violation is its own alert; no dedupe by rule across lines (the D-088 rule dedupe,
-            # the D-118 previous-final window, the D-108 repeat qualifier and the D-151 late add-on are gone)
+            # D-397: a verdict on a line that a later merged line already judged (an older state of the chain) is
+            # not applied; the merged line's verdict stands
+            later = next((x for x, j in self._judged.items() if x != t.transcript_id
+                          and t.transcript_id in j.chain and (x, "compliance") in self._applied), None)
+            if later is not None:
+                log.info("compliance %s t=%s: not applied, the merged line %s was judged after it", rt.sid,
+                         t.transcript_id, later)
+                return
+            # D-387 (user): every violation is its own alert
             changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.pack.rules_by_id,
-                                                                  rt.new_id, now, same_claims=same_claims)
+                                                                  rt.new_id, now)
+            # D-397: the merged line's verdict replaces the alerts its chain's lines raised: an alert of the same rule
+            # keeps its id (no flicker) and takes the new verdict; the rest are cleared. Only transcript ids decide it
+            chain = [a for a in alerts if a.kind == "compliance" and a.transcript_id in protected
+                     and a.status in ("active", "provisional")]
+            for a in list(created):
+                old = next((x for x in chain if x.rule_id == a.rule_id), None)
+                if old is not None:
+                    chain.remove(old)
+                    created.remove(a)
+                    old.transcript_id, old.span, old.severity = t.transcript_id, a.span, a.severity
+                    old.say_instead, old.quote, old.citation, old.product_id = (a.say_instead, a.quote, a.citation,
+                                                                                a.product_id)
+                    old.status, old.unverified, old.unverified_reason = "active", a.unverified, a.unverified_reason
+                    changed.append(old)
+            fixed = set(judge.correction.corrects_alert_ids)
+            for old in [x for x in chain if x.alert_id not in fixed]:  # one the verdict lists as fixed is corrected
+                old.status, old.resolved_at = "cleared", now
+                rt.ctx.scheduler.cancel(rt.key(f"escalate:{old.alert_id}"))
+                changed.append(old)
+            if protected:
+                log.info("compliance %s t=%s: merged verdict over %s", rt.sid, t.transcript_id, sorted(protected))
             for a in created:
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
