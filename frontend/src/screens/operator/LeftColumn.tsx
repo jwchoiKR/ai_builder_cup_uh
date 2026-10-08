@@ -58,7 +58,7 @@ export function RunOfShow() {
     <section className={styles.block} data-testid="op-run-of-show" aria-label={t("Run of show")}>
       <div className={styles.blockHeader}>
         <h2 className={styles.blockTitle}>{t("Run of show")}</h2>
-        <span className={styles.muted}>{t("{n} products", { n: items.length })}</span>
+        <span className={styles.muted}>{items.length === 1 ? t("1 product") : t("{n} products", { n: items.length })}</span>
       </div>
       <ol className={styles.runList}>
         {items.map((item) => {

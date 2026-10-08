@@ -89,7 +89,7 @@ await sleep(2500);
 await say(8); await sleep(2500); await shot("S08-negation");
 
 await api("POST", S("/feed/burst/B3"));
-await sleep(11000); await shot("S09-sensitive", "Needs review");
+await sleep(11000); await shot("S09-sensitive", "Needs your reply");
 await soloShot("operator", "full-operator-S09-desk");
 
 await say(9); await shot("S10-points", "3 / 3 required points");

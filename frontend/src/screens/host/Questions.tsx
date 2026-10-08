@@ -77,7 +77,9 @@ function postingWindow(pending: HostSlotView["pending"]): number {
 /** D-113: one compact row per waiting question. The answer itself appears only on the AI PD card. */
 function Item({ view }: { view: HostSlotView }) {
   const t = useT();
-  const { group, pending, waiting } = view;
+  const { group, pending, waiting, answer } = view;
+  // the first line of the suggested reply (verified only), so the host can prepare while waiting
+  const preview = answer?.text.split(/\r?\n/).find((l) => l.trim())?.trim() ?? null;
   const windowMs = postingWindow(pending);
   return (
     <>
@@ -98,6 +100,11 @@ function Item({ view }: { view: HostSlotView }) {
           </span>
         )}
       </div>
+      {preview && waiting !== "Read out" && (
+        <p className={styles.wPreview} data-testid="host-question-preview">
+          {preview}
+        </p>
+      )}
       {pending && <Posting windowMs={windowMs} />}
     </>
   );
@@ -183,7 +190,7 @@ export function Questions({
         </span>
         {unanswered > 0 && (
           <span className="tabular" data-testid="host-unanswered">
-            {t("{n} unanswered questions", { n: unanswered })}
+            {unanswered === 1 ? t("1 unanswered question") : t("{n} unanswered questions", { n: unanswered })}
           </span>
         )}
       </footer>

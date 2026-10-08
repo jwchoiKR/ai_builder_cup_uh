@@ -335,7 +335,7 @@ export interface HostSlotView {
   pending: Message | null; // "Posting answer…"
   tag: "From your PD" | "AI answered" | "For you";
   /** D-113: where the question stands in the host's waiting list */
-  waiting: "On your card" | "Drafting…" | "Which product?" | "Read out" | "Ready" | "No answer yet";
+  waiting: "On your card" | "Drafting…" | "Which product?" | "Read out" | "Ready to answer" | "No answer yet";
 }
 
 export function hostSlots(state: ClientState): HostSlotView[] {
@@ -360,7 +360,7 @@ function waitingState(group: QuestionGroup, answer: Answer | null, card: PdCard 
   if (group.status === "composing") return "Drafting…";
   if (group.status === "needs_review" && group.route_reason === "unresolved_product") return "Which product?";
   if (group.status === "auto_answered") return "Read out";
-  return answer ? "Ready" : "No answer yet";
+  return answer ? "Ready to answer" : "No answer yet";
 }
 
 /** D-178: questions the product info does not answer, shop policy and the previous product's questions wait for the
@@ -371,77 +371,97 @@ export function unansweredCount(state: ClientState): number {
     && ["new", "composing", "ready", "needs_review"].includes(g.status) && !g.host_verbal_answer_transcript_id).length;
 }
 
-export type DeskTab = "all" | "needs_review" | "on_host" | "ready" | "composing" | "answered" | "closed";
-export type DeskStatusTab = Exclude<DeskTab, "all">;
+/** The three tabs of the question desk: what waits for a person, what is answered, and everything. */
+export type DeskTab = "todo" | "answered" | "all";
+/** The one list a group belongs to. Closed and rejected groups are listed only under All. */
+export type DeskStatusTab = "todo" | "answered" | "closed";
 
 export interface DeskStatus {
-  label: string; // the row chip
-  tab: DeskStatusTab; // the one tab the group is counted and listed under
+  label: string; // the one status chip of the row, in plain words
+  tab: DeskStatusTab; // the one list the group is counted and listed under
 }
 
 const DONE_STATUSES = ["answered", "rejected", "closed"];
 
-/** The single source of a group's desk status: its row chip and its tab always agree, every group
- * is in exactly one tab, and the tab counts add up to All. */
-export function deskStatus(g: QuestionGroup): DeskStatus {
+/** The single source of a group's desk status: its row chip and its tab always agree, and every group is in
+ * exactly one of To do / Answered / closed. `publishedKind` is the kind of the message that answered the group
+ * (state.messages[g.published_message_id]?.kind): it tells "Answered by the host" from a plain "Answered". */
+export function deskStatus(g: QuestionGroup, publishedKind?: string | null): DeskStatus {
   const done = DONE_STATUSES.includes(g.status);
-  if (g.host_verbal_answer_transcript_id && !done) return { label: "Host answered on air · not posted", tab: "needs_review" };
-  if (g.status === "needs_review" && g.route_reason === "unresolved_product") return { label: "Assign a product", tab: "needs_review" };
-  if (g.host_slot === "on_host" && !done) return { label: "On host", tab: "on_host" };
-  switch (g.status) {
-    case "needs_review":
-      return { label: "Needs review", tab: "needs_review" };
-    case "ready":
-      return { label: "Ready", tab: "ready" };
-    case "new":
-    case "composing":
-      return { label: "Composing…", tab: "composing" };
-    case "auto_answered":
-      return { label: "AI answered", tab: "answered" };
-    case "answered":
-      return { label: "Answered", tab: "answered" };
-    case "rejected":
-      return { label: "Rejected", tab: "closed" };
-    default:
-      return { label: "Closed", tab: "closed" };
+  if (g.status === "auto_answered") return { label: "Answered by AI", tab: "answered" };
+  if (g.status === "answered") {
+    return { label: publishedKind === "host_answer" ? "Answered by the host" : "Answered", tab: "answered" };
   }
+  if (done) return { label: "Closed", tab: "closed" };
+  if (g.host_verbal_answer_transcript_id) return { label: "Host answered on air · not posted", tab: "todo" };
+  if (g.status === "needs_review" && g.route_reason === "unresolved_product") return { label: "Assign a product", tab: "todo" };
+  if (g.status === "new" || g.status === "composing") return { label: "Drafting…", tab: "todo" };
+  // waits for a person: the host may also say it on air (it is on the host's card, or routed to the host), or only
+  // the operator can answer it
+  return g.host_slot === "on_host" || g.route === "HOST"
+    ? { label: "Needs a reply · host can answer on air", tab: "todo" }
+    : { label: "Needs your reply", tab: "todo" };
 }
 
-export function deskTabOf(g: QuestionGroup): DeskStatusTab {
-  return deskStatus(g).tab;
+export function deskTabOf(g: QuestionGroup, publishedKind?: string | null): DeskStatusTab {
+  return deskStatus(g, publishedKind).tab;
 }
 
-/** Counts per tab; `all` equals the sum of the other tabs. */
-export function deskTabCounts(groups: QuestionGroup[]): Record<DeskTab, number> {
-  const counts: Record<DeskTab, number> = { all: groups.length, needs_review: 0, on_host: 0, ready: 0, composing: 0, answered: 0, closed: 0 };
+/** Counts per list; `all` equals todo + answered + closed (closed and rejected have no tab of their own). */
+export function deskTabCounts(groups: QuestionGroup[]): Record<DeskTab | "closed", number> {
+  const counts: Record<DeskTab | "closed", number> = { all: groups.length, todo: 0, answered: 0, closed: 0 };
   for (const g of groups) counts[deskTabOf(g)] += 1;
   return counts;
 }
 
-/** Status bucket (§12.4.7): Needs review, On host, Ready, Composing, AI answered, Answered, Rejected/Closed. */
+/** Order inside a list: what only the operator can answer first, then what the host may say, drafts, answers. */
 export function deskBucket(g: QuestionGroup): number {
-  const s = deskStatus(g);
-  switch (s.tab) {
-    case "needs_review":
+  switch (deskStatus(g).label) {
+    case "Needs your reply":
+    case "Assign a product":
+    case "Host answered on air · not posted":
       return 0;
-    case "on_host":
+    case "Needs a reply · host can answer on air":
       return 1;
-    case "ready":
-      return 2;
-    case "composing":
+    case "Drafting…":
       return 3;
-    case "answered":
-      return s.label === "AI answered" ? 4 : 5;
+    case "Answered by AI":
+      return 4;
+    case "Answered":
+    case "Answered by the host":
+      return 5;
     default:
       return 6;
   }
 }
 
-export function groupStatusLabel(g: QuestionGroup): string {
-  return deskStatus(g).label;
+export function groupStatusLabel(g: QuestionGroup, publishedKind?: string | null): string {
+  return deskStatus(g, publishedKind).label;
 }
 
-export function questionDesk(state: ClientState, tab: DeskTab = "all"): QuestionGroup[] {
+/** Why a question waits for a person, in plain words (the approval reason first, then the route's); null when
+ * there is nothing to say (an auto-answered or answered question, or one that only waits its turn). */
+export function waitReason(g: QuestionGroup): string | null {
+  const byApproval: Record<string, string> = {
+    health: "Health or safety",
+    claim: "Claim about results",
+    test_results: "About test results",
+    certification: "Certificate or ethics",
+    personal: "Depends on the viewer",
+    outside: "Order, delivery or shop",
+    host_line: "Follow-up on the host",
+    unclear: "Unclear or beyond the product sheet",
+  };
+  const byRoute: Record<string, string> = {
+    no_verified_answer: "No verified answer in the product sheet",
+    previous_product: "About a product no longer on air",
+    sensitive: "Sensitive topic",
+  };
+  if (g.approval_reason && byApproval[g.approval_reason]) return byApproval[g.approval_reason];
+  return byRoute[g.route_reason] ?? null;
+}
+
+export function questionDesk(state: ClientState, tab: DeskTab = "todo"): QuestionGroup[] {
   const all = Object.values(state.groups);
   const filtered = tab === "all" ? all : all.filter((g) => deskTabOf(g) === tab);
   return filtered.sort((a, b) => deskBucket(a) - deskBucket(b) || b.score - a.score || a.first_at - b.first_at);

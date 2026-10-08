@@ -1,15 +1,28 @@
 // Viewer chat model (§12.5): comments in time order with replies under the question they answer.
 // A reply to several askers (a coalesced reply) renders once, under the first visible asker; each
 // later asker's comment shows a compact "Also answered: @Name" line instead.
+// The viewer's own question also shows where it stands while it has no reply, and a reply to it shows in the
+// language it was asked in when the server sent that translation. Both come from server events only.
 import { chatItems } from "../../app/selectors";
 import type { ClientState } from "../../app/state";
-import type { Comment, Message, MessageKind } from "../../app/types";
+import type { Comment, Message, MessageKind, ReplyStatus } from "../../app/types";
 
 export const CORRECTION_PIN_MS = 60_000;
 
 export interface ReplyView {
   message: Message;
+  /** the reply in the language of this viewer's own question; the original shows beneath it */
+  translation: { language: string; text: string } | null;
 }
+
+export type WaitingStatus = Exclude<ReplyStatus, "answered">;
+
+/** English labels (i18n keys) of the line under the viewer's own waiting question. */
+export const WAITING_LABEL: Record<WaitingStatus, string> = {
+  checking: "Checking…",
+  host: "The host will answer this on air",
+  team: "Sent to the team",
+};
 
 export interface AlsoAnswered {
   kind: MessageKind;
@@ -17,7 +30,16 @@ export interface AlsoAnswered {
 }
 
 export type ViewerChatRow =
-  | { kind: "comment"; key: string; at: number; comment: Comment; replies: ReplyView[]; alsoAnswered: AlsoAnswered | null }
+  | {
+      kind: "comment";
+      key: string;
+      at: number;
+      comment: Comment;
+      replies: ReplyView[];
+      alsoAnswered: AlsoAnswered | null;
+      /** only on the viewer's own question, and only while no reply to it is shown */
+      waiting: WaitingStatus | null;
+    }
   | { kind: "message"; key: string; at: number; message: Message };
 
 export const PROMO_PREFIX = "PROMO#";
@@ -36,7 +58,19 @@ export function isPinnedCorrection(m: Message, now: number): boolean {
   return m.kind === "correction_notice" && m.state === "published" && now - publishedAt(m) < CORRECTION_PIN_MS;
 }
 
-export function viewerChat(state: ClientState, now: number): ViewerChatRow[] {
+/** The reply in the language one of this viewer's own questions was asked in, if the server sent it. */
+function ownTranslation(state: ClientState, m: Message, me: string | null): ReplyView["translation"] {
+  if (!me || !m.translations) return null;
+  for (const cid of m.reply_to_comment_ids) {
+    const c = state.comments[cid];
+    const text = c?.author_id === me && c.language ? m.translations[c.language] : undefined;
+    if (c?.language && text) return { language: c.language, text };
+  }
+  return null;
+}
+
+/** `me`: this viewer's author id (identity.ts), or null when they have not joined the chat. */
+export function viewerChat(state: ClientState, now: number, me: string | null = null): ViewerChatRow[] {
   const items = chatItems(state);
   // comment id -> published replies that answer it
   const answering = new Map<string, Message[]>();
@@ -54,13 +88,20 @@ export function viewerChat(state: ClientState, now: number): ViewerChatRow[] {
     const own = new Set(item.replies.map((r) => r.message_id));
     const elsewhere = (answering.get(item.comment.comment_id) ?? []).filter((m) => !own.has(m.message_id));
     const latest = elsewhere[elsewhere.length - 1];
+    const status = item.comment.reply_status;
+    // a reply that is shown speaks for itself; other viewers' questions get no extra line
+    const waiting =
+      me !== null && item.comment.author_id === me && item.replies.length === 0 && !latest && status && status !== "answered"
+        ? status
+        : null;
     rows.push({
       kind: "comment",
       key: item.comment.comment_id,
       at: item.at,
       comment: item.comment,
-      replies: item.replies.map((m) => ({ message: m })),
+      replies: item.replies.map((m) => ({ message: m, translation: ownTranslation(state, m, me) })),
       alsoAnswered: latest ? { kind: latest.kind, messageId: latest.message_id } : null,
+      waiting,
     });
   }
   return rows;
@@ -69,6 +110,12 @@ export function viewerChat(state: ClientState, now: number): ViewerChatRow[] {
 /** A short, stable signature of what is visible, to keep the chat pinned to the bottom. */
 export function chatSignature(rows: ViewerChatRow[]): string {
   const last = rows[rows.length - 1];
-  const replies = rows.reduce((n, r) => n + (r.kind === "comment" ? r.replies.length : 0), 0);
-  return `${rows.length}:${replies}:${last?.key ?? ""}`;
+  let replies = 0;
+  let extra = 0; // status lines and translations add height without adding rows
+  for (const r of rows) {
+    if (r.kind !== "comment") continue;
+    replies += r.replies.length;
+    extra += (r.waiting ? 1 : 0) + r.replies.filter((x) => x.translation).length;
+  }
+  return `${rows.length}:${replies}:${extra}:${last?.key ?? ""}`;
 }

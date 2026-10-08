@@ -250,3 +250,47 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3, 12px);
+  margin: var(--space-3, 12px) 0;
+}
+.facts dt {
+  color: var(--text-muted, inherit);
+  font-size: 0.8em;
+}
+.facts dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.timeline {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 72px;
+  border-bottom: 1px solid var(--border, #ccc);
+}
+.timelineBar {
+  flex: 1 1 0;
+  min-width: 3px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.timelineQuestions {
+  background: var(--accent, #3d6b52);
+}
+.timelineOther {
+  background: var(--accent, #3d6b52);
+  opacity: 0.3;
+}
+.timelineAxis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted, inherit);
+  font-size: 0.8em;
+}

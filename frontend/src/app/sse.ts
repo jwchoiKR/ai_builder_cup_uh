@@ -29,6 +29,7 @@ export const EVENT_TYPES = [
   "comment.hidden",
   "comment.unhidden",
   "comment.analyzed",
+  "comment.status",
   "group.updated",
   "hostqueue.updated",
   "message.pending",
@@ -69,6 +70,8 @@ export interface EventStreamOptions {
   onEvent: (ev: SessionEvent) => void;
   onStatus?: (status: ConnectionStatus) => void;
   /** injectable for tests */
+  /** The stream answered with an HTTP error and is opened again: the caller can check that the session still exists. */
+  onHttpError?: () => void;
   EventSourceImpl?: typeof EventSource;
   reopenDelayMs?: number;
 }
@@ -109,6 +112,7 @@ export function openEventStream(opts: EventStreamOptions): () => void {
         // The browser gave up (HTTP error): reopen ourselves from the last seen seq.
         setStatus("reconnecting");
         es.close();
+        opts.onHttpError?.();
         reopenTimer = setTimeout(open, opts.reopenDelayMs ?? 2000);
       } else {
         setStatus("reconnecting"); // the browser retries with Last-Event-ID

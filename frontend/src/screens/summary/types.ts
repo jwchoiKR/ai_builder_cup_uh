@@ -107,9 +107,50 @@ export interface Recap {
   follow_ups: string[];
 }
 
+export interface InsightTopic {
+  label: string;
+  buying: boolean;
+  questions: number;
+  askers: number;
+  auto_answered: number;
+  answered_by_person: number;
+  unanswered: number;
+  examples: string[];
+  products: string[];
+}
+
+/** What viewers asked: one analysis of the stored comments after the broadcast. Every number is counted by code. */
+export interface CommentInsights {
+  source: "firestore" | "store";
+  /** analysis: topics sorted by the model; labels: the labels stored with each question; none: no questions */
+  topic_source: "analysis" | "labels" | "none";
+  comments: number;
+  viewers: number;
+  askers: number;
+  questions: number;
+  reply_time_sec: Record<"auto" | "person", { n: number; p50: number | null; p95: number | null }>;
+  buying: { questions: number; topics: string[]; unanswered: number };
+  not_in_product_information: { questions: number; examples: string[] };
+  /** comments and questions per slice of the broadcast; peak is the busiest slice for questions */
+  timeline?: {
+    bin_sec: number;
+    bins: { start_sec: number; comments: number; questions: number; product: string | null }[];
+    peak: { start_sec: number; comments: number; questions: number; product: string | null } | null;
+  } | null;
+  reactions: number;
+  hidden: number;
+  stream_reports: number;
+  outcomes: { auto_answered: number; answered_by_person: number; unanswered: number };
+  waited_for_a_person_by_reason: Record<string, number>;
+  question_languages: Record<string, number>;
+  topics: InsightTopic[];
+  notes: string[];
+}
+
 export interface SummaryData {
   status: SummaryStatus;
   stats: SummaryStats;
   recap: Recap | null;
   error: string | null;
+  comment_insights?: CommentInsights | null;
 }

@@ -159,6 +159,10 @@ export interface SessionMarket {
   category?: string;
 }
 
+/** What the asker is told while their question has no posted reply; set by the server from the question's state. */
+export type ReplyStatus = "checking" | "host" | "team" | "answered";
+
+// The viewer role receives only the public fields: ids, author, text, time, visibility, language, reply_status.
 export interface Comment {
   comment_id: string;
   author_id: string;
@@ -172,6 +176,10 @@ export interface Comment {
   analysis_id: string | null;
   group_id: string | null;
   armor?: "blocked" | "unscreened" | null; // D-125 Model Armor verdict; unscreened: never answered
+  language?: string | null; // ISO 639-1, when the comment is not in the show's language
+  translation_en?: string | null; // English reading of a comment in another language (operator only)
+  reply_status?: ReplyStatus | null;
+  signal?: "stream_issue" | "injection" | null; // triage: a stream problem report, or orders to the system
 }
 
 export interface CommentAnalysis {
@@ -209,6 +217,8 @@ export interface QuestionGroup {
   last_at: number;
   route: Route;
   route_reason: string;
+  needs_approval?: boolean | null; // triage's call: a person must approve the reply
+  approval_reason?: string | null;
   status: GroupStatus;
   answer_id: string | null;
   host_slot: "none" | "on_host";
@@ -258,6 +268,7 @@ export interface Message {
   publish_at: number | null;
   published_at: number | null;
   idempotency_key: string;
+  translations?: Record<string, string>; // language -> this reply in it; arrives after the reply, with message.updated
 }
 
 export interface AgentCall {
@@ -360,12 +371,13 @@ export interface StateSnapshot {
   server_time: number;
   session: Session;
   segments: Segment[];
-  groups: QuestionGroup[];
-  answers: Record<string, Answer>;
-  host_slots: HostSlot[];
   comments: Comment[];
   messages: Message[];
-  metrics: Metrics;
+  // not in the viewer's snapshot: it carries the public chat and show state only
+  groups?: QuestionGroup[];
+  answers?: Record<string, Answer>;
+  host_slots?: HostSlot[];
+  metrics?: Metrics;
   feed?: FeedState;
   judge_health?: { degraded: string[] }; // D-137
   verify_health?: VerifyHealth; // D-306

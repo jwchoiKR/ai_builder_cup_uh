@@ -683,6 +683,23 @@
   align-items: center;
   gap: var(--space-1);
 }
+/* a comment in another language: language tag and English reading under the original */
+.translation {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  flex-basis: 100%;
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  overflow-wrap: anywhere;
+}
+.langTag {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  font-weight: var(--fw-semibold);
+}
 .linkish {
   border: 0;
   background: transparent;
@@ -877,4 +894,39 @@
   padding: var(--space-2) var(--space-3);
   border-left: 3px solid var(--accent);
   background: var(--surface-2);
+}
+
+/* ---- simplified desk: one status chip, quiet reason, one accent, attention dot ----------------------------- */
+
+.quiet {
+  color: var(--text-3);
+}
+.groupSensitive {
+  border-left: 3px solid var(--risk-text);
+}
+.attnDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: var(--space-1);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.tabActive .attnDot {
+  background: var(--accent-ink);
+  box-shadow: none;
+}
+.postBtn {
+  min-width: 96px;
+  font-weight: var(--fw-semibold);
+}
+.hideReason {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+  font-size: var(--fs-12);
 }
