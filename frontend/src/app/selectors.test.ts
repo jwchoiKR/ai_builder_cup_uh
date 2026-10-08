@@ -7,6 +7,8 @@ import {
   activePromos,
   chatItems,
   cueStrip,
+  deskStatus,
+  deskTabCounts,
   factNotesForHost,
   formatClock,
   formatMmSs,
@@ -20,6 +22,7 @@ import {
   recentlyCorrected,
   relativeTime,
   runOfShow,
+  waitReason,
 } from "./selectors";
 import { reduceSnapshot } from "./state";
 
@@ -142,13 +145,13 @@ describe("host slots", () => {
 });
 
 describe("question desk", () => {
-  it("sorts by status bucket then score, and filters by tab", () => {
+  it("sorts by status bucket then score, and filters by tab (To do is the default)", () => {
     const s = reduceSnapshot(
       snapshot({
         groups: [
           group({ group_id: "answered", status: "answered", score: 99 }),
-          group({ group_id: "ready_low", status: "ready", score: 1 }),
-          group({ group_id: "ready_high", status: "ready", score: 8 }),
+          group({ group_id: "ready_low", status: "ready", route: "OPERATOR", score: 1 }),
+          group({ group_id: "ready_high", status: "ready", route: "OPERATOR", score: 8 }),
           group({ group_id: "review", status: "needs_review", route: "OPERATOR", score: 0 }),
           group({ group_id: "onhost", status: "ready", host_slot: "on_host", score: 2 }),
           group({ group_id: "comp", status: "composing", score: 50 }),
@@ -158,17 +161,19 @@ describe("question desk", () => {
       }),
       "operator",
     );
-    expect(questionDesk(s).map((g) => g.group_id)).toEqual(["review", "onhost", "ready_high", "ready_low", "comp", "ai", "answered", "closed"]);
+    // what only the operator can answer first (by score), then what the host may say, then drafts, then answers
+    expect(questionDesk(s, "all").map((g) => g.group_id)).toEqual(["ready_high", "ready_low", "review", "onhost", "comp", "ai", "answered", "closed"]);
+    expect(questionDesk(s).map((g) => g.group_id)).toEqual(["ready_high", "ready_low", "review", "onhost", "comp"]);
     expect(questionDesk(s, "answered").map((g) => g.group_id)).toEqual(["ai", "answered"]);
-    expect(questionDesk(s, "on_host").map((g) => g.group_id)).toEqual(["onhost"]);
   });
 
   it("status labels", () => {
     expect(groupStatusLabel(group({ status: "needs_review", route_reason: "unresolved_product" }))).toBe("Assign a product");
     expect(groupStatusLabel(group({ host_verbal_answer_transcript_id: "tr_1" }))).toBe("Host answered on air · not posted");
-    expect(groupStatusLabel(group({ status: "composing" }))).toBe("Composing…");
-    expect(groupStatusLabel(group({ status: "auto_answered" }))).toBe("AI answered");
-    expect(groupStatusLabel(group({ host_slot: "on_host" }))).toBe("On host");
+    expect(groupStatusLabel(group({ status: "composing" }))).toBe("Drafting…");
+    expect(groupStatusLabel(group({ status: "new" }))).toBe("Drafting…");
+    expect(groupStatusLabel(group({ status: "auto_answered" }))).toBe("Answered by AI");
+    expect(groupStatusLabel(group({ host_slot: "on_host", route: "OPERATOR" }))).toBe("Needs a reply · host can answer on air");
   });
 });
 
@@ -213,32 +218,77 @@ describe("time helpers", () => {
   });
 });
 
-describe("desk status: one tab per group, chip and tab agree", () => {
-  it("maps every status to exactly one tab and counts add up to All", async () => {
-    const { deskStatus, deskTabCounts } = await import("./selectors");
+describe("desk status: one list per group, one chip", () => {
+  const rows = (gs: ReturnType<typeof group>[], kind?: string) => gs.map((g) => [deskStatus(g, kind).label, deskStatus(g, kind).tab]);
+
+  it("maps every group to exactly one of To do / Answered / closed, and the counts add up to All", () => {
     const gs = [
-      group({ group_id: "a", status: "needs_review" }),
-      group({ group_id: "b", status: "ready", host_slot: "on_host" }),
-      group({ group_id: "c", status: "ready" }),
+      group({ group_id: "a", status: "needs_review", route: "OPERATOR" }),
+      group({ group_id: "b", status: "ready", host_slot: "on_host", route: "OPERATOR" }),
+      group({ group_id: "c", status: "ready", route: "HOST", route_reason: "approval" }),
       group({ group_id: "d", status: "composing" }),
-      group({ group_id: "e", status: "auto_answered" }),
+      group({ group_id: "e", status: "auto_answered", route: "AUTO" }),
       group({ group_id: "f", status: "answered", host_slot: "on_host" }),
       group({ group_id: "g", status: "rejected" }),
       group({ group_id: "h", status: "ready", host_verbal_answer_transcript_id: "tr_1" }),
+      group({ group_id: "i", status: "needs_review", route_reason: "unresolved_product", product_id: null }),
+      group({ group_id: "j", status: "closed" }),
     ];
-    expect(gs.map((g) => [deskStatus(g).label, deskStatus(g).tab])).toEqual([
-      ["Needs review", "needs_review"],
-      ["On host", "on_host"],
-      ["Ready", "ready"],
-      ["Composing…", "composing"],
-      ["AI answered", "answered"],
+    expect(rows(gs)).toEqual([
+      ["Needs your reply", "todo"],
+      ["Needs a reply · host can answer on air", "todo"],
+      ["Needs a reply · host can answer on air", "todo"],
+      ["Drafting…", "todo"],
+      ["Answered by AI", "answered"],
       ["Answered", "answered"],
-      ["Rejected", "closed"],
-      ["Host answered on air · not posted", "needs_review"],
+      ["Closed", "closed"],
+      ["Host answered on air · not posted", "todo"],
+      ["Assign a product", "todo"],
+      ["Closed", "closed"],
     ]);
     const c = deskTabCounts(gs);
-    expect(c.all).toBe(8);
-    expect(c.needs_review + c.on_host + c.ready + c.composing + c.answered + c.closed).toBe(c.all);
+    expect(c).toEqual({ all: 10, todo: 6, answered: 2, closed: 2 });
+    expect(c.todo + c.answered + c.closed).toBe(c.all);
+  });
+
+  it("a sensitive question waits for a person: the host may say it, or only the operator can answer it", () => {
+    const gs = [
+      group({ status: "ready", route: "HOST", route_reason: "sensitive" }),
+      group({ status: "ready", route: "HOST", route_reason: "sensitive", host_slot: "on_host" }),
+      group({ status: "needs_review", route: "OPERATOR", route_reason: "sensitive" }),
+      group({ status: "answered", route: "HOST", route_reason: "sensitive", host_slot: "on_host" }),
+    ];
+    expect(rows(gs)).toEqual([
+      ["Needs a reply · host can answer on air", "todo"],
+      ["Needs a reply · host can answer on air", "todo"],
+      ["Needs your reply", "todo"],
+      ["Answered", "answered"],
+    ]);
+  });
+
+  it("a group answered by a host answer message reads Answered by the host", () => {
+    expect(rows([group({ status: "answered" })], "host_answer")).toEqual([["Answered by the host", "answered"]]);
+    expect(rows([group({ status: "answered" })], "ai_answer")).toEqual([["Answered", "answered"]]);
+  });
+
+  it("explains why a question waits, in plain words", () => {
+    const reasons: [Partial<ReturnType<typeof group>>, string | null][] = [
+      [{ approval_reason: "health" }, "Health or safety"],
+      [{ approval_reason: "claim" }, "Claim about results"],
+      [{ approval_reason: "test_results" }, "About test results"],
+      [{ approval_reason: "certification" }, "Certificate or ethics"],
+      [{ approval_reason: "personal" }, "Depends on the viewer"],
+      [{ approval_reason: "outside" }, "Order, delivery or shop"],
+      [{ approval_reason: "host_line" }, "Follow-up on the host"],
+      [{ approval_reason: "unclear" }, "Unclear or beyond the product sheet"],
+      [{ route_reason: "no_verified_answer" }, "No verified answer in the product sheet"],
+      [{ route_reason: "previous_product" }, "About a product no longer on air"],
+      [{ route_reason: "approval", approval_reason: null }, null],
+      [{ route_reason: "auto" }, null],
+    ];
+    for (const [over, text] of reasons) expect(waitReason(group(over))).toBe(text);
+    // the approval reason is the more specific one
+    expect(waitReason(group({ route_reason: "no_verified_answer", approval_reason: "claim" }))).toBe("Claim about results");
   });
 });
 describe("D-342: one sentence, one alert on the host screen", () => {

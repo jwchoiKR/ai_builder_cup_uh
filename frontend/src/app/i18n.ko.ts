@@ -30,6 +30,8 @@ export const KO_HOST: Record<string, string> = {
   NEXT: "다음",
   "End of run sheet": "진행표 끝",
   mic: "마이크",
+  "mic off": "마이크 꺼짐",
+  "Mic off · click or press M": "마이크 꺼짐 · 클릭하거나 M 키를 누르세요",
   "Microphone off": "마이크 꺼짐",
   "Microphone connecting": "마이크 연결 중",
   "Microphone listening": "마이크 듣는 중",
@@ -111,6 +113,11 @@ export const KO_HOST: Record<string, string> = {
   "AI PD · QUESTIONS": "AI PD · 시청자 질문",
   "TOP {n}": "상위 {n}",
   "{n} asking": "{n}명 질문",
+  "1 viewer asked": "시청자 1명이 질문",
+  "{n} viewers asked": "시청자 {n}명이 질문",
+  // viewer chat
+  "Enter a name to join the chat": "채팅에 참여할 이름을 입력하세요",
+  "Chat as {name}": "{name}(으)로 채팅",
   "AI answered": "AI 답변함",
   "From your PD": "PD가 보냄",
   "For you": "진행자용",
@@ -127,11 +134,12 @@ export const KO_HOST: Record<string, string> = {
   "AI checks running": "AI 확인 정상",
   "No questions waiting.": "기다리는 질문이 없습니다.",
   "{n} unanswered questions": "답변 못 한 질문 {n}개",
+  "1 unanswered question": "답변 못 한 질문 1개",
   "On your card": "카드에 표시 중",
   "Drafting…": "답변 작성 중…",
   "Which product?": "어느 제품인지 확인",
   "Read out": "읽어 주기",
-  Ready: "답변 준비됨",
+  "Ready to answer": "답변 준비됨",
   "No answer yet": "답변 없음",
   "Shout-out": "감사 인사",
   // chat
@@ -147,6 +155,9 @@ export const KO_HOST: Record<string, string> = {
   "Onboard a new product →": "새 제품 등록 →",
   Correction: "정정",
   "Also answered:": "함께 답변:",
+  "Checking…": "확인 중…",
+  "The host will answer this on air": "진행자가 방송에서 답변할 예정입니다",
+  "Sent to the team": "담당 팀에 전달했습니다",
 };
 
 /** The Hub (home screen). */

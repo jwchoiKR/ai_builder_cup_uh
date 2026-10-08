@@ -157,8 +157,10 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
     const set = groupOf(s, (g) => g.intent === "set_price" && g.status === "auto_answered");
     return price && set && s.comments.length >= 9 ? { price, set, s } : null;
   });
+  // the desk opens on To do; auto-answered questions are listed under Answered, and All shows every group
+  await op.getByTestId("op-desk-tab-all").click();
   await expect(opGroup(s3.price)).toHaveAttribute("data-status", "auto_answered");
-  await expect(opGroup(s3.price)).toContainText("AI answered");
+  await expect(opGroup(s3.price)).toContainText("Answered by AI");
   await expect(reply("ai_answer", "S$36.00").first()).toBeVisible();
   await expect(reply("ai_answer", "S$62.00").first()).toBeVisible();
   const reactions = s3.s.comments.filter((c) => ["So pretty! 💜", "love the packaging", "😍😍😍"].includes(c.text));
@@ -167,6 +169,8 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
     await expect(viewer.getByTestId(`viewer-comment-${c.comment_id}`)).toBeVisible();
     await expect(viewer.getByTestId(`viewer-comment-${c.comment_id}`).locator('[data-testid^="viewer-reply-"]')).toHaveCount(0);
   }
+  // the statistics sit in a disclosure at the bottom of the right rail, closed by default
+  await op.getByRole("button", { name: "Show stats" }).click();
   await expect(op.getByTestId("op-metrics")).toContainText(/Instant answers [1-9]\d*\//);
 
   // ---- S04 B2: grouping and host top 3 -------------------------------------------------------------
@@ -256,21 +260,21 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   await closeConsole();
   await expect(host.getByTestId(`host-question-${s9.preg.group_id}`)).toBeVisible();
   for (const g of [s9.eczema, s9.ship]) {
-    await expect(opGroup(g)).toContainText("Needs review");
+    await expect(opGroup(g)).toContainText(/Needs (your|a) reply/);
     await expect(host.getByTestId(`host-question-${g.group_id}`)).toHaveCount(0);
   }
   for (const c of s9.hidden) {
     await expect(viewer.getByTestId(`viewer-comment-${c.comment_id}`)).toHaveCount(0);
     await expect(host.getByTestId("host-chat")).not.toContainText(c.text);
   }
-  await expect(op.getByRole("button", { name: /Show filtered \(\d+\)/ })).toBeVisible();
+  await expect(op.getByRole("button", { name: /Hidden comments \(\d+\)/ })).toBeVisible();
   // The desk expands one row at a time.
   await opGroup(s9.ship).locator("button[aria-expanded]").first().click();
   await expect(opGroup(s9.ship)).toContainText("No AI draft for this question.");
   await opGroup(s9.preg).locator("button[aria-expanded]").first().click();
   await expect(opGroup(s9.preg)).toContainText("Verified against the product sheet");
-  await opGroup(s9.preg).getByRole("button", { name: "Edit reply" }).click();
-  const editor = opGroup(s9.preg).getByRole("textbox", { name: "Edit reply" });
+  // the suggested reply sits in the reply box, ready to edit
+  const editor = opGroup(s9.preg).getByRole("textbox", { name: "Reply" });
   const draft = await editor.inputValue();
   expect(draft.length).toBeGreaterThan(20);
   await editor.fill(`${draft} Thank you for asking.`);

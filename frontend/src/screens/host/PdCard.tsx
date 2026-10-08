@@ -17,6 +17,16 @@ const KIND_LABELS: Record<PdCardKind, string> = {
   switch_product: "Next product",
 };
 
+/** The server words a read-out card "{n} people asked: {question}". Say it right for one viewer. */
+const ASKED = /^(\d+) people asked: ([\s\S]*)$/;
+
+export function askedDetail(detail: string, t: (en: string, vars?: Record<string, string | number>) => string): { text: string; counted: boolean } {
+  const m = ASKED.exec(detail);
+  if (!m) return { text: detail, counted: false };
+  const n = Number(m[1]);
+  return { text: `${n === 1 ? t("1 viewer asked") : t("{n} viewers asked", { n })}: ${m[2]}`, counted: true };
+}
+
 export const QUESTION_KINDS = new Set<PdCardKind>(["answer_question", "read_question", "clarify_product"]);
 
 export function PdCard({
@@ -31,6 +41,7 @@ export function PdCard({
   const question = QUESTION_KINDS.has(card.kind);
   const kindLabel = t(KIND_LABELS[card.kind] ?? "Direction");
   const sourceLabel = card.source === "ai" ? "AI PD" : "PD";
+  const asked = card.detail ? askedDetail(card.detail, t) : null;
 
   return (
     <div
@@ -80,8 +91,8 @@ export function PdCard({
       {question && card.detail && (
         // D-113: the question and how many asked, above the answer
         <div className={styles.pdQuestion} data-testid="host-pd-question">
-          {card.detail}
-          {card.askers ? <span className={styles.pdAskers}>{t("{n} asking", { n: card.askers })}</span> : null}
+          {asked?.text}
+          {card.askers && !asked?.counted ? <span className={styles.pdAskers}>{t("{n} asking", { n: card.askers })}</span> : null}
         </div>
       )}
       <div className={cx(styles.pdSay, question && styles.pdSayAnswer)} data-testid="host-pd-say">
