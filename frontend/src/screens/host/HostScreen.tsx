@@ -263,7 +263,7 @@ export function HostView({
         more={more} />
     ) : (
       <MediumBanner key={b.alert.alert_id} alert={b.alert} catalog={catalog} fact={b.fact} onRendered={actions.rendered}
-        serverOffsetMs={state.serverOffsetMs} count={b.count} more={more} factCount={b.factCount} />
+        count={b.count} more={more} factCount={b.factCount} />
     );
   const prompterAlerts =
     stack.shown.length ? <>{stack.shown.map((b, i) => box(b, i === stack.shown.length - 1 ? stack.more : 0))}</> : null;

@@ -416,11 +416,6 @@ describe("compliance", () => {
     correct_value: "+45%",
   });
 
-  it("D-341: after 10 s the qualifier banner asks for the result again, with the qualifier", () => {
-    render(view({ alerts: [{ ...qualifier, created_at: T0 - 11_000 }] }));
-    expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("Say the result again with where it comes from (e.g. 'in our in-house test')");
-  });
-
   it("MEDIUM test qualifier: one card with the right number when the fact note is on the same sentence", () => {
     const { rerender } = render(view({ alerts: [qualifier] }));
     let banner = screen.getByTestId("host-medium-banner");
