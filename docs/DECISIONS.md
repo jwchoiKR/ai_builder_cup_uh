@@ -2057,3 +2057,17 @@ D-330: the hold of D-328/329 works on claim subjects, not fields, after codex's 
 - **Retiring a hold:** when the hold times out, a held claim whose subject a later line stated consistently (that line's own `supported` output) is retired, logged as "held alert retired: corrected later".
 - **Known limit (unchanged, D-117):** `apply_fact_check` keeps one note per (product, field, passage). Two wrong amounts cited from one passage still share a note.
 - **Tests (`tests/test_d328.py`, `d330_*`):** the same-field partial rejection, the endorsing line's check first (latency 2000 ms on the original line), an endorsement next to a new claim, and a retired hold.
+
+D-331: `FACT_PROMPT=v5` (`prompts/fact_relation_v5.md`) is v3 plus a `stance` per claim. Agreed by the planner with GPT, Gemini and the critic; user-approved 10/8. The default stays v1, and `REPORTED_HOLD` and `COMPLIANCE_NEG` stay off: on pool 6 the hold brought back the quote false alerts.
+- **Schema (`FactRelationOutputV5`):** `stance` comes right after `span`, before evidence, `source_value` and `relation`, so the model decides it first. Its values are `HOST_ASSERTS`, `HOST_ENDORSES` and `REPORTS_OR_ASKS`. A `REPORTS_OR_ASKS` claim takes the relation `not_checked`.
+- **Per claim, not per line:** "A viewer asks if it has 80 mg, and yes, it does" is `HOST_ENDORSES`, so it is still checked. v3's endorsement of the previous line ("Correct.") is `HOST_ENDORSES` too.
+- **Code reads the field only:** a `REPORTS_OR_ASKS` claim never alerts, whatever its relation. When the model also wrote `contradicts`, it is logged in the eval rows' `dropped` ("reported or asked: not checked").
+- **Guard against over-extraction:** "List only the facts in the line; adding `stance` must not add claims." Each relation call logs its claim count and stances ("fact claims N <prompt version>: {stance: n}") for the comparison with v3.
+- **Examples (made up):**
+  - v3's examples now carry a stance. Example I lists its read-out question as `REPORTS_OR_ASKS`.
+  - New examples:
+    - M: a viewer's reported amount, `REPORTS_OR_ASKS`.
+    - N: the compound line, `HOST_ENDORSES`, contradicts.
+    - O: a tag question the host asserts, `HOST_ASSERTS`.
+    - P: a co-host's question, `REPORTS_OR_ASKS`.
+- **Tests:** `tests/test_d331.py`.

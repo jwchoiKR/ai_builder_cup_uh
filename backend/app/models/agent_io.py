@@ -229,6 +229,24 @@ class FactRelationOutputV2(BaseModel):
     claims: list[FactRelationClaimV2]
 
 
+class FactRelationClaimV5(BaseModel):
+    """D-331 FACT_PROMPT=v5: whose fact it is, decided right after the span; only the host's own (asserted or
+    endorsed) facts are compared with the documents."""
+    span: str
+    stance: Literal["HOST_ASSERTS", "HOST_ENDORSES", "REPORTS_OR_ASKS"]
+    product_id: str
+    field: FactField
+    stated_value: str
+    evidence: list[str]
+    source_value: str | None
+    relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
+    correct_value: str | None
+
+
+class FactRelationOutputV5(BaseModel):
+    claims: list[FactRelationClaimV5]
+
+
 class FactRelationClaimH(BaseModel):
     """D-328 REPORTED_HOLD: v2's claim, and whose words it is, decided before the rest."""
     span: str
