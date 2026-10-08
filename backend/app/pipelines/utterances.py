@@ -1355,7 +1355,8 @@ class UtterancePipeline:
         """New and re-shown fact notes; returns their ids (a line never corrects a note it raised)."""
         rt = self.rt
         created, reshown = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
-                                                       protected=protected)
+                                                       protected=protected,
+                                                       order=lambda tid: self._sequence.get(tid, 0))  # D-376
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
@@ -1408,12 +1409,18 @@ class UtterancePipeline:
         line_seg = next((x for x in segs if x.segment_id == t.segment_id), None)
         for product_id, ids in cited.items():
             target = None
-            if line_seg is not None:
-                target = line_seg if line_seg.product_id == product_id else max(
-                    (x for x in segs if x.product_id == product_id and x.started_at < line_seg.started_at),
-                    key=lambda x: x.started_at, default=None)
-            if target is None and seg is not None and seg.product_id == product_id:
-                target = seg
+            if line_seg is None:  # the line's segment was undone: the product's open segment, else pre_covered
+                target = seg if seg is not None and seg.product_id == product_id else None
+            elif line_seg.product_id == product_id:
+                target = line_seg
+            elif product_id == rt.catalog.next_product(line_seg.product_id):
+                # D-376: the next product: its segment opened after the line, else pre_covered (never an older one)
+                target = seg if (seg is not None and seg.product_id == product_id
+                                 and seg.started_at > line_seg.started_at) else None
+            else:  # the product that had just left the air (the line's dual scope): the segment right before
+                before = max((x for x in segs if x.started_at < line_seg.started_at), key=lambda x: x.started_at,
+                             default=None)
+                target = before if before is not None and before.product_id == product_id else None
             if target is not None:
                 new = [i for i in dict.fromkeys(ids) if i not in target.ticked_item_ids]
                 if new:

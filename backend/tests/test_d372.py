@@ -203,3 +203,28 @@ async def test_d373_a_late_verdict_for_an_undone_segment_waits_for_the_product_s
         assert await _ticks(rt) == [AMP_LIVE]
     finally:
         await close_env(rt)
+
+
+async def test_d376_a_line_naming_the_next_product_waits_for_its_next_segment():
+    """Cream -> ampoule -> cream -> ampoule, the last switch undone: a line said on the reopened cream segment that
+    ticks the ampoule (the next product) goes to pre_covered, not to the first, stale ampoule segment."""
+    from app.pipelines.utterances import operator_switch, undo_switch
+
+    rt, llm = await _env(SWITCH_MODE="immediate")
+    try:
+        from .judge_fakes import advance
+
+        await advance(rt, 1000)  # one second apart, so the segments have an order
+        first_amp = (await operator_switch(rt, AMPOULE)).segment_id
+        await advance(rt, 1000)
+        await operator_switch(rt, CREAM)
+        await advance(rt, 1000)
+        await operator_switch(rt, AMPOULE)
+        await undo_switch(rt)  # back on the cream; the ampoule just left (dual scope)
+        line = "And the ampoule is on its live price today."
+        _verdict(llm, line, "consistent", [_sid(rt, AMP_LIVE, (CREAM, AMPOULE))], product=AMPOULE)
+        await speak(rt, line)
+        assert (await rt.get_segment(first_amp)).ticked_item_ids == []
+        assert (await rt.load_session()).pre_covered.get(AMPOULE) == [AMP_LIVE]
+    finally:
+        await close_env(rt)

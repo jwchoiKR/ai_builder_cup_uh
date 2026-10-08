@@ -63,9 +63,13 @@ export function fieldLabel(catalog: Catalog | null, field: string | null): strin
   return capitalise(label);
 }
 
-/** "product sheet, Key facts" or "active promotion" (§8.5, §12.3.5). */
+/** D-376: the fields an evidence-less correction can take from a running promotion or offer. */
+const PROMO_FIELDS = new Set(["price", "set_price", "promo"]);
+
+/** "product sheet, Key facts" or "active promotion" (§8.5, §12.3.5). D-376: an evidence-less note of another field
+ * (the model cited no passage) is labelled neutrally, never as a promotion. */
 export function factSourceLabel(catalog: Catalog | null, alert: Alert): string {
-  if (!alert.passage_id) return "active promotion";
+  if (!alert.passage_id) return PROMO_FIELDS.has(alert.field ?? "") ? "active promotion" : "AI fact check";
   const section = catalog?.passages?.[alert.passage_id]?.section;
   return section ? `product sheet, ${section}` : "product sheet";
 }
@@ -79,7 +83,7 @@ export function factSayLine(catalog: Catalog | null, alert: Alert, pricePromoTit
   const name = (product?.short_name ?? (set ? set.short_name || set.name : "")).replace(/^the /i, "");
   const label = name ? `${name.charAt(0).toUpperCase()}${name.slice(1)}: ` : "";
   const promo = pricePromoTitle ? pricePromoTitle.split(":")[0].trim().toLowerCase() : "";
-  const condition = !alert.passage_id && promo ? ` during the ${promo}` : "";
+  const condition = !alert.passage_id && promo && PROMO_FIELDS.has(alert.field ?? "") ? ` during the ${promo}` : "";
   return `${label}say ${alert.correct_value ?? ""}${condition}`;
 }
 

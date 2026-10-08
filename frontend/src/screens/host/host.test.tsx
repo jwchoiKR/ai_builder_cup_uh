@@ -246,6 +246,17 @@ describe("fact note", () => {
     render(view({ alerts: [{ ...fx, field: "promo", passage_id: null, quote: null, correct_value: "S$32.40" }] }));
     expect(screen.getByTestId("host-fact-note")).toHaveTextContent("Source: active promotion");
   });
+
+  it("D-376: an evidence-less ingredient note gets a neutral source and no promo condition", () => {
+    const sale = session({ active_promo_id: "promo_time_sale_10", promo_started_at: now(),
+      active_promos: [{ promo_id: "promo_time_sale_10", started_at: now(), ends_at: now() + 600_000 }] });
+    render(view({ session: sale, alerts: [{ ...fx, field: "ingredient_amount", passage_id: null, quote: null,
+      correct_value: "5%" }] }));
+    const note = screen.getByTestId("host-fact-note");
+    expect(note).toHaveTextContent("Source: AI fact check");
+    expect(note).not.toHaveTextContent("active promotion");
+    expect(screen.getByTestId("host-fact-right")).not.toHaveTextContent("during the");
+  });
 });
 
 describe("compliance", () => {
