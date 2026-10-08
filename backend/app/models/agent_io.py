@@ -294,6 +294,7 @@ class FactClaim(BaseModel):
     _check: bool = PrivateAttr(default=False)  # D-303: "check what was said" (one misheard number), not a correction
     _unverified_reason: str | None = PrivateAttr(default=None)  # D-306: the verifier's failure type
     _attributed: str = PrivateAttr(default="host")  # D-328: "other" = someone else's words or a question to someone
+    _cited: list = PrivateAttr(default_factory=list)  # D-372: every passage the relation verdict cites
 
 
 class FactCheckOutput(BaseModel):

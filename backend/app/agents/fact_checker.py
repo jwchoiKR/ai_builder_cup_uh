@@ -772,6 +772,7 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                       quote=" ".join(t for q, t in ev if q.passage_id == p.passage_id) if p else None)
         c._evidence = [i for i in r.evidence if i in index or i in terms]  # D-302: carried to the alert
         c._attributed = getattr(r, "attributed", "host")  # D-328
+        c._cited = list(dict.fromkeys(q.passage_id for q, _ in ev))  # D-372: prompter items it ticks
         if verdict == "contradicted" and not ev and not set(r.evidence) & terms:
             _drop(c, f"relation: no valid evidence id ({', '.join(r.evidence) or 'none'})")
         elif r.relation == "uncertain":

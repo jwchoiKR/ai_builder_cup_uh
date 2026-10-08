@@ -122,9 +122,27 @@ describe("prompter", () => {
     expect(screen.getByTestId("host-avoid")).toHaveTextContent("✕ Heals eczema→Helps relieve the feeling of dryness.");
     expect(screen.getByTestId("host-ing-panthenol").className).not.toMatch(/said/);
     expect(within(screen.getByTestId("host-ing-panthenol")).queryByLabelText("Said")).toBeNull();
+    // D-372: a covered point that names the ingredient no longer ticks it; only its id from the fact checker does
     rerender(view({ segments: [segment({ covered_point_ids: ["cr-p2"] })] }));
+    expect(screen.getByTestId("host-ing-panthenol").className).not.toMatch(/said/);
+    rerender(view({ segments: [segment({ ticked_item_ids: ["DL-CR-01#prompter#ingredient-panthenol"] })] }));
     expect(screen.getByTestId("host-ing-panthenol").className).toMatch(/said/);
     expect(within(screen.getByTestId("host-ing-panthenol")).getByLabelText("Said")).toBeInTheDocument(); // D-348
+  });
+
+  it("D-372: price lines, ingredients and cautions are ticked by their ids only", () => {
+    const { rerender } = render(view({}));
+    for (const id of ["host-price-current", "host-price-struck", "host-price-set", "host-caution-1"]) {
+      expect(screen.getByTestId(id)).toHaveAttribute("data-state", "todo");
+    }
+    rerender(view({ segments: [segment({ ticked_item_ids: [
+      "DL-CR-01#prompter#live-price", "DL-CR-01#prompter#set-set_cream_ampoule", "DL-CR-01#prompter#caution-1",
+      "DL-AM-01#prompter#list-price"] })] }));  // another product's id ticks nothing here
+    expect(screen.getByTestId("host-price-current")).toHaveAttribute("data-state", "said");
+    expect(within(screen.getByTestId("host-price-current")).getByLabelText("Said")).toBeInTheDocument();
+    expect(screen.getByTestId("host-price-set")).toHaveAttribute("data-state", "said");
+    expect(screen.getByTestId("host-caution-1")).toHaveAttribute("data-state", "said");
+    expect(screen.getByTestId("host-price-struck")).toHaveAttribute("data-state", "todo");
   });
 
   it("D-348: no AVOID SAYING heading when the product has no wording to avoid", () => {

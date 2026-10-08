@@ -38,7 +38,7 @@ from ..logic import facts as fact_logic
 from ..logic.corrections import check_correction, says_the_replacement
 from ..logic import publish as publish_logic
 from ..logic import qualifier
-from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view
+from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view, tick_item
 from ..logic.reflex import normalise
 from ..logic.segments import classify_switch, expire, names_product, replace_cue, step_switch, withdraw_cue
 from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
@@ -1266,6 +1266,7 @@ class UtterancePipeline:
                 await self._hold_reported_locked(t, held, protected)
         fresh = await self._fact_alerts_locked(t, claims, protected)
         await self._correct_fact_notes_locked(t, getattr(facts, "_corrects", []), fresh)
+        await self._tick_prompter_locked(t, claims)
 
     async def _hold_reported_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
         """D-328: a contradiction in someone else's words (a viewer quoted, a co-host's question) is not shown yet:
@@ -1399,6 +1400,49 @@ class UtterancePipeline:
             rt.ctx.scheduler.cancel(rt.key(f"facthide:{a.alert_id}"))
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
+
+    async def _tick_prompter_locked(self, t: Transcript, claims: list) -> None:
+        """D-372: the prompter items (price lines, ingredient amounts, cautions) a supported claim cites are ticked as
+        said, on the cited item's product: its open segment, its segment that just left the air (dual scope), or the
+        next product's pre_covered. A contradiction ticks nothing; reported speech never reaches `supported` (v5)."""
+        rt = self.rt
+        inp = self._fact_inputs.get(t.transcript_id)
+        if rt.settings.FACT_MODE != "prompter" or inp is None:
+            return
+        shown = {p.passage_id: p.product_id for p in inp.passages}  # the snapshot this check read
+        cited: dict[str, list[str]] = {}
+        for c in claims:
+            if c.verdict != "supported":
+                continue
+            for pid in getattr(c, "_cited", None) or ([c.passage_id] if c.passage_id else []):
+                if tick_item(pid) and pid in shown:
+                    cited.setdefault(shown[pid], []).append(pid)
+        if not cited:
+            return
+        s, seg = await rt.load_session(), await rt.current_segment()
+        on_air = seg.product_id if seg is not None else None
+        for product_id, ids in cited.items():
+            target = seg if product_id == on_air else None
+            if target is None and product_id == self._scoped(s.switch).previous_product_id:
+                target = max((x for x in await rt.segments() if x.product_id == product_id),
+                             key=lambda x: x.started_at, default=None)
+            if target is not None:
+                new = [i for i in dict.fromkeys(ids) if i not in target.ticked_item_ids]
+                if new:
+                    target.ticked_item_ids.extend(new)
+                    await rt.save_segment(target)
+                    if target is seg:
+                        await rt.emit("prompter.updated", prompter_view(rt.catalog, seg, rt.points))
+                log.info("prompter ticks %s t=%s: %s +%s", rt.sid, t.transcript_id, product_id, new)
+            elif product_id == rt.catalog.next_product(on_air):
+                pre = s.pre_covered.setdefault(product_id, [])
+                pre.extend(i for i in dict.fromkeys(ids) if i not in pre)
+                await rt.save_session(s)
+                log.info("prompter ticks %s t=%s: next product %s pre-ticked %s", rt.sid, t.transcript_id, product_id,
+                         ids)
+            else:
+                log.info("prompter ticks %s t=%s: %s is not on air, just left or next; not ticked %s", rt.sid,
+                         t.transcript_id, product_id, ids)
 
     def _on_fact_note_active(self, a: Alert) -> None:
         """D-363 (as D-357 for compliance): a fact note just appeared; the later lines whose fact check was shown no
@@ -1796,7 +1840,8 @@ async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -
     item = rt.catalog.runsheet_item(target)
     new = Segment(segment_id=rt.new_id("seg_"), product_id=target, order=item.order, started_at=now,
                   start_reason=reason, planned_duration_sec=item.planned_duration_sec,
-                  covered_point_ids=list(s.pre_covered.pop(target, [])))
+                  covered_point_ids=[x for x in s.pre_covered.get(target, []) if not tick_item(x)],
+                  ticked_item_ids=[x for x in s.pre_covered.pop(target, []) if tick_item(x)])  # D-372
     await rt.save_segment(new)
     s.current_segment_id = new.segment_id
     s.switch = SwitchState(last_commit={"closed_segment_id": old.segment_id if old else None,
@@ -1864,9 +1909,9 @@ async def undo_switch(rt: "SessionRuntime") -> Segment:
         closed.ended_at = None
         await rt.save_segment(closed)
         await rt.ctx.store.delete(rt.path("segments"), opened.segment_id)
-        if opened.covered_point_ids:
+        if opened.covered_point_ids or opened.ticked_item_ids:  # D-372: the ticks go back with the points
             pre = s.pre_covered.setdefault(opened.product_id, [])
-            pre.extend(p for p in opened.covered_point_ids if p not in pre)
+            pre.extend(p for p in opened.covered_point_ids + opened.ticked_item_ids if p not in pre)
         s.current_segment_id, s.switch = closed.segment_id, SwitchState()
         if rt.settings.SWITCH_MODE == "immediate":  # D-349: both products for a few seconds after an undo too
             s.switch.previous_product_id = opened.product_id

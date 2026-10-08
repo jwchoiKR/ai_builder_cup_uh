@@ -50,7 +50,7 @@ def prompter_view(catalog: Catalog, segment: Segment | None,
     """Payload of `prompter.updated` and the /state `prompter` block."""
     if segment is None:
         return {"product_id": None, "segment_id": None, "next_product_id": catalog.next_product(None), "points": [],
-                "covered_point_ids": [], "required_total": 0, "required_covered": 0}
+                "covered_point_ids": [], "ticked_item_ids": [], "required_total": 0, "required_covered": 0}
     required = required_ids(catalog, segment.product_id)
     covered = list(segment.covered_point_ids)
     return {
@@ -60,6 +60,7 @@ def prompter_view(catalog: Catalog, segment: Segment | None,
         "points": [{"point_id": p.point_id, "text": p.text, "required": p.point_id in required,
                     "covered": p.point_id in covered} for p in points_of(catalog, segment.product_id, overrides)],
         "covered_point_ids": covered,
+        "ticked_item_ids": list(segment.ticked_item_ids),  # D-372
         "required_total": len(required),
         "required_covered": sum(1 for p in required if p in covered),
     }
@@ -92,16 +93,19 @@ def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, li
                            section=section, text=text))
 
     sale = promo is not None and product_id in getattr(promo, "promo_prices", {})
-    if sale:
-        add("Price & offers", "sale-price", f"Time sale price: {catalog.price_display(product_id, promo)}")
+    if sale:  # D-372: a promo's items carry its id, so a tick never carries over to another promo's price
+        add("Price & offers", f"sale-price-{promo.promo_id}",
+            f"Time sale price: {catalog.price_display(product_id, promo)}")
         add("Price & offers", "live-price", f"Live price: {catalog.money(p.live_price)}")
     else:
         add("Price & offers", "live-price", f"Live price: {catalog.money(p.live_price)}")
         add("Price & offers", "list-price", f"List price: {catalog.money(p.list_price)}")
     s = next((x for x in catalog.set_offers if product_id in x.product_ids), None)  # the UI shows the first one
     if s is not None:
-        value = promo.promo_prices.get(s.set_id) if sale and s.set_id in promo.promo_prices else s.live_price
-        add("Price & offers", f"set-{s.set_id}", f"Set {s.name}: {catalog.money(value)}")
+        promo_set = sale and s.set_id in promo.promo_prices
+        value = promo.promo_prices[s.set_id] if promo_set else s.live_price
+        add("Price & offers", f"set-{s.set_id}-{promo.promo_id}" if promo_set else f"set-{s.set_id}",
+            f"Set {s.name}: {catalog.money(value)}")
     shown = [(k, v) for k, v in p.key_facts.items() if SHOWN_AMOUNT.match(v.strip())][:SHOWN_INGREDIENTS]
     for k, v in shown:
         add("Ingredients", f"ingredient-{k}", f"{_ingredient_name(k)}: {v}")
@@ -112,3 +116,9 @@ def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, li
     for i, c in enumerate(p.cautions, 1):
         add("Cautions", f"caution-{i}", c)
     return out
+
+
+def tick_item(passage_id: str | None) -> bool:
+    """D-372: a snapshot item the fact checker's verdict ticks: a price line, an ingredient amount or a caution (the
+    points to say stay with the context judge)."""
+    return bool(passage_id) and "#prompter#" in passage_id and "#prompter#point-" not in passage_id

@@ -169,6 +169,7 @@ export function Prompter({
               product={product}
               price={price}
               points={view.points}
+              ticked={view.ticked}
               late={Boolean(timing?.plannedMs && timing.elapsedMs >= timing.plannedMs * LATE_SHARE)}
             />
           ) : (
@@ -187,20 +188,21 @@ function ProductPanel({
   product,
   price,
   points,
+  ticked,
   late,
 }: {
   product: Product;
   price: PriceView | null;
   points: PrompterPointRow[];
+  ticked: string[];
   late: boolean;
 }) {
   const t = useT();
   const cautions = product.cautions ?? [];
   const [showAll, setShowAll] = useState(false);
-  const saidText = points
-    .filter((p) => p.covered)
-    .map((p) => p.text.toLowerCase())
-    .join(" ");
+  // D-372: an item is ticked only when the server lists its id (the fact checker's verdict); no text matching
+  const said = (key: string | null) => key !== null && ticked.includes(`${product.code}#prompter#${key}`);
+  const mark = (on: boolean) => on && <span className={styles.saidMark} aria-label={t("Said")}><Check /></span>;
   // The price column already shows prices; a price point is listed only when it is required.
   const rows = points.filter((p) => p.required || !price || !p.text.includes(price.symbol));
   const lead = rows.find((p) => p.required && !p.covered) ?? null;
@@ -212,15 +214,20 @@ function ProductPanel({
           <h4 className={styles.factsLabel}>{t("Price & offers")}</h4>
           {price && (
             <>
-              <div className={styles.pfPrice}>
-                <small className={cx(sale && styles.priceSale)}>{t(price.label)}</small>
+              <div className={cx(styles.pfPrice, said(price.keys.current) && styles.said)} data-testid="host-price-current"
+                data-state={said(price.keys.current) ? "said" : "todo"}>
+                <small className={cx(sale && styles.priceSale)}>{mark(said(price.keys.current))}{t(price.label)}</small>
                 <span className="tabular">{price.current}</span>
               </div>
-              <div className={styles.pfLine}>
+              <div className={cx(styles.pfLine, said(price.keys.struck) && styles.said)} data-testid="host-price-struck"
+                data-state={said(price.keys.struck) ? "said" : "todo"}>
+                {mark(said(price.keys.struck))}
                 {sale ? t("Live price") : t("List price")} <s className="tabular">{price.struck}</s>
               </div>
               {price.set && (
-                <div className={styles.pfLine}>
+                <div className={cx(styles.pfLine, said(price.keys.set) && styles.said)} data-testid="host-price-set"
+                  data-state={said(price.keys.set) ? "said" : "todo"}>
+                  {mark(said(price.keys.set))}
                   {t("Set")} {price.set}
                 </div>
               )}
@@ -231,12 +238,13 @@ function ProductPanel({
           <h4 className={styles.factsLabel}>{t("Ingredients")}</h4>
           <div className={styles.nums}>
             {ingredientsOf(product).map((i) => {
-              const said = saidText.includes(i.name.toLowerCase());
+              const on = said(`ingredient-${i.key}`);
               return (
-                <div key={i.key} className={cx(styles.num, said && styles.said)} data-testid={`host-ing-${i.key}`}>
+                <div key={i.key} className={cx(styles.num, on && styles.said)} data-testid={`host-ing-${i.key}`}
+                  data-state={on ? "said" : "todo"}>
                   <b className="tabular">{i.value}</b>
                   <span>
-                    {said && <span className={styles.saidMark} aria-label={t("Said")}><Check /></span>}
+                    {mark(on)}
                     {i.name}
                   </span>
                 </div>
@@ -271,8 +279,12 @@ function ProductPanel({
             <TriangleAlert aria-hidden />
             {t("Caution")}
           </h5>
-          {(showAll ? cautions : cautions.slice(0, CAUTIONS_SHOWN)).map((c) => (
-            <p key={c}>{c}</p>
+          {(showAll ? cautions : cautions.slice(0, CAUTIONS_SHOWN)).map((c, i) => (
+            <p key={c} className={cx(said(`caution-${i + 1}`) && styles.said)} data-testid={`host-caution-${i + 1}`}
+              data-state={said(`caution-${i + 1}`) ? "said" : "todo"}>
+              {mark(said(`caution-${i + 1}`))}
+              {c}
+            </p>
           ))}
           {cautions.length > CAUTIONS_SHOWN && (
             <button type="button" className={styles.moreToggle} aria-expanded={showAll}

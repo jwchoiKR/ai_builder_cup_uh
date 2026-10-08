@@ -188,6 +188,8 @@ export interface PriceView {
   struck: string; // small, struck-through price
   set: string; // set price (promo set price during the time sale)
   symbol: string; // D-179: the market's currency symbol ("S$", "RM")
+  /** D-372: the prompter item key of each line (the server's snapshot ids, without the product code) */
+  keys: { current: string; struck: string; set: string | null };
 }
 
 export function priceView(state: ClientState, catalog: Catalog | null, product: Product | null): PriceView | null {
@@ -196,16 +198,20 @@ export function priceView(state: ClientState, catalog: Catalog | null, product: 
   const set = catalog.set_offers.find((s) => s.product_ids.includes(product.product_id));
   const promoPrice = promo?.promo_prices_display[product.product_id];
   if (promo && promoPrice) {
+    const promoSet = set ? promo.promo_prices_display[set.set_id] : undefined;
     return {
       label: "TIME SALE",
       current: promoPrice,
       struck: product.live_price_display,
-      set: (set && promo.promo_prices_display[set.set_id]) || set?.live_price_display || "",
+      set: promoSet || set?.live_price_display || "",
       symbol: catalog.currency_symbol,
+      keys: { current: `sale-price-${promo.promo_id}`, struck: "live-price",
+        set: set ? (promoSet ? `set-${set.set_id}-${promo.promo_id}` : `set-${set.set_id}`) : null },
     };
   }
   return { label: "LIVE PRICE", current: product.live_price_display, struck: product.list_price_display,
-    set: set?.live_price_display ?? "", symbol: catalog.currency_symbol };
+    set: set?.live_price_display ?? "", symbol: catalog.currency_symbol,
+    keys: { current: "live-price", struck: "list-price", set: set ? `set-${set.set_id}` : null } };
 }
 
 // ---- prompter --------------------------------------------------------------------------------------
@@ -222,6 +228,8 @@ export interface PrompterPointRow {
 export interface PrompterViewModel {
   product: Product | null;
   points: PrompterPointRow[];
+  /** D-372: the prompter item ids said right (the fact checker's verdicts); the only source of their ticks */
+  ticked: string[];
   requiredTotal: number;
   requiredCovered: number;
 }
@@ -229,7 +237,7 @@ export interface PrompterViewModel {
 export function prompterView(state: ClientState, catalog: Catalog | null): PrompterViewModel {
   const seg = onAirSegment(state);
   const product = productById(catalog, seg?.product_id ?? state.prompter?.product_id);
-  if (!product) return { product: null, points: [], requiredTotal: 0, requiredCovered: 0 };
+  if (!product) return { product: null, points: [], ticked: [], requiredTotal: 0, requiredCovered: 0 };
   const rs = runsheetOf(state, catalog);
   const item = rs?.items.find((i) => i.product_id === product.product_id);
   const required = new Set(item?.required_point_ids ?? []);
@@ -240,9 +248,11 @@ export function prompterView(state: ClientState, catalog: Catalog | null): Promp
     : product.prompter_points.map((p) => ({ point_id: p.point_id, text: p.text, required: required.has(p.point_id) }));
   const points = base.map((p) => ({ ...p, covered: covered.has(p.point_id) }));
   const req = points.filter((p) => p.required);
+  const ticked = [...new Set([...(fromServer?.ticked_item_ids ?? []), ...(seg?.ticked_item_ids ?? [])])];
   return {
     product,
     points,
+    ticked,
     requiredTotal: req.length,
     requiredCovered: req.filter((p) => p.covered).length,
   };
