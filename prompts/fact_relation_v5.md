@@ -39,6 +39,7 @@ For each fact, fill the fields in this order
    - `not_in_documents`: no sentence covers this fact. Never `contradicts` because something is missing.
    - `uncertain`: sentences cover the fact but you cannot tell whether the line agrees (which size is meant, a garbled line, it may be about another product). Also `uncertain`: a value that differs from `source_value` only in a way speech-to-text can produce. Number words merged into one number ("one fifty-millilitre tube" written as "150 ml tube" when the evidence says 50 mL), or a proper name that sounds like the evidence's name (a lab "Marrow Bay Labs" written as "Marro Bey labs").
 7. `correct_value`: only for `contradicts`: the right value in the evidence's words, as the host would say it aloud; otherwise null.
+8. `say`: only for `contradicts`: the line the host says to fix it, naming what the value is and any condition, in the show's language ("Panthenol is 5%", "The live price is S$32.40 during the time sale"); otherwise null.
 
 Rules
 - Product scope: check against CURRENT_PRODUCT unless the host clearly names another product. Never use one product's sentences to correct another product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT. A line that names no product and has no "this one", "it" or "this" is about the product the last line of RECENT_TRANSCRIPT was about. During SWITCH_CONTEXT.in_progress the host may already describe SWITCH_CONTEXT.next_product. If you cannot tell which product a fact is about, use `uncertain`.
@@ -86,7 +87,8 @@ Return the JSON fact check for UTTERANCE.
       "evidence": ["S12"],
       "source_value": "string | null",
       "relation": "contradicts | consistent | not_in_documents | uncertain | not_checked",
-      "correct_value": "string | null"
+      "correct_value": "string | null",
+      "say": "string | null"
     }
   ]
 }
@@ -100,49 +102,49 @@ Example A
 SOURCE includes passage "PA-01#key-facts" of product_a with sentences [["S3","Live broadcast price: S$24.00 (25% off list price)."]]
 UTTERANCE: "And today the live price is only twenty-one dollars."
 ```json
-{"claims":[{"span":"the live price is only twenty-one dollars","stance":"HOST_ASSERTS","product_id":"product_a","field":"price","stated_value":"S$21","evidence":["S3"],"source_value":"S$24.00","relation":"contradicts","correct_value":"S$24.00"}]}
+{"claims":[{"span":"the live price is only twenty-one dollars","stance":"HOST_ASSERTS","product_id":"product_a","field":"price","stated_value":"S$21","evidence":["S3"],"source_value":"S$24.00","relation":"contradicts","correct_value":"S$24.00","say":"The live price is S$24.00."}]}
 ```
 
 Example B
 SOURCE includes [["S7","Do not share the brush head with others."]] for product_b.
 UTTERANCE: "Someone wrote 'we can share one brush head'. Please don't, never share it."
 ```json
-{"claims":[{"span":"Please don't, never share it","stance":"HOST_ASSERTS","product_id":"product_b","field":"caution","stated_value":"never share the brush head","evidence":["S7"],"source_value":"Do not share the brush head","relation":"consistent","correct_value":null}]}
+{"claims":[{"span":"Please don't, never share it","stance":"HOST_ASSERTS","product_id":"product_b","field":"caution","stated_value":"never share the brush head","evidence":["S7"],"source_value":"Do not share the brush head","relation":"consistent","correct_value":null,"say":null}]}
 ```
 
 Example C
 SOURCE includes [["S2","Net volume: 7.5 mL."]] for product_c.
 UTTERANCE: "It's 7.5 millilitres, not 75."
 ```json
-{"claims":[{"span":"7.5 millilitres, not 75","stance":"HOST_ASSERTS","product_id":"product_c","field":"volume","stated_value":"7.5 mL","evidence":["S2"],"source_value":"7.5 mL","relation":"consistent","correct_value":null}]}
+{"claims":[{"span":"7.5 millilitres, not 75","stance":"HOST_ASSERTS","product_id":"product_c","field":"volume","stated_value":"7.5 mL","evidence":["S2"],"source_value":"7.5 mL","relation":"consistent","correct_value":null,"say":null}]}
 ```
 
 Example D
 ACTIVE_OFFERS: [{"promo_id":"gift_pouch","min_spend":"S$50.00","comparison":"above"}]
 UTTERANCE: "A fifty-eight dollar basket gets the pouch, since that's above fifty."
 ```json
-{"claims":[{"span":"A fifty-eight dollar basket gets the pouch, since that's above fifty","stance":"HOST_ASSERTS","product_id":"product_a","field":"promo","stated_value":"S$58 qualifies","evidence":["gift_pouch"],"source_value":"above S$50.00","relation":"consistent","correct_value":null}]}
+{"claims":[{"span":"A fifty-eight dollar basket gets the pouch, since that's above fifty","stance":"HOST_ASSERTS","product_id":"product_a","field":"promo","stated_value":"S$58 qualifies","evidence":["gift_pouch"],"source_value":"above S$50.00","relation":"consistent","correct_value":null,"say":null}]}
 ```
 
 Example E
 SOURCE includes [["S9","Apply two thin coats, letting each dry for one minute."]] for product_d.
 UTTERANCE: "So uh too thin coats and let them dry."
 ```json
-{"claims":[{"span":"too thin coats","stance":"HOST_ASSERTS","product_id":"product_d","field":"usage","stated_value":"two thin coats","evidence":["S9"],"source_value":"two thin coats","relation":"consistent","correct_value":null}]}
+{"claims":[{"span":"too thin coats","stance":"HOST_ASSERTS","product_id":"product_d","field":"usage","stated_value":"two thin coats","evidence":["S9"],"source_value":"two thin coats","relation":"consistent","correct_value":null,"say":null}]}
 ```
 
 Example F
 ACTIVE_PROMO: {"promo_id":"time_sale","promo_prices":{"product_a":21.60}}
 UTTERANCE: "It's twenty-four dollars right now."
 ```json
-{"claims":[{"span":"It's twenty-four dollars right now","stance":"HOST_ASSERTS","product_id":"product_a","field":"promo","stated_value":"S$24","evidence":["promo"],"source_value":"S$21.60","relation":"contradicts","correct_value":"S$21.60"}]}
+{"claims":[{"span":"It's twenty-four dollars right now","stance":"HOST_ASSERTS","product_id":"product_a","field":"promo","stated_value":"S$24","evidence":["promo"],"source_value":"S$21.60","relation":"contradicts","correct_value":"S$21.60","say":"The price is S$21.60 during the time sale."}]}
 ```
 
 Example G
 SOURCE includes [["S4","30 mL: S$28.00"],["S5","50 mL: S$39.00"]] for product_e.
 UTTERANCE: "It's thirty-nine for the small one."
 ```json
-{"claims":[{"span":"thirty-nine for the small one","stance":"HOST_ASSERTS","product_id":"product_e","field":"price","stated_value":"S$39 (small)","evidence":["S4","S5"],"source_value":"S$28.00 for 30 mL","relation":"contradicts","correct_value":"S$28.00 for 30 mL"}]}
+{"claims":[{"span":"thirty-nine for the small one","stance":"HOST_ASSERTS","product_id":"product_e","field":"price","stated_value":"S$39 (small)","evidence":["S4","S5"],"source_value":"S$28.00 for 30 mL","relation":"contradicts","correct_value":"S$28.00 for 30 mL","say":"The small one, 30 mL, is S$28.00."}]}
 ```
 
 Example H
@@ -155,7 +157,7 @@ Example I
 ACTIVE_OFFERS: [{"promo_id":"coupon_10","terms":"One coupon per order."}]
 UTTERANCE: "Someone asks, 'Can I use two coupons on one order?'"
 ```json
-{"claims":[{"span":"Can I use two coupons on one order","stance":"REPORTS_OR_ASKS","product_id":"product_a","field":"promo","stated_value":"two coupons on one order","evidence":["coupon_10"],"source_value":"One coupon per order","relation":"not_checked","correct_value":null}]}
+{"claims":[{"span":"Can I use two coupons on one order","stance":"REPORTS_OR_ASKS","product_id":"product_a","field":"promo","stated_value":"two coupons on one order","evidence":["coupon_10"],"source_value":"One coupon per order","relation":"not_checked","correct_value":null,"say":null}]}
 ```
 
 Example J
@@ -163,7 +165,7 @@ SOURCE includes [["S8","The pair offer ends on 30 November."]] for product_a.
 RECENT_TRANSCRIPT: ["Someone says the pair offer ends on November 3rd."]
 UTTERANCE: "Correct."
 ```json
-{"claims":[{"span":"the pair offer ends on November 3rd","stance":"HOST_ENDORSES","product_id":"product_a","field":"promo","stated_value":"ends 3 November","evidence":["S8"],"source_value":"ends on 30 November","relation":"contradicts","correct_value":"The pair offer ends on 30 November."}]}
+{"claims":[{"span":"the pair offer ends on November 3rd","stance":"HOST_ENDORSES","product_id":"product_a","field":"promo","stated_value":"ends 3 November","evidence":["S8"],"source_value":"ends on 30 November","relation":"contradicts","correct_value":"The pair offer ends on 30 November.","say":"The pair offer ends on 30 November."}]}
 ```
 
 Example K
@@ -178,33 +180,33 @@ Example L
 SOURCE includes [["S6","Net volume: 50 mL."]] for product_f.
 UTTERANCE: "You get 150 ml tube in the box."
 ```json
-{"claims":[{"span":"150 ml tube","stance":"HOST_ASSERTS","product_id":"product_f","field":"volume","stated_value":"150 mL","evidence":["S6"],"source_value":"50 mL","relation":"uncertain","correct_value":null}]}
+{"claims":[{"span":"150 ml tube","stance":"HOST_ASSERTS","product_id":"product_f","field":"volume","stated_value":"150 mL","evidence":["S6"],"source_value":"50 mL","relation":"uncertain","correct_value":null,"say":null}]}
 ```
 
 Example M
 SOURCE includes [["S3","Each tablet contains 18 mg of iron."]] for product_h.
 UTTERANCE: "A viewer says each tablet has 80 mg."
 ```json
-{"claims":[{"span":"each tablet has 80 mg","stance":"REPORTS_OR_ASKS","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"not_checked","correct_value":null}]}
+{"claims":[{"span":"each tablet has 80 mg","stance":"REPORTS_OR_ASKS","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"not_checked","correct_value":null,"say":null}]}
 ```
 
 Example N
 SOURCE includes [["S3","Each tablet contains 18 mg of iron."]] for product_h.
 UTTERANCE: "A viewer asks if it has 80 mg, and yes, it does."
 ```json
-{"claims":[{"span":"it has 80 mg, and yes, it does","stance":"HOST_ENDORSES","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet"}]}
+{"claims":[{"span":"it has 80 mg, and yes, it does","stance":"HOST_ENDORSES","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet","say":"Each tablet has 18 mg."}]}
 ```
 
 Example O
 SOURCE includes [["S3","Each tablet contains 18 mg of iron."]] for product_h.
 UTTERANCE: "It has 80 mg, right?"
 ```json
-{"claims":[{"span":"It has 80 mg, right?","stance":"HOST_ASSERTS","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet"}]}
+{"claims":[{"span":"It has 80 mg, right?","stance":"HOST_ASSERTS","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet","say":"Each tablet has 18 mg."}]}
 ```
 
 Example P
 ACTIVE_OFFERS: [{"promo_id":"gift_set","terms":"Buy two bottles, get a pouch."}]
 UTTERANCE (the co-host): "Does one bottle qualify for the gift?"
 ```json
-{"claims":[{"span":"Does one bottle qualify for the gift?","stance":"REPORTS_OR_ASKS","product_id":"product_a","field":"promo","stated_value":"one bottle qualifies","evidence":["gift_set"],"source_value":"two bottles","relation":"not_checked","correct_value":null}]}
+{"claims":[{"span":"Does one bottle qualify for the gift?","stance":"REPORTS_OR_ASKS","product_id":"product_a","field":"promo","stated_value":"one bottle qualifies","evidence":["gift_set"],"source_value":"two bottles","relation":"not_checked","correct_value":null,"say":null}]}
 ```

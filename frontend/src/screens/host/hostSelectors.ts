@@ -82,22 +82,16 @@ function quoteSubject(alert: Alert): string | null {
   return head && head.length <= 40 ? head : null;
 }
 
-/** D-136: the correction as the host can read it out, with the product (or set) from the note and the promo condition
- * when the right value comes from the active price promotion (no sheet passage). D-386 (user): it names what the value
- * is: "Cream: Panthenol is 5%", "Cream: Live price is S$36.00"; with no label in the source, or when the model's
- * correct value is a sentence, the value as the model wrote it ("Cream: S$32.40 during the time sale"). The line is
- * read out on air, so it stays in the broadcast language (D-109). */
-export function factSayLine(catalog: Catalog | null, alert: Alert, pricePromoTitle: string | null): string {
+/** D-136: the correction as the host can read it out, after the product (or set) of the note. D-396: the line is the
+ * model's `say` as it wrote it ("Panthenol is 5%", "The live price is S$32.40 during the time sale"); a note without
+ * one shows the model's correct value. No code builds or tests the wording. Read out on air, so it stays in the
+ * broadcast language (D-109). */
+export function factSayLine(catalog: Catalog | null, alert: Alert): string {
   const product = productById(catalog, alert.product_id);
   const set = catalog?.set_offers.find((s) => s.set_id === alert.product_id);
   const name = (product?.short_name ?? (set ? set.short_name || set.name : "")).replace(/^the /i, "");
   const label = name ? `${name.charAt(0).toUpperCase()}${name.slice(1)}: ` : "";
-  const promo = pricePromoTitle ? pricePromoTitle.split(":")[0].trim().toLowerCase() : "";
-  const condition = !alert.passage_id && promo && PROMO_FIELDS.has(alert.field ?? "") ? ` during the ${promo}` : "";
-  const value = alert.correct_value ?? "";
-  const subject = quoteSubject(alert);
-  const sentence = /[.!?]$/.test(value.trim()) || value.trim().split(/\s+/).length > 4;
-  return subject && !sentence ? `${label}${subject} is ${value}${condition}` : `${label}${value}${condition}`;
+  return `${label}${alert.say ?? alert.correct_value ?? ""}`;
 }
 
 /** What the value is: the quoted passage label ("Live broadcast price", "Niacinamide"), else the

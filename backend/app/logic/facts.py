@@ -47,12 +47,13 @@ def apply_fact_check(
         if a is not None:
             a.stated_value, a.correct_value = c.stated_value, c.correct_value or a.correct_value
             a.passage_id, a.quote, a.span = c.passage_id, c.quote, c.span  # D-365: the words of this showing
+            a.say = c.say  # D-396
             a.shown_at, a.host_hidden_at, a.transcript_id = now, None, t.transcript_id
             reshown.append(a)
         else:
             a = Alert(alert_id=new_id("fx_"), kind="fact", status="active", transcript_id=t.transcript_id,
                       product_id=c.product_id, field=c.field, stated_value=c.stated_value,
-                      correct_value=c.correct_value, passage_id=c.passage_id, quote=c.quote,
+                      correct_value=c.correct_value, passage_id=c.passage_id, quote=c.quote, say=c.say,
                       span=c.span, created_at=now, shown_at=now, unverified=getattr(c, "_unverified", False),
                       votes=getattr(c, "_votes", None), evidence_ids=list(getattr(c, "_evidence", [])),
                       heard_check=getattr(c, "_check", False),
