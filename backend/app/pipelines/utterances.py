@@ -907,12 +907,14 @@ class UtterancePipeline:
                     await rt.emit("alert.updated", a)
             return
         if rt.settings.CORRECTION_CHECK == "judge":
-            # D-304: the compliance judge's listed alerts, with no word check and no replacement match
-            ids = {a.alert_id for a in correctable if a.kind == "compliance"}
+            # D-304: the compliance judge's listed alerts, with no word check and no replacement match. D-361: the
+            # merge protection (D-088) never overrules the model: an alert it lists is corrected even when the line
+            # was merged with the alert's own fragment
+            ids = {a.alert_id for a in earlier if a.kind == "compliance"}
             accepted = [i for i in dict.fromkeys(listed) if i in ids]
             # D-352: an alert still provisional (its own line's verdict not applied yet) is corrected the moment it
             # turns active; apply_corrections only handles active alerts
-            by_id = {a.alert_id: a for a in correctable}
+            by_id = {a.alert_id: a for a in earlier}
             waiting = [i for i in accepted if by_id[i].status == "provisional"]
             for i in waiting:
                 self._pending_fix[i] = t

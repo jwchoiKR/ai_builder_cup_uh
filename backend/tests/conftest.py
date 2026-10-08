@@ -35,6 +35,7 @@ LEGACY = {
     "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",  # D-343
     "CORRECTION_HANDLES": "false",  # D-358: on by default with the originals path; the rules-path tests script ids
     "FACT_MODE": "docs",  # D-360: the default is the prompter snapshot; older tests cite the release's sheet passages
+    "SWITCH_MODE": "two_step",  # D-361: the default is the immediate switch; older tests count cues
 }
 for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)

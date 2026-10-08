@@ -49,6 +49,11 @@ class _Collection:
 
     async def stream(self):
         self._client.reads += 1
+        if self._client.fail_streams.get(self.path, 0) > 0:  # D-361: a read that fails mid-way
+            self._client.fail_streams[self.path] -= 1
+            from google.api_core.exceptions import ServiceUnavailable
+
+            raise ServiceUnavailable("scripted read outage")
         for doc_id, data in list(self._client.data.get(self.path, {}).items()):
             yield _Snap(doc_id, data)
 
@@ -92,6 +97,7 @@ class FakeFirestore:
         self.commits: list[int] = []
         self.fail_next_commits = 0
         self.refuse_ids: set[str] = set()  # documents this "Firestore" refuses (InvalidArgument)
+        self.fail_streams: dict[str, int] = {}  # collection path -> how many of its next reads fail
 
     def check(self, path: str, doc_id: str, fields: dict) -> None:
         if doc_id in self.refuse_ids and "_json" not in fields:

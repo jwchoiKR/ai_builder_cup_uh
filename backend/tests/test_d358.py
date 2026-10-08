@@ -25,7 +25,8 @@ SORRY = "Sorry, scratch that, it supports normal joint comfort."
 def _verdict(citation: str, quote: str, severity: str = "HIGH", span: str = "cures arthritis") -> dict:
     return {"alert_checks": [], "compliance": {"violations": [{
         "citation": citation, "quote": quote, "span": span, "severity": severity, "is_negated": False,
-        "is_quoted": False, "say_instead": "x", "qualified_result_id": None}]}, "reason": "scripted"}
+        "is_quoted": False, "say_instead": "It supports normal joint comfort.", "qualified_result_id": None}]},
+        "reason": "scripted"}
 
 
 class _Backend(ScriptedBackend):
@@ -96,7 +97,7 @@ async def test_d358_a_cited_verdict_becomes_an_alert_named_by_its_citation(tmp_p
         [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
         assert a.rule_id == citation_rule_id("kelmar_code.txt", "2.1") == "kelmar-code#2-1"
         assert a.severity == "HIGH" and a.status == "active"
-        assert a.say_instead == "Supports normal joint comfort."  # approved wording, not the model's "x"
+        assert a.say_instead == "It supports normal joint comfort."  # D-361: the model's own, no code rewording
     finally:
         await close_env(rt)
 
@@ -155,9 +156,8 @@ def test_d358_a_test_qualifier_verdict_is_checked_against_the_recorded_results(c
 
     [v] = run(result.result_id, "anything")
     assert (v.rule_id, v.say_instead) == ("TEST-QUALIFIER", result.say)
-    [v] = run(None, result.say)  # no id, but the quote is the recorded wording
-    assert v.say_instead == result.say
-    assert run(None, "a result nobody recorded") == []
+    assert run(None, result.say) == []  # D-361: named by id only, no quote matching
+    assert run("no-such-result", "anything") == []
 
 
 async def test_d358_a_rule_source_with_no_original_is_reported(caplog):

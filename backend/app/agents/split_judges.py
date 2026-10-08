@@ -191,7 +191,7 @@ class ComplianceJudge(_SplitJudge):
 
     def regulation(self):
         """D-358: the originals behind the show's products' rules (the same for every line of the show)."""
-        if self._docs is None:
+        if self._docs is None or self._docs[1]:  # D-361: a miss is looked up again (each found source is kept)
             from .originals import originals_for
 
             self._docs = originals_for(self.catalog, self.llm.settings.onboarding_path, self.catalog.order)
