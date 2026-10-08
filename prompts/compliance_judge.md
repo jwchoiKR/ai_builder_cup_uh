@@ -29,8 +29,6 @@ Flag a violation ONLY when the host's own words make a claim about the product t
 - Repeating a documented caution, or the product's documented intended users, as documented is NOT a violation ("for
   children from 6 months", "not for use on broken skin", "ask your doctor first if you are pregnant"). Saying who the
   product suits is not a safety promise.
-- A safety, health or suitability PROMISE to a vulnerable group (pregnancy, breastfeeding, babies, children, people
-  with a medical condition) is a violation, even when the group is the intended user.
 - A claim must be affirmative and about the product. A topic word alone ("Eczema, um,") is not a claim.
 - `is_negated = true` when the host denies the claim. `is_quoted = true` when the host reads out or reports someone
   else's words; when the host then agrees with or vouches for it, it is the host's own claim (`is_quoted = false`).
@@ -101,10 +99,11 @@ Return the JSON verdict for UTTERANCE.
 
 Example A
 REGULATION_DOCUMENTS: [{"document":"kelmar_cosmetic_code.pdf","title":"Kelmar Cosmetic Code"}]
+kelmar_cosmetic_code.pdf, section 4.2: "No claim may promise safety to infants or other vulnerable consumers."
 CURRENT_PRODUCT: product_k (a baby balm, target_group: babies from 6 months)
 UTTERANCE: "It's totally safe for newborns, zero risk."
 ```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#4.2","quote":"No claim may promise safety to infants or other vulnerable consumers.","span":"totally safe for newborns, zero risk","is_negated":false,"is_quoted":false,"say_instead":"A gentle balm for babies from 6 months.","qualified_result_id":null,"same_as":null}]},"reason":"A safety promise to a vulnerable group."}
+{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#4.2","quote":"No claim may promise safety to infants or other vulnerable consumers.","span":"totally safe for newborns, zero risk","is_negated":false,"is_quoted":false,"say_instead":"A gentle balm for babies from 6 months.","qualified_result_id":null,"same_as":null}]},"reason":"Section 4.2 prohibits promising safety to infants."}
 ```
 
 Example B

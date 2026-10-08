@@ -201,3 +201,12 @@ def test_d400_the_model_is_not_asked_for_a_severity_and_test_qualifier_is_orange
          "say_instead": "y", "qualified_result_id": None}]}, "correction": {"corrects_alert_ids": []}, "reason": "r"})
     values = {"current_product_json": {"product_id": catalog.order[0]}, "active_alerts_json": []}
     assert [v.severity for v in validate_original(out, catalog, values, ()).compliance.violations] == ["MEDIUM", "HIGH"]
+
+
+def test_d405_no_own_rule_for_vulnerable_groups_in_the_prompt():
+    """D-405 (user, audit 13a): the judge enforces only the regulation documents; the prompt adds no rule of its own."""
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[2] / "prompts" / "compliance_judge.md").read_text(encoding="utf-8")
+    assert "PROMISE to a vulnerable group" not in text
+    assert 'section 4.2: "No claim may promise safety to infants' in text  # Example A cites its document's text
