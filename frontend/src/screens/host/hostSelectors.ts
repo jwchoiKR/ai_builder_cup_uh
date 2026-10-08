@@ -74,9 +74,19 @@ export function factSourceLabel(catalog: Catalog | null, alert: Alert): string {
   return section ? `product sheet, ${section}` : "product sheet";
 }
 
-/** D-136: the correction as the host can read it out: "Cream: say S$32.40 during the time sale". The product
- * (or set) comes from the note; the promo condition is added when the right value comes from the active
- * price promotion (no sheet passage). */
+/** D-386: what the value is, from the note's source sentence ("Panthenol: 5%" -> "Panthenol"), never from the
+ * host's words; null when the source has no label. */
+function quoteSubject(alert: Alert): string | null {
+  const quote = alert.quote ?? "";
+  const head = quote.includes(":") ? quote.split(":")[0].trim() : "";
+  return head && head.length <= 40 ? head : null;
+}
+
+/** D-136: the correction as the host can read it out, with the product (or set) from the note and the promo condition
+ * when the right value comes from the active price promotion (no sheet passage). D-386 (user): it names what the value
+ * is: "Cream: Panthenol is 5%", "Cream: Live price is S$36.00"; with no label in the source, or when the model's
+ * correct value is a sentence, the value as the model wrote it ("Cream: S$32.40 during the time sale"). The line is
+ * read out on air, so it stays in the broadcast language (D-109). */
 export function factSayLine(catalog: Catalog | null, alert: Alert, pricePromoTitle: string | null): string {
   const product = productById(catalog, alert.product_id);
   const set = catalog?.set_offers.find((s) => s.set_id === alert.product_id);
@@ -84,16 +94,16 @@ export function factSayLine(catalog: Catalog | null, alert: Alert, pricePromoTit
   const label = name ? `${name.charAt(0).toUpperCase()}${name.slice(1)}: ` : "";
   const promo = pricePromoTitle ? pricePromoTitle.split(":")[0].trim().toLowerCase() : "";
   const condition = !alert.passage_id && promo && PROMO_FIELDS.has(alert.field ?? "") ? ` during the ${promo}` : "";
-  return `${label}say ${alert.correct_value ?? ""}${condition}`;
+  const value = alert.correct_value ?? "";
+  const subject = quoteSubject(alert);
+  const sentence = /[.!?]$/.test(value.trim()) || value.trim().split(/\s+/).length > 4;
+  return subject && !sentence ? `${label}${subject} is ${value}${condition}` : `${label}${value}${condition}`;
 }
 
 /** What the value is: the quoted passage label ("Live broadcast price", "Niacinamide"), else the
  * field label. */
 export function factContext(catalog: Catalog | null, alert: Alert): string {
-  const quote = alert.quote ?? "";
-  const head = quote.includes(":") ? quote.split(":")[0].trim() : "";
-  if (head && head.length <= 40) return head;
-  return fieldLabel(catalog, alert.field);
+  return quoteSubject(alert) ?? fieldLabel(catalog, alert.field);
 }
 
 export interface RuleInfo {
