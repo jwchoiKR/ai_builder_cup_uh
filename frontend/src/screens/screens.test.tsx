@@ -107,6 +107,24 @@ describe("screens", () => {
     }
   });
 
+  it("D-375: Send sample questions fires the sample-questions burst", async () => {
+    const saved = demoFeed;
+    demoFeed = { pool_running: false, pool_available: true, armed: [], fired: [],
+      bursts: [{ burst_id: "B6_sample_questions", scene: "default", description: "", anchor: "trigger", count: 13 }] };
+    responses["/api/sessions/ses_d375/feed/burst/B6"] = { burst_id: "B6_sample_questions", status: "fired", feed: demoFeed };
+    try {
+      render(<Studio sessionId="ses_d375" />);
+      fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
+      fireEvent.click(await screen.findByText("Send sample questions"));
+      const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+      await waitFor(() => expect(calls.some(([u, init]) => u === "/api/sessions/ses_d375/feed/burst/B6"
+        && init?.method === "POST")).toBe(true));
+    } finally {
+      demoFeed = saved;
+      delete responses["/api/sessions/ses_d375/feed/burst/B6"];
+    }
+  });
+
   it("the open demo console resizes by keyboard, remembers its height, and survives a throwing storage", async () => {
     window.localStorage.removeItem("ls.console.height");
     const { unmount } = render(<Studio sessionId="ses_000001" />);

@@ -17,6 +17,7 @@ export const BURST_BUTTONS: { id: string; label: string }[] = [
   { id: "B2", label: "B2 Oily skin & makeup" },
   { id: "B3", label: "B3 Sensitive & spam" },
   { id: "B4", label: "B4 Time sale questions" },
+  { id: "B6", label: "Send sample questions" }, // D-375: Top 3 groups for the host's AI PD panel
 ];
 
 /** D-337: the show has this burst (a release show has none: its buttons would answer 404). */
