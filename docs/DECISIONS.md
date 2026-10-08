@@ -2349,3 +2349,5 @@ Kept (the user-approved plumbing): the evidence id exists, the code-built quote,
 - `utterances._run_facts`: the fact check is retried only for a line with a spoken number (a retry condition).
 - `publish.states_number` and the rest of the spoken-answer posting belong to the comments team (out of scope).
 - Tests: `test_d305` (no regex chip by default); `test_d298`, `test_d299` and `test_relation` now name `ALL_FIXES` for the opt-in code checks they test.
+
+D-353 addendum (user order, 10/8): `VERBAL_CHECK` goes back to `code`. Spoken-answer posting belongs to the comments team, so it is outside this team's scope. The code default is back, `VERBAL_CHECK=judge` is removed from `deploy/cloudrun.sh`, and `.env.example` matches. No test had been changed for it. The D-353 table row for VERBAL_CHECK no longer holds.
