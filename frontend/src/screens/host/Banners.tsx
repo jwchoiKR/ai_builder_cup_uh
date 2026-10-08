@@ -4,11 +4,15 @@ import { ArrowLeftRight, Check, CircleAlert, Headphones, ShieldAlert } from "luc
 import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
+import { useNow } from "../../app/store";
 import { TEST_QUALIFIER_RULE } from "../../app/selectors";
 import type { LineCheck } from "../../app/state";
 import type { Alert, Catalog, HostCue } from "../../app/types";
 import { factContext, factSayLine, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
+
+/** D-341: the backend's LATE_QUALIFIER_MS: a qualifier add-on fixes the alert only this long after it. */
+const QUALIFIER_ADDON_MS = 10_000;
 
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
 
@@ -80,9 +84,12 @@ export function MediumBanner({
   catalog,
   fact = null,
   onRendered,
+  serverOffsetMs = 0,
 }: {
   alert: Alert;
   catalog: Catalog | null;
+  /** D-341: server time, for the qualifier add-on's 10 s */
+  serverOffsetMs?: number;
   /** D-105: the fact note on the same sentence, shown in this card instead of its own. */
   fact?: Alert | null;
   onRendered?: (alertId: string) => void;
@@ -95,12 +102,16 @@ export function MediumBanner({
   }, [alert.alert_id, fact?.alert_id, onRendered]);
   const rule = ruleInfo(catalog, alert.rule_id);
   const qualifier = alert.rule_id === TEST_QUALIFIER_RULE;
+  // D-341 (review H16): the qualifier alone fixes the alert only within 10 s; after that, say the result again with it
+  const now = useNow(1000) + serverOffsetMs;
+  const late = qualifier && now - alert.created_at > QUALIFIER_ADDON_MS;
   return (
     <div className={cx(styles.alertBlock, styles.alertMedium)} data-testid="host-medium-banner" role="alert">
       <div className={styles.alertTop}>
         <span className={styles.warnBadge}>
           <ShieldAlert aria-hidden />
-          {qualifier ? t("ADD 'IN OUR IN-HOUSE TEST'") : t("CHECK WORDING")}
+          {qualifier ? (late ? t("SAY THE RESULT AGAIN WITH 'IN OUR IN-HOUSE TEST'") : t("ADD 'IN OUR IN-HOUSE TEST'"))
+            : t("CHECK WORDING")}
         </span>
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
