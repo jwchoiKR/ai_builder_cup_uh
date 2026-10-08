@@ -1,0 +1,67 @@
+"""D-352: a correction (or a qualifier re-said) spoken before its alert turned active is no longer lost. Made-up lines;
+the judges' verdicts are scripted, and the correcting line's verdict lists whatever alerts its input showed."""
+from __future__ import annotations
+
+import asyncio
+import json
+import re
+
+from app.providers.llm import LLMError, RawReply
+
+from .judge_fakes import ScriptedBackend, close_env, split_part, judge_output, violation
+
+CLAIM = "Honestly this cream cures eczema."
+SORRY = "Sorry guys, I shouldn't have said it cures eczema."
+
+
+class _Backend(ScriptedBackend):
+    """SORRY's compliance verdict corrects every alert in its ACTIVE_ALERTS (none when it has none)."""
+
+    def __init__(self, fail_recheck: bool = False) -> None:
+        super().__init__()
+        self.fail_recheck = fail_recheck
+        self.sorry_calls = 0
+
+    async def generate(self, req, timeout_ms):
+        if req.agent == "compliance_judge" and req.mock_primary_text == SORRY:
+            self.sorry_calls += 1
+            if self.fail_recheck and self.sorry_calls > 1:
+                raise LLMError("scripted failure")
+            block = re.search(r'<data name="ACTIVE_ALERTS">(.*?)</data>', req.user_message, re.S)
+            ids = [a["alert_id"] for a in json.loads(block.group(1))] if block else []
+            out = split_part("compliance_judge", judge_output(corrects=ids, utterance_type="correction"))
+            return RawReply(json.dumps(out), model_version="scripted")
+        return await super().generate(req, timeout_ms)
+
+
+async def _run(backend, **settings):
+    from .helpers import live_runtime, make_ctx
+
+    backend.judge(CLAIM, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
+    backend.delays[("utterance_judge", CLAIM)] = 0.3  # the claim's verdict comes after the apology's
+    rt = await live_runtime(make_ctx(backend=backend, CORRECTION_CHECK="judge", **settings))
+    try:
+        await rt.inject_transcript(CLAIM)
+        await asyncio.sleep(0.05)
+        await rt.inject_transcript(SORRY)
+        await rt.utterances.drain()
+        await rt.ctx.scheduler.idle()
+        return [a for a in await rt.alerts() if a.kind == "compliance" and a.rule_id == "ASEAN-2D-DISEASE"], backend
+    finally:
+        await close_env(rt)
+
+
+async def test_d352_a_correction_of_a_provisional_alert_applies_when_it_turns_active():
+    alerts, llm = await _run(_Backend(), REFLEX_SCAN=True)  # the reflex chip makes the alert provisional at once
+    assert [a.status for a in alerts if a.status != "cleared"] == ["corrected"]
+    assert llm.sorry_calls == 1  # the stored correction applied; no second call
+
+
+async def test_d352_a_line_judged_before_the_alert_existed_is_asked_once_more():
+    alerts, llm = await _run(_Backend(), REFLEX_SCAN=False)  # no chip: the apology's verdict saw no alert at all
+    assert [a.status for a in alerts] == ["corrected"] and llm.sorry_calls == 2
+
+
+async def test_d352_a_failed_re_check_is_never_a_correction():
+    alerts, llm = await _run(_Backend(fail_recheck=True), REFLEX_SCAN=False)
+    assert [a.status for a in alerts] == ["active"] and llm.sorry_calls == 2
