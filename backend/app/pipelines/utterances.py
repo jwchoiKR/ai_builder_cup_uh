@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import dataclasses
 import logging
 import re
 from dataclasses import dataclass, replace
@@ -212,6 +213,7 @@ class UtterancePipeline:
         # the alert turns active)
         self._pending_fix: dict[str, Transcript] = {}
         self._fact_shown: dict[str, set[str]] = {}  # D-363: line -> the fact notes its fact check was shown
+        self._fact_inputs: dict[str, FactInput] = {}  # D-364: line -> its fact check's input (a re-check reuses it)
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
         key = (t.transcript_id, kind)
@@ -455,6 +457,8 @@ class UtterancePipeline:
                 self._judged.pop(tid, None)
                 self._prepared.pop(tid, None)
                 self._inputs.pop(tid, None)
+                self._fact_shown.pop(tid, None)
+                self._fact_inputs.pop(tid, None)
                 self._ready.pop(tid, None)
                 self._addenda.pop(tid, None)
 
@@ -742,6 +746,8 @@ class UtterancePipeline:
                         passages=passages, previous=judge_input.previous, recent=judge_input.recent,
                         session_id=self.rt.sid, scenario=scenario,
                         offers=offers, parts=parts or [], notes=notes)
+        if transcript_id is not None:
+            self._fact_inputs[transcript_id] = inp
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
         if res.status in ("timeout", "error") and self.rt.catalog.lexicon.spoken_numbers(text):
             # D-203: a line that states a number posts only after a completed check (D-195): one fresh call with its
@@ -1379,9 +1385,17 @@ class UtterancePipeline:
         return {a.alert_id for a in created + reshown}
 
     async def _correct_fact_notes_locked(self, t: Transcript, note_ids, fresh=()) -> None:
-        """D-363: the fact notes the model marked fixed (by handle), and nothing else."""
+        """D-363: the fact notes the model marked fixed (by handle), and nothing else. D-364: in line order: a fix
+        from a line said before the note's latest showing (T1 wrong, T2 fix, T3 wrong again, T2's verdict last) never
+        closes it."""
         rt = self.rt
-        for a in fact_logic.correct_notes(set(note_ids), await rt.alerts(), t, rt.now(), fresh):
+        seq = self._sequence.get(t.transcript_id, 0)
+        alerts = await rt.alerts()
+        stale = {a.alert_id for a in alerts if a.alert_id in note_ids and self._sequence.get(a.transcript_id, 0) > seq}
+        if stale:
+            log.info("fact notes %s t=%s: fix of %s skipped, the note was shown again by a later line", rt.sid,
+                     t.transcript_id, sorted(stale))
+        for a in fact_logic.correct_notes(set(note_ids) - stale, alerts, t, rt.now(), fresh):
             rt.ctx.scheduler.cancel(rt.key(f"facthide:{a.alert_id}"))
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
@@ -1422,10 +1436,14 @@ class UtterancePipeline:
             a = await rt.get_alert(note_id)
             if a is None or a.status != "active":
                 return
-            text = self._prepared[t.transcript_id][1] if t.transcript_id in self._prepared else t.text
-        switch = SwitchState()
-        inp = FactInput(utterance=text, on_air=a.product_id, switch=switch, promo=None,
-                        passages=await self._fact_passages(text, a.product_id, switch), notes=[a], session_id=rt.sid)
+        original = self._fact_inputs.get(t.transcript_id)
+        if original is None:
+            log.info("fact note %s re-check: note=%s t=%s skipped (its fact-check input is gone)", rt.sid, note_id,
+                     t.transcript_id)
+            return
+        # D-364: the line's own context (its on-air product, previous lines, switch state, passages), only the note
+        # added; never rebuilt from the current product (a line about B after a switch is not re-checked as A)
+        inp = dataclasses.replace(original, notes=[a])
         res = await self.facts.run(inp, deadline_ms=rt.settings.FACT_LATE_MS)
         fixed = res.status == "ok" and res.output is not None and note_id in getattr(res.output, "_corrects", [])
         log.info("fact note %s re-check: note=%s t=%s status=%s fixed=%s", rt.sid, note_id, t.transcript_id,
