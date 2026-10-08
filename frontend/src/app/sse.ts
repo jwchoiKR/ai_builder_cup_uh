@@ -54,6 +54,7 @@ export const EVENT_TYPES = [
   "testdrive.audio",
   "hold.started",  // D-335: a question waits for its answer (the operator's "collecting context")
   "hold.ended",
+  "segment.switch_decided", // D-349 SWITCH_MODE=immediate: each transition verdict (switch or not)
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];

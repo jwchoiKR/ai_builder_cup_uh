@@ -189,6 +189,24 @@ export function SwitchBanner({
   );
 }
 
+/** D-349 SWITCH_MODE=immediate: the prompter already switched; the host can take it back for a few seconds. */
+export function SwitchedBar({ productName, onUndo }: { productName: string; onUndo: () => void }) {
+  const t = useT();
+  return (
+    <div className={cx(styles.banner, styles.switch)} data-testid="host-switched-bar" role="status">
+      <span className={styles.bannerIcon} aria-hidden>
+        <ArrowLeftRight />
+      </span>
+      <div className={styles.bannerBody}>
+        <span className={styles.switchTitle}>{t("Switched to {name}", { name: productName })}</span>
+      </div>
+      <button type="button" className={styles.switchCancel} onClick={onUndo}>
+        {t("Undo (Esc)")}
+      </button>
+    </div>
+  );
+}
+
 /** D-106: in the prompter card, where the alert was. */
 export function CorrectedBar() {
   const t = useT();

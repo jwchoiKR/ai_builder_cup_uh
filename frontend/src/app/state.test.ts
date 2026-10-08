@@ -63,6 +63,7 @@ describe("every event type", () => {
       "segment.switch_counting": { target_product_id: AMPOULE, cue_count: 1, transcript_id: "tr_1" },
       "segment.switch_pending": { target_product_id: AMPOULE, commit_at: T0 + 5000 },
       "segment.switch_cancelled": { reason: "speech" },
+      "segment.switch_decided": { transcript_id: "tr_1", switch: true, target_product_id: AMPOULE, confidence: "high" },
       "segment.undone": { segment_id: "seg_x" },
       "segment.missing_points": { segment_id: "seg_000001", product_id: CREAM, missing_point_ids: ["cr-p4"] },
       "prompter.updated": { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: ["cr-p1"], required_total: 2, required_covered: 0 },

@@ -292,7 +292,13 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
     tester_text = f"{prev[0]} {text}" if g5 and prev else text  # D-294 G5: the tester named in the previous final
     on_air_id = (values.get("current_product_json") or {}).get("product_id")
     on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
+    scope = values.get("scope_product_ids")  # D-349: two products in scope right after a switch
     for v in o.compliance.violations:
+        product = on_air_product
+        if scope:  # the model says which product the claim is about; its wording corrects it
+            if getattr(v, "product_id", None) not in scope:
+                v.product_id = on_air_id
+            product = catalog.get_product(v.product_id)
         said = v.severity
         v.severity = rules[v.rule_id].severity
         if model_severity and said == "MEDIUM" and v.severity == "HIGH":
@@ -333,8 +339,8 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
         else:
             # D-259: a line that negates one of the product's cautions is corrected by that caution, not by an
             # unrelated approved claim
-            v.say_instead = (negated_caution(text, on_air_product, lex)
-                             or approved_say(v.say_instead, on_air_product, catalog))
+            v.say_instead = (negated_caution(text, product, lex)
+                             or approved_say(v.say_instead, product, catalog))
         kept.append(v)
     o.compliance.violations = kept
     fixes = fact_checker.fixes_of()
@@ -436,7 +442,8 @@ def judge_products(catalog: Catalog, inp: JudgeInput) -> set[str] | None:
     if inp.all_products:
         return set(catalog.order)
     target = inp.switch.target_product_id if inp.switch.status in ("counting", "pending") else None
-    return catalog.line_products(inp.on_air, target, [*inp.previous[-2:], inp.utterance])
+    return (catalog.line_products(inp.on_air, target, [*inp.previous[-2:], inp.utterance])
+            | ({inp.switch.previous_product_id} - {None}))  # D-349: the product that just left the air
 
 
 def build_judge_values(catalog: Catalog, inp: JudgeInput, single: bool = False) -> dict:

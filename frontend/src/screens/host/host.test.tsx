@@ -27,7 +27,7 @@ const cat: Catalog = {
 };
 
 function actions(): HostActions {
-  return { rendered: vi.fn(), cancelSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn(), extendSegment: vi.fn() };
+  return { rendered: vi.fn(), cancelSwitch: vi.fn(), undoSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn(), extendSegment: vi.fn() };
 }
 
 function view(over: Partial<StateSnapshot> = {}, acts: HostActions = actions()) {
@@ -793,6 +793,39 @@ describe("preview market (D-150)", () => {
     expect(screen.queryByTestId("host-preview")).toBeNull();
     rerender(view({ market: { market: "MY", name: "Malaysia", lang: "en", tier: "preview" } }));
     expect(screen.getByTestId("host-preview")).toHaveTextContent("PREVIEW · Malaysia");
+  });
+});
+
+describe("immediate switch (D-349)", () => {
+  const started = (seq: number, at: number) => ({ seq, type: "segment.started", payload: segment({
+    segment_id: "seg_000002", product_id: AMPOULE, order: 2, started_at: at, start_reason: "auto_speech" }) });
+
+  it("an immediate switch shows one prompter and a Switched to … · Undo bar for 8 s; Esc undoes", () => {
+    const at = Date.now();
+    let s = reduceSnapshot(snapshot(), "host", at);
+    s = reduceEvent(s, { seq: 11, type: "segment.switch_decided", payload: { transcript_id: "tr_000009", switch: true,
+      target_product_id: AMPOULE, confidence: "high", reason: "moves on to the ampoule" } }, at);
+    s = reduceEvent(s, started(12, at), at);
+    expect(s.session?.switch.last_commit?.immediate).toBe(true);
+    const acts = actions();
+    const { rerender } = render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={acts} />);
+    expect(screen.getByTestId("host-switched-bar")).toHaveTextContent("Switched to Deep Hydration Ampoule");
+    expect(screen.getByTestId("host-now")).toHaveTextContent("Deep Hydration Ampoule");
+    expect(screen.queryByTestId("host-preview")).toBeNull(); // one prompter, no preview card
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(acts.undoSwitch).toHaveBeenCalledTimes(1);
+    const old = { ...s, session: { ...s.session!, switch: { ...s.session!.switch,
+      last_commit: { ...s.session!.switch.last_commit!, at: at - 8001 } } } };
+    rerender(<HostView state={{ ...old, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={acts} />);
+    expect(screen.queryByTestId("host-switched-bar")).toBeNull();
+  });
+
+  it("a two-step commit (no immediate verdict) shows no Undo bar", () => {
+    const at = Date.now();
+    const s = reduceEvent(reduceSnapshot(snapshot(), "host", at), started(11, at), at);
+    expect(s.session?.switch.last_commit?.immediate).toBeUndefined();
+    render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
+    expect(screen.queryByTestId("host-switched-bar")).toBeNull();
   });
 });
 
