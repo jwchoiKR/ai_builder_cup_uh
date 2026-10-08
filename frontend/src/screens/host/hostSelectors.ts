@@ -41,6 +41,7 @@ export function hostPrompterView(state: ClientState, catalog: Catalog | null, pr
   return {
     product,
     points,
+    ticked: [],
     requiredTotal: points.filter((p) => p.required).length,
     requiredCovered: 0,
   };

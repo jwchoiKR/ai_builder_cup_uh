@@ -336,7 +336,8 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       if (pr.segment_id && segments[pr.segment_id]) {
         segments = {
           ...segments,
-          [pr.segment_id]: { ...segments[pr.segment_id], covered_point_ids: [...pr.covered_point_ids] },
+          [pr.segment_id]: { ...segments[pr.segment_id], covered_point_ids: [...pr.covered_point_ids],
+            ticked_item_ids: [...(pr.ticked_item_ids ?? segments[pr.segment_id].ticked_item_ids ?? [])] },
         };
       }
       return { ...state, prompter: pr, segments };

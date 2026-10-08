@@ -102,6 +102,7 @@ export interface Segment {
   start_reason: "session_start" | "auto_speech" | "operator";
   planned_duration_sec: number;
   covered_point_ids: string[];
+  ticked_item_ids?: string[]; // D-372: prompter items (prices, ingredients, cautions) the fact checker found said right
 }
 
 export interface Transcript {
@@ -354,6 +355,7 @@ export interface PrompterSnapshot {
   next_product_id?: string | null;
   points?: PrompterPointView[];
   covered_point_ids: string[];
+  ticked_item_ids?: string[]; // D-372
   required_total: number;
   required_covered: number;
 }
