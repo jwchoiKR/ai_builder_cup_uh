@@ -86,7 +86,6 @@ async def test_late_context_cannot_change_new_segment(env):
     await rt.utterances.drain()
     assert (await rt.current_segment()).segment_id == new.segment_id
     assert (await rt.current_segment()).covered_point_ids == []
-    assert (await rt.load_session()).switch.status == 'idle'
 
 
 async def test_d374_an_older_line_s_late_contradiction_is_applied_as_given(env):

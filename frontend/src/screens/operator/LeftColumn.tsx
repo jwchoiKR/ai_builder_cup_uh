@@ -9,7 +9,7 @@ import { Button, Chip, Eyebrow, StatusDot } from "../../components";
 import { Viewer } from "../Viewer";
 import { useAction, useOperator } from "./context";
 import { ConfirmDialog } from "./Dialogs";
-import { switchSecondsLeft, undoRemainingMs } from "./model";
+import { undoRemainingMs } from "./model";
 import styles from "./operator.module.css";
 
 export function ViewerPreview() {
@@ -49,10 +49,7 @@ export function RunOfShow() {
   const [confirm, setConfirm] = useState(false);
   const act = useAction();
   const live = state.session?.status === "live";
-  const sw = state.session?.switch;
-  const pendingLeft = switchSecondsLeft(state, now);
   const undoLeft = undoRemainingMs(state, now);
-  const target = catalog?.products.find((p) => p.product_id === sw?.target_product_id);
 
   return (
     <section className={styles.block} data-testid="op-run-of-show" aria-label={t("Run of show")}>
@@ -121,25 +118,10 @@ export function RunOfShow() {
           );
         })}
       </ol>
-      {sw?.status === "pending" && pendingLeft !== null && (
-        <div className={styles.switchPending} role="status">
-          <span className="tabular">{t("Switching in {n}s", { n: pendingLeft })}</span>
-          {target && <span className={styles.muted}>→ {target.name}</span>}
-          <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.cancelSwitch(sid, "operator"))}>
-            {t("Cancel switch")}
-          </Button>
-        </div>
-      )}
-      {sw?.status === "counting" && (
-        <p className={styles.muted}>
-          {t("Switch cue {n} heard", { n: sw.cue_count })}
-          {target ? ` · ${target.name}` : ""}
-        </p>
-      )}
       <div className={styles.actions}>
         <Button
           data-testid="op-switch"
-          disabled={!live || !next || sw?.status === "pending" || act.busy}
+          disabled={!live || !next || act.busy}
           onClick={() => setConfirm(true)}
         >
           {t("Switch product")}

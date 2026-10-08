@@ -180,35 +180,7 @@ export function UncheckedStrip({ count, cause }: { count: number; cause: string 
   );
 }
 
-export function SwitchBanner({
-  productName,
-  secondsLeft,
-  onCancel,
-}: {
-  productName: string;
-  secondsLeft: number;
-  onCancel: () => void;
-}) {
-  const t = useT();
-  return (
-    <div className={cx(styles.banner, styles.switch)} data-testid="host-switch-banner" role="status">
-      <span className={styles.bannerIcon} aria-hidden>
-        <ArrowLeftRight />
-      </span>
-      <div className={styles.bannerBody}>
-        <span className={styles.switchTitle}>{t("Switching to {name}", { name: productName })}</span>
-      </div>
-      <span className={cx(styles.switchCount, "tabular")} aria-label={t("{n} seconds", { n: secondsLeft })}>
-        {Math.max(1, secondsLeft)}
-      </span>
-      <button type="button" className={styles.switchCancel} onClick={onCancel}>
-        {t("Cancel switch (Esc)")}
-      </button>
-    </div>
-  );
-}
-
-/** D-349 SWITCH_MODE=immediate: the prompter already switched; the host can take it back for a few seconds. */
+/** D-349: the prompter already switched; the host can take it back for a few seconds. */
 export function SwitchedBar({ productName, onUndo }: { productName: string; onUndo: () => void }) {
   const t = useT();
   return (

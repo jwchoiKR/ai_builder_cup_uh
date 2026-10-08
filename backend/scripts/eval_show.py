@@ -9,15 +9,14 @@ Input: a JSONL file, one show per line:
 `gap_ms` is the pause before the line. `expect` is "stay" (default) or "switch_to:<n>" (n is 1-based in `release_ids`,
 or a release id). `labels` is optional and copied to the output untouched, for the scorer.
 
-    uv run python scripts/eval_show.py --cases shows.jsonl --mode immediate --out ../results/show_immediate
-    uv run python scripts/eval_show.py --cases shows.jsonl --mode two_step --arm-name off --out ...
+    uv run python scripts/eval_show.py --cases shows.jsonl --out ../results/show_immediate
 
 Output: <out>/<show_id>.json per show and <out>/summary.md. Times are ms on the session clock; `line_end` is the line's
 final, and each `ms_*` is from it. Per show:
 - `lines`: id, text, labels, expect, transcript id, line end, the release on air when it was said, the context judge's
   verdict on it (covered_point_ids, covered_cue_ids, switch verdict, reason) and its model calls (status, failure,
   latency, usage).
-- `switch_events`: decided (with the judge's reason and confidence), counting, pending, cancelled, committed, undone.
+- `switch_events`: decided (with the judge's reason and confidence), committed, undone.
 - `alerts`: kind, rule or field, severity, release it was checked against, shown, escalated,
   resolved (corrected or cleared, and by which line), and for the qualifier rule the 10 s re-say prompt.
 - `prompter`: every coverage update with the required points left, attributed to the line said just before.
@@ -47,16 +46,14 @@ from app.models.session import AgentCall, Event, Segment, Transcript  # noqa: E4
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
 
-SWITCH_EVENTS = {"segment.switch_decided": "decided", "segment.switch_counting": "counting",
-                 "segment.switch_pending": "pending", "segment.switch_cancelled": "cancelled",
-                 "segment.started": "committed", "segment.undone": "undone"}
+SWITCH_EVENTS = {"segment.switch_decided": "decided", "segment.started": "committed", "segment.undone": "undone"}
 LIVE_EVENTS = {*SWITCH_EVENTS, "transcript.final", "alert.created", "alert.updated", "alert.escalated",
                "prompter.updated", "cue.updated", "segment.missing_points", "segment.overtime", "hold.started",
                "hold.ended", "verify.started", "verify.done", "verify.health", "judge.failed", "judge.health",
                "line.check"}
 QUALIFIER_RESAY_MS = 10_000  # the host screen's QUALIFIER_ADDON_MS (D-341): after it, the host must say the result again
 JUDGES = ("compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "verifier")
-SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_MODE", "SWITCH_ARM_NAME", "SWITCH_DUAL_SCOPE_SEC",
+SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_DUAL_SCOPE_SEC",
                    "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT", "COMPLIANCE_RESAY",
                    "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC", "FACT_MODE")
 
@@ -136,10 +133,6 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
             elif e.type == "segment.switch_decided":
                 row |= {k: p.get(k) for k in ("switch", "target_product_id", "confidence", "is_quote",
                                                "utterance_type", "reason")}
-            elif e.type in ("segment.switch_counting", "segment.switch_pending"):
-                row |= {"target_product_id": p.get("target_product_id"), "cue_count": p.get("cue_count")}
-            elif e.type == "segment.switch_cancelled":
-                row["reason"] = p.get("reason")
             elif e.type == "segment.undone":
                 row["after_line"] = said_before(e.at)
             switch.append(row)
@@ -266,8 +259,6 @@ def write_summary(shows: list[dict], out: Path) -> str:
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cases", type=Path, required=True, help="JSONL, one show per line")
-    ap.add_argument("--mode", choices=("two_step", "immediate"), default=None, help="SWITCH_MODE (default: settings)")
-    ap.add_argument("--arm-name", choices=("on", "off"), default=None, help="SWITCH_ARM_NAME, two_step only")
     ap.add_argument("--settle-ms", type=int, default=8000, help="wait after the last line before reading events")
     ap.add_argument("--out", type=Path, required=True, help="output directory: <show_id>.json per show, summary.md")
     args = ap.parse_args()
@@ -275,10 +266,6 @@ async def main() -> int:
     over = {"LLM_PROVIDER": "vertex", "STT_PROVIDER": "mock", "RETRIEVER": "local"}
     if not os.environ.get("STORE"):  # STORE from the environment when set (firestore needs GCP_PROJECT); else memory
         over["STORE"] = "memory"
-    if args.mode:
-        over["SWITCH_MODE"] = args.mode
-    if args.arm_name:
-        over["SWITCH_ARM_NAME"] = args.arm_name == "on"
     settings = Settings(**over)
     clock = ReplayClock()
     ctx = build_context(settings, clock=clock, scheduler=AsyncScheduler(clock))

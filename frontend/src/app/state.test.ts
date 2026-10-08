@@ -60,9 +60,6 @@ describe("every event type", () => {
       "session.ended": { ...base.session, status: "ended" },
       "segment.started": segment({ segment_id: "seg_2", product_id: AMPOULE, started_at: T0 + 60_000, start_reason: "auto_speech" }),
       "segment.overtime": { segment_id: "seg_000001", product_id: CREAM, overtime_sec: 1 },
-      "segment.switch_counting": { target_product_id: AMPOULE, cue_count: 1, transcript_id: "tr_1" },
-      "segment.switch_pending": { target_product_id: AMPOULE, commit_at: T0 + 5000 },
-      "segment.switch_cancelled": { reason: "speech" },
       "segment.switch_decided": { transcript_id: "tr_1", switch: true, target_product_id: AMPOULE, confidence: "high" },
       "segment.undone": { segment_id: "seg_x" },
       "segment.missing_points": { segment_id: "seg_000001", product_id: CREAM, missing_point_ids: ["cr-p4"] },
@@ -135,7 +132,6 @@ describe("event semantics", () => {
     const s = reduceEvent(base(), ev(11, "segment.started", segment({ segment_id: "seg_2", product_id: AMPOULE, started_at: T0 + 60_000, start_reason: "auto_speech" })));
     expect(s.segments.seg_000001.ended_at).toBe(T0 + 60_000);
     expect(s.session?.current_segment_id).toBe("seg_2");
-    expect(s.session?.switch.status).toBe("idle");
     expect(s.session?.switch.last_commit).toEqual({ closed_segment_id: "seg_000001", opened_segment_id: "seg_2", at: T0 + 60_000 });
   });
 
@@ -146,26 +142,6 @@ describe("event semantics", () => {
     expect(Object.keys(s.segments)).toEqual(["seg_000001"]);
     expect(s.segments.seg_000001.ended_at).toBeNull();
     expect(s.session?.switch.last_commit).toBeNull();
-  });
-
-  it("switch counting, pending and cancel update the session switch state", () => {
-    let s = reduceEvent(base(), ev(11, "segment.switch_counting", { target_product_id: AMPOULE, cue_count: 1, transcript_id: "tr_5" }));
-    expect(s.session?.switch).toMatchObject({ status: "counting", cue_count: 1, target_product_id: AMPOULE });
-    expect(s.switchChips.tr_5).toBe(1);
-    s = reduceEvent(s, ev(12, "segment.switch_pending", { target_product_id: AMPOULE, commit_at: T0 + 5000 }));
-    expect(s.session?.switch).toMatchObject({ status: "pending", commit_at: T0 + 5000 });
-    s = reduceEvent(s, ev(13, "segment.switch_cancelled", {}));
-    expect(s.session?.switch.status).toBe("idle");
-  });
-
-  it("a merged judgment moves its fragment's cue chip or withdraws it (D-088)", () => {
-    let s = reduceEvent(base(), ev(11, "segment.switch_counting", { target_product_id: AMPOULE, cue_count: 1, transcript_id: "tr_5" }));
-    s = reduceEvent(s, ev(12, "segment.switch_counting", { target_product_id: AMPOULE, cue_count: 1, transcript_id: "tr_6", replaces_transcript_id: "tr_5" }));
-    expect(s.switchChips).toEqual({ tr_6: 1 });
-    expect(s.session?.switch.cue_count).toBe(1);
-    s = reduceEvent(s, ev(13, "segment.switch_cancelled", { reason: "merged", withdrawn_transcript_id: "tr_6" }));
-    expect(s.switchChips).toEqual({});
-    expect(s.session?.switch.status).toBe("idle");
   });
 
   it("hidden comments are removed for the viewer (redacted payload)", () => {

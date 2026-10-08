@@ -79,7 +79,7 @@ async def test_d360_the_previous_product_s_snapshot_is_there_in_the_dual_scope()
 
     llm = _Facts()
     rt = await live_runtime(make_ctx(backend=llm, FACT_MODE="prompter", FACT_RELATION=True, FACT_PROMPT="v5",
-                                     JUDGE_ARM="single", SWITCH_MODE="immediate"))
+                                     JUDGE_ARM="single"))
     try:
         move = "Okay, moving on, let me show you the ampoule."
         llm.judge(move, utterance_type="transition", transition=True, target=AMPOULE, confidence="high", named=True)

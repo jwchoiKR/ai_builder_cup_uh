@@ -35,7 +35,6 @@ from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
 from ..logic import publish as publish_logic
 from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view, tick_item
-from ..logic.segments import classify_switch, expire, names_product, replace_cue, step_switch, withdraw_cue
 from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
@@ -166,7 +165,7 @@ class UtterancePipeline:
         self.facts = FactChecker(ctx.llm, ctx.prompts[relation if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296
         self.compliance.docs = self.facts.files  # D-310: the same documents for COMPLIANCE_DOCS
-        self.type_words = self._type_words() if rt.settings.SWITCH_MODE == "immediate" else None  # D-351
+        self.type_words = self._type_words()  # D-351
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
         self._amber: set[str] = set()
@@ -695,7 +694,6 @@ class UtterancePipeline:
         # D-088: alerts raised by the fragments inside a merged utterance are never resolved by it
         protected = set(merge.chain) if merge else set()
         text = merge.text if merge else t.text
-        high_before = alert_logic.high_alert_active(alerts)
         judge = res.output if res.status == "ok" else None
         if judge is None:
             # D-288 (A1), D-410: a failed judge raises no alert; the host and the operator are told the line is unchecked
@@ -754,7 +752,6 @@ class UtterancePipeline:
             await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
                                                  quotes=getattr(judge.correction, "quotes", None))
         # §8.4.7 a new HIGH alert resets switch counting and cancels a pending switch
-        await self._high_alert_switch_reset_locked(high_before)
 
     async def _apply_context_locked(self, t: Transcript, judge: ContextOutput | UtteranceJudgeOutput,
                                     merge: Merge | None = None) -> None:
@@ -794,12 +791,8 @@ class UtterancePipeline:
             s.cue.status, s.cue.done_by_transcript_id = "done", t.transcript_id
             await rt.save_session(s)
             await rt.emit("cue.updated", s.cue)
-        # §8.4.7 while a HIGH alert is active, counting resets and a pending switch cancels
-        high_now = alert_logic.high_alert_active(await rt.alerts())
         if seg is not None:
-            await self._switch_locked(judge, t, seg, high_became_active=high_now,
-                                      replaces=merge.prev.transcript_id if merge else None,
-                                      text=merge.text if merge else t.text)
+            await self._switch_now_locked(judge, t, seg.product_id)
 
     async def _check_failed_locked(self, t: Transcript, text: str, res: AgentResult, agent: str) -> None:
         """D-288/D-408/D-412: a check of this line failed. The events say why (`cause`); the line is counted once in the
@@ -925,18 +918,6 @@ class UtterancePipeline:
         if a.status == "active":
             self._schedule_escalation(a)
 
-    async def _high_alert_switch_reset_locked(self, high_before: bool) -> None:
-        rt = self.rt
-        if alert_logic.high_alert_active(await rt.alerts()) and not high_before:
-            s = await rt.load_session()
-            if s.switch.status != "idle":
-                was_pending = s.switch.status == "pending"
-                s.switch = SwitchState(last_commit=s.switch.last_commit)
-                await rt.save_session(s)
-                rt.ctx.scheduler.cancel(rt.key("switch-commit"))
-                if was_pending:
-                    await rt.emit("segment.switch_cancelled", {"reason": "compliance_alert"})
-
     def _schedule_escalation(self, a: Alert) -> None:
         """§8.4.4: a HIGH alert still active after COMPLIANCE_ESCALATE_SEC is escalated. No auto-expiry."""
         if a.kind != "compliance" or a.severity != "HIGH" or a.status != "active" or a.shown_at is None:
@@ -954,82 +935,8 @@ class UtterancePipeline:
         rt.ctx.scheduler.call_at(rt.key(f"escalate:{a.alert_id}"),
                                  a.shown_at + rt.settings.COMPLIANCE_ESCALATE_SEC * 1000, escalate)
 
-    def _product_names(self, product_id: str) -> list[str]:
-        """Names that count as naming a product (D-090): full name and short name ("ampoule")."""
-        p = self.rt.catalog.get_product(product_id)
-        return [p.name, p.short_name.removeprefix("the ").strip()]
-
-    async def _switch_locked(self, judge: ContextOutput | UtteranceJudgeOutput, t: Transcript, seg: Segment, *, high_became_active: bool,
-                             replaces: str | None = None, text: str | None = None) -> None:
-        rt = self.rt
-        if rt.settings.SWITCH_MODE == "immediate":
-            await self._switch_now_locked(judge, t, seg.product_id)
-            return
-        text = text if text is not None else t.text
-        s = await rt.load_session()
-        st = rt.settings
-        on_air = seg.product_id
-        nxt = rt.catalog.next_product(on_air)
-        replacing = replaces is not None and replaces in s.switch.cue_transcript_ids
-        # A merged judgment is classified as if its fragment's cue had not been counted (D-088).
-        base = withdraw_cue(s.switch, replaces)[0] if replacing else s.switch
-        kind = classify_switch(
-            judge, expire(base, rt.now(), st.SWITCH_CUE_WINDOW_SEC), on_air=on_air, next_product=nxt,
-            on_air_points={p.point_id for p in points_of(rt.catalog, on_air, rt.points)},
-            next_points={p.point_id for p in points_of(rt.catalog, nxt, rt.points)} if nxt else set(),
-            high_alert_became_active=high_became_active,
-            # D-304 SWITCH_ARM_NAME=false: the context judge's target and confidence alone arm the switch
-            next_named=bool(nxt) and (not st.SWITCH_ARM_NAME or names_product(text, self._product_names(nxt))),
-        )
-        # D-341 (review H17/H18): every switch decision, with the counter it moves
-        log.info("switch %s t=%s: on_air=%s next=%s kind=%s state=%s cues=%d/%d%s", rt.sid, t.transcript_id, on_air,
-                 nxt, kind, s.switch.status, s.switch.cue_count, st.SWITCH_CONSECUTIVE_CUES,
-                 f" (replaces {replaces})" if replacing else "")
-        if replacing and kind != "cancel":
-            # D-088: the merged judgment replaces the fragment's cue. Never count the same cue twice.
-            if kind == "cue":
-                s.switch = replace_cue(s.switch, replaces, t.transcript_id)
-                await rt.save_session(s)
-                await rt.emit("segment.switch_counting", {
-                    "target_product_id": s.switch.target_product_id, "cue_count": s.switch.cue_count,
-                    "transcript_id": t.transcript_id, "replaces_transcript_id": replaces})
-                return
-            new_state, event = withdraw_cue(s.switch, replaces)
-            was_pending = s.switch.status == "pending"
-            s.switch = new_state
-            await rt.save_session(s)
-            if was_pending:
-                rt.ctx.scheduler.cancel(rt.key("switch-commit"))
-            if event == "cancelled":
-                await rt.emit("segment.switch_cancelled", {"reason": "merged", "withdrawn_transcript_id": replaces})
-            if new_state.status == "counting":
-                await rt.emit("segment.switch_counting", {
-                    "target_product_id": new_state.target_product_id, "cue_count": new_state.cue_count,
-                    "transcript_id": None, "withdrawn_transcript_id": replaces})
-            return
-        st = rt.settings
-        new_state, event = step_switch(s.switch, kind, transcript_id=t.transcript_id, next_product=nxt, now=rt.now(),
-                                       cues_needed=st.SWITCH_CONSECUTIVE_CUES, window_sec=st.SWITCH_CUE_WINDOW_SEC,
-                                       cancel_window_sec=st.SWITCH_CANCEL_WINDOW_SEC)
-        if new_state == s.switch:
-            return
-        s.switch = new_state
-        await rt.save_session(s)
-        if event == "counting":
-            await rt.emit("segment.switch_counting", {"target_product_id": new_state.target_product_id,
-                                                      "cue_count": new_state.cue_count, "transcript_id": t.transcript_id})
-        elif event == "pending":
-            await rt.emit("segment.switch_counting", {"target_product_id": new_state.target_product_id,
-                                                      "cue_count": new_state.cue_count, "transcript_id": t.transcript_id})
-            await rt.emit("segment.switch_pending", {"target_product_id": new_state.target_product_id,
-                                                     "commit_at": new_state.commit_at})
-            rt.ctx.scheduler.call_at(rt.key("switch-commit"), new_state.commit_at, self._commit_timer)
-        elif event == "cancelled":
-            rt.ctx.scheduler.cancel(rt.key("switch-commit"))
-            await rt.emit("segment.switch_cancelled", {"reason": "speech", "transcript_id": t.transcript_id})
-
     async def _switch_now_locked(self, judge: ContextOutput | UtteranceJudgeOutput, t: Transcript, on_air: str) -> None:
-        """D-349 SWITCH_MODE=immediate: the context judge's transition verdict alone switches, at once. D-351 (the
+        """D-349 (D-415: the only switch): the context judge's transition verdict alone switches, at once. D-351 (the
         user's rule): the host says they move on AND names the next product (its name, short name or type word), as
         the model judged it (`moving_to_next_named`; no code string match). The target is only the next product in
         the run sheet; naming any other product does not switch, and nothing recovers a missed switch (the operator
@@ -1054,14 +961,6 @@ class UtterancePipeline:
         await rt.emit("segment.switch_decided", decision)
         if go:
             await commit_switch_locked(rt, nxt, "auto_speech")
-
-    async def _commit_timer(self) -> None:
-        rt = self.rt
-        async with rt.lock:
-            s = await rt.load_session()
-            if s.status != "live" or s.switch.status != "pending" or s.switch.target_product_id is None:
-                return
-            await commit_switch_locked(rt, s.switch.target_product_id, "auto_speech")
 
     # ---- steps 5-6 -----------------------------------------------------------------------------
 
@@ -1723,11 +1622,10 @@ async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -
     s.current_segment_id = new.segment_id
     s.switch = SwitchState(last_commit={"closed_segment_id": old.segment_id if old else None,
                                         "opened_segment_id": new.segment_id, "at": now})
-    if rt.settings.SWITCH_MODE == "immediate":  # D-349: the judges get both products for a few seconds
-        if old is not None:
-            s.switch.previous_product_id = old.product_id
-            s.switch.previous_until = now + rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
-        s.switch.last_commit["immediate"] = reason == "auto_speech"  # the host's "Switched to … · Undo" bar
+    if old is not None:  # D-349: the judges get both products for a few seconds
+        s.switch.previous_product_id = old.product_id
+        s.switch.previous_until = now + rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
+    s.switch.last_commit["immediate"] = reason == "auto_speech"  # the host's "Switched to … · Undo" bar
     await rt.save_session(s)
     await rt.emit("segment.started", new)
     if old is not None:
@@ -1758,17 +1656,6 @@ async def operator_switch(rt: "SessionRuntime", product_id: str) -> Segment:
         return new
 
 
-async def cancel_switch(rt: "SessionRuntime", by: str) -> None:
-    async with rt.lock:
-        s = await rt.load_session()
-        if s.switch.status != "pending":
-            raise ActionError(409, "no_pending_switch", "no switch is pending")
-        s.switch = SwitchState(last_commit=s.switch.last_commit)
-        await rt.save_session(s)
-        rt.ctx.scheduler.cancel(rt.key("switch-commit"))
-        await rt.emit("segment.switch_cancelled", {"reason": by})
-
-
 async def undo_switch(rt: "SessionRuntime") -> Segment:
     from ..models.session import CommentAnalysis
 
@@ -1791,9 +1678,8 @@ async def undo_switch(rt: "SessionRuntime") -> Segment:
             pre = s.pre_covered.setdefault(opened.product_id, [])
             pre.extend(p for p in opened.covered_point_ids + opened.ticked_item_ids if p not in pre)
         s.current_segment_id, s.switch = closed.segment_id, SwitchState()
-        if rt.settings.SWITCH_MODE == "immediate":  # D-349: both products for a few seconds after an undo too
-            s.switch.previous_product_id = opened.product_id
-            s.switch.previous_until = now + rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
+        s.switch.previous_product_id = opened.product_id  # D-349: both products for a few seconds after an undo
+        s.switch.previous_until = now + rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
         await rt.save_session(s)
         await rt.emit("segment.undone", {"segment_id": opened.segment_id})
         await rt.emit("segment.started", closed)

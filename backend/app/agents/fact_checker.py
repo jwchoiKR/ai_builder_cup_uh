@@ -82,13 +82,11 @@ async def gather_fact_passages(
     """Full sheets, retaining original citation IDs, without search or network prefetch.
 
     Keep the existing call signature for runtime/evaluation callers. Explicitly mentioned products
-    remain available for comparisons, alongside the on-air product and a counting/pending target.
+    remain available for comparisons, alongside the on-air product.
     Local uploaded sheets take precedence over the shipped catalog.
     """
     # D-304 JUDGE_PRODUCTS=all: every show product's sheet, no alias match
     others = set(catalog.order) if all_products else catalog.products_mentioned(utterance) - {on_air}
-    if switch.status in ("counting", "pending"):
-        others.add(switch.target_product_id or catalog.next_product(on_air) or on_air)
     if switch.previous_product_id:  # D-349: the product that just left the air, inside its window
         others.add(switch.previous_product_id)
     others.discard(on_air)

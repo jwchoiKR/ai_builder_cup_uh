@@ -87,7 +87,7 @@ async def test_no_card_mid_segment_and_no_premature_switch(env):
     s = await rt.load_session()
     assert s.pd_card is not None and s.pd_card.kind == "switch_product" and s.pd_card.source == "rule"
     assert s.pd_card.say.startswith("Before switching: Ceramide NP 1%, panthenol 5%, squalane 3%")
-    assert s.switch.status == "idle" and (await rt.current_segment()).segment_id == seg.segment_id
+    assert (await rt.current_segment()).segment_id == seg.segment_id
 
 
 async def test_switch_card_text_drops_a_point_once_it_is_said(env):

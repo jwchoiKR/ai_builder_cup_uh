@@ -26,7 +26,7 @@ ALL_FIXES = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK"
 
 LEGACY = {
     "FACT_RELATION": "false", "JUDGE_ARM": "guards", "STT_AWARE": "false",
-    "CONTEXT_WINDOW_MS": "0", "SWITCH_ARM_NAME": "true",
+    "CONTEXT_WINDOW_MS": "0",
     "VERBAL_CHECK": "code", "JUDGE_PRODUCTS": "named",
     "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
     "UTTERANCE_MERGE_WINDOW_MS": "3500",
@@ -35,7 +35,6 @@ LEGACY = {
     "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",  # D-343
     "CORRECTION_HANDLES": "false",  # D-358: on by default with the originals path; the rules-path tests script ids
     "FACT_MODE": "docs",  # D-360: the default is the prompter snapshot; older tests cite the release's sheet passages
-    "SWITCH_MODE": "two_step",  # D-361: the default is the immediate switch; older tests count cues
 }
 for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)

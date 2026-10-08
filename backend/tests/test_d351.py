@@ -51,7 +51,7 @@ async def _show(tmp_path, records=(NIGHT_CREAM, GLOW_SERUM, CALM_TONER)):
     onb = tmp_path / "onb"
     ids = [save_release(onb, r, f"job_{i}") for i, r in enumerate(records)]
     llm = _Backend()
-    ctx = make_ctx(backend=llm, DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(onb), SWITCH_MODE="immediate")
+    ctx = make_ctx(backend=llm, DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(onb))
     s = await create_session(ctx, "", release_ids=ids)
     rt = await ctx.runtimes.get(s.session_id)
     await rt.start()

@@ -156,14 +156,12 @@ describe("alert cards", () => {
           output: { answer: { is_answer: true, matched_group_id: "grp_000001" }, prompter: { covered_point_ids: ["cr-p1"] } },
         },
       ],
-      switchChips: { tr_1: 1 },
     };
     const t = { transcript_id: "tr_1", text: "Yes it is.", is_final: true, speech_start_at: null, speech_end_at: T0, received_at: T0, source: "injected" as const, segment_id: "seg_000001" };
     expect(transcriptChips(st, catalog, t).map((c) => c.text)).toEqual([
       "ASEAN-3-SKIN-AGEING",
       "answered: Is it suitable for oily skin?",
       "cr-p1",
-      "switch cue 1/2",
     ]);
   });
   it("empty state renders nothing heavy", () => {

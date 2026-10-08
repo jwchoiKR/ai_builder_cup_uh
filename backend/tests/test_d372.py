@@ -76,7 +76,7 @@ async def test_d372_a_correction_closes_the_note_and_ticks_the_item():
 
 
 async def test_d372_in_the_dual_scope_only_the_cited_product_is_ticked():
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         move = "Okay, let's move on to the ampoule."
         llm.judge(move, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
@@ -156,7 +156,7 @@ async def test_d373_a_verdict_after_the_dual_scope_ends_still_ticks_the_product_
 
     from .judge_fakes import advance
 
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         move = "Okay, let's move on to the ampoule."
         llm.judge(move, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
@@ -184,7 +184,7 @@ async def test_d373_a_late_verdict_for_an_undone_segment_waits_for_the_product_s
 
     from app.pipelines.utterances import operator_switch, undo_switch
 
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         await operator_switch(rt, AMPOULE)
         first_amp = (await rt.current_segment()).segment_id
@@ -210,7 +210,7 @@ async def test_d376_a_line_naming_the_next_product_waits_for_its_next_segment():
     ticks the ampoule (the next product) goes to pre_covered, not to the first, stale ampoule segment."""
     from app.pipelines.utterances import operator_switch, undo_switch
 
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         from .judge_fakes import advance
 
@@ -237,7 +237,7 @@ async def test_d377_the_product_that_just_left_is_ticked_even_when_it_is_also_th
 
     from .judge_fakes import advance
 
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         await advance(rt, 30_000)
         amp = (await operator_switch(rt, AMPOULE)).segment_id
@@ -262,7 +262,7 @@ async def test_d382_a_second_undo_after_the_line_does_not_change_its_reopen_stat
 
     from .judge_fakes import advance
 
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         await advance(rt, 1000)
         first_amp = (await operator_switch(rt, AMPOULE)).segment_id

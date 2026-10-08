@@ -84,7 +84,6 @@ export interface ClientState {
   feed: FeedState | null;
   agentCalls: AgentCall[]; // newest first, max 50
   actions: OperatorAction[]; // newest first, max 50
-  switchChips: Record<string, number>; // transcript_id -> switch cue count
   overtime: Record<string, OvertimeInfo>;
   missingPoints: MissingPoints[];
   judgeFailures: JudgeFailure[];
@@ -109,15 +108,7 @@ export interface ClientState {
 export const MAX_LOG = 50;
 const MAX_TRANSCRIPTS = 100;
 
-const IDLE_SWITCH: SwitchState = {
-  status: "idle",
-  target_product_id: null,
-  cue_count: 0,
-  cue_transcript_ids: [],
-  first_cue_at: null,
-  commit_at: null,
-  last_commit: null,
-};
+const IDLE_SWITCH: SwitchState = { last_commit: null };
 
 export function emptyState(role: Role): ClientState {
   return {
@@ -146,7 +137,6 @@ export function emptyState(role: Role): ClientState {
     market: null,
     agentCalls: [],
     actions: [],
-    switchChips: {},
     overtime: {},
     missingPoints: [],
     judgeFailures: [],
@@ -289,43 +279,9 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
     case "segment.overtime":
       return { ...state, overtime: { ...state.overtime, [p.segment_id]: p as OvertimeInfo } };
 
-    case "segment.switch_counting": {
-      // D-088: a merged judgment moves (replaces_) or withdraws (withdrawn_) its fragment's cue chip.
-      const chips = { ...state.switchChips };
-      if (p.replaces_transcript_id) delete chips[p.replaces_transcript_id];
-      if (p.withdrawn_transcript_id) delete chips[p.withdrawn_transcript_id];
-      if (p.transcript_id) chips[p.transcript_id] = p.cue_count;
-      return withSession({ ...state, switchChips: chips }, (s) => ({
-        ...s,
-        switch: {
-          ...s.switch,
-          status: s.switch.status === "pending" ? "pending" : "counting",
-          target_product_id: p.target_product_id ?? s.switch.target_product_id,
-          cue_count: p.cue_count ?? s.switch.cue_count,
-        },
-      }));
-    }
-
     case "segment.switch_decided":
       // D-349: an immediate switch verdict; its segment.started follows at once
       return p.switch ? withSession(state, (s) => ({ ...s, switch: { ...s.switch, decided_target: p.target_product_id } })) : state;
-
-    case "segment.switch_pending":
-      return withSession(state, (s) => ({
-        ...s,
-        switch: { ...s.switch, status: "pending", target_product_id: p.target_product_id, commit_at: p.commit_at },
-      }));
-
-    case "segment.switch_cancelled": {
-      let chips = state.switchChips;
-      if (p.withdrawn_transcript_id) {
-        chips = { ...chips };
-        delete chips[p.withdrawn_transcript_id];
-      }
-      return withSession({ ...state, switchChips: chips }, (s) => ({
-        ...s, switch: { ...IDLE_SWITCH, last_commit: s.switch.last_commit },
-      }));
-    }
 
     case "segment.missing_points": {
       if (state.missingPoints.some((m) => m.segment_id === p.segment_id)) return state;

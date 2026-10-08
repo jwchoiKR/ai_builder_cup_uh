@@ -491,13 +491,10 @@ class SessionRuntime:
         for p in s.active_promos:
             self.ctx.scheduler.call_at(self.key(f"promo:{p.promo_id}"), p.ends_at,
                                        lambda pid=p.promo_id: self.stop_promo(pid, reason="timer"))
-        if s.switch.status == "pending" and s.switch.commit_at is not None:
-            self.ctx.scheduler.call_at(self.key("switch-commit"), s.switch.commit_at, self.utterances._commit_timer)
         for a in await self.alerts():
             if a.escalated_at is None:
                 self.utterances._schedule_escalation(a)  # it checks kind, severity and status itself
-        log.info("session %s read back: timers re-armed (%d promos, switch %s)", self.sid, len(s.active_promos),
-                 s.switch.status)
+        log.info("session %s read back: timers re-armed (%d promos)", self.sid, len(s.active_promos))
 
     async def start_promo(self, promo_id: str) -> Session:
         async with self.lock:

@@ -20,7 +20,8 @@
    "is_transition": true,
    "is_quote": false,
    "target_product_id": "cream_hydra_barrier",
-   "confidence": "high"
+   "confidence": "high",
+   "moving_to_next_named": false
   }
  },
  "reason": "Host switches back to the cream and covers the fragrance free point."

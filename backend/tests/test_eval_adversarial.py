@@ -74,7 +74,8 @@ async def test_a_split_case_runs_through_the_real_pipeline(monkeypatch):
     llm = ScriptedBackend()
     llm.judge("If you have severe atopic dermatitis, this cures it completely.",
               violations=[violation("ASEAN-2D-DISEASE", "this cures it completely")])
-    ctx = make_ctx(backend=llm)
+    # D-415: the case's operator switch would put both products in scope; the scripted verdict names no product
+    ctx = make_ctx(backend=llm, SWITCH_DUAL_SCOPE_SEC=0)
     try:
         row = await run_case(ctx, case, 0)
     finally:

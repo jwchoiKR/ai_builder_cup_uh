@@ -152,7 +152,6 @@ export const api = {
   // operator: product switch (§8.7.2)
   switchProduct: (sid: string, productId: string) => post(`${s(sid)}/segments/switch`, { product_id: productId }),
   undoSwitch: (sid: string) => post(`${s(sid)}/segments/undo`),
-  cancelSwitch: (sid: string, by: "operator" | "host" = "operator") => post(`${s(sid)}/segments/cancel`, { by }),
 
   // host: AI PD card
   dismissPdCard: (sid: string, cardId: string) => post(`${s(sid)}/pd/dismiss`, { card_id: cardId }),

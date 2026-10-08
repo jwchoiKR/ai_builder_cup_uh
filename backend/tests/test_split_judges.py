@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from .judge_fakes import AMPOULE, close_env, events, make_env, speak, violation
+from .judge_fakes import close_env, events, make_env, speak, violation
 from .test_publish import ANSWER, messages, oily_on_host
 
 BACTERIA = "It kills the bacteria on your skin."
@@ -41,17 +41,6 @@ async def test_compliance_is_applied_before_a_slow_context_judge(env):
     assert (await rt.current_segment()).covered_point_ids == []  # the context judge is still running
     await rt.ctx.scheduler.idle()
     assert (await rt.current_segment()).covered_point_ids == ["cr-p1"]
-
-
-async def test_late_high_alert_resets_a_switch_the_context_judge_started(env):
-    rt, llm = env
-    llm.judge(SWITCH_AND_CLAIM, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL")], transition=True,
-              target=AMPOULE, confidence="high")
-    llm.delays[("compliance_judge", SWITCH_AND_CLAIM)] = 0.2
-    await speak(rt, SWITCH_AND_CLAIM)
-    assert [e.payload["cue_count"] for e in await events(rt, "segment.switch_counting")] == [1]
-    assert [a.status for a in await rt.alerts()] == ["active"]
-    assert (await rt.load_session()).switch.status == "idle"  # §8.4.7, same result as one judge
 
 
 async def test_context_failure_keeps_alerts_and_skips_publish(env):

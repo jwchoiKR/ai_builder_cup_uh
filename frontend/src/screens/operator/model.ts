@@ -13,7 +13,6 @@ const SETTING_DEFAULTS: Record<string, number> = {
   HOST_TOP_N: 3,
   STALE_COMMENT_SEC: 300,
   UNDO_SWITCH_WINDOW_SEC: 60,
-  SWITCH_CONSECUTIVE_CUES: 2,
 };
 
 export function setting(state: ClientState, key: keyof typeof SETTING_DEFAULTS): number {
@@ -331,12 +330,6 @@ export function undoRemainingMs(state: ClientState, now: number): number {
   return Math.max(0, lc.at + setting(state, "UNDO_SWITCH_WINDOW_SEC") * 1000 - now);
 }
 
-export function switchSecondsLeft(state: ClientState, now: number): number | null {
-  const sw = state.session?.switch;
-  if (!sw || sw.status !== "pending" || sw.commit_at === null) return null;
-  return Math.max(0, Math.ceil((sw.commit_at - now) / 1000));
-}
-
 // ---- live transcript chips ------------------------------------------------------------------------------
 
 export interface TranscriptChip {
@@ -377,8 +370,6 @@ export function transcriptChips(state: ClientState, catalog: Catalog | null, t: 
     if (g) chips.push({ tone: "ok", text: tr("answered: {question}", { question: g.canonical_question }) });
   }
   for (const pid of out?.prompter?.covered_point_ids ?? []) chips.push({ tone: "accent", text: pid });
-  const cue = state.switchChips[t.transcript_id];
-  if (cue) chips.push({ tone: "ok", text: tr("switch cue {n}/{m}", { n: cue, m: setting(state, "SWITCH_CONSECUTIVE_CUES") }) });
   return chips;
 }
 

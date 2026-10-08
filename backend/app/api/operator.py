@@ -193,16 +193,6 @@ async def undo(rt: SessionRuntime = Depends(runtime)) -> dict:
     return (await utt.undo_switch(rt)).model_dump()
 
 
-class CancelBody(BaseModel):
-    by: Literal["operator", "host"] = "operator"
-
-
-@router.post("/segments/cancel")
-async def cancel_switch(body: CancelBody | None = None, rt: SessionRuntime = Depends(runtime)) -> dict:
-    await utt.cancel_switch(rt, (body or CancelBody()).by)
-    return OK
-
-
 class NoticeBody(BaseModel):
     text: str = Field(min_length=1, max_length=300)
 

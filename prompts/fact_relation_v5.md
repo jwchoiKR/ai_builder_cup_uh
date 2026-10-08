@@ -42,7 +42,7 @@ For each fact, fill the fields in this order
 8. `say`: only for `contradicts`: the line the host says to fix it, naming what the value is and any condition, in the show's language ("Panthenol is 5%", "The live price is S$32.40 during the time sale"); otherwise null.
 
 Rules
-- Product scope: check against CURRENT_PRODUCT unless the host clearly names another product. Never use one product's sentences to correct another product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT. A line that names no product and has no "this one", "it" or "this" is about the product the last line of RECENT_TRANSCRIPT was about. During SWITCH_CONTEXT.in_progress the host may already describe SWITCH_CONTEXT.next_product. If you cannot tell which product a fact is about, use `uncertain`.
+- Product scope: check against CURRENT_PRODUCT unless the host clearly names another product. Never use one product's sentences to correct another product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT. A line that names no product and has no "this one", "it" or "this" is about the product the last line of RECENT_TRANSCRIPT was about. If you cannot tell which product a fact is about, use `uncertain`.
 - Thresholds: "above S$40" means S$40 itself does not qualify; "at least S$40" means it does. The same holds for
   limits: "store below 25 °C" excludes 25 itself, so "at exactly 25 degrees it is still within the limit"
   `contradicts` it; "up to 25 °C" or "25 °C or less" includes it.

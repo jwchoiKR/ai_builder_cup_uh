@@ -48,7 +48,7 @@ def test_create_session(client):
     s = r.json()
     assert s["session_id"] == "ses_000001" and s["status"] == "ready"
     assert s["runsheet_id"] == "daon_skincare_demo" and s["title"] == "DAON LAB · Skincare session"
-    assert s["settings_snapshot"]["HOST_TOP_N"] == 6 and s["switch"]["status"] == "idle"
+    assert s["settings_snapshot"]["HOST_TOP_N"] == 6 and s["switch"]["last_commit"] is None
     assert client.post("/api/sessions").status_code == 201  # body optional
 
 

@@ -7,15 +7,10 @@ from pydantic import BaseModel, Field
 
 
 class SwitchState(BaseModel):  # in session doc
-    status: Literal["idle", "counting", "pending"] = "idle"
-    target_product_id: str | None = None
-    cue_count: int = 0
-    cue_transcript_ids: list[str] = []
-    first_cue_at: int | None = None
-    commit_at: int | None = None
+    """D-415: the immediate switch only (no counting, no pending countdown)."""
     last_commit: dict | None = None  # {closed_segment_id, opened_segment_id, at} for Undo
-    # D-349 SWITCH_MODE=immediate: the product that left the air at the last switch or undo, and until when the
-    # judges also get its material (labelled "previous")
+    # D-349: the product that left the air at the last switch or undo, and until when the judges also get its material
+    # (labelled "previous")
     previous_product_id: str | None = None
     previous_until: int | None = None
 

@@ -143,18 +143,15 @@ async def case_09_host_answer_published(rt, llm):
 
 
 async def case_10_product_switch(rt, llm):
-    """Named transition, then a fact about the next product: 5 s countdown, then the switch (D-090)."""
+    """D-415: a transition that names the next product switches at once (D-349/D-351), no countdown."""
     llm.judge(INTRO, utterance_type="transition", transition=True, target=AMPOULE, confidence="high", covered=["am-p1"])
     llm.judge(INFO, covered=["am-p2"])
     await speak(rt, INTRO)
-    assert (await rt.load_session()).switch.status == "counting"
-    await advance(rt, GAP_MS)
-    await speak(rt, INFO)
-    assert (await rt.load_session()).switch.status == "pending"
-    await advance(rt, 5000)
     seg = await rt.current_segment()
     assert (seg.product_id, seg.start_reason) == (AMPOULE, "auto_speech")
-    assert seg.covered_point_ids == ["am-p1", "am-p2"]
+    await advance(rt, GAP_MS)
+    await speak(rt, INFO)
+    assert (await rt.current_segment()).covered_point_ids == ["am-p1", "am-p2"]
     assert await events(rt, "segment.started")
 
 

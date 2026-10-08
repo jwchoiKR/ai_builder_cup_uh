@@ -32,7 +32,7 @@ export function session(over: Partial<Session> = {}): Session {
     doc_version: 0,
     settings_snapshot: {},
     pre_covered: {},
-    switch: { status: "idle", target_product_id: null, cue_count: 0, cue_transcript_ids: [], first_cue_at: null, commit_at: null, last_commit: null },
+    switch: { last_commit: null },
     cue: null,
     pd_card: null,
     host_slots: [],

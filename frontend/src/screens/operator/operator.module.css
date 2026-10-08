@@ -411,18 +411,6 @@
 .pointDone {
   color: var(--text-3);
 }
-.switchPending {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-control);
-  background: var(--ok-bg);
-  border: 1px solid var(--ok-border);
-  color: var(--ok-text);
-  font-weight: var(--fw-semibold);
-}
 
 /* ---- question desk (§12.4.7) ----------------------------------------------------------------------------------- */
 

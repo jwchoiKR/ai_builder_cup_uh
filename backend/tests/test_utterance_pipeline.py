@@ -131,7 +131,7 @@ async def test_judge_input_lists(tmp_path):
         points = data_block(second_ctx, "PROMPTER_POINTS")
         assert '"point_id":"cr-p1"' in points and '"point_id":"am-p1"' in points
         facts_msg = llm.messages[("fact_checker", "Next sentence.")]
-        assert '"in_progress":false' in data_block(facts_msg, "SWITCH_CONTEXT")
+        assert '"next_product"' in data_block(facts_msg, "SWITCH_CONTEXT")  # D-415: no in_progress
         assert "DL-CR-01#key-facts#live-broadcast-price" in data_block(facts_msg, "SOURCE")
     finally:
         await close_env(rt)

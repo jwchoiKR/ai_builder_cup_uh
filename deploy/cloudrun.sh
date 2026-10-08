@@ -52,7 +52,7 @@ $G beta run deploy "$SERVICE" --region="$REGION" --image="$IMAGE" --service-acco
   --no-allow-unauthenticated --iap \
   --min-instances=0 --max-instances=1 --session-affinity --timeout=3600 --cpu=2 --memory=2Gi \
   --cpu-boost --no-cpu-throttling \
-  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=firestore,FIRESTORE_DATABASE=live-studio,RETRIEVER=local,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},VERIFY_MODE=lean,STT_ENDPOINTING=STANDARD,JUDGE_ARM=single,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=LOW,SINGLE_FACTS_THINKING=LOW,FACT_PROMPT=v5,FACT_MODE=prompter,JUDGE_SEED=7,QUESTION_HOLD=true,LLM_RETRY_ON_429_MS=500,SWITCH_ARM_NAME=false,JUDGE_PRODUCTS=all,CORRECTION_HANDLES=true,SWITCH_MODE=immediate"
+  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=firestore,FIRESTORE_DATABASE=live-studio,RETRIEVER=local,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},VERIFY_MODE=lean,STT_ENDPOINTING=STANDARD,JUDGE_ARM=single,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=LOW,SINGLE_FACTS_THINKING=LOW,FACT_PROMPT=v5,FACT_MODE=prompter,JUDGE_SEED=7,QUESTION_HOLD=true,LLM_RETRY_ON_429_MS=500,JUDGE_PRODUCTS=all,CORRECTION_HANDLES=true"
 
 echo "== IAP access"
 PROJECT_NUMBER="$($G projects describe "$PROJECT" --format='value(projectNumber)')"

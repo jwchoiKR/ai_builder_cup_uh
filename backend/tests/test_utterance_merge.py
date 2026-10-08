@@ -6,7 +6,7 @@ import pytest
 from app.models.session import Transcript
 from app.pipelines.utterances import ends_sentence
 
-from .judge_fakes import AMPOULE, advance, claim, close_env, events, make_env, price_contradiction, speak, violation
+from .judge_fakes import advance, claim, close_env, events, make_env, price_contradiction, speak, violation
 from .test_publish import ANSWER, messages, oily_on_host
 
 S08_A, S08_B = "Just to be clear, it does not", "treat acne. It's a moisturiser."
@@ -137,37 +137,6 @@ async def test_s07_split_mid_claim_gives_exactly_one_alert(env, fragment_flagged
     assert alert.rule_id == "ASEAN-3-SKIN-AGEING"
     assert alert.transcript_id == b.transcript_id and alert.span == "your wrinkles will disappear overnight"
     assert len(await events(rt, "alert.created")) == (2 if fragment_flagged else 1)
-
-
-async def test_s12_split_counts_the_switch_cue_once(env):
-    rt, llm = env
-    cue = dict(transition=True, target=AMPOULE, confidence="high")
-    llm.judge(S12_A, **cue)
-    llm.judge(S12, **cue)
-    a, b = await split(rt, S12_A, S12_B)
-    sw = (await rt.load_session()).switch
-    assert (sw.status, sw.cue_count, sw.cue_transcript_ids) == ("counting", 1, [b.transcript_id])
-    counting = [e.payload for e in await events(rt, "segment.switch_counting")]
-    assert [p["cue_count"] for p in counting] == [1, 1]
-    assert counting[1]["replaces_transcript_id"] == a.transcript_id
-    # the next separate utterance with ampoule information confirms (D-090)
-    await advance(rt, 5000)
-    info = "It's a watery gel, just two to three drops after toner."
-    llm.judge(info, covered=["am-p2"])
-    await speak(rt, info)
-    sw = (await rt.load_session()).switch
-    assert (sw.status, sw.cue_count) == ("pending", 2)
-
-
-async def test_merged_judgment_withdraws_a_cue_it_does_not_repeat(env):
-    rt, llm = env
-    llm.judge(S12_A, transition=True, target=AMPOULE, confidence="high")
-    llm.judge(S12)  # with the whole sentence: not a transition
-    a, _ = await split(rt, S12_A, S12_B)
-    sw = (await rt.load_session()).switch
-    assert (sw.status, sw.cue_count, sw.cue_transcript_ids) == ("idle", 0, [])
-    [cancel] = [e.payload for e in await events(rt, "segment.switch_cancelled")]
-    assert cancel == {"reason": "merged", "withdrawn_transcript_id": a.transcript_id}
 
 
 @pytest.mark.parametrize("fragment_contradicted", [True, False])
