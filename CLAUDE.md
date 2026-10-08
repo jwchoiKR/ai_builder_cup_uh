@@ -35,7 +35,14 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - In the cloud, onboarding state lives in `gs://ai-budiler-cup-uh-team-pjt-live-studio-onboarding/onboarding/` (D-263; bucket name since the 10/6 project move). The bucket is the source of truth; the container's ONBOARDING_DIR is only a cache that is refilled at start. Never edit the bucket by hand: releases and packs are write-once.
 - Approving a release also runs the BriefAgent (about 30 s, D-265) and writes `briefs/<release_id>.json` (write-once). A release approved before D-265 has no brief: its show keeps the approved claims as points and only brand, product and ingredient names as STT hints until it is approved again.
 
-## Handoff 10/7 early morning (read this first)
+## Handoff 10/8 night: logic frozen (read this first)
+
+- **Frozen live config (code defaults and deploy/cloudrun.sh since fc1d9bd):** JUDGE_ARM=single, Flash-Lite, compliance MEDIUM, facts LOW, FACT_PROMPT=v5, JUDGE_SEED=7, STT STANDARD, QUESTION_HOLD=true (D-334/335: a line the context judge marks as expecting a resolution is judged together with the next line; operator-only chip). The user said to stop tuning: make no judge, prompt or STT logic changes without the user.
+- **Final pool 7 (fresh, realistic, voice A, critic rulings in LABEL_CHANGES):** detection 95.5% (128/134), false alerts 1.6% (2/127), wrong HIGH 0, alert p95 4.2 s. Two-host lines went from 82.8% to 96.6%. Known limit: STT writes "four" as "for" next to a number (both false lines). FACT_PROMPT=v7 (D-345, stated_as_heard) failed its pre-set rule and was dropped. Deck: `docs/decks/week_1008.html`.
+- **Review-1008 fixes done (D-336…D-344):** measured config as defaults; demo session 404 and raw error text; approved-claims passages no longer used as fact corrections; STT stall watchdog, late-audio marks, per-final timing logs, mic closes at show end; banner text; one alert per HIGH sentence on the host screen; wording. Off until measured: LLM_RETRY_ON_429_MS. Not done: E1 term unification, H19. Cancelled: STT_DUAL.
+- **Next (user):** deploy with `! bash deploy/cloudrun.sh`, then the planning session smoke-tests the cloud.
+
+## Handoff 10/7 early morning
 
 - **Cloud:** `live-studio-us` revision 00003 runs fd62170 (D-308). The verifier arm is on (`JUDGE_ARM=verify`, 3.8 Flash on cited sentences, 5 s, "확인 중" chip, "미확인 (AI 응답 지연)" label). The other meaning-rule switches are back on their code defaults until each one wins an on/off test. Smoke-tested 10/6. The eval VM `live-studio-eval` now lives in ai-budiler-cup-uh-team-pjt (its SA has speech.client). The separk-cloocus leftovers are not deleted yet.
 - **User rules added 10/6-7:**
