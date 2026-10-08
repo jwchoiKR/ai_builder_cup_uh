@@ -2646,3 +2646,34 @@ D-407 (user: "오케이 일단 그 기획으로 가봅시다"; GPT, Gemini and S
 D-408 (codex review of D-388; user: "ㅇㅇ ㄱㄱ"): a fact check is retried only after a fast failure, `error` or `invalid` (JSON or schema). An `invalid` answer is asked again without JUDGE_SEED, because the same seed tends to repeat the same bad output. The new LLMRequest.seeded=False sends no seed. A `timeout` is not retried. A fact check that failed (a timeout, or a retry that failed too) shows the judge-failed state at once, as a failed compliance judge does: the neutral "CHECK THIS LINE" card (`line.check`) and `judge.failed` with agent fact_checker. The retried result's latency counts both calls, and its meta keeps `first_failure`. Every failure is logged with its type, its error and the total time. A note's line-end-to-shown latency (shown_at - speech_end_at) already includes the failed call. Tests: tests/test_d408.py (error retried with the seed; invalid retried without it; timeout not retried and the card shown; the retried result counts both calls' time).
 
 D-409 (user, audit 12: "ㅇㅇ 지우자"): the production fact prompt (fact_relation_v5.md) no longer points the model at ACTIVE_PROMO, ACTIVE_OFFERS or SET_OFFERS. In prompter mode those blocks were always null or []. Deleted: the evidence sentence about "promo" and offer ids, the Prices and Offers rules, the set_id rule, the three data blocks of the template (so they are no longer sent), and Examples D, F, I and P, which read them. Nothing was added. Checked before deleting: the snapshot (prompter_passages) carries the time-sale price while a price promo runs, and the first set offer's price. It does not carry offers that change no price (a gift's minimum spend, coupon terms), as before: in prompter mode those were never given to the fact checker. With FACT_MODE docs or record (non-production), the v5 template now also omits these blocks. Tests: tests/test_d409.py (no such blocks in v5; the snapshot has the time-sale price and the set offer).
+
+D-410 (codex review of D-405/D-406; user: "ㅇㅇ 그래"). The REFLEX_SCAN regex pre-scan and the provisional compliance alerts it created are deleted, together with every path that only served them. It was code word matching against the host's speech, and deploy already ran it off.
+
+Removed on the live path:
+- the pre-scan and its product filter in `_judge`;
+- `provisional_from_reflex`;
+- the provisional-to-active promotion in `apply_judge_compliance` (and its `provisional` parameter);
+- D-406's same_as provisional branch;
+- `apply_judge_failure`, the REFLEX_ON_FAIL=alert fallback alert built from reflex hits;
+- the D-352 stored correction of a provisional alert (`_pending_fix`);
+- the settings REFLEX_SCAN and REFLEX_ON_FAIL, also in .env.example and deploy/cloudrun.sh;
+- `arms.no_reflex`;
+- Alert.provisional_at;
+- the "provisional" status label in ACTIVE_ALERTS;
+- the host's checking chip for provisional alerts (the chip stays only for the dead verifier state, item 10);
+- scripts/eval_guardrails.py, which measured only the reflex fallback;
+- eval_show's ms_to_provisional and provisional_only.
+
+What stays:
+- A failed compliance judge always gets the neutral "CHECK THIS LINE" card (`line.check`, now with no rule ids or phrases) and `judge.failed`, and raises no alert.
+- The status value "provisional" stays in the Alert model so older stored documents still load.
+- The Reflex class stays for the comments, onboarding and answer-verification code that other teams own.
+
+Also in this change:
+- MERGED_LINE now lists `chain_handles`: the ACTIVE_ALERTS / ACTIVE_FACT_NOTES handles raised from the merged line's own split lines. same_as may name only those. FactInput carries the chain.
+- Codex's third point (same_as in the FACT_RELATION=False schema) is left as is. That path is not reachable in production (FACT_RELATION defaults to true), and code ignores a same_as outside a merged line's chain.
+
+Tests:
+- Deleted, because they covered only the deleted behaviour: provisional promotion and clearing, the fallback alert, arm C's no-pre-scan check, D-273's fallback wording and D-309's unverified fallback.
+- Migrated to the card and the no-alert path: test_alerts, test_d304, test_q_fixes, test_orchestrator_cases, the s08 merge test and D-352.
+- Added in tests/test_d403.py: a merged line is told only its chain's handles, both for compliance and for fact notes.

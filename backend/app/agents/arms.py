@@ -22,11 +22,6 @@ def meaning_to_llm(arm: str) -> bool:
     return family(arm) in ("B", "D")
 
 
-def no_reflex(arm: str) -> bool:
-    """Arms C to F2: no reflex pre-scan (no provisional chip, no fallback alert when the judge fails)."""
-    return arm in ("C", "D", "E", "F1", "F2")
-
-
 def agents_decide(arm: str) -> bool:
     """Arms D to F2 (D-191): the rules and the product facts go whole into the prompts and the agents decide; code
     keeps deadlines, retries, the state machines, routing permissions and post idempotency only (no comment prefilter

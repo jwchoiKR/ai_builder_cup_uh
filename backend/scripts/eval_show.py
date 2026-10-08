@@ -18,10 +18,10 @@ final, and each `ms_*` is from it. Per show:
   verdict on it (covered_point_ids, covered_cue_ids, switch verdict, reason) and its model calls (status, failure,
   latency, usage).
 - `switch_events`: decided (with the judge's reason and confidence), counting, pending, cancelled, committed, undone.
-- `alerts`: kind, rule or field, severity, release it was checked against, provisional reflex chip, shown, escalated,
+- `alerts`: kind, rule or field, severity, release it was checked against, shown, escalated,
   resolved (corrected or cleared, and by which line), and for the qualifier rule the 10 s re-say prompt.
 - `prompter`: every coverage update with the required points left, attributed to the line said just before.
-- `chips`: question holds (hold.started/ended) and "checking" (verify.started/done, provisional alerts).
+- `chips`: question holds (hold.started/ended) and "checking" (verify.started/done).
 - `judge`: failures and health changes; `calls`: every model call with usage.
 - `timeline`: the live events above in order, as emitted.
 - `switch_score`: caught switches with latency, false switches (see `switch_score`).
@@ -57,7 +57,7 @@ LIVE_EVENTS = {*SWITCH_EVENTS, "transcript.final", "alert.created", "alert.updat
 QUALIFIER_RESAY_MS = 10_000  # the host screen's QUALIFIER_ADDON_MS (D-341): after it, the host must say the result again
 JUDGES = ("compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "verifier")
 SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_MODE", "SWITCH_ARM_NAME", "SWITCH_DUAL_SCOPE_SEC",
-                   "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT", "COMPLIANCE_RESAY", "REFLEX_SCAN",
+                   "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT", "COMPLIANCE_RESAY",
                    "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC", "FACT_MODE")
 
 
@@ -165,7 +165,7 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                "checked_against": release_of.get(a.product_id), "status": a.status, "span": a.span,
                "say_instead": a.say_instead, "stated_value": a.stated_value, "correct_value": a.correct_value,
                "unverified": a.unverified, "resolved_by_line": resolved_by,
-               "ms_to_provisional": ms(line, a.provisional_at), "ms_to_shown": ms(line, a.shown_at),
+               "ms_to_shown": ms(line, a.shown_at),
                "ms_to_escalated": ms(line, a.escalated_at), "ms_to_resolved": ms(line, a.resolved_at)}
         if a.rule_id == QUALIFIER and a.shown_at is not None:
             # the host's banner asks to say the result again once the late add-on window is over (D-341)
@@ -174,10 +174,6 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                                                                       or a.resolved_at > resay else None),
                                 "cleared": a.status in ("corrected", "cleared")}
         alerts.append(row)
-    for a in alerts:  # D-306/"checking": a provisional reflex chip that never became an alert
-        if a["ms_to_provisional"] is not None and a["ms_to_shown"] is None:
-            chips.append({"event": "provisional_only", "line": a["line"], "rule_id": a["rule_id"],
-                          "ms_from_line": a["ms_to_provisional"], "status": a["status"]})
 
     calls = sorted(await store.query(rt.path("agent_calls"), AgentCall), key=lambda c: c.started_at)
     call_rows = [{"agent": c.agent, "line": _line_of_text(lines, c.input_preview), "status": c.status,

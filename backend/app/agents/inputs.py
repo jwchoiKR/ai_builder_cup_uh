@@ -186,7 +186,7 @@ def active_alerts_json(alerts: Sequence[Alert]) -> list[dict]:
     """D-395 (was D-355's 3 newest): every active or provisional compliance alert, newest first, so a correction can
     reach each one (since D-387 one claim said four times is four alerts). Each carries its product, so the model can
     tell an earlier product's similar claim from the on-air one; D-098: say_instead is what the host was shown."""
-    live = [a for a in alerts if a.kind == "compliance" and a.status in ("active", "provisional")]
+    live = [a for a in alerts if a.kind == "compliance" and a.status == "active"]  # D-410: no provisional state
     live.sort(key=lambda a: a.created_at, reverse=True)
     return [{"alert_id": a.alert_id, "product_id": a.product_id, "span": a.span, "rule_id": a.rule_id,
              "say_instead": a.say_instead} for a in live]

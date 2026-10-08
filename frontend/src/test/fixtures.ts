@@ -154,7 +154,6 @@ export function alert(over: Partial<Alert> = {}): Alert {
     passage_id: null,
     quote: null,
     created_at: T0 + 5000,
-    provisional_at: null,
     shown_at: T0 + 5000,
     host_rendered_at: null,
     escalated_at: null,

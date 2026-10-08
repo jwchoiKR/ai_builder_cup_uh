@@ -724,7 +724,7 @@ async def _release_line(tmp_path, monkeypatch, record: dict, line: str, claim_of
     rid = save_release(tmp_path, rec, "job")
     monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
     backend = ScriptedBackend()
-    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path), REFLEX_ON_FAIL="alert")  # D-293: the alert path
+    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
     try:
         pack = release_pack(ctx.pack, rec, rid, tmp_path)
         pid = product_key(rec)
@@ -1347,17 +1347,6 @@ async def test_d272_offer_points_come_from_the_record_and_survive_translation_on
     ms = [p.text for p in await offer_points(Fake(), rec, "ms")]
     assert en[0] == "Code SAVE10: 10% off, from 1 to 14 November 2026." and ms[0] == "Code SAVE10: 10% off, dari 1 to 14 November 2026."
     assert ms[2] == "Free pouch: when you spend the S$30 spend in the terms."  # a changed number keeps the English
-
-
-async def test_d273_a_release_without_approved_claims_keeps_the_fallback_alert(tmp_path, monkeypatch):
-    """A failed compliance call on a product with no approved claim raised IndexError in the say-instead fallback,
-    so the background task died and the line's red alert was lost."""
-    row: dict = {}
-    await _release_line(tmp_path, monkeypatch, {}, "It cures eczema.", lambda pid, ps: _claim(
-        pid, ps[0], field="other", verdict="not_in_sources", stated_value="x", correct_value=None), row,
-                        fail=("compliance_judge", "utterance_judge"))
-    [a] = [a for a in row["alerts"] if a["kind"] == "compliance"]
-    assert a["severity"] == "HIGH" and a["say_instead"] == "(no approved wording in en)"
 
 
 async def test_d274_cautions_and_directions_in_the_show_language_and_repeats_merged():

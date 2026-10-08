@@ -114,26 +114,22 @@ Q3 = [  # (line, span, negated by Q3)
 ]
 
 
-@pytest.mark.parametrize("line, mode, alert_rules, cards", [
-    ("It is suitable for eczema-prone skin.", "alert", ["ASEAN-2D-DISEASE"], 0),  # today: a HIGH from one word
-    ("It is suitable for eczema-prone skin.", "card", [], 1),
-    ("This cream cures eczema.", "card", [], 1),  # a real claim also becomes a card: counted, the recall cost
-    ("It feels light and soft.", "card", [], 0),  # no reflex word: nothing at all
-])
-async def test_d288_a1_a_failed_compliance_call_gives_a_check_card_not_a_rule_alert(line, mode, alert_rules, cards):
+@pytest.mark.parametrize("line", [  # D-410: every failed line gets the card, whatever its words
+    "It is suitable for eczema-prone skin.", "This cream cures eczema.", "It feels light and soft."])
+async def test_d288_a1_a_failed_compliance_call_gives_a_check_card_not_a_rule_alert(line):
     from .helpers import live_runtime, make_ctx
     from .judge_fakes import ScriptedBackend, close_env, events, speak
 
     llm = ScriptedBackend()
     for agent in ("compliance_judge", "utterance_judge"):
         llm.fail(agent, line)
-    rt = await live_runtime(make_ctx(backend=llm, REFLEX_ON_FAIL=mode))
+    rt = await live_runtime(make_ctx(backend=llm))
     try:
         await speak(rt, line)
         await rt.utterances.drain()
         active = [a.rule_id for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
-        assert active == alert_rules
-        assert len(await events(rt, "line.check")) == cards
+        assert active == []
+        assert len(await events(rt, "line.check")) == 1
     finally:
         await close_env(rt)
 

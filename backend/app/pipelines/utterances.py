@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING
 from ..agents import arms
 from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
 from ..agents.split_judges import ComplianceJudge, ContextJudge
-from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values, say_instead_fallback
+from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
 from ..logic import publish as publish_logic
@@ -182,9 +182,6 @@ class UtterancePipeline:
         self._inputs: dict[str, JudgeInput] = {}  # D-146: kept with the judged prefix, for a later recheck
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
-        # D-352: a provisional alert the compliance judge said a later line corrects -> that line (applied the moment
-        # the alert turns active)
-        self._pending_fix: dict[str, Transcript] = {}
         self._fact_shown: dict[str, set[str]] = {}  # D-363: line -> the fact notes its fact check was shown
         self._fact_inputs: dict[str, FactInput] = {}  # D-364: line -> its fact check's input (a re-check reuses it)
 
@@ -347,25 +344,10 @@ class UtterancePipeline:
 
     async def _judge(self, t: Transcript, text: str, merge: Merge | None, scenario: str) -> None:
         rt = self.rt
-        # 2. reflex -> provisional alerts (D-189 arm C: no pre-scan, so no provisional chip and no fallback alert when
-        # the judge fails; reflex still guards drafts through the restricted phrases of verify_answer)
-        hits = [] if arms.no_reflex(rt.settings.DESIGN_ARM) or not rt.settings.REFLEX_SCAN else rt.reflex.scan(text)
+        # D-410 (user): no regex pre-scan and no provisional alert; only the judge raises an alert
         async with rt.lock:
             seg = await rt.get_segment(t.segment_id) if t.segment_id else await rt.current_segment()
             on_air = seg.product_id if seg else rt.catalog.order[0]
-            if rt.pack.rule_products is not None and hits:  # D-279: no reflex chip from another product's law
-                s = await rt.load_session()
-                target = s.switch.target_product_id if s.switch.status in ("counting", "pending") else None
-                line = (set(rt.catalog.order) if rt.settings.JUDGE_PRODUCTS == "all"  # D-304
-                        else rt.catalog.line_products(on_air, target, [text])
-                        | ({self._scoped(s.switch).previous_product_id} - {None}))  # D-349
-                allowed = {r.rule_id for r in rt.catalog.rules_for(line)}
-                hits = [h for h in hits if h.rule_id in allowed]
-            alerts = await rt.alerts()
-            provisional = alert_logic.provisional_from_reflex(hits, t, on_air, alerts, rt.new_id, rt.now())
-            for a in provisional:
-                await rt.save_alert(a)
-                await rt.emit("alert.created", a)
             judge_input, offered = await self._judge_input_locked(t, text, merge, on_air, scenario)
             self._inputs[t.transcript_id] = judge_input
         # Only preparation waits for the previous final.
@@ -374,7 +356,7 @@ class UtterancePipeline:
         previous_context = self._context_tail
         self._context_tail = rt.spawn(self._ordered_context(previous_context, ready, t, merge),
                                       name=f"context-apply:{t.transcript_id}")
-        inference = rt.spawn(self._infer(t, on_air, judge_input, hits, merge, scenario, ready),
+        inference = rt.spawn(self._infer(t, on_air, judge_input, merge, scenario, ready),
                              name=f"inference:{t.transcript_id}")
         self._side_tail = rt.spawn(self._ordered_publish(self._side_tail, inference, self._context_tail,
                                                        t, offered, merge), name=f"publish:{t.transcript_id}")
@@ -409,7 +391,7 @@ class UtterancePipeline:
                 self._fact_inputs.pop(tid, None)
                 self._ready.pop(tid, None)
 
-    async def _infer(self, t, on_air, inp, hits, merge, scenario, ready):
+    async def _infer(self, t, on_air, inp, merge, scenario, ready):
         rt = self.rt
         comp = ctx = facts = None
         waiting = set()
@@ -449,7 +431,7 @@ class UtterancePipeline:
                     if task is comp_task:
                         comp = output
                         async with rt.lock:
-                            await self._apply_compliance_locked(t, on_air, res, hits, merge)
+                            await self._apply_compliance_locked(t, on_air, res, merge)
                         if not self.split3:
                             ctx = output
                             ready.set_result(ctx)
@@ -654,7 +636,7 @@ class UtterancePipeline:
         inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
                         passages=passages, previous=judge_input.previous, recent=judge_input.recent,
                         session_id=self.rt.sid, scenario=scenario,
-                        offers=offers, parts=parts or [], notes=notes, now=self.rt.now())
+                        offers=offers, parts=parts or [], notes=notes, now=self.rt.now(), chain=judge_input.chain)
         if transcript_id is not None:
             self._fact_inputs[transcript_id] = inp
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
@@ -673,46 +655,25 @@ class UtterancePipeline:
                      res.latency_ms, f", first {res.meta['first_failure']}" if "first_failure" in res.meta else "")
         return res
 
-    async def _apply_compliance_locked(self, t: Transcript, on_air: str, res: AgentResult, hits,
+    async def _apply_compliance_locked(self, t: Transcript, on_air: str, res: AgentResult,
                                        merge: Merge | None = None) -> None:
-        """§8.4.1 alerts and §8.4.5 corrections, or §8.4.3 fail toward warning. `res.output` is a
-        ComplianceOutput or a full judge output."""
+        """§8.4.1 alerts and §8.4.5 corrections, or the judge-failed card. `res.output` is a ComplianceOutput or a full
+        judge output."""
         rt = self.rt
         if not self._claim_application(t, "compliance"):
             return
         now = rt.now()
         alerts = await rt.alerts()
-        provisional = [a for a in alerts if a.transcript_id == t.transcript_id and a.status == "provisional"]
         # D-088: alerts raised by the fragments inside a merged utterance are never resolved by it
         protected = set(merge.chain) if merge else set()
         text = merge.text if merge else t.text
         high_before = alert_logic.high_alert_active(alerts)
         judge = res.output if res.status == "ok" else None
-        if judge is None and rt.settings.REFLEX_ON_FAIL == "card":
-            # D-288 (A1): no rule alert from a regex alone ("suitable for eczema-prone skin" is approved wording); the
-            # host and the operator get a neutral card to check the line, counted apart from alerts
-            for a in provisional:
-                a.status = "cleared"
-                await self._save_alert_change_locked(a)
-            live = [h for h in hits if not h.negated and not h.quoted]
-            if live or not rt.settings.REFLEX_SCAN:  # D-304: with no pre-scan, every failed line gets the card
-                await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text,
-                                             "rule_ids": sorted({h.rule_id for h in live}),
-                                             "phrases": sorted({h.phrase for h in live})})
+        if judge is None:
+            # D-288 (A1), D-410: a failed judge raises no alert; the host and the operator get a neutral card to check
+            # the line, counted apart from alerts
+            await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": []})
             await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": []})
-            await self._apply_corrections_locked(t, text, [], protected, now)
-        elif judge is None:
-            # §8.4.3 judge failed: fail toward warning
-            changed = alert_logic.apply_judge_failure(provisional, hits, say_instead_fallback(rt.catalog, on_air), now)
-            for a in changed:
-                if a.unverified and not a.unverified_reason:  # D-309: the judge's own failure type, shown honestly
-                    a.unverified_reason = res.meta.get("failure")
-                await self._save_alert_change_locked(a)
-                await self._on_active_locked(a)
-            await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
-                                           "alert_ids": [a.alert_id for a in changed if a.status == "active"]})
-            # D-098: the replacement wording still corrects an alert without the judge
-            await self._apply_corrections_locked(t, text, [], protected, now)
         else:
             # D-397: a verdict on a line that a later merged line already judged (an older state of the chain) is
             # not applied; the merged line's verdict stands
@@ -737,9 +698,8 @@ class UtterancePipeline:
                     log.info("compliance %s t=%s: same_as %s is not an alert of this merged line's chain and product: "
                              "a new alert", rt.sid, t.transcript_id, same)
                     v.same_as = None
-            was_provisional = {a.alert_id for a in listed.values() if a.status == "provisional"}
             changed, created, closed = alert_logic.apply_judge_compliance(
-                judge, t, on_air, provisional, rt.pack.rules_by_id, rt.new_id, now, listed=listed)
+                judge, t, on_air, rt.pack.rules_by_id, rt.new_id, now, listed=listed)
             kept = {a.alert_id for a in changed if a.transcript_id != t.transcript_id}
             if kept or closed:
                 log.info("compliance %s t=%s: same_as kept %s; not raised again (closed): %s", rt.sid, t.transcript_id,
@@ -747,7 +707,7 @@ class UtterancePipeline:
             # D-397/D-401/D-403: the merged line's verdict replaces the alerts its chain's lines raised: the ones it
             # neither repeats (same_as) nor corrects are cleared. Only transcript ids and the model's handles decide it
             chain = [a for a in alerts if a.kind == "compliance" and a.transcript_id in protected
-                     and a.status in ("active", "provisional") and a.alert_id not in kept]
+                     and a.status == "active" and a.alert_id not in kept]
             fixed = set(judge.correction.corrects_alert_ids)
             for old in [x for x in chain if x.alert_id not in fixed]:  # one the verdict lists as fixed is corrected
                 old.status, old.resolved_at = "cleared", now
@@ -762,9 +722,7 @@ class UtterancePipeline:
                 await self._on_active_locked(a)
             for a in changed:
                 await self._save_alert_change_locked(a)
-                if a.alert_id in kept and a.alert_id in was_provisional:  # D-406: it turns active now, as a new one
-                    self._schedule_escalation(a)
-                if a.alert_id not in kept or a.alert_id in was_provisional:  # D-403: a kept active one stays as is
+                if a.alert_id not in kept:  # D-403: a kept active one stays as is
                     await self._on_active_locked(a)
             # D-089: an apology alone does not correct a compliance alert
             await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
@@ -826,14 +784,7 @@ class UtterancePipeline:
                    if self._sequence.get(a.transcript_id, 0) < self._sequence.get(t.transcript_id, 1)]
         ids = {a.alert_id for a in earlier if a.kind == "compliance"}
         accepted = [i for i in dict.fromkeys(listed) if i in ids]
-        # D-352: an alert still provisional (its own line's verdict not applied yet) is corrected the moment it turns
-        # active; apply_corrections only handles active alerts
-        by_id = {a.alert_id: a for a in earlier}
-        waiting = [i for i in accepted if by_id[i].status == "provisional"]
-        for i in waiting:
-            self._pending_fix[i] = t
-        self._log_corrections(t, listed, accepted, waiting)
-        accepted = [i for i in accepted if i not in waiting]
+        self._log_corrections(t, listed, accepted)
         if not accepted:
             return
         for a in alert_logic.apply_corrections(earlier, accepted, t, now):
@@ -841,31 +792,24 @@ class UtterancePipeline:
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
 
-    def _log_corrections(self, t: Transcript, listed: list[str], accepted: list[str], waiting: list[str]) -> None:
+    def _log_corrections(self, t: Transcript, listed: list[str], accepted: list[str]) -> None:
         """D-352: per alert the judge was shown or listed: was it in ACTIVE_ALERTS, did the judge list it, the result."""
         inp = self._inputs.get(t.transcript_id)
         shown = {a.alert_id for a in inp.active_alerts if a.kind == "compliance"} if inp is not None else set()
         for aid in sorted(shown | set(listed)):
-            result = ("waits for its alert to turn active" if aid in waiting else "applied" if aid in accepted
-                      else "not an alert of an earlier line" if aid in listed else "not listed")
+            result = ("applied" if aid in accepted else "not an alert of an earlier line" if aid in listed
+                      else "not listed")
             log.info("correction %s t=%s: alert=%s in_active_alerts=%s listed=%s -> %s", self.rt.sid,
                      t.transcript_id, aid, aid in shown, aid in listed, result)
 
     async def _on_active_locked(self, a: Alert) -> None:
-        """D-352: an alert just turned active. A correction the judge already gave for it (while it was provisional)
-        applies now. Otherwise, the later lines judged without this alert (at most 2, within LATE_CORRECTION_MS of
+        """D-352: an alert just turned active. The later lines judged without this alert (at most 2, within LATE_CORRECTION_MS of
         its line, any segment) are asked once each, by the compliance judge, whether they correct it or say it again
         with the qualifier. A failed call is never a correction. D-357: "judged without it" means the line's judge
         input was built before the alert existed, whether or not that line's own verdict has come back yet (it often
         has not); every trigger decision is logged."""
         rt = self.rt
         if a.kind != "compliance" or a.status != "active":
-            return
-        fix = self._pending_fix.pop(a.alert_id, None)
-        if fix is not None:
-            log.info("correction %s: alert=%s turned active, corrected by t=%s (listed while provisional)", rt.sid,
-                     a.alert_id, fix.transcript_id)
-            await self._correct_locked(a, fix)
             return
         origin = self._prepared.get(a.transcript_id)
         seq = self._sequence.get(a.transcript_id, 0)

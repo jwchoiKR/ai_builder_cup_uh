@@ -115,8 +115,7 @@ async def test_s08_split_after_does_not_gives_no_active_alert(env):
     llm.judge(S08_B, violations=[violation("ASEAN-3-SKIN-ACNE", "treat acne")])  # the fragment on its own
     llm.judge(S08, violations=[violation("ASEAN-3-SKIN-ACNE", "treat acne", negated=True)])
     await split(rt, S08_A, S08_B)
-    alerts = await rt.alerts()
-    assert [(a.rule_id, a.status) for a in alerts] == [("ASEAN-3-SKIN-ACNE", "cleared")]  # provisional, then cleared
+    assert await rt.alerts() == []  # D-410: no provisional alert; the merged verdict is negated
 
 
 async def test_s08_split_with_judge_failure_falls_back_on_the_negated_reflex(env):

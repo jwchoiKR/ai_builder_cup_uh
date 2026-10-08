@@ -23,7 +23,7 @@ async def test_d305_a_fact_alert_from_the_relation_arm():
 
 
 async def test_d305_a_failed_compliance_call_gives_the_check_card_without_the_regex():
-    rt, llm = await make_env(**(VERIFY_SHIPPED | {"REFLEX_SCAN": False}))  # D-308: an option, not the default
+    rt, llm = await make_env(**VERIFY_SHIPPED)
     try:
         line = "It feels light and soft."
         llm.fail("utterance_judge", line)

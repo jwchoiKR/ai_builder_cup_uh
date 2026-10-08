@@ -34,11 +34,10 @@ log = logging.getLogger(__name__)
 
 # D-406: sent only with a merged line's re-judgment (a line speech-to-text split)
 MERGED_NOTE = (
-    'UTTERANCE joins lines that speech-to-text split. Some of its claims may already have an alert from '
-    'those lines in ACTIVE_ALERTS. For each violation, `same_as` is the handle of the ACTIVE_ALERTS entry'
-    ' whose claim it repeats (the same claim from the split line), else null. Example: A1 is "cures '
-    'eczema"; UTTERANCE "It cures eczema and psoriasis too." gives "cures eczema" `same_as` "A1" and '
-    '"psoriasis too" null.')
+    'UTTERANCE joins lines that speech-to-text split. `chain_handles` are the ACTIVE_ALERTS entries raised '
+    'from those lines. For each violation, `same_as` is the one of `chain_handles` whose claim it repeats '
+    '(the same claim from the split line), else null. Example: A1 is "cures eczema"; UTTERANCE "It cures '
+    'eczema and psoriasis too." gives "cures eczema" `same_as` "A1" and "psoriasis too" null.')
 
 # D-358: the live compliance judge reads the regulation originals; there is no rule-JSON fallback in production. The
 # rules path (LEGACY_RULES) is kept only for the test suite, which pins it. D-391: the mock provider runs the
@@ -249,7 +248,12 @@ class ComplianceJudge(_SplitJudge):
         """D-349 SWITCH_MODE=immediate: in the seconds after a switch, the product that just left the air, labelled."""
         prev = self._previous(inp)
         # D-406: a merged line's re-judgment (a line speech-to-text split) is asked which listed alert it repeats
-        merged = inputs.data_block("MERGED_LINE", {"note": MERGED_NOTE}) if self.originals and inp.chain else ""
+        merged = ""
+        if self.originals and inp.chain:  # D-410: with the handles of the chain's own alerts (as _with_handles numbers)
+            by_id = {a.alert_id: a for a in inp.active_alerts}
+            chain = [f"A{i}" for i, row in enumerate(inputs.active_alerts_json(inp.active_alerts), 1)
+                     if by_id[row["alert_id"]].transcript_id in inp.chain]
+            merged = inputs.data_block("MERGED_LINE", {"note": MERGED_NOTE, "chain_handles": chain})
         if prev is None:
             return merged
         return merged + inputs.data_block("PREVIOUS_PRODUCT", {
@@ -273,8 +277,7 @@ class ComplianceJudge(_SplitJudge):
         shown, handles = [], {}
         for i, row in enumerate(values["active_alerts_json"], 1):
             a = by_id.get(row["alert_id"])
-            status = ("provisional" if a is not None and a.status == "provisional"
-                      else "banner" if row["rule_id"] == QUALIFIER else "active")
+            status = "banner" if row["rule_id"] == QUALIFIER else "active"
             handles[f"A{i}"] = row["alert_id"]
             # D-403: and how many seconds ago it was raised, so the model can tell a repeat from a new claim
             age = max(0, (inp.now - a.created_at) // 1000) if inp.now is not None and a is not None else None
