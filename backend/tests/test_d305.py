@@ -1,16 +1,16 @@
 """D-305: the shipped defaults are model-only (verify arm, relation facts, STT-aware prompts, rolling context, no code
-meaning rules). The older tests pin the code paths (conftest LEGACY); these run the shipped defaults (SHIPPED) end to
+meaning rules). The older tests pin the code paths (conftest LEGACY); these run the shipped defaults (VERIFY_SHIPPED) end to
 end on the demo pack, with the model's answers scripted (the verifier's mock keeps a candidate)."""
 from __future__ import annotations
 
-from .conftest import SHIPPED
+from .conftest import VERIFY_SHIPPED
 from .helpers import say
 from .judge_fakes import close_env, events, make_env, speak, violation
 from .test_relation import _RelationBackend
 
 
 async def test_d305_a_compliance_alert_goes_through_the_verifier():
-    rt, llm = await make_env(**SHIPPED)
+    rt, llm = await make_env(**VERIFY_SHIPPED)
     try:
         line = "This cream cures eczema, honestly."
         llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
@@ -28,7 +28,7 @@ async def test_d305_a_compliance_alert_goes_through_the_verifier():
 async def test_d305_a_fact_alert_from_the_relation_arm():
     from .helpers import live_runtime, make_ctx
 
-    rt = await live_runtime(make_ctx(backend=_RelationBackend("contradicts"), **SHIPPED))
+    rt = await live_runtime(make_ctx(backend=_RelationBackend("contradicts"), **VERIFY_SHIPPED))
     try:
         await speak(rt, "It's only thirty-two dollars today.")
         await rt.utterances.drain()
@@ -39,7 +39,7 @@ async def test_d305_a_fact_alert_from_the_relation_arm():
 
 
 async def test_d305_a_failed_compliance_call_gives_the_check_card_without_the_regex():
-    rt, llm = await make_env(**(SHIPPED | {"REFLEX_SCAN": False}))  # D-308: an option, not the default
+    rt, llm = await make_env(**(VERIFY_SHIPPED | {"REFLEX_SCAN": False}))  # D-308: an option, not the default
     try:
         line = "It feels light and soft."
         llm.fail("utterance_judge", line)
@@ -52,7 +52,7 @@ async def test_d305_a_failed_compliance_call_gives_the_check_card_without_the_re
 
 
 async def test_d305_a_viewer_question_is_grouped():
-    rt, _ = await make_env(**SHIPPED)
+    rt, _ = await make_env(**VERIFY_SHIPPED)
     try:
         await say(rt, "Mei", "How much is the cream today?")
         assert len(await rt.groups()) == 1
@@ -74,6 +74,6 @@ def test_d305_the_demo_show_starts(tmp_path):
     data, onb = clean_data(tmp_path), tmp_path / "onb"
     show = json.loads((data / "demo_release" / "show.json").read_text(encoding="utf-8"))["release_ids"]
     with TestClient(create_app(make_settings(DATA_DIR=str(data), ONBOARDING_DIR=str(onb), DEMO_TOOLS_ENABLED=True,
-                                             **SHIPPED), llm_backend=ScriptedBackend())) as c:
+                                             **VERIFY_SHIPPED), llm_backend=ScriptedBackend())) as c:
         s = c.post("/api/demo/reset", json={}).json()
         assert s["release_ids"] == show

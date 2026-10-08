@@ -27,10 +27,15 @@ LEGACY = {
     "QUALIFIER_ADDON": "true", "VERBAL_CHECK": "code", "REFLEX_SCAN": "true", "JUDGE_PRODUCTS": "named",
     "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
     "UTTERANCE_MERGE_WINDOW_MS": "3500",
+    # D-336: the measured config became the default; the older tests keep the paths they were written for
+    "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash", "SINGLE_THINKING": "LOW",
+    "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT",
 }
 for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)
 SHIPPED = {k: Settings.model_fields[k].default for k in LEGACY}
+# D-336: the verifier arm as it shipped from D-305 to D-335 (the default is now the single arm)
+VERIFY_SHIPPED = SHIPPED | {"JUDGE_ARM": "verify", "FACT_PROMPT": "v1", "JUDGE_SEED": ""}
 
 _REPO = Path(__file__).resolve().parents[2]
 _TEST_DATA: Path | None = None

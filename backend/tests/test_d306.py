@@ -8,7 +8,7 @@ import pytest
 
 from app.providers.llm import LLMError, failure_kind
 
-from .conftest import SHIPPED
+from .conftest import VERIFY_SHIPPED
 from .judge_fakes import ScriptedBackend, close_env, events, make_env, speak, violation
 
 
@@ -41,7 +41,7 @@ async def test_d306_no_verifier_answer_keeps_the_alert_unverified_with_its_cause
 
     llm = _Busy()
     llm.judge(LINE, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
-    rt = await live_runtime(make_ctx(backend=llm, **SHIPPED))
+    rt = await live_runtime(make_ctx(backend=llm, **VERIFY_SHIPPED))
     try:
         await speak(rt, LINE)
         await rt.utterances.drain()
@@ -57,7 +57,7 @@ async def test_d306_no_verifier_answer_keeps_the_alert_unverified_with_its_cause
 
 
 async def test_d306_the_chip_shows_only_while_the_verifier_works():
-    rt, llm = await make_env(**SHIPPED)
+    rt, llm = await make_env(**VERIFY_SHIPPED)
     try:
         await speak(rt, "It feels light and soft.")  # no candidate: no verifier, no chip
         await rt.utterances.drain()
