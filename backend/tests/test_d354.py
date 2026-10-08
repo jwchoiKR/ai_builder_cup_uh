@@ -191,3 +191,23 @@ async def test_d378_comment_data_stays_in_memory_and_live_data_goes_to_firestore
     client.data.setdefault(sub("ses_1", "groups"), {})["old"] = {"group_id": "old"}
     fresh, _ = _store(client)
     assert await fresh.query(sub("ses_1", "groups"), QuestionGroup) == []
+
+
+async def test_d379_comment_events_stay_out_of_firestore_and_the_seq_continues():
+    """D-379: comment events stay in memory and on the stream; a new process continues after the highest stored seq."""
+    store, client = _store()
+    from app.clock import ManualClock
+
+    bus = EventBus(store, ManualClock())
+    await store.put(SESSIONS, "ses_1", _comment(0))
+    for type_ in ("transcript.final", "comment.created", "group.updated", "alert.created", "message.published"):
+        await bus.emit("ses_1", type_, {"x": 1})
+    assert [e.type for e in await bus.events_after("ses_1", 0)] == [
+        "transcript.final", "comment.created", "group.updated", "alert.created", "message.published"]
+    assert await store.flush(5)
+    stored = client.data[sub("ses_1", "events")]
+    assert sorted(v["type"] for v in stored.values()) == ["alert.created", "transcript.final"]
+    fresh, _ = _store(client)
+    bus2 = EventBus(fresh, bus._clock)
+    assert await bus2.last_seq("ses_1") == 4  # alert.created was seq 4; the comment events are gaps
+    assert (await bus2.emit("ses_1", "transcript.final", {})).seq == 5

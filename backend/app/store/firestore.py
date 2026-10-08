@@ -43,6 +43,11 @@ _DELETE_SESSION = object()  # queue marker: delete the session document and ever
 MEMORY_ONLY = frozenset({"comments", "analyses", "groups", "answers", "messages"})
 COMMENT_AGENTS = frozenset({"comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier",
                             "file_tools"})
+# D-379: the events the comments pipeline emits (they carry comment data); they stay in memory and on the SSE stream.
+# After a read-back the next seq is the highest stored seq + 1 (gaps are fine).
+COMMENT_EVENTS = frozenset({"comment.created", "comment.analyzed", "comment.hidden", "comment.unhidden",
+                            "group.updated", "hostqueue.updated", "message.pending", "message.published",
+                            "message.updated", "message.cancelled", "notice.updated"})
 
 
 def mirrored(path: str, data: Any) -> bool:
@@ -50,7 +55,10 @@ def mirrored(path: str, data: Any) -> bool:
     name = path.split("/")[-1]
     if path.startswith(f"{SESSIONS}/") and name in MEMORY_ONLY:
         return False
-    return not (name == "agent_calls" and isinstance(data, dict) and data.get("agent") in COMMENT_AGENTS)
+    if not isinstance(data, dict):
+        return True
+    return not ((name == "agent_calls" and data.get("agent") in COMMENT_AGENTS)
+                or (name == "events" and data.get("type") in COMMENT_EVENTS))
 
 
 def _nested_array(x: Any, in_array: bool = False) -> bool:
