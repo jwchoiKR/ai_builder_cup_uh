@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
@@ -49,6 +50,31 @@ if TYPE_CHECKING:
     from .runtime import SessionRuntime
 
 log = logging.getLogger(__name__)
+
+
+def _same_words(a: str | None, b: str | None) -> bool:
+    """D-330: the model named the same words (one inside the other, case and punctuation aside)."""
+    x, y = (" ".join(re.findall(r"[a-z0-9]+", (s or "").lower())) for s in (a, b))
+    return bool(x and y) and (x in y or y in x)
+
+
+def _same_subject(c, other) -> bool:
+    """D-330: two fact outputs about one subject: the same product and field, and a shared evidence sentence (or,
+    without evidence ids, the same passage)."""
+    if (c.product_id, c.field) != (other.product_id, other.field):
+        return False
+    a = set(getattr(c, "_evidence", None) or getattr(c, "evidence_ids", None) or [])
+    b = set(getattr(other, "_evidence", None) or getattr(other, "evidence_ids", None) or [])
+    return bool(a & b) if a and b else c.passage_id == other.passage_id
+
+
+def _stance_of(c, stances: list, pool: list) -> str | None:
+    """D-330: what the next line's check says of claim `c` (one of `pool`): the stance item of its product and field
+    whose words are the claim's, or the only item of that product and field when `c` is the only such claim."""
+    same = [x for x in pool if (x.product_id, x.field) == (c.product_id, c.field)]
+    return next((s["stance"] for s in stances if (s["product_id"], s["field"]) == (c.product_id, c.field)
+                 and (len(same) == 1 or _same_words(c.span, s["span"]) or _same_words(c.stated_value, s["span"]))),
+                None)
 
 
 def _result(task: asyncio.Task) -> AgentResult:
@@ -151,7 +177,8 @@ class UtterancePipeline:
         # D-328 REPORTED_HOLD: transcript id -> (its contradicted claims in someone else's words, the transcript, the
         # protected ids, when the hold began), waiting for the next line's fact check
         self._reported: dict[str, list] = {}  # [claims still held, transcript, protected ids, when it began]
-        self._checked: dict[int, dict] = {}  # line number -> its check's word on the previous line, per subject
+        self._checked: dict[int, list] = {}  # line number -> its check's word on the previous line's claims
+        self._consistent: dict[int, list] = {}  # D-330: line number -> its consistent claims (retire a held alert)
         self._prepared: dict[str, tuple[Transcript, str, Merge | None]] = {}
         self._applied: set[tuple[str, str]] = set()
         self._fact_sequence: dict[tuple[str, str], tuple[int, str, str]] = {}
@@ -952,11 +979,23 @@ class UtterancePipeline:
             claims.append(claim)
         if rt.settings.REPORTED_HOLD:
             seq = self._sequence.get(t.transcript_id, 0)
-            stances = dict(getattr(facts, "_previous_line", {}))
+            stances = list(getattr(facts, "_previous_line", []))
             self._checked[seq] = stances
+            self._consistent[seq] = [c for c in claims if c.verdict == "supported"]
             endorsed = await self._settle_reported_locked(seq - 1, stances)
-            # D-329: an endorsed held alert keeps its own line (and timing): this line's same claim joins it
-            claims = [c for c in claims if not (c.verdict == "contradicted" and (c.product_id, c.field) in endorsed)]
+            # D-329/330: an endorsed held alert keeps its own line (and timing): this line's claim on the same subject
+            # joins it; its other claims stand
+            claims = [c for c in claims
+                      if not (c.verdict == "contradicted" and any(_same_subject(c, e) for e in endorsed))]
+            prev = next((x for x, s in self._sequence.items() if s == seq - 1), None)
+            if prev is not None and (seq - 1) not in self._checked:
+                # D-330: this line endorses what the previous line reported, and that line's check is not back: the
+                # endorsed claim's alert is the previous line's (so its delay counts from there)
+                joined = [c for c in claims if c.verdict == "contradicted"
+                          and _stance_of(c, stances, claims) == "endorses"]
+                if joined:
+                    claims = [c for c in claims if all(c is not j for j in joined)]
+                    await self._fact_alerts_locked(t.model_copy(update={"transcript_id": prev}), joined, protected)
             held = [c for c in claims if c.verdict == "contradicted" and getattr(c, "_attributed", "host") == "other"]
             if held:
                 claims = [c for c in claims if all(c is not h for h in held)]
@@ -967,7 +1006,7 @@ class UtterancePipeline:
         """D-328: a contradiction in someone else's words (a viewer quoted, a co-host's question) is not shown yet:
         the host sees the grey "checking" chip until the next line's fact check says whether the host endorses or
         rejects it, or REPORTED_HOLD_MS passes. The model decides whose words and which claims the next line endorses
-        or rejects (D-329: per product and field); code only waits."""
+        or rejects; code only waits and matches the model's own outputs."""
         rt = self.rt
         tid, seq = t.transcript_id, self._sequence.get(t.transcript_id, 0)
         self._reported[tid] = [list(claims), t, protected, rt.now()]
@@ -994,30 +1033,50 @@ class UtterancePipeline:
                 return
             await self._show_reported_locked(tid, "hold ended")
 
-    async def _settle_reported_locked(self, seq: int, stances: dict) -> set[tuple[str, str]]:
-        """D-329: the check of the line right after line `seq` is back. Only that line settles line `seq`'s hold, and
-        only the claims it names: a rejected claim is dropped, an endorsed one shows (on its own line, so its delay
-        counts); the others stay held until the timeout. Returns the endorsed (product, field) pairs."""
+    async def _settle_reported_locked(self, seq: int, stances: list) -> list:
+        """The check of the line right after line `seq` is back. Only that line settles line `seq`'s hold, and only
+        the claims it names (D-330: by the words of that claim, or the only held claim of that product and field): a
+        rejected claim is dropped, an endorsed one shows on its own line; the others stay held until the timeout.
+        Returns the endorsed claims."""
         rt = self.rt
         tid = next((x for x in self._reported if self._sequence.get(x, 0) == seq), None)
         if tid is None or not stances:
-            return set()
+            return []
         claims, t, protected, began = self._reported[tid]
-        verdict = {id(c): stances.get((c.product_id, c.field)) for c in claims}
+        verdict = {id(c): _stance_of(c, stances, claims) for c in claims}
         dropped = [c for c in claims if verdict[id(c)] == "rejects"]
         shown = [c for c in claims if verdict[id(c)] == "endorses"]
         self._reported[tid][0] = [c for c in claims if verdict[id(c)] is None]
         if dropped:
             log.info("held alert dropped: rejected by next line %s t=%s after %d ms (%s)", rt.sid, tid,
-                     rt.now() - began, ", ".join(f"{c.product_id}.{c.field}" for c in dropped))
+                     rt.now() - began, ", ".join(f"{c.product_id}.{c.field} {c.stated_value!r}" for c in dropped))
         if shown:
             log.info("held alert shown (endorsed) %s t=%s after %d ms", rt.sid, tid, rt.now() - began)
-            await self._fact_alerts_locked(t, shown, protected)
+            await self._endorsed_alerts_locked(t, shown, protected, seq + 1)
         if not self._reported[tid][0]:
             del self._reported[tid]
             rt.ctx.scheduler.cancel(rt.key(f"reported:{tid}"))
             await rt.emit("verify.done", {"transcript_id": tid, "kind": "reported"})
-        return {(c.product_id, c.field) for c in shown}
+        return shown
+
+    async def _endorsed_alerts_locked(self, t: Transcript, claims: list, protected: set[str], next_seq: int) -> None:
+        """D-330: an endorsed claim's alert belongs to the line it came from. When the endorsing line's check came
+        back first and already shows that subject, the alert moves to the original line (its shown time kept);
+        otherwise it is made on the original line now."""
+        rt = self.rt
+        nxt = next((x for x, s in self._sequence.items() if s == next_seq), None)
+        rest = []
+        for c in claims:
+            a = next((a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"
+                      and a.transcript_id == nxt and _same_subject(c, a)), None)
+            if a is None:
+                rest.append(c)
+                continue
+            a.transcript_id = t.transcript_id
+            await rt.save_alert(a)
+            await rt.emit("alert.updated", a)
+        if rest:
+            await self._fact_alerts_locked(t, rest, protected)
 
     async def _show_reported_locked(self, tid: str, why: str) -> None:
         entry = self._reported.pop(tid, None)
@@ -1026,9 +1085,18 @@ class UtterancePipeline:
         claims, t, protected, began = entry
         rt = self.rt
         rt.ctx.scheduler.cancel(rt.key(f"reported:{tid}"))
-        log.info("held alert shown (%s) %s t=%s after %d ms", why, rt.sid, tid, rt.now() - began)
+        seq = self._sequence.get(tid, 0)
+        later = [x for s, ok in self._consistent.items() if s > seq for x in ok]
+        retired = [c for c in claims if any(_same_subject(c, x) for x in later)]
+        if retired:  # D-330: a later line stated this subject consistently (the model's own outputs)
+            log.info("held alert retired: corrected later %s t=%s (%s)", rt.sid, tid,
+                     ", ".join(f"{c.product_id}.{c.field} {c.stated_value!r}" for c in retired))
+        claims = [c for c in claims if all(c is not r for r in retired)]
+        log.info("held alert shown (%s) %s t=%s after %d ms: %d claim(s)", why, rt.sid, tid, rt.now() - began,
+                 len(claims))
         await rt.emit("verify.done", {"transcript_id": tid, "kind": "reported"})
-        await self._fact_alerts_locked(t, claims, protected)
+        if claims:
+            await self._fact_alerts_locked(t, claims, protected)
 
     async def end_reported_locked(self) -> None:
         """D-329: the show ends with holds open: what is still held shows (a missed risk is worse than a late one)."""

@@ -46,10 +46,12 @@ class _HoldBackend(ScriptedBackend):
         elif line == HOST:
             out["claims"] = [claim("host", "contradicts")]
         elif "thirty-two" in recent and line.startswith("No"):
-            out = {"previous_line": [{"product_id": CREAM, "field": "price", "stance": "rejects"}],
+            out = {"previous_line": [{"product_id": CREAM, "field": "price", "span": "the live price is thirty-two",
+                                      "stance": "rejects"}],
                    "claims": [claim("host", "consistent", "it's thirty-six")]}
         elif "thirty-two" in recent and line == "Correct.":
-            out = {"previous_line": [{"product_id": CREAM, "field": "price", "stance": "endorses"}],
+            out = {"previous_line": [{"product_id": CREAM, "field": "price", "span": "the live price is thirty-two",
+                                      "stance": "endorses"}],
                    "claims": [claim("host", "contradicts")]}
         return RawReply(json.dumps(out), model_version="scripted")
 
@@ -131,12 +133,14 @@ async def test_d328_the_host_sees_the_checking_chip_while_it_waits():
 
 # ---- D-329: the hold settled by its own next line, per claim, with the originating line's timing ----------------
 
-def _claim(field: str, attributed: str = "other", verdict: str = "contradicted"):
+def _claim(field: str, attributed: str = "other", verdict: str = "contradicted", span: str | None = None,
+           evidence: str | None = None, passage: str | None = None):
     from app.models.agent_io import FactClaim
 
-    c = FactClaim(span=field, field=field, product_id=CREAM, stated_value="x", verdict=verdict, correct_value="y",
-                  passage_id=f"P-{field}", quote="q")
+    c = FactClaim(span=span or field, field=field, product_id=CREAM, stated_value="x", verdict=verdict,
+                  correct_value="y", passage_id=passage or f"P-{field}", quote="q")
     c._attributed = attributed
+    c._evidence = [evidence] if evidence else []
     return c
 
 
@@ -150,7 +154,9 @@ async def _line(rt, n: int, claims=(), stances=None, at: int | None = None):
                    received_at=at or rt.now(), source="mic", segment_id=seg.segment_id)
     rt.utterances._sequence[t.transcript_id] = n
     out = FactCheckOutput(claims=list(claims), reason="t")
-    out._previous_line = {(CREAM, f): s for f, s in (stances or {}).items()}
+    out._previous_line = (stances if isinstance(stances, list) else  # (field, span, stance), or field -> stance
+                          [(f, f, s) for f, s in (stances or {}).items()])
+    out._previous_line = [{"product_id": CREAM, "field": f, "span": sp, "stance": s} for f, sp, s in out._previous_line]
     async with rt.lock:
         await rt.utterances._apply_facts_locked(t, out, set())
     return t
@@ -244,5 +250,65 @@ async def test_d329_the_show_ending_shows_what_is_still_held():
         await rt.end()
         assert [a.field for a in await rt.alerts() if a.kind == "fact"] == ["price"]
         assert [e.payload["kind"] for e in await events(rt, "verify.done")] == ["reported"]
+    finally:
+        await close_env(rt)
+
+
+# ---- D-330: subjects, not fields ------------------------------------------------------------------------------
+
+IRON = dict(span="each tablet has 80 mg of iron", evidence="S3", passage="P-iron")
+ZINC = dict(span="and 30 mg of zinc", evidence="S4", passage="P-zinc")
+
+
+async def test_d330_rejecting_one_claim_keeps_another_of_the_same_field():
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("ingredient_amount", **IRON), _claim("ingredient_amount", **ZINC)])
+        await _line(rt, 2, stances=[("ingredient_amount", "80 mg of iron", "rejects")])
+        await rt.ctx.scheduler.advance(2500)
+        [a] = [a for a in await rt.alerts() if a.kind == "fact"]
+        assert a.span == ZINC["span"]
+    finally:
+        await close_env(rt)
+
+
+async def test_d330_the_endorsing_line_s_check_first_still_counts_from_the_original_line():
+    rt = await _rt()
+    try:
+        heard = rt.now()
+        _heard(rt, 1)  # line 1 was heard first; its check is the slow one
+        await rt.ctx.scheduler.advance(2000)
+        await _line(rt, 2, [_claim("ingredient_amount", attributed="host", **IRON)],
+                    stances=[("ingredient_amount", "80 mg of iron", "endorses")])
+        await _line(rt, 1, [_claim("ingredient_amount", **IRON)], at=heard)
+        [a] = [a for a in await rt.alerts() if a.kind == "fact"]
+        assert a.transcript_id == "tr_l1" and a.shown_at - heard == 2000
+    finally:
+        await close_env(rt)
+
+
+async def test_d330_an_endorsement_does_not_swallow_the_line_s_own_new_claim():
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("ingredient_amount", **IRON)])
+        await _line(rt, 2, [_claim("ingredient_amount", attributed="host", **IRON),
+                            _claim("ingredient_amount", attributed="host", **ZINC)],
+                    stances=[("ingredient_amount", "80 mg of iron", "endorses")])
+        alerts = sorted((a.span, a.transcript_id) for a in await rt.alerts() if a.kind == "fact")
+        assert alerts == [(ZINC["span"], "tr_l2"), (IRON["span"], "tr_l1")]
+    finally:
+        await close_env(rt)
+
+
+async def test_d330_a_hold_corrected_by_a_later_line_is_retired(caplog):
+    caplog.set_level("INFO", logger="app.pipelines.utterances")
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("ingredient_amount", **IRON)])
+        await _line(rt, 2, stances=[])
+        await _line(rt, 3, [_claim("ingredient_amount", attributed="host", verdict="supported", **IRON)])
+        await rt.ctx.scheduler.advance(2500)
+        assert [a for a in await rt.alerts() if a.kind == "fact"] == []
+        assert any("held alert retired: corrected later" in r.getMessage() for r in caplog.records)
     finally:
         await close_env(rt)
