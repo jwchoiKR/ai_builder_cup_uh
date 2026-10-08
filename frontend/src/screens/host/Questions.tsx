@@ -74,7 +74,8 @@ function postingWindow(pending: HostSlotView["pending"]): number {
   return pending?.publish_at ? Math.max(500, pending.publish_at - pending.created_at) : 2000;
 }
 
-/** D-113: one compact row per waiting question. The answer itself appears only on the AI PD card. */
+/** D-113: one compact row per waiting question. D-384 (user): its suggested answer shows under it at once (Q still
+ *  puts the top question on the AI PD card). */
 function Item({ view }: { view: HostSlotView }) {
   const t = useT();
   const { group, pending, waiting } = view;
@@ -98,6 +99,9 @@ function Item({ view }: { view: HostSlotView }) {
           </span>
         )}
       </div>
+      {view.answer && (
+        <p className={styles.wAnswer} data-testid="host-question-answer">{view.answer.text}</p>
+      )}
       {pending && <Posting windowMs={windowMs} />}
     </>
   );
