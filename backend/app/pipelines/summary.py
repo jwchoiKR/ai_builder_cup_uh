@@ -85,6 +85,11 @@ async def run_summary(rt: "SessionRuntime", *, scenario: str = "S14") -> None:
             doc.status, doc.error = "failed", f"recap unavailable ({res.status}): {res.error or ''}".strip()
         await _save(rt, doc)
         await rt.emit("summary.ready", {"status": doc.status})
+        after = rt.settings.SESSION_EVICT_AFTER_SEC
+        if after > 0 and hasattr(rt.ctx.store, "evict"):
+            # the show is over and written down: it leaves memory later and is read back from Firestore when opened
+            sid, ctx = rt.sid, rt.ctx
+            ctx.scheduler.call_later(f"evict:{sid}", after * 1000, lambda: ctx.runtimes.evict(sid))
     except Exception:  # noqa: BLE001 - the summary must never break the session end
         log.exception("summary failed for %s", rt.sid)
         try:

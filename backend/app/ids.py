@@ -38,3 +38,14 @@ class Ids:
         key = (session_id, prefix)
         self._counters[key] += 1
         return f"{prefix}{self._counters[key]:06d}"
+
+    def observe(self, value: str, session_id: str | None = None) -> None:
+        """A counter id that already exists (a session read back from the store) is never issued again. ULIDs need
+        nothing: they do not repeat."""
+        if not self.deterministic:
+            return
+        for prefix in PREFIXES:
+            number = value[len(prefix):]
+            if value.startswith(prefix) and number.isdigit():
+                key = (session_id, prefix)
+                self._counters[key] = max(self._counters[key], int(number))

@@ -5,17 +5,16 @@ from .base import Store
 from .memory import MemoryStore
 
 
-def make_store(settings: Settings, *, comments_client=None) -> Store:
-    if settings.STORE == "memory":
-        store: Store = MemoryStore()
-    else:
+def make_store(settings: Settings, *, firestore_client=None) -> Store:
+    if settings.STORE == "firestore":
         from .firestore import FirestoreStore
 
-        store = FirestoreStore(settings)
-    if settings.COMMENTS_FIRESTORE:
-        # the comment collections go to Firestore whatever the main store is (docs/comments-firestore.md)
-        from .comment_mirror import CommentMirrorStore, CommentWriter
+        return FirestoreStore(settings)
+    store: Store = MemoryStore()
+    if settings.SESSIONS_FIRESTORE:
+        # memory for the shows being worked on, Firestore for all of them (docs/comments-firestore.md)
+        from .session_mirror import MirrorWriter, SessionMirrorStore
 
-        store = CommentMirrorStore(store, CommentWriter(settings.GCP_PROJECT, settings.COMMENTS_FIRESTORE_DATABASE,
-                                                        comments_client))  # a client is passed by tests only
+        store = SessionMirrorStore(store, MirrorWriter(settings.GCP_PROJECT, settings.SESSIONS_FIRESTORE_DATABASE,
+                                                       firestore_client))  # a client is passed by tests only
     return store

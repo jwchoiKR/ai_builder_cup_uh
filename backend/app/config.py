@@ -111,10 +111,13 @@ class Settings(BaseSettings):
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
-    # the comment path's five collections (comments, analyses, groups, answers, messages) are also written to
-    # Firestore, next to whatever STORE is (store/comment_mirror.py, docs/comments-firestore.md)
-    COMMENTS_FIRESTORE: bool = False
-    COMMENTS_FIRESTORE_DATABASE: str = "live-studio"
+    # Every session is also written to Firestore; memory holds only the shows being worked on. A session that is not
+    # in memory (a restart, or evicted after it ended) is read back from Firestore when it is opened
+    # (store/session_mirror.py, docs/comments-firestore.md). One process owns a show: run a single instance.
+    SESSIONS_FIRESTORE: bool = False
+    SESSIONS_FIRESTORE_DATABASE: str = "live-studio"
+    # an ended session leaves memory this long after its summary is written; 0 keeps every session in memory
+    SESSION_EVICT_AFTER_SEC: int = 900
     RETRIEVER: Literal["local", "vertex_search"] = "local"
     LLM_PROVIDER: Literal["vertex", "mock"] = "vertex"
     STT_PROVIDER: Literal["google_v2", "mock"] = "google_v2"
@@ -309,7 +312,7 @@ class Settings(BaseSettings):
             self.LLM_PROVIDER == "vertex"
             or self.STT_PROVIDER == "google_v2"
             or self.STORE == "firestore"
-            or self.COMMENTS_FIRESTORE
+            or self.SESSIONS_FIRESTORE
             or self.RETRIEVER == "vertex_search"
         )
 

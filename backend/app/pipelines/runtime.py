@@ -44,7 +44,7 @@ from ..models.session import (
     Transcript,
 )
 from ..bus import viewer_comment, viewer_message, viewer_session
-from ..store.base import SESSIONS, sub
+from ..store.base import SESSIONS, SUBCOLLECTIONS, sub
 
 if TYPE_CHECKING:
     from ..context import AppContext
@@ -815,12 +815,16 @@ async def latest_session(ctx: "AppContext") -> Session | None:
     return found[0] if found else None
 
 
+EVENT_SEQ_GAP = 10_000  # see Runtimes.session_loaded
+
+
 class Runtimes:
     """Registry of live session runtimes (one per session, one process, §4.1)."""
 
     def __init__(self, ctx: "AppContext") -> None:
         self.ctx = ctx
         self._by_id: dict[str, SessionRuntime] = {}
+        self._loaded: set[str] = set()  # read back from Firestore, runtime not built yet
 
     async def get(self, session_id: str) -> SessionRuntime:
         rt = self._by_id.get(session_id)
@@ -828,8 +832,39 @@ class Runtimes:
             s = await self.ctx.store.get(SESSIONS, session_id, Session)
             if s is None:
                 raise ActionError(404, "session_not_found", f"session {session_id} not found")
-            rt = self._by_id[session_id] = SessionRuntime(self.ctx, s)
+            rt = self._by_id.get(session_id)  # the load may have yielded to another caller
+            if rt is None:
+                rt = self._by_id[session_id] = SessionRuntime(self.ctx, s)
+                if session_id in self._loaded:  # back from Firestore: a live show's timers run again
+                    self._loaded.discard(session_id)
+                    await rt.resume()
         return rt
+
+    async def session_loaded(self, session_id: str) -> None:
+        """SESSIONS_FIRESTORE: the store read this session back from Firestore (a restart, or it was evicted). Event
+        numbers jump ahead, because browsers skip numbers they have seen and the last events of the old process may
+        not have reached Firestore."""
+        self._loaded.add(session_id)
+        await self.ctx.bus.skip_ahead(session_id, EVENT_SEQ_GAP)
+        for name in SUBCOLLECTIONS:  # counter ids (mock mode) continue after the ones the session already has
+            for doc_id in self.ctx.store.document_ids(sub(session_id, name)):
+                self.ctx.ids.observe(doc_id, session_id)
+
+    async def evict(self, session_id: str) -> bool:
+        """An ended session leaves memory (SESSION_EVICT_AFTER_SEC after its summary); Firestore keeps it and it is
+        read back when someone opens it. A session that is not ended, or whose writes are not all in Firestore, stays."""
+        store = self.ctx.store
+        if not hasattr(store, "evict"):
+            return False
+        s = await store.get(SESSIONS, session_id, Session)
+        if s is None or s.status != "ended":
+            return False
+        if not await store.evict(session_id):
+            return False
+        await self.drop(session_id)
+        self.ctx.bus.forget_session(session_id)
+        log.info("session %s left memory; Firestore keeps it", session_id)
+        return True
 
     async def drop(self, session_id: str) -> None:
         rt = self._by_id.pop(session_id, None)

@@ -7,15 +7,25 @@ import copy
 
 
 class FakeRef:
-    def __init__(self, path: str, doc_id: str) -> None:
+    def __init__(self, path: str, doc_id: str, client: "FakeFirestore | None" = None) -> None:
         if "/" in doc_id or not doc_id:
             raise ValueError(f"bad document id {doc_id!r}")
-        self.path, self.id = path, doc_id
+        self.path, self.id, self._client = path, doc_id, client
+
+    async def get(self) -> "FakeSnapshot":
+        self._client.reads.append(f"{self.path}/{self.id}")
+        if self._client.fail_reads:
+            raise ConnectionError("fake: read failed")
+        return FakeSnapshot(self.id, self._client.docs.get(self.path, {}).get(self.id))
 
 
 class FakeSnapshot:
     def __init__(self, doc_id: str, data: dict) -> None:
         self.id, self._data = doc_id, data
+
+    @property
+    def exists(self) -> bool:
+        return self._data is not None
 
     def to_dict(self) -> dict:
         return copy.deepcopy(self._data)
@@ -47,7 +57,7 @@ class FakeQuery:
 
 class FakeCollection(FakeQuery):
     def document(self, doc_id: str) -> FakeRef:
-        return FakeRef(self._path, doc_id)
+        return FakeRef(self._path, doc_id, self._client)
 
     async def list_documents(self, page_size: int | None = None):
         self._client.reads.append(self._path)
