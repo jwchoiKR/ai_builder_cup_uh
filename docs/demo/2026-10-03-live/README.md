@@ -4,6 +4,7 @@ Scenes S02–S14 of `data/demo/host_script.md` on `/studio`, against Vertex AI (
 
 - **How it ran:** host lines were injected from the Demo Console as final transcripts (the same pipeline as speech-to-text). Comment bursts were fired from the console, and operator actions were clicked in the Operator pane.
 - **Script:** a headed Playwright run with captions (not in the repo). It took 3 min 38 s.
+- **Video:** `demo.mp4` (3 min 45 s, Korean captions at the bottom).
 - **Layout:** Host + Operator. The Reset demo dropped `?layout=all`, so the viewer pane is not in these shots.
 - **Viewer-side results:** these were checked in the session state instead:
   - the brand answer with the operator's edit was published;
