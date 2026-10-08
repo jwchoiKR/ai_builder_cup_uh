@@ -165,7 +165,7 @@ async def audio(ws: WebSocket, session_id: str) -> None:
     await ws.accept()
     stt = getattr(ctx, "stt", None)
     if stt is None:
-        await _send(ws, {"type": "status", "state": "error", "message": "Speech-to-text is off (STT_PROVIDER=mock)."})
+        await _send(ws, {"type": "status", "state": "error", "message": "Speech-to-text is off in this environment."})  # D-337
         await ws.close(code=4400)
         return
     try:

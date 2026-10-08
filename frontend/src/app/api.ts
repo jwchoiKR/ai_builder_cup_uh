@@ -12,6 +12,20 @@ import type {
 
 export const API_BASE = "/api";
 
+// D-337: what a person sees when a request fails: a short neutral line, never a server or infra string
+const USER_MESSAGES: Record<string, string> = {
+  network_error: "Can't reach the server. Check the connection and try again.",
+  session_not_found: "This show is no longer available. Start a new one to continue.",
+  testdrive_busy: "The test drive is busy. Try again in a few minutes.",
+  demo_tools_disabled: "Demo tools are off in this environment.",
+};
+
+export function userMessage(e: unknown): string {
+  if (e instanceof ApiError && USER_MESSAGES[e.code]) return USER_MESSAGES[e.code];
+  if (e instanceof ApiError && e.status >= 500) return "Something went wrong on our side. Please try again.";
+  return "That didn't work. Please try again.";
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -80,6 +94,8 @@ export const api = {
   demoCurrent: () => get<Session>("/demo/current"),
   demoScript: () => get<{ steps: DemoStep[] }>("/demo/script"),
   demoReset: () => post<Session>("/demo/reset"),
+  // D-337: a new demo show (its own releases), as the demo console and the Hub's "New demo session" mean it
+  demoSession: (showMode?: "solo" | "team") => post<Session>("/demo/sessions", showMode ? { show_mode: showMode } : {}),
   simulateOvertime: (sid: string) => post(`${s(sid)}/demo/simulate-overtime`),
   feedStart: (sid: string, opts: { pool?: boolean; bursts?: boolean } = { pool: true, bursts: false }) =>
     post<FeedState>(`${s(sid)}/feed/start`, opts),

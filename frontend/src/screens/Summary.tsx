@@ -1,7 +1,7 @@
 // Post-broadcast summary (DEV_SPEC §12.8): numbers computed by the backend (§8.14) and the AI recap (§7.8).
 import { useCallback, useEffect, useState } from "react";
 
-import { api } from "../app/api";
+import { api, userMessage } from "../app/api";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useTheme } from "../app/theme";
 import { exportSummaryJson } from "./summary/exportJson";
@@ -36,7 +36,7 @@ export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps
       setData((await api.summary(sessionId)) as unknown as SummaryData);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(userMessage(e));
     }
   }, [sessionId]);
 

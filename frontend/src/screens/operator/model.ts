@@ -244,8 +244,8 @@ export interface SystemCard {
 }
 
 const VERIFY_CAUSES: Record<string, string> = {
-  http_504: "Google shared capacity busy",
-  http_429: "Google shared capacity busy",
+  http_504: "AI service busy",  // D-337: no infra name on screen
+  http_429: "AI service busy",
   client_timeout: "AI response delayed",
   other_error: "AI error",
 };

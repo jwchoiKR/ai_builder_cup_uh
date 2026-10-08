@@ -42,7 +42,7 @@ describe("D-315: a show lost to a server restart", () => {
     const calls = server(["ses_old"], ["ses_new"]);
     window.history.replaceState(null, "", "/host?session=ses_old");
     render(<App />);
-    expect(await screen.findByTestId("session-ended")).toHaveTextContent("This show ended (server restarted).");
+    expect(await screen.findByTestId("session-ended")).toHaveTextContent("This show is no longer available.");
     expect(screen.queryByText(/not found/)).toBeNull();
     fireEvent.click(screen.getByTestId("session-ended-new"));
     await waitFor(() => expect(calls.some((u) => u.includes("/sessions/ses_new/"))).toBe(true));

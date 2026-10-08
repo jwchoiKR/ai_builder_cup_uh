@@ -26,13 +26,18 @@ const responses: Record<string, unknown> = {
   },
 };
 
+// the demo show's feed: chatter and bursts B1-B5 (D-337: a release show has none, and its buttons are hidden)
+const burst = (burst_id: string) => ({ burst_id, scene: "S01", description: "", anchor: "trigger", count: 3 });
+let demoFeed: object = { pool_running: false, pool_available: true, armed: [], fired: [],
+  bursts: ["B1_price", "B2_oily", "B3_sensitive", "B4_timesale", "B5_switch"].map(burst) };
+
 beforeEach(() => {
   vi.stubGlobal("EventSource", FakeEventSource);
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
       const path = url.split("?")[0];
-      const body = path.endsWith("/state") ? snapshot({ feed: { pool_running: false, armed: [], fired: [], bursts: [] } }) : responses[path] ?? (path.endsWith("/releases") ? [] : {});
+      const body = path.endsWith("/state") ? snapshot({ feed: demoFeed }) : responses[path] ?? (path.endsWith("/releases") ? [] : {});
       return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
     }),
   );
@@ -72,6 +77,33 @@ describe("screens", () => {
     });
     fireEvent.click(screen.getByText("All three"));
     expect(screen.getAllByText("Viewer").length).toBeGreaterThan(0);
+  });
+
+  it("D-337: Hub's New demo session asks for a demo show, not the old run-sheet", async () => {
+    responses["/api/demo/sessions"] = { session_id: "ses_demo337" };
+    try {
+      render(<Hub sessionId="ses_000001" />);
+      fireEvent.click(screen.getByText("New demo session"));
+      const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+      await waitFor(() => expect(calls.some(([u, init]) => u === "/api/demo/sessions" && init?.method === "POST")).toBe(true));
+      expect(calls.some(([u, init]) => u === "/api/sessions" && init?.method === "POST")).toBe(false);
+    } finally {
+      delete responses["/api/demo/sessions"];
+    }
+  });
+
+  it("D-337: a show with no demo feed shows no chatter or burst buttons", async () => {
+    const saved = demoFeed;
+    demoFeed = { pool_running: false, pool_available: false, armed: [], fired: [], bursts: [] };
+    try {
+      render(<Studio sessionId="ses_rel337" />);
+      fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
+      expect(await screen.findByText("No demo feed for this show.")).toBeInTheDocument();
+      expect(screen.queryByText("Start background chatter")).toBeNull();
+      expect(screen.queryByText("B1 Price questions")).toBeNull();
+    } finally {
+      demoFeed = saved;
+    }
   });
 
   it("the open demo console resizes by keyboard, remembers its height, and survives a throwing storage", async () => {

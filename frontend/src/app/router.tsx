@@ -12,7 +12,7 @@ import { Summary } from "../screens/Summary";
 import { Viewer } from "../screens/Viewer";
 import { Button } from "../components";
 import styles from "../screens/screens.module.css";
-import { api, onStaleSession } from "./api";
+import { api, onStaleSession, userMessage } from "./api";
 import { useLang, useT } from "./i18n";
 import { navigate, useLocation, withSession, type ScreenProps } from "./nav";
 import { useTheme } from "./theme";
@@ -49,7 +49,7 @@ export function useSessionId(): {
     let cancelled = false;
     api.demoCurrent().then(
       (s) => !cancelled && setCurrent(s.session_id),
-      (e) => !cancelled && setError(e instanceof Error ? e.message : String(e)),
+      (e) => !cancelled && setError(userMessage(e)),
     );
     return () => {
       cancelled = true;
@@ -74,7 +74,7 @@ function SessionEnded({ onNew }: { onNew: () => void }) {
   return (
     <div className={styles.root} data-theme={theme} lang={lang}>
       <main className={styles.sessionEnded} role="alert" data-testid="session-ended">
-        <h1 className={styles.hubReleasesTitle}>{t("This show ended (server restarted).")}</h1>
+        <h1 className={styles.hubReleasesTitle}>{t("This show is no longer available.")}</h1>
         <p className={styles.hubStudioNote}>{t("Start a new one to keep going.")}</p>
         <Button variant="primary" onClick={onNew} data-testid="session-ended-new">{t("Start a new show")}</Button>
       </main>

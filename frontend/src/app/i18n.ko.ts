@@ -197,7 +197,14 @@ export const KO_HUB: Record<string, string> = {
   "Start a show with {n} products": "제품 {n}개로 방송 시작",
   "The brief (speech-recognition names, prompter points) is still running, about 30 s. A show started now uses the approved claims as points; wait for the full prompter.":
     "브리프(음성 인식 이름, 프롬프터 포인트)를 아직 만드는 중입니다(약 30초). 지금 시작하면 승인된 문구만 포인트로 씁니다. 프롬프터를 다 쓰려면 잠시 기다려 주세요.",
-  "This show ended (server restarted).": "이 방송은 끝났습니다 (서버가 다시 시작됨).",
+  "This show is no longer available.": "방송 연결이 끊겼습니다.",
+  // D-337: what a person sees when a request fails
+  "Can't reach the server. Check the connection and try again.": "서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도해 주세요.",
+  "This show is no longer available. Start a new one to continue.": "방송 연결이 끊겼습니다. 새 방송을 시작해 주세요.",
+  "The test drive is busy. Try again in a few minutes.": "시승이 진행 중입니다. 몇 분 뒤 다시 시도해 주세요.",
+  "Demo tools are off in this environment.": "이 환경에서는 데모 도구가 꺼져 있습니다.",
+  "Something went wrong on our side. Please try again.": "일시적인 문제가 생겼습니다. 다시 시도해 주세요.",
+  "That didn't work. Please try again.": "처리하지 못했습니다. 다시 시도해 주세요.",
   "Start a new one to keep going.": "계속하려면 새 방송을 시작하세요.",
   "Start a new show": "새 방송 시작",
 };
