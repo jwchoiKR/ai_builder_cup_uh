@@ -69,16 +69,18 @@ def test_d361_the_quote_check_keeps_letters_of_every_script():
 
 
 def test_d361_two_packs_with_files_of_the_same_name_keep_both(tmp_path):
-    """9: each pack's "regulation.txt" is given to the judge; the later one is named with its pack."""
+    """9: each pack's "regulation.pdf" is given to the judge; the later one is named with its pack."""
     from app.agents.originals import _load
     from app.onboarding.files import store
 
+    from .helpers import text_pdf
+
     (tmp_path / "lawpacks").mkdir()
-    for pack, job, text in (("law_sg_a_v1", "ja", b"2.1 No cure claims."), ("law_sg_b_v1", "jb", b"3 No safety promises.")):
+    for pack, job, text in (("law_sg_a_v1", "ja", "2.1 No cure claims."), ("law_sg_b_v1", "jb", "3 No safety promises.")):
         (tmp_path / "lawpacks" / f"{pack}.json").write_text(json.dumps({"pack_id": pack, "job_id": job}))
-        store(tmp_path, job, "regulation.txt", text)
+        store(tmp_path, job, "regulation.pdf", text_pdf(text))
     found, missing = _load((("law_sg_a_v1", "", None), ("law_sg_b_v1", "", None)), str(tmp_path))
-    assert [d.name for d in found] == ["regulation.txt", "law_sg_b_v1:regulation.txt"] and missing == ()
+    assert [d.name for d in found] == ["regulation.pdf", "law_sg_b_v1:regulation.pdf"] and missing == ()
     assert "safety" in found[1].text
 
 

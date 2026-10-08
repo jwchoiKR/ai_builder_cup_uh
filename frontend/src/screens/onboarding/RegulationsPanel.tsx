@@ -64,13 +64,19 @@ export function RegulationsPanel() {
     <section className={styles.block} data-testid="reg-panel">
       <h2 className={styles.blockTitle}>Regulations</h2>
       <p className={styles.muted}>
-        The live compliance judge reads these documents as they are. Upload a regulator's documents for one market and
-        one product category.
+        The live compliance judge reads these documents as they are. Upload a regulator's documents (PDF only) for one
+        market and one product category.
       </p>
 
       <div className={styles.inline}>
-        <input type="file" multiple accept=".pdf,.html,.htm,.docx" data-testid="reg-files"
-               onChange={(e) => setFiles(Array.from(e.target.files ?? []))} />
+        <input type="file" multiple accept=".pdf,application/pdf" data-testid="reg-files"
+               onChange={(e) => {
+                 // D-367 (user): regulation originals are PDF only
+                 const picked = Array.from(e.target.files ?? []);
+                 const other = picked.filter((f) => !f.name.toLowerCase().endsWith(".pdf"));
+                 setError(other.length ? `PDF files only. Not a PDF: ${other.map((f) => f.name).join(", ")}` : null);
+                 setFiles(other.length ? [] : picked);
+               }} />
         <label>
           Market{" "}
           <select value={market} onChange={(e) => setMarket(e.target.value)} data-testid="reg-market">

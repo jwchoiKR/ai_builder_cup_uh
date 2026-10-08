@@ -82,6 +82,19 @@ describe("RegulationsPanel (D-359)", () => {
     expect(api.list).toHaveBeenCalledTimes(2);  // the list reloads after approval
   });
 
+  it("accepts PDF files only (D-367)", async () => {
+    render(<RegulationsPanel />);
+    await screen.findByTestId("reg-packs");
+    expect(screen.getByTestId("reg-files")).toHaveAttribute("accept", ".pdf,application/pdf");
+    fireEvent.change(screen.getByTestId("reg-files"), {
+      target: { files: [new File(["x"], "code.pdf"), new File(["x"], "page.html"), new File(["x"], "notes.docx")] } });
+    expect(screen.getByText("PDF files only. Not a PDF: page.html, notes.docx")).toBeInTheDocument();
+    expect(screen.getByTestId("reg-read")).toBeDisabled();
+    fireEvent.change(screen.getByTestId("reg-files"), { target: { files: [new File(["x"], "Code.PDF")] } });
+    expect(screen.queryByText(/PDF files only/)).toBeNull();
+    expect(screen.getByTestId("reg-read")).toBeEnabled();
+  });
+
   it("marks the active pack, a replaced one, and warns for a product no regulation matches", async () => {
     render(<RegulationsPanel />);
     await screen.findByTestId("reg-packs");

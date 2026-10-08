@@ -66,11 +66,13 @@ def test_d362_a_pack_with_some_files_missing_is_not_kept(tmp_path):
     from app.agents.originals import _load
     from app.onboarding.files import store
 
+    from .helpers import text_pdf
+
     (tmp_path / "lawpacks").mkdir()
     (tmp_path / "lawpacks" / "law_sg_p_v1.json").write_text(json.dumps({"pack_id": "law_sg_p_v1", "job_id": "jp"}))
-    store(tmp_path, "jp", "part1.txt", b"1 No cure claims.")
-    store(tmp_path, "jp", "part2.txt", b"2 No safety promises.")
-    missing_file = next((tmp_path / "jp").glob("*.txt"))
+    store(tmp_path, "jp", "part1.pdf", text_pdf("1 No cure claims."))
+    store(tmp_path, "jp", "part2.pdf", text_pdf("2 No safety promises."))
+    missing_file = next((tmp_path / "jp").glob("*.pdf"))
     data = missing_file.read_bytes()
     missing_file.unlink()
     found, missing = _load((("law_sg_p_v1", "", None),), str(tmp_path))
