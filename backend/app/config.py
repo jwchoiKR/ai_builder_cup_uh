@@ -47,14 +47,14 @@ class Settings(BaseSettings):
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
     # D-309 "single": the compliance judge and the fact checker on one model (SINGLE_MODEL, SINGLE_THINKING; unless
     # COMPLIANCE_MODEL / FACTS_MODEL name another), no verifier, no code drops
-    JUDGE_ARM: Literal["guards", "verify", "vote", "single"] = "verify"  # D-305
+    JUDGE_ARM: Literal["guards", "verify", "vote", "single"] = "single"  # D-305; D-336: the measured config
     # D-302 vote: two more runs of the agent on a line with a candidate; empty = the model's default temperature
     # (1.0 on Gemini 3, which Google advises keeping)
     VOTE_TEMPERATURE: str = ""  # a number, e.g. "0.7"
     # D-314 (eval): the live judges' sampling (compliance_judge, fact_checker, context_judge); empty = not sent (the
     # model's default, D-008). JUDGE_TEMPERATURE is a number ("0"), JUDGE_SEED an integer ("7")
     JUDGE_TEMPERATURE: str = ""
-    JUDGE_SEED: str = ""
+    JUDGE_SEED: str = "7"  # D-336: the measured config (a seed removes most run-to-run flips)
     # D-302: "self" adds a confidence (0-1) to each violation and claim, a log field only
     VOTE_CONFIDENCE: Literal["off", "self"] = "off"
     VERIFY_MODEL: str = "gemini-3.8-flash"
@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     # D-331 v5: v3 plus a stance per claim (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked
     # D-333 v6: v5 plus answers take the question's subject, a rejection with a new value is a claim, questions stay
     # REPORTS_OR_ASKS
-    FACT_PROMPT: Literal["v1", "v2", "v3", "v4", "v5", "v6"] = "v1"
+    FACT_PROMPT: Literal["v1", "v2", "v3", "v4", "v5", "v6"] = "v5"  # D-336: the measured config
     # D-328: the fact checker marks each claim host or other (reported words, a question to someone); a contradiction
     # in someone else's words waits for the next line's check (it endorses, rejects or neither), at most
     # REPORTED_HOLD_MS when no next line comes. Needs FACT_PROMPT v2-v4.
@@ -126,9 +126,9 @@ class Settings(BaseSettings):
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
     FACTS_THINKING: ThinkingLevel = "LOW"  # D-255: sealed unseen products, 5 s budget
     # D-309 JUDGE_ARM=single: the one model and thinking level of the compliance judge and the fact checker
-    SINGLE_MODEL: str = "gemini-3.8-flash"
-    SINGLE_THINKING: ThinkingLevel = "LOW"
-    SINGLE_FACTS_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = ""  # D-311: the fact checker's; empty = SINGLE_THINKING
+    SINGLE_MODEL: str = "gemini-3.5-flash-lite"  # D-336: the measured config (Flash-Lite, compliance MEDIUM, facts LOW)
+    SINGLE_THINKING: ThinkingLevel = "MEDIUM"
+    SINGLE_FACTS_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "LOW"  # D-311: the fact checker's; empty = SINGLE_THINKING
     COMPLIANCE_MODEL: str = ""
     # D-310: the compliance judge's cached prefix also holds the on-air product's documents (the fact checker's FD
     # files and passages): names said as sound-alikes can be matched, and the prefix passes the cache minimum
@@ -193,7 +193,7 @@ class Settings(BaseSettings):
     STT_LOCATION: str = "us"
     STT_MODEL: str = "chirp_3"
     # D-305: chirp_3 endpointing (STANDARD cut pieces 73 -> 21 of 240 at the same WER; to be measured end to end)
-    STT_ENDPOINTING: Literal["SHORT", "STANDARD", "SUPERSHORT"] = "SHORT"
+    STT_ENDPOINTING: Literal["SHORT", "STANDARD", "SUPERSHORT"] = "STANDARD"  # D-336: the measured config
     STT_LANGUAGE: str = ""  # empty: the market pack's code for BROADCAST_LANGUAGE (D-129)
     STT_PHRASE_HINTS_ENABLED: bool = True
     # D-186: also hint the market's claim words (the reflex phrases of its rules, in the broadcast language) after

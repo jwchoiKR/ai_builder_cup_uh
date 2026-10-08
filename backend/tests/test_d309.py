@@ -8,7 +8,7 @@ import pytest
 
 from app.providers.llm import LLMError
 
-from .conftest import SHIPPED
+from .conftest import SHIPPED, VERIFY_SHIPPED
 from .judge_fakes import CREAM, ScriptedBackend, close_env, events, make_env, speak, violation
 
 
@@ -84,7 +84,7 @@ async def test_d309_a_failed_judge_s_unverified_alert_says_why():
 async def test_d309_a_window_with_no_matching_sentence_is_logged():
     from app.agents.fact_checker import DROPS
 
-    rt, _ = await make_env(**SHIPPED)
+    rt, _ = await make_env(**VERIFY_SHIPPED)
     try:
         sink: list = []
         token = DROPS.set(sink)

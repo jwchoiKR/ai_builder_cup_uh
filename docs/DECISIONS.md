@@ -2123,3 +2123,12 @@ D-335: QUESTION_HOLD's model trigger, marked pairs and the operator's chip (user
   - `tests/test_d335.py`: a paired line, no pair when the verdict is false, no pair when the verdict is late, no repeated compliance alert, the operator hold events.
   - `tests/test_d334.py` (marked pair).
   - `src/app/state.test.ts` (events).
+
+D-336 (review-1008 H6): the code defaults are now the measured config, and `deploy/cloudrun.sh` states it explicitly. Before, the code defaulted to the verifier arm and v1, and the cloud took whatever the code said.
+- **New defaults:**
+  - `JUDGE_ARM=single`, `SINGLE_MODEL=gemini-3.5-flash-lite`, `SINGLE_THINKING=MEDIUM` (compliance), `SINGLE_FACTS_THINKING=LOW`.
+  - `FACT_PROMPT=v5`, `JUDGE_SEED=7`, `STT_ENDPOINTING=STANDARD`.
+  - `QUESTION_HOLD` stays off until the qh2 run.
+  - `.env.example` matches.
+- **Deploy:** the script's `--set-env-vars` lists the same values, `QUESTION_HOLD=false` included. Nothing is deployed until the user deploys.
+- **Tests:** the older tests keep the paths they were written for (the conftest pins the previous values). The verifier-arm tests use `VERIFY_SHIPPED`, the config as shipped from D-305 to D-335. `tests/test_d336.py` checks the defaults and the deploy script.
