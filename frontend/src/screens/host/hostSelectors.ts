@@ -91,7 +91,7 @@ export function factSayLine(catalog: Catalog | null, alert: Alert): string {
   const set = catalog?.set_offers.find((s) => s.set_id === alert.product_id);
   const name = (product?.short_name ?? (set ? set.short_name || set.name : "")).replace(/^the /i, "");
   const label = name ? `${name.charAt(0).toUpperCase()}${name.slice(1)}: ` : "";
-  return `${label}${alert.say ?? alert.correct_value ?? ""}`;
+  return `${label}${alert.say?.trim() || alert.correct_value || ""}`;  // D-422: a blank say is a missing one
 }
 
 /** What the value is: the quoted passage label ("Live broadcast price", "Niacinamide"), else the

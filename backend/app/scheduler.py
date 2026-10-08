@@ -139,11 +139,11 @@ class ManualScheduler(_TaskTracker):
                 break
             when, _, key = heapq.nsmallest(1, due)[0]
             _, _, fn = self._timers.pop(key)
-            if when > self._clock.now_ms():
-                self._clock.set(when)
+            if when > self._clock.now_ms():  # D-422: advance (not set), so the monotonic time moves too
+                self._clock.advance(when - self._clock.now_ms())
             await fn()
         if target > self._clock.now_ms():
-            self._clock.set(target)
+            self._clock.advance(target - self._clock.now_ms())
         await self.idle()
 
     def shutdown(self) -> None:

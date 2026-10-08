@@ -179,3 +179,21 @@ async def test_d421_a_slow_lookup_that_uses_the_deadline_up_fails_without_a_call
 async def test_d421_the_audit_save_counts_though_the_latency_says_less():
     calls, _ = await _deadline_run(first_ms=4500, latency_ms=100)  # 100 ms of model time, 4.5 s by the clock
     assert len(calls) == 1
+
+
+async def test_d422_the_test_scheduler_moves_the_monotonic_time_too():
+    from app.clock import ManualClock
+    from app.scheduler import ManualScheduler
+
+    clock = ManualClock()
+    sched = ManualScheduler(clock)
+    fired = []
+    sched.call_later("t", 1000, lambda: fired.append(clock.monotonic_ms()) or _noop())
+    before = clock.monotonic_ms()
+    await sched.advance(2500)
+    assert fired == [before + 1000] and clock.monotonic_ms() == before + 2500
+    sched.shutdown()
+
+
+async def _noop():
+    return None

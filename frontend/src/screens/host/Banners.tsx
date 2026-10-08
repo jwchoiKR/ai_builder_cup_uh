@@ -155,7 +155,7 @@ export function MediumBanner({
       {factLine ? (
         <span className={styles.alertSay} data-testid="host-medium-fact">
           {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
-          “{factLine.say ?? factLine.correct_value}”
+          “{factLine.say?.trim() || factLine.correct_value}”{/* D-422: a blank say is a missing one */}
           {fact && factCount > 1 && <span className={styles.alertCount} data-testid="host-medium-fact-count"> ×{factCount}</span>}
         </span>
       ) : (

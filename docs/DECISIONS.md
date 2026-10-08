@@ -2796,3 +2796,13 @@ Tests in tests/test_d408.py:
 - an expired line fails before its lookups;
 - a slow lookup fails without a call;
 - the audit-save time counts even when latency_ms says less.
+
+D-422 (codex review of D-418..D-421; night rule):
+1. An empty or blank `say` counts as missing. The merged qualifier card and the fact note's say line then show correct_value, never “”.
+2. The operator's failed-line card is keyed by the line plus the judges whose failures it covers. A later failure of another judge on that line therefore shows the card again after a dismissal. A refresh carries the same events, so the key is the same live and after a refresh.
+3. The test scheduler (ManualScheduler.advance) moves the clock with advance(), not set(), so ManualClock's monotonic time moves with it (D-421). A test can no longer allow a retry that production would refuse.
+4. New tests:
+   - split and single: a transition with moving_to_next_named=false does not switch;
+   - the scheduler moves the monotonic time;
+   - a blank say falls back to correct_value;
+   - a later failure gives a new card key.
