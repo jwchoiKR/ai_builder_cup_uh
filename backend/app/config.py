@@ -91,7 +91,8 @@ class Settings(BaseSettings):
     # D-333 v6: v5 plus answers take the question's subject, a rejection with a new value is a claim, questions stay
     # REPORTS_OR_ASKS
     # D-345 v7: v5 plus stated_as_heard (number-word homophones read as digits) before the relation
-    FACT_PROMPT: Literal["v1", "v2", "v3", "v4", "v5", "v6", "v7"] = "v5"  # D-336: the measured config
+    # D-347 v8: v5 plus "lists of rejected claim wordings are never a fact source"
+    FACT_PROMPT: Literal["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"] = "v5"  # D-336: the measured config
     # D-328: the fact checker marks each claim host or other (reported words, a question to someone); a contradiction
     # in someone else's words waits for the next line's check (it endorses, rejects or neither), at most
     # REPORTED_HOLD_MS when no next line comes. Needs FACT_PROMPT v2-v4.
