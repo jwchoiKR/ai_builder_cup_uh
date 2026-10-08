@@ -902,7 +902,7 @@ class FactChecker:
             self.relation_model = FactRelationOutputV2
             if getattr(settings, "REPORTED_HOLD", False):  # D-328: whose words, and the previous line's fate
                 self.relation_model = FactRelationOutputH
-        if getattr(settings, "FACT_PROMPT", "v1") in ("v5", "v6"):  # D-331, D-333: a stance per claim (no hold)
+        if getattr(settings, "FACT_PROMPT", "v1") in ("v5", "v6", "v8"):  # D-331, D-333, D-347: a stance per claim
             self.relation_model = FactRelationOutputV5
         if getattr(settings, "FACT_PROMPT", "v1") == "v7":  # D-345: v5 plus stated_as_heard
             self.relation_model = FactRelationOutputV7

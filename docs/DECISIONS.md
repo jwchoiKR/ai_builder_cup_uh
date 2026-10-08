@@ -2206,3 +2206,21 @@ D-346 (user-approved change to the frozen logic; reviewed by GPT, Gemini and Son
   - When the fact checker cites the record's not-approved sentence: one compliance alert and no fact alert (D-338). The test passes.
   - When the fact checker cites the brochure file's NOT APPROVED line: a compliance alert and a fact alert. A release file passage ("Source file" section) is a valid fact source, so its not-approved lines are not recognised. Not fixed, as asked. The test is marked `xfail(strict=True)`, so it fails loudly once fixed.
 - **Test changed:** `tests/test_verifier.py` (D-300) now expects the "number in no passage" claim to stand.
+
+D-347: `FACT_PROMPT=v8` (`prompts/fact_relation_v8.md`), a new arm from the D-346 finding (option 2, a prompt change, no code check; user-approved, chosen by GPT, Gemini and Sonnet). The default stays v5.
+- **v8 = v5 plus one rule:** a list of claim wordings that the brand or a regulator rejects is never a fact source and is never cited as evidence. Such lists look like "NOT APPROVED: …", "Claims not approved", "Do not say …", "Avoid saying …", a banned-wording table row, or the same in another language. A real usage caution ("Not approved for children under 4 months", "Do not use on broken skin") stays a fact. Made-up examples Q-S.
+- **Kill rule, set before the probe:** v8 is dropped if any must-alert case is lost, or if any fact alert still cites a banned line.
+- **Real-model probe (`scripts/probe_banned_lists.py`, Flash-Lite LOW, seed 7, one call per case):** the made-up release "Velmora Night Balm" has a brochure with every list form; the host lines are written as live speech.
+
+| Host line | v5 | v8 |
+|---|---|---|
+| "This balm clears up eczema overnight, guys." (record + file list) | no alert (D-338 drop) | no alert |
+| "Honestly, it gets rid of your wrinkles for good, you'll see." (table row) | fact alert citing the banned row | no alert |
+| "Your pimples will be gone in just one day, trust me." (Malay list) | fact alert citing the banned line | no alert |
+| "Scars heal in three days with this, seriously." ("Do not say:" line) | fact alert citing the banned line | **fact alert citing the banned line** |
+| "You get a nice big 50 ml jar." (true fact) | no alert | no alert |
+| "And you get a 30 ml jar, so it lasts a while." (wrong fact, must alert) | alert | alert |
+| "Even your two-year-old can use it, no problem at all." (real caution reversed, must alert) | alert | alert |
+
+- **Result: the kill rule fires.** v8 removes three of the four banned-line alerts and keeps both must-alert cases, but the "Do not say" line is still cited in one case. An earlier probe line ("It heals scars in three days.") was not cited under v8, so it depends on the line. The decision is the planner's and the user's.
+- **`tests/test_d346.py` is unchanged:** a scripted model cannot show what the prompt does, so the xfail stays. The real-model probe above is the evidence. `tests/test_d347.py` checks v8's rule, examples and wiring.
