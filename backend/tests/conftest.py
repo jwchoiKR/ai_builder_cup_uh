@@ -30,6 +30,9 @@ LEGACY = {
     # D-336: the measured config became the default; the older tests keep the paths they were written for
     "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash", "SINGLE_THINKING": "LOW",
     "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",  # D-343
+    # record answers became the default; the older tests keep the composer path for price and size questions,
+    # and the host route of sensitive questions in a team show
+    "RECORD_ANSWERS": "false", "SENSITIVE_APPROVAL": "host", "COMPOSER_REVISE": "false", "TRIAGE_RETRIES": "0", "COMPOSE_RETRIES": "0", "TRIAGE_MODEL": "", "DRAFT_VERIFY_THINKING": "", "GROUP_TTL_WAITING_SEC": "600", "DEFAULT_SHOW_MODE": "solo",
 }
 for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)

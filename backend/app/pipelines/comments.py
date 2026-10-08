@@ -15,16 +15,18 @@ from typing import TYPE_CHECKING
 from ..agents import arms, file_tools, inputs
 from ..agents.answer_composer import ComposeInput, gather_passages
 from ..agents.comment_triage import TriageInput
-from ..logic.cache import CachedAnswer, answer_cache_key, triage_cache_key
-from ..logic.grouping import find_group, is_open, join_group, slots_compatible
+from ..logic.cache import CachedAnswer, answer_cache_key, normalise_comment, triage_cache_key
+from ..logic.grouping import is_open, join_group
 from ..logic.prefilter import PrefilterVerdict, mask_links, prefilter
 from ..logic.product_mapping import attribute_product, set_question
 from ..logic.promos import promo_passage, promo_state
+from ..logic.record_answers import record_answer
 from ..logic.routing import is_composable, route_for
 from ..logic.pd import ShoutOut
 from ..logic.segments import segment_at
 from ..logic.shoutout import shout_kind
 from ..agents.draft_verifier import DraftCheckInput, cited_passages
+from ..agents.reply_phraser import PhraseInput, keeps_the_facts
 from ..logic.verify import number_set, verify_answer
 from ..providers.armor import screen as armor_screen
 from ..models.agent_io import CommentTriageOutput, ConditionSlots
@@ -122,8 +124,10 @@ def _fallback_output(text: str) -> CommentTriageOutput:
     )
 
 
-async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str = "default", *, unhidden: bool = False) -> None:
-    """§8.8 steps 3-8 for a comment that passed the prefilter."""
+async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str = "default", *, unhidden: bool = False,
+                          retry: int = 0) -> None:
+    """§8.8 steps 3-8 for a comment that passed the prefilter. `retry`: which later attempt this is, after triage
+    failed (TRIAGE_RETRIES)."""
     if not rt.assistant:
         return  # D-139: the comment stays in chat; nobody triages, groups or answers it
     comment = await rt.get_comment(comment_id)
@@ -160,43 +164,104 @@ async def process_comment(rt: "SessionRuntime", comment_id: str, scenario: str =
 
     key = triage_cache_key(comment.text, context_pid, host_line)
     cached = rt.triage_cache.get(key)
-    for attempt in (1, 2):
-        if unscreened:
-            output, source, seen = _fallback_output(comment.text), "unscreened", set()
-        elif attempt == 1 and cached is not None:
-            output, source, seen = CommentTriageOutput.model_validate(cached), "cache", set()
+    if unscreened:
+        output, source = _fallback_output(comment.text), "unscreened"
+    elif cached is not None:
+        output, source = CommentTriageOutput.model_validate(cached), "cache"
+    else:
+        inp = TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario,
+                          host_line=host_line)
+        res = await rt.triage_queue.classify(inp)
+        if res.status != "ok" or res.output is None:
+            # D-176 (comment flow CF11): one triage timeout lost an answerable question; once more
+            # once more, on the fast model when triage runs on another one (the quality model may be slow or
+            # over quota while the fast one answers)
+            res = await rt.triage_queue.classify(replace(inp, fallback=True))
+        if res.status == "ok" and res.output is not None:
+            output, source = res.output, "llm"
+            rt.triage_cache.put(key, output.model_dump(mode="json"))
         else:
-            inp = TriageInput(text=comment.text, context_product_id=context_pid, session_id=rt.sid, scenario=scenario,
-                              host_line=host_line)
-            res, seen = await rt.triage_queue.classify(inp)
-            if res.status != "ok" or res.output is None:
-                # D-176 (comment flow CF11): one triage timeout lost an answerable question; once more
-                res, seen = await rt.triage_queue.classify(replace(inp, open_groups=[]))
-            if res.status == "ok" and res.output is not None:
-                output, source = res.output, "llm"
-                rt.triage_cache.put(key, output.model_dump(mode="json"))
-            else:
-                output, source = _fallback_output(comment.text), "fallback"
-        latency_ms = round((time.perf_counter() - t0) * 1000)
+            output, source = _fallback_output(comment.text), "fallback"
+    latency_ms = round((time.perf_counter() - t0) * 1000)
+    if source == "fallback" and retry < rt.settings.TRIAGE_RETRIES:
+        # the model was unavailable for a moment (a timeout, a 429): the comment stays pending and is triaged
+        # again shortly, instead of going to the operator as "AI unavailable" for good
+        rt.counters["triage_retries"] += 1
+        log.info("triage of %s failed; attempt %d in %d ms", comment_id, retry + 2, rt.settings.TRIAGE_RETRY_AFTER_MS)
+        rt.ctx.scheduler.call_later(
+            rt.key(f"retriage:{comment_id}:{retry}"), rt.settings.TRIAGE_RETRY_AFTER_MS,
+            lambda: process_comment(rt, comment_id, scenario, unhidden=unhidden, retry=retry + 1))
+        return
 
-        if unhidden and output.kind == "hide":
-            output = output.model_copy(update={"kind": "reaction", "hide_category": None})  # operator override wins
-        if output.kind != "question":
-            await _finish_non_question(rt, comment_id, output, context_pid, source, latency_ms)
-            return
+    if unhidden and output.kind == "hide":
+        output = output.model_copy(update={"kind": "reaction", "hide_category": None})  # operator override wins
+    if output.kind != "question":
+        await _finish_non_question(rt, comment_id, output, context_pid, source, latency_ms)
+        return
 
-        triage_product = rt.settings.COMMENT_PRODUCT == "triage"  # D-304: no alias rules on the comment's product
-        if not triage_product and set_question(output.intent, comment.text, rt.catalog):
-            output = output.model_copy(update={"intent": "set_price"})
-        intent = rt.intent(output.intent)
-        pid, basis = attribute_product(comment.text, output, context_pid, rt.catalog, intent, by_triage=triage_product)
-        async with rt.lock:
-            if attempt == 1 and source not in ("fallback", "unscreened") and await _missed_new_group(
-                    rt, output, pid, intent.intent, seen):
-                continue  # D-042: triage ran on a stale list of open groups; ask once more
-            await rt.documents_changed_locked()  # D-152: before an asker joins a group with a stale answer
-            await _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, source, latency_ms, scenario)
-            return
+    triage_product = rt.settings.COMMENT_PRODUCT == "triage"  # D-304: no alias rules on the comment's product
+    if not triage_product and set_question(output.intent, comment.text, rt.catalog):
+        output = output.model_copy(update={"intent": "set_price"})
+    intent = rt.intent(output.intent)
+    pid, basis = attribute_product(comment.text, output, context_pid, rt.catalog, intent, by_triage=triage_product)
+    if (getattr(output, "second_question", None) or "").strip() and output.needs_approval is False:
+        # a comment that asks two things is answered by a person, both parts together: a reply to one part posted
+        # by itself reads as the whole answer (and the other part may be the one that needed a person)
+        output = output.model_copy(update={"needs_approval": True, "approval_reason": "unclear"})
+    async with rt.lock:
+        await rt.documents_changed_locked()  # D-152: before an asker joins a group with a stale answer
+        await _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, source, latency_ms, scenario)
+    second = (getattr(output, "second_question", None) or "").strip()
+    if second and source == "llm":
+        rt.spawn(_second_question(rt, comment_id, second, pid or context_pid, scenario),
+                 name=f"second-question:{comment_id}")
+    return
+
+
+async def _second_question(rt: "SessionRuntime", comment_id: str, question: str, context_pid: str | None,
+                           scenario: str) -> None:
+    """The other question of a comment that asks two different things: triaged from triage's own
+    English wording of it and then handled like any question, with the same comment as its asker, so the viewer gets
+    a reply to each part. Its own second question, a failure, or anything but a question ends here."""
+    comment = await rt.get_comment(comment_id)
+    if comment is None:
+        return
+    t0 = time.perf_counter()
+    res = await rt.triage_queue.classify(TriageInput(text=question, context_product_id=context_pid,
+                                                     session_id=rt.sid, scenario=scenario))
+    if res.status != "ok" or res.output is None or res.output.kind != "question":
+        return
+    output = res.output.model_copy(update={"second_question": None})
+    intent = rt.intent(output.intent)
+    pid, basis = attribute_product(question, output, context_pid, rt.catalog, intent,
+                                   by_triage=rt.settings.COMMENT_PRODUCT == "triage")
+    primary = await rt.get_group(comment.group_id) if comment.group_id else None
+    if primary is not None and (primary.product_id, primary.intent) == (pid, intent.intent):
+        return  # triage split one question in two: the first part already covers it
+    if output.needs_approval is False:
+        # a part of a two-part comment is never posted by itself: both parts wait for a person, each with its
+        # suggested reply
+        output = output.model_copy(update={"needs_approval": True, "approval_reason": (
+            primary.approval_reason if primary is not None and primary.approval_reason else "unclear")})
+    rt.counters["second_questions"] += 1
+    async with rt.lock:
+        await _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, "llm",
+                                      round((time.perf_counter() - t0) * 1000), scenario, secondary=True)
+
+
+async def _same_words_group(rt: "SessionRuntime", comment: Comment, pid: str | None) -> QuestionGroup | None:
+    """The open question of the same product that a viewer already asked in the same words, if any. Questions are
+    not grouped by meaning: another wording is its own question with its own reply and its own row, so a reply never
+    lands on a question it does not answer."""
+    text = normalise_comment(comment.text)
+    for g in sorted(await rt.groups(), key=lambda g: g.last_at, reverse=True):
+        if not is_open(g) or g.product_id != pid:
+            continue
+        for cid in g.member_comment_ids:
+            c = await rt.get_comment(cid)
+            if c is not None and c.comment_id != comment.comment_id and normalise_comment(c.text) == text:
+                return g
+    return None
 
 
 class TriageQueue:
@@ -211,7 +276,6 @@ class TriageQueue:
         self.waiting: list[tuple[TriageInput, asyncio.Future]] = []
 
     async def classify(self, inp: TriageInput):
-        """Returns the triage result and the ids of the open groups the call saw."""
         fut = asyncio.get_running_loop().create_future()
         self.waiting.append((inp, fut))
         self._pump()
@@ -227,18 +291,15 @@ class TriageQueue:
     async def _run(self, batch: list[tuple[TriageInput, asyncio.Future]]) -> None:
         rt = self.rt
         try:
-            open_groups = [g for g in await rt.groups() if is_open(g)]
-            seen = {g.group_id for g in open_groups}
             inps = [inp for inp, _ in batch]
-            for inp in inps:
-                inp.open_groups = open_groups
             if len(inps) == 1:
-                results = [await rt.triage.run(inps[0], deadline_ms=rt.settings.TRIAGE_TIMEOUT_MS)]
+                results = [await rt.triage.run(inps[0], deadline_ms=(rt.settings.TRIAGE_FALLBACK_TIMEOUT_MS
+                                                                     if inps[0].fallback else rt.settings.TRIAGE_TIMEOUT_MS))]
             else:
                 results = await rt.triage.run_batch(inps, deadline_ms=rt.settings.TRIAGE_BATCH_TIMEOUT_MS)
             for (_, fut), res in zip(batch, results):
                 if not fut.done():
-                    fut.set_result((res, seen))
+                    fut.set_result(res)
         except Exception as e:  # noqa: BLE001 - every waiting comment gets the error, none hangs
             for _, fut in batch:
                 if not fut.done():
@@ -251,20 +312,14 @@ class TriageQueue:
             self._pump()
 
 
-async def _missed_new_group(rt, output: CommentTriageOutput, pid, intent: str, seen: set[str]) -> bool:
-    """True when grouping finds no match although a compatible open group exists that the triage
-    call did not see (created while it ran, or the output came from the triage cache)."""
-    groups = await rt.groups()
-    slots = output.condition_slots.model_dump()
-    if find_group(groups, product_id=pid, intent=intent, slots=slots, canonical_question=output.canonical_question,
-                  candidate_id=output.group_candidate_id,
-                  single_fallback=rt.settings.GROUP_JOIN == "code") is not None:
-        return False
-    return any(
-        g.group_id not in seen and is_open(g) and g.product_id == pid and g.intent == intent
-        and slots_compatible(g.condition_slots, slots)
-        for g in groups
-    )
+def _note_language(comment: Comment, output: CommentTriageOutput) -> None:
+    """Triage's reading of the comment beyond its kind: its language, an English translation for the operator when
+    it is in another language, and its signal (a stream problem to tell the team about, orders to the system)."""
+    language = (getattr(output, "language", None) or "").strip().lower()
+    translation = (getattr(output, "translation_en", None) or "").strip()
+    comment.language = language or None
+    comment.translation_en = translation if translation and language not in ("", "en") else None
+    comment.signal = getattr(output, "signal", None)
 
 
 async def _finish_non_question(rt, comment_id, output, context_pid, source, latency_ms) -> None:
@@ -278,6 +333,7 @@ async def _finish_non_question(rt, comment_id, output, context_pid, source, late
         await rt.save_analysis(analysis)
         comment.analysis_id = analysis.analysis_id
         comment.kind = output.kind
+        _note_language(comment, output)
         if output.kind == "hide":
             comment.visibility, comment.hide_category = "hidden", output.hide_category
         await rt.save_comment(comment)
@@ -288,24 +344,29 @@ async def _finish_non_question(rt, comment_id, output, context_pid, source, late
         await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"), "analysis": analysis.model_dump(mode="json")})
 
 
-async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, source, latency_ms, scenario) -> None:
+async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pid, source, latency_ms, scenario,
+                                  *, secondary: bool = False) -> None:
+    """`secondary`: the second question of the comment; it joins or starts its group as an asker, and the comment
+    keeps the kind, group and analysis of its first question."""
     comment = await rt.get_comment(comment_id)
     if comment is None:
         return
     now = rt.now()
     intent = rt.intent(output.intent)
     slots = output.condition_slots.model_dump()
-    g = find_group(await rt.groups(), product_id=pid, intent=intent.intent, slots=slots,
-                   canonical_question=output.canonical_question, candidate_id=output.group_candidate_id,
-                   single_fallback=rt.settings.GROUP_JOIN == "code")  # D-304
+    # the second part of a comment is matched by nothing: the comment's words belong to its first question
+    g = None if secondary else await _same_words_group(rt, comment, pid)
     created = g is None
     if g is None:
-        route, reason = ("OPERATOR", "ai_unavailable") if source == "fallback" else await _route(rt, intent, pid, slots)
+        route, reason = (("OPERATOR", "ai_unavailable") if source == "fallback" else
+                         await _route(rt, intent, pid, slots, getattr(output, "needs_approval", None),
+                                      getattr(output, "approval_reason", None)))
         g = QuestionGroup(
             group_id=rt.new_id("grp_"), product_id=pid, intent=intent.intent, condition_slots=slots,
             canonical_question=output.canonical_question, member_comment_ids=[comment_id],
             unique_author_ids=[comment.author_id], first_at=now, last_at=now, route=route, route_reason=reason,
-            status="new",
+            status="new", needs_approval=getattr(output, "needs_approval", None),
+            approval_reason=getattr(output, "approval_reason", None),
         )
     else:
         join_group(g, comment_id, comment.author_id, now)
@@ -315,8 +376,10 @@ async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pi
         source=source, latency_ms=latency_ms,
     )
     await rt.save_analysis(analysis)
-    comment.kind, comment.group_id, comment.analysis_id = "question", g.group_id, analysis.analysis_id
-    await rt.save_comment(comment)
+    if not secondary:
+        comment.kind, comment.group_id, comment.analysis_id = "question", g.group_id, analysis.analysis_id
+        _note_language(comment, output)
+        await rt.save_comment(comment)
     await rt.save_group(g)
     await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"), "analysis": analysis.model_dump(mode="json")})
     await answer_group_locked(rt, g, [comment_id], scenario)
@@ -362,7 +425,8 @@ async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
         named = _ingredients_named(rt, g.product_id, g.canonical_question)
         question = "ingredient:" + ",".join(named) if named else question
     state = promo_state(promo)
-    if g.intent == "promo":  # D-168: an offer's answer holds while that offer runs
+    # D-168: an offer's answer holds while that offer runs; so does a record price answer, which names one
+    if g.intent == "promo" or (g.intent == "price" and rt.settings.RECORD_ANSWERS):
         state += "".join(f"+{o.promo_id}" for o in sorted(await rt.active_offers(), key=lambda o: o.promo_id))
     return answer_cache_key(g.product_id, g.intent, g.condition_slots, question, state, rt.ctx.retriever.doc_version())
 
@@ -397,20 +461,106 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
     rt.spawn(compose_for_group(rt, g.group_id, key, scenario), name=f"compose:{g.group_id}")
 
 
-async def _route(rt: "SessionRuntime", intent, product_id: str | None, slots: dict | None = None
-                 ) -> tuple[str, str]:
-    """The intent's route (§8.9.2); D-178: a host question about a product already shown and no longer on air goes
-    to the operator (team) or the host's unanswered count (solo). D-281: a price or size question that names no
-    variant, about a product whose variants differ, goes to the operator: one size's value is never "the" answer."""
+async def _record_answer(rt: "SessionRuntime", g: QuestionGroup, key: str, scenario: str) -> Answer | None:
+    """A one-value question the product record settles (logic/record_answers): the value by code, with no composer
+    draft and no draft check. The ReplyPhraser words it as a reply to what the viewers asked; the wording is used
+    only when it keeps the value and adds no number and passes the same code gate, else the plain sentence is the
+    reply. A question the record does not settle, or an answer that fails the code gate, goes to the composer."""
+    if g.product_id is None:
+        return None
+    passages_of = getattr(rt.ctx.retriever, "passages_of", None)
+    sheet = passages_of(g.product_id) if callable(passages_of) else inputs.all_passages(rt.catalog, g.product_id)
+    found = record_answer(rt.catalog, sheet, product_id=g.product_id, intent=g.intent, slots=g.condition_slots,
+                          promo=await rt.active_price_promo(), offers=await rt.active_offers())
+    if found is None:
+        return None
+    out, cited, value = found
+
+    def gate(candidate) -> tuple[bool, list[str]]:
+        return draft_code_gate(candidate, cited, g.product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
+                               provenance=rt.settings.DRAFT_GATE == "provenance",
+                               not_approved=rt.catalog.not_approved_claims(g.product_id))
+
+    ok, errors = gate(out)
+    if not ok:
+        log.info("record answer for %s failed the code gate (%s); composing instead", g.group_id, "; ".join(errors))
+        return None
+    text = out.answer
+    if rt.settings.RECORD_PHRASING:
+        asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
+        res = await rt.reply_phraser.run(
+            PhraseInput(facts=out.answer, question=g.canonical_question, comments=asked, session_id=rt.sid,
+                        scenario=scenario), deadline_ms=rt.settings.RECORD_PHRASING_TIMEOUT_MS)
+        worded = res.output.reply.strip() if res.status == "ok" and res.output is not None else ""
+        if worded and keeps_the_facts(out.answer, worded, value) and gate(out.model_copy(update={"answer": worded}))[0]:
+            text = worded
+        elif worded:
+            log.info("wording of the record answer for %s dropped: %r", g.group_id, worded[:120])
+            rt.counters["record_wordings_dropped"] += 1
+    # the value is right by construction, but is it what the viewer asked? ("how many ml does each pump give?" is
+    # not the size of the tube.) The draft verifier reads the reply against the viewers' own words; a fail leaves
+    # the reply as a suggestion for a person
+    asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
+    verified, problems = await _llm_check(rt, g.canonical_question, out.model_copy(update={"answer": text}), cited,
+                                          g.product_id, await rt.active_price_promo(), scenario, comments=asked)
+    answer = Answer(answer_id=rt.new_id("ans_"), group_id=g.group_id, text=text,
+                    citations=[{"passage_id": p.passage_id, "quote": p.text, "section": p.section, "doc": p.doc}
+                               for p in cited],
+                    origin="ai", verified=verified, verify_errors=problems, cache_key=key, needs_human=False,
+                    created_at=rt.now(), record=True)
+    await rt.save_answer(answer)
+    if verified:
+        rt.answer_cache.put(key, CachedAnswer(answer_id=answer.answer_id, intent=g.intent))
+    return answer
+
+
+OPERATOR_ONLY_APPROVALS = frozenset({"test_results", "certification", "outside"})
+
+
+async def _route(rt: "SessionRuntime", intent, product_id: str | None, slots: dict | None = None,
+                 needs_approval: bool | None = None, approval_reason: str | None = None) -> tuple[str, str]:
+    """The route of a new question.
+
+    Triage says whether a person must approve the reply: no approval needed is AUTO (posted
+    only once a verified draft exists; without one it goes to the operator as before); approval needed is the
+    host's card and the operator's review list at once, or the operator alone when the host cannot settle it on
+    air (test results, certificates, anything outside the product, no product). The intent decides nothing here.
+
+    Otherwise the intent's route (§8.9.2). In both: D-178: a host question about a product already shown and no
+    longer on air goes to the operator (team) or the host's unanswered count (solo). D-281: a price or size question
+    that names no variant, about a product whose variants differ, goes to the operator: one size's value is never
+    "the" answer."""
     if (intent.intent in ONE_ANSWER_INTENTS and product_id is not None and not (slots or {}).get("variant")
             and len({(v.live_price, v.label) for v in rt.catalog.get_product(product_id).variants}) > 1):
         return "OPERATOR", "several_variants"
-    route, reason = route_for(intent, product_id)
+    if needs_approval is not None:
+        if product_id is None and intent.product_scope == "single":
+            route, reason = "HOST", "unresolved_product"  # "Which product?" is the host's to ask
+        elif not needs_approval:
+            route, reason = "AUTO", "auto"
+        elif product_id is None or approval_reason in OPERATOR_ONLY_APPROVALS:
+            route, reason = "OPERATOR", "approval"
+        else:
+            route, reason = "HOST", "approval"
+    else:
+        route, reason = await _approval_route(rt, *route_for(intent, product_id))
     if route == "HOST" and product_id is not None:
         seg = await rt.current_segment()
         aired = {x.product_id for x in await rt.segments() if x.ended_at is not None}
         if product_id in aired and (seg is None or seg.product_id != product_id):
             return "OPERATOR", "previous_product"
+    return route, reason
+
+
+async def _approval_route(rt: "SessionRuntime", route: str, reason: str) -> tuple[str, str]:
+    """SENSITIVE_APPROVAL: who settles a sensitive question. "both" and "host" keep the host route: a card with the
+    suggested reply on the host screen, posted when the host says it or the operator approves it (with "both" the
+    operator's desk lists it under Needs review at once). "operator" in a show with an operator takes it off the
+    host screen: the draft is a suggestion on the desk and the host saying it posts nothing (`publish.decide` never
+    posts an OPERATOR group). A solo show has nobody to approve, so the question stays the host's (D-113)."""
+    if (reason == "sensitive" and rt.settings.SENSITIVE_APPROVAL == "operator"
+            and (await rt.load_session()).show_mode != "solo"):
+        return "OPERATOR", "sensitive"
     return route, reason
 
 
@@ -432,11 +582,13 @@ async def move_previous_product_questions_locked(rt: "SessionRuntime", product_i
             await rt.emit("group.updated", g)
 
 
-async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: Answer, *, instant: bool) -> None:
+async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: Answer, *, instant: bool,
+                              kind: str | None = None) -> None:
     g.answer_id = answer.answer_id
     if answer.verified and g.route_reason in ("no_verified_answer", "needs_human"):
         # D-135: an earlier draft failed (or timed out); a verified one now takes the intent's own route
-        g.route, g.route_reason = await _route(rt, rt.intent(g.intent), g.product_id, g.condition_slots)
+        g.route, g.route_reason = await _route(rt, rt.intent(g.intent), g.product_id, g.condition_slots,
+                                               g.needs_approval, g.approval_reason)
     if not answer.verified:
         await no_draft_locked(rt, g)
         return
@@ -462,7 +614,7 @@ async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: An
             citations=answer.citations, idempotency_key=f"ai_answer:{g.group_id}",
         )
         g.status, g.published_message_id = "auto_answered", msg.message_id
-        kind = "instant" if instant else "composed"
+        kind = kind or ("instant" if instant else "composed")  # "record": answered by code from the record
         rt.counters[f"{kind}_answers"] += len(g.member_comment_ids)
         await _record_reply_latency(rt, kind, g.member_comment_ids)
     elif g.route == "HOST":
@@ -489,6 +641,7 @@ async def reply_again_locked(rt: "SessionRuntime", g: QuestionGroup, new_comment
                 msg.reply_to_author_names.append(c.author_name)
         await rt.save_message(msg)
         await rt.emit("message.updated", msg)
+        rt.translate_later(msg.message_id)  # a new asker may have asked in another language
     elif msg.state == "published":
         again = await rt.publish_message_locked(
             kind=msg.kind, text=msg.text, group=g, comment_ids=fresh, citations=msg.citations,
@@ -511,8 +664,9 @@ async def _record_reply_latency(rt: "SessionRuntime", kind: str, comment_ids: li
             rt.reply_latencies[kind].append(now - c.received_at)
 
 
-async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scenario: str) -> None:
-    """Single-flight composer per cache key; applies the result to the group under the lock."""
+async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scenario: str, retry: int = 0) -> None:
+    """Single-flight composer per cache key; applies the result to the group under the lock. `retry`: which later
+    attempt this is, after the composer's model call failed (COMPOSE_RETRIES)."""
     fut = rt.composing.get(key)
     if fut is None:
         fut = rt.composing[key] = asyncio.get_running_loop().create_future()
@@ -541,10 +695,18 @@ async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scena
                 await rt.save_group(g)
                 await rt.emit("group.updated", g)
             return
+        if answer is None and retry < rt.settings.COMPOSE_RETRIES:
+            # the composer's model call failed (a timeout, a 429), which says nothing about the question: the group
+            # keeps composing and is drafted again shortly, before it goes to the operator without a draft
+            rt.counters["compose_retries"] += 1
+            rt.ctx.scheduler.call_later(
+                rt.key(f"recompose:{group_id}:{retry}"), rt.settings.COMPOSE_RETRY_AFTER_MS,
+                lambda: compose_for_group(rt, group_id, key, scenario, retry + 1))
+            return
         if answer is None:
             await no_draft_locked(rt, g)
         else:
-            await apply_answer_locked(rt, g, answer, instant=False)
+            await apply_answer_locked(rt, g, answer, instant=False, kind="record" if answer.record else None)
         g.version += 1
         await rt.save_group(g)
         await rt.emit("group.updated", g)
@@ -558,6 +720,10 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     g = await rt.get_group(group_id)
     if g is None:
         return None
+    if rt.settings.RECORD_ANSWERS:
+        answer = await _record_answer(rt, g, key, scenario)
+        if answer is not None:
+            return answer
     intent = rt.intent(g.intent)
     promo = await rt.active_price_promo()
     product_id = g.product_id if intent.product_scope == "single" else None
@@ -592,6 +758,18 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
                                  provenance=rt.settings.DRAFT_GATE == "provenance",
                                  not_approved=not_approved)
+    if not ok and out.grounded and out.answer.strip() and rt.settings.COMPOSER_REVISE:
+        # a grounded draft the code gate rejects (too long, a number the gate cannot place) is written once more with
+        # the gate's reasons; the second draft passes the same gate or the question goes to the operator
+        again = await rt.composer.run(replace(inp, revise={"previous_reply": out.answer.strip(), "problems": errors}),
+                                      deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
+        if again.status == "ok" and again.output is not None:
+            ok2, errors2 = draft_code_gate(again.output, passages, product_id, arm=rt.settings.DESIGN_ARM,
+                                           reflex=rt.reflex, provenance=rt.settings.DRAFT_GATE == "provenance",
+                                           not_approved=not_approved)
+            rt.counters["composer_revised" if ok2 else "composer_revise_failed"] += 1
+            if ok2:
+                out, ok, errors = again.output, ok2, errors2
     variant = g.condition_slots.get("variant")
     if ok and variant and g.intent in ONE_ANSWER_INTENTS and not any(
             number_set(variant) <= number_set(c.quote) for c in out.citations):
@@ -636,12 +814,14 @@ async def _llm_check(rt, question, out, passages, product_id, promo, scenario, w
                                                                          passages),
                           session_id=rt.sid, scenario=scenario, comments=list(comments))
     res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
-    if res.status == "timeout":  # D-152 (comment-flow CF09): a timeout is not a block; once more
+    if res.status != "ok" or res.output is None:  # D-152 (comment-flow CF09): a timeout or an error is not a block; once more
         res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
     if res.status != "ok" or res.output is None:
         return False, [f"draft_check_{res.status}"]
     if res.output.verdict == "fail":
         return False, [f"draft_check: {p}" for p in res.output.problems] or [f"draft_check: {res.output.reason}"]
+    if res.output.answers != "direct":  # true to the sheet, but not what the viewer asked for: a person replies
+        return False, [f"draft_check: not a direct answer ({res.output.answers}): {res.output.reason}"]
     return True, []
 
 
@@ -696,7 +876,7 @@ async def assign_product(rt: "SessionRuntime", gid: str, product_id: str) -> Non
         if g.status in ("answered", "rejected", "closed", "auto_answered"):
             raise ActionError(409, "invalid_state", f"group is {g.status}")
         g.product_id = product_id
-        g.route, g.route_reason = route_for(rt.intent(g.intent), product_id)
+        g.route, g.route_reason = await _approval_route(rt, *route_for(rt.intent(g.intent), product_id))
         g.status, g.answer_id = "new", None  # D-117 B5: a draft in progress was for the old product
         for cid in g.member_comment_ids:
             c = await rt.get_comment(cid)

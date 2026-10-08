@@ -13,7 +13,7 @@ Output must validate against `CommentTriageBatchOutput`.
 
 This request carries COMMENTS instead of one COMMENT: a list of `{i, context_product_id, recent_host_line, comment}`.
 - Classify every item on its own with the rules above. `context_product_id` is that item's CONTEXT_PRODUCT_ID and `recent_host_line` its RECENT_HOST_LINE.
-- Items never influence each other. Two items asking the same thing both get the same OPEN_GROUP id if one fits, else both null.
+- Items never influence each other.
 - Return `{"items": [...]}` with exactly one object per item, in any order. Each object is the single-comment output plus `"i"`, the item's index.
 - The examples below show one comment each; in this request wrap the objects in `items`.
 
@@ -25,7 +25,6 @@ This request carries COMMENTS instead of one COMMENT: a list of `{i, context_pro
 <data name="PRODUCTS">{{products_compact_json}}</data>
 <data name="INTENTS">{{intent_names_json}}</data>
 <data name="SLOTS">{{condition_slots_json}}</data>
-<data name="OPEN_GROUPS">{{open_groups_json}}</data>
 <data name="COMMENTS">{{comments_json}}</data>
 Classify every item of COMMENTS.
 ```

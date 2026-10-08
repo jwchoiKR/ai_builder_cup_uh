@@ -90,24 +90,28 @@ async def test_demo_script_end_to_end(demo: Demo):
         await demo.ok("POST", f"/feed/burst/{burst}")
         await demo.sched.advance(15_000)
     await demo.refresh()
-    [price] = demo.groups("price")
-    assert price["status"] == "auto_answered" and len(price["unique_author_ids"]) == 4
-    oily = next(g for g in demo.groups("suitability") if g["condition_slots"]["person_type"] == "oily")
-    [makeup] = demo.groups("compatibility")
-    assert len(oily["unique_author_ids"]) == 7 and len(makeup["unique_author_ids"]) == 4
-    assert {s["group_id"] for s in demo.state["host_slots"]} >= {oily["group_id"], makeup["group_id"]}
+    # questions are not grouped by meaning: every wording is its own question, answered or waiting on its own
+    def askers(groups):
+        return {a for g in groups for a in g["unique_author_ids"]}
+
+    prices = demo.groups("price")
+    assert all(g["status"] == "auto_answered" for g in prices) and len(askers(prices)) == 4
+    oily = [g for g in demo.groups("suitability") if g["condition_slots"]["person_type"] == "oily"]
+    oily_ids = {g["group_id"] for g in oily}
+    assert len(askers(oily)) == 7 and len(askers(demo.groups("compatibility"))) == 4
+    assert {s["group_id"] for s in demo.state["host_slots"]} & oily_ids
 
     # ---- S05 host answers: pending 2 s, then posted as Host answer; the card leaves --------------
     await demo.ok("POST", "/transcripts", json={"text": L[3], "scene": "S05"})
     await demo.sched.advance(1000)
     await demo.refresh()
     pending = [m for m in demo.state["messages"] if m["kind"] == "host_answer"]
-    assert pending and pending[0]["state"] == "pending" and pending[0]["group_id"] == oily["group_id"]
+    assert pending and pending[0]["state"] == "pending" and pending[0]["group_id"] in oily_ids
     await demo.sched.advance(LINE_GAP_MS)
     await demo.refresh()
     [host_answer] = [m for m in demo.state["messages"] if m["kind"] == "host_answer"]
-    assert host_answer["state"] == "published" and "Raj" in host_answer["reply_to_author_names"]
-    assert oily["group_id"] not in {s["group_id"] for s in demo.state["host_slots"]}
+    assert host_answer["state"] == "published" and host_answer["reply_to_author_names"]  # the askers of that question
+    assert host_answer["group_id"] not in {s["group_id"] for s in demo.state["host_slots"]}
     assert any(m["kind"] == "host_answer" for m in demo.viewer["messages"])
 
     # ---- S06 fact error and correction ---------------------------------------------------------
@@ -138,8 +142,9 @@ async def test_demo_script_end_to_end(demo: Demo):
     await demo.ok("POST", "/feed/burst/B3")
     await demo.sched.advance(12_000)
     await demo.refresh()
-    [preg] = demo.groups("pregnancy_breastfeeding")
-    assert preg["status"] == "ready" and demo.state["answers"][preg["answer_id"]]["verified"]  # D-113: to the host
+    pregs = demo.groups("pregnancy_breastfeeding")
+    assert all(g["status"] == "ready" and demo.state["answers"][g["answer_id"]]["verified"] for g in pregs)  # D-113
+    preg = pregs[0]  # the operator edits and posts the reply of one of them
     hidden = {c["author_id"] for c in demo.state["comments"] if c["visibility"] == "hidden"}
     assert {"u_spam1", "u_rude", "u_spam2"} <= hidden
     draft = demo.state["answers"][preg["answer_id"]]["text"]

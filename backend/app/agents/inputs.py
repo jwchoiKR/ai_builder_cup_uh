@@ -81,6 +81,12 @@ def viewer_comments_json(texts: Sequence[str], max_chars: int = 300) -> list[str
     return [t[:max_chars] for t in list(texts)[:5]]
 
 
+def asked_questions_json(rows: Sequence[dict], max_chars: int = 200) -> list[dict]:
+    """CommentInsights: every question of the broadcast as {key, question, comments (at most 2), product}."""
+    return [{"key": r["key"], "question": r["question"][:max_chars],
+             "comments": [c[:max_chars] for c in r.get("comments", [])[:2]], "product": r.get("product")} for r in rows]
+
+
 def avoid_saying_json(catalog: Catalog, product_id: str | None) -> list[dict]:
     """D-190: the sheet's "avoid saying -> say instead" pairs (approved wording, verbatim) for the composer."""
     if product_id is None:
@@ -194,16 +200,6 @@ def open_questions_json(items: Sequence[tuple[QuestionGroup, str | None]], limit
     ]
 
 
-def open_groups_json(groups: Sequence[QuestionGroup], limit: int) -> list[dict]:
-    live = [g for g in groups if g.status not in ("closed", "rejected")]
-    live.sort(key=lambda g: g.last_at, reverse=True)
-    return [
-        {"group_id": g.group_id, "product_id": g.product_id, "intent": g.intent,
-         "condition_slots": g.condition_slots, "canonical_question": g.canonical_question}
-        for g in live[:limit]
-    ]
-
-
 def host_cues_json(cue: HostCue | None) -> list[dict]:
     return [{"cue_id": cue.cue_id, "text": cue.text}] if cue is not None and cue.status == "active" else []
 
@@ -257,6 +253,18 @@ def canonical_question(text: str) -> str:
     return text
 
 
+def merge_group_json(question: str, comments: Sequence[str], conditions: dict) -> dict:
+    return {"question": question, "comments": [c[:300] for c in list(comments)[:3]], "conditions": conditions}
+
+
+def merge_new_json(question: str, comment: str, conditions: dict) -> dict:
+    return {"question": question, "comment": comment[:300], "conditions": conditions}
+
+
+def target_language_json(language: str) -> str:
+    return language
+
+
 def draft_answer_json(text: str) -> str:
     return text  # JSON-encoded on render: the draft is untrusted model output
 
@@ -283,13 +291,13 @@ BUILDERS = {
     for f in (
         current_product_json, product_compact_json, products_compact_json,
         run_sheet_compact_json, approved_claims_of_current_product_json, avoid_saying_json, prompter_points_json,
-        cautions_json, viewer_comments_json,
+        cautions_json, viewer_comments_json, asked_questions_json,
         set_offers_json, active_promo_json_or_null, active_offers_json, switch_context_json, rules_compact_json,
         intent_names_json, condition_slots_json, active_alerts_json, open_questions_json,
-        open_groups_json, host_cues_json, last_two_final_transcripts_json, passages_json,
+        host_cues_json, last_two_final_transcripts_json, passages_json,
         summary_stats_json, draft_answer_json, utterance_text, comment_text, comments_json, canonical_question, product_id,
         product_id_at_comment_time_minus_grace, full_document_text_with_section_headings, recent_host_line_json_or_null,
-        candidate_json,
+        candidate_json, target_language_json, merge_group_json, merge_new_json,
     )
 }
 BUILDERS["current_product_compact_json"] = current_product_compact_json

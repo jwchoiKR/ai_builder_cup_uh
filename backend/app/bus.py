@@ -89,6 +89,13 @@ class EventBus:
     def subscriber_count(self, session_id: str) -> int:
         return len(self._subs[session_id])
 
+    async def skip_ahead(self, session_id: str, gap: int) -> int:
+        """After a restart: the next event's number jumps by `gap`. Browsers skip numbers they have seen, and the
+        last events of the old process may not have reached the store."""
+        async with self._locks[session_id]:
+            self._seq[session_id] = await self._load_seq(session_id) + gap
+            return self._seq[session_id]
+
     def forget_session(self, session_id: str) -> None:
         """Drop counters after a session is deleted (demo reset); live subscribers are cut off."""
         self._seq.pop(session_id, None)
@@ -104,10 +111,69 @@ def format_sse(ev: Event) -> str:
 OPERATOR_ONLY_EVENTS = frozenset({"agent.call", "transcript.interim"})
 
 
+# A viewer's browser gets the public chat and the show's public state, field by field. An event type or a field
+# that is not listed here is not sent: question groups, drafts, analyses, alerts, the host's queue and cards,
+# transcripts and metrics stay on the server for this role.
+VIEWER_EVENTS = frozenset({
+    "session.started", "session.ended", "segment.started", "segment.undone", "segment.extended",
+    "comment.created", "comment.hidden", "comment.unhidden", "comment.analyzed", "comment.status",
+    "message.published", "message.updated", "promo.started", "promo.ended", "notice.updated",
+})
+VIEWER_SESSION_FIELDS = (
+    "session_id", "runsheet_id", "title", "status", "market", "lang", "started_at", "ended_at",
+    "current_segment_id", "active_promo_id", "promo_started_at", "pinned_notice", "active_promos", "created_at",
+)
+VIEWER_COMMENT_FIELDS = (
+    "comment_id", "author_id", "author_name", "text", "received_at", "visibility", "language", "reply_status",
+)
+VIEWER_MESSAGE_FIELDS = (
+    "message_id", "kind", "text", "reply_to_comment_ids", "reply_to_author_names", "citations", "state",
+    "created_at", "published_at", "translations",
+)
+
+
+def _only(doc: dict, fields: tuple[str, ...]) -> dict:
+    return {k: doc[k] for k in fields if k in doc}
+
+
+def viewer_session(doc: dict) -> dict:
+    return _only(doc, VIEWER_SESSION_FIELDS)
+
+
+def viewer_comment(doc: dict) -> dict:
+    if doc.get("visibility") == "hidden":
+        return {"comment_id": doc.get("comment_id"), "visibility": "hidden"}
+    return _only(doc, VIEWER_COMMENT_FIELDS)
+
+
+def viewer_message(doc: dict) -> dict | None:
+    """A reply or notice once it is posted; a post still in its cancel window is not public yet."""
+    return _only(doc, VIEWER_MESSAGE_FIELDS) if doc.get("state") == "published" else None
+
+
+def _for_viewer(ev: Event) -> Event | None:
+    if ev.type not in VIEWER_EVENTS:
+        return None
+    p = ev.payload
+    if ev.type.startswith("session."):
+        out: dict | None = viewer_session(p)
+    elif ev.type.startswith("comment."):
+        comment = viewer_comment(p.get("comment", p))
+        out = {"comment": comment} if "comment" in p else comment
+    elif ev.type.startswith("message."):
+        out = viewer_message(p)
+    else:
+        out = p
+    return None if out is None else ev.model_copy(update={"payload": out})
+
+
 def for_role(ev: Event, role: str) -> Event | None:
-    """Host and viewer streams never carry hidden comment text or debug events."""
+    """Host and viewer streams never carry hidden comment text or debug events; a viewer's stream carries only
+    the public chat and show state."""
     if role == "operator":
         return ev
+    if role == "viewer":
+        return _for_viewer(ev)
     if ev.type in OPERATOR_ONLY_EVENTS:
         return None
     p = ev.payload

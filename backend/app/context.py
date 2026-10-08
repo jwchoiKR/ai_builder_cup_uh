@@ -114,6 +114,7 @@ def build_context(
     clock: Clock | None = None,
     llm_backend: LLMBackend | None = None,
     scheduler: AsyncScheduler | ManualScheduler | None = None,
+    comments_client: object | None = None,
 ) -> AppContext:
     from .pipelines.runtime import Runtimes
 
@@ -130,7 +131,7 @@ def build_context(
         from .agents.arms import split_target_group
 
         prompts = split_target_group(prompts, settings.prompts_path)
-    store = make_store(settings)
+    store = make_store(settings, comments_client=comments_client)
     bus = EventBus(store, clock)
     llm = LLMClient(llm_backend or make_backend(settings), settings, clock, ids, StoreAudit(store, bus))
     if settings.RETRIEVER != "local":

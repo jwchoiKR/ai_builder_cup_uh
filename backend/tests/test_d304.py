@@ -130,18 +130,6 @@ def test_d304_draft_gate_provenance_only(pack):
     assert draft_code_gate(wrong, passages, CREAM, provenance=True, **kw)[1] == ["number 40 not in a cited quote"]
 
 
-def test_d304_group_join_by_the_model_only():
-    from app.logic.grouping import find_group
-
-    from .test_mapping_grouping_routing import group
-
-    oily = group("g_oily")
-    args = dict(product_id=CREAM, intent="suitability", canonical_question="Will it work for oily skin?",
-                slots={"person_type": "oily"}, candidate_id="g_missing")
-    assert find_group([oily], **args) is oily  # today: the only open group of the intent
-    assert find_group([oily], single_fallback=False, **args) is None
-
-
 @pytest.mark.parametrize("mode, label, kinds", [
     ("regex", "purchase", ["purchase"]),  # today: the regex reads "bought"
     ("judge", "purchase", ["purchase"]),

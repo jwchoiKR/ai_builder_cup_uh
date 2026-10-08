@@ -16,8 +16,9 @@ from .conftest import make_settings
 def make_ctx(fixtures_dir: Path | None = None, backend: LLMBackend | None = None, **settings) -> AppContext:
     clock = ManualClock()
     backend = backend or (MockBackend(fixtures_dir) if fixtures_dir else MockBackend())
+    comments_client = settings.pop("comments_client", None)  # COMMENTS_FIRESTORE=True: the fake Firestore client
     return build_context(make_settings(**settings), clock=clock, llm_backend=backend,
-                         scheduler=ManualScheduler(clock))
+                         scheduler=ManualScheduler(clock), comments_client=comments_client)
 
 
 async def live_runtime(ctx: AppContext, show_mode: str = "solo") -> SessionRuntime:

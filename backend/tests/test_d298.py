@@ -38,7 +38,7 @@ PRICE = "Live broadcast price (50 mL): S$24.00"
     ("Someone asked if it's fragrance-free.", "Yes, it's fragrance-free.", "fragrance-free", "Contains fragrance",
      "Contains fragrance (parfum).", "fragrance", True),
     ("Someone asked if the 50 mL is S$20.", "No, it's S$24.", "S$20", "S$24.00", PRICE, "price", False),
-    # Sonnet's guards: a line that starts with a rejection and asserts its own wrong value still alerts
+    # The critic's guards: a line that starts with a rejection and asserts its own wrong value still alerts
     ("Someone asked if the 50 mL is S$20.", "No, it's S$15.", "S$15", "S$24.00", PRICE, "price", True),
     ("It's a great price.", "No, it's S$15.", "S$15", "S$24.00", PRICE, "price", True),
     ("Someone asked whether it cures eczema.", "No, it cures eczema.", "cures eczema",
