@@ -1266,7 +1266,8 @@ class UtterancePipeline:
                 await self._hold_reported_locked(t, held, protected)
         fresh = await self._fact_alerts_locked(t, claims, protected)
         await self._correct_fact_notes_locked(t, getattr(facts, "_corrects", []), fresh)
-        await self._tick_prompter_locked(t, claims)
+        # D-373: ticks from every supported claim of the line; the per-subject recency filter above is for alerts only
+        await self._tick_prompter_locked(t, facts.claims)
 
     async def _hold_reported_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
         """D-328: a contradiction in someone else's words (a viewer quoted, a co-host's question) is not shown yet:
@@ -1403,8 +1404,10 @@ class UtterancePipeline:
 
     async def _tick_prompter_locked(self, t: Transcript, claims: list) -> None:
         """D-372: the prompter items (price lines, ingredient amounts, cautions) a supported claim cites are ticked as
-        said, on the cited item's product: its open segment, its segment that just left the air (dual scope), or the
-        next product's pre_covered. A contradiction ticks nothing; reported speech never reaches `supported` (v5)."""
+        said. A contradiction ticks nothing; reported speech never reaches `supported` (v5). D-373: routed by the
+        line's own segment (captured with its input), not by what is on air when the verdict arrives: that segment for
+        its product; for the product that had just left the air in the line's scope, that product's segment before it;
+        when the line's segment is gone (an undone switch), the product's open segment, else its pre_covered."""
         rt = self.rt
         inp = self._fact_inputs.get(t.transcript_id)
         if rt.settings.FACT_MODE != "prompter" or inp is None:
@@ -1419,13 +1422,17 @@ class UtterancePipeline:
                     cited.setdefault(shown[pid], []).append(pid)
         if not cited:
             return
-        s, seg = await rt.load_session(), await rt.current_segment()
-        on_air = seg.product_id if seg is not None else None
+        s, segs = await rt.load_session(), await rt.segments()
+        seg = next((x for x in segs if x.ended_at is None), None)  # on air now
+        line_seg = next((x for x in segs if x.segment_id == t.segment_id), None)
         for product_id, ids in cited.items():
-            target = seg if product_id == on_air else None
-            if target is None and product_id == self._scoped(s.switch).previous_product_id:
-                target = max((x for x in await rt.segments() if x.product_id == product_id),
-                             key=lambda x: x.started_at, default=None)
+            target = None
+            if line_seg is not None:
+                target = line_seg if line_seg.product_id == product_id else max(
+                    (x for x in segs if x.product_id == product_id and x.started_at < line_seg.started_at),
+                    key=lambda x: x.started_at, default=None)
+            if target is None and seg is not None and seg.product_id == product_id:
+                target = seg
             if target is not None:
                 new = [i for i in dict.fromkeys(ids) if i not in target.ticked_item_ids]
                 if new:
@@ -1434,14 +1441,11 @@ class UtterancePipeline:
                     if target is seg:
                         await rt.emit("prompter.updated", prompter_view(rt.catalog, seg, rt.points))
                 log.info("prompter ticks %s t=%s: %s +%s", rt.sid, t.transcript_id, product_id, new)
-            elif product_id == rt.catalog.next_product(on_air):
+            else:  # no segment of it to tick: kept for when it goes on air
                 pre = s.pre_covered.setdefault(product_id, [])
                 pre.extend(i for i in dict.fromkeys(ids) if i not in pre)
                 await rt.save_session(s)
-                log.info("prompter ticks %s t=%s: next product %s pre-ticked %s", rt.sid, t.transcript_id, product_id,
-                         ids)
-            else:
-                log.info("prompter ticks %s t=%s: %s is not on air, just left or next; not ticked %s", rt.sid,
+                log.info("prompter ticks %s t=%s: %s has no segment for this line; pre-ticked %s", rt.sid,
                          t.transcript_id, product_id, ids)
 
     def _on_fact_note_active(self, a: Alert) -> None:
@@ -1495,6 +1499,9 @@ class UtterancePipeline:
         if fixed:
             async with rt.lock:
                 await self._correct_fact_notes_locked(t, [note_id])
+        if res.status == "ok" and res.output is not None:  # D-373: the re-check's supported claims tick too
+            async with rt.lock:
+                await self._tick_prompter_locked(t, res.output.claims)
 
     def schedule_fact_hide(self, a: Alert) -> None:
         """§8.5: the host stops showing an uncorrected note after FACT_NOTE_HOST_MAX_SEC."""

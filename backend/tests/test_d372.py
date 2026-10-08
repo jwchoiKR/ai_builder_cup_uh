@@ -90,3 +90,116 @@ async def test_d372_in_the_dual_scope_only_the_cited_product_is_ticked():
         assert (await rt.get_segment(cream_seg.segment_id)).ticked_item_ids == [LIVE]
     finally:
         await close_env(rt)
+
+
+# ---- D-373: codex review of D-372 -------------------------------------------------------------------------------------
+
+AMP_LIVE = "DL-AM-01#prompter#live-price"
+
+
+async def _settle(rt) -> None:
+    await rt.utterances.drain()
+    await rt.ctx.scheduler.idle()
+
+
+async def test_d373_a_re_check_that_fixes_the_note_ticks_the_item():
+    """The wrong line's check is slow; the fix line is checked first (no note, no claim); its re-check with the note
+    comes back supported and fixed: the note closes and the item is ticked."""
+    import asyncio
+
+    rt, llm = await _env()
+    wrong, fix = "The live price is thirty-two dollars.", "Sorry, scratch that, it is the usual price."
+    try:
+        _verdict(llm, wrong, "contradicts", [_sid(rt, LIVE)], stated="S$32", correct="S$36.00")
+        llm.delays[("fact_checker", wrong)] = 0.3
+        llm.outputs[("fact_checker", fix)] = {"claims": []}
+        original = llm.generate
+
+        async def generate(req, timeout_ms):
+            if req.agent == "fact_checker" and req.mock_primary_text == fix and "ACTIVE_FACT_NOTES" in req.user_message:
+                _verdict(llm, fix, "consistent", [_sid(rt, LIVE)], fixed=["F1"])
+            return await original(req, timeout_ms)
+
+        llm.generate = generate
+        await rt.inject_transcript(wrong)
+        await asyncio.sleep(0.05)
+        await rt.inject_transcript(fix)
+        await _settle(rt)
+        [note] = [a for a in await rt.alerts() if a.kind == "fact"]
+        assert note.status == "corrected" and await _ticks(rt) == [LIVE]
+    finally:
+        await close_env(rt)
+
+
+async def test_d373_a_right_value_ticks_even_when_a_later_wrong_verdict_arrives_first():
+    import asyncio
+
+    rt, llm = await _env()
+    right, wrong = "The live price is thirty-six dollars.", "I mean thirty-two dollars."
+    try:
+        _verdict(llm, right, "consistent", [_sid(rt, LIVE)])
+        llm.delays[("fact_checker", right)] = 0.3
+        _verdict(llm, wrong, "contradicts", [_sid(rt, LIVE)], stated="S$32", correct="S$36.00")
+        await rt.inject_transcript(right)
+        await asyncio.sleep(0.05)
+        await rt.inject_transcript(wrong)
+        await _settle(rt)
+        assert await _ticks(rt) == [LIVE]
+        assert [a.status for a in await rt.alerts() if a.kind == "fact"] == ["active"]  # the later wrong line's note
+    finally:
+        await close_env(rt)
+
+
+async def test_d373_a_verdict_after_the_dual_scope_ends_still_ticks_the_product_the_line_was_about():
+    """Said 9 s after the switch (inside the 10 s scope), the verdict lands at 11 s: the cream's segment is ticked."""
+    import asyncio
+
+    from .judge_fakes import advance
+
+    rt, llm = await _env(SWITCH_MODE="immediate")
+    try:
+        move = "Okay, let's move on to the ampoule."
+        llm.judge(move, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
+        await speak(rt, move)
+        cream_seg = next(x for x in await rt.segments() if x.product_id == CREAM)
+        await advance(rt, 9_000)
+        line = "And the cream was thirty-six dollars."
+        _verdict(llm, line, "consistent", [_sid(rt, LIVE, (AMPOULE, CREAM))])
+        llm.delays[("fact_checker", line)] = 0.3
+        await rt.inject_transcript(line)
+        await asyncio.sleep(0.05)
+        rt.ctx.clock.set(rt.ctx.clock.now_ms() + 2_000)  # 11 s, while the call is still out (advance would wait)
+        await _settle(rt)
+        assert rt.utterances._scoped((await rt.load_session()).switch).previous_product_id is None  # scope over
+        assert (await rt.get_segment(cream_seg.segment_id)).ticked_item_ids == [LIVE]
+        assert await _ticks(rt) == []
+    finally:
+        await close_env(rt)
+
+
+async def test_d373_a_late_verdict_for_an_undone_segment_waits_for_the_product_s_next_segment():
+    """Cream -> ampoule -> cream -> ampoule, the last switch undone before the ampoule line's verdict lands: the tick
+    is not put on the first ampoule segment; it shows when the ampoule goes on air again."""
+    import asyncio
+
+    from app.pipelines.utterances import operator_switch, undo_switch
+
+    rt, llm = await _env(SWITCH_MODE="immediate")
+    try:
+        await operator_switch(rt, AMPOULE)
+        first_amp = (await rt.current_segment()).segment_id
+        await operator_switch(rt, CREAM)
+        await operator_switch(rt, AMPOULE)
+        line = "The ampoule is on its live price today."
+        _verdict(llm, line, "consistent", [_sid(rt, AMP_LIVE, (AMPOULE,))], product=AMPOULE)
+        llm.delays[("fact_checker", line)] = 0.3
+        await rt.inject_transcript(line)
+        await asyncio.sleep(0.05)
+        await undo_switch(rt)
+        await _settle(rt)
+        assert (await rt.get_segment(first_amp)).ticked_item_ids == []
+        assert (await rt.load_session()).pre_covered.get(AMPOULE) == [AMP_LIVE]
+        await operator_switch(rt, AMPOULE)
+        assert await _ticks(rt) == [AMP_LIVE]
+    finally:
+        await close_env(rt)
