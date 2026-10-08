@@ -52,7 +52,7 @@ function HostSees({ seen }: { seen?: HostVisibility }) {
   if (!seen) return null;
   const text = seen === "shown" ? t("The host sees this alert now.")
     : seen === "held" ? t("Waiting on the host screen: a red alert on the same line shows first.")
-      : t("Not on the host screen yet: counted in \"+N\" behind the two alerts shown.");
+      : t("Not on the host screen yet: counted in \"+N\".");
   return <p className={styles.helper} data-testid="op-alert-host" data-seen={seen}>{text}</p>;
 }
 

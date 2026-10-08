@@ -266,11 +266,6 @@ export function activeHighAlert(state: ClientState): HighAlertView | null {
   return high.length ? { alert: high[0], position: 1, total: high.length } : null;
 }
 
-/** D-177: a red alert created less than RED_BLOCK_MS ago (server time): the red box is highlighted. */
-export function redBlocking(state: ClientState, now: number): boolean {
-  return activeComplianceAlerts(state).some((a) => a.severity === "HIGH" && now - a.created_at < RED_BLOCK_MS);
-}
-
 /** D-161, D-177: an alert created less than RED_BLOCK_MS ago (server time) blocks AI PD cards. The same claim said
  *  again is a new alert, so it blocks again. D-402 (user): every alert, red or orange (a MEDIUM banner or a fact
  *  note), the same way. Same rule as the server's. */
@@ -355,7 +350,8 @@ export type HostBox =
 export type HostVisibility = "shown" | "held" | "more";
 
 /** D-402, D-404: the host's alert stack in order (red first, then fact notes, then MEDIUM; D-342 and the grouping
- *  apply): the boxes shown, "+N" and each active alert's visibility. "+N" counts, by alert id, every active alert not
+ *  apply): the boxes shown, "+N" and each active alert's visibility. D-407 (user): every active red is its own box,
+ *  newest first, so two reds fill the two boxes and the rest is in "+N". "+N" counts, by alert id, every active alert not
  *  visible in the boxes shown: the other reds, the alerts held by D-342 and the members of the boxes not shown; a
  *  qualifier card merged with a fact note counts as one (its other fact notes on top). The host and operator screens
  *  both read this. */
@@ -364,10 +360,11 @@ export function hostAlertStack(state: ClientState): {
   more: number;
   visibility: Record<string, HostVisibility>;
 } {
-  const high = activeHighAlert(state);
+  const reds = activeComplianceAlerts(state).filter((a) => a.severity === "HIGH");
   const { mediums, facts } = hostBanners(state);
   const boxes: HostBox[] = [
-    ...(high ? [{ kind: "high" as const, view: high, ids: [high.alert.alert_id], units: 1 }] : []),
+    ...reds.map((alert, i) => ({ kind: "high" as const, view: { alert, position: i + 1, total: reds.length },
+      ids: [alert.alert_id], units: 1 })),
     ...facts.map((f) => ({ kind: "fact" as const, ...f, units: f.count })),
     ...mediums.map((m) => ({ kind: "medium" as const, ...m, units: m.count + Math.max(0, m.factCount - 1) })),
   ];
@@ -381,7 +378,7 @@ export function hostAlertStack(state: ClientState): {
   }
   for (const a of [...activeComplianceAlerts(state), ...factNotesForHost(state)]) {
     if (a.alert_id in visibility) continue;
-    visibility[a.alert_id] = a.kind === "compliance" && a.severity === "HIGH" ? "more" : "held";
+    visibility[a.alert_id] = "held";  // every red is a box (D-407): what is left waits behind a red (D-342)
     more += 1;
   }
   return { shown, more, visibility };
