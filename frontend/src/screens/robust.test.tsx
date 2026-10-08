@@ -3,7 +3,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { shortSay } from "../app/selectors";
 import { reduceEvent, reduceSnapshot } from "../app/state";
 import { PanelBoundary } from "../components";
 import type { Alert, StateSnapshot } from "../app/types";
@@ -116,16 +115,4 @@ describe("D-350: a panel error stays in its panel", () => {
   });
 });
 
-describe("D-350: a say-instead line is short enough to read out", () => {
-  it("keeps a short line, drops a long result's test conditions but not its qualifier", () => {
-    expect(shortSay("Helps skin feel soft overnight.")).toBe("Helps skin feel soft overnight.");
-    expect(shortSay(null)).toBe("");
-    const lost = String.fromCharCode(0xfffd, 0xfffd);  // "±" and "°" that text extraction lost
-    const long = "Skin hydration up 45% after one use, In-house study, 30 participants aged 20 to 49, 4 weeks, " +
-      `twice-daily use, measured with a corneometer at 22 ${lost} 2${lost}C (in our in-house test)`;
-    expect(shortSay(long)).toBe("Skin hydration up 45% after one use (in our in-house test)");
-    const garbled = `Moisture up 30%, at 22 ${lost} 2${lost}C (in our in-house test)`;
-    expect(shortSay(garbled)).toBe("Moisture up 30% (in our in-house test)");
-    expect(shortSay(`${"word ".repeat(40)}end`).endsWith("…")).toBe(true);
-  });
-});
+

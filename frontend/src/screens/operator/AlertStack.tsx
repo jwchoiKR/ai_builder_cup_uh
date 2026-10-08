@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { api } from "../../app/api";
 import { useT } from "../../app/i18n";
-import { shortSay } from "../../app/selectors";
 import type { Alert } from "../../app/types";
 import { Button, Chip } from "../../components";
 import { useAction, useOperator } from "./context";
@@ -92,7 +91,7 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
             <p className={styles.alertMeta} data-testid="op-alert-summary">{t("AI summary:")} {a.quote}</p>
           )}
           {a.say_instead && (
-            <p className={styles.alertMeta} title={a.say_instead}>{t("Say:")} “{shortSay(a.say_instead)}”</p>
+            <p className={styles.alertMeta}>{t("Say:")} “{a.say_instead}”</p>
           )}
           <p className={styles.helper}>
             {a.severity === "MEDIUM"
