@@ -1420,7 +1420,11 @@ class UtterancePipeline:
                 scope_ms = rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
                 left = max((x for x in segs if x.product_id == product_id and x.ended_at is not None
                             and x.started_at < line_seg.started_at), key=lambda x: x.started_at, default=None)
-                if left is not None and 0 <= t.received_at - left.ended_at <= scope_ms:
+                # D-381: a segment that ended before the line's segment was reopened by an undo did not just leave:
+                # the product that left is the undone one (its segment is gone)
+                stale = (line_seg.reopened_at is not None and line_seg.reopened_at <= t.received_at
+                         and left is not None and left.ended_at < line_seg.reopened_at)
+                if left is not None and not stale and 0 <= t.received_at - left.ended_at <= scope_ms:
                     target = left
                 elif seg is not None and seg.product_id == product_id and seg.started_at > line_seg.started_at:
                     target = seg
@@ -1904,7 +1908,7 @@ async def undo_switch(rt: "SessionRuntime") -> Segment:
         if closed is None or opened is None:
             raise ActionError(409, "undo_window_over", "There is no switch to undo.")
         rt.utterances._segment_generation += 1
-        closed.ended_at = None
+        closed.ended_at, closed.reopened_at = None, now  # D-381
         await rt.save_segment(closed)
         await rt.ctx.store.delete(rt.path("segments"), opened.segment_id)
         if opened.covered_point_ids or opened.ticked_item_ids:  # D-372: the ticks go back with the points

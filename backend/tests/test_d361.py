@@ -40,8 +40,9 @@ async def test_d361_a_read_back_that_fails_part_way_serves_nothing_and_keeps_the
         await fresh.get(SESSIONS, "ses_1", Session)
     assert fresh._data.get(SESSIONS, {}) == {}  # nothing half read
     bus = EventBus(fresh, ManualClock(0))
-    assert await bus.last_seq("ses_1") == 3  # read back whole on the next touch
-    assert (await bus.emit("ses_1", "y", {})).seq == 4
+    last = await bus.last_seq("ses_1")  # read back whole on the next touch
+    assert last >= 3 and (await bus.emit("ses_1", "y", {})).seq == last + 1  # D-381: past the reserved ceiling
+    assert len(fresh._data[sub("ses_1", "events")]) == 4  # the stored events were all read back, none overwritten
 
 
 async def test_d361_a_flush_wakes_a_waiting_write_retry(monkeypatch):

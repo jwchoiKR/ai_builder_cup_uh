@@ -136,9 +136,9 @@ async def test_d354_a_replayed_show_matches_memory_and_a_new_process_continues_i
     fresh = FirestoreStore(client=client)  # a new instance after a restart
     assert (await fresh.get(SESSIONS, sid, Session)).status == "ended"
     bus = EventBus(fresh, ctx.clock)
-    assert await bus.last_seq(sid) == last
+    assert await bus.last_seq(sid) >= last  # D-381: it continues after the reserved ceiling (a gap is fine)
     ev = await bus.emit(sid, "summary.ready", {"ok": True})
-    assert ev.seq == last + 1
+    assert ev.seq > last
 
 
 async def test_d354_delete_session_deletes_it_in_firestore_too():
@@ -209,9 +209,40 @@ async def test_d379_comment_events_stay_out_of_firestore_and_the_seq_continues()
     assert sorted(v["type"] for v in stored.values()) == ["alert.created", "transcript.final"]
     fresh, _ = _store(client)
     bus2 = EventBus(fresh, bus._clock)
-    # D-380: the high-water mark on the session document: the next seq follows the last comment event (5)
-    assert await bus2.last_seq("ses_1") == 5
-    assert (await bus2.emit("ses_1", "transcript.final", {})).seq == 6
+    # D-380/381: the reserved ceiling on the session document: the next seq is past every event a client saw
+    last = await bus2.last_seq("ses_1")
+    assert last >= 5 and (await bus2.emit("ses_1", "transcript.final", {})).seq == last + 1
+
+
+async def test_d381_the_mark_survives_a_json_session_and_costs_one_write_per_block():
+    from pydantic import BaseModel
+
+    class _Session(BaseModel):
+        session_id: str = "ses_1"
+        pairs: list[list[str]] = [["a", "b"]]  # a nested array: the session is stored as one JSON field
+
+    from app.clock import ManualClock
+
+    store, client = _store()
+    bus = EventBus(store, ManualClock())
+    session_writes = []
+    enqueue = store._enqueue
+    store._enqueue = lambda path, doc_id, value: (session_writes.append(doc_id) if path == SESSIONS else None,
+                                                  enqueue(path, doc_id, value))[1]
+    await store.put(SESSIONS, "ses_1", _Session())
+    for i in range(50):
+        await bus.emit("ses_1", "comment.created", {"i": i})
+        assert await store.flush(5)  # a flush between events: still one session write for the whole block
+    assert len(session_writes) == 2  # the session itself, then one reserved block
+    assert JSON_FIELD in client.data[SESSIONS]["ses_1"]
+    fresh, _ = _store(client)
+    assert await EventBus(fresh, ManualClock()).last_seq("ses_1") >= 50
+    # the comment agents' calls stay out through their agent.call events too
+    await bus.emit("ses_1", "agent.call", {"agent": "answer_composer"})
+    await bus.emit("ses_1", "agent.call", {"agent": "fact_checker"})
+    assert await store.flush(5)
+    types = [(v.get("type"), (v.get("payload") or {}).get("agent")) for v in client.data[sub("ses_1", "events")].values()]
+    assert ("agent.call", "fact_checker") in types and ("agent.call", "answer_composer") not in types
 
 
 async def test_d380_the_session_document_holds_no_comment_data():

@@ -51,6 +51,9 @@ COMMENT_EVENTS = frozenset({"comment.created", "comment.analyzed", "comment.hidd
 # D-380: comment data on the session document (the host's question slots, the pinned notice) stays in memory
 SESSION_MEMORY_ONLY = ("host_slots", "pinned_notice")
 SEQ_HW = "_event_seq_hw"  # D-380: the highest event seq emitted, on the session document (memory-only events too)
+# D-381: the mark is a reserved ceiling, written once per block of events (not once per event); a new process
+# continues after it, so it never reuses a seq a client saw (gaps of up to a block are fine)
+HW_BLOCK = 1000
 
 
 def mirrored(path: str, data: Any) -> bool:
@@ -61,7 +64,9 @@ def mirrored(path: str, data: Any) -> bool:
     if not isinstance(data, dict):
         return True
     return not ((name == "agent_calls" and data.get("agent") in COMMENT_AGENTS)
-                or (name == "events" and data.get("type") in COMMENT_EVENTS))
+                or (name == "events" and data.get("type") in COMMENT_EVENTS)
+                or (name == "events" and data.get("type") == "agent.call"  # D-381: StoreAudit's event copy
+                    and (data.get("payload") or {}).get("agent") in COMMENT_AGENTS))
 
 
 def _nested_array(x: Any, in_array: bool = False) -> bool:
@@ -148,9 +153,9 @@ class FirestoreStore(MemoryStore):
         self._enqueue(path, doc_id, doc.model_dump(mode="json"))
         sid = _session_of(path, doc_id)
         if path.endswith("/events") and sid is not None and getattr(doc, "seq", 0) > self._seq_hw.get(sid, 0):
-            # D-380: every event, mirrored or not, raises the session's high-water mark (coalesced with the session
-            # document in the queue, so a burst of events is one session write)
-            self._seq_hw[sid] = doc.seq
+            # D-380/381: an event past the reserved ceiling (mirrored or not) reserves the next block, one session
+            # write per HW_BLOCK events
+            self._seq_hw[sid] = doc.seq + HW_BLOCK
             session = self._data.get(SESSIONS, {}).get(sid)
             if session is not None:
                 self._enqueue(SESSIONS, sid, dict(session))
@@ -228,7 +233,7 @@ class FirestoreStore(MemoryStore):
         snap = await self._client.collection(SESSIONS).document(sid).get()
         if not snap.exists:
             return
-        doc = snap.to_dict()
+        doc = decode(snap.to_dict())  # D-381: a session stored as one JSON field holds the mark inside it
         hw = doc.pop(SEQ_HW, None)  # D-380: the high-water mark is the store's, not a session field
         staged = [(SESSIONS, sid, doc)]
         for name in (n for n in SUBCOLLECTIONS if n not in MEMORY_ONLY):  # D-378: no comment data read back
