@@ -69,7 +69,8 @@ EXP_PROMPTS = Path(__file__).resolve().parent / "experiments" / "prompts"
 EVAL_DIR = REPO_DIR / "docs" / "eval"
 
 # Keep the fact checker's raw model answer: run() normally applies post_validate before returning.
-_fact_post_validate = fc_module.post_validate
+_as_given = fc_module.as_given  # D-389: the guards are gone; the only filter is a product not in the show
+_fact_post_validate = lambda out, passages, catalog, *a, **k: _as_given(out, catalog)  # noqa: E731
 
 
 class RouterOutput(BaseModel):
@@ -304,7 +305,7 @@ async def run(structure: str, runs: int, concurrency: int, cases: list[dict] | N
                       "facts_validated": validated.model_dump(mode="json") if validated else None}
 
     results = []
-    fc_module.post_validate = lambda out, *a, **k: out
+    fc_module.as_given = lambda out, *a, **k: out
     try:
         for r in range(runs):
             results += await asyncio.gather(*(one(c, r) for c in cases))

@@ -53,26 +53,6 @@ async def test_contradiction_creates_active_note(env):
     assert created.payload["alert_id"] == a.alert_id
 
 
-@pytest.mark.parametrize("bad", [
-    claim("price", "contradicted", stated="S$32", correct="S$40.00", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE),
-    claim("price", "contradicted", stated="S$32", correct="S$36.00", passage_id=PRICE_PASSAGE, quote="Live price: S$36.00"),
-    claim("price", "contradicted", stated="S$32", correct="S$36.00", passage_id="NOPE", quote=PRICE_QUOTE),
-    claim("price", "contradicted", stated="S$32", correct="S$36.00", passage_id=None, quote=None),  # no promo active
-    claim("other", "contradicted", stated="treats acne", correct="Claims not approved: Treats acne",
-          passage_id="DL-CR-01#approved-on-air-claims#not-approved", quote="Claims not approved:"),
-    claim("price", "contradicted", product_id="nope", stated="S$32", correct="S$36.00", passage_id=PRICE_PASSAGE,
-          quote=PRICE_QUOTE),
-])
-async def test_unbacked_contradiction_is_downgraded(bad):
-    rt, llm = await make_env(FACT_FIXES="")  # D-293: the base guard; F2 and R1 (on by default) have their own tests
-    try:
-        llm.facts(WRONG, bad)
-        await speak(rt, WRONG)
-        assert await fact_alerts(rt) == []
-    finally:
-        await close_env(rt)
-
-
 async def test_promo_price_contradiction_without_passage(env):
     rt, llm = env
     await rt.start_promo("promo_time_sale_10")
@@ -202,33 +182,9 @@ def test_apply_fact_check_pure(ids):
 TEST_PASSAGE = "DL-AM-01#in-house-test-results#participants-who-said-skin-looked-more-radiant-after-4-weeks"
 
 
-def verdicts(pack, catalog, text: str, *claims: dict) -> list[str]:
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    out = FactCheckOutput.model_validate({"claims": list(claims), "reason": "scripted"})
-    passages = [p for p in pack.passages if p.passage_id == TEST_PASSAGE]
-    return [c.verdict for c in post_validate(out, passages, catalog, None, text).claims]
-
-
 def weeks(field: str = "test_result") -> dict:
     return claim(field, "contradicted", product_id=AMPOULE, stated="2 weeks", correct="4 weeks",
                  passage_id=TEST_PASSAGE, quote="after 4 weeks")
-
-
-@pytest.mark.parametrize("text, verdict", [
-    ("It whitens your skin in two weeks.", "not_in_sources"),  # benefit timing: the compliance judge's job
-    ("In our test, skin looked more radiant after two weeks.", "contradicted"),
-    ("Eighty-seven percent saw more radiant skin in two weeks.", "contradicted"),
-    ("Twenty-six of thirty participants saw it in two weeks.", "contradicted"),
-])
-def test_test_result_is_checked_only_when_a_test_is_cited(pack, catalog, text, verdict):
-    assert verdicts(pack, catalog, text, weeks()) == [verdict]
-
-
-def test_other_field_never_gives_a_note(pack, catalog):
-    """"prescription cream" -> "cosmetic product" has no value to compare; the quote alone is not enough."""
-    assert verdicts(pack, catalog, "In our test it worked in two weeks.", weeks("other")) == ["not_in_sources"]
 
 
 # ---- set offers (holdout H046) -------------------------------------------------------------------
@@ -247,19 +203,6 @@ async def test_set_promo_price_contradiction_names_the_set(env):
     assert (a.product_id, a.correct_value) == (SET, "S$55.80")
     assert utt.notice_template(rt, a).startswith("Correction: the current price of ")
     assert "S$55.80" in utt.notice_template(rt, a)
-
-
-@pytest.mark.parametrize("bad", [
-    claim("promo", "contradicted", product_id=SET, stated="S$50", correct="S$50.00"),  # not the set's promo price
-    claim("promo", "contradicted", product_id=CREAM, stated="S$50", correct="S$55.80"),  # set price on the cream
-    claim("volume", "contradicted", product_id=SET, stated="2 pieces", correct="3 pieces"),  # sets have only prices
-])
-async def test_set_claims_that_stay_downgraded(env, bad):
-    rt, llm = env
-    await rt.start_promo("promo_time_sale_10")
-    llm.facts(H046, bad)
-    await speak(rt, H046)
-    assert await fact_alerts(rt) == []
 
 
 # ---- review B3: one note per subject (ingredient, test, offer), not per field ---------------------
@@ -302,177 +245,3 @@ def _full_list():
     return Passage(passage_id="DL-CR-01#ingredients#all", product_id=CREAM, doc="sheet", section="Ingredients",
                    text="Water, glycerin, panthenol, ceramide NP, squalane.", score=0.0)
 
-
-@pytest.mark.parametrize("stated, complete, verdict", [
-    ("4% niacinamide", False, "not_in_sources"),  # D-207: the cream's sheet is partial (full INCI on the carton)
-    ("4% niacinamide", True, "contradicted"),  # a complete ingredient list that never names it proves the absence
-    ("mineral oil", False, "contradicted"),  # the "Free from" list names it
-    ("5% panthenol", True, "not_in_sources"),  # it does contain panthenol: absence is not accepted
-])
-def test_an_absent_ingredient_is_contradicted_only_when_the_sheet_proves_it(pack, catalog, stated, complete, verdict):
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    c = claim("ingredient", "contradicted", stated=stated, correct=ABSENT)
-    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
-    sheet = [p for p in pack.passages if p.product_id == CREAM] + ([_full_list()] if complete else [])
-    assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"It has {stated}.").claims] == [verdict]
-
-
-@pytest.mark.parametrize("stated, correct, verdict", [
-    ("12 years", "12 months", "contradicted"),  # D-207: same number, other unit
-    ("RM36", "S$36.00", "contradicted"),  # same number, other currency
-    ("S$36", "S$36.00", "not_in_sources"),  # a restatement
-])
-def test_d207_units_and_currencies_count_in_a_contradiction(pack, catalog, stated, correct, verdict):
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    field, passage, q = (("price", "DL-CR-01#key-facts#live-broadcast-price", "Live broadcast price: S$36.00")
-                         if "36" in correct else
-                         ("shelf_life", "DL-CR-01#key-facts#shelf-life", "Use within 12 months after opening"))
-    c = claim(field, "contradicted", stated=stated, correct=correct, passage_id=passage, quote=q)
-    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
-    got = post_validate(out, [p for p in pack.passages if p.product_id == CREAM], catalog, None).claims[0].verdict
-    assert got == verdict
-
-
-def test_a_wrong_ph_is_a_fact_note(pack, catalog):
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    c = claim("ph", "contradicted", stated="pH 6.8", correct="5.5 (plus or minus 0.5)",
-              passage_id="DL-CR-01#key-facts#ph", quote="pH: 5.5 (plus or minus 0.5)")
-    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
-    sheet = [p for p in pack.passages if p.product_id == CREAM]
-    assert [x.verdict for x in post_validate(out, sheet, catalog, None, "It has a pH of 6.8.").claims] == ["contradicted"]
-
-
-def test_a_less_specific_container_is_not_contradicted(pack, catalog):
-    """D-123 (adversarial AV117): "a 50 mL tube" is consistent with "Airless pump tube"."""
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    sheet = [p for p in pack.passages if p.product_id == CREAM]
-    for stated, verdict in [("50 mL tube", "not_in_sources"), ("jar", "contradicted")]:
-        c = claim("packaging", "contradicted", stated=stated, correct="Airless pump tube",
-                  passage_id="DL-CR-01#key-facts#packaging", quote="Packaging: Airless pump tube")
-        out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
-        assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"It is a {stated}.").claims] == [verdict]
-
-
-def test_d148_a_wrong_promo_discount_is_a_checked_fact(catalog, pack):
-    """D-148 (sealed show replay): "It's an extra 20% off" during the 10% time sale got no note: code only
-    accepted promo prices as right values."""
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    promo = pack.promos_by_id["promo_time_sale_10"]
-    claim = {"span": "an extra 20% off", "field": "promo", "product_id": "cream_hydra_barrier", "stated_value": "20% off",
-             "verdict": "contradicted", "correct_value": "10% off", "passage_id": None, "quote": None}
-    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
-    [c] = post_validate(out, [], catalog, promo).claims
-    assert c.verdict == "contradicted"
-    made_up = FactCheckOutput.model_validate({"claims": [claim | {"correct_value": "15% off"}], "reason": "t"})
-    assert post_validate(made_up, [], catalog, promo).claims[0].verdict == "not_in_sources"
-
-
-def test_d148_the_live_price_said_as_now_during_a_sale_is_stale(catalog, pack):
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    promo = pack.promos_by_id["promo_time_sale_10"]
-    claim = {"span": "thirty-six dollars", "field": "price", "product_id": "cream_hydra_barrier", "stated_value": "S$36",
-             "verdict": "supported", "correct_value": None, "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
-             "quote": "Live broadcast price: S$36.00"}
-    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
-    [c] = post_validate(out, [], catalog, promo, utterance="It's thirty-six dollars, very cheap.").claims
-    assert (c.verdict, c.field, c.correct_value) == ("contradicted", "promo", "S$32.40")
-    [c] = post_validate(out, [], catalog, promo, utterance="Normally thirty-six dollars, now it's less.").claims
-    assert c.verdict == "supported"
-    [c] = post_validate(out, [], catalog, None, utterance="It's thirty-six dollars.").claims
-    assert c.verdict == "supported"  # no sale: the live price is right
-
-
-def test_d149_a_wrong_gift_threshold_is_a_checked_fact(catalog, pack):
-    """D-149: the gift pouch's spend threshold is a structured field the fact checker can check."""
-    from app.agents import inputs
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    gift = pack.promos_by_id["promo_gift_pouch"]
-    assert inputs.active_offers_json(catalog, [gift]) == [
-        {"promo_id": "promo_gift_pouch", "title": gift.title, "min_spend": "S$60.00", "duration_min": 15}]
-    claim = {"span": "free pouch over fifty dollars", "field": "promo", "product_id": "cream_hydra_barrier",
-             "stated_value": "S$50", "verdict": "contradicted", "correct_value": "S$60.00", "passage_id": None, "quote": None}
-    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
-    assert post_validate(out, [], catalog, None, offers=[gift]).claims[0].verdict == "contradicted"
-    assert post_validate(out, [], catalog, None).claims[0].verdict == "not_in_sources"  # no offer running
-    wrong = FactCheckOutput.model_validate({"claims": [claim | {"correct_value": "S$70.00"}], "reason": "t"})
-    assert post_validate(wrong, [], catalog, None, offers=[gift]).claims[0].verdict == "not_in_sources"
-
-
-def test_d151_a_stated_absence_is_never_contradicted_by_an_absence(catalog, pack):
-    """D-151 (sealed round 3): "No retinol in this one" (true) got a note "not in this product"."""
-    from app.agents.fact_checker import ABSENT, post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    base = {"field": "ingredient", "product_id": "cream_hydra_barrier", "verdict": "contradicted",
-            "correct_value": ABSENT, "passage_id": None, "quote": None}
-    said_absent = FactCheckOutput.model_validate({"claims": [base | {"span": "No retinol in this one",
-                                                                     "stated_value": "no retinol"}], "reason": "t"})
-    passages = [p for p in pack.passages if p.product_id == "cream_hydra_barrier"]
-    assert post_validate(said_absent, passages, catalog, None).claims[0].verdict == "not_in_sources"
-    said_present = FactCheckOutput.model_validate({"claims": [base | {"span": "it has retinol",
-                                                                      "stated_value": "retinol"}], "reason": "t"})
-    # D-207: only a sheet with a complete ingredient list proves the absence
-    assert post_validate(said_present, passages, catalog, None).claims[0].verdict == "not_in_sources"
-    assert post_validate(said_present, passages + [_full_list()], catalog, None).claims[0].verdict == "contradicted"
-
-
-def test_d151_a_correction_that_restates_the_stated_value_is_dropped(catalog, pack):
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    claim = {"span": "thirty-six dollars", "field": "price", "product_id": "cream_hydra_barrier", "stated_value": "S$36",
-             "verdict": "contradicted", "correct_value": "S$36.00", "passage_id": "DL-CR-01#key-facts#live-broadcast-price",
-             "quote": "Live broadcast price: S$36.00"}
-    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "t"})
-    assert post_validate(out, pack.passages, catalog, None).claims[0].verdict == "not_in_sources"
-
-
-@pytest.mark.parametrize("stated, verdict", [
-    ("a little alcohol", "contradicted"),  # the sheet names it only in "Free from: ... ethanol (denatured alcohol)"
-    ("ethanol", "contradicted"),
-    ("panthenol", "not_in_sources"),  # a real ingredient: the absence is not accepted
-])
-def test_d156_an_ingredient_the_sheet_lists_as_free_from_is_contradicted(pack, catalog, stated, verdict):
-    """D-156 (00007 show replay): "I think it has a little alcohol inside" about the cream got no note: the word
-    "alcohol" is on the sheet, but only in its "Free from" list."""
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    c = claim("ingredient", "contradicted", stated=stated, correct=ABSENT)
-    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
-    sheet = [p for p in pack.passages if p.product_id == CREAM]
-    assert [x.verdict for x in post_validate(out, sheet, catalog, None, f"I think it has {stated}.").claims] == [verdict]
-
-
-@pytest.mark.parametrize("stated, span, verdict", [
-    ("niacinamide", "The main ingredient is niacinamide", "not_in_sources"),  # on the sheet: "main" is not settled
-    ("retinol", "The main ingredient is retinol", "contradicted"),  # not on the sheet at all
-    ("no niacinamide", "There is no niacinamide in it", "contradicted"),  # an absence it does contain
-])
-def test_d165_a_present_ingredient_is_not_contradicted_by_another_one(pack, catalog, stated, span, verdict):
-    """D-165 (local SEED1 replay): "The main ingredient is Niacinamide." got a note "Centella Asiatica Leaf Water"."""
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    q = "Centella Asiatica Leaf Water: 50% (formula base)."
-    c = claim("ingredient", "contradicted", stated=stated, correct="Centella Asiatica Leaf Water",
-              passage_id="DL-AM-01#key-ingredients#centella-asiatica-leaf-water", quote=q) | {
-        "product_id": "ampoule_deep_hydration", "span": span}
-    out = FactCheckOutput.model_validate({"claims": [c], "reason": "scripted"})
-    sheet = [p for p in pack.passages if p.product_id == "ampoule_deep_hydration"]
-    # D-293: the base guard; F3 (on by default) has its own tests
-    assert [x.verdict for x in post_validate(out, sheet, catalog, None, span + ".", fixes=frozenset()).claims] == [verdict]

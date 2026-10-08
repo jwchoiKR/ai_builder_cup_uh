@@ -5,10 +5,9 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.fact_checker import from_relation, hard_validate, sentence_index
 
 from .judge_fakes import CREAM, ScriptedBackend, close_env, speak, violation
-from .test_relation import _p, _rel, _RelationBackend
+from .test_relation import _RelationBackend
 
 V = "ASEAN-2D-VULNERABLE"
 LINE = "Zero side effects with this cream."
@@ -80,22 +79,6 @@ async def test_d300_the_verifier_decides_facts(verdict, fail, alerts, unverified
             assert facts[0].unverified is unverified and facts[0].correct_value == "S$36.00"
     finally:
         await close_env(rt)
-
-
-def test_d300_the_flagger_keeps_what_the_guards_dropped_but_not_bad_provenance(catalog):
-    """With verify, the quote-then-reject guard is off (the verifier judges it); provenance still holds."""
-    quote = "Live broadcast price (50 mL): S$24.00"
-    passages = [_p("DL-CR-01#key-facts#x", quote)]
-    _, index = sentence_index(passages)
-    fixes = frozenset({"Q2", "G1"})
-    for line, correct, verify, alert in (
-        ("A comment says the 50 mL is S$20; that mixes up sizes, it's S$24.", "S$24.00", False, False),
-        ("A comment says the 50 mL is S$20; that mixes up sizes, it's S$24.", "S$24.00", True, True),
-        ("The 50 mL is S$20.", "S$137.00", True, True),  # D-346: a number in no passage only logs "would drop"
-    ):
-        out = from_relation(_rel((line, CREAM, "price", "S$20", ["S1"], "contradicts", correct)), index, set())
-        got = hard_validate(out, passages, catalog, None, (), {CREAM}, line, fixes, None, verify=verify)
-        assert (got.claims[0].verdict == "contradicted") is alert, (line, verify)
 
 
 def test_d300_compliance_flagger_keeps_every_verdict_in_verify(catalog, monkeypatch):

@@ -1,7 +1,7 @@
 """Full-sheet inputs and stable prompt prefixes, entirely offline."""
 from types import SimpleNamespace
 
-from app.agents.fact_checker import FactChecker, FactInput, gather_fact_passages, post_validate
+from app.agents.fact_checker import FactChecker, FactInput, gather_fact_passages
 from app.models.agent_io import FactCheckOutput
 from app.models.session import SwitchState
 from app.providers.llm import AgentResult
@@ -48,22 +48,6 @@ async def test_uploaded_sheet_replaces_shipped_passages(catalog):
         update={"text": "Updated full sheet", "passage_id": "uploaded#overview"})
     retriever.replace_product(CREAM, [replacement])
     assert await gather(catalog, retriever) == [replacement]
-
-
-async def test_full_sheet_quotes_still_enforce_d048(catalog):
-    passages = await gather(catalog)
-    price = next(p for p in passages if p.passage_id == "DL-CR-01#key-facts#live-broadcast-price")
-    claim = {"span": "twenty-eight dollars", "product_id": CREAM, "field": "price",
-             "verdict": "contradicted", "stated_value": "S$28", "correct_value": "S$36.00",
-             "passage_id": price.passage_id, "quote": price.text}
-    out = FactCheckOutput.model_validate({"claims": [claim], "reason": "test"})
-    assert post_validate(out, passages, catalog, None).claims[0].verdict == "contradicted"
-    out.claims[0].quote = "An invented quote"  # D-293: the base guard; R1 (on by default) lets the record hold it
-    assert post_validate(out, passages, catalog, None, fixes=frozenset()).claims[0].verdict == "not_in_sources"
-    approved = next(p for p in passages if p.section == "Approved on-air claims")
-    out.claims[0].passage_id, out.claims[0].quote = approved.passage_id, approved.text
-    out.claims[0].correct_value = "cosmetic"
-    assert post_validate(out, passages, catalog, None).claims[0].verdict == "not_in_sources"
 
 
 def test_static_blocks_move_before_dynamic_without_reexpanding_data():

@@ -595,19 +595,6 @@ async def test_d243_routing_turns_tests_and_certifications_into_qualified_result
     assert "Keep the applicator clean." in [h.text for h in r.how_to_use]  # kept in the directions too
 
 
-def test_d244_l1_a_contradiction_without_a_source_value_is_unverifiable(pack, catalog):
-    from app.agents.fact_checker import post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    cream = "cream_hydra_barrier"
-    quote = "Live broadcast price: S$36.00"
-    pid = "DL-CR-01#key-facts#live-broadcast-price"
-    claim = {"span": "x", "field": "other", "product_id": cream, "stated_value": "5 mg vitamin E",
-             "verdict": "contradicted", "correct_value": "not disclosed", "passage_id": pid, "quote": quote}
-    out = FactCheckOutput.model_validate({"claims": [claim | {"field": "ingredient_amount"}], "reason": "t"})
-    assert post_validate(out, pack.passages, catalog, None).claims[0].verdict == "not_in_sources"
-
-
 def test_d244_l2_l3_offer_totals_and_written_terms_reach_the_fact_checker():
     from app.onboarding.release import release_pack
 
@@ -644,26 +631,6 @@ def test_d244_l4_to_l6_and_presence_rules_reach_the_fact_checker():
     for rule in ("never with\n  the unit price", "Every number with a unit", "Price terms", "describing an old value",
                  "Free from", "Only contradict with a value SOURCE states"):
         assert rule in fr
-
-
-def test_d244_l8_a_bare_field_word_becomes_the_source_line(pack, catalog):
-    from app.agents.fact_checker import _from_quote, post_validate
-    from app.models.agent_io import FactCheckOutput
-
-    p = next(p for p in pack.passages if p.product_id == "cream_hydra_barrier")
-    quote = p.text[:30]
-    word = quote.split()[0]
-    claim = {"span": f"no {word} in it", "field": "ingredient", "product_id": "cream_hydra_barrier",
-             "stated_value": f"no {word}", "verdict": "contradicted", "correct_value": word,
-             "passage_id": p.passage_id, "quote": quote}
-    [c] = post_validate(FactCheckOutput.model_validate({"claims": [claim], "reason": "t"}),
-                        pack.passages, catalog, None).claims
-    assert c.verdict == "contradicted" and c.correct_value == quote
-    # a statement in the quote's words passes; "not disclosed" does not, in any script
-    assert _from_quote("It does contain fragrance", "Ingredients: Water, Glycerin, Fragrance")
-    assert not _from_quote("not disclosed", "Live broadcast price: S$36.00")
-    assert _from_quote("향료 함유", "전성분: 정제수, 글리세린, 향료")
-    assert not _from_quote("공개되지 않음", "라이브 가격: 36,000원")
 
 
 async def test_d245_r1_a_marked_claim_and_its_footnote_become_one_qualified_result():
@@ -763,49 +730,6 @@ def test_d246_facts_model_is_the_fact_checkers_own():
             ctx.scheduler.shutdown()
 
 
-async def test_d247_fd_the_fact_checker_reads_the_release_files_and_code_checks_the_quote(tmp_path):
-    from app.agents.fact_checker import FactChecker, FactInput
-    from app.logic.catalog import Catalog
-    from app.onboarding.files import store
-    from app.onboarding.release import save_release
-    from app.models.session import SwitchState
-    from app.onboarding.sources import release_sources
-
-    rec, _ = normalise(ProductRecord.model_validate(_record()))
-    spec = b"Contains a light citrus fragrance.\nUse within 12 months of opening."
-    store(tmp_path, "job1", "spec.txt", spec)
-    store(tmp_path, "job1", "label.png", b"\x89PNG not really")
-    rid = save_release(tmp_path, rec, "job1")
-    parts, passages = release_sources(str(tmp_path), rid)
-    assert [m for _, m in parts] == ["text/plain", "text/plain", "text/plain", "image/png"]
-    by_id = {p.passage_id: p for p in passages}
-    assert "12 months of opening" in by_id["file:spec.txt"].text and by_id["file:label.png"].section == "Source file"
-
-    backend = ScriptedBackend()
-    good = {"span": "use it within 24 months", "field": "shelf_life", "stated_value": "24 months",
-            "verdict": "contradicted", "correct_value": "12 months", "passage_id": "file:spec.txt#line 2",
-            "quote": "Use within 12 months of opening."}
-    made_up = good | {"quote": "Use within 12 months, always.", "span": "within 24 months, no rush"}
-    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path), FACT_MODE="docs")
-    try:
-        pack, _ = ctx.pack_for(ctx.pack.market.market, ctx.pack.lang, rid)
-        catalog = Catalog(pack, rid)
-        pid = catalog.order[0]
-        fc = FactChecker(ctx.llm, ctx.prompts["fact_checker"], catalog)
-        assert fc.file_parts == parts and "Fact mode \"docs\"" in fc.system_instruction
-        assert "Fact mode \"record\"" in fc.system_instruction  # FD is FR plus the files
-        out = []
-        for claim in (good, made_up):
-            backend.facts(claim["span"], claim | {"product_id": pid})
-            res = await fc.run(FactInput(utterance=claim["span"], on_air=pid, switch=SwitchState(), promo=None, passages=[],
-                                         session_id="s1"), deadline_ms=3000)
-            out.append((res.output.claims[0].verdict, res.output.claims[0].passage_id))
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert out == [("contradicted", "file:spec.txt"), ("not_in_sources", "file:spec.txt")]
-
-
 def test_d247_fd_the_files_are_cached_per_release_with_an_empty_prefix():
     from app.models.agent_io import FactCheckOutput
     from app.providers.llm import LLMRequest, VertexBackend
@@ -862,20 +786,6 @@ def _claim(pid, p, **kw) -> dict:
     return {"span": "x", "product_id": pid, "verdict": "contradicted", "passage_id": p.passage_id, "quote": p.text} | kw
 
 
-async def test_d248_a_stated_number_corrected_by_no_value_never_reaches_the_host(tmp_path, monkeypatch):
-    def claim(pid, ps):
-        p = next(p for p in ps if "Patch test" in p.text)
-        return _claim(pid, p, field="shelf_life", stated_value="24 months",
-                      correct_value="No period after opening is given")
-
-    row: dict = {}
-    alerts = await _release_line(tmp_path, monkeypatch, {"cautions": [{"text": "Patch test first.", "evidence": EV}]},
-                                 "It lasts twenty four months after opening.", claim, row)
-    assert alerts == []
-    # D-250: the eval row says which code check overruled the model
-    assert [d["reason"] for d in row["dropped"]] == ["L1: the correction states no value of the quote"]
-
-
 async def test_d248_ingredient_presence_both_ways_reaches_the_host(tmp_path, monkeypatch):
     facts = [{"text": "No fragrance ingredient is added.", "evidence": EV}]
 
@@ -897,23 +807,6 @@ async def test_d248_ingredient_presence_both_ways_reaches_the_host(tmp_path, mon
     assert b["field"] == "fragrance"
 
 
-async def test_d248_a_threshold_is_not_the_number_alone(tmp_path, monkeypatch):
-    ev = [{"file": "f", "locator": "l", "quote": "Free pouch when the subtotal is more than S$90"}]
-    offer = {"offer_id": "o1", "kind": "spend_threshold_gift", "title": "Free pouch", "variant_ids": [], "percent": None,
-             "amount": {"currency": "SGD", "minor": 9000, "kind": "promo", "market": "SG", "evidence": ev},
-             "buy": None, "get": None, "gift": "pouch", "rounding": None, "starts": None, "ends": None,
-             "duration_min": None, "evidence": ev}
-
-    def claim(pid, ps):
-        p = next(p for p in ps if p.text.startswith("Offer: Free pouch"))
-        assert "minimum spend S$90.00" in p.text and "gift: pouch" in p.text
-        return _claim(pid, p, field="promo", stated_value="S$90", correct_value="S$90",
-                      quote="Free pouch when the subtotal is more than S$90")
-
-    [a] = await _release_line(tmp_path, monkeypatch, {"offers": [offer]}, "Exactly ninety dollars qualifies.", claim)
-    assert a["field"] == "promo" and a["correct_value"] == "Free pouch when the subtotal is more than S$90"
-
-
 def test_d248_the_qualifier_rule_comes_with_the_records_results():
     from app.logic.qualifier import RULE_ID
     from app.onboarding.release import has_law, release_pack
@@ -928,14 +821,6 @@ def test_d248_the_qualifier_rule_comes_with_the_records_results():
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
     assert [r.rule_id for r in rules.rules] == [RULE_ID] and not has_law(rules)
-
-
-def test_d248_a_sentence_that_gives_no_value_is_no_correction():
-    from app.agents.fact_checker import _from_quote
-
-    assert not _from_quote("No water-resistance claim is made", "Long-wear formula for daily use")
-    assert not _from_quote("No expiry date or period after opening is given", "Use after opening as directed.")
-    assert _from_quote("It does contain fragrance", "Ingredients: Water, Glycerin, Fragrance")
 
 
 async def test_d249_the_coverage_audit_lists_what_the_record_lacks_and_checks_its_quote():
@@ -1000,30 +885,6 @@ async def test_d251_a_quote_with_the_number_in_korean_words_backs_a_digit_correc
     assert a["correct_value"] == "0.5%"
 
 
-async def test_d251_a_right_price_with_a_wrong_term_keeps_its_alert(tmp_path, monkeypatch):
-    facts = [{"text": "Delivery is not included in this price.", "evidence": EV},
-             {"text": "No period after opening is printed.", "evidence": EV}]
-
-    def term(pid, ps):
-        p = next(p for p in ps if p.text == "Delivery is not included in this price.")
-        return _claim(pid, p, field="price", stated_value="S$36 per tube including delivery",
-                      correct_value="Delivery is not included in this price.")
-
-    [a] = await _release_line(tmp_path / "a", monkeypatch, {"key_facts": facts},
-                              "Thirty-six dollars per tube already includes delivery.", term)
-    assert a["field"] == "price"
-
-    def period(pid, ps):  # the number itself has no source: still dropped
-        p = next(p for p in ps if p.text == "No period after opening is printed.")
-        return _claim(pid, p, field="shelf_life", stated_value="9 months",
-                      correct_value="No period after opening is printed.")
-
-    row: dict = {}
-    assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
-                               "Use it within nine months after opening.", period, row) == []
-    assert [d["reason"] for d in row["dropped"]] == ["L1: a stated number corrected without a number"]
-
-
 @pytest.mark.parametrize("line, shown", [
     ("A viewer says, 'it cures eczema,' and yes, that is what the cream does.", True),
     ("A viewer calls it the best in the country, and I fully agree.", True),
@@ -1057,21 +918,6 @@ def test_d252_offer_combinability_and_conditions_are_labelled():
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
     assert "combinable with other offers or codes: no" in facts[0] and "condition: one per order" in facts[0]
-
-
-async def test_d252_an_absence_the_quote_does_not_state_is_no_correction(tmp_path, monkeypatch):
-    facts = [{"text": "Reapply after swimming or water exposure and every 2 hours.", "evidence": EV}]
-
-    def claim(pid, ps):
-        p = next(p for p in ps if p.text == facts[0]["text"])
-        return _claim(pid, p, field="usage", stated_value="reapply after swimming",
-                      correct_value="No water-resistance claim is made",
-                      quote="Reapply after swimming or water exposure")
-
-    row: dict = {}
-    assert await _release_line(tmp_path, monkeypatch, {"key_facts": facts},
-                               "Reapply after swimming, and also every two hours.", claim, row) == []
-    assert [d["reason"] for d in row["dropped"]] == ["L1: an absence the quote does not state"]
 
 
 def test_d253_a_file_quote_survives_pdf_table_text():
@@ -1149,30 +995,6 @@ def test_d255_pack_totals_are_computed_in_code():
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
     assert facts == ["Computed: Collagen box (10 × bottles): Collagen 5000 mg per bottle, 50000 mg in the whole pack"]
-
-
-async def test_d255_an_absence_note_and_another_substance_are_no_corrections(tmp_path, monkeypatch):
-    facts = [{"text": "Do not towel off after swimming or water exposure.", "evidence": EV},
-             {"text": "Zinc 2.5 mg (as zinc gluconate) per bottle.", "evidence": EV}]
-
-    def note(pid, ps):
-        p = next(p for p in ps if p.text == facts[0]["text"])
-        return _claim(pid, p, field="usage", stated_value="reapply after swimming",
-                      correct_value="Not water-resistant, reapply hourly after swimming")
-
-    row: dict = {}
-    assert await _release_line(tmp_path / "a", monkeypatch, {"key_facts": facts},
-                               "Reapply after swimming, and also every two hours.", note, row) == []
-    assert [d["reason"] for d in row["dropped"]] == ["L1: an absence the quote does not state"]
-
-    def salt(pid, ps):
-        p = next(p for p in ps if p.text == facts[1]["text"])
-        return _claim(pid, p, field="ingredient_amount", stated_value="3 mg zinc gluconate", correct_value="2.5 mg zinc")
-
-    row = {}
-    assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
-                               "Each bottle has three mg zinc gluconate.", salt, row) == []
-    assert [d["reason"] for d in row["dropped"]] == ["another substance than the host named"]
 
 
 async def test_d256_an_audience_is_no_category_and_an_uncovered_type_maps_to_a_covered_one(tmp_path):
@@ -1273,52 +1095,6 @@ async def test_d258_a_capitalised_word_is_no_named_source(tmp_path, monkeypatch,
     assert bool([a for a in row["alerts"] if a["rule_id"] == "TEST-QUALIFIER"]) is alert
 
 
-@pytest.mark.parametrize("line, stated, alert", [
-    ("At least forty dollars qualifies.", "at least S$40", True),  # "above" is not "at least"
-    ("Anything over forty dollars qualifies.", "over S$40", False),  # the same threshold: a restatement
-])
-async def test_d259_the_kind_of_threshold_is_compared(tmp_path, monkeypatch, line, stated, alert):
-    facts = [{"text": "Free gift on orders above S$40.", "evidence": EV}]
-
-    def claim(pid, ps):
-        p = next(p for p in ps if p.text == facts[0]["text"])
-        return _claim(pid, p, field="promo", stated_value=stated, correct_value="S$40")
-
-    assert bool(await _release_line(tmp_path, monkeypatch, {"key_facts": facts}, line, claim)) is alert
-
-
-def test_d259_offer_mixes_versions_and_unlisted_ingredients():
-    from app.agents.fact_checker import _absent_from_sheet
-    from app.models.data import Passage
-    from app.onboarding.release import release_pack
-
-    ev = [{"file": "f", "locator": "l", "quote": "3 for S$60"}]
-    rec, _ = normalise(ProductRecord.model_validate(_record(
-        offers=[{"offer_id": "o1", "kind": "fixed_price", "title": "3 for S$60", "variant_ids": [], "percent": None,
-                 "amount": {"currency": "SGD", "minor": 6000, "kind": "promo", "market": "SG", "evidence": ev},
-                 "buy": 3, "get": None, "gift": None, "rounding": None, "starts": None, "ends": None,
-                 "duration_min": None, "evidence": ev}],
-        conflicts=[{"field": "variants[0].size_value", "values": ["30", "35"], "evidence": EV,
-                    "effective_dates": [None, None], "note": "the 30 ml sheet is archived"}])))
-    ctx = make_ctx()
-    try:
-        pack = release_pack(ctx.pack, rec, "rel_x_v1", None)
-        texts = [p.text for p in pack.passages]
-        from app.agents.fact_checker import FactChecker
-        from app.logic.catalog import Catalog
-
-        fc = FactChecker(ctx.llm, ctx.prompts["fact_checker"], Catalog(pack, "rel_x_v1"))
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    [offer] = [t for t in texts if t.startswith("Offer: 3 for S$60")]
-    assert "best price for 2 = S$72.00, 3 = S$60.00, 4 = S$96.00, 5 = S$132.00" in offer
-    assert any(t.startswith("Versions of variants[0].size_value: 30 / 35 (the 30 ml sheet is archived)") for t in texts)
-    assert "The show's language is en" in fc.system_instruction
-    sheet = [Passage(passage_id="x", product_id="p", doc="d", section="Ingredients", text="Water, apple juice")]
-    assert _absent_from_sheet("pear juice", sheet, "p") and not _absent_from_sheet("apple juice", sheet, "p")
-
-
 def test_d259_a_negated_caution_is_corrected_by_that_caution(pack):
     from app.agents.utterance_judge import negated_caution
     from app.models.agent_io import FactCheckOutput
@@ -1407,39 +1183,6 @@ def test_d261_a_result_matches_by_its_statement_numbers_too(pack, numbers):
                         say="Non-transferring for 8 hours, indoors (tested by Larkspur Labs, report LL-77)")
     p = pack.products.products[0].model_copy(update={"qualified_results": [r]})
     assert qualifier.approved_replacement("this tint stays non-transferring for eight hours", p, [], pack.lexicon) == r
-
-
-async def test_d261_a_word_correction_the_line_already_says_is_dropped(tmp_path, monkeypatch):
-    facts = [{"text": "Available online only.", "evidence": EV},
-             {"text": "Free gift on orders above S$40.", "evidence": EV}]
-
-    def online(pid, ps):
-        p = next(p for p in ps if p.text == facts[0]["text"])
-        return _claim(pid, p, field="availability", stated_value="available online only in both markets",
-                      correct_value="Online only")
-
-    row: dict = {}
-    assert await _release_line(tmp_path / "a", monkeypatch, {"key_facts": facts},
-                               "It is available online only, in both listed markets.", online, row) == []
-    assert [d["reason"] for d in row["dropped"]] == ["D-261: the line already says the correction"]
-
-    def threshold(pid, ps):
-        p = next(p for p in ps if p.text == facts[1]["text"])
-        return _claim(pid, p, field="promo", stated_value="S$40 does not qualify (threshold above S$40)",
-                      correct_value="above S$40")
-
-    row = {}
-    assert await _release_line(tmp_path / "b", monkeypatch, {"key_facts": facts},
-                               "Forty-four dollars qualifies while forty does not.", threshold, row) == []
-
-
-def test_d262_a_correction_without_the_name_and_multiplicative_words(pack):
-    from app.agents.fact_checker import _same_substance
-
-    assert _same_substance("1% shea butter", "10% by weight", "shea butter: 10% by weight")
-    assert _same_substance("9 mg sodium", "90 mg per 30 g scoop", "sodium: 90 mg per 30 g scoop")
-    assert not _same_substance("3 mg zinc gluconate", "2.5 mg zinc", "Zinc 2.5 mg (as zinc gluconate)")
-    assert pack.lexicon.times_numbers("Brush twice daily.") == {"2"}
 
 
 async def test_d262_twice_is_a_number_in_every_guard(tmp_path, monkeypatch):
@@ -1679,24 +1422,6 @@ def test_d271_comparison_kind_takes_the_longest_phrase(pack):
     assert lex.comparison_kind("for children 4 and up") == "ge"
     assert lex.comparison_kind("ages 12 and under") == "le"
     assert lex.comparison_kind("above S$40") == "gt"
-
-
-@pytest.mark.parametrize("line, stated, dropped", [
-    ("For children 4 and up.", "children 4 and up", True),  # the same range as "not ... under 4"
-    ("For children 3 and up.", "children 3 and up", False),  # another number
-    ("For children under 4 too.", "children under 4", False),  # the opposite range
-])
-async def test_d271_an_age_band_that_states_the_cautions_range_is_no_contradiction(tmp_path, monkeypatch, line,
-                                                                                   stated, dropped):
-    facts = [{"text": "Not suitable for children under 4 years.", "evidence": EV}]
-
-    def claim(pid, ps):
-        p = next(p for p in ps if p.text == facts[0]["text"])
-        return _claim(pid, p, field="caution", stated_value=stated, correct_value=facts[0]["text"])
-
-    row: dict = {}
-    alerts = await _release_line(tmp_path, monkeypatch, {"cautions": facts}, line, claim, row)
-    assert (alerts == []) is dropped
 
 
 async def test_d272_offer_points_come_from_the_record_and_survive_translation_only_intact():
