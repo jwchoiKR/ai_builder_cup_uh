@@ -1413,14 +1413,17 @@ class UtterancePipeline:
                 target = seg if seg is not None and seg.product_id == product_id else None
             elif line_seg.product_id == product_id:
                 target = line_seg
-            elif product_id == rt.catalog.next_product(line_seg.product_id):
-                # D-376: the next product: its segment opened after the line, else pre_covered (never an older one)
-                target = seg if (seg is not None and seg.product_id == product_id
-                                 and seg.started_at > line_seg.started_at) else None
-            else:  # the product that had just left the air (the line's dual scope): the segment right before
-                before = max((x for x in segs if x.started_at < line_seg.started_at), key=lambda x: x.started_at,
-                             default=None)
-                target = before if before is not None and before.product_id == product_id else None
+            else:
+                # D-377: the product that just left the air (its latest segment closed within the dual scope before
+                # the line) gets that segment, whatever the run-sheet order; otherwise (a product to come) its segment
+                # opened after the line, else pre_covered. Never an older segment (D-376).
+                scope_ms = rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
+                left = max((x for x in segs if x.product_id == product_id and x.ended_at is not None
+                            and x.started_at < line_seg.started_at), key=lambda x: x.started_at, default=None)
+                if left is not None and 0 <= t.received_at - left.ended_at <= scope_ms:
+                    target = left
+                elif seg is not None and seg.product_id == product_id and seg.started_at > line_seg.started_at:
+                    target = seg
             if target is not None:
                 new = [i for i in dict.fromkeys(ids) if i not in target.ticked_item_ids]
                 if new:
