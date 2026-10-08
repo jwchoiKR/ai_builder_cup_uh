@@ -3,34 +3,16 @@
 // blocks (caution | avoid saying), as in the earlier prototype. Facts already said turn grey; the price
 // never does. Compliance alerts take this same box while they are active, so nothing else moves.
 import { Ban, Check, CircleDot, ListChecks, TriangleAlert } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import { useT, type Translate } from "../../app/i18n";
-import type { PriceView, PrompterPointRow, PrompterViewModel } from "../../app/selectors";
-import type { Product } from "../../app/types";
+import type { PrompterPointRow, PrompterViewModel } from "../../app/selectors";
+import type { Product, PrompterItem } from "../../app/types";
 import styles from "./host.module.css";
 
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
-const PERCENT = /^\d+(\.\d+)?\s*(%|mg|mcg|µg|g|iu)$/i; // D-233: a share or a mass (supplements)
-const MAX_INGREDIENTS = 4;
-
-/** "ceramide_np" -> "Ceramide NP", "sodium_hyaluronate" -> "Sodium Hyaluronate". */
-const ingredientName = (key: string) =>
-  key
-    .split("_")
-    .map((w) => (w.length <= 2 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)))
-    .join(" ");
-
-/** The product's ingredient amounts (key facts with a percentage), in sheet order. */
-export function ingredientsOf(product: Product): { key: string; name: string; value: string }[] {
-  return Object.entries(product.key_facts)
-    .filter(([, v]) => PERCENT.test(v))
-    .slice(0, MAX_INGREDIENTS)
-    .map(([key, value]) => ({ key, name: ingredientName(key), value }));
-}
 
 const MIN_ZOOM = 0.8; // below this the text gets too small to read
-const CAUTIONS_SHOWN = 4; // D-332: the first cautions (the record's order); the rest behind "+N more"
 const LATE_SHARE = 0.8; // D-107: from here an unsaid required point is emphasised once
 
 /** Planned time of the on-air segment, for the status line and the late emphasis. */
@@ -96,7 +78,6 @@ function useFit(box: RefObject<HTMLDivElement>, fit: RefObject<HTMLDivElement>) 
 export function Prompter({
   view,
   product,
-  price,
   checking,
   degraded = [],
   alerts,
@@ -106,7 +87,6 @@ export function Prompter({
 }: {
   view: PrompterViewModel;
   product: Product | null;
-  price: PriceView | null;
   checking: boolean;
   /** D-137: judges that failed on the last finals: the health dot turns amber */
   degraded?: string[];
@@ -167,7 +147,7 @@ export function Prompter({
           ) : product ? (
             <ProductPanel
               product={product}
-              price={price}
+              items={view.items}
               points={view.points}
               ticked={view.ticked}
               late={Boolean(timing?.plannedMs && timing.elapsedMs >= timing.plannedMs * LATE_SHARE)}
@@ -186,69 +166,68 @@ export function Prompter({
 
 function ProductPanel({
   product,
-  price,
+  items,
   points,
   ticked,
   late,
 }: {
   product: Product;
-  price: PriceView | null;
+  /** D-423: the server's item list for this product, rendered as is: nothing chosen or cut here */
+  items: PrompterItem[];
   points: PrompterPointRow[];
   ticked: string[];
   late: boolean;
 }) {
   const t = useT();
-  const cautions = product.cautions ?? [];
-  const [showAll, setShowAll] = useState(false);
   // D-372: an item is ticked only when the server lists its id (the fact checker's verdict); no text matching
-  const said = (key: string | null) => key !== null && ticked.includes(`${product.code}#prompter#${key}`);
+  const said = (i: PrompterItem) => ticked.includes(i.id);
+  const state = (i: PrompterItem) => (said(i) ? "said" : "todo");
   const mark = (on: boolean) => on && <span className={styles.saidMark} aria-label={t("Said")}><Check /></span>;
+  const of = (kind: PrompterItem["kind"]) => items.filter((i) => i.kind === kind);
   const rows = points; // D-388 (user): every point, as the fact checker's snapshot has them
   const lead = rows.find((p) => p.required && !p.covered) ?? null;
-  const sale = price?.label === "TIME SALE";
   return (
     <>
       <div className={styles.facts}>
         <div>
           <h4 className={styles.factsLabel}>{t("Price & offers")}</h4>
-          {price && (
-            <>
-              <div className={cx(styles.pfPrice, said(price.keys.current) && styles.said)} data-testid="host-price-current"
-                data-state={said(price.keys.current) ? "said" : "todo"}>
-                <small className={cx(sale && styles.priceSale)}>{mark(said(price.keys.current))}{t(price.label)}</small>
-                <span className="tabular">{price.current}</span>
+          {of("price").map((i) =>
+            i.main ? (
+              <div key={i.id} className={cx(styles.pfPrice, said(i) && styles.said)} data-testid="host-price-current"
+                data-state={state(i)}>
+                <small className={cx(i.label === "TIME SALE" && styles.priceSale)}>{mark(said(i))}{t(i.label ?? "")}</small>
+                <span className="tabular">{i.value}</span>
               </div>
-              <div className={cx(styles.pfLine, said(price.keys.struck) && styles.said)} data-testid="host-price-struck"
-                data-state={said(price.keys.struck) ? "said" : "todo"}>
-                {mark(said(price.keys.struck))}
-                {sale ? t("Live price") : t("List price")} <s className="tabular">{price.struck}</s>
+            ) : (
+              <div key={i.id} className={cx(styles.pfLine, said(i) && styles.said)} data-testid="host-price-struck"
+                data-state={state(i)}>
+                {mark(said(i))}
+                {t(i.label ?? "")} <s className="tabular">{i.value}</s>
               </div>
-              {price.set && (
-                <div className={cx(styles.pfLine, said(price.keys.set) && styles.said)} data-testid="host-price-set"
-                  data-state={said(price.keys.set) ? "said" : "todo"}>
-                  {mark(said(price.keys.set))}
-                  {t("Set")} {price.set}
-                </div>
-              )}
-            </>
+            ),
           )}
+          {of("set").map((i) => (
+            <div key={i.id} className={cx(styles.pfLine, said(i) && styles.said)} data-testid="host-price-set"
+              data-state={state(i)}>
+              {mark(said(i))}
+              {t("Set")} {i.label} <span className="tabular">{i.value}</span>
+            </div>
+          ))}
         </div>
         <div>
           <h4 className={styles.factsLabel}>{t("Ingredients")}</h4>
           <div className={styles.nums}>
-            {ingredientsOf(product).map((i) => {
-              const on = said(`ingredient-${i.key}`);
-              return (
-                <div key={i.key} className={cx(styles.num, on && styles.said)} data-testid={`host-ing-${i.key}`}
-                  data-state={on ? "said" : "todo"}>
-                  <b className="tabular">{i.value}</b>
-                  <span>
-                    {mark(on)}
-                    {i.name}
-                  </span>
-                </div>
-              );
-            })}
+            {of("ingredient").map((i) => (
+              <div key={i.id} className={cx(styles.num, said(i) && styles.said)}
+                data-testid={`host-ing-${i.key.replace(/^ingredient-/, "")}`} data-state={state(i)}>
+                {/* an ingredient without an amount shows its name only */}
+                {i.value ? <b className="tabular">{i.value}</b> : null}
+                <span>
+                  {mark(said(i))}
+                  {i.name}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
         <div>
@@ -278,19 +257,13 @@ function ProductPanel({
             <TriangleAlert aria-hidden />
             {t("Caution")}
           </h5>
-          {(showAll ? cautions : cautions.slice(0, CAUTIONS_SHOWN)).map((c, i) => (
-            <p key={c} className={cx(said(`caution-${i + 1}`) && styles.said)} data-testid={`host-caution-${i + 1}`}
-              data-state={said(`caution-${i + 1}`) ? "said" : "todo"}>
-              {mark(said(`caution-${i + 1}`))}
-              {c}
+          {/* D-423 (user): every caution; the host never clicks */}
+          {of("caution").map((i) => (
+            <p key={i.id} className={cx(said(i) && styles.said)} data-testid={`host-${i.key}`} data-state={state(i)}>
+              {mark(said(i))}
+              {i.text}
             </p>
           ))}
-          {cautions.length > CAUTIONS_SHOWN && (
-            <button type="button" className={styles.moreToggle} aria-expanded={showAll}
-              onClick={() => setShowAll((v) => !v)} data-testid="host-cautions-more">
-              {showAll ? t("Show fewer") : t("+{n} more", { n: cautions.length - CAUTIONS_SHOWN })}
-            </button>
-          )}
         </div>
         {/* D-348: no heading over an empty list */}
         {(product.avoid_saying ?? []).length > 0 && (

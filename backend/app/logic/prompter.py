@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from ..models.data import Passage, PrompterPoint
+from ..models.data import Ingredient, Passage, PrompterPoint
 from ..models.session import Segment, Session
 from .catalog import Catalog
 
@@ -46,11 +46,14 @@ def missing_required(catalog: Catalog, segment: Segment) -> list[str]:
 
 
 def prompter_view(catalog: Catalog, segment: Segment | None,
-                  overrides: dict[str, list[PrompterPoint]] | None = None) -> dict:
-    """Payload of `prompter.updated` and the /state `prompter` block."""
-    if segment is None:
-        return {"product_id": None, "segment_id": None, "next_product_id": catalog.next_product(None), "points": [],
-                "covered_point_ids": [], "ticked_item_ids": [], "required_total": 0, "required_covered": 0}
+                  overrides: dict[str, list[PrompterPoint]] | None = None, promo=None) -> dict:
+    """Payload of `prompter.updated` and the /state `prompter` block. D-423: with the item list the host renders as is
+    (the fact checker's snapshot is the same list)."""
+    if segment is None:  # before the show: the first product's items (the host sees it before the start)
+        first = catalog.next_product(None)
+        return {"product_id": None, "segment_id": None, "next_product_id": first, "points": [],
+                "covered_point_ids": [], "ticked_item_ids": [], "required_total": 0, "required_covered": 0,
+                "items": prompter_items(catalog, first, overrides, promo) if first else []}
     required = required_ids(catalog, segment.product_id)
     covered = list(segment.covered_point_ids)
     return {
@@ -63,57 +66,73 @@ def prompter_view(catalog: Catalog, segment: Segment | None,
         "ticked_item_ids": list(segment.ticked_item_ids),  # D-372
         "required_total": len(required),
         "required_covered": sum(1 for p in required if p in covered),
+        "items": prompter_items(catalog, segment.product_id, overrides, promo),  # D-423
     }
 
 
 # ---- D-360: the prompter's display snapshot, the fact checker's only source ---------------------------------------
 
-SHOWN_AMOUNT = re.compile(r"^\d+(\.\d+)?\s*(%|mg|mcg|µg|g|iu)$", re.IGNORECASE)  # the host screen's PERCENT
-SHOWN_INGREDIENTS = 4  # the host screen's MAX_INGREDIENTS
+# D-423: the shipped demo catalog keeps its ingredient amounts among other key facts (volume, prices, pH); an amount
+# (a share or a mass) marks an ingredient there. Onboarded products list their ingredients (Product.ingredients).
+AMOUNT = re.compile(r"^\d+(\.\d+)?\s*(%|mg|mcg|µg|g|iu)$", re.IGNORECASE)
 
 
 def _ingredient_name(key: str) -> str:
     return " ".join(w.upper() if len(w) <= 2 else w[0].upper() + w[1:] for w in key.split("_"))
 
 
-def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, list[PrompterPoint]] | None = None,
-                      promo=None) -> list[Passage]:
-    """What the host prompter shows for this product, as passages (the same rules as the host screen's
-    ProductPanel): the price (a time-sale price while a price promo runs), the list or live price, the set price,
-    the first ingredient amounts, every point (D-388) and the cautions. D-361/362:
-    exactly what it can render: the first set offer only, every caution (the host can open "+N more"), no test result
-    (the prompter shows none). Nothing else of the record reaches the fact checker."""
+def prompter_items(catalog: Catalog, product_id: str, overrides: dict[str, list[PrompterPoint]] | None = None,
+                   promo=None) -> list[dict]:
+    """D-423 (user): the host prompter's item list, built once. The host renders it as is and the fact checker's
+    snapshot is the same list (`prompter_passages`). Each item: `id` (the snapshot passage id, stable for ticks; a
+    promo's items carry its id, D-372), `key`, `section`, `kind` (price, set, ingredient, point, caution), `text` (the
+    passage text) and the parts the screen shows. Nothing is cut: every set offer of the product, every ingredient
+    (one without an amount shows its name only), every point (D-388) and every caution; no test result."""
     from ..agents.fact_checker import CLAIMS_SECTION
 
     p = catalog.get_product(product_id)
-    out: list[Passage] = []
+    out: list[dict] = []
 
-    def add(section: str, key: str, text: str) -> None:
-        out.append(Passage(passage_id=f"{p.code}#prompter#{key}", product_id=product_id, doc="prompter",
-                           section=section, text=text))
+    def add(section: str, kind: str, key: str, text: str, **show) -> None:
+        out.append({"id": f"{p.code}#prompter#{key}", "key": key, "product_id": product_id, "section": section,
+                    "kind": kind, "text": text, **show})
 
+    price = "Price & offers"
     sale = promo is not None and product_id in getattr(promo, "promo_prices", {})
-    if sale:  # D-372: a promo's items carry its id, so a tick never carries over to another promo's price
-        add("Price & offers", f"sale-price-{promo.promo_id}",
-            f"Time sale price: {catalog.price_display(product_id, promo)}")
-        add("Price & offers", "live-price", f"Live price: {catalog.money(p.live_price)}")
+    if sale:
+        now = catalog.price_display(product_id, promo)
+        add(price, "price", f"sale-price-{promo.promo_id}", f"Time sale price: {now}", label="TIME SALE", value=now,
+            main=True)
+        add(price, "price", "live-price", f"Live price: {catalog.money(p.live_price)}", label="Live price",
+            value=catalog.money(p.live_price))
     else:
-        add("Price & offers", "live-price", f"Live price: {catalog.money(p.live_price)}")
-        add("Price & offers", "list-price", f"List price: {catalog.money(p.list_price)}")
-    s = next((x for x in catalog.set_offers if product_id in x.product_ids), None)  # the UI shows the first one
-    if s is not None:
+        add(price, "price", "live-price", f"Live price: {catalog.money(p.live_price)}", label="LIVE PRICE",
+            value=catalog.money(p.live_price), main=True)
+        add(price, "price", "list-price", f"List price: {catalog.money(p.list_price)}", label="List price",
+            value=catalog.money(p.list_price))
+    for s in (x for x in catalog.set_offers if product_id in x.product_ids):  # every set offer
         promo_set = sale and s.set_id in promo.promo_prices
-        value = promo.promo_prices[s.set_id] if promo_set else s.live_price
-        add("Price & offers", f"set-{s.set_id}-{promo.promo_id}" if promo_set else f"set-{s.set_id}",
-            f"Set {s.name}: {catalog.money(value)}")
-    shown = [(k, v) for k, v in p.key_facts.items() if SHOWN_AMOUNT.match(v.strip())][:SHOWN_INGREDIENTS]
-    for k, v in shown:
-        add("Ingredients", f"ingredient-{k}", f"{_ingredient_name(k)}: {v}")
-    for pt in points_of(catalog, product_id, overrides):  # D-388: every point (the screen shows them all)
-        add(CLAIMS_SECTION, f"point-{pt.point_id}", pt.text)
+        value = catalog.money(promo.promo_prices[s.set_id] if promo_set else s.live_price)
+        add(price, "set", f"set-{s.set_id}-{promo.promo_id}" if promo_set else f"set-{s.set_id}",
+            f"Set {s.name}: {value}", label=s.short_name or s.name, value=value)
+    ingredients = p.ingredients or [Ingredient(key=k, name=_ingredient_name(k), amount=v.strip())
+                                    for k, v in p.key_facts.items() if AMOUNT.match(v.strip())]
+    for i in ingredients:
+        add("Ingredients", "ingredient", f"ingredient-{i.key}", f"{i.name}: {i.amount}" if i.amount else i.name,
+            name=i.name, value=i.amount)
+    for pt in points_of(catalog, product_id, overrides):
+        add(CLAIMS_SECTION, "point", f"point-{pt.point_id}", pt.text)
     for i, c in enumerate(p.cautions, 1):
-        add("Cautions", f"caution-{i}", c)
+        add("Cautions", "caution", f"caution-{i}", c)
     return out
+
+
+def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, list[PrompterPoint]] | None = None,
+                      promo=None) -> list[Passage]:
+    """D-360/D-423: the fact checker's snapshot: the prompter's item list, as passages. Nothing else of the record
+    reaches the fact checker."""
+    return [Passage(passage_id=i["id"], product_id=product_id, doc="prompter", section=i["section"], text=i["text"])
+            for i in prompter_items(catalog, product_id, overrides, promo)]
 
 
 def tick_item(passage_id: str | None) -> bool:

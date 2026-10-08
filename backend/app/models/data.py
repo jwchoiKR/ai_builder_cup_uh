@@ -27,6 +27,13 @@ class AvoidSaying(BaseModel):
     say: str
 
 
+class Ingredient(BaseModel):
+    """D-423: one ingredient of an onboarded product, in the record's order; `amount` is empty when it has none."""
+    key: str  # the prompter item key ("ingredient-<key>"), stable for ticks
+    name: str
+    amount: str = ""
+
+
 class ProductVariant(BaseModel):
     """D-281: one priced size or variant of an onboarded product."""
     label: str  # the variant's name and size as the documents write them ("Eau de Parfum 100 mL")
@@ -56,6 +63,7 @@ class Product(BaseModel):
     cautions: list[str] = []  # short host lines from the sheet's Cautions section (D-106)
     avoid_saying: list[AvoidSaying] = []
     variants: list[ProductVariant] = []  # D-281: every priced variant, the first is the main one (volume, live_price)
+    ingredients: list[Ingredient] = []  # D-423: every ingredient (onboarded products); the shipped demo uses key_facts
 
 
 class SetOffer(BaseModel):

@@ -15,7 +15,7 @@ function apply(state: ClientState, events: SessionEvent[], now = T0 + 20_000): C
 describe("reduceSnapshot", () => {
   it("builds maps by id, the server offset and missing P2 keys as empty", () => {
     const s = reduceSnapshot(
-      snapshot({ groups: [group()], comments: [comment()], answers: { ans_000001: answer() } }),
+      snapshot({ groups: [group()], comments: [comment()], answers: { ans_000001: answer() }, prompter: undefined }),
       "operator",
       T0 + 9_000,
     );

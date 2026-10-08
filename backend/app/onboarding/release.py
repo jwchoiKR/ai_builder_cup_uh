@@ -19,7 +19,7 @@ from pathlib import Path
 from ..logic.catalog import DataPack, DataPackError
 from ..models.data import (
     ProductVariant,
-    AvoidSaying, Passage, PrompterPoint, Product, ProductsFile, Promo, PromosFile, QualifiedResult, Runsheet,
+    AvoidSaying, Ingredient, Passage, PrompterPoint, Product, ProductsFile, Promo, PromosFile, QualifiedResult, Runsheet,
     RunsheetItem,
 )
 from .record import AvoidSaying as RecordAvoid
@@ -370,12 +370,14 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
         short_name=record.short_names[0] if record.short_names else record.product_name,
         eyebrow="", tagline="", doc=doc, volume=size, list_price=float(list_price), live_price=float(live_price),
         hero_badge="", aliases=list(dict.fromkeys([record.product_name, *record.short_names])),
-        # D-233: the prompter's ingredient panel: the first 4 ingredients with an amount
+        # D-233: the ingredient amounts; D-423 (user): every one, no 4-ingredient cut (the stored release is unchanged)
         key_facts={_slug(i.name).replace("-", "_"): f"{i.amount_value}{i.amount_unit or ''}".replace("% ", "%")
-                   for i in record.ingredients if i.amount_value}
-        if len([i for i in record.ingredients if i.amount_value]) <= 4 else
-        {_slug(i.name).replace("-", "_"): f"{i.amount_value}{i.amount_unit or ''}"
-         for i in [x for x in record.ingredients if x.amount_value][:4]}, prompter_points=points, approved_claims=[c.text for c in record.approved_claims],
+                   for i in record.ingredients if i.amount_value},
+        # D-423: every ingredient for the prompter, in the record's order; one without an amount shows its name only
+        ingredients=[Ingredient(key=_slug(i.name).replace("-", "_"), name=i.name,
+                                amount=f"{i.amount_value}{i.amount_unit or ''}".replace("% ", "%") if i.amount_value else "")
+                     for i in record.ingredients],
+        prompter_points=points, approved_claims=[c.text for c in record.approved_claims],
         not_approved_claims=[c.text for c in record.not_approved_claims],
         qualified_results=[QualifiedResult(result_id=f"{pid}-r{i + 1}", numbers=q.numbers,
                                            say=(f"{q.statement}, {q.conditions} ({q.qualifier})" if q.conditions

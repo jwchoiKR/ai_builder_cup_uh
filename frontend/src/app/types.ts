@@ -344,6 +344,20 @@ export interface PrompterPointView {
   covered: boolean;
 }
 
+/** D-423: one item of the host prompter, built once by the server; the fact checker's snapshot is the same list */
+export interface PrompterItem {
+  id: string; // the snapshot passage id ("<code>#prompter#<key>"): ticks name it
+  key: string;
+  product_id: string;
+  section: string;
+  kind: "price" | "set" | "ingredient" | "point" | "caution";
+  text: string;
+  label?: string; // price and set: the label ("LIVE PRICE", "TIME SALE", "List price", the set's name)
+  value?: string; // price, set and ingredient: the amount ("" for an ingredient without one)
+  name?: string; // ingredient
+  main?: boolean; // the big price
+}
+
 export interface PrompterSnapshot {
   product_id: string;
   segment_id: string | null;
@@ -351,6 +365,7 @@ export interface PrompterSnapshot {
   points?: PrompterPointView[];
   covered_point_ids: string[];
   ticked_item_ids?: string[]; // D-372
+  items?: PrompterItem[]; // D-423
   required_total: number;
   required_covered: number;
 }

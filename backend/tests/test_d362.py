@@ -36,8 +36,9 @@ def test_d362_the_snapshot_holds_the_set_the_ui_shows_and_every_caution(catalog)
             SetOffer(set_id="s2", name="Trio", product_ids=[CREAM, "x", "y"], live_price=70.0)]
     cautions = [f"Caution {i}." for i in range(1, 7)]
     texts = [p.text for p in prompter_passages(_View(catalog, sets, cautions), CREAM)]
-    assert sum(t.startswith("Set ") for t in texts) == 1 and any(t.startswith("Set Duo") for t in texts)
-    assert all(c in texts for c in cautions)  # all six: the host can open "+N more"
+    # D-423 (user): every set offer and every caution; the screen shows them all
+    assert [t.split(":")[0] for t in texts if t.startswith("Set ")] == ["Set Duo", "Set Trio"]
+    assert all(c in texts for c in cautions)
 
 
 def test_d362_a_pack_with_some_files_missing_is_not_kept(tmp_path):

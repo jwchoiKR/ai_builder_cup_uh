@@ -6,6 +6,7 @@ import type {
   Comment,
   Message,
   PdCard,
+  PrompterItem,
   QuestionGroup,
   Segment,
   Session,
@@ -165,12 +166,37 @@ export function alert(over: Partial<Alert> = {}): Alert {
   };
 }
 
+/** D-423: the cream's prompter items as the server builds them (backend/app/logic/prompter.py prompter_items) */
+export function creamItems(sale = false, cautions = ["Do not apply to broken or damaged skin."]): PrompterItem[] {
+  const item = (section: string, kind: PrompterItem["kind"], key: string, text: string, more: Partial<PrompterItem> = {}) =>
+    ({ id: `DL-CR-01#prompter#${key}`, key, product_id: CREAM, section, kind, text, ...more });
+  const P = "Price & offers";
+  return [
+    ...(sale
+      ? [item(P, "price", "sale-price-promo_time_sale_10", "Time sale price: S$32.40", { label: "TIME SALE", value: "S$32.40", main: true }),
+        item(P, "price", "live-price", "Live price: S$36.00", { label: "Live price", value: "S$36.00" })]
+      : [item(P, "price", "live-price", "Live price: S$36.00", { label: "LIVE PRICE", value: "S$36.00", main: true }),
+        item(P, "price", "list-price", "List price: S$48.00", { label: "List price", value: "S$48.00" })]),
+    sale
+      ? item(P, "set", "set-set_cream_ampoule-promo_time_sale_10", "Set Hydra Barrier Cream + Deep Hydration Ampoule set: S$55.80",
+        { label: "Cream + Ampoule set", value: "S$55.80" })
+      : item(P, "set", "set-set_cream_ampoule", "Set Hydra Barrier Cream + Deep Hydration Ampoule set: S$62.00",
+        { label: "Cream + Ampoule set", value: "S$62.00" }),
+    item("Ingredients", "ingredient", "ingredient-panthenol", "Panthenol: 5%", { name: "Panthenol", value: "5%" }),
+    item("Ingredients", "ingredient", "ingredient-squalane", "Squalane: 3%", { name: "Squalane", value: "3%" }),
+    item("Ingredients", "ingredient", "ingredient-ceramide_np", "Ceramide NP: 1%", { name: "Ceramide NP", value: "1%" }),
+    ...cautions.map((c, i) => item("Cautions", "caution", `caution-${i + 1}`, c)),
+  ];
+}
+
 export function snapshot(over: Partial<StateSnapshot> = {}): StateSnapshot {
   return {
     last_seq: 10,
     server_time: T0 + 10_000,
     session: session(),
     segments: [segment()],
+    prompter: { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: [], required_total: 2,
+      required_covered: 0, items: creamItems() },
     groups: [],
     answers: {},
     host_slots: [],
