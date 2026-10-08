@@ -96,6 +96,8 @@ export interface ClientState {
   verifying: Record<string, string>;
   /** D-306: verifier calls with no answer, by cause (operator only) */
   verifyHealth: VerifyHealth | null;
+  /** D-335: questions waiting for their answer (transcript id -> the longest wait, ms): the operator's chip */
+  holds: Record<string, number>;
   /** D-150: market and language of the session (null before the snapshot) */
   market: SessionMarket | null;
   summaryReady: boolean;
@@ -141,6 +143,7 @@ export function emptyState(role: Role): ClientState {
     judgeDegraded: [],
     verifying: {},
     verifyHealth: null,
+    holds: {},
     market: null,
     agentCalls: [],
     actions: [],
@@ -474,6 +477,15 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
 
     case "verify.health":
       return { ...state, verifyHealth: p as unknown as VerifyHealth };
+
+    case "hold.started":
+      return { ...state, holds: { ...state.holds, [String(p.transcript_id)]: Number(p.max_ms) } };
+
+    case "hold.ended": {
+      const holds = { ...state.holds };
+      delete holds[String(p.transcript_id)];
+      return { ...state, holds };
+    }
 
     case "summary.ready":
       return { ...state, summaryReady: true };

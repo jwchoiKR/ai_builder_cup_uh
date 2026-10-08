@@ -188,6 +188,30 @@ D-312: speech-to-text may spell a tester, laboratory or test name as a sound-ali
 Labs"). A line that names the tester of a result in such a spelling states its qualifier. Do not report a missing or
 wrong qualifier only because the name is spelled differently from APPROVED_CLAIMS or the product's data.
 
+## QHOLD: context_judge
+
+D-335: set `expects_resolution` first. `true` when UTTERANCE asks something, or relays a claim, that the next line is
+expected to answer, confirm or reject: a question with or without "?" ("so the big one lasts longer", "can use with
+retinol or not"), a question with a particle ("this one waterproof meh", "it's the same price hor", "two-for-one,
+right?"), a relayed claim ("a viewer says it cures acne", "someone wrote it's halal"), or an unfinished question
+("how much is the three-pack ..."). `false` for a statement, a greeting, an answer, a promotion line, or a question
+the line answers itself ("Is it sticky? Not at all.").
+When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what
+[this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
+a report by someone, not a claim of [this line].
+
+## PAIR: compliance_judge
+
+D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what
+[this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
+a report by someone, not a claim of [this line].
+
+## PAIR: fact_checker
+
+D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what
+[this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
+a report by someone, not a claim of [this line]. `span` is taken from [this line], or from [previous line] only for a fact [this line] endorses.
+
 ## CTX: fact_checker
 
 D-334: this message has no UTTERANCE or RECENT_TRANSCRIPT. CONVERSATION holds the last finals in order, oldest first;

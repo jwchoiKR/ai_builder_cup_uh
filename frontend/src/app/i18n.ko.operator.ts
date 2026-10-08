@@ -189,6 +189,7 @@ export const KO_OPERATOR: Record<string, string> = {
   Send: "보내기",
   Active: "진행 중",
   Clear: "지우기",
+  "Collecting context · up to {s} s": "맥락 확인 중 · 최대 {s}초",
   "Banners & notices": "배너와 공지",
   Stop: "중지",
   Start: "시작",

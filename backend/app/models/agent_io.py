@@ -150,6 +150,14 @@ class AnswerLinkB(AnswerLink, _ArmB):
     hedged: bool = False  # the host sounded unsure or took it back
 
 
+class ContextOutputQ(BaseModel):
+    """D-335 QUESTION_HOLD: the context verdict, first saying whether the next line is expected to resolve this one."""
+    expects_resolution: bool
+    answer: AnswerLink
+    prompter: PrompterJudgement
+    reason: str
+
+
 class ContextOutputB(ContextOutput, _ArmB):
     answer: AnswerLinkB
 

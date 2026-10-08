@@ -99,6 +99,8 @@ describe("every event type", () => {
       "verify.done": { transcript_id: "tr_1", kind: "compliance" },
       "verify.health": { no_answer: 1, by: { http_504: 1 } },
       "testdrive.audio": { url: "/api/testdrive/audio/0123456789abcdef.wav", text: "Hi", duration_ms: 900 },
+      "hold.started": { transcript_id: "tr_q", max_ms: 2500 },
+      "hold.ended": { transcript_id: "tr_q" },
     };
     expect(Object.keys(samples).sort()).toEqual([...EVENT_TYPES].sort());
     let s = base;

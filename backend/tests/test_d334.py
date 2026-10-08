@@ -59,7 +59,7 @@ async def test_d334_a_question_and_its_answer_are_judged_as_one(monkeypatch, cap
             assert len(texts) == 2, (agent, texts)  # today: each line alone
     if hold:
         [fact] = [r for r in reqs if r.agent == "fact_checker"]
-        assert f"{QUESTION} / {ANSWER}" in fact.user_message  # the split shown as "A / B"
+        assert f"[previous line] {QUESTION}\n[this line] {ANSWER}" in fact.user_message  # D-335: two marked lines
         assert any("judged as one" in r.getMessage() for r in caplog.records)
     assert any("question final" in r.getMessage() for r in caplog.records)  # STT's "?" is logged either way
 

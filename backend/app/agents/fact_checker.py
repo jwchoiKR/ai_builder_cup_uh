@@ -898,6 +898,8 @@ class FactChecker:
             extras.append(arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)))
         if self.relation_model is FactRelationOutputH:  # D-328
             extras.append(arms._addenda(str(llm.prompts_path)).get(("HOLD", self.name)))
+        if getattr(settings, "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)))
         self.conversation = bool(getattr(settings, "CONTEXT_JUDGE", False))  # D-334
         if self.conversation:
             extras.append(arms._addenda(str(llm.prompts_path)).get(("CTX", self.name)))

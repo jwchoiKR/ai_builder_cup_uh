@@ -123,6 +123,11 @@ export function OperatorHeader({
           {impactChips(state.metrics as { impact?: Impact }, t).map((x) => (
             <Chip key={x} className="tabular">{x}</Chip>
           ))}
+          {Object.keys(state.holds).length > 0 && (  // D-335: a question waits for its answer; operator only
+            <Chip tone="accent" data-testid="op-hold">
+              {t("Collecting context · up to {s} s", { s: Math.max(...Object.values(state.holds)) / 1000 })}
+            </Chip>
+          )}
         </div>
         {s?.status === "live" && s.started_at !== null ? (
           <span className={styles.live}>
