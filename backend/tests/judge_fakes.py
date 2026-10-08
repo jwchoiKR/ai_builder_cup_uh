@@ -68,6 +68,7 @@ class ScriptedBackend:
         self.delays: dict[tuple[str, str], float] = {}
         self.errors: set[tuple[str, str]] = set()
         self.calls: list[tuple[str, str]] = []
+        self.expects: dict[str, bool] = {}  # D-335: the context judge's expects_resolution per line
 
     def judge(self, text: str, **kw) -> None:
         self.outputs[("utterance_judge", text)] = judge_output(**kw)
@@ -103,7 +104,10 @@ class ScriptedBackend:
             return RawReply(json.dumps(self.outputs[key]), model_version="scripted")
         if req.agent in SPLIT_PARTS:
             data = self.outputs.get((JUDGE, req.mock_primary_text)) or judge_output()
-            return RawReply(json.dumps(split_part(req.agent, data)), model_version="scripted")
+            part = split_part(req.agent, data)
+            if "expects_resolution" in getattr(req.output_model, "model_fields", {}):  # D-335 QUESTION_HOLD
+                part = {"expects_resolution": self.expects.get(req.mock_primary_text, False), **part}
+            return RawReply(json.dumps(part), model_version="scripted")
         if req.agent in ("utterance_judge", "judge_single"):
             # Unscripted sentences: a neutral verdict (no reflex-derived violations).
             data = judge_output()

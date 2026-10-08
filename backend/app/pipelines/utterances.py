@@ -87,6 +87,7 @@ def _result(task: asyncio.Task) -> AgentResult:
 
 SENTENCE_END = (".", "?", "!")
 MAX_MERGED_FINALS = 3  # a merged judgment covers at most this many finals
+EXPECTS_WAIT_S = 0.3  # D-335: how long the next final waits for the previous line's context verdict
 _KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever needed)
 
 
@@ -143,6 +144,7 @@ class Merge:
     prev: Transcript
     chain: list[str]  # transcript ids already inside `text`, oldest first
     text: str  # joined text that reflex, judge and fact checker read
+    pair: str | None = None  # D-335: a question or report and its answer, as two marked lines: what triggered it
 
 
 @dataclass
@@ -181,6 +183,7 @@ class UtterancePipeline:
         self._pending: set[asyncio.Task] = set()
         self._sequence: dict[str, int] = {}
         self._questions: dict[str, int] = {}  # D-334: held question finals -> when the hold began
+        self._ready: dict[str, asyncio.Future] = {}  # D-335: each final's context verdict, as it comes
         self._question_finals = 0  # D-334: finals that end with "?" (a log of STT punctuation)
         # D-328 REPORTED_HOLD: transcript id -> (its contradicted claims in someone else's words, the transcript, the
         # protected ids, when the hold began), waiting for the next line's fact check
@@ -260,12 +263,30 @@ class UtterancePipeline:
 
     # ---- steps 1-4 -----------------------------------------------------------------------------
 
-    def _merge_for(self, t: Transcript) -> Merge | None:
-        """D-088: join with the previous final if it arrived within the window and is unfinished."""
+    async def _expects_resolution(self, prev: Transcript | None) -> bool:
+        """D-335: the context judge's verdict that the previous final (judged alone) asks or relays something the next
+        line is expected to answer; waited for at most 300 ms."""
+        if not self.rt.settings.QUESTION_HOLD or prev is None or prev.transcript_id in self._held:
+            return False
+        fut = self._ready.get(prev.transcript_id)
+        if fut is None:
+            return False
+        if not fut.done():
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(asyncio.shield(fut), EXPECTS_WAIT_S)
+        return fut.done() and not fut.cancelled() and bool(getattr(fut.result(), "expects_resolution", False))
+
+    def _merge_for(self, t: Transcript, expects: bool = False) -> Merge | None:
+        """D-088: join with the previous final if it arrived within the window and is unfinished. D-334/335: a
+        question held for its answer ("?"), or a line the context judge says expects one ("model"), joins the next
+        final as a marked pair."""
         prev = self._last
         window = self.rt.settings.UTTERANCE_MERGE_WINDOW_MS
-        if prev is not None and prev.transcript_id in self._questions:  # D-334: a held question takes its answer
+        pair = None
+        if prev is not None and (prev.transcript_id in self._questions or expects):
             window = self.rt.settings.QUESTION_HOLD_MS
+            asked = prev.transcript_id in self._questions or asks(prev.text)
+            pair = "both" if asked and expects else "?" if asked else "model"
         elif prev is not None and ends_sentence(prev.text):
             return None
         if (prev is None or window <= 0 or t.received_at - prev.received_at > window
@@ -277,6 +298,8 @@ class UtterancePipeline:
         if len(chain) >= MAX_MERGED_FINALS:
             return None
         base = judged.text if judged else prev.text
+        if pair:  # D-335: two marked lines, so who endorsed or rejected what stays clear
+            return Merge(prev=prev, chain=list(chain), text=f"[previous line] {base}\n[this line] {t.text}", pair=pair)
         return Merge(prev=prev, chain=list(chain), text=f"{base} {t.text}")
 
     def recent_host_line(self, at: int, max_age_ms: int, segment_id: str | None) -> str | None:
@@ -304,7 +327,7 @@ class UtterancePipeline:
         if prev is not None:
             await asyncio.gather(prev, return_exceptions=True)
         rt = self.rt
-        merge = self._merge_for(t)
+        merge = self._merge_for(t, await self._expects_resolution(self._last))
         text = merge.text if merge else t.text
         if merge:
             t.merged_from_transcript_id, t.judged_text = merge.prev.transcript_id, text
@@ -323,8 +346,10 @@ class UtterancePipeline:
             self._held.pop(merge.prev.transcript_id)
             rt.ctx.scheduler.cancel(rt.key(f"hold:{merge.prev.transcript_id}"))
             if self._questions.pop(merge.prev.transcript_id, None) is not None:
-                log.info("question %s answered by %s after %d ms: judged as one", merge.prev.transcript_id,
-                         t.transcript_id, t.received_at - merge.prev.received_at)
+                await rt.emit("hold.ended", {"transcript_id": merge.prev.transcript_id})
+        if merge is not None and merge.pair:  # D-335: the trigger and the wait of every pair
+            log.info("pair %s + %s trigger=%s after %d ms: judged as one", merge.prev.transcript_id, t.transcript_id,
+                     merge.pair, t.received_at - merge.prev.received_at)
         if asks(t.text):  # D-334: how often speech-to-text ends a line with "?" (is its punctuation reliable?)
             self._question_finals += 1
             log.info("question final %s %s (%d of %d finals)", rt.sid, t.transcript_id, self._question_finals,
@@ -336,6 +361,8 @@ class UtterancePipeline:
             self._questions[t.transcript_id] = rt.now()
             rt.ctx.scheduler.call_later(rt.key(f"hold:{t.transcript_id}"), rt.settings.QUESTION_HOLD_MS,
                                         lambda tid=t.transcript_id: self._release(tid))
+            # D-335: the operator sees "collecting context" while it waits (nothing on the host screen)
+            await rt.emit("hold.started", {"transcript_id": t.transcript_id, "max_ms": rt.settings.QUESTION_HOLD_MS})
             return
         window = rt.settings.UTTERANCE_MERGE_WINDOW_MS
         if ("Q5" in fixes_of(rt.settings.FACT_FIXES) and window > 0 and mid_clause(t.text)
@@ -354,6 +381,7 @@ class UtterancePipeline:
             began = self._questions.pop(tid, None)
             if began is not None:  # D-334
                 log.info("question %s judged alone: no answer within %d ms", tid, self.rt.now() - began)
+                await self.rt.emit("hold.ended", {"transcript_id": tid})
             else:
                 log.info("held fragment %s judged alone after the merge window", tid)
             await self._judge(*held)
@@ -382,6 +410,7 @@ class UtterancePipeline:
             self._inputs[t.transcript_id] = judge_input
         # Only preparation waits for the previous final.
         ready = asyncio.Future()
+        self._ready[t.transcript_id] = ready  # D-335: the next final may wait for this line's context verdict
         previous_context = self._context_tail
         self._context_tail = rt.spawn(self._ordered_context(previous_context, ready, t, merge),
                                       name=f"context-apply:{t.transcript_id}")
@@ -416,6 +445,7 @@ class UtterancePipeline:
                 self._judged.pop(tid, None)
                 self._prepared.pop(tid, None)
                 self._inputs.pop(tid, None)
+                self._ready.pop(tid, None)
                 self._addenda.pop(tid, None)
 
     async def _infer(self, t, on_air, inp, hits, merge, scenario, ready):
@@ -438,7 +468,8 @@ class UtterancePipeline:
                 comp_task = rt.spawn(self.judge.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS),
                                      name=f"judge:{t.transcript_id}")
                 ctx_task = None
-            parts = [self._prepared[tid][0].text for tid in merge.chain if tid in self._prepared] + [t.text] if merge else []
+            parts = ([self._prepared[tid][0].text for tid in merge.chain if tid in self._prepared] + [t.text]
+                     if merge and not merge.pair else [])  # D-335: a pair is read as its two marked lines
             facts_task = None if self.single else rt.spawn(self._run_facts(inp.utterance, on_air, inp, scenario, parts,
                                                                            t.transcript_id),
                                                            name=f"facts:{t.transcript_id}")

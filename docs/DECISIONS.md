@@ -2108,3 +2108,18 @@ D-334: two switches for a meaning that spans two finals ("For 30 mL of concentra
   - The `CTX: fact_checker` addendum: check only the facts asserted or endorsed in the last line; use the earlier lines to understand it; do not report facts that appear only in earlier lines. It includes the made-up concentrate example (90 mL of water, not 90 mg of caffeine).
   - Same schema, no hold. The compliance and context judges are unchanged under this switch.
 - **Tests:** `tests/test_d334.py` (the pair judged once by each judge, a lone question judged alone after the hold, the CONVERSATION block).
+
+D-335: QUESTION_HOLD's model trigger, marked pairs and the operator's chip (user-approved 10/8 after the D-334 result: the hold won, CONTEXT_JUDGE dropped; chirp_3 kept "?" on 21 of 24 TTS question lines). Everything stays behind `QUESTION_HOLD`.
+- **Model trigger:** under `QUESTION_HOLD` the context judge's output (`ContextOutputQ`) first gives `expects_resolution`. It is true when the line asks something or relays a claim that the next line is expected to answer, confirm or reject. That covers questions without "?", particles ("meh", "hor", "right?"), "a viewer says …" and an unfinished question. The `QHOLD: context_judge` addendum carries made-up examples.
+- **When it applies:**
+  - A line that ends with "?" is held as in D-334.
+  - A line without "?" is judged alone as before. If its verdict is `expects_resolution`, the next final, within `QUESTION_HOLD_MS`, is judged as a pair with it through the D-088 merge path.
+  - The next final waits at most 300 ms for that verdict; a later verdict gives no pair.
+  - Alerts already raised from the first line are not raised again: the merge protects the chain's notes, and compliance skips a rule already active on the chain (tested).
+- **Marked pairs:** a pair reads "[previous line] …" then "[this line] …" on two lines for all three judges. The fact checker reads it as one UTTERANCE, not "A / B". `PAIR` addenda for the compliance judge and the fact checker, and the same sentence in the context judge's: judge what [this line] asserts, endorses or rejects about [previous line].
+- **Operator only:** `hold.started` / `hold.ended` events. While a "?" question waits, the operator header shows "맥락 확인 중 · 최대 2.5초" ("Collecting context · up to 2.5 s"). The host screen shows nothing.
+- **Logs:** "pair <t1> + <t2> trigger=?|model|both after N ms: judged as one". Eval rows keep `ms_from_first_final` (D-334).
+- **Tests:**
+  - `tests/test_d335.py`: a paired line, no pair when the verdict is false, no pair when the verdict is late, no repeated compliance alert, the operator hold events.
+  - `tests/test_d334.py` (marked pair).
+  - `src/app/state.test.ts` (events).

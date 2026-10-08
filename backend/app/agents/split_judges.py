@@ -15,7 +15,7 @@ import json
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ComplianceOutputRC, ContextOutput,
-                               ContextOutputB)
+                               ContextOutputB, ContextOutputQ)
 from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -124,6 +124,9 @@ class ComplianceJudge(_SplitJudge):
         self.with_docs = bool(getattr(getattr(llm, "settings", None), "COMPLIANCE_DOCS", False))  # D-310
         if self.with_docs and (extra := arms._addenda(str(llm.prompts_path)).get(("DOCS", self.name))):
             self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
+            if extra := arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "COMPLIANCE_ENDORSE", False):  # D-333: endorsed claims
             if extra := arms._addenda(str(llm.prompts_path)).get(("ENDORSE", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
@@ -203,6 +206,13 @@ class ContextJudge(_SplitJudge):
     spec = "context"
     output_model = ContextOutput
     output_model_b = ContextOutputB
+
+    def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
+        super().__init__(llm, prompts, catalog, reflex)
+        if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: does the next line resolve it?
+            self.output_model = ContextOutputQ
+            if extra := arms._addenda(str(llm.prompts_path)).get(("QHOLD", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_context(inp, self.catalog)

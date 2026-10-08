@@ -52,6 +52,8 @@ export const EVENT_TYPES = [
   "verify.done",
   "verify.health",
   "testdrive.audio",
+  "hold.started",  // D-335: a question waits for its answer (the operator's "collecting context")
+  "hold.ended",
 ] as const;
 
 export type EventType = (typeof EVENT_TYPES)[number];
