@@ -2189,3 +2189,20 @@ D-345: `FACT_PROMPT=v7` (`prompts/fact_relation_v7.md`), a new arm. The default 
 - **Rule:** if `stated_value` differs from `source_value` but `stated_as_heard` equals it, the relation is `uncertain` (no alert). If both differ, it is `contradicts`, as before.
 - **Examples (made up):** uncertain: "for 0.5 g" for 4.5 g, "20 for dollars" for $24, "1 ate 0 ml" for 180 ml. Contradicts: "for 20 dollars" for $24 (read as 420), "30 ate dollars" for $28 (308), "for 5.5 g" for 4.5 g (45.5). v5's examples carry the field too.
 - **Tests (`tests/test_d345.py`):** the field order; the rule and examples; v7 through the pipeline on the fictional fixture product (uncertain gives no alert, contradicts gives one); the default is still v5.
+
+D-346 (user-approved change to the frozen logic; reviewed by GPT, Gemini and Sonnet): after the fact checker, code keeps only provenance plumbing.
+- **Kept:**
+  - the evidence id must exist;
+  - the quote is built by code;
+  - the catalog product check;
+  - D-338 (no fact source in the claim-wording section);
+  - the model's own REPORTS_OR_ASKS and `uncertain` handling;
+  - `JUDGE_SEED=7`.
+- **Log-only now, in the single and verifier arms (`hard_validate` with `verify=True`).** These two checks no longer drop or change a claim:
+  - (a) every number of the correction must be in the product's passages or record;
+  - (b) without a passage, the correction must be a term of the active promo or offer.
+  Each logs "fact claim kept: would drop (log-only): <reason>". It also adds an entry to the eval rows' `dropped`, with that reason and `log_only: true`, so the would-have-fired count can be read from the same rows. The guards arm (`FACT_GUARDS=on`, not shipped) is unchanged.
+- **Finding (`tests/test_d346.py`), a made-up product "Velmora Night Balm":** its brochure file and its record both list "NOT APPROVED: Cures eczema.", and the host says "This balm cures eczema overnight."
+  - When the fact checker cites the record's not-approved sentence: one compliance alert and no fact alert (D-338). The test passes.
+  - When the fact checker cites the brochure file's NOT APPROVED line: a compliance alert and a fact alert. A release file passage ("Source file" section) is a valid fact source, so its not-approved lines are not recognised. Not fixed, as asked. The test is marked `xfail(strict=True)`, so it fails loudly once fixed.
+- **Test changed:** `tests/test_verifier.py` (D-300) now expects the "number in no passage" claim to stand.

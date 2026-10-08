@@ -133,6 +133,17 @@ def _drop(c, why: str) -> None:
     c.verdict = "not_in_sources"
 
 
+def _would_drop(c, why: str) -> None:
+    """D-346: a check that only reports: the claim stands, the log (and the eval rows' `dropped`, marked) say that the
+    check would have dropped it."""
+    reason = f"would drop (log-only): {why}"
+    log.info("fact claim kept: %s | field=%s stated=%r correct=%r passage=%s", reason, c.field, c.stated_value,
+             c.correct_value, c.passage_id)
+    if (sink := DROPS.get()) is not None:
+        sink.append({"reason": reason, "field": c.field, "stated": c.stated_value, "correct": c.correct_value,
+                     "passage_id": c.passage_id, "quote": c.quote, "log_only": True})
+
+
 def _threshold_differs(lex, host: str, c, said: set) -> bool:
     """D-248: "> SGD 90" or "exceeds S$90" is a threshold; "exactly S$90" is not the same value. D-259: the kind of
     threshold counts too ("at least S$40" is not "above S$40"). True when the correction or the quote words the number
@@ -817,15 +828,15 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
             continue
         right = _numbers(lex, c.correct_value)
         if verify:
-            # D-300 R2: provenance only (the evidence exists; a correction's number is in the product's passages or
-            # record, or a promo's or offer's own term); the verifier decides the rest
+            # D-300 R2: provenance only (the evidence exists, it is no claim-wording passage); the model decides the
+            # rest. D-346: the number checks below only log what they would have dropped
             p = by_id.get(c.passage_id) if c.passage_id else None
             if c.passage_id is None:
                 ok = ((promo is not None and promo.changes_prices and c.field in PRICE_FIELDS
                        and (c.correct_value == catalog.price_display(c.product_id, promo) or _promo_term(c, promo)))
                       or (c.field == "promo" and any(_offer_threshold(c, x) for x in offers)))
                 if not ok:
-                    _drop(c, "relation: not a term of the active promo or offer")
+                    _would_drop(c, "relation: not a term of the active promo or offer")
             elif p is None:
                 _drop(c, "relation: unknown evidence")
             elif p.section == CLAIMS_SECTION:
@@ -833,7 +844,7 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                 # compliance judge applies; they are no source of a fact correction
                 _drop(c, "provenance: an approved-claims passage (claim wording is compliance's)")
             elif right and not right <= _product_numbers(lex, catalog, c.product_id, passages):
-                _drop(c, "provenance: a number of the correction is in no passage of the product")
+                _would_drop(c, "provenance: a number of the correction is in no passage of the product")
             continue
         if utterance and "Q2" in fixes and _quoted_then_corrected(catalog.pack.rules.quote_cues, utterance,
                                                                   _numbers(lex, c.stated_value), right):
