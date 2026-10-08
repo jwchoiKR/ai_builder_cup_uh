@@ -45,7 +45,7 @@ def apply_fact_check(
             continue
         if a is not None:
             a.stated_value, a.correct_value = c.stated_value, c.correct_value or a.correct_value
-            a.passage_id, a.quote = c.passage_id, c.quote
+            a.passage_id, a.quote, a.span = c.passage_id, c.quote, c.span  # D-365: the words of this showing
             a.shown_at, a.host_hidden_at, a.transcript_id = now, None, t.transcript_id
             reshown.append(a)
         else:
