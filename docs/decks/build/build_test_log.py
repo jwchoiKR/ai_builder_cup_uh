@@ -17,7 +17,7 @@ D = {}
 for f in sorted(RES.glob("all_arms_*.json")):
     D.update(json.load(open(f, encoding="utf-8")))
 
-POOL = {"onboarding5": "원문", "onboarding5_sttz": "STT A", "onboarding5_sttd": "STT B",
+POOL = {"onboarding5_hbase_z": "STT A*", "onboarding5_hbase_d": "STT B*", "onboarding6_sttzs": "6차 A", "onboarding6_sttds": "6차 B", "onboarding6_hbase_z": "6차 A*", "onboarding6_hbase_d": "6차 B*", "onboarding5": "원문", "onboarding5_sttz": "STT A", "onboarding5_sttd": "STT B",
         "onboarding5_sttzs": "STT A", "onboarding5_sttds": "STT B"}
 
 
@@ -138,6 +138,16 @@ slide("s6", "6단계 · 10/7 · v3와 seed", "앞 줄 동의까지 확인하는 
     ]), W),
     gap=20),
     notes="25596c7(v3, D-313), 0ebdc1a(seed, D-314). seed 7·11 각 2회: 같은 설정 2회 사이 바뀐 줄 seed 없음 3/1, seed 7 0/1, seed 11 3/0(2줄은 시간 초과). 상세: docs/decks/live_logic_1007.html")
+
+slide("s7", "7단계 · 10/7~8 밤", "실제 방송 힌트로 5차는 기준선, 처음 보는 6차는 90% 안팎", col(
+    table(HEAD, rows([
+        ("v3 · seed 7 · 5차 실제 힌트", "p5hbase", ["onboarding5_hbase_z", "onboarding5_hbase_d"]),
+        ("v4 · seed 7 · 5차", "factv4", ["onboarding5_sttzs", "onboarding5_sttds"]),
+        ("v3 · seed 7 · 6차 예전 힌트", "pool6", ["onboarding6_sttzs", "onboarding6_sttds"]),
+        ("v3 · seed 7 · 6차 실제 힌트", "p6hbase", ["onboarding6_hbase_z", "onboarding6_hbase_d"]),
+    ]), W),
+    gap=20),
+    notes="* = 실제 방송과 같은 STT 힌트(브리프 단어 포함). 6차 실패 원인: 동시 발화, 전하는 말, 부정문 HIGH. 상세: docs/decks/test_1008.html")
 
 slide("old", "그 이전 · 10/5~6", "STT 없이 원문으로 잰 1~4차 세트에서는 탐지가 84~91%였다", table(
     ["세트", "커밋", "탐지", "오경고", "잘못된 HIGH", "비고"],
