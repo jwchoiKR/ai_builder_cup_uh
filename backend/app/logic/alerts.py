@@ -64,7 +64,8 @@ def apply_judge_compliance(
         handled.add(v.rule_id)
         if v.rule_id in active_rule_ids:
             continue  # already active: no duplicate (a provisional of this rule is cleared below)
-        severity = getattr(v, "_severity", None) or rules[v.rule_id].severity  # D-300: the verifier's
+        # D-300: the verifier's; D-358: else the verdict's own (the legacy rules path set it from the rule)
+        severity = getattr(v, "_severity", None) or v.severity
         a = pending.get(v.rule_id)
         if a is not None:
             a.status, a.span, a.say_instead, a.severity, a.shown_at = "active", v.span, v.say_instead or None, severity, now

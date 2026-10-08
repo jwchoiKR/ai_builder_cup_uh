@@ -192,6 +192,34 @@ class ComplianceOutputR(ComplianceOutput, _ArmB):
     compliance: ComplianceR
 
 
+def _cited_schema(s: dict) -> None:
+    """D-358: the model writes the citation and its quote first; `rule_id` is code's (from the citation)."""
+    props = dict(s.get("properties", {}))
+    props.pop("rule_id", None)
+    first = ["citation", "quote", "span", "severity", "is_negated", "is_quoted"]
+    s["properties"] = {**{k: props.pop(k) for k in first if k in props}, **props}
+    s["required"] = list(s["properties"])
+
+
+class ViolationO(Violation, _ArmB):
+    """D-358: a violation cited from a regulation original (no rule JSON): the document and section as written in the
+    original ("<document>#<section>", or "TEST-QUALIFIER" for a test result said without who tested it), a short quote
+    from it, and the severity the model chose by the prompt's criteria. Code sets `rule_id` from the citation."""
+    model_config = ConfigDict(json_schema_extra=_cited_schema)
+    citation: str
+    quote: str
+    rule_id: str = ""
+    qualified_result_id: str | None = None  # the QUALIFIED_RESULTS entry a TEST-QUALIFIER verdict states
+
+
+class ComplianceO(Compliance, _ArmB):
+    violations: list[ViolationO]
+
+
+class ComplianceOutputO(ComplianceOutput, _ArmB):
+    compliance: ComplianceO
+
+
 class ViolationRC(ViolationR):
     confidence: float | None = None  # D-302 VOTE_CONFIDENCE=self: a log field only
 

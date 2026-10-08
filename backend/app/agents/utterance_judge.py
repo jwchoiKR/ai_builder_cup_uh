@@ -408,6 +408,11 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
             kept.append(Violation(span=generic.group(), rule_id=qualifier.RULE_ID,
                                   severity=rules[qualifier.RULE_ID].severity, is_negated=False, is_quoted=False,
                                   say_instead=r.say))
+    return _check_correction_ids(o, values)
+
+
+def _check_correction_ids(o, values: dict):
+    """Only alerts the judge was shown can be corrected (provenance)."""
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
     dropped = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a not in alert_ids]
     if dropped:  # D-356: never silently
@@ -416,6 +421,49 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
     if hasattr(o.correction, "quotes"):  # D-187 arm B
         o.correction.quotes = [q for q in o.correction.quotes if q.alert_id in alert_ids]
     return o
+
+
+def validate_original(o, catalog: Catalog, values: dict, originals):
+    """D-358: a verdict cited from the regulation originals (no rule JSON). Provenance only, as the user approved:
+    the cited document is one the judge was given and the quote is in its text (or, for TEST-QUALIFIER, the result is
+    one of the products' recorded test results); the alert's rule id is the normalised citation. The severity is
+    the model's. Anything else is dropped with its reason in the log."""
+    from .originals import citation_rule_id, squash
+
+    by_name = {d.name.casefold(): d for d in originals}
+    results = {r.result_id: r for p in catalog.products for r in p.qualified_results}
+    on_air_id = (values.get("current_product_json") or {}).get("product_id")
+    on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
+    scope = values.get("scope_product_ids")  # D-349: two products in scope right after a switch
+    kept = []
+    for v in o.compliance.violations:
+        product = on_air_product
+        if scope:
+            if getattr(v, "product_id", None) not in scope:
+                v.product_id = on_air_id
+            product = catalog.get_product(v.product_id)
+        cite, quote = (v.citation or "").strip(), squash(v.quote or "")
+        if cite.upper() == qualifier.RULE_ID:
+            r = results.get(getattr(v, "qualified_result_id", None)) or next(
+                (x for x in results.values() if quote and quote in squash(x.say)), None)
+            if r is None:
+                _cdrop(v, "provenance: a TEST-QUALIFIER verdict that names no recorded test result")
+                continue
+            v.rule_id, v.say_instead = qualifier.RULE_ID, r.say
+        else:
+            doc, _, section = cite.partition("#")
+            d = by_name.get(doc.strip().casefold())
+            if d is None:
+                _cdrop(v, f"provenance: the citation names no regulation document given to the judge ({cite!r})")
+                continue
+            if not quote or quote not in squash(d.text):
+                _cdrop(v, f"provenance: the quote is not in {d.name} ({(v.quote or '')[:80]!r})")
+                continue
+            v.rule_id = citation_rule_id(d.name, section or "document")
+            v.say_instead = approved_say(v.say_instead, product, catalog)
+        kept.append(v)
+    o.compliance.violations = kept
+    return _check_correction_ids(o, values)
 
 
 def validate_context(o, catalog: Catalog, values: dict):

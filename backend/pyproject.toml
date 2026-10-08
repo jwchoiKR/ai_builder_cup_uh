@@ -36,3 +36,4 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 pythonpath = ["."]
+markers = ["originals: D-358, run the compliance judge on the regulation originals (the production path)"]

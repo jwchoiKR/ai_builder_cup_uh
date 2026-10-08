@@ -13,6 +13,7 @@ from app.models.agent_io import (
     BriefOutput,
     CommentTriageOutput,
     ComplianceOutput,
+    ComplianceOutputO,
     ComposerOutput,
     ContextOutput,
     DraftCheckOutput,
@@ -20,13 +21,15 @@ from app.models.agent_io import (
     JudgeSingleOutput,
     UtteranceJudgeOutput,
 )
+from app.models.agent_io import with_alert_checks
 from app.models.session import SwitchState
 from app.providers.prompts import PROMPT_NAMES, PromptError, load_prompts, render_value
 
 OUTPUT_MODELS: dict[str, type[BaseModel]] = {
     "utterance_judge": UtteranceJudgeOutput,
     "judge_single": JudgeSingleOutput,
-    "compliance_judge": ComplianceOutput,
+    "compliance_judge": with_alert_checks(ComplianceOutputO),  # D-358: cited verdicts, handles first
+    "compliance_judge_rules": ComplianceOutput,
     "context_judge": ContextOutput,
     "fact_checker": FactCheckOutput,
     "comment_triage": CommentTriageOutput,
@@ -62,7 +65,7 @@ def test_judge_single_is_built_from_both_files(prompts):
 def test_split_judges_keep_the_utterance_judge_wording(prompts):
     """D-099: the split judges are cut from utterance_judge.md; the job texts must not drift apart."""
     uj = prompts["utterance_judge"].system_instruction
-    jobs = {"compliance_judge": ("Compliance", "Correction of active alerts"),
+    jobs = {"compliance_judge_rules": ("Compliance", "Correction of active alerts"),  # D-358: the legacy prompt
             "context_judge": ("Answer linking", "Prompter tracking and product switch")}
     for name, titles in jobs.items():
         split = prompts[name].system_instruction
@@ -78,7 +81,8 @@ def _example_outputs(system: str) -> list[dict]:
     return [json.loads(b) for b in blocks + inline]
 
 
-EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 3, "context_judge": 4,
+EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 6, "compliance_judge_rules": 3,
+                  "context_judge": 4,
                   "fact_checker": 4, "comment_triage": 7, "answer_composer": 6, "draft_verifier": 4,
                   "brief_agent": 1}
 

@@ -109,8 +109,9 @@ class Settings(BaseSettings):
     COMPLIANCE_ENDORSE: bool = False
     # D-355 arm: a correction job addendum: a qualified re-say of the same test result clears its TEST-QUALIFIER alert
     COMPLIANCE_RESAY: bool = False
-    # D-356 arm: ACTIVE_ALERTS by per-call handle; the compliance judge answers {handle, fixed_by_this_line} first
-    CORRECTION_HANDLES: bool = False
+    # D-356: ACTIVE_ALERTS by per-call handle; the compliance judge answers {handle, fixed_by_this_line} first.
+    # D-358: on by default (the originals path always uses handles; this setting only matters for the legacy path)
+    CORRECTION_HANDLES: bool = True
     # D-334 (the user's design): a final ending with "?" waits for the next final (QUESTION_HOLD_MS), and the two are
     # judged as one utterance by all three judges; with none, the question is judged alone
     QUESTION_HOLD: bool = True  # D-343: measured (pool 7 + pairs: two-host lines 82.8% -> 96.6%, no one-host loss)

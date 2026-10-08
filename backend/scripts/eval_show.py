@@ -196,13 +196,24 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                       for c in call_rows if c["line"] == x["id"]]
     segments = sorted(await store.query(rt.path("segments"), Segment), key=lambda x: x.started_at)
     raw = {"show_id": show["show_id"], "release_ids": show["release_ids"], "session_id": rt.sid,
-           "settings": {k: getattr(rt.ctx.settings, k, None) for k in SETTINGS_LOGGED},  # the effective ones
+           "settings": {k: getattr(rt.ctx.settings, k, None) for k in SETTINGS_LOGGED} | _compliance_input(rt),
            "lines": lines, "switch_events": switch, "alerts": alerts, "prompter": prompter, "chips": chips,
            "judge": judge, "calls": call_rows, "timeline": timeline,
            "segments": [{"release": release_of.get(x.product_id), "started_at": x.started_at, "ended_at": x.ended_at,
                          "reason": x.start_reason, "covered_point_ids": x.covered_point_ids} for x in segments]}
     raw["switch_score"] = switch_score(raw, show)
     return raw
+
+
+def _compliance_input(rt) -> dict:
+    """D-358: what the compliance judge read: the regulation originals (and the sources with none), or the legacy
+    rules path."""
+    judge = rt.utterances.compliance
+    if not getattr(judge, "originals", False):
+        return {"COMPLIANCE_INPUT": "rules (legacy)"}
+    found, missing = judge.regulation()
+    return {"COMPLIANCE_INPUT": "originals", "COMPLIANCE_ORIGINALS": [d.name for d in found],
+            "COMPLIANCE_ORIGINALS_MISSING": list(missing)}
 
 
 def switch_score(raw: dict, show: dict) -> dict:
