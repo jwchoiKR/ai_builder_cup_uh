@@ -31,11 +31,12 @@ export function CueStrip({ cue }: { cue: HostCue }) {
   );
 }
 
-export function FactNote({ alert, catalog, onRendered }: {
+export function FactNote({ alert, catalog, onRendered, count = 1 }: {
   alert: Alert;
   catalog: Catalog | null;
   onRendered?: (alertId: string) => void;
-  /** the active price promotion's title, for the "during the time sale" condition (D-136) */
+  /** D-399: how many active notes cite this note's passage (this one is the newest) */
+  count?: number;
 }) {
   // D-107: wrong product information is as urgent as a compliance alert, so it takes the prompter's
   // product box too: what was heard small, the right value as the biggest text.
@@ -54,6 +55,7 @@ export function FactNote({ alert, catalog, onRendered }: {
           <CircleAlert aria-hidden />
           {alert.heard_check ? t("CHECK WHAT WAS SAID") : `${t(label).toUpperCase()} ${t("CORRECTION")}`}
         </span>
+        {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
             {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
@@ -84,6 +86,7 @@ export function MediumBanner({
   fact = null,
   onRendered,
   serverOffsetMs = 0,
+  count = 1,
 }: {
   alert: Alert;
   catalog: Catalog | null;
@@ -92,6 +95,8 @@ export function MediumBanner({
   /** D-105: the fact note on the same sentence, shown in this card instead of its own. */
   fact?: Alert | null;
   onRendered?: (alertId: string) => void;
+  /** D-399: how many unresolved MEDIUM alerts cite this rule (this one is the newest) */
+  count?: number;
 }) {
   // D-106: a block at the top of the prompter card, yellow, with the replacement as the biggest text.
   const t = useT();
@@ -113,6 +118,7 @@ export function MediumBanner({
           {qualifier ? (late ? t("Say the result again with where it comes from (e.g. 'in our in-house test')") : t("Say where the result comes from (e.g. 'in our in-house test')"))
             : t("CHECK WORDING")}
         </span>
+        {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
             {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
