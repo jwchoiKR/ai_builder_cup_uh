@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -55,8 +56,9 @@ LIVE_EVENTS = {*SWITCH_EVENTS, "transcript.final", "alert.created", "alert.updat
                "line.check"}
 QUALIFIER_RESAY_MS = 10_000  # the host screen's QUALIFIER_ADDON_MS (D-341): after it, the host must say the result again
 JUDGES = ("compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "verifier")
-SETTINGS_LOGGED = ("SWITCH_MODE", "SWITCH_ARM_NAME", "SWITCH_DUAL_SCOPE_SEC", "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT",
-                   "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC")
+SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_MODE", "SWITCH_ARM_NAME", "SWITCH_DUAL_SCOPE_SEC",
+                   "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT", "COMPLIANCE_RESAY", "CORRECTION_CHECK", "REFLEX_SCAN",
+                   "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC")
 
 
 def _target(show: dict, expect: str) -> str | None:
@@ -194,7 +196,7 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                       for c in call_rows if c["line"] == x["id"]]
     segments = sorted(await store.query(rt.path("segments"), Segment), key=lambda x: x.started_at)
     raw = {"show_id": show["show_id"], "release_ids": show["release_ids"], "session_id": rt.sid,
-           "settings": {k: getattr(rt.settings, k, None) for k in SETTINGS_LOGGED},
+           "settings": {k: getattr(rt.ctx.settings, k, None) for k in SETTINGS_LOGGED},  # the effective ones
            "lines": lines, "switch_events": switch, "alerts": alerts, "prompter": prompter, "chips": chips,
            "judge": judge, "calls": call_rows, "timeline": timeline,
            "segments": [{"release": release_of.get(x.product_id), "started_at": x.started_at, "ended_at": x.ended_at,
@@ -261,7 +263,9 @@ async def main() -> int:
     ap.add_argument("--out", type=Path, required=True, help="output directory: <show_id>.json per show, summary.md")
     args = ap.parse_args()
     shows = [json.loads(x) for x in args.cases.read_text(encoding="utf-8").splitlines() if x.strip()]
-    over = {"LLM_PROVIDER": "vertex", "STT_PROVIDER": "mock", "STORE": "memory", "RETRIEVER": "local"}
+    over = {"LLM_PROVIDER": "vertex", "STT_PROVIDER": "mock", "RETRIEVER": "local"}
+    if not os.environ.get("STORE"):  # STORE from the environment when set (firestore needs GCP_PROJECT); else memory
+        over["STORE"] = "memory"
     if args.mode:
         over["SWITCH_MODE"] = args.mode
     if args.arm_name:
@@ -282,6 +286,8 @@ async def main() -> int:
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+        if hasattr(ctx.store, "aclose"):  # STORE=firestore: the queued writes go out before the exit
+            await ctx.store.aclose(30.0)
         await ctx.llm.aclose()
     print(write_summary(done, args.out))
     return 0

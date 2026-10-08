@@ -2396,3 +2396,5 @@ D-355: a qualified re-say should clear the TEST-QUALIFIER banner. Reviewed by GP
   - after 10 s, "Say the result again with where it comes from (e.g. 'in our in-house test')"
   - when there is no say_instead, "Say the result with where it comes from (e.g. 'in our in-house test')."
 - Tests: `tests/test_d355.py` (the banner stays in the list beyond the newest 3; a corrected banner and other old alerts do not; the addendum is on only with the arm). The host tests use the new wording.
+
+D-354 follow-up (eval tool only): `scripts/eval_show.py` takes `STORE` from the environment when it is set (memory otherwise). Before, it forced memory, so a Firestore run silently used memory. With `STORE=firestore`, the queued writes are flushed (up to 30 s) before the script exits. Each show's JSON `settings` (and the summary header) now holds the effective settings: STORE, FIRESTORE_DATABASE, SWITCH_MODE, SWITCH_ARM_NAME, SWITCH_DUAL_SCOPE_SEC, JUDGE_ARM, JUDGE_MODE, FACT_PROMPT, COMPLIANCE_RESAY, CORRECTION_CHECK, REFLEX_SCAN, JUDGE_PRODUCTS, QUESTION_HOLD and COMPLIANCE_ESCALATE_SEC, read from the context's settings.
