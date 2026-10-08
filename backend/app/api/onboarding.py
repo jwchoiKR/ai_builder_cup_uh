@@ -322,6 +322,68 @@ async def release_brief(release_id: str, ctx: AppContext = Depends(get_ctx)) -> 
     return {"release_id": release_id, "status": brief_status(ctx, release_id)}
 
 
+def _job_files(root, job_id: str | None) -> list[str]:
+    from ..onboarding.storage import ensure
+
+    index = root / job_id / "files.json" if job_id else None
+    if index is None or not ensure(index):
+        return []
+    return [e["name"] for e in json.loads(index.read_text(encoding="utf-8"))]
+
+
+@router.get("/regulations")
+async def regulations(ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-359 (read-only): the approved regulation packs with their source files and the sections their rules cite,
+    the pack active for each market and category (the newest approved one replaces older ones), the market's own
+    law, and per release the regulation originals its live compliance judge reads (D-358), with a warning when none
+    match. Nothing here changes onboarding."""
+    from ..agents.originals import originals_of_rules
+    from ..onboarding.lawpack import lawpack_for
+    from ..onboarding.release import list_releases
+
+    root = ctx.settings.onboarding_path
+    market = ctx.pack.market
+    packs = []
+    folder = root / "lawpacks"
+    for p in sorted(folder.glob("law_*_v*.json")) if folder.is_dir() else []:
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        rec = data.get("record", {})
+        packs.append({"pack_id": data["pack_id"], "market": data.get("market"), "name": rec.get("name"),
+                      "regulator": rec.get("regulator"), "covers": rec.get("covers", []),
+                      "approved_at": data.get("approved_at"), "job_id": data.get("job_id"),
+                      "files": _job_files(root, data.get("job_id")),
+                      "sections": sorted({f"{e.get('file')} · {e.get('locator')}" for r in rec.get("rules", [])
+                                          for e in r.get("evidence", [])})})
+    for pk in packs:
+        pk["active_for"] = [c for c in pk["covers"]
+                            if (hit := lawpack_for(root, pk["market"] or "", c)) is not None and hit[0] == pk["pack_id"]]
+    rows = list_releases(root)
+    releases = []
+    for r in rows:
+        try:
+            pack, _ = ctx.pack_for(market.market, ctx.pack.lang, r["release_id"])
+            found, missing = originals_of_rules(pack.rules.rules, pack.rules.sources, root)
+        except Exception as e:  # noqa: BLE001 - shown on the release row
+            releases.append({"release_id": r["release_id"], "product_name": r["product_name"],
+                             "category": r["category"], "originals": [], "missing": [], "warning": True,
+                             "error": f"{type(e).__name__}: {e}"})
+            continue
+        originals = [{"name": d.name, "source_id": d.source_id,
+                      "kind": "brand" if d.source_id.startswith("brand_") else "law"} for d in found]
+        releases.append({"release_id": r["release_id"], "product_name": r["product_name"],
+                         "category": r["category"], "originals": originals, "missing": list(missing),
+                         "warning": not any(o["kind"] == "law" for o in originals)})
+    markets = sorted(p.stem.upper() for p in (ctx.settings.data_path / "markets").glob("*.json"))
+    return {"market": market.market, "markets": markets,
+            "categories": sorted({r["category"] for r in rows if r.get("category")}),
+            "market_law": {"name": market.name, "covers": [market.category, *market.covers],
+                           "files": [s.file.rsplit("/", 1)[-1] for s in market.sources if s.file]},
+            "packs": packs, "releases": releases}
+
+
 @router.get("/jobs/{job_id}")
 async def get_job(job_id: str) -> dict:
     job = _jobs.get(job_id)

@@ -29,6 +29,11 @@ vi.mock("./onboardingApi", () => ({
     briefStatus: vi.fn(async () => ({ status: "done" })),
   },
   BRIEF_RUNNING_NOTE: "The brief is still running.",
+  regulationsApi: {  // D-359: the regulations panel on the same screen
+    list: vi.fn(async () => ({ market: "SG", markets: ["SG"], categories: [], packs: [], releases: [],
+      market_law: { name: "Cosmetics", covers: ["cosmetic"], files: [] } })),
+    upload: vi.fn(), job: vi.fn(), approve: vi.fn(),
+  },
 }));
 
 import { OnboardingView } from "./OnboardingView";

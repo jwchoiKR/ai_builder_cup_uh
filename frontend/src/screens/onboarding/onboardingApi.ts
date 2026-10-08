@@ -74,6 +74,36 @@ export const onboardingApi = {
   briefStatus: (releaseId: string) =>
     request<{ status: string }>("GET", `/onboarding/releases/${encodeURIComponent(releaseId)}/brief`),
 };
+// D-359: regulation packs (read-only list), and the existing law-pack upload, job and approval endpoints
+export type LawJob = { job_id: string; status: "queued" | "reading" | "done" | "failed"; files: string[];
+  error: string | null; market?: string; category?: string;
+  result: { record: { name: string; regulator: string; covers: string[];
+    rules: { evidence: Evidence[] }[] } } | null };
+export type RegPack = { pack_id: string; market: string; name: string; regulator: string; covers: string[];
+  approved_at: number; job_id: string; files: string[]; sections: string[]; active_for: string[] };
+export type RegRelease = { release_id: string; product_name: string; category: string;
+  originals: { name: string; source_id: string; kind: "law" | "brand" }[]; missing: string[]; warning: boolean;
+  error?: string };
+export type Regulations = { market: string; markets: string[]; categories: string[];
+  market_law: { name: string; covers: string[]; files: string[] }; packs: RegPack[]; releases: RegRelease[] };
+
+export const regulationsApi = {
+  list: () => request<Regulations>("GET", "/onboarding/regulations"),
+  async upload(files: File[], market: string, category: string): Promise<{ job_id: string }> {
+    const form = new FormData();
+    for (const f of files) form.append("files", f, f.name);
+    form.append("market", market);
+    form.append("category", category);
+    const res = await fetch(`${API_BASE}/onboarding/lawpacks/jobs`, { method: "POST", body: form });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? "http_error", data?.error?.message ?? `HTTP ${res.status}`);
+    return data;
+  },
+  job: (jobId: string) => request<LawJob>("GET", `/onboarding/jobs/${encodeURIComponent(jobId)}`),
+  approve: (jobId: string) =>
+    request<{ pack_id: string }>("POST", `/onboarding/jobs/${encodeURIComponent(jobId)}/approve-lawpack`, {}),
+};
+
 export type ReleaseRow = { release_id: string; product_name: string; brand: string; category: string;
   markets: string[]; approved_at: number; version: number; brief: string };
 export const BRIEF_RUNNING_NOTE = "The brief (speech-recognition names, prompter points) is still running, about 30 s. "
