@@ -31,7 +31,7 @@ For each fact, fill the fields in this order
 1. `span`: the words of UTTERANCE that state the fact.
 2. `stance`: `HOST_ASSERTS`, `HOST_ENDORSES` or `REPORTS_OR_ASKS` (above).
 3. `product_id`, `field`, `stated_value` (a short display string such as "S$21", "20% perfume oil", "100 mL").
-4. `evidence`: the ids of the SOURCE sentences that settle this fact, at most three. Use "promo" for a value from ACTIVE_PROMO and an offer's `promo_id` for a value from ACTIVE_OFFERS. An empty list when nothing settles it.
+4. `evidence`: the ids of the SOURCE sentences that settle this fact, at most three. An empty list when nothing settles it.
 5. `source_value`: the value the evidence gives for this fact, in the evidence's words ("S$24.00", "50 mL"); null when the evidence list is empty.
 6. `relation`, decided by comparing `stated_value` with `source_value` (`not_checked` for `REPORTS_OR_ASKS`):
    - `contradicts`: `source_value` is a different value for the same fact of the same product, and the host asserts the wrong value as true now. A clearly different value ("30 ml" for 50 mL, "a hundred" for fifty) contradicts. If `stated_value` and `source_value` are the same value, the relation is never `contradicts`.
@@ -43,14 +43,11 @@ For each fact, fill the fields in this order
 
 Rules
 - Product scope: check against CURRENT_PRODUCT unless the host clearly names another product. Never use one product's sentences to correct another product. Right after a product switch, "this one", "it" and "also" refer to CURRENT_PRODUCT. A line that names no product and has no "this one", "it" or "this" is about the product the last line of RECENT_TRANSCRIPT was about. During SWITCH_CONTEXT.in_progress the host may already describe SWITCH_CONTEXT.next_product. If you cannot tell which product a fact is about, use `uncertain`.
-- Prices: if ACTIVE_PROMO is present and changes prices, the promo price is the price now. A host who states the live price as the price now during the promo `contradicts` it (field `promo`, evidence ["promo"]); "normally twenty-four, now twenty-one sixty" is `consistent`.
-- Offers: an ACTIVE_OFFERS `min_spend`, and ACTIVE_PROMO's discount and duration, are checkable terms (field `promo`).
 - Thresholds: "above S$40" means S$40 itself does not qualify; "at least S$40" means it does. The same holds for
   limits: "store below 25 °C" excludes 25 itself, so "at exactly 25 degrees it is still within the limit"
   `contradicts` it; "up to 25 °C" or "25 °C or less" includes it.
 - Ingredients: a host who says the product contains an ingredient that a "Free from" sentence or a complete ingredient list excludes `contradicts` (field `ingredient`, evidence that sentence). An ingredient no sentence mentions, with no complete list, is `not_in_documents`.
 - Cautions: a line that tells viewers to skip, ignore or reverse a caution `contradicts` it (field `caution`), with the caution as the correction.
-- A set's price is about the set: use the set's `set_id` from SET_OFFERS as `product_id`.
 - Speech-to-text splits: UTTERANCE may join lines that speech-to-text cut, marked " / ". Take a number from one part and its subject from the next only when the next part continues the same clause.
 - `field` is one of: price, set_price, promo, volume, ingredient, ingredient_amount, test_result, usage, texture, fragrance, packaging, origin, shelf_life, ph, caution, availability, other.
 - If the line has several facts, return one item per fact. Return JSON only; `{"claims": []}` when there is nothing to check.
@@ -62,9 +59,6 @@ Rules
 ```
 <data name="CURRENT_PRODUCT">{{current_product_compact_json}}</data>
 <data name="SWITCH_CONTEXT">{{switch_context_json}}</data>
-<data name="ACTIVE_PROMO">{{active_promo_json_or_null}}</data>
-<data name="ACTIVE_OFFERS">{{active_offers_json}}</data>
-<data name="SET_OFFERS">{{set_offers_json}}</data>
 <data name="SOURCE">{{passages_json}}</data>
 <data name="RECENT_TRANSCRIPT">{{last_two_final_transcripts_json}}</data>
 <data name="UTTERANCE">{{utterance_text}}</data>
@@ -119,25 +113,11 @@ UTTERANCE: "It's 7.5 millilitres, not 75."
 {"claims":[{"span":"7.5 millilitres, not 75","stance":"HOST_ASSERTS","product_id":"product_c","field":"volume","stated_value":"7.5 mL","evidence":["S2"],"source_value":"7.5 mL","relation":"consistent","correct_value":null,"say":null}]}
 ```
 
-Example D
-ACTIVE_OFFERS: [{"promo_id":"gift_pouch","min_spend":"S$50.00","comparison":"above"}]
-UTTERANCE: "A fifty-eight dollar basket gets the pouch, since that's above fifty."
-```json
-{"claims":[{"span":"A fifty-eight dollar basket gets the pouch, since that's above fifty","stance":"HOST_ASSERTS","product_id":"product_a","field":"promo","stated_value":"S$58 qualifies","evidence":["gift_pouch"],"source_value":"above S$50.00","relation":"consistent","correct_value":null,"say":null}]}
-```
-
 Example E
 SOURCE includes [["S9","Apply two thin coats, letting each dry for one minute."]] for product_d.
 UTTERANCE: "So uh too thin coats and let them dry."
 ```json
 {"claims":[{"span":"too thin coats","stance":"HOST_ASSERTS","product_id":"product_d","field":"usage","stated_value":"two thin coats","evidence":["S9"],"source_value":"two thin coats","relation":"consistent","correct_value":null,"say":null}]}
-```
-
-Example F
-ACTIVE_PROMO: {"promo_id":"time_sale","promo_prices":{"product_a":21.60}}
-UTTERANCE: "It's twenty-four dollars right now."
-```json
-{"claims":[{"span":"It's twenty-four dollars right now","stance":"HOST_ASSERTS","product_id":"product_a","field":"promo","stated_value":"S$24","evidence":["promo"],"source_value":"S$21.60","relation":"contradicts","correct_value":"S$21.60","say":"The price is S$21.60 during the time sale."}]}
 ```
 
 Example G
@@ -151,13 +131,6 @@ Example H
 UTTERANCE: "I just love how it smells."
 ```json
 {"claims":[]}
-```
-
-Example I
-ACTIVE_OFFERS: [{"promo_id":"coupon_10","terms":"One coupon per order."}]
-UTTERANCE: "Someone asks, 'Can I use two coupons on one order?'"
-```json
-{"claims":[{"span":"Can I use two coupons on one order","stance":"REPORTS_OR_ASKS","product_id":"product_a","field":"promo","stated_value":"two coupons on one order","evidence":["coupon_10"],"source_value":"One coupon per order","relation":"not_checked","correct_value":null,"say":null}]}
 ```
 
 Example J
@@ -202,11 +175,4 @@ SOURCE includes [["S3","Each tablet contains 18 mg of iron."]] for product_h.
 UTTERANCE: "It has 80 mg, right?"
 ```json
 {"claims":[{"span":"It has 80 mg, right?","stance":"HOST_ASSERTS","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet","say":"Each tablet has 18 mg."}]}
-```
-
-Example P
-ACTIVE_OFFERS: [{"promo_id":"gift_set","terms":"Buy two bottles, get a pouch."}]
-UTTERANCE (the co-host): "Does one bottle qualify for the gift?"
-```json
-{"claims":[{"span":"Does one bottle qualify for the gift?","stance":"REPORTS_OR_ASKS","product_id":"product_a","field":"promo","stated_value":"one bottle qualifies","evidence":["gift_set"],"source_value":"two bottles","relation":"not_checked","correct_value":null,"say":null}]}
 ```

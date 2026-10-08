@@ -319,7 +319,8 @@ class FactChecker:
 
     def _render_template(self, inp: FactInput) -> tuple[str, str]:
         # D-361 FACT_MODE=prompter: nothing but the prompter snapshot (the passages) carries facts: the product block
-        # names the product only, and the promo, offer and set blocks are empty (their prices are in the snapshot)
+        # names the product only, and the promo, offer and set blocks are empty (their prices are in the snapshot);
+        # D-409: the v5 template has no such blocks any more (the older versions still take the empty values)
         shown = self.mode == "prompter"
         product = inputs.current_product_compact_json(self.catalog, inp.on_air)
         return self.prompt.render_cached({
