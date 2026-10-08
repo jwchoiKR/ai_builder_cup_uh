@@ -28,18 +28,15 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from ..agents import arms
-from ..agents.fact_checker import FactChecker, FactInput, fixes_of, gather_fact_passages
+from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
 from ..agents.split_judges import ComplianceJudge, ContextJudge
 from ..agents import vote
 from ..agents.verifier import Verifier
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values, say_instead_fallback
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
-from ..logic.corrections import check_correction, says_the_replacement
 from ..logic import publish as publish_logic
-from ..logic import qualifier
 from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view, tick_item
-from ..logic.reflex import normalise
 from ..logic.segments import classify_switch, expire, names_product, replace_cue, step_switch, withdraw_cue
 from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
@@ -100,30 +97,11 @@ def ends_sentence(text: str) -> bool:
     return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
 
 
-# D-285 Q5: an English final that ends on one of these, or on a bare number, stops mid-clause ("The bottle at SGD 158
-# contains"); with the flag it is held until the next final joins it. ponytail: English words only; another language
-# gets no hold until its language pack names its own
-DANGLING = frozenset("""a an the of for at with and or to in on by from is are was were has have had contains contain
-includes include costs cost about than its our your their this that these those per under over into as like only
-just around nearly almost up down plus minus""".split())
-
-
 def asks(text: str) -> bool:
     """D-334: the final ends with a question mark (closing quotes and brackets ignored)."""
     return text.rstrip().rstrip("\"'”’)]").endswith("?")
 
 
-def mid_clause(text: str) -> bool:
-    """D-285 Q5: the final has no end mark and ends on a dangling word or a number."""
-    if ends_sentence(text):
-        return False
-    words = text.rstrip(" ,;:-").lower().split()
-    return bool(words) and (words[-1].strip("\"'") in DANGLING or words[-1].replace(".", "").replace(",", "").isdigit()
-                            or words[-1].startswith(("s$", "rm", "$")))
-
-
-LATE_QUALIFIER_MS = 10_000  # D-151: a qualifier add-on fixes a qualifier alert at most this old
-ADDENDUM_MAX_WORDS = 10
 EARLY_ANSWER_MS = 30_000  # D-146: a draft verified later than this after the spoken answer is not posted
 
 
@@ -203,11 +181,10 @@ class UtterancePipeline:
         self._segments: dict[str, str] = {}
         self._last: Transcript | None = None  # previous final in the main chain
         self._judged: dict[str, Judged] = {}
-        self._held: dict[str, tuple] = {}  # D-285 Q5: fragments waiting for the next final
+        self._held: dict[str, tuple] = {}  # D-334: questions waiting for their answer (the next final)
         self._inputs: dict[str, JudgeInput] = {}  # D-146: kept with the judged prefix, for a later recheck
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
-        self._addenda: dict[str, Transcript] = {}  # D-151: finals that only add "in our in-house test"
         # D-352: a provisional alert the compliance judge said a later line corrects -> that line (applied the moment
         # the alert turns active)
         self._pending_fix: dict[str, Transcript] = {}
@@ -220,21 +197,6 @@ class UtterancePipeline:
             return False
         self._applied.add(key)
         return True
-
-    def _reconcile_late_alert(self, a: Alert, t: Transcript, now: int) -> None:
-        if a.kind != "compliance" or a.status != "active":
-            return
-        for later, text, merge in self._prepared.values():
-            if (self._sequence[later.transcript_id] <= self._sequence[t.transcript_id]
-                    or later.segment_id != t.segment_id or (merge and t.transcript_id in merge.chain)):
-                continue
-            if arms.meaning_to_llm(self.rt.settings.DESIGN_ARM) or self.rt.settings.CORRECTION_CHECK == "judge":
-                return  # D-187 arm B: only the judge's quoted corrections count; D-304: only its listed ones
-            # D-117 B2: no judge decision here, so only the alert's own replacement or a retraction counts
-            check = check_correction(text, a, [], self.rt.reflex)
-            if check.ok:
-                alert_logic.apply_corrections([a], [a.alert_id], later, now)
-                return
 
     # ---- intake --------------------------------------------------------------------------------
 
@@ -261,7 +223,7 @@ class UtterancePipeline:
     async def drain(self) -> None:
         if self._main_tail is not None:
             await asyncio.gather(self._main_tail, return_exceptions=True)
-        for tid in list(self._held):  # D-285 Q5: no more finals are coming, so a held fragment is judged now
+        for tid in list(self._held):  # D-334: no more finals are coming, so a held question is judged now
             self.rt.ctx.scheduler.cancel(self.rt.key(f"hold:{tid}"))
             await self._release(tid)
         await asyncio.gather(*tuple(self._pending), return_exceptions=True)
@@ -342,8 +304,6 @@ class UtterancePipeline:
         if merge:
             t.merged_from_transcript_id, t.judged_text = merge.prev.transcript_id, text
         self._remember(t, merge, text)
-        if self._qualifier_addendum(t.text):  # D-155: the final itself, also when it is merged with a fragment
-            self._addenda[t.transcript_id] = t  # D-151: "That's from our in-house test." after a number
         # 1. store, emit
         await rt.ctx.store.put(rt.path("transcripts"), t.transcript_id, t)
         # D-162: the exact STT split of a replay, for probing a false alert (D-158 lines carry the transcript id)
@@ -352,7 +312,7 @@ class UtterancePipeline:
         await rt.emit("transcript.final", t)
         if not rt.assistant:
             return  # D-139: no reflex chip, no judge, no prompter coverage
-        if merge is not None and merge.prev.transcript_id in self._held:  # D-285 Q5: the held fragment joins this one
+        if merge is not None and merge.prev.transcript_id in self._held:  # D-334: the held question joins this one
             self._held.pop(merge.prev.transcript_id)
             rt.ctx.scheduler.cancel(rt.key(f"hold:{merge.prev.transcript_id}"))
             if self._questions.pop(merge.prev.transcript_id, None) is not None:
@@ -374,18 +334,10 @@ class UtterancePipeline:
             # D-335: the operator sees "collecting context" while it waits (nothing on the host screen)
             await rt.emit("hold.started", {"transcript_id": t.transcript_id, "max_ms": rt.settings.QUESTION_HOLD_MS})
             return
-        window = rt.settings.UTTERANCE_MERGE_WINDOW_MS
-        if ("Q5" in fixes_of(rt.settings.FACT_FIXES) and window > 0 and mid_clause(t.text)
-                and len((merge.chain if merge else [])) + 1 < MAX_MERGED_FINALS):
-            # D-285 Q5: a fragment that stops mid-clause is judged with the next final, or alone when none comes
-            self._held[t.transcript_id] = (t, text, merge, scenario)
-            rt.ctx.scheduler.call_later(rt.key(f"hold:{t.transcript_id}"), window,
-                                        lambda tid=t.transcript_id: self._release(tid))
-            return
         await self._judge(t, text, merge, scenario)
 
     async def _release(self, tid: str) -> None:
-        """D-285 Q5: no final joined the held fragment within the window: it is judged on its own."""
+        """D-334: no answer joined the held question within its wait: it is judged on its own."""
         held = self._held.pop(tid, None)
         if held is not None:
             began = self._questions.pop(tid, None)
@@ -459,7 +411,6 @@ class UtterancePipeline:
                 self._fact_shown.pop(tid, None)
                 self._fact_inputs.pop(tid, None)
                 self._ready.pop(tid, None)
-                self._addenda.pop(tid, None)
 
     async def _infer(self, t, on_air, inp, hits, merge, scenario, ready):
         rt = self.rt
@@ -810,7 +761,6 @@ class UtterancePipeline:
                     a.unverified_reason = res.meta.get("failure")
                 if alert_logic.claim_key(a.span) in same_claims:
                     a.status = "cleared"
-                self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
                 await self._on_active_locked(a)
             await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
@@ -823,13 +773,11 @@ class UtterancePipeline:
             changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.pack.rules_by_id,
                                                                   rt.new_id, now, same_claims=same_claims)
             for a in created:
-                self._reconcile_late_alert(a, t, now)
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
                 self._schedule_escalation(a)
                 await self._on_active_locked(a)
             for a in changed:
-                self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
                 await self._on_active_locked(a)
             # D-089: an apology alone does not correct a compliance alert
@@ -885,60 +833,21 @@ class UtterancePipeline:
 
     async def _apply_corrections_locked(self, t: Transcript, text: str, listed: list[str], protected: set[str],
                                         now: int, quotes=None) -> None:
-        """Alerts the judge listed and the utterance really corrects (D-089), plus active alerts whose
-        "Say this instead" wording the host just said, even if the judge missed it (D-098)."""
+        """D-304/D-390: the alerts the compliance judge says this line fixes (by handle), applied as given; no word
+        check, no replacement match, no merge protection (a line may fix an alert of its own merged fragments)."""
         rt = self.rt
         earlier = [a for a in await rt.alerts()
                    if self._sequence.get(a.transcript_id, 0) < self._sequence.get(t.transcript_id, 1)]
-        correctable = [a for a in earlier if a.transcript_id not in protected]
-        if arms.meaning_to_llm(rt.settings.DESIGN_ARM):
-            # D-187 arm B: the judge says which alert the line corrects and quotes the words; code only checks that
-            # the quote (two words or more) is in what the host said. No word overlap, no replacement match.
-            heard = normalise(text)
-            ids = {a.alert_id for a in correctable if a.kind == "compliance"}
-            if arms.agents_decide(rt.settings.DESIGN_ARM):  # D-191 arms D and E: the judge's ids, unchecked
-                accepted = [i for i in dict.fromkeys(listed) if i in ids]
-            else:
-                accepted = list(dict.fromkeys(q.alert_id for q in (quotes or []) if q.alert_id in ids
-                                              and len(normalise(q.quote).split()) >= 2 and normalise(q.quote) in heard))
-            if accepted:
-                for a in alert_logic.apply_corrections(earlier, accepted, t, now):
-                    rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
-                    await rt.save_alert(a)
-                    await rt.emit("alert.updated", a)
-            return
-        if rt.settings.CORRECTION_CHECK == "judge":
-            # D-304: the compliance judge's listed alerts, with no word check and no replacement match. D-361: the
-            # merge protection (D-088) never overrules the model: an alert it lists is corrected even when the line
-            # was merged with the alert's own fragment
-            ids = {a.alert_id for a in earlier if a.kind == "compliance"}
-            accepted = [i for i in dict.fromkeys(listed) if i in ids]
-            # D-352: an alert still provisional (its own line's verdict not applied yet) is corrected the moment it
-            # turns active; apply_corrections only handles active alerts
-            by_id = {a.alert_id: a for a in earlier}
-            waiting = [i for i in accepted if by_id[i].status == "provisional"]
-            for i in waiting:
-                self._pending_fix[i] = t
-            self._log_corrections(t, listed, accepted, waiting)
-            accepted = [i for i in accepted if i not in waiting]
-        else:
-            accepted = self._substantive_corrections(correctable, listed, text) if listed else []
-            for a in correctable:
-                if (a.kind == "compliance" and a.status == "active" and a.transcript_id != t.transcript_id
-                        and self._segments.get(a.transcript_id) == t.segment_id
-                        and a.alert_id not in accepted and says_the_replacement(text, a, rt.reflex)):
-                    log.info("correction of %s by its replacement wording: %r", a.alert_id, text)
-                    accepted.append(a.alert_id)
-        if self._qualifier_addendum(t.text):
-            # D-151 (sealed round 3): "Redness went down 30% after two weeks." then "That's from our in-house
-            # test." The judge saw the fix but listed nothing; the add-on corrects the qualifier alert just before.
-            # D-155 (00007 show replays): also the alert of the fragment it completes ("... one application," then
-            # "in our in-house test."), although a merged judgment never resolves its fragments' alerts otherwise
-            for a in earlier:
-                if (a.kind == "compliance" and a.rule_id == qualifier.RULE_ID and a.status in ("active", "provisional")
-                        and a.alert_id not in accepted and self._segments.get(a.transcript_id) == t.segment_id
-                        and now - a.created_at <= LATE_QUALIFIER_MS):
-                    accepted.append(a.alert_id)
+        ids = {a.alert_id for a in earlier if a.kind == "compliance"}
+        accepted = [i for i in dict.fromkeys(listed) if i in ids]
+        # D-352: an alert still provisional (its own line's verdict not applied yet) is corrected the moment it turns
+        # active; apply_corrections only handles active alerts
+        by_id = {a.alert_id: a for a in earlier}
+        waiting = [i for i in accepted if by_id[i].status == "provisional"]
+        for i in waiting:
+            self._pending_fix[i] = t
+        self._log_corrections(t, listed, accepted, waiting)
+        accepted = [i for i in accepted if i not in waiting]
         if not accepted:
             return
         for a in alert_logic.apply_corrections(earlier, accepted, t, now):
@@ -1032,33 +941,6 @@ class UtterancePipeline:
             a = await rt.get_alert(alert_id)
             if a is not None and a.status == "active":
                 await self._correct_locked(a, t)
-
-    def _qualifier_addendum(self, text: str) -> bool:
-        """D-151: a short final that only names our test ("That's from our in-house test."), no number of its own."""
-        return (self.rt.settings.QUALIFIER_ADDON  # D-304: off, no late add-on
-                and self.rt.catalog.lexicon.is_qualified(text) and not any(ch.isdigit() for ch in text)
-                and len(text.split()) <= ADDENDUM_MAX_WORDS)
-
-    def _addendum_after(self, t: Transcript) -> Transcript | None:
-        """A qualifier add-on that followed `t` within LATE_QUALIFIER_MS in the same segment."""
-        seq = self._sequence.get(t.transcript_id, 0)
-        return next((a for a in self._addenda.values()
-                     if self._sequence.get(a.transcript_id, 0) > seq and a.segment_id == t.segment_id
-                     and 0 <= a.received_at - t.received_at <= LATE_QUALIFIER_MS), None)
-
-    def _substantive_corrections(self, alerts: list[Alert], listed: list[str], text: str) -> list[str]:
-        """The listed compliance alerts that the utterance really corrects (D-089)."""
-        rt = self.rt
-        accepted: list[str] = []
-        for a in alerts:
-            if a.alert_id not in listed or a.kind != "compliance":
-                continue
-            check = check_correction(text, a, rt.catalog.get_product(a.product_id).approved_claims, rt.reflex)
-            if check.ok:
-                accepted.append(a.alert_id)
-            else:
-                log.info("correction of %s not accepted (%s): %r", a.alert_id, check.reason, text)
-        return accepted
 
     async def _save_alert_change_locked(self, a: Alert) -> None:
         await self.rt.save_alert(a)

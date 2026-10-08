@@ -46,49 +46,6 @@ def test_arm_b_posting_compares_the_judges_numbers_and_hedge(link, action):
     assert d.action == action
 
 
-async def test_arm_b_a_correction_counts_only_with_a_quote_from_the_line():
-    rt, llm = await make_env(DESIGN_ARM="B")
-    try:
-        line = "This cream cures eczema."
-        llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
-        await speak(rt, line)
-        [a] = [x for x in await rt.alerts() if x.status == "active"]
-
-        def correction(text: str, quote: str) -> None:
-            llm.outputs[("compliance_judge", text)] = {
-                "compliance": {"violations": []},
-                "correction": {"corrects_alert_ids": [a.alert_id], "quotes": [{"alert_id": a.alert_id, "quote": quote}]},
-                "reason": "scripted"}
-
-        wrong = "Let me say that again more carefully."
-        correction(wrong, "it does not cure eczema")  # not in the line
-        await speak(rt, wrong)
-        assert (await rt.get_alert(a.alert_id)).status == "active"
-        fix = "Sorry, it does not cure eczema, it helps relieve the feeling of dryness."
-        correction(fix, "it does not cure eczema")
-        await speak(rt, fix)
-        assert (await rt.get_alert(a.alert_id)).status == "corrected"
-    finally:
-        await close_env(rt)
-
-
-@pytest.mark.parametrize("arm, status", [("A", "corrected"), ("B", "active")])
-async def test_arm_b_saying_the_replacement_corrects_only_through_the_judge(arm, status):
-    """Arm A corrects an alert whose replacement wording the host says even if the judge lists nothing (D-098);
-    arm B leaves that to the judge."""
-    rt, llm = await make_env(DESIGN_ARM=arm)
-    try:
-        line = "This cream cures eczema."
-        llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema",
-                                              say="Helps relieve the feeling of dryness.")])
-        await speak(rt, line)
-        [a] = [x for x in await rt.alerts() if x.status == "active"]
-        await speak(rt, "It helps relieve the feeling of dryness.")
-        assert (await rt.get_alert(a.alert_id)).status == status
-    finally:
-        await close_env(rt)
-
-
 @pytest.mark.parametrize("rid, say", [("cr-t1", "In our in-house test, skin hydration went up 38% right after one "
                                                   "application."), ("nope", None)])
 async def test_arm_b_the_qualifier_replacement_is_the_result_the_judge_picked(rid, say):

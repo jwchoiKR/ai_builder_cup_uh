@@ -65,55 +65,6 @@ def test_d284_q1e_covers_what_d244_missed(pack):
         assert exempt and not names_the_source(line, say, pack.lexicon)  # today these lines get the qualifier alert
 
 
-@pytest.mark.parametrize("first, second", [
-    ("The bottle at S$32 contains", "two hundred tablets of vitamin C."),  # supplement: the price of another size
-    ("Our travel spray for", "S$32 is the 10 mL one."),  # fragrance
-    ("Each kettle comes with", "a S$32 descaling kit."),  # kitchen
-])
-@pytest.mark.parametrize("q5", [False, True])
-async def test_d285_q5_a_fragment_is_judged_with_the_next_final(first, second, q5):
-    """Judged alone, the fragment reads as a wrong price (the scripted false alert); with Q5 it is held and judged
-    once, joined with the next final, which the fact checker reads as fine."""
-    from .helpers import live_runtime, make_ctx
-    from .judge_fakes import ScriptedBackend, close_env, price_contradiction, speak
-
-    llm = ScriptedBackend()
-    llm.facts(first, price_contradiction())
-    rt = await live_runtime(make_ctx(backend=llm, FACT_FIXES="Q5" if q5 else ""))
-    try:
-        await speak(rt, first, wait=False)
-        await speak(rt, second, wait=False)
-        await rt.utterances.drain()
-        await rt.ctx.scheduler.idle()
-        facts = [a for a in await rt.alerts() if a.kind == "fact"]
-        assert (facts == []) is q5
-    finally:
-        await close_env(rt)
-
-
-async def test_d285_q5_a_held_fragment_with_no_next_final_is_still_checked():
-    from .helpers import live_runtime, make_ctx
-    from .judge_fakes import ScriptedBackend, close_env, price_contradiction, speak
-
-    llm = ScriptedBackend()
-    llm.facts("Today it costs S$32 for", price_contradiction())  # a true wrong price, the line just trails off
-    rt = await live_runtime(make_ctx(backend=llm, FACT_FIXES="Q5"))
-    try:
-        await speak(rt, "Today it costs S$32 for", wait=False)
-        await rt.ctx.scheduler.advance(rt.settings.UTTERANCE_MERGE_WINDOW_MS + 100)  # the window passes
-        await rt.utterances.drain()
-        assert [a.kind for a in await rt.alerts() if a.kind == "fact"] == ["fact"]
-    finally:
-        await close_env(rt)
-
-
-def test_d285_mid_clause():
-    from app.pipelines.utterances import mid_clause
-
-    assert mid_clause("The bottle at SGD 158 contains") and mid_clause("It is 158") and mid_clause("Made for")
-    assert not mid_clause("It is 158 dollars.") and not mid_clause("It feels light") and not mid_clause("Yes!")
-
-
 def _release_catalog(tmp_path, result: str, qualifier: str, category: str):
     """A made-up release with one qualified result, on the clean base."""
     from app.logic.catalog import Catalog

@@ -226,19 +226,6 @@ async def test_a_topic_word_alone_is_not_a_claim(env, text, alerts):
     assert len(await compliance_alerts(rt)) == alerts
 
 
-async def test_a_qualifier_added_in_the_next_final_corrects_the_alert(env):
-    """D-151 (sealed round 3): the number, then "That's from our in-house test." as its own final; the judge
-    listed no correction."""
-    rt, llm = env
-    text = "Redness went down 30% after two weeks."
-    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
-    await speak(rt, text)
-    [a] = await compliance_alerts(rt)
-    await speak(rt, "That's from our in-house test.")
-    assert await compliance_alerts(rt) == []
-    assert (await rt.ctx.store.get(rt.path("alerts"), a.alert_id, Alert)).status == "corrected"
-
-
 async def test_an_add_on_with_its_own_number_is_not_a_late_qualifier(env):
     rt, llm = env
     text = "Redness went down 30% after two weeks."
@@ -249,33 +236,6 @@ async def test_an_add_on_with_its_own_number_is_not_a_late_qualifier(env):
 
 
 SPLIT = "Hydration went up 38% right after one application,"
-
-
-async def test_a_qualifier_merged_with_its_fragment_corrects_the_fragments_alert(env):
-    """D-155 (00007 show replays, yellow lookalikes): the fragment ends with a comma, so the add-on is judged
-    merged with it (D-088). The merged text holds the number, so it was not taken for an add-on, and the
-    fragment's alert is protected from the merged judgment: the false alert stayed."""
-    rt, llm = env
-    llm.judge(SPLIT, violations=[violation(RULE, SPLIT, severity="MEDIUM")])
-    await speak(rt, SPLIT)
-    [a] = await compliance_alerts(rt)
-    await speak(rt, "in our in-house test.")
-    assert await compliance_alerts(rt) == []
-    assert (await rt.ctx.store.get(rt.path("alerts"), a.alert_id, Alert)).status == "corrected"
-
-
-async def test_the_same_number_later_without_the_qualifier_alerts(env):
-    """D-155 (00007 show replays, class G): the false alert of the split line stayed active, so the real
-    unqualified repeat a minute later was taken for the same alert (D-108) and got none."""
-    rt, llm = env
-    llm.judge(SPLIT, violations=[violation(RULE, SPLIT, severity="MEDIUM")])
-    await speak(rt, SPLIT)
-    await speak(rt, "in our in-house test.")
-    await rt.ctx.scheduler.advance(60_000)
-    later = "The cream gives you 38% more hydration right after you put it on."
-    llm.judge(later, violations=[violation(RULE, later, severity="MEDIUM")])
-    t = await speak(rt, later)
-    assert [x.transcript_id for x in await compliance_alerts(rt)] == [t.transcript_id]
 
 
 @pytest.mark.parametrize("text, span, alerts", [

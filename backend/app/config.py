@@ -76,8 +76,6 @@ class Settings(BaseSettings):
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
     SWITCH_ARM_NAME: bool = False  # D-353; True: a code name match must arm a two-step switch
-    CORRECTION_CHECK: Literal["words", "judge"] = "judge"  # D-353; words: code word overlap and replacement match
-    QUALIFIER_ADDON: bool = False  # D-353; True: a code word check finds a late "in our in-house test" add-on
     # D-353 addendum (user, 10/8): back to "code": spoken-answer posting belongs to the comments team (out of scope)
     VERBAL_CHECK: Literal["code", "judge"] = "code"  # judge: numbers said and hedges from the context judge (arm B's)
     REFLEX_SCAN: bool = False  # D-353; True: the regex pre-scan chip; off, a failed line gets the neutral card

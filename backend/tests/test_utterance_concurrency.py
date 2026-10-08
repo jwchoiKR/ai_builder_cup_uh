@@ -74,27 +74,6 @@ async def test_three_finals_second_compliance_is_immediate_context_is_ordered(en
     assert (await rt.current_segment()).covered_point_ids == ['cr-p1', 'cr-p2', 'cr-p3']
 
 
-async def test_late_nonreflex_violation_is_corrected_before_emission(env):
-    rt, llm = env
-    first = 'An unusual promised benefit.'
-    correction = 'It does not make wrinkles disappear.'
-    llm.judge(first, violations=[violation('ASEAN-3-SKIN-AGEING', span='make wrinkles disappear')])
-    gate, started = llm.block('compliance_judge', first)
-    t = await speak(rt, first, wait=False)
-    await asyncio.wait_for(started.wait(), 2)
-    second = await speak(rt, correction, wait=False)
-
-    async def prepared():
-        return (second.transcript_id, 'compliance') in rt.utterances._applied
-    await wait_for(prepared)
-    gate.set()
-    await rt.utterances.drain()
-    alerts = [a for a in await rt.alerts() if a.transcript_id == t.transcript_id]
-    assert alerts and all(a.status == 'corrected' for a in alerts)
-    assert all(e.payload['status'] != 'active' for e in await events(rt, 'alert.created')
-               if e.payload['transcript_id'] == t.transcript_id)
-
-
 async def test_late_context_cannot_change_new_segment(env):
     rt, llm = env
     text = 'An old statement.'

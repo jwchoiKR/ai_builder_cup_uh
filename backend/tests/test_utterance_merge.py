@@ -6,7 +6,7 @@ import pytest
 from app.models.session import Transcript
 from app.pipelines.utterances import ends_sentence
 
-from .judge_fakes import AMPOULE, advance, claim, close_env, events, make_env, price_contradiction, speak, violation
+from .judge_fakes import AMPOULE, advance, close_env, events, make_env, price_contradiction, speak, violation
 from .test_publish import ANSWER, messages, oily_on_host
 
 S08_A, S08_B = "Just to be clear, it does not", "treat acne. It's a moisturiser."
@@ -188,34 +188,6 @@ async def test_price_split_gives_one_fact_alert(env, fragment_contradicted):
 
 
 # ---- rule 4: a merged judgment never clears its fragment's alert ------------------------------------
-
-
-async def test_merged_judgment_never_resolves_the_fragment_alerts(env):
-    rt, llm = env
-    llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
-    llm.facts(PRICE_A, price_contradiction("S$32"))
-    await speak(rt, S07_A)
-    [alert] = compliance(await rt.alerts())
-    await advance(rt, 1000)
-    merged = f"{S07_A} {PRICE_A}"
-    llm.judge(merged, violations=[violation("ASEAN-3-SKIN-AGEING", negated=True)], corrects=[alert.alert_id])
-    await speak(rt, PRICE_A)  # merged with the fragment that raised the alert
-    assert (await rt.get_alert(alert.alert_id)).status == "active"
-    # a fact note from a fragment is not corrected by a "supported" reading of the merged text
-    await advance(rt, 5000)
-    await speak(rt, PRICE_A)
-    [note] = [x for x in await rt.alerts() if x.kind == "fact"]
-    await advance(rt, 1000)
-    llm.facts(f"{PRICE_A} {PRICE_B}", claim("price", "supported", stated="S$36.00"))
-    await speak(rt, PRICE_B)
-    assert (await rt.get_alert(note.alert_id)).status == "active"
-    # a host correction in a later sentence still clears the compliance alert
-    await advance(rt, 5000)
-    # D-117 B2: an approved claim counts with its number and its in-house qualifier
-    fix = "Let me correct that. It helps keep your skin hydrated for up to 24 hours in our in-house test."
-    llm.judge(fix, corrects=[alert.alert_id])
-    await speak(rt, fix)
-    assert (await rt.get_alert(alert.alert_id)).status == "corrected"
 
 
 # ---- rule 3: host-answer linking, never publish twice --------------------------------------------
