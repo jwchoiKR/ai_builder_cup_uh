@@ -225,6 +225,9 @@ describe("fact note", () => {
     const ing = { ...fx, field: "ingredient_amount", correct_value: "5%", quote: "Claims not approved: Treats eczema" };
     expect(factSayLine(catalog, { ...ing, say: "Panthenol is 5%" })).toBe("Cream: Panthenol is 5%");
     expect(factSayLine(catalog, ing)).toBe("Cream: 5%");  // no `say`: the correct value, never a code-built line
+    // D-424: a blank say falls back to the value; with both blank there is no line at all
+    expect(factSayLine(catalog, { ...ing, say: "  " })).toBe("Cream: 5%");
+    expect(factSayLine(catalog, { ...ing, say: "", correct_value: " " })).toBe("");
   });
 
   it("a corrected fact shows the green Corrected in the box (D-107)", () => {
@@ -434,6 +437,10 @@ describe("compliance", () => {
     // D-422: a blank say falls back to the correct value
     rerender(view({ alerts: [qualifier, { ...wrongNumber, say: "  " }] }));
     expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact")).toHaveTextContent("“+45%”");
+    // D-424: with both say and value blank, no empty quotes and no "Say this instead" line
+    rerender(view({ alerts: [qualifier, { ...wrongNumber, say: "", correct_value: "" }] }));
+    expect(screen.queryByTestId("host-medium-fact")).toBeNull();
+    expect(screen.getByTestId("host-medium-banner")).not.toHaveTextContent("Say this instead.");
     // D-418: once the note is corrected, the card keeps its right line (the old number never comes back)
     rerender(view({ alerts: [qualifier, { ...said, status: "corrected", resolved_at: now() }] }));
     expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact"))
