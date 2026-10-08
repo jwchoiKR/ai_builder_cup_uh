@@ -221,7 +221,7 @@ async def test_new_fact_applies_while_previous_facts_and_own_context_wait(env):
     await rt.utterances.drain()
 
 
-async def test_switch_and_undo_reject_old_context(env):
+async def test_d388_an_old_context_verdict_covers_its_own_segment_but_switches_nothing(env):
     rt, llm = env
     text = 'An old statement.'
     llm.judge(text, covered=['cr-p1'])
@@ -234,7 +234,7 @@ async def test_switch_and_undo_reject_old_context(env):
     gate.set()
     await rt.utterances.drain()
     assert (await rt.current_segment()).segment_id == old.segment_id
-    assert (await rt.current_segment()).covered_point_ids == []
+    assert (await rt.current_segment()).covered_point_ids == ['cr-p1']  # D-388: the model's coverage counts
 
 
 async def test_merged_rule_deduplicates_late_fragment_failure(env):

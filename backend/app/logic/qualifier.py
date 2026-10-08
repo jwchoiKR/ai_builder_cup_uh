@@ -12,7 +12,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from ..models.data import LangPack, Product, QualifiedResult, Rule
-from ..models.session import Alert
 from .lexicon import Lexicon
 
 RULE_ID = "TEST-QUALIFIER"
@@ -83,10 +82,4 @@ def approved_replacement(text: str, on_air: Product, others: Sequence[Product], 
     return best
 
 
-def is_repeat(say_instead: str | None, alerts: Sequence[Alert], product_id: str) -> bool:
-    """An alert of this rule with the same approved wording is still on the host's screen: no second
-    card. Once it is corrected or has ended, a repeat is a new alert (user, 10/5)."""
-    return say_instead is not None and any(
-        a.kind == "compliance" and a.rule_id == RULE_ID and a.product_id == product_id
-        and a.say_instead == say_instead and a.status in ("provisional", "active")
-        for a in alerts)
+

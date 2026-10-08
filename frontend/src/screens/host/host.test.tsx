@@ -145,6 +145,14 @@ describe("prompter", () => {
     expect(screen.getByTestId("host-price-struck")).toHaveAttribute("data-state", "todo");
   });
 
+  it("D-388: a point with a price is listed too (the screen and the fact checker's snapshot match)", () => {
+    const priced: Catalog = { ...cat, products: cat.products.map((p, i) => i ? p : { ...p, prompter_points: [
+      ...p.prompter_points, { point_id: "cr-p9", text: "Only S$36.00 live today.", required: false }] }) };
+    const s = { ...reduceSnapshot(snapshot(), "host", Date.now()), serverOffsetMs: 0 };
+    render(<HostView state={s} catalog={priced} connection="connected" theme="dark" actions={actions()} />);
+    expect(screen.getByTestId("host-point-cr-p9")).toHaveTextContent("Only S$36.00 live today.");
+  });
+
   it("D-348: no AVOID SAYING heading when the product has no wording to avoid", () => {
     const bare: Catalog = { ...cat, products: cat.products.map((p) => ({ ...p, avoid_saying: [] })) };
     const s = { ...reduceSnapshot(snapshot(), "host", Date.now()), serverOffsetMs: 0 };

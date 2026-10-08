@@ -87,7 +87,8 @@ async def test_d360_the_previous_product_s_snapshot_is_there_in_the_dual_scope()
         assert (await rt.current_segment()).product_id == AMPOULE
         await speak(rt, "It's only thirty-two dollars today.")
         msg = llm.requests[-1].user_message
-        assert msg.count("Live price") == 2  # the ampoule's and, in the 10 s window, the cream's
+        # the ampoule's and, in the 10 s window, the cream's live price line
+        assert "DL-AM-01#prompter#live-price" in msg and "DL-CR-01#prompter#live-price" in msg
         assert f'"product_id":"{CREAM}"' in msg and f'"product_id":"{AMPOULE}"' in msg
     finally:
         await close_env(rt)

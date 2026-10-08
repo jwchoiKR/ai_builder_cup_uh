@@ -523,7 +523,8 @@ class _FactsFailOnce(__import__("tests.judge_fakes", fromlist=["ScriptedBackend"
         return await super().generate(req, timeout_ms)
 
 
-@pytest.mark.parametrize("line, calls", [("It's thirty-six dollars today.", 2), ("It feels so light.", 1)])
+# D-388 (user): a failed fact call is retried for every line, not only a line with a number
+@pytest.mark.parametrize("line, calls", [("It's thirty-six dollars today.", 2), ("It feels so light.", 2)])
 async def test_d203_a_failed_fact_check_on_a_number_line_runs_once_more(line, calls):
     from .helpers import live_runtime, make_ctx
 

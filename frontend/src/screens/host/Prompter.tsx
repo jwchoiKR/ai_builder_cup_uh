@@ -203,8 +203,7 @@ function ProductPanel({
   // D-372: an item is ticked only when the server lists its id (the fact checker's verdict); no text matching
   const said = (key: string | null) => key !== null && ticked.includes(`${product.code}#prompter#${key}`);
   const mark = (on: boolean) => on && <span className={styles.saidMark} aria-label={t("Said")}><Check /></span>;
-  // The price column already shows prices; a price point is listed only when it is required.
-  const rows = points.filter((p) => p.required || !price || !p.text.includes(price.symbol));
+  const rows = points; // D-388 (user): every point, as the fact checker's snapshot has them
   const lead = rows.find((p) => p.required && !p.covered) ?? null;
   const sale = price?.label === "TIME SALE";
   return (
