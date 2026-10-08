@@ -214,11 +214,11 @@ async def test_d376_a_line_naming_the_next_product_waits_for_its_next_segment():
     try:
         from .judge_fakes import advance
 
-        await advance(rt, 30_000)  # each segment runs a while: the first ampoule left long before the line
+        await advance(rt, 1000)  # D-381: one second apart (the first ampoule left within the dual scope)
         first_amp = (await operator_switch(rt, AMPOULE)).segment_id
-        await advance(rt, 30_000)
+        await advance(rt, 1000)
         await operator_switch(rt, CREAM)
-        await advance(rt, 30_000)
+        await advance(rt, 1000)
         await operator_switch(rt, AMPOULE)
         await undo_switch(rt)  # back on the cream; the ampoule just left (dual scope)
         line = "And the ampoule is on its live price today."
