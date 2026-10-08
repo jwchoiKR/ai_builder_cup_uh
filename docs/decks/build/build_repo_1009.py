@@ -25,8 +25,8 @@ def warn(x):
 
 slide("cover", "", "", f'''<div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:36px">
 {chip("AI Builder Cup 2026 · 공개 레포 재비교 · 10/9", "blue")}
-<h1 style="font-size:88px; font-weight:500; line-height:1.15">세 모델이 따로 채점해도<br>우리는 2~4위</h1>
-<p style="font-size:38px; color:{SUB}; line-height:1.45">공개 레포 101개, 배포 링크·영상·소개 글 꾸밈은 점수에서 뺌</p></div>''',
+<h1 style="font-size:88px; font-weight:500; line-height:1.15">README만 보면 6~14위,<br>우리 측정 자료까지 보면 2~4위</h1>
+<p style="font-size:38px; color:{SUB}; line-height:1.45">공개 레포 101개, GPT·Gemini·Sonnet이 따로 채점, 배포 링크·영상은 뺌</p></div>''',
       notes="GPT(codex gpt-6-astra high), Gemini(agy gemini-3.8-flash-high), Sonnet 비평 세션이 같은 자료로 서로 모르게 채점했다.")
 
 slide("method", "어떻게 매겼나", "공식 배점 그대로, 공개 자료로 확인되는 구현과 검증만 본다", col(
@@ -57,6 +57,17 @@ slide("us", "우리 순위", "셋 다 2~4위, 범위로는 1~8위", col(
         [12, 13, 10, 12, 53], 26),
     t("범위는 각 모델이 채점 불확실성을 감안해 직접 낸 것이다. 점수 크기는 모델마다 달라서 순위만 비교한다.", 24, SUB), gap=20),
     notes="Gemini는 전체적으로 점수를 높게 준다(1위 8.90). GPT는 UX를 모두 5점으로 고정했다.")
+
+slide("blind", "같은 조건으로 다시", "README만 보고 어느 팀인지 모르게 매기면 6~14위", col(
+    table(["채점", "우리 자료 포함", "블라인드 (README만)", "기술 점수 (블라인드)"], [
+        ["GPT", "3위", bad("14위"), "6.5 / 10"],
+        ["Gemini", "2위", bad("14위"), "7.5 / 10"],
+        ["Sonnet", "4위", warn("6위"), "5.5 / 10"]], [16, 24, 28, 32], 26),
+    tags("떨어진 이유 (셋 공통)", chip("README에 측정 숫자가 없음", "red", "x"),
+         chip("'Cloud Run, Firestore: not started', 'single process'", "red", "x"),
+         chip("문제·UX 점수는 그대로 높음", "green", "check")), gap=24),
+    notes="처음 채점은 다른 팀은 README 요약, 우리는 직접 쓴 현황 문서라 비대칭이었다. 블라인드는 우리 README도 같은 요약 방식으로 101개 사이에 섞었다. "
+          "이후 README를 측정 결과와 조건, 한계까지 넣어 새로 썼다(8c0961a, 우리 브랜치).")
 
 slide("top", "전체 순위", "세 모델 순위의 평균으로 줄 세우면 1~4위가 평균 1위 안쪽 차이다", table(
     ["평균", "팀", "분야", "GPT", "Gemini", "Sonnet", "강점"], [
