@@ -40,24 +40,6 @@ def test_d362_the_snapshot_holds_the_set_the_ui_shows_and_every_caution(catalog)
     assert all(c in texts for c in cautions)  # all six: the host can open "+N more"
 
 
-def test_d362_a_fact_note_is_corrected_by_the_model_s_verdict_not_by_numbers():
-    from app.logic.facts import _corrected_note
-    from app.models.agent_io import FactClaim
-    from app.models.session import Alert
-
-    def note(aid, correct):
-        return Alert(alert_id=aid, kind="fact", status="active", transcript_id="t", product_id="p",
-                     field="ingredient_amount", correct_value=correct, created_at=0, shown_at=0)
-
-    notes = [note("n1", "5%"), note("n2", "3%")]
-    claim = lambda **kw: FactClaim.model_validate({"span": "s", "field": "ingredient_amount", "product_id": "p",  # noqa: E731
-                                                   "stated_value": "five percent", "verdict": "supported",
-                                                   "passage_id": None, "quote": None, "correct_value": None, **kw})
-    assert _corrected_note(claim(correct_value="5%"), notes).alert_id == "n1"  # the model's own correct value
-    assert _corrected_note(claim(), notes) is None  # two notes, no verdict naming one: no guess from numbers
-    assert _corrected_note(claim(), notes[:1]).alert_id == "n1"  # the only note of that field
-
-
 async def test_d362_the_fact_note_hide_timer_is_re_armed_after_a_read_back():
     from app.pipelines.runtime import Runtimes
 
@@ -99,15 +81,15 @@ def test_d362_a_pack_with_some_files_missing_is_not_kept(tmp_path):
 
 
 @pytest.mark.originals
-async def test_d362_the_quote_check_uses_the_request_s_own_originals_snapshot():
-    """A re-read during the call (another name, another text) does not change what this verdict is checked against."""
+async def test_d363_the_originals_load_once_per_show_and_stay_fixed():
+    """D-363 (user): the originals are read once at show start; a later change is not re-read during the show, and
+    the quote check uses that start-of-show snapshot."""
     from app.agents.utterance_judge import JudgeInput
 
     from .helpers import live_runtime, make_ctx
     from .judge_fakes import ScriptedBackend, close_env
 
     a = Original("regulation.txt", "A", "law_a", b"2.1 No cure claims.", "text/plain", "2.1 No cure claims.")
-    b = Original("regulation.txt", "B", "law_b", b"9 Something else.", "text/plain", "9 Something else.")
     line = "It cures arthritis."
     llm = ScriptedBackend()
     llm.outputs[("compliance_judge", line)] = {"alert_checks": [], "compliance": {"violations": [{
@@ -115,18 +97,12 @@ async def test_d362_the_quote_check_uses_the_request_s_own_originals_snapshot():
         "is_negated": False, "is_quoted": False, "say_instead": "x", "qualified_result_id": None}]}, "reason": "r"}
     rt = await live_runtime(make_ctx(backend=llm))
     judge = rt.utterances.compliance
-    calls = []
-
-    def regulation():
-        calls.append(1)
-        return ((a,), ()) if len(calls) == 1 else ((b,), ())  # the second read finds another file
-
-    judge.regulation = regulation
+    judge._docs = ((a,), ("law_b",))  # loaded at show start, one source missing
     try:
         res = await judge.run(JudgeInput(utterance=line, on_air=rt.catalog.order[0], session_id=rt.sid),
                               deadline_ms=2000)
         [v] = res.output.compliance.violations
-        # checked against A, the files the judge was given (B's text lacks the quote, so a re-read would drop it)
-        assert v.rule_id == "regulation#2-1"
+        assert v.rule_id == "regulation#2-1" and res.meta["originals_missing"] == ["law_b"]
+        assert judge._docs == ((a,), ("law_b",))  # never re-read during the show, even with a source missing
     finally:
         await close_env(rt)

@@ -11,7 +11,8 @@ import pytest
 
 from app.models.session import Message
 
-from .judge_fakes import AMPOULE, CREAM, advance, claim, close_env, events, make_env, price_contradiction, speak, violation
+from .judge_fakes import (AMPOULE, CREAM, PRICE_PASSAGE, PRICE_QUOTE, advance, claim, close_env, events, make_env,
+                          price_contradiction, speak, violation)
 from .test_publish import oily_on_host
 
 PROMPTER = "It's a lightweight gel-cream, so it absorbs really quickly."
@@ -122,7 +123,8 @@ async def case_08_fact_corrected(rt, llm):
     llm.facts(WRONG, price_contradiction("S$32"))
     await speak(rt, WRONG)
     await advance(rt, GAP_MS)
-    llm.facts(RIGHT, claim("price", "supported", stated="S$36.00"))
+    llm.facts(RIGHT, claim("price", "supported", stated="S$36.00", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE),
+              fixed=["F1"])
     t = await speak(rt, RIGHT)
     [note] = await facts(rt)
     assert note.status == "corrected" and note.corrected_by_transcript_id == t.transcript_id

@@ -96,7 +96,6 @@ def _pack_files(source_id: str, root: Path) -> list[Original]:
 
 
 _FOUND: dict[tuple, tuple[Original, ...]] = {}  # (source, root) -> its originals; a miss is never kept (D-360)
-_WARNED: set[tuple] = set()
 
 
 def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, ...]]:
@@ -110,12 +109,8 @@ def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, .
         if docs is None:
             got = _local(sid, title, file) or _pack_files(sid, Path(root))
             docs = tuple(d for d in got if d is not None)
-            if not docs or len(docs) < len(got):  # D-362: none, or only some of its files: looked up again next time
+            if not docs or len(docs) < len(got):  # none, or only some of its files: never kept for a later show
                 missing.append(sid)
-                if key not in _WARNED:  # said once per process; the lookup itself runs every time
-                    _WARNED.add(key)
-                    log.warning("compliance originals %s for source %s: %s", "incomplete" if docs else "missing", sid,
-                                "only the files found are given to the judge" if docs else "none given to the judge")
             else:
                 _FOUND[key] = docs
         names = {x.name for x in found}

@@ -266,6 +266,19 @@ D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this lin
 [this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
 a report by someone, not a claim of [this line].
 
+## NOTES: fact_checker
+
+D-363: ACTIVE_FACT_NOTES, when given, lists the fact notes already shown to the host, each with a `handle` (F1, F2
+...), its product, `field`, the wrong `stated_value`, the `correct_value` and `status`. Your answer then starts with
+`note_checks`: exactly one `{"handle": ..., "fixed_by_this_line": true or false}` per listed note. Judge by meaning in
+context: `fixed_by_this_line` is true when this line, read with the line before it, states that note's fact correctly
+(the host corrects themselves: "Sorry, it's 5%", "let me fix that, the 50 ml one"). A right value of ANOTHER fact (another
+ingredient, another size) does not fix the note; neither does an apology alone or the wrong value said again.
+
+Example N
+ACTIVE_FACT_NOTES: [{"handle":"F1","product_id":"product_r","field":"ingredient_amount","stated_value":"10% niacin","correct_value":"4% niacin","status":"active"}]
+UTTERANCE: "And the ceramide is 2%." -> F1 false (another ingredient). UTTERANCE: "Sorry, niacin is four percent." -> F1 true.
+
 ## PAIR: fact_checker
 
 D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what

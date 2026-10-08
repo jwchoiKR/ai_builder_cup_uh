@@ -1,4 +1,10 @@
 {
+ "note_checks": [
+  {
+   "handle": "F1",
+   "fixed_by_this_line": true
+  }
+ ],
  "claims": [
   {
    "span": "four percent niacinamide",

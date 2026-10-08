@@ -6,7 +6,8 @@ import pytest
 from app.logic import qualifier
 from app.models.session import Alert
 
-from .judge_fakes import AMPOULE, CREAM, claim, close_env, make_env, price_contradiction, speak, violation
+from .judge_fakes import (AMPOULE, CREAM, PRICE_PASSAGE, PRICE_QUOTE, claim, close_env, make_env, price_contradiction,
+                          speak, violation)
 
 from app.config import get_settings as _settings  # noqa: E402
 from app.logic.catalog import DataPack as _DataPack  # noqa: E402
@@ -123,7 +124,8 @@ async def test_a_wrong_fact_repeated_after_its_correction_alerts_again(env):
     rt, llm = env
     wrong, right = "And today the live price is only thirty-two dollars.", "Sorry, it is thirty-six dollars."
     llm.facts(wrong, price_contradiction("S$32"))
-    llm.facts(right, claim("price", "supported", stated="S$36"))
+    llm.facts(right, claim("price", "supported", stated="S$36", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE),
+              fixed=["F1"])
     await speak(rt, wrong)
     [first] = [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"]
     await speak(rt, right)

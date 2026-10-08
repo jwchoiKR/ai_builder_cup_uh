@@ -12,7 +12,7 @@ from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_file, quote_in_passage
 from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC,
                                FactRelationOutputH, FactRelationOutputV2, FactRelationOutputV5,
-                               FactRelationOutputV7)
+                               FactRelationOutputV7, with_note_checks)
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -497,6 +497,7 @@ class FactInput:
     recent: list[str] | None = None  # D-303 CONTEXT_WINDOW_MS: the finals of the window, in place of the last two
     session_id: str | None = None
     scenario: str = "default"
+    notes: list = field(default_factory=list)  # D-363: the active fact notes, shown to the model by handle
 
 
 async def gather_fact_passages(
@@ -926,6 +927,8 @@ class FactChecker:
             extras.append(arms._addenda(str(llm.prompts_path)).get(("CTX", self.name)))
         if getattr(settings, "STT_AWARE", False):  # D-303
             extras.append(arms._addenda(str(llm.prompts_path)).get(("STT", self.name)))
+        if getattr(llm, "prompts_path", None) is not None:  # D-363: fact notes by handle
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("NOTES", self.name)))
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
         lang = getattr(getattr(catalog, "pack", None), "lang", None)
         if lang:  # D-259: the host reads the correction aloud in the show's language
@@ -949,13 +952,14 @@ class FactChecker:
         return self.files.get(on_air, (self.file_parts,))[0]
 
     def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None, parts: tuple = (),
-                 **mock) -> LLMRequest:
+                 output_model=None, **mock) -> LLMRequest:
         # D-247: with files, the cache holds the system instruction, the files and the product and full-sheet blocks
         # (the same on every line of a one-product release)
         return LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
-            user_message=user, output_model=(self.relation_model if self.relation else FactCheckOutput),
+            user_message=user,
+            output_model=output_model or (self.relation_model if self.relation else FactCheckOutput),
             deadline_ms=deadline_ms, session_id=session_id,
             cache_prefix=prefix, cache_parts=parts,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
@@ -1007,14 +1011,39 @@ class FactChecker:
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
         }, {"current_product_compact_json", "passages_json"})
 
+    def _notes(self, inp: FactInput) -> tuple[str, dict[str, str]]:
+        """D-363: the active fact notes as a data block of per-call handles (no ids sent), and the handle -> id map."""
+        if not inp.notes:
+            return "", {}
+        handles = {f"F{i}": a.alert_id for i, a in enumerate(inp.notes, 1)}
+        rows = [{"handle": h, "product_id": a.product_id, "field": a.field, "stated_value": a.stated_value,
+                 "correct_value": a.correct_value, "status": a.status} for h, a in zip(handles, inp.notes)]
+        return "\n" + inputs.data_block("ACTIVE_FACT_NOTES", rows), handles
+
     async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:
         user, prefix = self._render(inp)
+        block, handles = self._notes(inp)
+        base = self.relation_model if self.relation else FactCheckOutput
         res = await self.llm.call(self._request(
-            user, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), **opts, mock_primary_text=inp.utterance,
+            user + block, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), **opts,
+            output_model=with_note_checks(base) if handles else base, mock_primary_text=inp.utterance,
             mock_scenario=inp.scenario,
             mock_fallback=lambda _: ({"claims": []} if self.relation
                                      else {"claims": [], "reason": "rule-based: no fact check"}), preview=inp.utterance,
         ))
+        checks = list(getattr(res.output, "note_checks", []) or []) if res.output is not None else []
+        res = self._validated(inp, res)
+        if res.output is not None:  # D-363: the notes the model marked fixed, by handle; nothing else corrects a note
+            unknown = [c.handle for c in checks if c.handle not in handles]
+            res.output._corrects = list(dict.fromkeys(handles[c.handle] for c in checks
+                                                      if c.fixed_by_this_line and c.handle in handles))
+            if handles or checks:
+                log.info("fact notes call=%s line=%r notes=%s handles=%s answer=%s corrects=%s%s", res.call_id,
+                         inp.utterance[:80], block.strip(), handles, [c.model_dump() for c in checks],
+                         res.output._corrects, f" unknown handles dropped: {unknown}" if unknown else "")
+        return res
+
+    def _validated(self, inp: FactInput, res: AgentResult[FactCheckOutput]) -> AgentResult[FactCheckOutput]:
         if res.output is not None and self.relation:
             # D-331: claims per call and their stances, to compare prompt versions (over-extraction)
             stances = [getattr(c, "stance", None) for c in res.output.claims]

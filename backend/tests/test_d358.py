@@ -169,10 +169,12 @@ async def test_d358_a_rule_source_with_no_original_is_reported(caplog):
     ctx = make_ctx(backend=llm)
     rt = await live_runtime(ctx)
     try:
-        with caplog.at_level(logging.WARNING):
-            found, missing = originals_for(rt.catalog, ctx.settings.onboarding_path, rt.catalog.order)
+        found, missing = originals_for(rt.catalog, ctx.settings.onboarding_path, rt.catalog.order)
         assert [d.name for d in found] == ["asean_cosmetic_claims_guideline_appendix_iii_2007.pdf"]
-        assert missing == ("PRODUCT_SHEET",) and "compliance originals missing" in caplog.text
+        rt.utterances.compliance._docs = None
+        with caplog.at_level(logging.WARNING):  # D-363: logged once, when the show loads its originals
+            rt.utterances.compliance.regulation()
+        assert missing == ("PRODUCT_SHEET",) and "compliance originals missing for this show" in caplog.text
         res = await rt.utterances.compliance.run(
             JudgeInput(utterance="It feels light.", on_air=rt.catalog.order[0], session_id=rt.sid), deadline_ms=2000)
         assert res.meta["originals_missing"] == ["PRODUCT_SHEET"]

@@ -88,9 +88,6 @@ class _SplitJudge:
     def validate(self, out, values: dict):
         raise NotImplementedError
 
-    def request_documents(self, inp: JudgeInput, values: dict) -> tuple[str, tuple]:
-        return self.documents(inp.on_air)
-
     def scope_data(self, inp: JudgeInput) -> str:
         """D-349: data blocks for this line's scope (none by default)."""
         return ""
@@ -110,7 +107,7 @@ class _SplitJudge:
             user, prefix = pre + user, pre + prefix
         parts: tuple = ()
         if self.with_docs:  # D-310: the on-air product's documents, cached with the rules
-            pre, parts = self.request_documents(inp, values)
+            pre, parts = self.documents(inp.on_air)
             user, prefix = pre + user, pre + prefix
         user += self.extra_data() + self.scope_data(inp)
         b = self.b
@@ -193,25 +190,18 @@ class ComplianceJudge(_SplitJudge):
                     self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def regulation(self):
-        """D-358: the originals behind the show's products' rules (the same for every line of the show)."""
-        if self._docs is None or self._docs[1]:  # D-361: a miss is looked up again (each found source is kept)
+        """D-358: the originals behind the show's products' rules. D-363 (user): loaded ONCE, at show start (the cache
+        warm-up, or the first line), and fixed for the show: the prefix the judge gets and the quote check always use
+        this one snapshot. A missing original is logged once here and stays marked for the show (the release screen
+        warns before the show)."""
+        if self._docs is None:
             from .originals import originals_for
 
             self._docs = originals_for(self.catalog, self.llm.settings.onboarding_path, self.catalog.order)
+            if self._docs[1]:
+                log.warning("compliance originals missing for this show (not given to the judge): %s",
+                            list(self._docs[1]))
         return self._docs
-
-    def request_documents(self, inp: JudgeInput, values: dict) -> tuple[str, tuple]:
-        """D-362: the originals snapshot of this request (taken in `run`), so the quote check reads the same files
-        under the same names the judge was given, even if a re-read happens meanwhile."""
-        if self.originals and "regulation_docs" in values:
-            return self._regulation_block(values["regulation_docs"])
-        return self.documents(inp.on_air)
-
-    @staticmethod
-    def _regulation_block(docs) -> tuple[str, tuple]:
-        parts = tuple(x for d in docs for x in ((f"FILE {d.name}".encode(), "text/plain"), (d.data, d.mime)))
-        index = [{"document": d.name, "title": d.title} for d in docs]
-        return inputs.data_block("REGULATION_DOCUMENTS", index) + "\n", parts
 
     def documents(self, pid: str) -> tuple[str, tuple]:
         """D-310: the product's documents as a data block (its passages and its files' text) and its file parts.
@@ -286,10 +276,6 @@ class ComplianceJudge(_SplitJudge):
                       "scope_product_ids": [inp.on_air, prev]}
         if self.handles:
             values = self._with_handles(inp, values if values is not None else build_judge_values(self.catalog, inp))
-        snapshot = self.regulation() if self.originals else None
-        if snapshot is not None:  # D-362: one originals snapshot for the prompt and the quote check of this request
-            values = {**(values if values is not None else build_judge_values(self.catalog, inp)),
-                      "regulation_docs": snapshot[0]}
         search = rule_search.for_settings(self.llm.settings) if self.arm == "E" and not self.originals else None
         if search is not None:  # D-194 arm E: only the rules the search picks for this line (every rule on failure)
             values = dict(values if values is not None else build_judge_values(self.catalog, inp))
@@ -299,7 +285,7 @@ class ComplianceJudge(_SplitJudge):
                 by_id = {r["rule_id"]: r for r in values["rules_compact_json"]}
                 values["rules_compact_json"] = [by_id[i] for i in dict.fromkeys(ids) if i in by_id]
         res = await super().run(inp, deadline_ms=deadline_ms, values=values, **opts)
-        if snapshot is not None and (missing := snapshot[1]):
+        if self.originals and (missing := self.regulation()[1]):
             res.meta["originals_missing"] = list(missing)  # D-358: judged without these sources' documents
         if self.handles:  # D-356: per call, what was shown, the handle map and the answer
             log.info("compliance handles call=%s line=%r active_alerts=%s handles=%s answer=%s corrects=%s",
@@ -335,7 +321,7 @@ class ComplianceJudge(_SplitJudge):
                 *(handles[c.handle] for c in checks if c.fixed_by_this_line and c.handle in handles)]))
             values = {**values, "active_alerts_json": [{"alert_id": i} for i in handles.values()]}
         if self.originals:
-            return validate_original(out, self.catalog, values, values.get("regulation_docs", self.regulation()[0]))
+            return validate_original(out, self.catalog, values, self.regulation()[0])  # the show's snapshot
         judge_arm = getattr(self.llm.settings, "JUDGE_ARM", "guards")
         return validate_compliance(out, self.catalog, values, arm=self.arm, verify=judge_arm in ("verify", "vote", "single"),
                                    model_severity=judge_arm == "single")  # D-309
