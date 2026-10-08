@@ -2023,3 +2023,19 @@ D-327: `STT_HINTS=record` (default `base`, today's hints) adds each on-show rele
 - **Eval hook:** `audio_ws.phrases_for_release(ctx, release_id, mode=None, market=None, lang=None)` returns exactly the hints a one-release show's stream sends (the mic and the test drive), brief glossary included. A test checks it against the stream.
 - **Logs:** the hint log at stream open now names `STT_HINTS` and the boost.
 - **Tests:** `tests/test_d327.py`.
+
+D-328: two switches from the pool 6 failure, both off by default (user-approved 10/8). The model decides; code only waits.
+- **`REPORTED_HOLD` (needs `FACT_PROMPT` v2-v4):**
+  - The fact checker's schema becomes `FactRelationOutputH`. It adds `previous_line` (`endorses`, `rejects` or `unrelated`: what this line does with the facts the last line reported or asked) and, per claim, `attributed` (`host`, or `other` for words reported from a viewer or another person, or a question put to someone), both decided first.
+  - The `HOLD: fact_checker` addendum has three made-up examples: a reported wrong amount, its rejection, and a co-host's question.
+  - A contradiction attributed to `other` is held. The host sees the grey checking chip (`verify.started`, kind `reported`) instead of the alert.
+  - When the next line's fact check returns, the hold is settled:
+    - `rejects`: the alert is dropped, logged as "held alert dropped: rejected by next line".
+    - `endorses` or `unrelated`: the alert shows (one alert; the endorsement's own claim joins it).
+  - With no next line, the alert shows after `REPORTED_HOLD_MS` (2500). When a next line was heard but not yet checked, the hold waits for that check, up to two fact timeouts more: a missed risk is worse than a late one.
+  - Each hold logs its duration. The alert's `shown_at` is the release time, so `ms_to_shown` in eval rows carries the cost.
+  - `host` claims are not held.
+  - `drain()` (eval, tests) lets each open hold run its time.
+- **`COMPLIANCE_NEG`:** the `NEG: compliance_judge` addendum. A line that warns against a risky use or negates a claim ("Don't skip meals and rely on this bar instead", "Please don't stop your medicine because of this tea") is not that claim. It is listed only with `is_negated = true`, which never alerts. A line breaks the rule only when it asserts or recommends the claim.
+- **Not addressed:** overlapping speech. The user treats one mic hearing one of two speakers as out of scope.
+- **Tests:** `tests/test_d328.py` (through `run_case`: rejected, endorsed, no next line, an unrelated next line, a host claim; the chip; the switches).

@@ -176,11 +176,13 @@ class FactClaim(BaseModel):
     _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
     _check: bool = PrivateAttr(default=False)  # D-303: "check what was said" (one misheard number), not a correction
     _unverified_reason: str | None = PrivateAttr(default=None)  # D-306: the verifier's failure type
+    _attributed: str = PrivateAttr(default="host")  # D-328: "other" = someone else's words or a question to someone
 
 
 class FactCheckOutput(BaseModel):
     claims: list[FactClaim]
     reason: str
+    _previous_line: str = PrivateAttr(default="unrelated")  # D-328: this line on the previous one's reported words
 
 
 # ---- D-296 FACT_RELATION: the evidence by sentence id, then the relation; code builds the quote ------------------
@@ -224,6 +226,24 @@ class FactRelationClaimV2(BaseModel):
 
 class FactRelationOutputV2(BaseModel):
     claims: list[FactRelationClaimV2]
+
+
+class FactRelationClaimH(BaseModel):
+    """D-328 REPORTED_HOLD: v2's claim, and whose words it is, decided before the rest."""
+    span: str
+    attributed: Literal["host", "other"]
+    product_id: str
+    field: FactField
+    stated_value: str
+    evidence: list[str]
+    source_value: str | None
+    relation: FactRelation
+    correct_value: str | None
+
+
+class FactRelationOutputH(BaseModel):
+    previous_line: Literal["endorses", "rejects", "unrelated"]  # this line on the last line's reported words
+    claims: list[FactRelationClaimH]
 
 
 class VerifyOutput(BaseModel):
