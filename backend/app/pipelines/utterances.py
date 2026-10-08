@@ -1360,7 +1360,7 @@ class UtterancePipeline:
     async def _fact_alerts_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
         rt = self.rt
         created, reshown, corrected = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
-                                                                  protected=protected, lex=rt.catalog.lexicon)
+                                                                  protected=protected)
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
@@ -1386,7 +1386,9 @@ class UtterancePipeline:
                     await rt.save_alert(cur)
                     await rt.emit("alert.updated", cur)
 
-        rt.ctx.scheduler.call_later(rt.key(f"facthide:{a.alert_id}"), rt.settings.FACT_NOTE_HOST_MAX_SEC * 1000, hide)
+        # D-362: from when the note was shown, so a re-armed timer (a session read back) keeps its time
+        rt.ctx.scheduler.call_at(rt.key(f"facthide:{a.alert_id}"),
+                                 (a.shown_at or rt.now()) + rt.settings.FACT_NOTE_HOST_MAX_SEC * 1000, hide)
 
     async def _publish_locked(self, t: Transcript, judge: UtteranceJudgeOutput, facts: FactCheckOutput | None,
                               offered: dict[str, Answer | None], merge: Merge | None = None) -> None:

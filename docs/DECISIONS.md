@@ -2520,3 +2520,13 @@ D-361: fixes from the codex review (gpt-6-astra high) of 4d4fd9f..5cfe8b2. These
 - **P2-10, misses are never cached:** the judge's show-level originals are re-read while a source is missing. Found sources are kept per source, so this costs nothing, and a missing source is warned once per process.
 - **P2-11, the rule JSON is not reachable in production:** `build_context` refuses `JUDGE_MODE=split` or `single` unless the legacy rules path is allowed (the test pin, or the mock provider).
 - Tests: `tests/test_d361.py`, one per fix where it applies; the merge test was checked to fail on the old code. `test_d358` now expects the model's say_instead and qualifier by id only, and `test_d336` states `SWITCH_MODE=immediate`.
+
+D-362: fixes from the codex re-review of D-361 (5cfe8b2..4d4a544), live path only. Codex confirmed D-361 items 1, 2, 3, 4, 7, 9 and 11; these are the rest.
+- **A (#5):** the prompter snapshot holds only the set offer the UI shows (the first one containing the product, as in `priceView`).
+- **B:** the snapshot holds every caution, because the host can open "+N more" and they are then on the prompter. D-361's first-4 cut is reverted.
+- **C (#8):** `rearm_timers` also re-arms each active fact note's hide timer. `schedule_fact_hide` now runs from the note's `shown_at`, so a re-armed timer keeps its time. The comments team's pending-post timer is left alone.
+- **D (#10):** a law or brand pack with only some of its files found is not cached: the files found are given, the source is marked missing ("incomplete") and looked up again next time.
+- **E:** one originals snapshot per compliance request. `run` takes it once; the prefix the judge gets (`request_documents`), the quote check (`validate`) and the missing-sources marker all use it. A re-read during inference can no longer rename a file or check a quote against another file's text.
+- **F:** a fact note is corrected by the model's verdict only: the same cited passage; or, without a passage, the one note whose correct value equals the model's own correct value; or the only note of that field. The numbers parsed from the host's line (`spoken_numbers`) are gone from `logic/facts.py`, and so is its unused `lex` parameter.
+- Not changed (the comments team's): `publish.py` spoken-answer posting (an unsure regex, a number compare, word overlap). The planner flags them to the user. #6's remaining case is a non-default DESIGN_ARM path.
+- Tests: `tests/test_d362.py` (one set and every caution; a note corrected by the verdict, not by numbers; the fact-note hide timer re-armed at the same time; a partly found pack not kept; the quote check on the request's own snapshot, which fails on the old code). `test_facts` now has the supported claim cite its passage.

@@ -23,11 +23,6 @@ from .judge_fakes import (
     speak,
 )
 
-from app.config import get_settings as _settings  # noqa: E402
-from app.logic.catalog import DataPack as _DataPack  # noqa: E402
-
-LEX = _DataPack.load(_settings().data_path).lexicon  # D-134: English (SG) lexicon
-
 
 WRONG = "And today the live price is only thirty-two dollars."
 WRONGER = "Actually it's thirty dollars live."
@@ -187,14 +182,14 @@ def test_apply_fact_check_pure(ids):
                    segment_id="seg_1")
     new_id = lambda p: ids.new(p, "s")  # noqa: E731
     c = FactClaim.model_validate(price_contradiction("S$32"))
-    created, reshown, corrected = fact_logic.apply_fact_check([c], [], t, new_id, now=100, lex=LEX)
+    created, reshown, corrected = fact_logic.apply_fact_check([c], [], t, new_id, now=100)
     assert len(created) == 1 and not reshown and not corrected
     alerts = created
     c2 = FactClaim.model_validate(price_contradiction("S$31"))
-    created, reshown, corrected = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200, lex=LEX)
+    created, reshown, corrected = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200)
     assert not created and reshown[0].stated_value == "S$31" and reshown[0].shown_at == 200
     sup = FactClaim.model_validate(claim("price", "supported"))
-    created, reshown, corrected = fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300, lex=LEX)
+    created, reshown, corrected = fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300)
     assert corrected and corrected[0].status == "corrected" and corrected[0].resolved_at == 300
     assert fact_logic.PURCHASE_FIELDS >= {"price", "volume", "ingredient_amount"}
 
@@ -287,7 +282,8 @@ async def test_a_right_fact_about_another_ingredient_does_not_clear_the_note(env
     await speak(rt, second)
     assert len([a for a in await fact_alerts(rt) if a.status == "active"]) == 2  # two subjects, two notes
     fix = "Sorry, panthenol is five percent."
-    llm.facts(fix, claim("ingredient_amount", "supported", stated="5%"))  # no passage: matched by the value
+    # D-362: the model's verdict names the note (its cited passage); no number parsed from the line
+    llm.facts(fix, claim("ingredient_amount", "supported", stated="5%", passage_id=PANTHENOL))
     await speak(rt, fix)
     assert (await rt.get_alert(note.alert_id)).status == "corrected"
 

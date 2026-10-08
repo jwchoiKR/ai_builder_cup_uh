@@ -85,6 +85,7 @@ def _pack_files(source_id: str, root: Path) -> list[Original]:
             path = root / job / e["file"]
             if not ensure(path):
                 log.warning("compliance originals: pack %s: file %s (%s) is missing", source_id, e["name"], path)
+                out.append(None)  # D-362: marks the pack incomplete
                 continue
             data = path.read_bytes()
             part = model_part(e["name"], data)
@@ -105,18 +106,20 @@ def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, .
     found, missing = [], []
     for sid, title, file in sources:
         key = (sid, title, file, root)
-        if key not in _FOUND:
-            docs = tuple(_local(sid, title, file) or _pack_files(sid, Path(root)))
-            if not docs:
+        docs = _FOUND.get(key)
+        if docs is None:
+            got = _local(sid, title, file) or _pack_files(sid, Path(root))
+            docs = tuple(d for d in got if d is not None)
+            if not docs or len(docs) < len(got):  # D-362: none, or only some of its files: looked up again next time
                 missing.append(sid)
                 if key not in _WARNED:  # said once per process; the lookup itself runs every time
                     _WARNED.add(key)
-                    log.warning("compliance originals missing for source %s: its documents are not given to the "
-                                "judge", sid)
-                continue
-            _FOUND[key] = docs
+                    log.warning("compliance originals %s for source %s: %s", "incomplete" if docs else "missing", sid,
+                                "only the files found are given to the judge" if docs else "none given to the judge")
+            else:
+                _FOUND[key] = docs
         names = {x.name for x in found}
-        for d in _FOUND[key]:
+        for d in docs:
             found.append(d if d.name not in names else Original(f"{sid}:{d.name}", d.title, d.source_id, d.data,
                                                                  d.mime, d.text))
     return tuple(found), tuple(missing)
