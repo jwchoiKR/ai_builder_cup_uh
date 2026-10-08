@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, PrivateAttr, create_model
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, create_model
 
 # ---- UtteranceJudge (§7.3) -------------------------------------------------------------------
 
@@ -91,6 +91,33 @@ def _all_required(schema: dict) -> None:
 
 class _ArmB(BaseModel):
     model_config = ConfigDict(json_schema_extra=_all_required)
+
+
+class AlertCheck(_ArmB):
+    """D-356 CORRECTION_HANDLES: the verdict on one ACTIVE_ALERTS entry, named by its per-call handle (A1, A2 ...)."""
+    handle: str
+    fixed_by_this_line: bool
+
+
+@functools.cache
+def with_alert_checks(model: type[BaseModel]) -> type[BaseModel]:
+    """D-356: the compliance output with `alert_checks` FIRST (one entry per listed alert, by handle) in place of
+    recalling alert ids; `correction` leaves the schema the model sees and is filled by code from the handles."""
+    correction = model.model_fields["correction"].annotation
+
+    def schema(s: dict) -> None:
+        props = dict(s.get("properties", {}))
+        props.pop("correction", None)
+        s["properties"] = {"alert_checks": props.pop("alert_checks"), **props}
+        s["required"] = list(s["properties"])
+
+    return type(f"{model.__name__}H", (model,), {
+        "__module__": __name__,
+        "__annotations__": {"alert_checks": list[AlertCheck], "correction": correction},
+        "alert_checks": Field(default_factory=list),
+        "correction": Field(default_factory=lambda: correction(corrects_alert_ids=[])),
+        "model_config": ConfigDict(json_schema_extra=schema),
+    })
 
 
 class SwitchCueN(_ArmB):

@@ -409,6 +409,9 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
                                   severity=rules[qualifier.RULE_ID].severity, is_negated=False, is_quoted=False,
                                   say_instead=r.say))
     alert_ids = {a["alert_id"] for a in values["active_alerts_json"]}
+    dropped = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a not in alert_ids]
+    if dropped:  # D-356: never silently
+        log.info("correction ids dropped: not in ACTIVE_ALERTS: %s (shown: %s)", dropped, sorted(alert_ids))
     o.correction.corrects_alert_ids = [a for a in dict.fromkeys(o.correction.corrects_alert_ids) if a in alert_ids]
     if hasattr(o.correction, "quotes"):  # D-187 arm B
         o.correction.quotes = [q for q in o.correction.quotes if q.alert_id in alert_ids]
@@ -480,7 +483,8 @@ def symbolic_ids(values: dict) -> tuple[Callable[[dict], dict], Callable[[dict],
     """Fixture encode/decode: group and alert ids are new in every session, so a recorded fixture
     names a group by its question and an alert by its span."""
     group_q = {q["group_id"]: normalise_question(q["canonical_question"]) for q in values["open_questions_json"]}
-    alert_span = {a["alert_id"]: normalise_question(a["span"] or "") for a in values["active_alerts_json"]}
+    alert_span = {a.get("alert_id", a.get("handle")): normalise_question(a["span"] or "")  # D-356: a handle
+                  for a in values["active_alerts_json"]}
     q_group = {v: k for k, v in group_q.items()}
     span_alert = {v: k for k, v in alert_span.items()}
 
@@ -571,7 +575,8 @@ def rule_based_compliance(inp: JudgeInput, values: dict, catalog: Catalog, refle
         seen.add(h.rule_id)
         violations.append({"span": h.phrase, "rule_id": h.rule_id, "severity": h.severity, "is_negated": h.negated,
                            "is_quoted": h.quoted, "say_instead": say_instead_fallback(catalog, inp.on_air)})
-    corrects = [a["alert_id"] for a in values["active_alerts_json"]] if _CORRECTION.search(inp.utterance) else []
+    ids = [values.get("alert_handles", {}).get(a.get("handle"), a.get("alert_id")) for a in values["active_alerts_json"]]
+    corrects = ids if _CORRECTION.search(inp.utterance) else []
     return {"compliance": {"violations": violations}, "correction": {"corrects_alert_ids": corrects}, "reason": "rule-based"}
 
 

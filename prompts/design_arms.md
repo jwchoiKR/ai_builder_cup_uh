@@ -216,6 +216,22 @@ D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each prod
   which product in `target_product_id`); a plan ("the serum is coming later", "later I'll show you the serum"); a
   comparison ("this feels lighter than the serum"); a viewer's question or a quote ("someone asked about the toner").
 
+## HANDLES: compliance_judge
+
+D-356 (Job 2, correction): each ACTIVE_ALERTS entry has a `handle` (A1, A2 ...), its `span`, `rule_id` and `status`
+(`provisional`, `active` or `banner`). Your answer starts with `alert_checks`: exactly one entry per ACTIVE_ALERTS
+entry, `{"handle": ..., "fixed_by_this_line": true or false}`. `fixed_by_this_line` is true when this line, read in
+context, fixes the problem that alert names (a retraction, a compliant restatement, or for a TEST-QUALIFIER banner the
+same result said again with its source). There is no `corrects_alert_ids` field in this answer; decide every alert
+before you write `violations` and `reason`. With no ACTIVE_ALERTS, `alert_checks` is [].
+
+Example H1
+ACTIVE_ALERTS: [{"handle":"A1","span":"it heals scars in a week","rule_id":"LAW-DISEASE","status":"active"},{"handle":"A2","span":"9 in 10 felt smoother","rule_id":"TEST-QUALIFIER","status":"banner"}]
+UTTERANCE: "Sorry, I take that back about the scars; it helps skin look smoother."
+```json
+{"alert_checks":[{"handle":"A1","fixed_by_this_line":true},{"handle":"A2","fixed_by_this_line":false}],"compliance":{"violations":[]},"reason":"Retracts the scar claim; the test result is not said again."}
+```
+
 ## RESAY: compliance_judge
 
 D-355 (Job 2, correction): judge a correction by its meaning in context, never by its phrasing. An alert's

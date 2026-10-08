@@ -2398,3 +2398,18 @@ D-355: a qualified re-say should clear the TEST-QUALIFIER banner. Reviewed by GP
 - Tests: `tests/test_d355.py` (the banner stays in the list beyond the newest 3; a corrected banner and other old alerts do not; the addendum is on only with the arm). The host tests use the new wording.
 
 D-354 follow-up (eval tool only): `scripts/eval_show.py` takes `STORE` from the environment when it is set (memory otherwise). Before, it forced memory, so a Firestore run silently used memory. With `STORE=firestore`, the queued writes are flushed (up to 30 s) before the script exits. Each show's JSON `settings` (and the summary header) now holds the effective settings: STORE, FIRESTORE_DATABASE, SWITCH_MODE, SWITCH_ARM_NAME, SWITCH_DUAL_SCOPE_SEC, JUDGE_ARM, JUDGE_MODE, FACT_PROMPT, COMPLIANCE_RESAY, CORRECTION_CHECK, REFLEX_SCAN, JUDGE_PRODUCTS, QUESTION_HOLD and COMPLIANCE_ESCALATE_SEC, read from the context's settings.
+
+D-356 (arm `CORRECTION_HANDLES`, off until measured): the compliance judge saw a correction but returned `corrects_alert_ids: []`. In raw outputs logged before the filter, the reason said "Host explicitly retracts the previous eczema claim." and the list was empty. Reviewed by GPT, Gemini and Sonnet. The change is plumbing and schema only; the meaning rules (D-355 RESAY, meaning not wording) are unchanged.
+- **Input:** ACTIVE_ALERTS shows each alert by a per-call handle (A1, A2 ...) with its span, rule, say_instead and status: `provisional`, `active`, or `banner` for TEST-QUALIFIER. The model never sees an alert id. The handle-to-id map stays in that call's values and is never sent.
+- **Output:** the schema starts with `alert_checks`, one `{handle, fixed_by_this_line}` per listed alert, before `violations` and `reason`. `correction` leaves the schema the model sees.
+  - Code turns each handle marked fixed into its id before the existing id check, adding to any ids a fallback gave.
+  - An unknown handle is logged and dropped.
+- **Prompt:** the addendum `design_arms.md` "HANDLES: compliance_judge", with a fictional example in which the answer starts with `alert_checks`.
+- **Logs:**
+  - Per call (the D-352 re-check included, since it uses the same judge): `compliance handles call=<call id> line=... active_alerts=<the block sent> handles=<map> answer=<alert_checks> corrects=<ids>`. The raw parsed answer is also in the call's audit record under the same call id.
+  - In every mode, an id dropped by the id check in `validate_compliance` is now logged: `correction ids dropped: not in ACTIVE_ALERTS: [...]`. Before, it was dropped silently.
+- **Tests (`tests/test_d356.py`):**
+  - the schema starts with the checks and has no correction field;
+  - a handle marked fixed corrects its alert, and the request shows handles, no ids and the status;
+  - not-fixed and unknown handles correct nothing, and the unknown one is logged;
+  - an id the judge was not shown is logged when it is dropped.
