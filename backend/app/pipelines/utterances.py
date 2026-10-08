@@ -798,6 +798,12 @@ class UtterancePipeline:
         rt = self.rt
         if not self._claim_application(t, "context"):
             return
+        sw = judge.prompter.switch  # D-341 (review H18): the context verdict, for tracing a switch or a missed cue
+        log.info("context %s t=%s: type=%s answer=%s points=%s cues=%s transition=%s quote=%s target=%s conf=%s%s",
+                 rt.sid, t.transcript_id, judge.answer.utterance_type, judge.answer.matched_group_id,
+                 judge.prompter.covered_point_ids, judge.prompter.covered_cue_ids, sw.is_transition, sw.is_quote,
+                 sw.target_product_id, sw.confidence,
+                 f" expects_resolution={judge.expects_resolution}" if hasattr(judge, "expects_resolution") else "")
         s = await rt.load_session()
         seg = await rt.current_segment()
         if (seg is None or seg.segment_id != t.segment_id
@@ -960,6 +966,10 @@ class UtterancePipeline:
             # D-304 SWITCH_ARM_NAME=false: the context judge's target and confidence alone arm the switch
             next_named=bool(nxt) and (not st.SWITCH_ARM_NAME or names_product(text, self._product_names(nxt))),
         )
+        # D-341 (review H17/H18): every switch decision, with the counter it moves
+        log.info("switch %s t=%s: on_air=%s next=%s kind=%s state=%s cues=%d/%d%s", rt.sid, t.transcript_id, on_air,
+                 nxt, kind, s.switch.status, s.switch.cue_count, st.SWITCH_CONSECUTIVE_CUES,
+                 f" (replaces {replaces})" if replacing else "")
         if replacing and kind != "cancel":
             # D-088: the merged judgment replaces the fragment's cue. Never count the same cue twice.
             if kind == "cue":

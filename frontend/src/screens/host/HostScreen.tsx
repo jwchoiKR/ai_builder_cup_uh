@@ -263,7 +263,8 @@ export function HostView({
             pricePromoTitle={activePricePromo(state, catalog)?.title ?? null} />
         ))}
         {mediums.map(({ alert: a, fact }) => (
-          <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered} />
+          <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered}
+            serverOffsetMs={state.serverOffsetMs} />
         ))}
         {lineCheck && !high && <LineCheckCard key={lineCheck.transcript_id} check={lineCheck} />}
       </>
