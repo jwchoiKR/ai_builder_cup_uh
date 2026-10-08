@@ -98,6 +98,7 @@ export function MediumBanner({
   alert,
   catalog,
   fact = null,
+  factFixed = null,
   onRendered,
   count = 1,
   more = 0,
@@ -107,6 +108,8 @@ export function MediumBanner({
   catalog: Catalog | null;
   /** D-105: the fact note on the same sentence, shown in this card instead of its own. */
   fact?: Alert | null;
+  /** D-418: that note once corrected: its right line stays on the card */
+  factFixed?: Alert | null;
   onRendered?: (alertId: string) => void;
   /** D-399: how many unresolved MEDIUM alerts cite this rule (this one is the newest) */
   count?: number;
@@ -123,6 +126,9 @@ export function MediumBanner({
   }, [alert.alert_id, fact?.alert_id, onRendered]);
   const rule = ruleInfo(catalog, alert.rule_id, alert.product_id);
   const qualifier = alert.rule_id === TEST_QUALIFIER_RULE;
+  // D-418: with the line's fact note, the card says the note's line once (its say, else its value), and the qualifier
+  // becomes the top instruction; without one, the model's say_instead
+  const factLine = fact ?? factFixed;
   return (
     <div className={cx(styles.alertBlock, styles.alertMedium)} data-testid="host-medium-banner" role="alert">
       <div className={styles.alertTop}>
@@ -130,8 +136,9 @@ export function MediumBanner({
         <span className={styles.warnBadge}>
           <ShieldAlert aria-hidden />
           {/* D-355: a suggestion; any wording that says where the result comes from corrects it */}
-          {qualifier ? t("Say where the result comes from (e.g. 'in our in-house test')")
-            : t("CHECK WORDING")}
+          {!qualifier ? t("CHECK WORDING")
+            : factLine ? t("Also say where the result comes from (e.g. 'in our in-house test')")
+              : t("Say where the result comes from (e.g. 'in our in-house test')")}
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         <AlertMore n={more} />
@@ -143,19 +150,19 @@ export function MediumBanner({
         <span className={styles.alertSaid}>
           {t("Heard:")} "{alert.span}"
         </span>
-        {fact && (
-          <span className={styles.factValues} data-testid="host-medium-fact">
-            {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
-            <span className={styles.factRight}>○ {fact.say ?? fact.correct_value}</span>
-            <span className={styles.factWrong}>{t("(not {value})", { value: fact.stated_value ?? "" })}</span>
-            {factCount > 1 && <span className={styles.alertCount} data-testid="host-medium-fact-count">×{factCount}</span>}
-          </span>
-        )}
       </div>
       <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
-      <span className={styles.alertSay}>
-        {alert.say_instead ? `“${alert.say_instead}”` : t("Say the result with where it comes from (e.g. 'in our in-house test').")}
-      </span>
+      {factLine ? (
+        <span className={styles.alertSay} data-testid="host-medium-fact">
+          {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
+          “{factLine.say ?? factLine.correct_value}”
+          {fact && factCount > 1 && <span className={styles.alertCount} data-testid="host-medium-fact-count"> ×{factCount}</span>}
+        </span>
+      ) : (
+        <span className={styles.alertSay}>
+          {alert.say_instead ? `“${alert.say_instead}”` : t("Say the result with where it comes from (e.g. 'in our in-house test').")}
+        </span>
+      )}
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>{rule.title}</span>
       </span>

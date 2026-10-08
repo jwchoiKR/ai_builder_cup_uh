@@ -75,6 +75,7 @@ export const KO_HOST: Record<string, string> = {
   "AI error": "AI 오류",
   "{cause}: 1 line unchecked": "{cause}: 확인 못 한 문장 1개",
   "{cause}: {n} lines unchecked": "{cause}: 확인 못 한 문장 {n}개",
+  "Also say where the result comes from (e.g. 'in our in-house test')": "결과의 출처도 함께 말하세요 (예: 'in our in-house test')",
   "Say where the result comes from (e.g. 'in our in-house test')": "결과의 출처를 덧붙이세요 (예: 'in our in-house test')",
   "Say the result with where it comes from (e.g. 'in our in-house test').": "결과를 출처와 함께 말하세요 (예: 'in our in-house test').",
   "(not {value})": "({value} 아님)",

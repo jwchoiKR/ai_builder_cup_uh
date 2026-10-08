@@ -312,7 +312,7 @@ function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; co
  *  passage id they cite (ids, never text; a note with no passage is not grouped): one card, the newest, with its count.
  *  Every alert stays its own record and handle; the operator screen lists each one. */
 export function hostBanners(state: ClientState): {
-  mediums: { alert: Alert; fact: Alert | null; count: number; factCount: number; ids: string[] }[];
+  mediums: { alert: Alert; fact: Alert | null; factFixed: Alert | null; count: number; factCount: number; ids: string[] }[];
   facts: { alert: Alert; count: number; ids: string[] }[];
 } {
   const high = new Set(activeComplianceAlerts(state).filter((a) => a.severity === "HIGH").map((a) => a.transcript_id));
@@ -326,7 +326,13 @@ export function hostBanners(state: ClientState): {
         : -1;
       if (i >= 0) merged.add(i);
       const ids = [...members, ...(i >= 0 ? groups[i].members : [])].map((a) => a.alert_id);
-      return { alert, fact: i >= 0 ? groups[i].item : null, count, factCount: i >= 0 ? groups[i].count : 0, ids };
+      // D-418: once the line's fact note is corrected, the card keeps saying its right line (never the old number)
+      const factFixed = alert.rule_id === TEST_QUALIFIER_RULE && i < 0
+        ? (Object.values(state.alerts)
+          .filter((f) => f.kind === "fact" && f.status === "corrected" && f.transcript_id === alert.transcript_id)
+          .sort((a, b) => alertTime(b) - alertTime(a))[0] ?? null)
+        : null;
+      return { alert, fact: i >= 0 ? groups[i].item : null, factFixed, count, factCount: i >= 0 ? groups[i].count : 0, ids };
     });
   const notes = groups.filter((_, j) => !merged.has(j))
     .map(({ item: alert, count, members }) => ({ alert, count, ids: members.map((a) => a.alert_id) }));
@@ -339,7 +345,8 @@ export const MAX_ALERT_BOXES = 2;
 export type HostBox =
   | { kind: "high"; view: HighAlertView; ids: string[]; units: number }
   | { kind: "fact"; alert: Alert; count: number; ids: string[]; units: number }
-  | { kind: "medium"; alert: Alert; fact: Alert | null; count: number; factCount: number; ids: string[]; units: number };
+  | { kind: "medium"; alert: Alert; fact: Alert | null; factFixed: Alert | null; count: number; factCount: number;
+      ids: string[]; units: number };
 
 /** Where an active alert is for the host: in a box shown now, held behind a red on its line (D-342), or beyond the
  *  box limit (counted in "+N"). */
