@@ -7,7 +7,7 @@ from app.config import Settings
 
 MEASURED = {"JUDGE_ARM": "single", "SINGLE_MODEL": "gemini-3.5-flash-lite", "SINGLE_THINKING": "MEDIUM",
             "SINGLE_FACTS_THINKING": "LOW", "FACT_PROMPT": "v5", "JUDGE_SEED": "7", "STT_ENDPOINTING": "STANDARD",
-            "QUESTION_HOLD": False}
+            "QUESTION_HOLD": True}  # D-343
 
 
 def test_d336_the_defaults_are_the_measured_config():

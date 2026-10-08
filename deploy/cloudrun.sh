@@ -51,7 +51,7 @@ $G beta run deploy "$SERVICE" --region="$REGION" --image="$IMAGE" --service-acco
   --no-allow-unauthenticated --iap \
   --min-instances=0 --max-instances=1 --session-affinity --timeout=3600 --cpu=2 --memory=2Gi \
   --cpu-boost --no-cpu-throttling \
-  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=memory,RETRIEVER=local,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},VERIFY_MODE=lean,STT_ENDPOINTING=STANDARD,JUDGE_ARM=single,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=MEDIUM,SINGLE_FACTS_THINKING=LOW,FACT_PROMPT=v5,JUDGE_SEED=7,QUESTION_HOLD=false"
+  --set-env-vars="APP_ENV=cloud,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=memory,RETRIEVER=local,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},VERIFY_MODE=lean,STT_ENDPOINTING=STANDARD,JUDGE_ARM=single,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=MEDIUM,SINGLE_FACTS_THINKING=LOW,FACT_PROMPT=v5,JUDGE_SEED=7,QUESTION_HOLD=true"
 
 echo "== IAP access"
 PROJECT_NUMBER="$($G projects describe "$PROJECT" --format='value(projectNumber)')"

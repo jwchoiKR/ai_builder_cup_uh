@@ -2169,3 +2169,6 @@ D-341 (review-1008 H16-H18):
 - **Tests:** `src/screens/host/host.test.tsx` (the late title) and `tests/test_d341.py` (the logs).
 
 D-342 (review-1008 H20): a sentence with an active HIGH compliance alert shows only that alert on the host screen. Its MEDIUM banners and its fact notes stay in the alert log and the operator's views, but are not stacked on the host's card. Other sentences keep theirs. Display only: alerts, logs and eval rows are unchanged. Test: `src/app/selectors.test.ts`.
+
+D-343 (logic freeze, user 10/8): `QUESTION_HOLD=true` is now the code default and is set in `deploy/cloudrun.sh`. Measured on pool 7 plus the paired set: two-host lines went from 82.8% to 96.6%, with no one-host regression. STT_DUAL is cancelled. From here, no changes to the judges, prompts or STT logic.
+- **Tests:** the older tests pin `QUESTION_HOLD=false` through the conftest pins and `VERIFY_SHIPPED`. `tests/test_d336.py` checks the new default.
