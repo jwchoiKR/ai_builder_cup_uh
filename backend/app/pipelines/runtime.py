@@ -283,9 +283,13 @@ class SessionRuntime:
         self.ctx.scheduler.call_later(self.key("tick"), TICK_MS, self._tick)
         return s
 
+    async def prompter_view_now(self, seg: Segment | None) -> dict:
+        """D-423: the prompter view with the items as they are now (the running price promo's prices)."""
+        return prompter_view(self.catalog, seg, self.points, await self.active_price_promo())
+
     async def after_segment_started_locked(self, seg: Segment) -> None:
         """Work that follows every segment start: prompter, host slots, feed bursts armed for it."""
-        await self.emit("prompter.updated", prompter_view(self.catalog, seg, self.points))
+        await self.emit("prompter.updated", await self.prompter_view_now(seg))
         await self.recompute_host_queue_locked()
         self.feed.on_segment_started(seg)
 
@@ -518,6 +522,7 @@ class SessionRuntime:
                                        lambda: self.stop_promo(promo_id, reason="timer"))
             await self.emit("promo.started", {**active.model_dump(), "changes_prices": promo.changes_prices})
             if promo.changes_prices:
+                await self.emit("prompter.updated", await self.prompter_view_now(await self.current_segment()))  # D-423
                 await self.price_promo_changed_locked()
             return s
 
@@ -537,6 +542,7 @@ class SessionRuntime:
             self.ctx.scheduler.cancel(self.key(f"promo:{promo_id}"))
             await self.emit("promo.ended", {"promo_id": promo_id, "ended_at": self.now(), "reason": reason})
             if promo is not None and promo.changes_prices:
+                await self.emit("prompter.updated", await self.prompter_view_now(await self.current_segment()))  # D-423
                 await self.price_promo_changed_locked()
             return s
 
@@ -665,7 +671,7 @@ class SessionRuntime:
             "comments": [c.model_dump(mode="json") for c in shown],
             "messages": [m.model_dump(mode="json") for m in await store.query(self.path("messages"), Message, order_by="created_at")],
             "alerts": [a.model_dump(mode="json") for a in await self.alerts()],
-            "prompter": prompter_view(self.catalog, await self.current_segment(), self.points),
+            "prompter": await self.prompter_view_now(await self.current_segment()),
             "metrics": await self.compute_metrics(),
             "feed": self.feed.state(),
             "judge_health": {"degraded": list(self.utterances.degraded)},  # D-137

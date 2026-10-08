@@ -34,7 +34,7 @@ from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_val
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
 from ..logic import publish as publish_logic
-from ..logic.prompter import apply_coverage, missing_required, points_of, prompter_view, tick_item
+from ..logic.prompter import apply_coverage, missing_required, points_of, tick_item
 from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
@@ -808,7 +808,7 @@ class UtterancePipeline:
             if added:
                 await rt.save_segment(own)
                 if seg is not None and own.segment_id == seg.segment_id:
-                    await rt.emit("prompter.updated", prompter_view(rt.catalog, seg, rt.points))
+                    await rt.emit("prompter.updated", await rt.prompter_view_now(seg))
             if pre:
                 await rt.save_session(s)
         elif judge.prompter.covered_point_ids:
@@ -1263,7 +1263,7 @@ class UtterancePipeline:
                     target.ticked_item_ids.extend(new)
                     await rt.save_segment(target)
                     if target is seg:
-                        await rt.emit("prompter.updated", prompter_view(rt.catalog, seg, rt.points))
+                        await rt.emit("prompter.updated", await rt.prompter_view_now(seg))
                 log.info("prompter ticks %s t=%s: %s +%s", rt.sid, t.transcript_id, product_id, new)
             else:  # no segment of it to tick: kept for when it goes on air
                 pre = s.pre_covered.setdefault(product_id, [])
@@ -1722,7 +1722,7 @@ async def undo_switch(rt: "SessionRuntime") -> Segment:
         await rt.save_session(s)
         await rt.emit("segment.undone", {"segment_id": opened.segment_id})
         await rt.emit("segment.started", closed)
-        await rt.emit("prompter.updated", prompter_view(rt.catalog, closed, rt.points))
+        await rt.emit("prompter.updated", await rt.prompter_view_now(closed))
         # Groups whose product came from context during the undone segment move back (§8.7.2).
         moved = set()
         for a in await rt.ctx.store.query(rt.path("analyses"), CommentAnalysis):

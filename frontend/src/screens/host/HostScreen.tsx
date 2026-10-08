@@ -19,7 +19,6 @@ import {
   hostAlertStack,
   uncheckedStrip,
   hostSlots,
-  priceView,
   runOfShow,
 } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
@@ -236,7 +235,6 @@ export function HostView({
 
   const { now: product } = hostProducts(state, catalog);
   const prompter = hostPrompterView(state, catalog, product);
-  const price = priceView(state, catalog, prompter.product ?? product);
   const cue = cueStrip(state, clientNow);
   const onAir = runOfShow(state, catalog, now).find((i) => i.status === "on_air");
   const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
@@ -288,7 +286,6 @@ export function HostView({
             <Prompter
               view={prompter}
               product={prompter.product ?? product}
-              price={price}
               checking={checking}
               degraded={state.judgeDegraded}
               alerts={prompterAlerts}

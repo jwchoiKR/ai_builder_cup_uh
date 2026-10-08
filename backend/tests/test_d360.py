@@ -18,7 +18,8 @@ def test_d360_the_snapshot_is_what_the_prompter_shows(catalog):
     product = catalog.get_product(CREAM)
     assert texts["Price & offers"][:2] == [f"Live price: {catalog.money(product.live_price)}",
                                            f"List price: {catalog.money(product.list_price)}"]
-    assert 1 <= len(texts["Ingredients"]) <= 4 and all("%" in t or "mg" in t for t in texts["Ingredients"])
+    # D-423 (user): every ingredient amount, no 4-ingredient cut
+    assert len(texts["Ingredients"]) == 5 and all("%" in t or "mg" in t for t in texts["Ingredients"])
     assert texts["Cautions"] == product.cautions
     assert "Approved on-air claims" in texts  # the points, never a correction source (D-338)
     every = " ".join(t for ts in texts.values() for t in ts)

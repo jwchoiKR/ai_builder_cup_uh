@@ -41,6 +41,8 @@ export function hostPrompterView(state: ClientState, catalog: Catalog | null, pr
   return {
     product,
     points,
+    // D-423: before the show, the server sends the first product's items
+    items: (state.prompter?.items ?? []).filter((i) => i.product_id === product.product_id),
     ticked: [],
     requiredTotal: points.filter((p) => p.required).length,
     requiredCovered: 0,

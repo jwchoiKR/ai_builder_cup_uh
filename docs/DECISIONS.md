@@ -2806,3 +2806,16 @@ D-422 (codex review of D-418..D-421; night rule):
    - the scheduler moves the monotonic time;
    - a blank say falls back to correct_value;
    - a later failure gives a new card key.
+
+D-423 (user: "ㅇㅇ ㄱ"): the host prompter shows everything the product has for it, and the fact checker checks exactly that one list.
+- One list. `prompter_items` (logic/prompter.py) builds the item list once per product. Each item has a stable id (the snapshot passage id; a promo's items carry its id, D-372), section, kind (price, set, ingredient, point, caution), text and the parts the screen shows. The fact checker's snapshot (`prompter_passages`) is that list as passages. The host gets the list in prompter.updated and the /state prompter block (`items`; before the show, the first product's) and renders it as is. The frontend no longer selects ingredients or sets (ingredientsOf, PERCENT, MAX_INGREDIENTS, CAUTIONS_SHOWN and priceView use on the host are gone). prompter.updated is also sent when a price promo starts or ends, so the screen shows the time-sale prices from the same list. (`runtime.prompter_view_now` adds the running price promo.)
+- No cuts:
+  - The 4-ingredient cut is gone: release.py, when a show loads a release (the stored release is unchanged), and SHOWN_INGREDIENTS in the backend.
+  - Every set offer of the product is listed, not only the first.
+  - Every caution is shown, and the "+N more" toggle is gone (with its CSS and KO strings).
+  - Onboarded products carry every ingredient in order (Product.ingredients); one without an amount shows its name only. The shipped demo catalog keeps its ingredient amounts among other key facts, so there an amount (a share or a mass) marks an ingredient, as before, but without the cut.
+  - Test results stay off the prompter.
+  - The demo ampoule's fifth ingredient (Panthenol 1%) is now shown and checked.
+Tests:
+- tests/test_d423.py: the snapshot is the item list; Panthenol 1% is on it; every ingredient of an onboarded product, with a name-only one; the items in prompter.updated, and the time-sale items after a price promo starts.
+- test_d360, test_d362 (every set, every caution) and host.test.tsx (the panel renders the server's items: every caution with no toggle, every set, a name-only ingredient) are updated, and the fixtures carry the cream's items.

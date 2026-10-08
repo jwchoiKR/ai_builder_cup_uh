@@ -5,7 +5,7 @@ import { setLang, translate } from "../../app/i18n";
 import { RED_BLOCK_MS, uncheckedStrip } from "../../app/selectors";
 import { reduceEvent, reduceSnapshot } from "../../app/state";
 import type { Catalog, StateSnapshot } from "../../app/types";
-import { alert, AMPOULE, answer, catalog, comment, CREAM, group, message, pdCard, segment, session, snapshot, T0 } from "../../test/fixtures";
+import { alert, AMPOULE, answer, catalog, comment, CREAM, creamItems, group, message, pdCard, segment, session, snapshot, T0 } from "../../test/fixtures";
 import { factContext, fieldLabel, shortRef } from "./hostSelectors";
 import { HostView, type HostActions } from "./HostScreen";
 
@@ -173,6 +173,9 @@ describe("prompter", () => {
           promo_started_at: now(),
           active_promos: [{ promo_id: "promo_time_sale_10", started_at: now(), ends_at: now() + 600_000 }],
         }),
+        // D-423: the server's items during the sale
+        prompter: { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: [], required_total: 2,
+          required_covered: 0, items: creamItems(true) },
       }),
     );
     const prompter = screen.getByTestId("host-prompter");
@@ -1035,15 +1038,21 @@ describe("verifier wait (D-306)", () => {
 });
 
 describe("D-332: UI QA", () => {
-  it("shows the first 4 cautions and the rest behind +N more", () => {
+  it("D-423: shows every item the server lists: every caution (no toggle), every set, an ingredient by name only", () => {
     const many = Array.from({ length: 7 }, (_, i) => `Caution number ${i + 1}.`);
-    const c7: Catalog = { ...cat, products: cat.products.map((p) => (p.product_id === CREAM ? { ...p, cautions: many } : p)) };
-    const state = { ...reduceSnapshot(snapshot(), "host", Date.now()), serverOffsetMs: 0 };
-    render(<HostView state={state} catalog={c7} connection="connected" theme="dark" actions={actions()} />);
-    const box = screen.getByTestId("host-cautions");
-    expect(within(box).getAllByText(/^Caution number/)).toHaveLength(4);
-    fireEvent.click(screen.getByTestId("host-cautions-more"));
-    expect(within(box).getAllByText(/^Caution number/)).toHaveLength(7);
-    expect(screen.getByTestId("host-cautions-more")).toHaveTextContent("Show fewer");
+    const items = [...creamItems(false, many),
+      { id: "DL-CR-01#prompter#set-trio", key: "set-trio", product_id: CREAM, section: "Price & offers", kind: "set" as const,
+        text: "Set Trio: S$80.00", label: "Trio", value: "S$80.00" },
+      { id: "DL-CR-01#prompter#ingredient-water", key: "ingredient-water", product_id: CREAM, section: "Ingredients",
+        kind: "ingredient" as const, text: "Water", name: "Water", value: "" }];
+    const s = snapshot({ prompter: { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: [], required_total: 2,
+      required_covered: 0, items } });
+    render(<HostView state={{ ...reduceSnapshot(s, "host", Date.now()), serverOffsetMs: 0 }} catalog={cat}
+      connection="connected" theme="dark" actions={actions()} />);
+    expect(within(screen.getByTestId("host-cautions")).getAllByText(/^Caution number/)).toHaveLength(7);
+    expect(screen.queryByTestId("host-cautions-more")).toBeNull();
+    expect(screen.getAllByTestId("host-price-set").map((x) => x.textContent)).toEqual(
+      ["Set Cream + Ampoule set S$62.00", "Set Trio S$80.00"]);
+    expect(screen.getByTestId("host-ing-water")).toHaveTextContent(/^Water$/);
   });
 });

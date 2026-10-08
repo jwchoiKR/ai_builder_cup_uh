@@ -9,6 +9,7 @@ import type {
   Message,
   PdCard,
   Product,
+  PrompterItem,
   Promo,
   QuestionGroup,
   Segment,
@@ -210,6 +211,8 @@ export interface PrompterPointRow {
 export interface PrompterViewModel {
   product: Product | null;
   points: PrompterPointRow[];
+  /** D-423: the server's item list for this product, rendered as is (prices, sets, ingredients, cautions) */
+  items: PrompterItem[];
   /** D-372: the prompter item ids said right (the fact checker's verdicts); the only source of their ticks */
   ticked: string[];
   requiredTotal: number;
@@ -219,7 +222,7 @@ export interface PrompterViewModel {
 export function prompterView(state: ClientState, catalog: Catalog | null): PrompterViewModel {
   const seg = onAirSegment(state);
   const product = productById(catalog, seg?.product_id ?? state.prompter?.product_id);
-  if (!product) return { product: null, points: [], ticked: [], requiredTotal: 0, requiredCovered: 0 };
+  if (!product) return { product: null, points: [], items: [], ticked: [], requiredTotal: 0, requiredCovered: 0 };
   const rs = runsheetOf(state, catalog);
   const item = rs?.items.find((i) => i.product_id === product.product_id);
   const required = new Set(item?.required_point_ids ?? []);
@@ -234,6 +237,7 @@ export function prompterView(state: ClientState, catalog: Catalog | null): Promp
   return {
     product,
     points,
+    items: (fromServer?.items ?? []).filter((i) => i.product_id === product.product_id),
     ticked,
     requiredTotal: req.length,
     requiredCovered: req.filter((p) => p.covered).length,
