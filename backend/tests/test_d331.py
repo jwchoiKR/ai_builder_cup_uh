@@ -70,3 +70,34 @@ def test_d331_the_prompt_s_examples_carry_a_stance_on_every_claim():
     assert claims and all(claims)
     for stance in ("HOST_ASSERTS", "HOST_ENDORSES", "REPORTS_OR_ASKS"):
         assert f'"stance":"{stance}"' in examples
+
+
+async def test_d333_v6_and_compliance_endorse_switches():
+    """D-333: v6 keeps v5's schema and adds its three rules; COMPLIANCE_ENDORSE adds the compliance line."""
+    from .helpers import live_runtime, make_ctx
+
+    for prompt, endorse in [("v6", True), ("v5", False)]:
+        llm = _V5Backend("HOST_ASSERTS")
+        rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT=prompt, JUDGE_ARM="single",
+                                         COMPLIANCE_ENDORSE=endorse))
+        try:
+            await speak(rt, "It's thirty-two dollars.")
+            await rt.utterances.drain()
+            [fact] = [r for r in llm.requests if r.agent == "fact_checker"]
+            [comp] = [r for r in llm.requests if r.agent == "compliance_judge"]
+            assert fact.output_model is FactRelationOutputV5
+            assert ("An answer takes its subject from the question" in fact.system_instruction) is (prompt == "v6")
+            assert ("No, it's 106 now." in fact.system_instruction) is (prompt == "v6")
+            assert ("the endorsed\nclaim is this line's own claim" in comp.system_instruction) is endorse
+            assert len([a for a in await rt.alerts() if a.kind == "fact"]) == 1
+        finally:
+            await close_env(rt)
+
+
+def test_d333_v6_examples_carry_a_stance():
+    from pathlib import Path
+
+    text = (Path(__file__).parents[2] / "prompts" / "fact_relation_v6.md").read_text(encoding="utf-8")
+    examples = text.split("## EXAMPLES", 1)[1]
+    claims = re.findall(r'\{"span":"[^"]*",("stance":"[A-Z_]+")?', examples)
+    assert claims and all(claims) and "Example T" in examples

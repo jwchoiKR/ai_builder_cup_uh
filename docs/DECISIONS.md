@@ -2086,3 +2086,13 @@ D-332: UI fixes from the planner's QA of cloud revision 00005 (UI only, no judge
 - **Tests:**
   - `tests/test_d332.py` and `src/app/router.test.tsx`: the catalog of a late session id; this test fails without the fix.
   - `src/screens/host/host.test.tsx` (+N more), `src/screens/ui_qa.test.tsx` (points line, token chip), `src/screens/screens.test.tsx` (older versions), `viewer.test.tsx` (initials).
+
+D-333: `FACT_PROMPT=v6` and `COMPLIANCE_ENDORSE`, both prompt-only and off by default (user-approved 10/8, failure classes from fresh pool 7 with v5).
+- **`FACT_PROMPT=v6` (`prompts/fact_relation_v6.md`):** v5 with the same schema (`FactRelationOutputV5`), plus three rules.
+  - An answer takes its subject from the question. When the last line asks a question (either host) and this line answers it, the fact is about the question's subject and is compared with that subject's value. This also holds for a sentence cut in two by speech-to-text. The answer is `HOST_ASSERTS`.
+  - A rejection that states a replacement value ("No, it's 106 now.") is a `HOST_ASSERTS` claim and is checked. A plain "No." still gives no claim.
+  - A question stays `REPORTS_OR_ASKS` even when a host or co-host asks it.
+  - Made-up examples Q-T: the 3-pack price answer, the split "Each stick holds" / "13.5 grams", the rejection with a new price, and a co-host's question.
+  - Claim counts are logged as for v5.
+- **`COMPLIANCE_ENDORSE`:** the `ENDORSE: compliance_judge` addendum. When this line endorses what the last line reported or asked ("A viewer says it treats eczema." then "Yes, that's what it does."), the judge treats the endorsed claim as this line's own claim and judges it with the RULES given (`is_quoted = false`). A rejection is not a violation. It never invents or widens a rule.
+- **Tests:** `tests/test_d331.py` (`d333_*`).

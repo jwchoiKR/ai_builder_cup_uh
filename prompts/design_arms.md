@@ -188,6 +188,14 @@ D-312: speech-to-text may spell a tester, laboratory or test name as a sound-ali
 Labs"). A line that names the tester of a result in such a spelling states its qualifier. Do not report a missing or
 wrong qualifier only because the name is spelled differently from APPROVED_CLAIMS or the product's data.
 
+## ENDORSE: compliance_judge
+
+D-333: when this line endorses what the last line of RECENT_TRANSCRIPT reported or asked ("A viewer says it treats
+eczema." then "Yes, that's what it does."; "Someone asked if it's safe for babies." then "Absolutely."), the endorsed
+claim is this line's own claim. Judge it with the RULES as if the host had said it, and report it with `span` from this
+line (`is_quoted = false`). A rejection ("No, it doesn't treat eczema.") is not a violation. Use only the RULES given:
+never invent or widen a rule.
+
 ## NEG: compliance_judge
 
 D-328: a line that warns against a risky use, or negates a claim, is not that claim. "Don't skip meals and rely on
