@@ -466,6 +466,13 @@ class UtterancePipeline:
                         if facts is not None:
                             async with rt.lock:
                                 await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
+                        else:  # D-408: a failed fact check shows the judge-failed state at once, as a failed judge
+                            async with rt.lock:
+                                await rt.emit("line.check", {"transcript_id": t.transcript_id,
+                                                             "text": merge.text if merge else t.text,
+                                                             "rule_ids": [], "phrases": []})
+                                await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
+                                                               "alert_ids": [], "agent": "fact_checker"})
             if comp is None:
                 return None, facts
             if ctx is None and self.split3:
@@ -651,10 +658,19 @@ class UtterancePipeline:
         if transcript_id is not None:
             self._fact_inputs[transcript_id] = inp
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
-        if res.status in ("timeout", "error"):
-            # D-203: one fresh call with its own deadline; D-388 (user): for every line, not only one with a number
-            log.info("fact check %s for %r: once more", res.status, text[:80])
-            res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)
+        if res.status in ("error", "invalid"):
+            # D-203/D-388: one fresh call, for every line. D-408 (codex): only after a fast failure; an invalid answer is
+            # asked again without JUDGE_SEED (the same seed tends to repeat it). A timeout is not retried: its failure
+            # shows at once. The result's latency counts both calls (from the line's start of checking)
+            first = res
+            log.info("fact check %s (%s) for %r: once more%s", res.status, res.error, text[:80],
+                     ", without the seed" if res.status == "invalid" else "")
+            res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS, seeded=first.status != "invalid")
+            res.latency_ms += first.latency_ms
+            res.meta["first_failure"] = first.status
+        if res.status != "ok":
+            log.info("fact check failed (%s: %s) for %r after %d ms%s", res.status, res.error, text[:80],
+                     res.latency_ms, f", first {res.meta['first_failure']}" if "first_failure" in res.meta else "")
         return res
 
     async def _apply_compliance_locked(self, t: Transcript, on_air: str, res: AgentResult, hits,
