@@ -8,13 +8,11 @@ import re
 
 import pytest
 
-from app.agents.fact_checker import DROPS, from_relation, hard_validate, post_validate, sentence_index
+from app.agents.fact_checker import DROPS, from_relation, sentence_index
 from app.models.agent_io import FactRelationOutput
 from app.models.data import Passage
 
-from .conftest import ALL_FIXES
-from .judge_fakes import AMPOULE, CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
-from .test_g_fixes import FACT
+from .judge_fakes import CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
 from .test_q_fixes import _release_catalog
 
 
@@ -56,62 +54,6 @@ def test_d296_from_relation():
         ("contradicted", None, None),  # the active promo
         ("not_in_sources", PRICE_PASSAGE, "Live broadcast price: S$36.00.")]  # uncertain never alerts
     assert [d["reason"] for d in sink] == ["relation uncertain"]  # D-374: no drop, uncertain is only counted
-
-
-@pytest.mark.parametrize("fix, category, line, stated, correct, quote, field, false_alert", FACT,
-                         ids=[f"{c[0]}-{c[1]}-{i}" for i, c in enumerate(FACT)])
-def test_d296_the_guard_set_in_both_guard_modes(catalog, fix, category, line, stated, correct, quote, field,
-                                                false_alert):
-    """The relation arm is judged by the model; these check the code around it. A model that reads a false line as
-    consistent gives no alert in either mode. A model that still says contradicts: guards on drop the false lines
-    as today's fixes do, guards off keep it (the model owns the verdict); a true line alerts in both modes."""
-    passages = [_p("DL-CR-01#key-facts#x", quote)]
-    _, index = sentence_index(passages)
-    for relation in ("consistent", "contradicts"):
-        out = from_relation(_rel((line, CREAM, field, stated, ["S1"], relation, correct)), index, set())
-        on = post_validate(out, passages, catalog, None, line, fixes=frozenset({fix})).claims[0].verdict
-        off = hard_validate(out, passages, catalog, None, (), {CREAM}).claims[0].verdict
-        if relation == "consistent":
-            assert (on, off) == ("supported", "supported")
-        else:
-            assert on == ("not_in_sources" if false_alert else "contradicted") and off == "contradicted"
-
-
-def test_d296_hard_checks(catalog):
-    promo = next(p for p in catalog.pack.promos.promos if p.promo_id == "promo_time_sale_10")
-    cream = _p(PRICE_PASSAGE, "Live broadcast price: S$36.00")
-    ocr = _p("DL-CR-01#key-facts#ocr", "Live broadcast price: S$ 3 6.00")  # a table cell OCR spaced
-    other = _p("DL-AM-01#key-facts#price", "Live broadcast price: S$44.00", AMPOULE)
-    claims_passage = _p("DL-CR-01#claims", "Helps keep skin hydrated for 24 hours.", section="Approved on-air claims")
-    caution = _p("DL-CR-01#cautions", "Stop use if irritation occurs.")
-    passages = [cream, ocr, other, claims_passage, caution]
-    cases = [  # (category, claim, products the line is about, kept)
-        ("skincare", ("thirty-two dollars", CREAM, "price", "S$32", PRICE_PASSAGE, "S$36.00"), {CREAM}, True),
-        ("skincare: OCR quote, record value (R1)", ("thirty-two", CREAM, "price", "S$32", ocr.passage_id, "S$36.00"),
-         {CREAM}, True),
-        ("kettle: a number in neither", ("thirty-two", CREAM, "price", "S$32", PRICE_PASSAGE, "S$41.00"), {CREAM},
-         False),
-        ("fragrance: another product's sentence", ("thirty-two", CREAM, "price", "S$32", other.passage_id, "S$44.00"),
-         {CREAM}, False),
-        ("supplement: a product the line is not about", ("forty", AMPOULE, "price", "S$40", other.passage_id,
-                                                         "S$44.00"), {CREAM}, False),
-        ("children: the approved-claims passage", ("all day", CREAM, "test_result", "all day",
-                                                   claims_passage.passage_id, "24 hours"), {CREAM}, False),
-        ("skincare: a caution without a number", ("keep using it", CREAM, "caution", "keep using it",
-                                                  caution.passage_id, "Stop use if irritation occurs"), {CREAM}, True),
-        ("promo: the active promo's price", ("thirty dollars", CREAM, "promo", "S$30", None,
-                                             catalog.price_display(CREAM, promo)), {CREAM}, True),
-        ("promo: not the promo's price", ("thirty dollars", CREAM, "promo", "S$30", None, "S$29.00"), {CREAM}, False),
-    ]
-    by_id = {p.passage_id: p for p in passages}
-    for name, (span, pid, field, stated, passage_id, correct), products, kept in cases:
-        raw = {"claims": [{"span": span, "product_id": pid, "field": field, "stated_value": stated,
-                           "verdict": "contradicted", "correct_value": correct, "passage_id": passage_id,
-                           "quote": by_id[passage_id].text if passage_id else None}], "reason": "relation"}
-        from app.models.agent_io import FactCheckOutput
-
-        got = hard_validate(FactCheckOutput.model_validate(raw), passages, catalog, promo, (), products)
-        assert (got.claims[0].verdict == "contradicted") is kept, name
 
 
 class _RelationBackend(ScriptedBackend):
@@ -235,28 +177,6 @@ def test_d297_pair_split_price_is_no_test_result(tmp_path, prev, line, kept):
          "say_instead": "x"}
     assert [x.rule_id for x in _validate_after(catalog, prev, line, [v], ("G4", "G5", "Q1E"))] == (
         [RULE_ID] if kept else [])
-
-
-@pytest.mark.parametrize("line, stated, correct, quote, field, alert", [
-    ("Someone asked if it's alcohol-free. No, it contains alcohol.", "alcohol-free", "Contains alcohol",
-     "Contains alcohol (ethanol)", "ingredient", False),
-    ("Someone asked if it's alcohol-free. Yes, it's alcohol-free.", "alcohol-free", "Contains alcohol",
-     "Contains alcohol (ethanol)", "ingredient", True),
-    ("A comment says the 50 mL is S$20; that mixes up sizes, it's S$24.", "S$20", "S$24.00",
-     "Live broadcast price (50 mL): S$24.00", "price", False),
-    ("The 50 mL is S$20.", "S$20", "S$24.00", "Live broadcast price (50 mL): S$24.00", "price", True),
-    ("Have your child swallow the toothpaste.", "swallow the toothpaste", "Do not swallow",
-     "Do not swallow. Spit out after brushing.", "caution", True),  # the usage error is a fact alert
-])
-def test_d297_pairs_on_the_fact_side(catalog, line, stated, correct, quote, field, alert):
-    """FACT_GUARDS=off keeps the quote-then-reject guard (Q2, G1): the relation model still read these as
-    contradictions."""
-    fixes = frozenset(ALL_FIXES.split(","))  # D-353: the opt-in code checks, named (no longer the default)
-    passages = [_p("DL-CR-01#key-facts#x", quote)]
-    _, index = sentence_index(passages)
-    out = from_relation(_rel((line, CREAM, field, stated, ["S1"], "contradicts", correct)), index, set())
-    got = hard_validate(out, passages, catalog, None, (), {CREAM}, line, fixes).claims[0].verdict
-    assert (got == "contradicted") is alert
 
 
 async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():

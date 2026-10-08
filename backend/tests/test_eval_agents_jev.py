@@ -15,12 +15,12 @@ async def test_jev_dispatch_and_timing(monkeypatch, settings, structure, failed)
     import app.agents.fact_checker as fc
 
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
-    # The historical eval script disables post-validation to retain raw model output.
-    original = fc.post_validate
+    # The historical eval script disables the claim filter to retain raw model output (D-389: as_given).
+    original = fc.as_given
     try:
         mod = importlib.import_module("eval_agents")
     finally:
-        fc.post_validate = original
+        fc.as_given = original
     started = set()
     closed = []
 

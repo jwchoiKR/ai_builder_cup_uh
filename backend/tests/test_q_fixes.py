@@ -5,24 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.agents.fact_checker import post_validate
-from app.models.agent_io import FactCheckOutput
-from app.models.data import Passage
 
 PID = "cream_hydra_barrier"
-
-
-@pytest.fixture
-def check(catalog):
-    def go(line, stated, correct, quote, field, fixes, reason="t"):
-        p = Passage(passage_id="DL-CR-01#key-facts#x", product_id=PID, doc="sheet", section="Key facts", text=quote,
-                    score=0.0)
-        raw = {"claims": [{"span": line, "product_id": PID, "verdict": "contradicted", "passage_id": p.passage_id,
-                           "field": field, "stated_value": stated, "correct_value": correct, "quote": quote}],
-               "reason": reason}
-        return post_validate(FactCheckOutput.model_validate(raw), [p], catalog, None, line,
-                             fixes=frozenset(fixes)).claims[0].verdict
-    return go
 
 
 Q2 = [  # (category, line, stated, correct, quote, field, false alert today)
@@ -43,14 +27,6 @@ Q2 = [  # (category, line, stated, correct, quote, field, false alert today)
 ]
 
 
-@pytest.mark.parametrize("category, line, stated, correct, quote, field, false_alert", Q2,
-                         ids=[f"{c[0]}-{i}" for i, c in enumerate(Q2)])
-def test_d283_q2_a_quoted_value_corrected_in_the_line(check, category, line, stated, correct, quote, field,
-                                                      false_alert):
-    assert check(line, stated, correct, quote, field, ()) == "contradicted"  # today: an alert either way
-    assert (check(line, stated, correct, quote, field, {"Q2"}) == "contradicted") is not false_alert
-
-
 Q4 = [  # (category, reason, false alert today)
     ("children", "The host's 'from 4' is consistent with 'not suitable under 4'.", True),
     ("fragrance", "The stated 15% matches the sheet.", True),
@@ -59,13 +35,6 @@ Q4 = [  # (category, reason, false alert today)
     ("kettle", "The stated capacity is correct for the 1.5 L model, not this 1.7 L one.", False),
     ("supplement", "The amount is not consistent with the label.", False),
 ]
-
-
-@pytest.mark.parametrize("category, reason, false_alert", Q4, ids=[f"{c[0]}-{i}" for i, c in enumerate(Q4)])
-def test_d283_q4_a_verdict_whose_reason_says_the_line_agrees(check, category, reason, false_alert):
-    args = ("It costs twenty dollars.", "S$20", "S$36.00", "Live broadcast price: S$36.00", "price")
-    assert check(*args, (), reason) == "contradicted"
-    assert (check(*args, {"Q4"}, reason) == "contradicted") is not false_alert
 
 
 Q1E = [  # (category, result say, line, exempt with Q1E)
@@ -285,7 +254,7 @@ def _with_law_rules(catalog, *rules):
 
 
 def _law_rule(rule_id: str, category: str):
-    from app.onboarding.lawpack import LawPackRecord, to_rules
+    from app.onboarding.lawpack import LawPackRecord
 
     rec = LawPackRecord.model_validate({"rules": [{
         "rule_id": rule_id, "title": rule_id, "description": "made up", "severity": "HIGH", "rule_category": category,

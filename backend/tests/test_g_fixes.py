@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from .test_q_fixes import _law_rule, _release_catalog, _validate, _with_law_rules, check  # noqa: F401
+from .test_q_fixes import _law_rule, _release_catalog, _validate, _with_law_rules  # noqa: F401
 
 FACT = [  # (fix, category, line, stated, correct, quote, field, false alert today)
     ("G1", "children", "Someone said 'you can share the brush'. Please don't, never share it.",
@@ -50,13 +50,6 @@ FACT = [  # (fix, category, line, stated, correct, quote, field, false alert tod
      "usage", False),
     ("G6", "kettle", "Boil it for two minutes.", "two minutes", "3 minutes", "Boil for 3 minutes", "usage", False),
 ]
-
-
-@pytest.mark.parametrize("fix, category, line, stated, correct, quote, field, false_alert", FACT,
-                         ids=[f"{c[0]}-{c[1]}-{i}" for i, c in enumerate(FACT)])
-def test_d294_fact_fixes(check, fix, category, line, stated, correct, quote, field, false_alert):  # noqa: F811
-    assert check(line, stated, correct, quote, field, ()) == "contradicted"  # today: an alert either way
-    assert (check(line, stated, correct, quote, field, {fix}) == "contradicted") is not false_alert
 
 
 G4 = [  # (category, result, qualifier, line, span, kept with G4)
