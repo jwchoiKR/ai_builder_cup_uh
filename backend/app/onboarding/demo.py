@@ -9,6 +9,13 @@ import shutil
 from .storage import persisted
 
 
+def is_demo_show(settings, release_ids) -> bool:
+    """D-375: the session is the demo show (its releases are the demo's), so the demo feed and bursts apply."""
+    show = settings.data_path / "demo_release" / "show.json"
+    return bool(release_ids) and show.is_file() and (
+        list(release_ids) == json.loads(show.read_text(encoding="utf-8"))["release_ids"])
+
+
 def demo_release_ids(ctx) -> list[str]:
     src = ctx.settings.data_path / "demo_release"
     root = ctx.settings.onboarding_path

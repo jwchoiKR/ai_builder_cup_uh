@@ -97,8 +97,11 @@ class SessionRuntime:
                                     batch_prompt=ctx.prompts["comment_triage_batch"])
         self.composer = AnswerComposer(ctx.llm, ctx.prompts["answer_composer"], self.catalog)
         self.draft_verifier = DraftVerifier(ctx.llm, ctx.prompts["draft_verifier"], self.catalog)
-        # D-278: no demo comments in a release show
-        self.feed = FeedEngine(self, demo=session.release_id is None and not session.release_ids)
+        # D-278: no demo comments in a release show; D-375: the demo show (the demo's own releases) has them
+        from ..onboarding.demo import is_demo_show
+
+        self.feed = FeedEngine(self, demo=(session.release_id is None and not session.release_ids)
+                               or is_demo_show(ctx.settings, session.release_ids))
         from .utterances import UtterancePipeline
 
         self.utterances = UtterancePipeline(self)

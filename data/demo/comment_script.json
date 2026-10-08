@@ -462,6 +462,167 @@
           }
         }
       ]
+    },
+    "B6_sample_questions": {
+      "scene": "default",
+      "description": "D-375: sample viewer questions for the cream: three common questions asked several ways (price, sensitive skin, use with the ampoule) reach the host's Top 3; two singles; one the product info does not answer goes to the operator.",
+      "comments": [
+        {
+          "offset_ms": 0,
+          "author_id": "u_mei",
+          "author_name": "Mei",
+          "text": "How much is the cream?",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 2500,
+          "author_id": "u_hafiz",
+          "author_name": "Hafiz",
+          "text": "is the cream ok for sensitive skin?",
+          "expect": {
+            "kind": "question",
+            "intent": "sensitive_skin",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 5000,
+          "author_id": "u_grace",
+          "author_name": "Grace",
+          "text": "do i put the ampoule before or after the cream?",
+          "expect": {
+            "kind": "question",
+            "intent": "how_to_use",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 7500,
+          "author_id": "u_dev",
+          "author_name": "Dev",
+          "text": "price of the barrier cream pls",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 10000,
+          "author_id": "u_aisyah",
+          "author_name": "Aisyah",
+          "text": "my skin is very sensitive, can I use this cream?",
+          "expect": {
+            "kind": "question",
+            "intent": "sensitive_skin",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 12500,
+          "author_id": "u_ken",
+          "author_name": "Ken",
+          "text": "ampoule first or cream first?",
+          "expect": {
+            "kind": "question",
+            "intent": "how_to_use",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 15000,
+          "author_id": "u_lina",
+          "author_name": "Lina",
+          "text": "what's the live price for the cream today?",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 17500,
+          "author_id": "u_joel",
+          "author_name": "Joel",
+          "text": "will this cream irritate sensitive skin",
+          "expect": {
+            "kind": "question",
+            "intent": "sensitive_skin",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 20000,
+          "author_id": "u_farah",
+          "author_name": "Farah",
+          "text": "how do i use the cream together with the ampoule?",
+          "expect": {
+            "kind": "question",
+            "intent": "how_to_use",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 22500,
+          "author_id": "u_priya",
+          "author_name": "Priya",
+          "text": "cream how much ah",
+          "expect": {
+            "kind": "question",
+            "intent": "price",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 25000,
+          "author_id": "u_tan",
+          "author_name": "Tan",
+          "text": "can i wear the cream under makeup?",
+          "expect": {
+            "kind": "question",
+            "intent": "how_to_use",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 27500,
+          "author_id": "u_rosa",
+          "author_name": "Rosa",
+          "text": "does the cream have any fragrance?",
+          "expect": {
+            "kind": "question",
+            "intent": "ingredients",
+            "route": "AUTO",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+          }
+        },
+        {
+          "offset_ms": 30000,
+          "author_id": "u_omar",
+          "author_name": "Omar",
+          "text": "do you ship to Brunei?",
+          "expect": {
+            "kind": "question",
+            "intent": "shipping",
+            "route": "OPERATOR"
+          }
+        }
+      ]
     }
   }
 }
