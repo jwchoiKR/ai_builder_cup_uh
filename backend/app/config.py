@@ -119,7 +119,11 @@ class Settings(BaseSettings):
     # D-334 alternative: the fact checker reads a CONVERSATION block (the last 3 finals, oldest first) and checks only
     # the last line, using the earlier ones to understand it
     CONTEXT_JUDGE: bool = False
-    FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
+    # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
+    # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
+    # no record facts the prompter does not show. Was "docs" (D-247/D-255). The release pack itself is still built at
+    # record level for its other readers (answers to viewers).
+    FACT_MODE: Literal["sheet", "record", "docs", "prompter"] = "prompter"  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
     FIRESTORE_DATABASE: str = "live-studio"  # D-354: the Firestore database of STORE=firestore
@@ -140,7 +144,7 @@ class Settings(BaseSettings):
     FACTS_THINKING: ThinkingLevel = "LOW"  # D-255: sealed unseen products, 5 s budget
     # D-309 JUDGE_ARM=single: the one model and thinking level of the compliance judge and the fact checker
     SINGLE_MODEL: str = "gemini-3.5-flash-lite"  # D-336: the measured config (Flash-Lite, compliance MEDIUM, facts LOW)
-    SINGLE_THINKING: ThinkingLevel = "MEDIUM"
+    SINGLE_THINKING: ThinkingLevel = "LOW"  # D-360 (user): the compliance judge thinks LOW (was MEDIUM, D-336)
     SINGLE_FACTS_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "LOW"  # D-311: the fact checker's; empty = SINGLE_THINKING
     COMPLIANCE_MODEL: str = ""
     # D-310: the compliance judge's cached prefix also holds the on-air product's documents (the fact checker's FD

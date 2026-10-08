@@ -5,9 +5,10 @@ from pathlib import Path
 
 from app.config import Settings
 
-MEASURED = {"JUDGE_ARM": "single", "SINGLE_MODEL": "gemini-3.5-flash-lite", "SINGLE_THINKING": "MEDIUM",
+MEASURED = {"JUDGE_ARM": "single", "SINGLE_MODEL": "gemini-3.5-flash-lite", "SINGLE_THINKING": "LOW",  # D-360
             "SINGLE_FACTS_THINKING": "LOW", "FACT_PROMPT": "v5", "JUDGE_SEED": "7", "STT_ENDPOINTING": "STANDARD",
-            "QUESTION_HOLD": True}  # D-343
+            "QUESTION_HOLD": True,  # D-343
+            "FACT_MODE": "prompter"}  # D-360
 
 
 def test_d336_the_defaults_are_the_measured_config():
