@@ -2413,3 +2413,11 @@ D-356 (arm `CORRECTION_HANDLES`, off until measured): the compliance judge saw a
   - a handle marked fixed corrects its alert, and the request shows handles, no ids and the status;
   - not-fixed and unknown handles correct nothing, and the unknown one is logged;
   - an id the judge was not shown is logged when it is dropped.
+
+D-357: a fix to D-352's spec. The re-check now fires every time a quick correction came before its alert.
+- **Diagnostic** (2e25c3b, CORRECTION_HANDLES on, COMPLIANCE_RESAY on, REFLEX_SCAN off): over 3 shows only one re-check was logged. Three quick corrections (two qualified re-says and one apology) were judged before their alert existed, and none got a re-check when the alert turned active.
+- **Cause:** D-352 asked only later lines whose own compliance verdict had already been applied. With both calls in flight, that verdict usually comes back after the alert turns active, so the line was skipped. D-352 also required the same segment.
+- **Fix:** when any compliance alert turns active (TEST-QUALIFIER banners included), every later line counts as "judged without it" when its judge input was built and did not show this alert, whether or not its verdict is back. That is at most 2 lines, within 10 s of the alert's line, in any segment. The re-check uses the same compliance judge, so it uses the handle format with only that alert when CORRECTION_HANDLES is on.
+- **Log:** each trigger decision, `correction <sid> re-check trigger: alert=<id> rule=<rule> t=<line> -> fired | skipped (<why>)`. The reasons are: too late, not judged yet (its judgment will show the alert), already shown the alert, or past the first 2 lines. There is also a line when no later line exists.
+- The unused D-352 field `_comp_done` is removed.
+- Test: `test_d357_...` in `tests/test_d352.py`: the claim's verdict arrives after the next line was judged, and that line's own verdict comes back even later. The re-check fires, in the handle format, and clears the alert.

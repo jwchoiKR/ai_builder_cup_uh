@@ -209,9 +209,8 @@ class UtterancePipeline:
         self._early: dict[str, EarlyAnswer] = {}
         self._addenda: dict[str, Transcript] = {}  # D-151: finals that only add "in our in-house test"
         # D-352: a provisional alert the compliance judge said a later line corrects -> that line (applied the moment
-        # the alert turns active); and when each line's compliance verdict was applied
+        # the alert turns active)
         self._pending_fix: dict[str, Transcript] = {}
-        self._comp_done: dict[str, int] = {}
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
         key = (t.transcript_id, kind)
@@ -837,7 +836,6 @@ class UtterancePipeline:
             # D-089: an apology alone does not correct a compliance alert
             await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
                                                  quotes=getattr(judge.correction, "quotes", None))
-        self._comp_done[t.transcript_id] = now
         # §8.4.7 a new HIGH alert resets switch counting and cancels a pending switch
         await self._high_alert_switch_reset_locked(high_before)
 
@@ -949,9 +947,11 @@ class UtterancePipeline:
 
     async def _on_active_locked(self, a: Alert) -> None:
         """D-352: an alert just turned active. A correction the judge already gave for it (while it was provisional)
-        applies now. Otherwise, the later lines whose verdict came before the alert existed (at most 2, within
-        LATE_CORRECTION_MS of its line) are asked once each, by the compliance judge, whether they correct it or say
-        it again with the qualifier. A failed call is never a correction."""
+        applies now. Otherwise, the later lines judged without this alert (at most 2, within LATE_CORRECTION_MS of
+        its line, any segment) are asked once each, by the compliance judge, whether they correct it or say it again
+        with the qualifier. A failed call is never a correction. D-357: "judged without it" means the line's judge
+        input was built before the alert existed, whether or not that line's own verdict has come back yet (it often
+        has not); every trigger decision is logged."""
         rt = self.rt
         if a.kind != "compliance" or a.status != "active":
             return
@@ -964,11 +964,28 @@ class UtterancePipeline:
         origin = self._prepared.get(a.transcript_id)
         seq = self._sequence.get(a.transcript_id, 0)
         since = origin[0].received_at if origin else a.created_at
-        later = sorted((x for x, _, _ in self._prepared.values()
-                        if self._sequence.get(x.transcript_id, 0) > seq and x.segment_id == self._segments.get(a.transcript_id)
-                        and x.transcript_id in self._comp_done and x.received_at - since <= LATE_CORRECTION_MS),
-                       key=lambda x: self._sequence[x.transcript_id])[:LATE_CORRECTION_LINES]
+        later = sorted((x for x, _, _ in self._prepared.values() if self._sequence.get(x.transcript_id, 0) > seq),
+                       key=lambda x: self._sequence[x.transcript_id])
+        fire = []
         for x in later:
+            inp = self._inputs.get(x.transcript_id)
+            if x.received_at - since > LATE_CORRECTION_MS:
+                why = f"more than {LATE_CORRECTION_MS} ms after the alert's line"
+            elif inp is None:
+                why = "not judged yet (its judgment will show this alert)"
+            elif any(b.alert_id == a.alert_id for b in inp.active_alerts):
+                why = "its judgment already showed this alert"
+            elif len(fire) >= LATE_CORRECTION_LINES:
+                why = f"only the first {LATE_CORRECTION_LINES} lines are asked"
+            else:
+                fire.append(x)
+                why = None
+            log.info("correction %s re-check trigger: alert=%s rule=%s t=%s -> %s", rt.sid, a.alert_id, a.rule_id,
+                     x.transcript_id, "fired" if why is None else f"skipped ({why})")
+        if not later:
+            log.info("correction %s re-check trigger: alert=%s rule=%s -> no later line", rt.sid, a.alert_id,
+                     a.rule_id)
+        for x in fire:
             task = rt.spawn(self._recheck_correction(a.alert_id, x, origin[1] if origin else None),
                             name=f"recheck:{a.alert_id}:{x.transcript_id}")
             self._pending.add(task)
