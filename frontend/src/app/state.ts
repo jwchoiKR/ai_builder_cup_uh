@@ -45,19 +45,14 @@ export interface JudgeFailure {
   transcript_id: string;
   status?: string;
   alert_ids?: string[];
-  /** D-412: "busy" (429), "timeout", "invalid" or "error", and when (server time); D-416: which judge */
+  /** D-412: "busy" (429), "timeout", "invalid" or "error", and when (server time); D-416: which judge; D-420: the
+   *  server's order number, which breaks `at` ties */
   cause?: string;
   at?: number;
   agent?: string;
+  n?: number;
 }
 
-/** D-412: the lines no judge could check since the judges last answered a line normally */
-export interface Unchecked {
-  ids: string[];
-  /** the most recent failure's cause and time (on a tie, the later event) */
-  cause: string | null;
-  at?: number | null;
-}
 
 export interface OperatorAction {
   seq: number;
@@ -89,7 +84,8 @@ export interface ClientState {
   overtime: Record<string, OvertimeInfo>;
   missingPoints: MissingPoints[];
   judgeFailures: JudgeFailure[];
-  unchecked: Unchecked;
+  /** D-412/D-420: the failure events of the lines still unchecked (one per line and judge), whatever their age */
+  unchecked: JudgeFailure[];
   /** D-137: judges that failed on the last finals in a row (empty: healthy) */
   judgeDegraded: string[];
   /** D-306: lines whose candidates the verifier is checking ("transcript id|kind" -> kind): the host's grey chip */
@@ -142,7 +138,7 @@ export function emptyState(role: Role): ClientState {
     overtime: {},
     missingPoints: [],
     judgeFailures: [],
-    unchecked: { ids: [], cause: null },
+    unchecked: [],
     summaryReady: false,
     voiceLine: null,
     needsResync: false,
@@ -187,9 +183,9 @@ export function reduceSnapshot(snap: StateSnapshot, role: Role, clientNow: numbe
     metrics: snap.metrics ?? {},
     feed: snap.feed ?? null,
     judgeDegraded: snap.judge_health?.degraded ?? [],
-    // D-412: kept on refresh: the last 5 minutes' failures and the lines unchecked now
+    // D-412/D-420: kept on refresh: the last 5 minutes' failure events and every unchecked line's events
     judgeFailures: (snap.check_failures?.recent ?? []).map((f) => ({ ...f, seq: 0 })),
-    unchecked: snap.check_failures?.unchecked ?? { ids: [], cause: null },
+    unchecked: (snap.check_failures?.unchecked ?? []).map((f) => ({ ...f, seq: 0 })),
     verifyHealth: snap.verify_health ?? null,
     market: snap.market ?? null,
     agentCalls: [...(snap.agent_calls ?? [])].reverse().slice(0, MAX_LOG),
@@ -427,14 +423,10 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
     case "judge.failed": {
       // D-416: the server's rule: each failure event (line, judge) counts once; the line is unchecked, and the strip
       // names the latest failure's cause (on a tie, the later event), as the snapshot rebuilds it
-      if (state.judgeFailures.some((j) => j.transcript_id === p.transcript_id && j.agent === p.agent)) return state;
-      const failures = [...state.judgeFailures, { ...p, seq: ev.seq } as JudgeFailure];
-      const id = p.transcript_id as string;
-      const ids = state.unchecked.ids.includes(id) ? state.unchecked.ids : [...state.unchecked.ids, id];
-      const later = p.at === undefined || state.unchecked.at == null || p.at >= state.unchecked.at;
-      const unchecked = later ? { ids, cause: (p.cause as string | undefined) ?? state.unchecked.cause, at: p.at ?? null }
-        : { ...state.unchecked, ids };
-      return { ...state, judgeFailures: failures, unchecked };
+      const same = (j: JudgeFailure) => j.transcript_id === p.transcript_id && j.agent === p.agent;
+      if (state.judgeFailures.some(same)) return state;
+      const f = { ...p, seq: ev.seq } as JudgeFailure;
+      return { ...state, judgeFailures: [...state.judgeFailures, f], unchecked: [...state.unchecked.filter((j) => !same(j)), f] };
     }
 
     case "line.check":
@@ -442,9 +434,8 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
 
     case "checks.recovered": {
       // D-416: only the lines the server cleared (said at or before the line that was answered normally)
-      const cleared = new Set((p.cleared as string[] | undefined) ?? state.unchecked.ids);
-      const ids = state.unchecked.ids.filter((x) => !cleared.has(x));
-      return { ...state, unchecked: ids.length ? { ...state.unchecked, ids } : { ids: [], cause: null, at: null } };
+      const cleared = p.cleared as string[] | undefined;
+      return { ...state, unchecked: cleared ? state.unchecked.filter((j) => !cleared.includes(j.transcript_id)) : [] };
     }
 
     case "judge.health":

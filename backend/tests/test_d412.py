@@ -44,11 +44,11 @@ async def test_d412_failures_carry_their_cause_stay_in_the_snapshot_and_clear_on
         assert {e.payload["cause"] for e in checks} == {"busy"}
         assert {e.payload["agent"] for e in await events(rt, "judge.failed")} == {"compliance_judge", "fact_checker"}
         snap = rt.utterances.check_failures()
-        assert len(snap["recent"]) == 4 and snap["unchecked"]["cause"] == "busy"  # D-416: one per line and judge
-        assert len(snap["unchecked"]["ids"]) == 2
+        assert len(snap["recent"]) == 4  # D-416: one per line and judge
+        assert {u["cause"] for u in snap["unchecked"]} == {"busy"} and len({u["transcript_id"] for u in snap["unchecked"]}) == 2
         await speak(rt, fine)  # the judges answer normally again
         [ok] = await events(rt, "checks.recovered")
-        assert rt.utterances.check_failures()["unchecked"] == {"ids": [], "cause": None, "at": None}
+        assert rt.utterances.check_failures()["unchecked"] == []
         assert len(rt.utterances.check_failures()["recent"]) == 4  # the 5-minute count stays
         await rt.ctx.scheduler.advance(300_000)
         assert rt.utterances.check_failures()["recent"] == []
@@ -81,7 +81,7 @@ async def test_d416_a_context_only_failure_shows():
         await speak(rt, line)
         [f] = await events(rt, "judge.failed")
         assert (f.payload["agent"], f.payload["cause"]) == ("context_judge", "busy")
-        assert rt.utterances.check_failures()["unchecked"]["ids"] == [f.payload["transcript_id"]]
+        assert [u["transcript_id"] for u in rt.utterances.check_failures()["unchecked"]] == [f.payload["transcript_id"]]
     finally:
         await close_env(rt)
 
@@ -100,7 +100,7 @@ async def test_d416_an_earlier_line_s_late_success_does_not_clear_a_later_failur
         await asyncio.sleep(0.4)
         await rt.ctx.scheduler.idle()
         [fb] = await events(rt, "judge.failed")
-        assert rt.utterances.check_failures()["unchecked"]["ids"] == [fb.payload["transcript_id"]]
+        assert [u["transcript_id"] for u in rt.utterances.check_failures()["unchecked"]] == [fb.payload["transcript_id"]]
         assert await events(rt, "checks.recovered") == []
     finally:
         await close_env(rt)
@@ -116,6 +116,21 @@ async def test_d416_busy_then_timeout_on_one_line_counts_the_same_live_and_after
         snap = rt.utterances.check_failures()
         assert sorted(live) == sorted((x["agent"], x["cause"]) for x in snap["recent"])
         assert sorted(c for _, c in live) == ["busy", "timeout"]
-        assert snap["unchecked"]["cause"] == live[-1][1]  # the latest event's cause, as the live stream shows
+        # D-420: the same events, in the same (at, n) order, as the live stream carried them
+        assert [(u["agent"], u["cause"]) for u in snap["unchecked"]] == live
+        assert [e.payload["n"] for e in await events(rt, "judge.failed")] == [u["n"] for u in snap["unchecked"]]
+    finally:
+        await close_env(rt)
+
+
+async def test_d420_an_unchecked_line_older_than_5_minutes_stays_in_the_snapshot():
+    line = "It feels light."
+    rt = await live_runtime(make_ctx(backend=_Fails({("compliance_judge", line): "429 RESOURCE_EXHAUSTED"})))
+    try:
+        await speak(rt, line)
+        await rt.ctx.scheduler.advance(360_000)
+        snap = rt.utterances.check_failures()
+        assert snap["recent"] == []  # only the per-cause count uses the 5-minute window
+        assert [(u["agent"], u["cause"]) for u in snap["unchecked"]] == [("compliance_judge", "busy")]
     finally:
         await close_env(rt)

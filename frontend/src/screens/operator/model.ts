@@ -1,7 +1,7 @@
 // Pure helpers for the operator control room (DEV_SPEC §12.4). No React here, so they are unit-tested.
 import { translate, type Translate } from "../../app/i18n";
 import { formatMmSs, onAirSegment, ownDocFirst, productById } from "../../app/selectors";
-import type { ClientState } from "../../app/state";
+import type { ClientState, JudgeFailure } from "../../app/state";
 import type { Alert, Answer, Catalog, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
 
 /** Default for the optional `t` of the label helpers below: English, as the tests expect. */
@@ -256,6 +256,13 @@ export const FAILURE_CAUSES: Record<string, string> = {
   invalid: "AI answer unreadable",
 };
 export const FAILURE_WINDOW_MS = 300_000; // D-412: the same 5 minutes as the server's
+/** D-420: which judge failed, in plain words */
+const FAILURE_JUDGES: Record<string, string> = {
+  compliance_judge: "Compliance check",
+  utterance_judge: "Compliance check",
+  fact_checker: "Fact check",
+  context_judge: "Context check",
+};
 
 export function systemCards(state: ClientState, catalog: Catalog | null, now: number, t: Translate = EN): SystemCard[] {
   const cards: SystemCard[] = [];
@@ -272,10 +279,13 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
       missingTexts: texts,
     });
   }
-  for (const j of state.judgeFailures) {
-    const cause = j.cause ? ` · ${t(FAILURE_CAUSES[j.cause] ?? "AI error")}` : "";
-    cards.push({ key: `judge:${j.transcript_id}:${j.agent ?? ""}`, kind: "judge_failed",
-      text: `${t("AI check unavailable for the last sentence")}${cause}` });
+  // D-420: one card per unchecked line (whatever its age), listing each failed judge with its cause
+  const lines = new Map<string, JudgeFailure[]>();
+  for (const j of state.unchecked) lines.set(j.transcript_id, [...(lines.get(j.transcript_id) ?? []), j]);
+  for (const [tid, fs] of lines) {
+    const causes = fs.map((j) => `${t(FAILURE_JUDGES[j.agent ?? ""] ?? "AI check")}: ${t(FAILURE_CAUSES[j.cause ?? ""] ?? "AI error")}`);
+    cards.push({ key: `judge:${tid}`, kind: "judge_failed",
+      text: `${t("AI check unavailable for the last sentence")} · ${causes.join(" · ")}` });
   }
   // D-412/D-416: the failure events of the last 5 minutes, by cause (one per line and judge, as the server counts
   // them); a new failure shows the card again

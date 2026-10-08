@@ -369,8 +369,11 @@ export interface StateSnapshot {
   feed?: FeedState;
   judge_health?: { degraded: string[] }; // D-137
   /** D-412: failed checks of the last 5 minutes, and the lines unchecked now */
-  check_failures?: { recent: { transcript_id: string; agent?: string; cause: string; at: number }[];
-    unchecked: { ids: string[]; cause: string | null; at?: number | null } };
+  /** D-420: both lists are failure events {transcript_id, agent, cause, at, n} in (at, n) order */
+  check_failures?: {
+    recent: { transcript_id: string; agent?: string; cause: string; at: number; n?: number }[];
+    unchecked: { transcript_id: string; agent?: string; cause: string; at: number; n?: number }[];
+  };
   verify_health?: VerifyHealth; // D-306
   market?: SessionMarket; // D-150
   // P2 (planned): missing keys are treated as empty

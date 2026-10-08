@@ -76,6 +76,11 @@ export const KO_OPERATOR: Record<string, string> = {
   "AI timed out": "AI 시간 초과",
   "AI answer unreadable": "AI 응답 해석 불가",
   "Last 5 min: {counts}": "최근 5분: {counts}",
+  // D-420: which judge failed on the line
+  "Compliance check": "규정 확인",
+  "Fact check": "사실 확인",
+  "Context check": "문맥 확인",
+  "AI check": "AI 확인",
   "Overtime +{time} on {product}": "{product} 시간 초과 +{time}",
   "Active promotion": "진행 중인 프로모션",
   "Product sheet": "상품 자료",

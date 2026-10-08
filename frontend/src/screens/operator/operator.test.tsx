@@ -89,27 +89,31 @@ describe("alert cards", () => {
     st = {
       ...st,
       missingPoints: [{ seq: 1, segment_id: "seg_000001", product_id: "cream_hydra_barrier", missing_point_ids: ["cr-p3"] }],
-      judgeFailures: [{ seq: 2, transcript_id: "tr_1" }],
+      unchecked: [{ seq: 2, transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0 }],
       overtime: { seg_000001: { segment_id: "seg_000001", product_id: "cream_hydra_barrier", overtime_sec: 5 } },
     };
     const cards = systemCards(st, catalog, T0 + 905_000);
     expect(cards.map((c) => c.text)).toEqual([
       "Switched with missing required points: Helps keep skin hydrated for up to 24 hours (in-house test).",
-      "AI check unavailable for the last sentence",
+      "AI check unavailable for the last sentence · Compliance check: AI busy (429)",
       "Overtime +0:05 on Hydra Barrier Cream",
     ]);
   });
   it("D-412: a failed line says its cause with the code; the last 5 minutes are counted by cause", () => {
     let st = reduceSnapshot(snapshot(), "operator", T0);
-    st = { ...st, judgeFailures: [
-      { seq: 1, transcript_id: "tr_old", cause: "busy", at: T0 - 400_000 },
-      { seq: 2, transcript_id: "tr_1", cause: "busy", at: T0 - 60_000 },
-      { seq: 3, transcript_id: "tr_2", cause: "busy", at: T0 - 30_000 },
-      { seq: 4, transcript_id: "tr_3", cause: "timeout", at: T0 - 1000 },
-    ] };
+    const failures = [
+      { seq: 1, transcript_id: "tr_old", agent: "compliance_judge", cause: "busy", at: T0 - 400_000 },
+      { seq: 2, transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0 - 60_000 },
+      { seq: 3, transcript_id: "tr_2", agent: "compliance_judge", cause: "busy", at: T0 - 30_000 },
+      { seq: 4, transcript_id: "tr_2", agent: "fact_checker", cause: "timeout", at: T0 - 1000 },
+    ];
+    st = { ...st, judgeFailures: failures.slice(1), unchecked: failures };  // the snapshot's two lists (D-420)
     const texts = systemCards(st, catalog, T0).map((c) => c.text);
-    expect(texts).toContain("AI check unavailable for the last sentence · AI busy (429)");
-    expect(texts).toContain("AI check unavailable for the last sentence · AI timed out");
+    // D-420: one card per unchecked line, whatever its age, listing each failed judge with its cause
+    expect(texts).toContain("AI check unavailable for the last sentence · Compliance check: AI busy (429)");
+    expect(texts).toContain(
+      "AI check unavailable for the last sentence · Compliance check: AI busy (429) · Fact check: AI timed out");
+    expect(texts.filter((x) => x.startsWith("AI check unavailable"))).toHaveLength(3);  // tr_old, tr_1, tr_2
     expect(texts).toContain("Last 5 min: AI busy (429) 2 · AI timed out 1");  // tr_old is older than 5 minutes
   });
   it("stale questions turn amber after STALE_COMMENT_SEC", () => {

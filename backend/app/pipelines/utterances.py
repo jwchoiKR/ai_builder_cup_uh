@@ -197,10 +197,12 @@ class UtterancePipeline:
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
         self._fact_shown: dict[str, set[str]] = {}  # D-363: line -> the fact notes its fact check was shown
-        # D-412/D-416: the failure events of the last FAILURE_WINDOW_MS, one per (line, agent), in time order, and the
-        # lines still unchecked (line -> its latest failure); the snapshot rebuilds what the live stream showed
+        # D-412/D-416/D-420: the failure events of the last FAILURE_WINDOW_MS, one per (line, agent), and every failure
+        # event of the lines still unchecked (line -> agent -> event, no time cut); each event has an order number `n`
+        # that breaks `at` ties; the snapshot rebuilds exactly what the live stream showed
         self.failures: dict[tuple[str, str], dict] = {}
-        self.unchecked: dict[str, dict] = {}
+        self.unchecked: dict[str, dict[str, dict]] = {}
+        self._failure_n = 0
         self._fact_inputs: dict[str, FactInput] = {}  # D-364: line -> its fact check's input (a re-check reuses it)
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
@@ -817,28 +819,27 @@ class UtterancePipeline:
         rt = self.rt
         now, cause = rt.now(), failure_cause(res)
         self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
-        event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now}
+        self._failure_n += 1
+        event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now, "n": self._failure_n}
         self.failures[(t.transcript_id, agent)] = event
         first = t.transcript_id not in self.unchecked
-        self.unchecked[t.transcript_id] = event
+        self.unchecked.setdefault(t.transcript_id, {})[agent] = event
         log.info("check failed %s t=%s: %s %s (%s)", rt.sid, t.transcript_id, agent, cause, res.meta.get("failure"))
         if first:  # D-416: the line is unchecked once, whichever judges failed on it
             await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
                                          "cause": cause, "at": now})
         await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": [],
-                                       "agent": agent, "cause": cause, "at": now})
+                                       "agent": agent, "cause": cause, "at": now, "n": event["n"]})
 
     def check_failures(self) -> dict:
-        """D-412/D-416: the snapshot's block, by the live stream's rule: the last 5 minutes' failure events in time
-        order, and the unchecked lines with the latest failure's cause and time."""
+        """D-412/D-416/D-420: the snapshot's block, by the live stream's rule: the last 5 minutes' failure events (for
+        the per-cause count) and every failure event of the lines still unchecked (whatever their age), each in
+        (at, n) order; the screens derive the strip's latest cause from the second list."""
         now = self.rt.now()
-        recent = sorted((v for v in self.failures.values() if now - v["at"] < FAILURE_WINDOW_MS), key=lambda v: v["at"])
-        last = None  # the latest failure; on a tie the later one, as the live stream applies them
-        for v in self.unchecked.values():
-            last = v if last is None or v["at"] >= last["at"] else last
-        return {"recent": recent, "unchecked": {"ids": list(self.unchecked),
-                                                "cause": last["cause"] if last else None,
-                                                "at": last["at"] if last else None}}
+        order = lambda v: (v["at"], v["n"])  # noqa: E731
+        recent = sorted((v for v in self.failures.values() if now - v["at"] < FAILURE_WINDOW_MS), key=order)
+        return {"recent": recent, "unchecked": sorted((v for line in self.unchecked.values() for v in line.values()),
+                                                      key=order)}
 
     async def _apply_corrections_locked(self, t: Transcript, text: str, listed: list[str], protected: set[str],
                                         now: int, quotes=None) -> None:

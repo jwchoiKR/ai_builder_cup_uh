@@ -2777,3 +2777,13 @@ New tests in test_prompter_segments.py:
 - The split and single modes switch on a named transition.
 - No automatic switch after the last product.
 - An old session document with a pending switch (status, target, commit_at …) loads after a read-back. It keeps its Undo info, schedules no switch commit, does not switch, and Undo still works.
+
+D-420 (codex review of D-416/D-416a; night rule: bug fixes that restore the approved behaviour). The unchecked state is now the failure events of the lines still unchecked: one event per line and judge, each with an order number `n`. The server and the browser hold it in the same form.
+1. The host strip's count and latest cause are derived from those events (selector `uncheckedStrip`). After a partial recovery, the strip names the latest cause of the lines still unchecked, not the cause of a cleared line.
+2. Ties on `at` are broken by `n` on both sides. `n` is a server counter, carried in judge.failed and in the snapshot.
+3. The operator shows one card per unchecked line, listing each failed judge with its cause ("Compliance check: AI busy (429) · Fact check: AI timed out"). The judge names have KO strings.
+4. The snapshot's `unchecked` holds every unchecked line's events, whatever their age. Only the per-cause count (`recent`) uses the 5-minute window. An unchecked line older than 5 minutes therefore no longer disappears from the operator view after a refresh.
+Tests:
+- test_d412: the snapshot lists the same events, in the same order and with the same `n`, as the live stream; an unchecked line older than 5 minutes stays.
+- host.test.tsx: the strip after a partial recovery; the tie broken by `n`; the live state equals a refresh.
+- operator.test.tsx: one card per line listing its judges; the 5-minute count leaves out the old line, whose card stays.
