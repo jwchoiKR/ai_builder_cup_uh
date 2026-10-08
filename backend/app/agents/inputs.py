@@ -183,16 +183,13 @@ def condition_slots_json(slots: dict[str, Any]) -> dict[str, Any]:
 
 
 def active_alerts_json(alerts: Sequence[Alert]) -> list[dict]:
-    from ..logic.qualifier import RULE_ID as QUALIFIER
-
+    """D-395 (was D-355's 3 newest): every active or provisional compliance alert, newest first, so a correction can
+    reach each one (since D-387 one claim said four times is four alerts). Each carries its product, so the model can
+    tell an earlier product's similar claim from the on-air one; D-098: say_instead is what the host was shown."""
     live = [a for a in alerts if a.kind == "compliance" and a.status in ("active", "provisional")]
     live.sort(key=lambda a: a.created_at, reverse=True)
-    # D-355: the 3 newest, plus every active TEST-QUALIFIER banner (it can be cleared by a later re-say, so it must
-    # stay in view while it is active), newest first
-    shown = [a for a in live if a in live[:3] or (a.rule_id == QUALIFIER and a.status == "active")]
-    # D-098: say_instead is the wording shown to the host, so the judge can recognise it as a correction
-    return [{"alert_id": a.alert_id, "span": a.span, "rule_id": a.rule_id, "say_instead": a.say_instead}
-            for a in shown]
+    return [{"alert_id": a.alert_id, "product_id": a.product_id, "span": a.span, "rule_id": a.rule_id,
+             "say_instead": a.say_instead} for a in live]
 
 
 def open_questions_json(items: Sequence[tuple[QuestionGroup, str | None]], limit: int,
