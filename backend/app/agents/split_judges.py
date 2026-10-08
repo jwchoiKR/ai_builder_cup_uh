@@ -265,8 +265,8 @@ class ComplianceJudge(_SplitJudge):
             status = ("provisional" if a is not None and a.status == "provisional"
                       else "banner" if row["rule_id"] == QUALIFIER else "active")
             handles[f"A{i}"] = row["alert_id"]
-            shown.append({"handle": f"A{i}", "span": row["span"], "rule_id": row["rule_id"], "status": status,
-                          "say_instead": row.get("say_instead")})
+            shown.append({"handle": f"A{i}", "product_id": row.get("product_id"), "span": row["span"],
+                          "rule_id": row["rule_id"], "status": status, "say_instead": row.get("say_instead")})
         return {**values, "active_alerts_json": shown, "alert_handles": handles}
 
     async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None, **opts) -> AgentResult:

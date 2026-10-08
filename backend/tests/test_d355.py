@@ -14,15 +14,15 @@ def make_alert(aid: str, *, rule_id: str, created_at: int, status: str = "active
                  shown_at=created_at)
 
 
-def test_d355_an_active_qualifier_banner_stays_in_active_alerts_beyond_the_newest_three():
+def test_d395_every_active_alert_is_sent_newest_first_with_its_product():
+    """D-395 replaces D-355's 3 newest: every active or provisional compliance alert, newest first."""
     banner = make_alert("al_q", rule_id=QUALIFIER, created_at=1000)
     newer = [make_alert(f"al_{i}", rule_id="ASEAN-2D-DISEASE", created_at=2000 + i) for i in range(4)]
-    ids = [a["alert_id"] for a in active_alerts_json([banner, *newer])]
-    assert ids == ["al_3", "al_2", "al_1", "al_q"]  # the 3 newest, then the banner
+    rows = active_alerts_json([banner, *newer])
+    assert [a["alert_id"] for a in rows] == ["al_3", "al_2", "al_1", "al_0", "al_q"]
+    assert all("product_id" in a for a in rows)
     corrected = make_alert("al_q", rule_id=QUALIFIER, created_at=1000, status="corrected")
     assert "al_q" not in [a["alert_id"] for a in active_alerts_json([corrected, *newer])]
-    old = make_alert("al_old", rule_id="ASEAN-2D-DISEASE", created_at=500)
-    assert "al_old" not in [a["alert_id"] for a in active_alerts_json([old, *newer])]  # others: still 3 newest
 
 
 async def test_d355_the_resay_addendum_is_an_arm():
