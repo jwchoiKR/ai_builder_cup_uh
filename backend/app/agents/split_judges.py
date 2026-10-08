@@ -343,6 +343,8 @@ class ContextJudge(_SplitJudge):
             self.output_model_b = with_switch_naming(self.output_model_b)
             if extra := arms._addenda(str(llm.prompts_path)).get(("SWITCH", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        elif extra := arms._addenda(str(llm.prompts_path)).get(("PENDING", self.name)):  # D-394: two_step only
+            self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_context(inp, self.catalog)

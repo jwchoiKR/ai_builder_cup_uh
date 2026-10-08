@@ -204,10 +204,10 @@ a report by someone, not a claim of [this line].
 
 D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each product has `name`, `short_name`, `type`
 (its category or type word, such as "cream", "serum" or "toner") and `status`: `on_air`, `next`, `later` or `done`.
-- `switch.moving_to_next_named` decides the switch. Set it to `true` only when the host says they are moving on now
-  ("next", "now let me show you", "moving on to", "let's look at") AND names the product with status `next`: its
-  `name`, its `short_name`, or its `type` word, even without the brand ("next up, the serum"). Then
-  `switch.target_product_id` is that product.
+- `switch.moving_to_next_named` decides the switch. Set it to `true` only when the host, in context, moves on now
+  to the product with status `next` AND names it: its `name`, its `short_name`, or its `type` word, even without the
+  brand. Judge "moving on" by meaning, in any wording; no particular word is needed, not even "next" ("now I'll show
+  you the toner" moves on as much as "next, the toner"). Then `switch.target_product_id` is that product.
 - A line may answer a viewer first and then move on ("Yes, it ships today. Okay, now the toner!"): judge the move.
 - Speech-to-text can split one move over two lines: the last line of RECENT_TRANSCRIPT ("Okay, next up ...") and
   UTTERANCE ("... the serum."). When the two lines together move on and name the next product, set
@@ -215,6 +215,12 @@ D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each prod
 - `false` for: a move that names no product ("okay, next one"); naming a product whose status is not `next` (say
   which product in `target_product_id`); a plan ("the serum is coming later", "later I'll show you the serum"); a
   comparison ("this feels lighter than the serum"); a viewer's question or a quote ("someone asked about the toner").
+
+## PENDING: context_judge
+
+D-394 (SWITCH_MODE=two_step only): If the host goes back to talking about the previous product ("going back to the
+vitamins for a second"), set `is_transition = true` and `target_product_id` to that previous product. The software uses
+this to cancel a pending switch.
 
 ## HANDLES: compliance_judge
 
