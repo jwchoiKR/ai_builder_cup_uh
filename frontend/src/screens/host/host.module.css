@@ -1327,6 +1327,13 @@
   gap: calc(12px * var(--hs));
   font-size: calc(18px * var(--hs));
 }
+/* D-384: the suggested answer under its question, always shown */
+.wAnswer {
+  margin: 2px 0 0 calc(var(--space-6) + 4px);
+  color: var(--text-2);
+  line-height: 1.35;
+}
+
 .wText {
   flex: 1;
   min-width: 0;

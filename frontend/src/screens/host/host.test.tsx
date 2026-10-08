@@ -389,7 +389,7 @@ describe("compliance", () => {
 });
 
 describe("audience questions", () => {
-  it("D-113: a compact waiting list in slot order with each question's state, never the answer", () => {
+  it("D-113: a compact waiting list in slot order with each question's state and (D-384) its answer", () => {
     const g1 = group({ group_id: "grp_000001", canonical_question: "Is it suitable for oily skin?", answer_id: "ans_000001", unique_author_ids: ["a", "b", "c"] });
     const g2 = group({ group_id: "grp_000002", canonical_question: "Can I use it under makeup?", answer_id: "ans_000002" });
     const g3 = group({ group_id: "grp_000003", canonical_question: "How much is the set?", status: "auto_answered", route: "AUTO", answer_id: "ans_000003" });
@@ -419,7 +419,10 @@ describe("audience questions", () => {
     expect(items[0]).toHaveTextContent("01");
     expect(items[0]).toHaveTextContent("From your PD");
     expect(items[0]).toHaveTextContent("Ready");
-    expect(items[0]).not.toHaveTextContent("Apply sunscreen"); // the answer is only on the AI PD card
+    // D-384 (user): each question shows its suggested answer at once, no Q needed
+    expect(within(items[0]).getByTestId("host-question-answer")).toHaveTextContent(
+      "Yes. Apply sunscreen after the cream, then makeup.");
+    expect(within(items[2]).getByTestId("host-question-answer")).toHaveTextContent("The set is S$62.00.");
     expect(items[1]).toHaveTextContent("3");
     expect(items[1]).not.toHaveTextContent("For you");
     expect(items[2]).toHaveTextContent("Read out");
