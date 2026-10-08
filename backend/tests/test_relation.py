@@ -52,10 +52,10 @@ def test_d296_from_relation():
     assert [(c.verdict, c.passage_id, c.quote) for c in got] == [
         ("contradicted", PRICE_PASSAGE, "Live broadcast price: S$36.00."),  # the quote is built by code
         ("supported", PRICE_PASSAGE, "Free delivery."),
-        ("not_in_sources", None, None),  # an id SOURCE does not have: no alert
+        ("contradicted", None, None),  # D-374: an id SOURCE does not have: applied as given, no quote
         ("contradicted", None, None),  # the active promo
         ("not_in_sources", PRICE_PASSAGE, "Live broadcast price: S$36.00.")]  # uncertain never alerts
-    assert [d["reason"] for d in sink] == ["relation: no valid evidence id (S9)", "relation uncertain"]
+    assert [d["reason"] for d in sink] == ["relation uncertain"]  # D-374: no drop, uncertain is only counted
 
 
 @pytest.mark.parametrize("fix, category, line, stated, correct, quote, field, false_alert", FACT,

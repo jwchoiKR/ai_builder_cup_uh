@@ -102,19 +102,24 @@ async def test_d358_a_cited_verdict_becomes_an_alert_named_by_its_citation(tmp_p
         await close_env(rt)
 
 
-@pytest.mark.parametrize("citation, quote, why", [
-    ("kelmar_code.pdf#2.1", "a supplement may never be sold online", "the quote is not in kelmar_code.pdf"),
-    ("other_code.pdf#3", "must not be presented", "names no regulation document given to the judge"),
+@pytest.mark.parametrize("citation, quote, rule_id, log_says", [
+    # D-374 (user, 10/9; the 00008 wrinkle line): a paraphrased summary of a real section keeps its HIGH
+    ("kelmar_code.pdf#Section 2.1", "Supplements cannot claim to cure illness.", "kelmar-code#section-2-1", None),
+    # a document the judge was not given: applied as given, logged
+    ("other_code.pdf#3", "must not be presented", "other-code#3", "a document the judge was not given"),
 ])
-async def test_d358_a_verdict_without_provenance_is_dropped_and_logged(tmp_path, caplog, citation, quote, why):
+async def test_d374_a_cited_verdict_is_applied_as_given(tmp_path, caplog, citation, quote, rule_id, log_says):
     llm = _Backend()
     llm.outputs[("compliance_judge", CLAIM)] = _verdict(citation, quote)
     rt = await _show(tmp_path, llm)
     try:
         with caplog.at_level(logging.INFO):
             await speak(rt, CLAIM)
-        assert not [a for a in await rt.alerts() if a.kind == "compliance"]
-        assert why in caplog.text and "compliance violation dropped by code: provenance" in caplog.text
+        [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
+        assert (a.severity, a.status, a.rule_id) == ("HIGH", "active", rule_id)
+        assert (a.citation, a.quote) == (citation, quote)  # shown as the model's citation and summary
+        assert "dropped by code" not in caplog.text
+        assert log_says is None or log_says in caplog.text
     finally:
         await close_env(rt)
 
@@ -156,8 +161,9 @@ def test_d358_a_test_qualifier_verdict_is_checked_against_the_recorded_results(c
 
     [v] = run(result.result_id, "anything")
     assert (v.rule_id, v.say_instead) == ("TEST-QUALIFIER", result.say)
-    assert run(None, result.say) == []  # D-361: named by id only, no quote matching
-    assert run("no-such-result", "anything") == []
+    # D-374: an unknown or missing result id keeps the verdict with the model's own say_instead
+    assert [(x.rule_id, x.say_instead) for x in run(None, result.say)] == [("TEST-QUALIFIER", "x")]
+    assert [(x.rule_id, x.say_instead) for x in run("no-such-result", "anything")] == [("TEST-QUALIFIER", "x")]
 
 
 async def test_d358_a_rule_source_with_no_original_is_reported(caplog):

@@ -84,6 +84,13 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
               </>
             )}
           </p>
+          {/* D-374: the model's own citation and summary, as it wrote them (not a verbatim quote of the original) */}
+          {a.citation && (
+            <p className={styles.alertMeta} data-testid="op-alert-citation">{t("AI citation:")} {a.citation}</p>
+          )}
+          {a.quote && (
+            <p className={styles.alertMeta} data-testid="op-alert-summary">{t("AI summary:")} {a.quote}</p>
+          )}
           {a.say_instead && (
             <p className={styles.alertMeta} title={a.say_instead}>{t("Say:")} “{shortSay(a.say_instead)}”</p>
           )}

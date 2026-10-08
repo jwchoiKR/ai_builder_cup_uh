@@ -179,10 +179,10 @@ async def test_price_split_gives_one_fact_alert(env, fragment_contradicted):
     a, b = await split(rt, PRICE_A, PRICE_B)
     [note] = [x for x in await rt.alerts() if x.kind == "fact"]
     assert note.status == "active" and note.field == "price"
-    assert note.transcript_id == (a if fragment_contradicted else b).transcript_id
+    assert note.transcript_id == b.transcript_id  # D-374: a re-show carries the line that showed it last
     assert len(await events(rt, "alert.created")) == 1
-    if fragment_contradicted:  # the same claim heard again: not re-shown
-        assert not [e for e in await events(rt, "alert.updated") if e.payload["alert_id"] == note.alert_id]
+    if fragment_contradicted:  # D-374: the merged verdict re-shows the same note (no merge protection), one note
+        assert [e for e in await events(rt, "alert.updated") if e.payload["alert_id"] == note.alert_id]
 
 
 # ---- rule 4: a merged judgment never clears its fragment's alert ------------------------------------

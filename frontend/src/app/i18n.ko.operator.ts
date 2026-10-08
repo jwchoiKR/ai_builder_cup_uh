@@ -53,6 +53,8 @@ export const KO_OPERATOR: Record<string, string> = {
   "AI check unavailable": "AI 확인 불가",
   "Rule:": "규정:",
   "Say:": "대체 멘트:",
+  "AI citation:": "AI 인용 위치:",
+  "AI summary:": "AI 요약:",
   "The host is seeing a correction banner above the prompter.": "진행자 프롬프터 위에 정정 배너가 떠 있습니다.",
   "The host is seeing a full-screen correction prompt.": "진행자 화면 전체에 정정 안내가 떠 있습니다.",
   "Send correction cue": "정정 신호 보내기",

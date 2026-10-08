@@ -1,6 +1,5 @@
-"""D-338 (review H3/H4): in the single and verifier arms (provenance-only checks), a fact contradiction whose evidence
-is the approved-claims section (approved and not-approved claim lists) is dropped and logged: the host who says a
-not-approved phrase gets the compliance alert, not a fact note quoting the not-approved list."""
+"""D-338 (review H3/H4) dropped a fact contradiction whose evidence is the approved-claims section. D-374 (user, 10/9):
+no code drop of a verdict: the fact checker's contradiction stands next to the compliance alert."""
 from __future__ import annotations
 
 import json
@@ -26,7 +25,7 @@ class _Backend(ScriptedBackend):
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
 
 
-async def test_d338_a_not_approved_phrase_gives_a_compliance_alert_and_no_fact_note():
+async def test_d374_a_not_approved_phrase_keeps_both_verdicts():
     from app.agents.fact_checker import DROPS
 
     from .helpers import live_runtime, make_ctx
@@ -40,8 +39,8 @@ async def test_d338_a_not_approved_phrase_gives_a_compliance_alert_and_no_fact_n
         await speak(rt, LINE)
         await rt.utterances.drain()
         alerts = await rt.alerts()
-        assert [a.kind for a in alerts if a.status == "active"] == ["compliance"]
-        assert any("approved-claims passage" in d["reason"] for d in sink)
+        assert sorted(a.kind for a in alerts if a.status == "active") == ["compliance", "fact"]
+        assert not sink  # nothing dropped by code
     finally:
         DROPS.reset(token)
         await close_env(rt)
