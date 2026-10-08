@@ -1,135 +1,121 @@
 # LIVE / Studio
 
-AI co-pilot for live-commerce broadcasts: host screen, operator control room and viewer page in one web app, driven by real-time AI agents on Google Cloud.
+**A real-time compliance and fact co-pilot for live-commerce hosts, on Google Cloud.**
 
-- **Specification:** `../DEV_SPEC.md` (in the delivered pack).
-- **Records:** decisions in `docs/DECISIONS.md`, platform facts checked against official docs in `docs/VERIFIED.md`.
+AI Builder Cup 2026 · Track: Retail & Commerce
 
-**Status:**
-- **P0 (foundations):** done.
-- **P1 (comment path):** done: prefilter, triage, grouping, routing, BM25 retrieval, composer with verification, caches, auto answers, host queue, operator actions, feed engine.
-- **P2 (utterance path):** done: transcript injection, reflex, utterance judges (split3: compliance and context judges in parallel, D-099; split and single kept), fact checker, compliance and fact alerts with escalation, host-answer publishing, prompter coverage, product switch with undo, cues, metrics.
-- **P3 (screens):** done: design tokens and themes, Host, Operator, Viewer, Studio with Demo Console, Hub. Scene screenshots are in `docs/screens/`.
-- **P4 (audio, setup, summary):** done: microphone capture, audio WebSocket, Speech-to-Text V2 `chirp_3` streaming with restarts and phrase hints, `/setup` with the Brief Agent and glossary confirmation, summary statistics and AI recap on `/summary`.
-- **P5 (hardening):** done: Playwright end-to-end test, split vs single report, latency report, rehearsal report (`docs/eval/`, `docs/rehearsal.md`).
-- **P6 (Cloud Run, Firestore, Vertex AI Search):** not started.
+While the host talks on air, it flags claims that the uploaded regulations prohibit and product facts said wrong, shows a line to say instead, and clears the warning when the host corrects it in their own words. It also keeps the prompter, the product order and viewer questions in step. The host never has to touch the screen. An operator can watch the same show from a control room, but a solo host can run without one.
+
+## Evidence at a glance
+
+Measured on a sealed set of 6 products the app had never seen (set 7, 10/8), host lines spoken by a TTS voice through the real Chirp 3 speech-to-text path:
+
+| | First run (fresh set) | Second run (same set, after one change) | Pass line |
+|---|---|---|---|
+| Detection of prohibited claims and wrong facts | 94.0% (126 of 134) | **95.5%** (128 of 134) | ≥ 95% |
+| False alerts on safe lines | 2.4% (3 of 127) | **1.6%** (2 of 127) | < 1% (not met) |
+| Wrong strongest alerts | 0 | **0** | 0 |
+| Alert latency p95, end of sentence to host screen | | **4.2 s** | ≤ 5 s |
+
+- The second run added one change chosen from the first run (a line that expects an answer is judged together with the next line). The set was no longer unseen, so the fresh-set number is 94.0%.
+- **Not yet measured:** the 10/9 simplification described below. The next sealed set will be run on it. Details and conditions are in [Evaluation](#evaluation).
+
+## What happens on air
+
+| The host says | The host screen shows |
+|---|---|
+| "Use it every night and your wrinkles will disappear overnight." | Red **Regulation** box: the claim, the clause of the regulation PDF it breaks, and a compliant line built only from the product's approved claims. It clears when the host corrects it, in any words. |
+| "The live price is S$32 today." (the product sheet says S$36) | Orange **Product info** box: "Cream: The live price is S$36.00". It clears when the host says the right value. |
+| "9 out of 10 users felt softer skin." (said without its source) | Orange box: the host's own sentence with the tester named in the product's test record. |
+| "Now let me show you the toner." | The prompter moves to the next product in the run sheet at once. The operator can undo it. |
+| A prompter point, said in any words | The point is ticked on the prompter. |
+
+## How it works
+
+```
+viewer comments ─▶ comment path (triage, answer from the product record, or send to a person)
+
+host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
+              │ each final line, judged in parallel by three Gemini 3.5 Flash-Lite calls
+              ├─▶ Compliance judge: the regulation PDFs, as original files in the prompt
+              ├─▶ Fact checker:     exactly what the host prompter shows
+              └─▶ Context judge:    product switch, prompter ticks, which viewer question was answered
+                        │
+                        ▼
+              code: maps the model's handles to alert ids, merges a sentence that STT split in two,
+                    runs timers, draws the host, operator, viewer and summary screens
+```
+
+- **The models judge meaning; code does not.** Whether a line breaks a regulation, whether a value is wrong, whether a later line corrected an alert, whether two alerts are the same claim and whether the host is moving on are model verdicts. On 10/9 we removed the code that used to drop, rewrite or downgrade verdicts.
+- **One violation, one alert.** Each alert has a handle (A1, F1 ...). For every new line the judges say, per handle, whether this line corrected it.
+- **Colour comes from the source:** a clause of a regulation document gives red; a check against the product's own documents (a fact, a test result without its source) gives orange. Both are the same size and stay until corrected.
+- **No product-specific prompts or rules.** A product enters only through its documents: onboarding reads the uploaded PDFs with Gemini 3.8 Flash into a release, a Brief agent writes the prompter points and speech hints, and people only approve. Regulations are uploaded separately, as PDF.
+- **Viewer comments** are answered from the product record when it answers them and sent to a person when it does not ([docs/comments.md](docs/comments.md)).
+
+## Google Cloud
+
+| Service | Use |
+|---|---|
+| Speech-to-Text V2, `chirp_3` (region `us`) | streaming transcription of the host, with phrase hints from the brief |
+| Vertex AI Gemini 3.5 Flash-Lite (global endpoint) | the three live judges, with a fixed seed |
+| Vertex AI Gemini 3.8 Flash | onboarding: reading product documents, the Brief agent |
+| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; one instance |
+| Firestore (`live-studio`) | show state (sessions, transcripts, alerts, segments, events), written behind memory and read back after a restart |
+| Cloud Storage | approved releases, briefs and regulation packs (write-once) |
+| Model Armor | screening viewer comments |
+
+## Evaluation
+
+**Method**
+- Each round uses a new sealed set of 6 products with invented documents. The developer never sees it.
+- GPT wrote the host lines and a first label for each; a separate Claude critic labelled the same lines blind. They agreed on 286 to 288 of 288 lines. Every later label change is logged with its reason.
+- Host lines are spoken by a Windows TTS voice and go through the real Chirp 3 path into the app, so speech-to-text errors count.
+- Pass lines hold for every product, not on average: detection ≥ 95%, false alerts < 1%, no wrong strongest alert, alert p95 ≤ 5 s.
+
+**Set 7 in detail** (10/8, one voice)
+- Scored lines: 261 of 288 (134 with a violation, 127 safe). Left out: 18 lines where two hosts speak over each other, 4 contrived stress lines, 5 lines outside the product's own regulation pack.
+- Critic rulings made after the run: 2 corrections credited, 3 extra alerts not penalised. Without them the second run is 94.8% detection, 1.6% false alerts and 1 wrong strongest alert; the first run is 93.3% and 2.4%.
+- Per product (second run): detection 82.6% to 100%, false alerts 0% to 4.8%. The per-product pass lines are met by 3 of 6 products for detection and 4 of 6 for false alerts.
+- The 2 false alerts in the second run are both STT writing "four" as "for" next to a number.
+- "Wrong strongest alert" was measured when the model still graded severity. Since 10/9 every regulation citation is red, so this line will be re-measured.
+
+**Earlier sealed sets** (detection on unseen products): 84% (set 3, typed text, 10/5) → 91.0% (set 4, typed text) → 89.6-90.3% (set 6, first round through TTS and STT) → 94.0% (set 7, first run).
+
+**Code rules against model judges** (set 5, same STT lines, diagnostic because the set had been seen): code gates on top of the model gave 19.4% false alerts and 5 wrong strongest alerts; model verdicts alone gave 0.9-1.9% false alerts and 1 wrong strongest alert. This is why code no longer judges meaning.
+
+## Known limits
+
+- False alerts are above the 1% line, and three products miss the detection line.
+- Tested with TTS voices, not yet with a real human host.
+- One Cloud Run instance. Show state survives a restart through Firestore; comment state is kept in memory during a show.
+- No per-show cost figure yet.
 
 ## Layout
+
 | Path | What |
 |---|---|
-| `data/`, `prompts/` | Data pack and prompt drafts, copied unchanged except the set's `short_name` in `products.json` (D-085). Product facts only come from `data/products/`. |
-| `backend/` | Python 3.12, FastAPI, single process. `app/` is the service, `scripts/` the tools, `tests/` pytest. |
-| `frontend/` | React 18 + TypeScript + Vite. `src/app` store, API, SSE and mic; `src/screens` all screens; `e2e/` Playwright test, scene capture, voice rehearsal. |
-| `docs/` | `DECISIONS.md`, `VERIFIED.md`, `eval/`, `rehearsal.md`, `screens/`. |
+| `backend/` | Python 3.12, FastAPI. `app/agents` the judges, `app/pipelines` the live and comment paths, `app/store` memory and Firestore, `scripts/` eval tools, `tests/` pytest |
+| `frontend/` | React 18 + TypeScript + Vite: host, operator, viewer, studio, setup and summary screens |
+| `prompts/` | every prompt, product-neutral, with fictional examples |
+| `data/` | demo releases and the regulation PDFs shipped in the image |
+| `deploy/` | `cloudrun.sh`, the deployed settings |
+| `docs/` | `DECISIONS.md` (every design decision, numbered), `VERIFIED.md`, `eval/`, `decks/` |
 
 ## Run locally
 
-Requirements:
-- [uv](https://docs.astral.sh/uv/) and Node.js 20+
-- Google Cloud credentials for Vertex AI and Speech-to-Text: `gcloud auth application-default login`
-- Microsoft Edge or Chrome for the browser tests
+1. Requirements: [uv](https://docs.astral.sh/uv/), Node.js 20+, and `gcloud auth application-default login` for Vertex AI and Speech-to-Text.
+2. Copy `.env.example` to `.env` and set `GCP_PROJECT`.
+3. Backend: `cd backend && uv sync`
+4. Frontend: `cd frontend && npm install && npm run build`
+5. Start: `cd backend && uv run uvicorn app.main:create_app --factory --port 8000`, then open <http://localhost:8000/studio>. `/api/health` shows the providers, models and store.
+6. Without Google Cloud: `LLM_PROVIDER=mock STT_PROVIDER=mock`.
 
-1. Copy `.env.example` to `.env` and set `GCP_PROJECT`. Every key is described in DEV_SPEC §5, plus `COMPOSER_THINKING` (D-067) and `UTTERANCE_MERGE_WINDOW_MS` (D-088).
-2. Install the backend:
-   ```sh
-   cd backend
-   uv sync
-   ```
-3. Check that the Gemini models answer with structured JSON at the configured thinking levels:
-   ```sh
-   uv run python scripts/check_models.py           # add --levels to list accepted thinking levels
-   ```
-4. Build the frontend:
-   ```sh
-   cd frontend
-   npm install
-   npm run build
-   ```
-5. Start the app:
-   ```sh
-   cd backend
-   uv run uvicorn app.main:create_app --factory --port 8000
-   ```
-   - It serves `frontend/dist` and the API.
-   - <http://localhost:8000/api/health> shows the providers, model ids and warm-up results.
-6. Without Google Cloud, set `LLM_PROVIDER=mock` and `STT_PROVIDER=mock`. Agents then answer from the recorded outputs in `backend/tests/fixtures/llm/`, and the microphone is off (host lines are injected).
-
-## Screens
-**Pages:**
-- `/` Hub: links, new demo session, reset.
-- `/studio`: Host, Operator and Viewer side by side.
-  - Layout: `?layout=all|host_operator|host_viewer`.
-  - **D**: Demo Console. **R**: recording mode (hides labels and console).
-- `/host`: keys **Esc** (cancel switch), **M** (microphone), **T** (theme).
-- `/operator`, `/viewer`.
-- `/setup`: documents (an upload shows each processing stage, D-093), Brief Agent, glossary (terms can be edited or added before confirming, D-094).
-- `/summary`: post-broadcast summary, AI recap first; **Export PDF** saves it as a report through the print dialog (D-097).
-
-**Session selection:** add `?session=<id>` to any page. The default is the latest demo session.
-
-**Frontend development:** `npm run dev` serves on <http://localhost:5173> and proxies `/api` to :8000. Set `API_TARGET` to proxy elsewhere.
+Deploy: `bash deploy/cloudrun.sh` (Cloud Run, Firestore database, bucket, IAP).
 
 ## Tests
+
 ```sh
-cd backend && uv run pytest -q          # unit, pipeline and API tests (mock providers, never reads .env)
-cd frontend && npm test                 # component and store tests (vitest)
-cd frontend && npm run e2e              # Playwright, all scenes S01-S14 (backend with mock providers on E2E_BASE, default :8002)
+cd backend && uv run pytest -q     # unit, pipeline and API tests with mock providers
+cd frontend && npm test            # component and store tests
+cd frontend && npm run e2e         # Playwright scenes
 ```
-
-**End-to-end test:**
-- Start the backend for it with:
-  ```sh
-  LLM_PROVIDER=mock STT_PROVIDER=mock uv run uvicorn app.main:create_app --factory --port 8002
-  ```
-  Or set `E2E_START=1` and the test starts it.
-- The tests use the installed Edge (`channel: "msedge"`).
-
-**Recorded model outputs** live in `backend/tests/fixtures/llm/`. To refresh them or the reports against Vertex AI:
-```sh
-uv run python scripts/run_eval.py comments --record          # docs/eval/<date>-comments.md (--runs 5 for min/mean)
-uv run python scripts/run_eval.py utterances --mode split --runs 30
-uv run python scripts/eval_composer.py                       # docs/eval/composer-thinking.md
-uv run python scripts/record_demo_fixtures.py                # the demo script (scene ids as scenario tags)
-```
-
-**Voice rehearsal** (real STT and models, synthetic Windows SAPI voice; results in `docs/rehearsal.md`):
-```sh
-cd frontend
-node e2e/rehearsal-voice.mjs alerts       # 10 HIGH-risk sentences, alert latency
-node e2e/rehearsal-voice.mjs script 2     # the full host script twice
-```
-
-## Recording the demo (DEV_SPEC §13, §14.5)
-**Before recording:**
-1. **Real models:** `LLM_PROVIDER=vertex`, `STT_PROVIDER=google_v2`, `GCP_PROJECT` set. Run `check_models.py`, then start the app and wait until `/api/health` shows `warmup: ok` for both models.
-2. **S01:** open `/setup`, run the Brief Agent for both products and press **Confirm glossary**. The confirmed terms become speech hints for the next microphone stream.
-
-**Setting up the take:**
-1. Open `/studio?layout=all` at 1920×1080 (or `host_operator` for a two-pane video). Press **R** for recording mode.
-2. Keep a second window with the Demo Console open: `/studio`, then **D**. It fires bursts, starts the time sale and injects lines if needed.
-3. **Reset the demo before each take** (Demo Console → Reset demo, or Hub → Reset demo).
-4. Start the microphone: Demo Console → Mic **Start**, or **M** on `/host`. The host mic dot turns green and shows the input level. Allow the browser's microphone prompt the first time.
-
-**During the take:**
-- Follow `data/demo/host_script.md` scene by scene.
-- Press **Start broadcast** in the operator pane (S02).
-- Speak the host lines.
-- Fire bursts B1–B4 at their scenes, and press **Arm B5 Switch boundary** before the ampoule introduction in S12.
-- **Record S03–S08 in one continuous take**, so the latency chips are credible.
-- **Keep the operator metrics chips visible for S07** ("Alert in X.Xs" measures speech end → host render).
-- Pause briefly after each sentence. The speech recogniser finalises at pauses. A sentence split into two finals is judged as one (D-088), as long as the second part follows within 3.5 s.
-- **Correcting a red alert:** say the approved wording shown under "Say this instead", or take the claim back explicitly ("your wrinkles won't disappear overnight"). "I'm sorry" alone does not clear it (D-089).
-- **Moving to the next product:** first a transition that names it ("Now let me show you our Deep Hydration Ampoule"), then, in a later sentence, one of its facts ("It has four percent niacinamide"). Then a 5 s countdown runs, which Esc cancels (D-090).
-
-**Ending:** press **End broadcast** (S14). Then open the summary from the operator header or the Demo Console (Open summary). The AI recap appears when the summary agent finishes.
-
-**If something goes wrong:**
-- A wrong alert can be dismissed by the operator ("Dismiss false alert").
-- A wrong switch can be undone within 60 s ("Undo switch").
-- Every action is logged in the event stream.
-
-**Backup if Vertex AI or Speech-to-Text is unavailable on recording day:**
-- Start the app with `LLM_PROVIDER=mock STT_PROVIDER=mock`.
-- The agents then replay one complete, clean Vertex AI run of the host script (`record_demo_fixtures.py`, every agent call ok), so S02–S14 show real model outputs.
-- Host lines are injected from the Demo Console instead of spoken. The latency chips then show near-zero mock latencies, so do not use this mode for the S03–S08 latency take.
-- To refresh the backup, run `uv run python scripts/record_demo_fixtures.py` until it prints `RUN CLEAN`, then `uv run pytest tests/test_demo_script_api.py` and `npm run e2e`.
