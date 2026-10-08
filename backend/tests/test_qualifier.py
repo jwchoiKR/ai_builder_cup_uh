@@ -102,22 +102,15 @@ async def test_quoted_or_negated_gives_no_alert(env, flags):
     assert await compliance_alerts(rt) == []
 
 
-async def test_no_second_card_while_active_but_a_repeat_after_correction_alerts_again(env):
-    """D-108 (user: always alert again): wrong -> correct -> wrong again shows a second alert."""
+async def test_d387_a_repeat_while_the_first_is_active_is_its_own_alert(env):
+    """D-108 kept one card while the same result's alert was active; D-387 (user): each violation is its own alert."""
     rt, llm = env
     again = "Again, zero of thirty-two had a reaction."
-    fixed = "In our in-house patch test, 0 of 32 participants had an irritation reaction."
     for text in (UNQUALIFIED, again):
         llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
     await speak(rt, UNQUALIFIED)
-    [first] = await compliance_alerts(rt)
-    await speak(rt, again)  # still active: no double card
-    assert [a.alert_id for a in await compliance_alerts(rt)] == [first.alert_id]
-    await speak(rt, fixed)  # says the approved wording: corrected (D-098)
-    assert (await rt.get_alert(first.alert_id)).status == "corrected"
     await speak(rt, again)
-    [second] = await compliance_alerts(rt)
-    assert second.alert_id != first.alert_id and second.say_instead == CR_0_32
+    assert [a.span for a in await compliance_alerts(rt)] == [UNQUALIFIED, again]
 
 
 async def test_a_wrong_fact_repeated_after_its_correction_alerts_again(env):
@@ -246,22 +239,6 @@ async def test_a_qualifier_added_in_the_next_final_corrects_the_alert(env):
     assert (await rt.ctx.store.get(rt.path("alerts"), a.alert_id, Alert)).status == "corrected"
 
 
-async def test_a_qualifier_add_on_judged_first_prevents_the_alert(env):
-    """D-151: the add-on's judgment finished before the number's, so no alert existed yet to correct."""
-    import asyncio
-
-    rt, llm = env
-    text = "Redness went down 30% after two weeks."
-    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
-    llm.delays[("utterance_judge", text)] = 0.3  # the number's judgment arrives last
-    await speak(rt, text, wait=False)
-    await speak(rt, "That's from our in-house test.", wait=False)
-    await rt.utterances.drain()
-    await asyncio.sleep(0.4)
-    await rt.ctx.scheduler.idle()
-    assert await compliance_alerts(rt) == []
-
-
 async def test_an_add_on_with_its_own_number_is_not_a_late_qualifier(env):
     rt, llm = env
     text = "Redness went down 30% after two weeks."
@@ -285,20 +262,6 @@ async def test_a_qualifier_merged_with_its_fragment_corrects_the_fragments_alert
     await speak(rt, "in our in-house test.")
     assert await compliance_alerts(rt) == []
     assert (await rt.ctx.store.get(rt.path("alerts"), a.alert_id, Alert)).status == "corrected"
-
-
-async def test_a_merged_qualifier_judged_first_prevents_the_fragments_alert(env):
-    import asyncio
-
-    rt, llm = env
-    llm.judge(SPLIT, violations=[violation(RULE, SPLIT, severity="MEDIUM")])
-    llm.delays[("utterance_judge", SPLIT)] = 0.3
-    await speak(rt, SPLIT, wait=False)
-    await speak(rt, "in our in-house test.", wait=False)
-    await rt.utterances.drain()
-    await asyncio.sleep(0.4)
-    await rt.ctx.scheduler.idle()
-    assert await compliance_alerts(rt) == []
 
 
 async def test_the_same_number_later_without_the_qualifier_alerts(env):

@@ -62,7 +62,7 @@ async def test_d335_an_alert_from_the_first_line_is_not_raised_again(monkeypatch
     llm = _Record()
     llm.expects[RELAYED] = True
     llm.judge(RELAYED, violations=[violation("ASEAN-2D-DISEASE", "cures acne")])
-    llm.judge(PAIR, violations=[violation("ASEAN-2D-DISEASE", "that's what it does")])
+    llm.judge(PAIR, violations=[violation("ASEAN-2D-DISEASE", "cures acne")])  # D-387: the same claim (span)
     row = await _case(monkeypatch, llm, [RELAYED, ANSWER])
     assert len([a for a in row["alerts"] if a["kind"] == "compliance"]) == 1
 

@@ -239,10 +239,9 @@ async def test_repeat_of_active_rule_creates_a_second_alert(env):
     assert [a.status for a in alerts] == ["active", "active"] and alerts[1].provisional_at is None
 
 
-async def test_the_next_final_continuing_the_same_claim_adds_no_second_card(env):
-    """D-118 (voice rehearsal): "The ampoule treats acne." / "So you will never break out again." raised
-    ASEAN-3-SKIN-ACNE twice. Inside the adjacent-final window the second final adds no second card,
-    so one correction clears the claim."""
+async def test_d387_two_claims_of_one_rule_in_adjacent_finals_are_two_alerts(env):
+    """D-118 merged these by rule inside the adjacent-final window; D-387 (user): each violation the model returns is
+    its own alert."""
     rt, llm = env
     first, second = "The ampoule treats acne.", "So you will never break out again."
     llm.judge(first, violations=[violation("ASEAN-3-SKIN-ACNE", "treats acne")])
@@ -250,8 +249,8 @@ async def test_the_next_final_continuing_the_same_claim_adds_no_second_card(env)
     await speak(rt, first)
     await advance(rt, 1500)
     await speak(rt, second)
-    assert [(a.rule_id, a.status) for a in await rt.alerts() if a.kind == "compliance"] == [
-        ("ASEAN-3-SKIN-ACNE", "active")]
+    assert [(a.span, a.status) for a in await rt.alerts() if a.kind == "compliance"] == [
+        ("treats acne", "active"), ("never break out again", "active")]
 
 
 async def test_render_ack(env):

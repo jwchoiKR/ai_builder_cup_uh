@@ -131,7 +131,9 @@ async def test_s07_split_mid_claim_gives_exactly_one_alert(env, fragment_flagged
     rt, llm = env
     if fragment_flagged:
         llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
-    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
+    # D-387: the merge keeps one alert for the SAME claim (same span) of the line
+    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles" if fragment_flagged
+                                         else "your wrinkles will disappear overnight")])
     a, b = await split(rt, S07_A, S07_B)
     [alert] = compliance(await rt.alerts())
     assert alert.status == "active" and alert.rule_id == "ASEAN-3-SKIN-AGEING"
