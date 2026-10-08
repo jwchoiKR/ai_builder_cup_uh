@@ -89,6 +89,20 @@ LATE_CORRECTION_MS = 10_000  # D-352: a line this soon after an alert's line may
 LATE_CORRECTION_LINES = 2
 MIN_CONTEXT_RETRY_MS = 1_000  # D-351: a context retry needs at least this much of its total deadline
 MIN_FACT_RETRY_MS = 1_000  # D-411: a fact retry needs at least this much left of the fact deadline from the line end
+FAILURE_WINDOW_MS = 300_000  # D-412: the operator's rolling count of failed checks covers the last 5 minutes
+
+
+def failure_cause(res: AgentResult) -> str:
+    """D-412: what the screens say about a failed check: "busy" (429, shared capacity), "timeout" (a deadline, ours or
+    the server's 504), "invalid" (an answer that could not be read) or "error" (anything else)."""
+    kind = res.meta.get("failure")
+    if res.status == "invalid":
+        return "invalid"
+    if kind == "http_429":
+        return "busy"
+    if res.status == "timeout" or kind == "http_504":
+        return "timeout"
+    return "error"
 
 
 def ends_sentence(text: str) -> bool:
@@ -184,6 +198,10 @@ class UtterancePipeline:
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
         self._fact_shown: dict[str, set[str]] = {}  # D-363: line -> the fact notes its fact check was shown
+        # D-412: failed checks of the last FAILURE_WINDOW_MS (line -> cause and time), and the lines left unchecked
+        # since the judges last answered a line normally (line -> cause); both go into the snapshot
+        self.failures: dict[str, dict] = {}
+        self.unchecked: dict[str, str] = {}
         self._fact_inputs: dict[str, FactInput] = {}  # D-364: line -> its fact check's input (a re-check reuses it)
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
@@ -419,6 +437,7 @@ class UtterancePipeline:
                                                                            t.transcript_id),
                                                            name=f"facts:{t.transcript_id}")
             waiting = {task for task in (comp_task, ctx_task, facts_task) if task is not None}
+            failed = False  # D-412: a check of this line failed
             while waiting:
                 done, waiting = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
                 for task in sorted(done, key=lambda task: (task is not comp_task, task is not facts_task)):
@@ -429,6 +448,7 @@ class UtterancePipeline:
                         else "compliance_judge" if self.split3 else "utterance_judge",
                         "timeout" if late else res.status)
                     output = res.output if res.status == "ok" else None
+                    failed = failed or (task is not ctx_task and output is None)
                     if task is comp_task:
                         comp = output
                         async with rt.lock:
@@ -451,11 +471,11 @@ class UtterancePipeline:
                                 await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
                         else:  # D-408: a failed fact check shows the judge-failed state at once, as a failed judge
                             async with rt.lock:
-                                await rt.emit("line.check", {"transcript_id": t.transcript_id,
-                                                             "text": merge.text if merge else t.text,
-                                                             "rule_ids": [], "phrases": []})
-                                await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
-                                                               "alert_ids": [], "agent": "fact_checker"})
+                                await self._check_failed_locked(t, merge.text if merge else t.text, res, "fact_checker")
+            if not failed and self.unchecked:  # D-412: the judges answered this line normally again
+                async with rt.lock:
+                    self.unchecked.clear()
+                    await rt.emit("checks.recovered", {"transcript_id": t.transcript_id, "at": rt.now()})
             if comp is None:
                 return None, facts
             if ctx is None and self.split3:
@@ -678,10 +698,8 @@ class UtterancePipeline:
         high_before = alert_logic.high_alert_active(alerts)
         judge = res.output if res.status == "ok" else None
         if judge is None:
-            # D-288 (A1), D-410: a failed judge raises no alert; the host and the operator get a neutral card to check
-            # the line, counted apart from alerts
-            await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": []})
-            await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": []})
+            # D-288 (A1), D-410: a failed judge raises no alert; the host and the operator are told the line is unchecked
+            await self._check_failed_locked(t, text, res, "compliance_judge")
         else:
             # D-397: a verdict on a line that a later merged line already judged (an older state of the chain) is
             # not applied; the merged line's verdict stands
@@ -782,6 +800,27 @@ class UtterancePipeline:
             await self._switch_locked(judge, t, seg, high_became_active=high_now,
                                       replaces=merge.prev.transcript_id if merge else None,
                                       text=merge.text if merge else t.text)
+
+    async def _check_failed_locked(self, t: Transcript, text: str, res: AgentResult, agent: str) -> None:
+        """D-288/D-408/D-412: a check of this line failed. The events say why (`cause`); the line is counted once in the
+        last 5 minutes' failures and stays unchecked until the judges answer a line normally again."""
+        rt = self.rt
+        now, cause = rt.now(), failure_cause(res)
+        self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
+        self.failures[t.transcript_id] = {"transcript_id": t.transcript_id, "cause": cause, "at": now}
+        self.unchecked[t.transcript_id] = cause
+        log.info("check failed %s t=%s: %s %s (%s)", rt.sid, t.transcript_id, agent, cause, res.meta.get("failure"))
+        await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
+                                     "cause": cause, "at": now})
+        await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": [],
+                                       "agent": agent, "cause": cause, "at": now})
+
+    def check_failures(self) -> dict:
+        """D-412: the snapshot's block: the last 5 minutes' failed checks and the lines unchecked now."""
+        now = self.rt.now()
+        recent = sorted((v for v in self.failures.values() if now - v["at"] < FAILURE_WINDOW_MS), key=lambda v: v["at"])
+        last = list(self.unchecked.values())[-1] if self.unchecked else None  # the most recent failure's cause
+        return {"recent": recent, "unchecked": {"ids": list(self.unchecked), "cause": last}}
 
     async def _apply_corrections_locked(self, t: Transcript, text: str, listed: list[str], protected: set[str],
                                         now: int, quotes=None) -> None:

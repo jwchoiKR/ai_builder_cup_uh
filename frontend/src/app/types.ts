@@ -373,6 +373,9 @@ export interface StateSnapshot {
   metrics: Metrics;
   feed?: FeedState;
   judge_health?: { degraded: string[] }; // D-137
+  /** D-412: failed checks of the last 5 minutes, and the lines unchecked now */
+  check_failures?: { recent: { transcript_id: string; cause: string; at: number }[];
+    unchecked: { ids: string[]; cause: string | null } };
   verify_health?: VerifyHealth; // D-306
   market?: SessionMarket; // D-150
   // P2 (planned): missing keys are treated as empty

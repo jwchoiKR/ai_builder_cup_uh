@@ -96,6 +96,7 @@ describe("every event type", () => {
       "summary.ready": {},
       "feed.updated": { pool_running: true, armed: [], fired: [], bursts: [] },
       "line.check": { transcript_id: "tr_1", heard: "fifteen", source_value: "fifty" },
+      "checks.recovered": { transcript_id: "tr_2", at: 1 },
       "verify.started": { transcript_id: "tr_1", kind: "compliance" },
       "verify.done": { transcript_id: "tr_1", kind: "compliance" },
       "verify.health": { no_answer: 1, by: { http_504: 1 } },

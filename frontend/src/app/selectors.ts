@@ -1,5 +1,5 @@
 // Pure selectors over ClientState (+ catalog, + server now). Screens read these, never raw events.
-import type { ClientState, LineCheck } from "./state";
+import type { ClientState } from "./state";
 import type {
   Alert,
   Answer,
@@ -602,14 +602,6 @@ export function cueStrip(state: ClientState, clientNow: number) {
 }
 
 /** The active AI PD card: active, or done less than 1.5 s ago (short done fade). */
-export const LINE_CHECK_MS = 15_000;
-
-/** D-288: the newest line to check, for 15 s after it arrived */
-export function activeLineCheck(state: ClientState, clientNow: number): LineCheck | null {
-  const c = state.lineChecks[state.lineChecks.length - 1];
-  return c && clientNow - c.at < LINE_CHECK_MS ? c : null;
-}
-
 export function activePdCard(state: ClientState, clientNow: number): PdCard | null {
   const card = state.session?.pd_card;
   if (!card) return null;
