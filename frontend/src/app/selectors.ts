@@ -289,22 +289,46 @@ export function factNotesForHost(state: ClientState): Alert[] {
 /** D-105: a test number said without "in our in-house test". */
 export const TEST_QUALIFIER_RULE = "TEST-QUALIFIER";
 
+/** D-399: the newest of each group (the list is newest first) and how many there are; a null key is never grouped. */
+function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; count: number }[] {
+  const out: { item: T; count: number }[] = [];
+  const at = new Map<string, number>();
+  for (const x of items) {
+    const k = key(x);
+    if (k !== null && at.has(k)) out[at.get(k)!].count += 1;
+    else {
+      if (k !== null) at.set(k, out.length);
+      out.push({ item: x, count: 1 });
+    }
+  }
+  return out;
+}
+
 /** Host banners. D-105: a test-qualifier banner and a fact note on the same sentence show as one
  *  card (the note joins the banner when the fact checker finishes); alerts and logs keep both. D-342 (review H20):
- *  a sentence with an active HIGH alert shows only that alert: its MEDIUM banners and fact notes wait in the log. */
-export function hostBanners(state: ClientState): { mediums: { alert: Alert; fact: Alert | null }[]; facts: Alert[] } {
+ *  a sentence with an active HIGH alert shows only that alert: its MEDIUM banners and fact notes wait in the log.
+ *  D-399 (user): on the host screen only, MEDIUM alerts are grouped by the rule the model cited and fact notes by the
+ *  passage id they cite (ids, never text; a note with no passage is not grouped): one card, the newest, with its count.
+ *  Every alert stays its own record and handle; the operator screen lists each one. */
+export function hostBanners(state: ClientState): {
+  mediums: { alert: Alert; fact: Alert | null; count: number }[];
+  facts: { alert: Alert; count: number }[];
+} {
   const high = new Set(activeComplianceAlerts(state).filter((a) => a.severity === "HIGH").map((a) => a.transcript_id));
   const facts = factNotesForHost(state).filter((f) => !high.has(f.transcript_id));
   const merged = new Set<string>();
-  const mediums = activeMediumAlerts(state).filter((a) => !high.has(a.transcript_id)).map((alert) => {
-    const fact =
-      alert.rule_id === TEST_QUALIFIER_RULE
-        ? (facts.find((f) => f.transcript_id === alert.transcript_id && !merged.has(f.alert_id)) ?? null)
-        : null;
-    if (fact) merged.add(fact.alert_id);
-    return { alert, fact };
-  });
-  return { mediums, facts: facts.filter((f) => !merged.has(f.alert_id)) };
+  const mediums = groupNewest(activeMediumAlerts(state).filter((a) => !high.has(a.transcript_id)), (a) => a.rule_id)
+    .map(({ item: alert, count }) => {
+      const fact =
+        alert.rule_id === TEST_QUALIFIER_RULE
+          ? (facts.find((f) => f.transcript_id === alert.transcript_id && !merged.has(f.alert_id)) ?? null)
+          : null;
+      if (fact) merged.add(fact.alert_id);
+      return { alert, fact, count };
+    });
+  const notes = groupNewest(facts.filter((f) => !merged.has(f.alert_id)), (f) => f.passage_id)
+    .map(({ item: alert, count }) => ({ alert, count }));
+  return { mediums, facts: notes };
 }
 
 export function activeFactAlerts(state: ClientState): Alert[] {

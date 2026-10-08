@@ -263,12 +263,12 @@ export function HostView({
             onRendered={actions.rendered}
           />
         )}
-        {facts.slice(0, 2).map((a) => (
-          <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} />
+        {facts.slice(0, 2).map(({ alert: a, count }) => (
+          <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} count={count} />
         ))}
-        {mediums.map(({ alert: a, fact }) => (
+        {mediums.map(({ alert: a, fact, count }) => (
           <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered}
-            serverOffsetMs={state.serverOffsetMs} />
+            serverOffsetMs={state.serverOffsetMs} count={count} />
         ))}
         {lineCheck && !high && <LineCheckCard key={lineCheck.transcript_id} check={lineCheck} />}
       </>

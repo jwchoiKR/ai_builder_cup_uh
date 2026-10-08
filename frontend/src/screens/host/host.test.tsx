@@ -395,6 +395,16 @@ describe("compliance", () => {
     expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
   });
 
+  it("D-399: two unresolved qualifier alerts show as one card with ×2, the newest", () => {
+    const older = { ...qualifier, alert_id: "al_q_old", transcript_id: "tr_old", span: "the older claim",
+      created_at: qualifier.created_at - 5000, shown_at: (qualifier.shown_at ?? qualifier.created_at) - 5000 };
+    render(view({ alerts: [older, qualifier] }));
+    const [card] = screen.getAllByTestId("host-medium-banner");
+    expect(screen.getAllByTestId("host-medium-banner")).toHaveLength(1);
+    expect(within(card).getByTestId("host-alert-count")).toHaveTextContent("×2");
+    expect(card).toHaveTextContent("increased by seventy percent");
+  });
+
   it("MEDIUM test qualifier without an approved sentence asks for the qualifier", () => {
     render(view({ alerts: [{ ...qualifier, say_instead: null }] }));
     expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("Say the result with where it comes from (e.g. 'in our in-house test').");

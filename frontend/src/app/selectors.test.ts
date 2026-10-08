@@ -256,6 +256,29 @@ describe("D-342: one sentence, one alert on the host screen", () => {
     ] }), "host");
     const { mediums, facts } = hostBanners(state);
     expect(mediums).toEqual([]);
-    expect(facts.map((f) => f.alert_id)).toEqual(["fx_2"]);
+    expect(facts.map((f) => f.alert.alert_id)).toEqual(["fx_2"]);
+  });
+});
+
+describe("D-399: the host groups MEDIUM alerts by rule and fact notes by passage id", () => {
+  it("shows the newest of each group with its count; a note with no passage is never grouped", async () => {
+    const { hostBanners } = await import("./selectors");
+    const { reduceSnapshot } = await import("./state");
+    const state = reduceSnapshot(snapshot({ alerts: [
+      alert({ alert_id: "al_q1", transcript_id: "tr_1", severity: "MEDIUM", rule_id: "TEST-QUALIFIER", created_at: 1, shown_at: 1 }),
+      alert({ alert_id: "al_q2", transcript_id: "tr_2", severity: "MEDIUM", rule_id: "TEST-QUALIFIER", created_at: 2, shown_at: 2 }),
+      alert({ alert_id: "al_s", transcript_id: "tr_3", severity: "MEDIUM", rule_id: "BRAND-SUPERLATIVE", created_at: 3, shown_at: 3 }),
+      alert({ alert_id: "fx_1", kind: "fact", transcript_id: "tr_4", rule_id: null, severity: null,
+        passage_id: "P#price", created_at: 4, shown_at: 4 }),
+      alert({ alert_id: "fx_2", kind: "fact", transcript_id: "tr_5", rule_id: null, severity: null,
+        passage_id: "P#price", created_at: 5, shown_at: 5 }),
+      alert({ alert_id: "fx_3", kind: "fact", transcript_id: "tr_6", rule_id: null, severity: null,
+        passage_id: null, created_at: 6, shown_at: 6 }),
+      alert({ alert_id: "fx_4", kind: "fact", transcript_id: "tr_7", rule_id: null, severity: null,
+        passage_id: null, created_at: 7, shown_at: 7 }),
+    ] }), "host");
+    const { mediums, facts } = hostBanners(state);
+    expect(mediums.map((m) => [m.alert.alert_id, m.count])).toEqual([["al_s", 1], ["al_q2", 2]]);
+    expect(facts.map((f) => [f.alert.alert_id, f.count])).toEqual([["fx_4", 1], ["fx_3", 1], ["fx_2", 2]]);
   });
 });

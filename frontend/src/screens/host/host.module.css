@@ -1080,6 +1080,12 @@
   color: var(--text-2);
 }
 .riskBadge,
+/* D-399: how many alerts of one rule (MEDIUM) or one passage (fact note) the card stands for */
+.alertCount {
+  font-weight: var(--fw-semibold);
+  font-size: calc(24px * var(--hs));
+}
+
 .warnBadge {
   display: inline-flex;
   align-items: center;
