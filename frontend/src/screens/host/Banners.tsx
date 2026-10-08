@@ -110,7 +110,8 @@ export function MediumBanner({
       <div className={styles.alertTop}>
         <span className={styles.warnBadge}>
           <ShieldAlert aria-hidden />
-          {qualifier ? (late ? t("SAY THE RESULT AGAIN WITH 'IN OUR IN-HOUSE TEST'") : t("ADD 'IN OUR IN-HOUSE TEST'"))
+          {/* D-355: a suggestion; any wording that says where the result comes from corrects it */}
+          {qualifier ? (late ? t("Say the result again with where it comes from (e.g. 'in our in-house test')") : t("Say where the result comes from (e.g. 'in our in-house test')"))
             : t("CHECK WORDING")}
         </span>
         {alert.unverified && (
@@ -130,7 +131,7 @@ export function MediumBanner({
       </div>
       <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
       <span className={styles.alertSay}>
-        {alert.say_instead ? `“${shortSay(alert.say_instead)}”` : t("Say the result with 'in our in-house test'.")}
+        {alert.say_instead ? `“${shortSay(alert.say_instead)}”` : t("Say the result with where it comes from (e.g. 'in our in-house test').")}
       </span>
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>{rule.title}</span>
