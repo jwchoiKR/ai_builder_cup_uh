@@ -2461,3 +2461,24 @@ D-358 (user order): the live compliance judge reads the regulation ORIGINALS as 
   - a rule source with no original is reported.
 
   `test_prompts` and the D-270 test now read the legacy prompt by its new name.
+
+D-359: a regulation upload UI on the onboarding screen. It is frontend plus ONE read-only backend endpoint; onboarding logic is unchanged (approved by the user, reviewed by GPT, Gemini and Sonnet).
+- **`GET /onboarding/regulations`** returns:
+  - the approved law packs: pack_id, market, name, regulator, covers, approved_at, the source files (via job_id -> `files.json`), and the sections their rules cite (`file · locator`);
+  - `active_for`: the categories each pack is active for (`lawpack_for` takes the newest, so a newer pack replaces an older one);
+  - the market's own law and its files;
+  - the markets on disk;
+  - the categories of the approved releases;
+  - per release, the regulation originals its live compliance judge reads (the D-358 lookup on that release's pack), the sources with no original, and `warning` when no law original matches.
+- **The "Regulations" panel (`RegulationsPanel.tsx`, below the product onboarding):**
+  - upload PDF, HTML or DOCX, with a market pick-list and a category picked from the approved releases' categories (no free text);
+  - the job status: queued, reading, done, or failed with its error;
+  - the source files and sections of a finished read, then Approve, with the note that approval is write-once and a newer pack replaces an older one;
+  - every pack, marked "Active for ..." or "Replaced by a newer pack";
+  - the market law;
+  - per product, the originals its live judge reads, or a red "No regulation matches this product's category" warning;
+  - the note that a read in progress is lost if the server restarts (jobs stay in memory, as before).
+- It uses the existing `POST /onboarding/lawpacks/jobs`, `GET /onboarding/jobs/{id}` and `POST .../approve-lawpack`.
+- Tests:
+  - `frontend/src/screens/onboarding/regulations.test.tsx`: pick-lists; queued, reading and failed statuses; a done read with sections, approval and the write-once note; active and replaced packs; the no-match warning.
+  - `backend/tests/test_d359.py`, a mock-LLM flow: upload a fictional law pack, approve it, a matching release lists the original, and a release of another category shows the warning.

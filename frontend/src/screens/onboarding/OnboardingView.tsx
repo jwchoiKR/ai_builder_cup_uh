@@ -9,6 +9,7 @@ import {
   BRIEF_RUNNING_NOTE, onboardingApi, type Evidence, type Job, type Line, type ProductRecord, type TextItem, type Translations,
 } from "./onboardingApi";
 import { conflictValue, money, newestIndex, plainField, setAt } from "./recordEdit";
+import { RegulationsPanel } from "./RegulationsPanel";
 import styles from "./onboarding.module.css";
 
 type Approved = Awaited<ReturnType<typeof onboardingApi.approve>>;
@@ -435,6 +436,8 @@ export function OnboardingView() {
           )}
         </>
       )}
+
+      <RegulationsPanel />
     </div>
   );
 }

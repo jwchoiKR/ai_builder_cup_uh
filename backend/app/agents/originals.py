@@ -97,13 +97,17 @@ def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, .
     return tuple(found), tuple(missing)
 
 
+def originals_of_rules(rules, sources, onboarding_root: Path) -> tuple[tuple[Original, ...], tuple[str, ...]]:
+    """The originals behind these rules (by their source ids), and the source ids that have no original."""
+    wanted = {r.source_id for r in rules} - {qualifier.SOURCE_ID}
+    by_id = {s.source_id: (s.source_id, s.title, s.file) for s in sources}
+    return _load(tuple(sorted(by_id.get(sid, (sid, "", None)) for sid in wanted)), str(onboarding_root))
+
+
 def originals_for(catalog, onboarding_root: Path, product_ids) -> tuple[tuple[Original, ...], tuple[str, ...]]:
     """The originals behind the rules of these products, and the source ids that have no original (logged)."""
     rules = catalog.rules_for(set(product_ids)) if catalog.pack.rule_products is not None else catalog.pack.rules.rules
-    wanted = {r.source_id for r in rules} - {qualifier.SOURCE_ID}
-    by_id = {s.source_id: (s.source_id, s.title, s.file) for s in catalog.pack.rules.sources}
-    sources = tuple(sorted(by_id.get(sid, (sid, "", None)) for sid in wanted))
-    found, missing = _load(sources, str(onboarding_root))
+    found, missing = originals_of_rules(rules, catalog.pack.rules.sources, onboarding_root)
     if missing:
         log.warning("compliance originals missing for sources %s: those rules' documents are not given to the judge",
                     list(missing))
