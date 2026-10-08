@@ -1,6 +1,7 @@
 // Pre-broadcast setup page (DEV_SPEC §12.7): documents, Brief Agent results, glossary confirmation.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useT } from "../../app/i18n";
 import { PDF_ACCEPT, pdfOnly } from "../../app/pdfOnly";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { PrompterPoint, Product } from "../../app/types";
@@ -18,6 +19,7 @@ import type {
   UploadJob,
 } from "./setupApi";
 import styles from "./setup.module.css";
+import { RegulationsPanel } from "../onboarding/RegulationsPanel";
 import { UploadStages } from "./UploadStages";
 
 type Choice = "" | "add" | `replace:${string}`;
@@ -51,6 +53,7 @@ export interface SetupViewProps {
 }
 
 export function SetupView({ products, brand, client, theme, themePref, onSetTheme, sessionId = null }: SetupViewProps) {
+  const t = useT();
   const [docs, setDocs] = useState<SetupDocument[]>([]);
   const [docMessage, setDocMessage] = useState<{ tone: "ok" | "risk"; text: string } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -238,7 +241,7 @@ export function SetupView({ products, brand, client, theme, themePref, onSetThem
 
       <main className={styles.body}>
         <Panel
-          title={<span className={styles.panelTitle}>1 · Documents</span>}
+          title={<span className={styles.panelTitle} data-testid="setup-product-docs">1 · {t("Product documents")}</span>}
           actions={
             <>
               <input
@@ -248,7 +251,7 @@ export function SetupView({ products, brand, client, theme, themePref, onSetThem
                 hidden
                 data-testid="setup-file-input"
                 onChange={(e) => {
-                  const pick = pdfOnly(Array.from(e.target.files ?? []));  // D-368 (user): PDF only
+                  const pick = pdfOnly(Array.from(e.target.files ?? []), t);  // D-368 (user): PDF only
                   if (pick.error) {
                     setDocMessage({ tone: "risk", text: pick.error });
                     e.target.value = "";
@@ -256,7 +259,7 @@ export function SetupView({ products, brand, client, theme, themePref, onSetThem
                 }}
               />
               <Button disabled={uploading} onClick={() => fileInput.current?.click()}>
-                {uploading ? "Uploading…" : "Upload PDF"}
+                {uploading ? t("Uploading…") : t("Upload PDF")}
               </Button>
             </>
           }
@@ -264,10 +267,10 @@ export function SetupView({ products, brand, client, theme, themePref, onSetThem
           <table className={styles.table} data-testid="setup-documents">
             <thead>
               <tr>
-                <th>Document</th>
-                <th>Product</th>
-                <th>Pages</th>
-                <th>Index</th>
+                <th>{t("Document")}</th>
+                <th>{t("Product")}</th>
+                <th>{t("Pages")}</th>
+                <th>{t("Index")}</th>
               </tr>
             </thead>
             <tbody>
@@ -284,7 +287,7 @@ export function SetupView({ products, brand, client, theme, themePref, onSetThem
               {docs.length === 0 && (
                 <tr>
                   <td colSpan={4} className={styles.muted}>
-                    No documents.
+                    {t("No documents.")}
                   </td>
                 </tr>
               )}
@@ -296,6 +299,11 @@ export function SetupView({ products, brand, client, theme, themePref, onSetThem
               {docMessage.text}
             </p>
           )}
+        </Panel>
+
+        {/* D-371 (user): regulation documents apart from the product's (the onboarding Regulations panel, D-359) */}
+        <Panel title={<span className={styles.panelTitle} data-testid="setup-regulation-docs">1 · {t("Regulation documents")}</span>}>
+          <RegulationsPanel title={null} />
         </Panel>
 
         <h2 className={styles.sectionTitle}>2 · Brief Agent</h2>
