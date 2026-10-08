@@ -65,3 +65,30 @@ async def test_d352_a_line_judged_before_the_alert_existed_is_asked_once_more():
 async def test_d352_a_failed_re_check_is_never_a_correction():
     alerts, llm = await _run(_Backend(fail_recheck=True), REFLEX_SCAN=False)
     assert [a.status for a in alerts] == ["active"] and llm.sorry_calls == 2
+
+
+class _HandleBackend(_Backend):
+    """D-357, with CORRECTION_HANDLES: SORRY marks every alert it is shown (by handle) as fixed; its own verdict is
+    slow, so it comes back after the claim's alert turned active."""
+
+    async def generate(self, req, timeout_ms):
+        if req.agent == "compliance_judge" and req.mock_primary_text == SORRY:
+            self.sorry_calls += 1
+            first = self.sorry_calls == 1
+            if first:
+                await asyncio.sleep(0.6)  # the line's own verdict lands after the alert is active
+            block = re.search(r'<data name="ACTIVE_ALERTS">(.*?)</data>', req.user_message, re.S)
+            shown = json.loads(block.group(1)) if block else []
+            out = {"alert_checks": [{"handle": a["handle"], "fixed_by_this_line": True} for a in shown],
+                   "compliance": {"violations": []}, "reason": "scripted"}
+            return RawReply(json.dumps(out), model_version="scripted")
+        return await super().generate(req, timeout_ms)
+
+
+async def test_d357_the_re_check_fires_although_the_line_s_own_verdict_has_not_come_back(caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        alerts, llm = await _run(_HandleBackend(), REFLEX_SCAN=False, CORRECTION_HANDLES=True)
+    assert [a.status for a in alerts] == ["corrected"] and llm.sorry_calls == 2
+    assert "re-check trigger" in caplog.text and "-> fired" in caplog.text
