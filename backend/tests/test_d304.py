@@ -10,18 +10,6 @@ from .judge_fakes import AMPOULE, CREAM, close_env, events, make_env, speak, vio
 QUALIFIED_LINE = "Skin hydration went up 45% right after one use."
 
 
-@pytest.mark.parametrize("by_name, counting", [(True, 0), (False, 1)])
-async def test_d304_switch_arming_without_the_name(by_name, counting):
-    rt, llm = await make_env(SWITCH_ARM_NAME=by_name)
-    try:
-        line = "Okay, let me show you the next one now."  # names no product
-        llm.judge(line, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
-        await speak(rt, line)
-        assert len(await events(rt, "segment.switch_counting")) == counting
-    finally:
-        await close_env(rt)
-
-
 async def test_d304_correction_by_the_judge_alone():
     rt, llm = await make_env(REFLEX_ON_FAIL="alert")  # D-390: the judge's listed correction is the only path
     try:
@@ -45,7 +33,7 @@ async def test_d304_verbal_check_by_the_context_judge():
         rt, _ = await make_env(VERBAL_CHECK=check)
         try:
             j = ContextJudge(rt.ctx.llm, rt.ctx.prompts, rt.catalog, rt.reflex)
-            assert (j.output_model_b if j.b else j.output_model) is model
+            assert issubclass(j.output_model_b if j.b else j.output_model, model)  # D-415: with the switch naming
             assert ("`answer.hedged`" in j.system_instruction) is (check == "judge")
             assert rt.utterances._by_judge() is (check == "judge")
         finally:

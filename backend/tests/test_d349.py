@@ -37,7 +37,7 @@ async def _on_air(rt) -> str:
 
 
 async def test_d349_a_transition_verdict_switches_at_once():
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         llm.judge(MOVE_ON, utterance_type="transition", transition=True, target=AMPOULE, confidence="medium",
                   reason="the host moves on to the next product")
@@ -60,7 +60,7 @@ async def test_d349_a_transition_verdict_switches_at_once():
     {"target": CREAM},  # back to the on-air product
 ])  # D-351: an answer line and a low confidence no longer block a switch (tests/test_d351.py)
 async def test_d349_no_switch_on_a_quote_or_another_target(kw):
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         llm.judge(MOVE_ON, **({"utterance_type": "transition", "transition": True, "target": AMPOULE,
                                "confidence": "high"} | kw))
@@ -71,23 +71,10 @@ async def test_d349_no_switch_on_a_quote_or_another_target(kw):
         await close_env(rt)
 
 
-async def test_d349_the_default_two_step_mode_is_unchanged():
-    rt, llm = await _env(SWITCH_ARM_NAME=False)
-    try:
-        llm.judge(MOVE_ON, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
-        await speak(rt, MOVE_ON)
-        assert await _on_air(rt) == CREAM and len(await events(rt, "segment.switch_counting")) == 1
-        assert not await events(rt, "segment.switch_decided")
-        s = await rt.load_session()
-        assert s.switch.previous_product_id is None
-    finally:
-        await close_env(rt)
-
-
 async def test_d349_both_products_reach_the_judges_for_the_window_only():
     from .judge_fakes import advance
 
-    rt, llm = await _env(SWITCH_MODE="immediate", SWITCH_DUAL_SCOPE_SEC=10)
+    rt, llm = await _env(SWITCH_DUAL_SCOPE_SEC=10)
     try:
         llm.judge(MOVE_ON, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
         await speak(rt, MOVE_ON)
@@ -111,7 +98,7 @@ async def test_d349_both_products_reach_the_judges_for_the_window_only():
 async def test_d349_an_undo_opens_the_window_for_the_undone_product():
     from app.pipelines.utterances import undo_switch
 
-    rt, llm = await _env(SWITCH_MODE="immediate")
+    rt, llm = await _env()
     try:
         llm.judge(MOVE_ON, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
         await speak(rt, MOVE_ON)
@@ -142,7 +129,7 @@ async def test_d349_eval_show_replays_a_show_and_scores_its_switches(tmp_path):
     onb = tmp_path / "onb"
     ids = [save_release(onb, cream(), "job_c"), save_release(onb, kettle(), "job_k")]
     llm = _Recording()
-    ctx = make_ctx(backend=llm, DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(onb), SWITCH_MODE="immediate")
+    ctx = make_ctx(backend=llm, DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(onb))
     risky = "Honestly, it heals eczema overnight."
     llm.judge(risky, violations=[violation("ASEAN-2D-DISEASE", "heals eczema overnight")])
     move = "Alright, that's it for the cream, let's look at something else."
@@ -166,7 +153,7 @@ async def test_d349_eval_show_replays_a_show_and_scores_its_switches(tmp_path):
     assert (a["line"], a["kind"], a["checked_against"]) == ("L1b", "compliance", ids[0])
     assert raw["lines"][1]["labels"] == {"risky": True}
     # the effective settings are written with each show
-    assert raw["settings"]["STORE"] == "memory" and raw["settings"]["SWITCH_MODE"] == "immediate"
+    assert raw["settings"]["STORE"] == "memory" and raw["settings"]["SWITCH_DUAL_SCOPE_SEC"] == 10
     assert {"FIRESTORE_DATABASE", "COMPLIANCE_RESAY", "JUDGE_PRODUCTS",
             "FACT_PROMPT", "FACT_MODE", "PREFIX_TOKENS"} <= set(raw["settings"])  # D-366
     assert all(c["usage"] is None or isinstance(c["usage"], dict) for c in raw["calls"])

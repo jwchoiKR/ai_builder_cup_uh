@@ -224,8 +224,7 @@ def judge_products(catalog: Catalog, inp: JudgeInput) -> set[str] | None:
         return None
     if inp.all_products:
         return set(catalog.order)
-    target = inp.switch.target_product_id if inp.switch.status in ("counting", "pending") else None
-    return (catalog.line_products(inp.on_air, target, [*inp.previous[-2:], inp.utterance])
+    return (catalog.line_products(inp.on_air, None, [*inp.previous[-2:], inp.utterance])
             | ({inp.switch.previous_product_id} - {None}))  # D-349: the product that just left the air
 
 
@@ -362,6 +361,8 @@ def rule_based_context(inp: JudgeInput, catalog: Catalog) -> dict:
         switch = {"is_transition": True, "is_quote": False, "target_product_id": nxt, "confidence": "high"}
     elif re.search(r"\bback to\b", t) and catalog.product_by_alias(t) == inp.on_air:
         switch = {"is_transition": True, "is_quote": False, "target_product_id": inp.on_air, "confidence": "high"}
+    # D-415: the mock's answer fills the switch verdict's one decision field too (the immediate switch reads only it)
+    switch["moving_to_next_named"] = switch["is_transition"] and switch["target_product_id"] == nxt
     return {
         "answer": {"utterance_type": "correction" if _CORRECTION.search(inp.utterance) else "product_talk",
                    "matched_group_id": None, "is_answer": False, "consistent_with_suggested": False},

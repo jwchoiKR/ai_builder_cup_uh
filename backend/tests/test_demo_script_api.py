@@ -167,20 +167,16 @@ async def test_demo_script_end_to_end(demo: Demo):
 
     # ---- S12 switch -------------------------------------------------------------------------------
     await demo.line(L[10], "S12")
-    assert demo.state["session"]["switch"]["status"] == "idle"
+    assert demo.segment()["product_id"] == CREAM
     r = await demo.ok("POST", "/feed/burst/B5")
     assert r["status"] == "armed"
-    await demo.line(L[11], "S12")
-    assert demo.state["session"]["switch"]["status"] == "counting"
-    assert "am-p1" in demo.state["session"]["pre_covered"].get(AMPOULE, [])
-    t = await demo.ok("POST", "/transcripts", json={"text": L[12], "scene": "S12"})
-    await demo.sched.advance(2000)
-    await demo.refresh()
-    assert demo.state["session"]["switch"]["status"] == "pending"
-    await demo.sched.advance(4000)  # 5 s countdown, then commit
-    await demo.refresh()
+    await demo.line(L[11], "S12")  # D-415: the transition that names the next product switches at once
     seg = demo.segment()
     assert seg["product_id"] == AMPOULE and seg["start_reason"] == "auto_speech"
+    t = await demo.ok("POST", "/transcripts", json={"text": L[12], "scene": "S12"})
+    await demo.sched.advance(6000)
+    await demo.refresh()
+    seg = demo.segment()
     assert {"am-p1", "am-p2"} <= set(seg["covered_point_ids"])
     assert not [a for a in demo.alerts(t["transcript_id"]) if a["kind"] == "fact"]
     assert all(g["product_id"] != CREAM for g in demo.state["groups"]

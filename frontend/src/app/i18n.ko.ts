@@ -99,10 +99,8 @@ export const KO_HOST: Record<string, string> = {
   // cue, switch, PD card
   "FROM YOUR PD": "PD 지시",
   Done: "완료",
-  "Switching to {name}": "{name}(으)로 전환",
   "the next product": "다음 제품",
   "{n} seconds": "{n}초",
-  "Cancel switch (Esc)": "전환 취소 (Esc)",
   "Switched to {name}": "{name}(으)로 전환됨",
   "Undo (Esc)": "되돌리기 (Esc)",
   "This panel hit an error": "이 패널에 오류가 났습니다",

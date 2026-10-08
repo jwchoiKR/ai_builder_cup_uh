@@ -303,18 +303,6 @@
   font-size: calc(26px * var(--hs));
   font-weight: var(--fw-semibold);
 }
-.switchCount {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: calc(56px * var(--hs));
-  height: calc(56px * var(--hs));
-  border-radius: 50%;
-  border: calc(2px * var(--hs)) solid var(--ok-border);
-  font-size: calc(28px * var(--hs));
-  font-weight: var(--fw-semibold);
-  color: var(--text);
-}
 .switchCancel {
   flex: none;
   height: calc(44px * var(--hs));
@@ -507,10 +495,6 @@
 .prompterStatus .bannerIcon {
   width: calc(32px * var(--hs));
   height: calc(32px * var(--hs));
-}
-.prompterStatus .switchCount {
-  width: calc(40px * var(--hs));
-  height: calc(40px * var(--hs));
 }
 .prompterBox {
   flex: 1;

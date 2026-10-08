@@ -4,13 +4,8 @@
 export type Role = "operator" | "host" | "viewer";
 export type Route = "AUTO" | "HOST" | "OPERATOR";
 
+/** D-415: the immediate switch only (no counting, no pending countdown) */
 export interface SwitchState {
-  status: "idle" | "counting" | "pending";
-  target_product_id: string | null;
-  cue_count: number;
-  cue_transcript_ids: string[];
-  first_cue_at: number | null;
-  commit_at: number | null;
   // D-349: `immediate` marks a switch the context judge made at once (the host's "Switched to … · Undo" bar)
   last_commit: { closed_segment_id: string; opened_segment_id: string; at: number; immediate?: boolean } | null;
   /** D-349: client only, the product an immediate switch verdict named, until its segment starts */

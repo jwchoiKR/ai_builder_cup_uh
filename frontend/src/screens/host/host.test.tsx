@@ -27,7 +27,7 @@ const cat: Catalog = {
 };
 
 function actions(): HostActions {
-  return { rendered: vi.fn(), cancelSwitch: vi.fn(), undoSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn(), extendSegment: vi.fn() };
+  return { rendered: vi.fn(), undoSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn(), extendSegment: vi.fn() };
 }
 
 function view(over: Partial<StateSnapshot> = {}, acts: HostActions = actions()) {
@@ -92,13 +92,6 @@ describe("prompter", () => {
     render(view({ segments: [segment({ covered_point_ids: ["cr-p1", "cr-p2"] })] }));
     expect(screen.getByTestId("host-required-count")).toHaveTextContent("1 / 2 required points");
     expect(screen.getByTestId("host-points-status")).toHaveTextContent("1 required point left");
-  });
-
-  it("D-115: the switch countdown takes the reserved status line inside the prompter", () => {
-    render(view({ session: session({ switch: { status: "pending", target_product_id: AMPOULE, cue_count: 2, cue_transcript_ids: [], first_cue_at: null, commit_at: now() + 4000, last_commit: null } }) }));
-    const status = screen.getByTestId("host-prompter-status");
-    expect(within(status).getByTestId("host-switch-banner")).toHaveTextContent("Cancel switch (Esc)");
-    expect(screen.queryByTestId("host-points-status")).toBeNull();
   });
 
   it("D-107: status line with points and time left; the lead point is emphasised once from 80% of the time", () => {
@@ -612,26 +605,6 @@ describe("chat and switch", () => {
     expect(chat).toHaveTextContent("Raj");
     expect(chat).toHaveTextContent("So pretty!");
     expect(within(chat).getByText("AI answer")).toBeInTheDocument();
-  });
-
-  it("switch banner counts down and Esc cancels", () => {
-    const acts = actions();
-    render(
-      view(
-        {
-          session: session({
-            switch: { status: "pending", target_product_id: AMPOULE, cue_count: 2, cue_transcript_ids: [], first_cue_at: now(), commit_at: now() + 3000, last_commit: null },
-          }),
-        },
-        acts,
-      ),
-    );
-    const banner = screen.getByTestId("host-switch-banner");
-    expect(banner).toHaveTextContent("Switching to Deep Hydration Ampoule");
-    expect(banner).toHaveTextContent("3");
-    expect(banner).toHaveTextContent("Cancel switch (Esc)");
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(acts.cancelSwitch).toHaveBeenCalledTimes(1);
   });
 
   it("cue strip shows the PD cue", () => {

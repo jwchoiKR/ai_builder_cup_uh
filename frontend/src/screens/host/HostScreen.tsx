@@ -1,5 +1,5 @@
 // Host screen (§12.3): the calm view in front of the host. No required clicks, no sounds; only the
-// HIGH-risk compliance overlay covers the screen. Keyboard: Esc cancels a pending switch, M toggles
+// HIGH-risk compliance overlay covers the screen. Keyboard: Esc undoes an immediate switch, M toggles
 // the mic, T the theme (§12.3.10).
 import { LayoutGrid, Timer } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -19,7 +19,6 @@ import {
   hostAlertStack,
   hostSlots,
   priceView,
-  productById,
   runOfShow,
 } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
@@ -31,11 +30,11 @@ import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { HostBox } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
-import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchBanner, SwitchedBar, UncheckedStrip } from "./Banners";
+import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchedBar, UncheckedStrip } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
 import { useCorrectedToast, useHostScale } from "./hooks";
-import { correctedToastMs, hostProducts, hostPrompterView, promoChips, switchSecondsLeft } from "./hostSelectors";
+import { correctedToastMs, hostProducts, hostPrompterView, promoChips } from "./hostSelectors";
 import styles from "./host.module.css";
 import { pointsStatus, Prompter } from "./Prompter";
 import { Questions } from "./Questions";
@@ -45,8 +44,6 @@ const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).jo
 export interface HostActions {
   /** POST /alerts/{aid}/rendered (once per alert). */
   rendered: (alertId: string) => void;
-  /** POST /segments/cancel {by: "host"}. */
-  cancelSwitch: () => void;
   /** POST /segments/undo: take back an immediate switch (D-349). */
   undoSwitch: () => void;
   /** POST /sessions/{sid}/pd/dismiss {card_id: "..."}. */
@@ -215,7 +212,6 @@ export function HostView({
   const sessionId = state.session?.session_id ?? null;
 
   const sw = state.session?.switch;
-  const pendingSwitch = sw?.status === "pending" && sw.commit_at ? sw : null;
   // D-349: an immediate switch shows "Switched to … · Undo" for a few seconds
   const switched = sw?.last_commit?.immediate && now - sw.last_commit.at < SWITCHED_BAR_MS ? sw.last_commit : null;
   const high = activeHighAlert(state); // D-177: full size until corrected
@@ -225,8 +221,7 @@ export function HostView({
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "Escape" && pendingSwitch) actions.cancelSwitch();
-      else if (e.key === "Escape" && switched) actions.undoSwitch();
+      if (e.key === "Escape" && switched) actions.undoSwitch();
       else if ((e.key === "m" || e.key === "M") && sessionId) mic.toggle(sessionId);
       else if ((e.key === "t" || e.key === "T") && !embedded) onToggleTheme?.();
       else if ((e.key === "n" || e.key === "N") && sessionId && pd && pd.status === "active") {
@@ -236,7 +231,7 @@ export function HostView({
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, [actions, embedded, onToggleTheme, pendingSwitch, switched, sessionId, mic, pd]);
+  }, [actions, embedded, onToggleTheme, switched, sessionId, mic, pd]);
 
   const { now: product } = hostProducts(state, catalog);
   const prompter = hostPrompterView(state, catalog, product);
@@ -247,7 +242,6 @@ export function HostView({
   // D-306: also while the verifier checks a line's candidates (an alert shows only once it answers)
   const checking = Object.keys(state.verifying).length > 0;  // D-410: no provisional alert any more
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
-  const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
   // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
   // product box, in this order: HIGH, fact notes, MEDIUM. D-402 (user): red and orange at the same level: one stack
   // of same-size boxes, at most MAX_ALERT_BOXES; the last one shown carries "+N" (D-404: by alert id).
@@ -299,13 +293,7 @@ export function HostView({
               notice={!high && toast ? <CorrectedBar /> : null}
               status={
                 // D-115: one reserved line, so nothing below the prompter moves
-                pendingSwitch ? (
-                  <SwitchBanner
-                    productName={target?.name ?? t("the next product")}
-                    secondsLeft={switchSecondsLeft(pendingSwitch.commit_at, now)}
-                    onCancel={actions.cancelSwitch}
-                  />
-                ) : switched ? (
+                switched ? (
                   <SwitchedBar productName={product?.name ?? t("the next product")} onUndo={actions.undoSwitch} />
                 ) : cue ? (
                   <CueStrip cue={cue} />
@@ -368,9 +356,6 @@ export function HostScreen(props: ScreenProps) {
     },
     [sid],
   );
-  const cancelSwitch = useCallback(() => {
-    if (sid) void api.cancelSwitch(sid, "host").catch(() => undefined);
-  }, [sid]);
   const undoSwitch = useCallback(() => {
     if (sid) void api.undoSwitch(sid).catch(() => undefined);
   }, [sid]);
@@ -388,11 +373,10 @@ export function HostScreen(props: ScreenProps) {
     if (sid) void api.extendSegment(sid).catch(() => undefined);
   }, [sid]);
   // One stable object for the view; its functions call the latest callbacks.
-  const latest = useRef<HostActions>({ rendered, cancelSwitch, undoSwitch, dismissPd, pullQuestion, extendSegment });
-  latest.current = { rendered, cancelSwitch, undoSwitch, dismissPd, pullQuestion, extendSegment };
+  const latest = useRef<HostActions>({ rendered, undoSwitch, dismissPd, pullQuestion, extendSegment });
+  latest.current = { rendered, undoSwitch, dismissPd, pullQuestion, extendSegment };
   const [actions] = useState<HostActions>(() => ({
     rendered: (id) => latest.current.rendered(id),
-    cancelSwitch: () => latest.current.cancelSwitch(),
     undoSwitch: () => latest.current.undoSwitch(),
     dismissPd: (id) => latest.current.dismissPd(id),
     pullQuestion: () => latest.current.pullQuestion(),

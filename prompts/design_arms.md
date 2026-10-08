@@ -216,12 +216,6 @@ D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each prod
   which product in `target_product_id`); a plan ("the serum is coming later", "later I'll show you the serum"); a
   comparison ("this feels lighter than the serum"); a viewer's question or a quote ("someone asked about the toner").
 
-## PENDING: context_judge
-
-D-394 (SWITCH_MODE=two_step only): If the host goes back to talking about the previous product ("going back to the
-vitamins for a second"), set `is_transition = true` and `target_product_id` to that previous product. The software uses
-this to cancel a pending switch.
-
 ## HANDLES: compliance_judge
 
 D-356 (Job 2, correction): each ACTIVE_ALERTS entry has a `handle` (A1, A2 ...), its `span`, `rule_id` and `status`

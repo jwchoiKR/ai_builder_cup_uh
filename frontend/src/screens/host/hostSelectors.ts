@@ -134,12 +134,6 @@ export function answerSource(catalog: Catalog | null, answer: Answer | null): st
   return section ? `Product sheet · ${section}` : "Product sheet";
 }
 
-/** Seconds left on a pending switch, 5…1 (§12.3.9). */
-export function switchSecondsLeft(commitAt: number | null, now: number): number {
-  if (!commitAt) return 0;
-  return Math.max(0, Math.ceil((commitAt - now) / 1000));
-}
-
 export function initialOf(name: string): string {
   const t = name.trim();
   return t ? t[0].toUpperCase() : "?";

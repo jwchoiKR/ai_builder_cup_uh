@@ -2712,3 +2712,30 @@ D-414 (user, item B: D-385 redone on the current code): a TEST-QUALIFIER verdict
 - The legacy rules-path arms (ViolationR, ViolationB; test-only) keep theirs.
 - The held D-385 stash is dropped.
 Test: test_d414 in tests/test_d358.py (the model's say_instead stays whatever id it sends; the field is not in the schema).
+
+D-415 (user: "ㅇㅇ 5초는 다 지우자"): the two_step switch mode (arm, confirm, 5 s pending countdown) is deleted. The immediate switch (D-349/351), its Undo and the 10 s dual scope are the only switch.
+
+Backend, deleted:
+- the settings SWITCH_MODE, SWITCH_ARM_NAME, SWITCH_CONSECUTIVE_CUES, SWITCH_CUE_WINDOW_SEC and SWITCH_CANCEL_WINDOW_SEC (also in .env.example and deploy/cloudrun.sh);
+- SwitchState's counting/pending fields (status, target_product_id, cue_count, cue_transcript_ids, first_cue_at, commit_at); fields left in old documents are ignored;
+- the two_step state machine in `_switch_locked`, with `_commit_timer` and its re-arm, `_high_alert_switch_reset_locked` and `_product_names`;
+- `cancel_switch` and POST /segments/cancel;
+- the segment.switch_counting, segment.switch_pending and segment.switch_cancelled events;
+- logic/segments.py's classify_switch, expire, names_product, step_switch, replace_cue and withdraw_cue;
+- the PENDING addendum (D-394);
+- SWITCH_CONTEXT.in_progress and its v5 prompt sentence;
+- the counting-target sheet in gather_fact_passages and the judge's product scope;
+- eval_show's --mode and --arm-name.
+
+The context judge always gets the switch-naming schema and the SWITCH addendum.
+
+Frontend, deleted:
+- the host's SwitchBanner, Esc cancel and switchSecondsLeft;
+- the operator's "Switching in N s / Cancel switch" and "Switch cue N heard" lines, the transcript chip "switch cue n/m" and switchChips;
+- api.cancelSwitch, the three event reducers, their KO strings and the dead CSS.
+
+Mock fixtures and the mock's rule-based context answer now fill `moving_to_next_named`, so the offline demo still switches.
+
+Tests:
+- Deleted: the two_step tests in test_prompter_segments, test_split_judges, test_utterance_merge, test_d304, test_d349, test_d394, and the host and state switch-countdown tests.
+- Migrated to the immediate switch: the demo script, orchestrator case 10 and the eval_adversarial split case. The split case sets the dual scope to 0, because its operator switch would otherwise put both products in scope.

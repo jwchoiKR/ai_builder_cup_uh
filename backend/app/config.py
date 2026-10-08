@@ -65,7 +65,6 @@ class Settings(BaseSettings):
     CONTEXT_WINDOW_MS: int = 0  # D-308: back
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
-    SWITCH_ARM_NAME: bool = False  # D-353; True: a code name match must arm a two-step switch
     # D-353 addendum (user, 10/8): back to "code": spoken-answer posting belongs to the comments team (out of scope)
     VERBAL_CHECK: Literal["code", "judge"] = "code"  # judge: numbers said and hedges from the context judge (arm B's)
     JUDGE_PRODUCTS: Literal["named", "all"] = "all"  # D-353; named: a code alias match picks the products in scope
@@ -212,12 +211,8 @@ class Settings(BaseSettings):
     COMPLIANCE_ESCALATE_SEC: int = 5
     CORRECTED_TOAST_MS: int = 1500
     PUBLISH_CANCEL_WINDOW_MS: int = 2000
-    SWITCH_CONSECUTIVE_CUES: int = 2
-    SWITCH_CUE_WINDOW_SEC: int = 30
-    SWITCH_CANCEL_WINDOW_SEC: int = 5
-    # D-349 arm: immediate = the context judge's transition verdict alone switches at once (no name match, no confirm,
-    # no 5 s pending); for SWITCH_DUAL_SCOPE_SEC after a switch or an undo the judges get both products, labelled
-    SWITCH_MODE: Literal["two_step", "immediate"] = "immediate"  # D-361: the user's rule (D-351) is the default
+    # D-349/D-415: the context judge's transition verdict alone switches at once (no name match, no confirm, no
+    # countdown); for SWITCH_DUAL_SCOPE_SEC after a switch or an undo the judges get both products, labelled
     SWITCH_DUAL_SCOPE_SEC: int = 10
     # D-351: the context call and its one retry share this deadline (immediate switch arm only)
     CONTEXT_RETRY_TOTAL_MS: int = 4000

@@ -160,6 +160,6 @@ def test_builders_shape_live_values(catalog, pack):
     points = inputs.prompter_points_json(catalog, "cream_hydra_barrier")
     assert [p["point_id"] for p in points][:7] == ["cr-p1", "cr-p2", "cr-p3", "cr-p4", "cr-p5", "cr-p6", "am-p1"]
     assert inputs.switch_context_json(catalog, SwitchState(), "cream_hydra_barrier") == {
-        "in_progress": False, "next_product": {"product_id": "ampoule_deep_hydration", "name": "Deep Hydration Ampoule"},
+        "next_product": {"product_id": "ampoule_deep_hydration", "name": "Deep Hydration Ampoule"},
     }
     assert inputs.switch_context_json(catalog, SwitchState(), "ampoule_deep_hydration")["next_product"] is None

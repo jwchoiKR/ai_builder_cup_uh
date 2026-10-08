@@ -32,12 +32,9 @@ async def test_full_sheet_keeps_every_section_and_id(catalog):
     assert {p.section for p in passages} == {p.section for p in expected}
 
 
-async def test_counting_target_and_comparison_have_complete_sheets(catalog):
+async def test_a_comparison_has_complete_sheets(catalog):
     target = catalog.next_product(CREAM)
     expected = {p.passage_id for p in catalog.pack.passages if p.product_id in (CREAM, target)}
-    for status in ("counting", "pending"):
-        passages = await gather(catalog, switch=SwitchState(status=status, target_product_id=target))
-        assert {p.passage_id for p in passages} == expected
     passages = await gather(catalog, utterance="Compare the ampoule and cream.")
     assert {p.passage_id for p in passages} == expected
 

@@ -149,7 +149,7 @@ async def run_case(ctx, case: Case) -> dict:
     if case.switch == "switched":
         checks["switch"] = seg.product_id == AMPOULE
     elif case.switch == "idle":
-        checks["switch"] = seg.product_id == CREAM and sess.switch.status == "idle"
+        checks["switch"] = seg.product_id == CREAM  # D-415: no pending switch state any more
 
     judged = []
     for c in calls:
