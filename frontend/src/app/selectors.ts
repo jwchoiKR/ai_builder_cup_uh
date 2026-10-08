@@ -272,11 +272,13 @@ export function factNotesForHost(state: ClientState): Alert[] {
 export const TEST_QUALIFIER_RULE = "TEST-QUALIFIER";
 
 /** Host banners. D-105: a test-qualifier banner and a fact note on the same sentence show as one
- *  card (the note joins the banner when the fact checker finishes); alerts and logs keep both. */
+ *  card (the note joins the banner when the fact checker finishes); alerts and logs keep both. D-342 (review H20):
+ *  a sentence with an active HIGH alert shows only that alert: its MEDIUM banners and fact notes wait in the log. */
 export function hostBanners(state: ClientState): { mediums: { alert: Alert; fact: Alert | null }[]; facts: Alert[] } {
-  const facts = factNotesForHost(state);
+  const high = new Set(activeComplianceAlerts(state).filter((a) => a.severity === "HIGH").map((a) => a.transcript_id));
+  const facts = factNotesForHost(state).filter((f) => !high.has(f.transcript_id));
   const merged = new Set<string>();
-  const mediums = activeMediumAlerts(state).map((alert) => {
+  const mediums = activeMediumAlerts(state).filter((a) => !high.has(a.transcript_id)).map((alert) => {
     const fact =
       alert.rule_id === TEST_QUALIFIER_RULE
         ? (facts.find((f) => f.transcript_id === alert.transcript_id && !merged.has(f.alert_id)) ?? null)

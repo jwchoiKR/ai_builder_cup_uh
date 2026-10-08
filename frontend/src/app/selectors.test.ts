@@ -241,3 +241,18 @@ describe("desk status: one tab per group, chip and tab agree", () => {
     expect(c.needs_review + c.on_host + c.ready + c.composing + c.answered + c.closed).toBe(c.all);
   });
 });
+describe("D-342: one sentence, one alert on the host screen", () => {
+  it("a sentence with a HIGH alert shows no MEDIUM banner or fact note of its own; other sentences keep theirs", async () => {
+    const { hostBanners } = await import("./selectors");
+    const { reduceSnapshot } = await import("./state");
+    const state = reduceSnapshot(snapshot({ alerts: [
+      alert({ alert_id: "al_h", transcript_id: "tr_1", severity: "HIGH" }),
+      alert({ alert_id: "al_m", transcript_id: "tr_1", severity: "MEDIUM", rule_id: "BRAND-SUPERLATIVE" }),
+      alert({ alert_id: "fx_1", kind: "fact", transcript_id: "tr_1", rule_id: null, severity: null }),
+      alert({ alert_id: "fx_2", kind: "fact", transcript_id: "tr_2", rule_id: null, severity: null }),
+    ] }), "host");
+    const { mediums, facts } = hostBanners(state);
+    expect(mediums).toEqual([]);
+    expect(facts.map((f) => f.alert_id)).toEqual(["fx_2"]);
+  });
+});
