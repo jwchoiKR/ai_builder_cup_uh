@@ -15,12 +15,15 @@ from pydantic import BaseModel
 
 from ..agents.answer_composer import AnswerComposer
 from ..agents.draft_verifier import DraftVerifier
+from ..agents.reply_phraser import ReplyPhraser
+from ..agents.reply_translator import ReplyTranslator
 from ..agents.comment_triage import CommentTriage
 from ..logic import host_queue as hq
 from ..logic.cache import PRICE_INTENTS, AnswerCache, TriageCache
 from ..logic.catalog import Catalog
 from ..logic.grouping import is_open
 from ..logic.ranking import score
+from ..logic.reply_status import REPLY_KINDS, waiting_status
 from ..logic.segments import open_segment
 from ..onboarding.release import has_law as _has_law
 from ..models.data import Intent, Passage, Promo, PrompterPoint
@@ -40,6 +43,7 @@ from ..models.session import (
     Session,
     Transcript,
 )
+from ..bus import viewer_comment, viewer_message, viewer_session
 from ..store.base import SESSIONS, sub
 
 if TYPE_CHECKING:
@@ -97,6 +101,10 @@ class SessionRuntime:
                                     batch_prompt=ctx.prompts["comment_triage_batch"])
         self.composer = AnswerComposer(ctx.llm, ctx.prompts["answer_composer"], self.catalog)
         self.draft_verifier = DraftVerifier(ctx.llm, ctx.prompts["draft_verifier"], self.catalog)
+        self.reply_translator = ReplyTranslator(ctx.llm, ctx.prompts["reply_translator"])
+        self.reply_phraser = ReplyPhraser(ctx.llm, ctx.prompts["reply_phraser"])
+        self.translating: set[tuple[str, str]] = set()  # (message, language) being translated
+        self._reply_status: dict[str, str | None] = {}  # comment -> the status last written, so a repeat reads nothing
         # D-278: no demo comments in a release show
         self.feed = FeedEngine(self, demo=session.release_id is None and not session.release_ids)
         from .utterances import UtterancePipeline
@@ -128,6 +136,7 @@ class SessionRuntime:
         return f"{self.sid}:{name}"
 
     async def emit(self, type_: str, payload: BaseModel | dict) -> None:
+        source = payload
         if type_ == "group.updated" and isinstance(payload, QuestionGroup) and payload.answer_id:
             # The client gets the draft/suggested answer with its group, no refetch (D-059).
             answer = await self.get_answer(payload.answer_id)
@@ -142,6 +151,28 @@ class SessionRuntime:
         pd = getattr(self, "pd", None)
         if pd is not None and type_ != "pd.card":
             pd.on_event(type_, payload)  # only schedules work; never takes the lock
+        # Every change of a group and every posted reply passes here, so the askers' status follows from one place.
+        if type_ == "group.updated" and isinstance(source, QuestionGroup):
+            await self._set_reply_status(source.member_comment_ids, waiting_status(source))
+        elif (type_ in ("message.published", "message.updated") and isinstance(source, Message)
+              and source.state == "published" and source.kind in REPLY_KINDS):
+            await self._set_reply_status(source.reply_to_comment_ids, "answered")
+
+    async def _set_reply_status(self, comment_ids: list[str], status: str | None) -> None:
+        """What each asker is told about their question (logic/reply_status). Only a comment whose status changes
+        is read and written; "answered" stays, because a posted reply stays posted whatever happens to its group."""
+        for cid in comment_ids:
+            if self._reply_status.get(cid, "") in (status, "answered"):
+                continue
+            c = await self.get_comment(cid)
+            if c is None:
+                continue
+            want = "answered" if c.reply_status == "answered" else status if c.visibility == "visible" else None
+            self._reply_status[cid] = want
+            if c.reply_status != want:
+                c.reply_status = want
+                await self.save_comment(c)
+                await self.emit("comment.status", c)
 
     def spawn(self, coro, name: str | None = None) -> asyncio.Task:
         return self.ctx.scheduler.spawn(coro, name=name)
@@ -334,7 +365,12 @@ class SessionRuntime:
         now = self.now()
         self._ticks += 1
         for g in await self.groups():
-            if is_open(g) and g.host_slot != "on_host" and now - g.last_at >= self.settings.GROUP_TTL_SEC * 1000:
+            # a question still waiting for a person (the operator's review, the host's card) is not dropped after
+            # ten quiet minutes like an answered one: it waits GROUP_TTL_WAITING_SEC, so nobody's question
+            # disappears from the desk unanswered while the operator was busy
+            waiting = g.status in ("needs_review", "ready", "new", "composing")
+            ttl = self.settings.GROUP_TTL_WAITING_SEC if waiting else self.settings.GROUP_TTL_SEC
+            if is_open(g) and g.host_slot != "on_host" and now - g.last_at >= ttl * 1000:
                 g.status, g.closed_reason = "closed", "ttl"
                 g.version += 1
                 await self.save_group(g)
@@ -376,6 +412,22 @@ class SessionRuntime:
             await self.save_segment(seg)
             await self.emit("segment.started", seg)
             return seg
+
+    async def resume(self) -> bool:
+        """After a restart (the session was loaded from the store): a live show's 1-second tick and promo end timers
+        run again. Timers that lived only in the old process do not come back: cancel windows of pending posts, alert
+        escalations, question holds, a switch countdown, the demo feed."""
+        s = await self.load_session()
+        if s.status != "live" or self.closed:
+            return False
+        for p in s.active_promos:
+            self.ctx.scheduler.call_at(self.key(f"promo:{p.promo_id}"), p.ends_at,
+                                       lambda pid=p.promo_id: self.stop_promo(pid, reason="timer"))
+        seg = await self.current_segment()
+        if seg is not None:
+            await self.prefetch(seg.product_id)
+        self.ctx.scheduler.call_later(self.key("tick"), TICK_MS, self._tick)
+        return True
 
     def shutdown(self) -> None:
         self.closed = True
@@ -473,7 +525,14 @@ class SessionRuntime:
         )
         await self.save_message(msg)
         await self.emit("message.pending" if pending_until else "message.published", msg)
+        self.translate_later(msg.message_id)
         return msg
+
+    def translate_later(self, message_id: str) -> None:
+        """The reply in the askers' other languages, after it is posted (it never waits for a translation)."""
+        from .translation import translate_reply  # the pipelines import this module
+
+        self.spawn(translate_reply(self, message_id), name=f"translate:{message_id}")
 
     # ---- promotions (§8.10) --------------------------------------------------------------------
 
@@ -500,6 +559,8 @@ class SessionRuntime:
             await self.emit("promo.started", {**active.model_dump(), "changes_prices": promo.changes_prices})
             if promo.changes_prices:
                 await self.price_promo_changed_locked()
+            else:
+                await self.offer_changed_locked(promo)
             return s
 
     async def stop_promo(self, promo_id: str, *, reason: str = "operator") -> Session:
@@ -519,6 +580,8 @@ class SessionRuntime:
             await self.emit("promo.ended", {"promo_id": promo_id, "ended_at": self.now(), "reason": reason})
             if promo is not None and promo.changes_prices:
                 await self.price_promo_changed_locked()
+            elif promo is not None:
+                await self.offer_changed_locked(promo)
             return s
 
     async def documents_changed_locked(self) -> None:
@@ -547,12 +610,19 @@ class SessionRuntime:
             await self.emit("hostqueue.updated", {"slots": [sl.model_dump() for sl in s.host_slots]})
         await self.recompute_host_queue_locked()
 
-    async def price_promo_changed_locked(self) -> None:
+    async def offer_changed_locked(self, promo: Promo) -> None:
+        """A record price answer names a running offer (logic/record_answers), so when an offer starts or ends the
+        open price groups close like at a price promo: no reply that names an ended offer, or misses a new one, is
+        posted again. Set-price groups keep their answer; a notice is no offer."""
+        if self.settings.RECORD_ANSWERS and promo.kind != "notice":
+            await self.price_promo_changed_locked(intents=frozenset({"price"}))
+
+    async def price_promo_changed_locked(self, intents: frozenset[str] = PRICE_INTENTS) -> None:
         """No old price is re-posted after a promo change: drop cached price answers and close open
         price groups, so new price questions get a fresh answer (§8.10)."""
-        self.answer_cache.invalidate_intents(PRICE_INTENTS)
+        self.answer_cache.invalidate_intents(intents)
         for g in await self.groups():
-            if is_open(g) and g.intent in PRICE_INTENTS:
+            if is_open(g) and g.intent in intents:
                 g.status, g.closed_reason = "closed", "promo_changed"
                 g.host_slot, g.on_host_since = "none", None
                 g.version += 1
@@ -630,6 +700,17 @@ class SessionRuntime:
         store = self.ctx.store
         comments = await store.query(self.path("comments"), Comment, order_by="received_at")
         visible = [c for c in comments if c.visibility == "visible"][-SNAPSHOT_COMMENTS:]
+        if role == "viewer":
+            # the public chat and show state only, with the same fields as the viewer's event stream (bus.for_role)
+            messages = await store.query(self.path("messages"), Message, order_by="created_at")
+            return {
+                "last_seq": last_seq,
+                "server_time": self.now(),
+                "session": viewer_session(s.model_dump(mode="json")),
+                "segments": [x.model_dump(mode="json") for x in await self.segments()],
+                "comments": [viewer_comment(c.model_dump(mode="json")) for c in visible],
+                "messages": [m for m in (viewer_message(x.model_dump(mode="json")) for x in messages) if m is not None],
+            }
         hidden = [c for c in comments if c.visibility == "hidden"][-SNAPSHOT_COMMENTS:] if role == "operator" else []
         shown = sorted(visible + hidden, key=lambda c: c.received_at)
         groups = await self.groups()

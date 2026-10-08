@@ -96,6 +96,14 @@
       "product_scope": "single"
     },
     {
+      "intent": "specification",
+      "group": "product",
+      "route": "AUTO",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
       "intent": "suitability",
       "group": "product",
       "route": "HOST",
@@ -142,6 +150,22 @@
       "sensitive": false,
       "purchase_impact": 2,
       "product_scope": "multi"
+    },
+    {
+      "intent": "certification",
+      "group": "product",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 1,
+      "product_scope": "single"
+    },
+    {
+      "intent": "clinical_results",
+      "group": "product",
+      "route": "OPERATOR",
+      "sensitive": false,
+      "purchase_impact": 2,
+      "product_scope": "single"
     },
     {
       "intent": "pregnancy_breastfeeding",

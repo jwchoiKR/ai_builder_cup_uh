@@ -267,7 +267,7 @@ async def _played(voice, n: int) -> None:
 
 
 async def test_d324_a_line_stt_did_not_hear_falls_back_even_if_the_next_is_alike(monkeypatch):
-    """Codex: STT hears only B, whose words are nearly A's. A must still go in as text (it is the risky line)."""
+    """Review finding: STT hears only B, whose words are nearly A's. A must still go in as text (it is the risky line)."""
     monkeypatch.setattr(td, "FALLBACK_S", 0.3)
     rt = await _rt(_Stt())
     try:
@@ -286,7 +286,7 @@ async def test_d324_a_line_stt_did_not_hear_falls_back_even_if_the_next_is_alike
 
 @pytest.mark.parametrize("offset", [0, -50])
 async def test_d324_a_final_at_the_boundary_belongs_to_the_earlier_line(monkeypatch, offset):
-    """Codex: A's final stamped at (or just before) B's start is A's; B, which STT did not hear, falls back."""
+    """Review finding: A's final stamped at (or just before) B's start is A's; B, which STT did not hear, falls back."""
     monkeypatch.setattr(td, "FALLBACK_S", 0.4)
     rt = await _rt(_Stt())
     try:

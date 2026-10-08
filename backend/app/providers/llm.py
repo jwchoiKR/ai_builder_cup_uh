@@ -497,7 +497,12 @@ class LLMClient:
         facts_thinking = getattr(settings, "SINGLE_FACTS_THINKING", "") or strong_thinking  # D-311
         self.facts = ModelSpec(settings.FACTS_MODEL or (strong if single else settings.LLM_FAST_MODEL),
                                facts_thinking if single else settings.FACTS_THINKING)  # D-246; D-309
-        self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
+        self.draft_verify = ModelSpec(settings.LLM_FAST_MODEL,
+                                      getattr(settings, "DRAFT_VERIFY_THINKING", "") or settings.LLM_FAST_THINKING)
+        self.triage = ModelSpec(getattr(settings, "TRIAGE_MODEL", "") or settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
+        # the fast model at its own thinking level, when the triage model fails or is too slow
+        self.triage_fallback = ModelSpec(settings.LLM_FAST_MODEL,
+                                         getattr(settings, "TRIAGE_FALLBACK_THINKING", settings.TRIAGE_THINKING))
         self.brief = ModelSpec(settings.BRIEF_MODEL or settings.LLM_QUALITY_MODEL, settings.BRIEF_THINKING)  # D-265
         self.verify = ModelSpec(getattr(settings, "VERIFY_MODEL", settings.LLM_QUALITY_MODEL),
                                 getattr(settings, "VERIFY_THINKING", "LOW"))  # D-300
@@ -651,7 +656,7 @@ class LLMClient:
 
     async def warm_up(self) -> dict[str, str]:
         """One tiny call per model so the first real call is not a cold start. Not audited."""
-        models = list(dict.fromkeys((self.fast.model, self.facts.model, self.quality.model)))
+        models = list(dict.fromkeys((self.fast.model, self.facts.model, self.quality.model, self.triage.model)))
 
         async def one(model: str) -> None:
             t0 = time.perf_counter()

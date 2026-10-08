@@ -101,7 +101,8 @@ def test_sse_over_http_replays_and_resumes_with_last_event_id():
 
         def read_events(headers: dict, want: int, after_connect=None) -> list[tuple[str, str]]:
             got: list[tuple[str, str]] = []
-            with httpx.stream("GET", f"{base}/sessions/{sid}/events", headers=headers, timeout=5) as r:
+            with httpx.stream("GET", f"{base}/sessions/{sid}/events", params={"role": "operator"}, headers=headers,
+                              timeout=5) as r:
                 assert r.status_code == 200
                 assert r.headers["content-type"].startswith("text/event-stream")
                 current_id = None
