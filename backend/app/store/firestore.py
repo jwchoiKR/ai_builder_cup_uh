@@ -10,6 +10,10 @@ Firestore refuses is logged as an error, never dropped silently.
 
 Documents are written as their JSON fields with set() (no dotted updates). A document holding an array inside an
 array (Firestore has no nested arrays) is written as one JSON string field instead.
+
+D-378 (user): comment data is the comments session's, which keeps it in its own Firestore storage. The collections
+only the comments pipeline writes (MEMORY_ONLY) and the comment agents' call rows stay in memory only: never mirrored,
+never read back.
 """
 from __future__ import annotations
 
@@ -35,6 +39,18 @@ RETRY_FIRST_SEC = 0.5
 RETRY_MAX_SEC = 30.0
 READ_BACK_TRIES = 3  # D-361: a session is read back whole or not at all; after these tries the call fails
 _DELETE_SESSION = object()  # queue marker: delete the session document and every subcollection under it
+# D-378: comments, their analyses (triage), question groups, answers and posted messages
+MEMORY_ONLY = frozenset({"comments", "analyses", "groups", "answers", "messages"})
+COMMENT_AGENTS = frozenset({"comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier",
+                            "file_tools"})
+
+
+def mirrored(path: str, data: Any) -> bool:
+    """D-378: whether a document goes to Firestore (live data) or stays in memory (comment data)."""
+    name = path.split("/")[-1]
+    if path.startswith(f"{SESSIONS}/") and name in MEMORY_ONLY:
+        return False
+    return not (name == "agent_calls" and isinstance(data, dict) and data.get("agent") in COMMENT_AGENTS)
 
 
 def _nested_array(x: Any, in_array: bool = False) -> bool:
@@ -97,6 +113,8 @@ class FirestoreStore(MemoryStore):
     def _enqueue(self, path: str, doc_id: str, value: Any) -> None:
         if "/" in doc_id:
             raise ValueError(f"a Firestore document id cannot hold '/': {path}/{doc_id}")
+        if not mirrored(path, value):
+            return  # D-378: comment data stays in memory
         key = (path, doc_id)
         self._queue.pop(key, None)  # coalesce: the latest value, at the end of the order
         self._queue[key] = value
@@ -181,17 +199,19 @@ class FirestoreStore(MemoryStore):
         if not snap.exists:
             return
         staged = [(SESSIONS, sid, snap.to_dict())]
-        for name in SUBCOLLECTIONS:
+        for name in (n for n in SUBCOLLECTIONS if n not in MEMORY_ONLY):  # D-378: no comment data read back
             path = f"{SESSIONS}/{sid}/{name}"
             async for d in self._client.collection(path).stream():
-                staged.append((path, d.id, d.to_dict()))
+                if mirrored(path, decode(d.to_dict())):
+                    staged.append((path, d.id, d.to_dict()))
         for path, doc_id, data in staged:
             self._fill(path, doc_id, data)
         log.info("firestore: session %s read back (%d events)", sid,
                  len(self._data.get(f"{SESSIONS}/{sid}/events", {})))
 
     async def _load_collection(self, path: str) -> None:
-        staged = [(d.id, d.to_dict()) async for d in self._client.collection(path).stream()]
+        staged = [(d.id, d.to_dict()) async for d in self._client.collection(path).stream()
+                  if mirrored(path, decode(d.to_dict()))]
         for doc_id, data in staged:
             self._fill(path, doc_id, data)
 
