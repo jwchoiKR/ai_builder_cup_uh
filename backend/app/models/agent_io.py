@@ -215,10 +215,12 @@ class ComplianceOutputR(ComplianceOutput, _ArmB):
 
 
 def _cited_schema(s: dict) -> None:
-    """D-358: the model writes the citation and its quote first; `rule_id` is code's (from the citation)."""
+    """D-358: the model writes the citation and its quote first; `rule_id` is code's (from the citation). D-400:
+    `severity` is code's too (from the citation type), so it is not asked for."""
     props = dict(s.get("properties", {}))
     props.pop("rule_id", None)
-    first = ["citation", "quote", "span", "severity", "is_negated", "is_quoted"]
+    props.pop("severity", None)
+    first = ["citation", "quote", "span", "is_negated", "is_quoted"]
     s["properties"] = {**{k: props.pop(k) for k in first if k in props}, **props}
     s["required"] = list(s["properties"])
 
@@ -231,6 +233,7 @@ class ViolationO(Violation, _ArmB):
     citation: str
     quote: str
     rule_id: str = ""
+    severity: Literal["HIGH", "MEDIUM"] = "HIGH"  # D-400: set by code from the citation type, never asked
     qualified_result_id: str | None = None  # the QUALIFIED_RESULTS entry a TEST-QUALIFIER verdict states
 
 

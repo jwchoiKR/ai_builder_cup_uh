@@ -44,14 +44,8 @@ Flag a violation ONLY when the host's own words make a claim about the product t
   REGULATION_DOCUMENTS and the section as written in that document ("3", "2.d", "Table 1"). `quote` is a short exact
   quote (under 25 words) from that document that prohibits the claim. Cite only what the documents say.
 - A test or study result of the product (QUALIFIED_RESULTS, the same numbers) said WITHOUT who tested it is cited as
-  `citation` "TEST-QUALIFIER", `quote` the QUALIFIED_RESULTS wording, `qualified_result_id` its id, `severity`
-  MEDIUM. Naming the tester, the lab or the brand's own test is saying the qualifier; speech-to-text may spell the
+  `citation` "TEST-QUALIFIER", `quote` the QUALIFIED_RESULTS wording, `qualified_result_id` its id. Naming the tester, the lab or the brand's own test is saying the qualifier; speech-to-text may spell the
   name as a sound-alike. For other citations `qualified_result_id` is null.
-- `severity`, by these criteria:
-  - HIGH: a disease, cure, treatment or prevention claim; a drug-like or physiological effect; a safety or guarantee
-    claim ("no side effects", "completely safe", "guaranteed results"); harm to a vulnerable group.
-  - MEDIUM: everything else the regulation prohibits, such as a test result without its source, an unproven
-    superlative or comparison, or an exaggerated cosmetic effect.
 - `span` is the exact words that carry the claim. `say_instead` is what the host can say now, built ONLY from
   APPROVED_CLAIMS of the current product: only what must be said (the claim and any required qualifier), worded as
   compactly as possible; never add facts.
@@ -86,7 +80,6 @@ Return the JSON verdict for UTTERANCE.
         "citation": "<document>#<section> | TEST-QUALIFIER",
         "quote": "string",
         "span": "string",
-        "severity": "HIGH | MEDIUM",
         "is_negated": false,
         "is_quoted": false,
         "say_instead": "string",
@@ -107,7 +100,7 @@ REGULATION_DOCUMENTS: [{"document":"kelmar_cosmetic_code.pdf","title":"Kelmar Co
 CURRENT_PRODUCT: product_k (a baby balm, target_group: babies from 6 months)
 UTTERANCE: "It's totally safe for newborns, zero risk."
 ```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#4.2","quote":"No claim may promise safety to infants or other vulnerable consumers.","span":"totally safe for newborns, zero risk","severity":"HIGH","is_negated":false,"is_quoted":false,"say_instead":"A gentle balm for babies from 6 months.","qualified_result_id":null}]},"reason":"A safety promise to a vulnerable group."}
+{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#4.2","quote":"No claim may promise safety to infants or other vulnerable consumers.","span":"totally safe for newborns, zero risk","is_negated":false,"is_quoted":false,"say_instead":"A gentle balm for babies from 6 months.","qualified_result_id":null}]},"reason":"A safety promise to a vulnerable group."}
 ```
 
 Example B
@@ -129,14 +122,14 @@ REGULATION_DOCUMENTS: [{"document":"kelmar_cosmetic_code.pdf","title":"Kelmar Co
 CURRENT_PRODUCT: product_m (a hand cream)
 UTTERANCE: "It heals cracked, bleeding eczema skin in two days."
 ```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#2.1","quote":"A cosmetic must not be presented as treating or preventing disease.","span":"heals cracked, bleeding eczema skin","severity":"HIGH","is_negated":false,"is_quoted":false,"say_instead":"It helps dry hands feel soft and smooth.","qualified_result_id":null}]},"reason":"Claims to heal a skin condition."}
+{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#2.1","quote":"A cosmetic must not be presented as treating or preventing disease.","span":"heals cracked, bleeding eczema skin","is_negated":false,"is_quoted":false,"say_instead":"It helps dry hands feel soft and smooth.","qualified_result_id":null}]},"reason":"Claims to heal a skin condition."}
 ```
 
 Example E
 QUALIFIED_RESULTS: [{"product_id":"product_m","result_id":"product_m-r1","say":"9 of 10 users said hands felt softer (in Kelmar's own panel test)"}]
 UTTERANCE: "Nine out of ten people said their hands felt softer."
 ```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"TEST-QUALIFIER","quote":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","span":"Nine out of ten people said their hands felt softer","severity":"MEDIUM","is_negated":false,"is_quoted":false,"say_instead":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","qualified_result_id":"product_m-r1"}]},"reason":"A test result said without who tested it."}
+{"alert_checks":[],"compliance":{"violations":[{"citation":"TEST-QUALIFIER","quote":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","span":"Nine out of ten people said their hands felt softer","is_negated":false,"is_quoted":false,"say_instead":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","qualified_result_id":"product_m-r1"}]},"reason":"A test result said without who tested it."}
 ```
 
 Example F (a fix)
