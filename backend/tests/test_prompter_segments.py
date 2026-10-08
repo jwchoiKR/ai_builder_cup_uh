@@ -138,3 +138,61 @@ def test_apply_coverage_and_view(catalog):
     assert (view["required_covered"], view["required_total"], view["next_product_id"]) == (1, 3, AMPOULE)
     assert [p["covered"] for p in view["points"]] == [False, True, False, False, False, False]
     assert [p["required"] for p in view["points"]] == [False, True, True, True, False, False]
+
+
+# ---- D-419: the immediate switch only (D-415) --------------------------------------------------------------------
+
+
+async def test_d419_no_automatic_switch_after_the_last_product(env):
+    rt, llm = env
+    await utt.operator_switch(rt, AMPOULE)  # the last product of the run sheet
+    back = "Now let me show you the cream again."
+    llm.judge(back, utterance_type="transition", transition=True, target=CREAM, confidence="high")
+    await speak(rt, back)
+    assert [s.product_id for s in await segs(rt)] == [CREAM, AMPOULE]
+    assert (await rt.current_segment()).product_id == AMPOULE
+
+
+async def test_d419_an_old_session_with_a_pending_switch_keeps_undo_and_runs_no_switch():
+    """A session document written before D-415 (status, target, commit_at ...) loads; its Undo info stays; nothing
+    commits a switch after a read-back."""
+    from app.pipelines.runtime import Runtimes
+    from app.store.base import SESSIONS
+
+    from .helpers import live_runtime, make_ctx
+
+    ctx = make_ctx()
+    rt = await live_runtime(ctx)
+    await utt.operator_switch(rt, AMPOULE)
+    raw = (await rt.load_session()).model_dump(mode="json")
+    undo = raw["switch"]["last_commit"]
+    raw["switch"] |= {"status": "pending", "target_product_id": CREAM, "cue_count": 2, "cue_transcript_ids": ["t"],
+                      "first_cue_at": rt.now(), "commit_at": rt.now() + 1000}
+    ctx.store._data[SESSIONS][rt.sid] = raw  # as an old Firestore document would come back
+    rt.shutdown()
+    fresh = await Runtimes(ctx).get(rt.sid)
+    try:
+        s = await fresh.load_session()
+        assert s.switch.last_commit == undo
+        assert not ctx.scheduler.has(fresh.key("switch-commit"))
+        await ctx.scheduler.advance(5000)
+        assert (await fresh.current_segment()).product_id == AMPOULE
+        await utt.undo_switch(fresh)
+        assert (await fresh.current_segment()).product_id == CREAM
+    finally:
+        await close_env(fresh)
+
+
+@pytest.mark.parametrize("mode", ["split", "single"])
+async def test_d419_the_mock_only_judge_modes_switch_too(mode):
+    rt, llm = await make_env(JUDGE_MODE=mode)
+    try:
+        line = "Okay, now let me show you our Deep Hydration Ampoule."
+        llm.judge(line, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
+        if mode == "single":  # the single judge's own key, with its facts part
+            llm.outputs[("judge_single", line)] = llm.outputs[("utterance_judge", line)] | {
+                "facts": {"claims": [], "reason": "scripted"}}
+        await speak(rt, line)
+        assert (await rt.current_segment()).product_id == AMPOULE
+    finally:
+        await close_env(rt)

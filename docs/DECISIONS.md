@@ -2770,3 +2770,10 @@ Tests (tests/test_d408.py):
 - The real-time D-411 tests are replaced by these clock-based ones.
 
 D-418 (night rule: a display-only fix on peer consensus; GPT and Gemini agreed, Sonnet preferred a prompt change, not taken because it would reverse the user's choice that the qualifier line is the host's own sentence). A TEST-QUALIFIER card merged with the fact note of its line no longer shows two conflicting numbers ("+45% (not +70%)" next to "In our own panel test, 70% …"). "Say this instead" now shows the note's `say` once, or its correct_value when there is no say. The qualifier becomes the top instruction: "Also say where the result comes from (e.g. 'in our in-house test')", with a KO string. Once that note is corrected, the card keeps showing its right line (hostBanners passes the line's corrected note as `factFixed`), so the old wrong number never comes back. An unmerged qualifier card keeps the model's say_instead. Handles, ×N and the 2-box cap are unchanged. Test: host.test.tsx (the merged card shows the note's line once with the "Also say" instruction and not the model's say_instead; the line stays after the note is corrected).
+
+D-419 (codex review of D-415; night rule). JUDGE_MODE=split and single (the one-call UtteranceJudge and judge_single) asked for a schema without `moving_to_next_named`, so those modes never switched products automatically.
+These modes are reachable only on the mock provider and in the tests (D-361 refuses them in production). They now ask for the switch-naming schema too: `with_switch_naming`, now cached. The mock answers fill the field: the rule-based fallback (D-415), the recorded fixtures (D-415) and the test fake, the same way as the split3 path.
+New tests in test_prompter_segments.py:
+- The split and single modes switch on a named transition.
+- No automatic switch after the last product.
+- An old session document with a pending switch (status, target, commit_at …) loads after a read-back. It keeps its Undo info, schedules no switch commit, does not switch, and Undo still works.

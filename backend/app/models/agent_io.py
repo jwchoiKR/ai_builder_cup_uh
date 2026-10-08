@@ -154,8 +154,9 @@ class SwitchCueN(_ArmB):
 
 
 @functools.cache
+@functools.cache
 def with_switch_naming(model: type[BaseModel]) -> type[BaseModel]:
-    """D-351: the context output with `SwitchCueN` in place of `SwitchCue` (immediate switch mode only)."""
+    """D-351: the context output with `SwitchCueN` in place of `SwitchCue` (D-415: the only switch)."""
     prompter = model.model_fields["prompter"].annotation
     p = create_model(f"{prompter.__name__}N", __base__=prompter, switch=(SwitchCueN, ...))
     return create_model(f"{model.__name__}N", __base__=model, prompter=(p, ...))
