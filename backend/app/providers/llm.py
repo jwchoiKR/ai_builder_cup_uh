@@ -73,6 +73,7 @@ class LLMRequest(Generic[T]):
     cache_parts: tuple = ()
     temperature: float | None = None  # D-302: a vote run's sampling temperature; None = the model's default
     seed: int | None = None  # D-314: the sampling seed; None = not sent
+    seeded: bool = True  # D-408: False sends no JUDGE_SEED (a retry after an invalid answer)
     hedge: bool = True  # D-302: False sends no second request (vote runs)
     retry_429: bool = True  # D-351: False skips the 429 wait (a caller that retries the whole call itself)
 
@@ -539,7 +540,7 @@ class LLMClient:
         if req.agent in SAMPLED_AGENTS:  # D-314: the live judges' sampling, when set (a vote run keeps its own)
             t, s = self._settings.JUDGE_TEMPERATURE, self._settings.JUDGE_SEED  # checked at startup
             req = replace(req, temperature=float(t) if t and req.temperature is None else req.temperature,
-                          seed=int(s) if s and req.seed is None else req.seed)
+                          seed=int(s) if s and req.seed is None and req.seeded else req.seed)
         call_id = self._ids.new("call_", req.session_id)
         started_at = self._clock.now_ms()
         t0 = time.perf_counter()
