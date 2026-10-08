@@ -67,7 +67,7 @@ export function TestDrive() {
           <h2 className={styles.blockTitle}>1. Reading {start.files.length} documents</h2>
           <ul className={styles.rows}>{start.files.map((f) => <li key={f} className={styles.muted}>{f}</li>)}</ul>
           <p className={styles.status}>
-            {job?.status === "failed" ? `Failed: ${job.error}` : start.cached ? "Read before: loading…" : "About 2 minutes…"}
+            {job?.status === "failed" ? `Failed: ${job.error}` : start.cached ? "Loading the saved reading…" : "About 2 minutes…"}
           </p>
         </section>
       )}

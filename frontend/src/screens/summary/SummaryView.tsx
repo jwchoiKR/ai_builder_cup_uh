@@ -236,7 +236,7 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
             <thead>
               <tr>
                 <th>Time</th>
-                <th>You said</th>
+                <th>Host said</th>
                 <th>Rule</th>
                 <th>Alert latency</th>
                 <th>Corrected in</th>
@@ -275,7 +275,7 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
             <thead>
               <tr>
                 <th>Time</th>
-                <th>You said</th>
+                <th>Host said</th>
                 <th>Field</th>
                 <th>Alert latency</th>
                 <th>Corrected in</th>

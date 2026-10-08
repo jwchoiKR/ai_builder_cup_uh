@@ -163,7 +163,7 @@ export function Questions({
         </span>
         <span className={styles.cardMeta} data-testid="host-questions-hint">
           {correcting ? (
-            t("Finish the correction first")
+            t("Questions resume after the correction")
           ) : (
             <>
               <kbd className={styles.pdKbd}>Q</kbd> {t("take the top one now")}

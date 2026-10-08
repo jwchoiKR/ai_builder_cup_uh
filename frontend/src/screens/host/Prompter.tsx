@@ -150,8 +150,8 @@ export function Prompter({
           data-testid="host-judge-health"
           data-state={degraded.length ? "degraded" : "ok"}
           role="status"
-          title={degraded.length ? t("AI check slow: alerts may be missing") : t("AI checks running")}
-          aria-label={degraded.length ? t("AI check slow: alerts may be missing") : t("AI checks running")}
+          title={degraded.length ? t("AI check is slow. Some alerts may be late or skipped.") : t("AI checks running")}
+          aria-label={degraded.length ? t("AI check is slow. Some alerts may be late or skipped.") : t("AI checks running")}
         >
           <span className={styles.healthDotMark} aria-hidden />
           {degraded.length > 0 && t("AI check slow")}

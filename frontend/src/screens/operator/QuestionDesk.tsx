@@ -59,7 +59,7 @@ export function QuestionDesk() {
           <h2 className={styles.blockTitle}>
             {t("Question desk")} <span className="tabular" data-testid="op-desk-count">{counts.all}</span>
           </h2>
-          <p className={styles.muted}>{t("Grouped by intent, ready for your next move.")}</p>
+          <p className={styles.muted}>{t("Grouped by topic.")}</p>
         </div>
         <span className={["tabular", styles.muted].join(" ")}>
           {t("{n}/{max} on host", { n: state.hostSlots.length, max: topN })}

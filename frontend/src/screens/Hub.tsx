@@ -34,7 +34,7 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
       { path: "/operator", title: "Operator", icon: Headset, who: "For the operator",
         text: "Show schedule, product switch and the question desk." },
       { path: "/viewer", title: "Viewer", icon: Smartphone, who: "What viewers see",
-        text: "Live video, product strip and chat with checked AI answers." },
+        text: "Live video, product strip and chat with fact-checked AI answers." },
     ],
   },
   {
