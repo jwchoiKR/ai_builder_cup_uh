@@ -656,6 +656,26 @@ class UtterancePipeline:
 
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
                          parts: list[str] | None = None, transcript_id: str | None = None) -> AgentResult:
+        # D-411/D-417/D-421: one fact deadline for the line, FACT_LATE_MS from its end (D-144: on time is
+        # FACT_TIMEOUT_MS), taken once in wall time; the time spent after that is measured on the monotonic clock, so a
+        # wall-clock step changes nothing. It is checked before the lookups and again right before the call.
+        clock = self.rt.ctx.clock
+        mono = getattr(clock, "monotonic_ms", clock.now_ms)
+        line = self._prepared.get(transcript_id or "")
+        budget = (line[0].speech_end_at if line is not None else self.rt.now()) + self.rt.settings.FACT_LATE_MS \
+            - self.rt.now()
+        start = mono()
+
+        def left() -> int:
+            return budget - (mono() - start)
+
+        def expired() -> AgentResult:
+            log.info("fact check for %r: not called, the line's fact deadline passed %d ms ago", text[:80], -left())
+            return AgentResult(status="timeout", output=None, latency_ms=0, call_id="", error="line deadline passed",
+                               meta={"failure": "client_timeout"})
+
+        if left() <= 0:
+            return expired()
         # D-172: a product the last lines named stays citable ("the ampoule on its own is $32," / "list price 42")
         passages = await self._fact_passages(" ".join([*judge_input.previous[-1:], text]), on_air, judge_input.switch,
                                              judge_input.promo)
@@ -671,28 +691,21 @@ class UtterancePipeline:
                         offers=offers, parts=parts or [], notes=notes, now=self.rt.now(), chain=judge_input.chain)
         if transcript_id is not None:
             self._fact_inputs[transcript_id] = inp
-        # D-411/D-417: one fact deadline for the line, FACT_LATE_MS from its end (D-144: on time is FACT_TIMEOUT_MS);
-        # every call gets only what is left of it, measured by the clock
-        line = self._prepared.get(transcript_id or "")
-        deadline = (line[0].speech_end_at if line is not None else self.rt.now()) + self.rt.settings.FACT_LATE_MS
-        left = deadline - self.rt.now()
-        if left <= 0:
-            log.info("fact check for %r: not called, the line's fact deadline passed %d ms ago", text[:80], -left)
-            return AgentResult(status="timeout", output=None, latency_ms=0, call_id="", error="line deadline passed",
-                               meta={"failure": "client_timeout"})
-        res = await self.facts.run(inp, deadline_ms=left)
-        left = deadline - self.rt.now()  # D-417: by the clock, so the call's audit save counts too
-        if res.status in ("error", "invalid") and left < MIN_FACT_RETRY_MS:
+        if left() <= 0:  # the lookups took the rest
+            return expired()
+        res = await self.facts.run(inp, deadline_ms=left())
+        remaining = left()  # D-417/D-421: on the monotonic clock, so the call's audit save counts too
+        if res.status in ("error", "invalid") and remaining < MIN_FACT_RETRY_MS:
             log.info("fact check %s (%s) for %r: no retry, %d ms left of the fact deadline", res.status, res.error,
-                     text[:80], left)
+                     text[:80], remaining)
         elif res.status in ("error", "invalid"):
             # D-203/D-388: one fresh call, for every line. D-408 (codex): only after a fast failure; an invalid answer is
             # asked again without JUDGE_SEED (the same seed tends to repeat it). A timeout is not retried: its failure
             # shows at once. The result's latency counts both calls. D-411: the retry gets only the time left
             first = res
-            log.info("fact check %s (%s) for %r: once more within %d ms%s", res.status, res.error, text[:80], left,
-                     ", without the seed" if res.status == "invalid" else "")
-            res = await self.facts.run(inp, deadline_ms=left, seeded=first.status != "invalid")
+            log.info("fact check %s (%s) for %r: once more within %d ms%s", res.status, res.error, text[:80],
+                     remaining, ", without the seed" if res.status == "invalid" else "")
+            res = await self.facts.run(inp, deadline_ms=remaining, seeded=first.status != "invalid")
             res.latency_ms += first.latency_ms
             res.meta["first_failure"] = first.status
         if res.status != "ok":

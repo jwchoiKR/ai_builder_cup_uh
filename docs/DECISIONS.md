@@ -2787,3 +2787,12 @@ Tests:
 - test_d412: the snapshot lists the same events, in the same order and with the same `n`, as the live stream; an unchecked line older than 5 minutes stays.
 - host.test.tsx: the strip after a partial recovery; the tie broken by `n`; the live state equals a refresh.
 - operator.test.tsx: one card per line listing its judges; the 5-minute count leaves out the old line, whose card stays.
+
+D-421 (codex review of D-417; night rule). Changes to the fact deadline:
+- The line's fact deadline is taken once, in wall time, from speech_end_at. Time spent after that is measured on a monotonic clock: Clock.monotonic_ms. The system clock uses time.monotonic; ManualClock moves it only with advance(), never with set(). A wall-clock step therefore cannot allow a retry.
+- The deadline is checked before the passage, session and alert lookups, and again right before the call. A line that has already expired fails at once, without its lookups. A slow lookup that uses up the deadline fails without a call.
+Tests in tests/test_d408.py:
+- a wall step back does not allow a retry;
+- an expired line fails before its lookups;
+- a slow lookup fails without a call;
+- the audit-save time counts even when latency_ms says less.
