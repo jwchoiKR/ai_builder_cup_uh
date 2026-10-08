@@ -748,9 +748,8 @@ class UtterancePipeline:
         if transcript_id is not None:
             self._fact_inputs[transcript_id] = inp
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
-        if res.status in ("timeout", "error") and self.rt.catalog.lexicon.spoken_numbers(text):
-            # D-203: a line that states a number posts only after a completed check (D-195): one fresh call with its
-            # own deadline; the publish decision waits for it
+        if res.status in ("timeout", "error"):
+            # D-203: one fresh call with its own deadline; D-388 (user): for every line, not only one with a number
             log.info("fact check %s for %r: once more", res.status, text[:80])
             res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)
         if self.rt.settings.JUDGE_ARM == "vote" and res.status == "ok" and vote.candidates(res.output, "facts"):
@@ -853,16 +852,26 @@ class UtterancePipeline:
                  f" expects_resolution={judge.expects_resolution}" if hasattr(judge, "expects_resolution") else "")
         s = await rt.load_session()
         seg = await rt.current_segment()
-        if (seg is None or seg.segment_id != t.segment_id
-                or self._generations.get(t.transcript_id) != self._segment_generation):
-            return
-        if seg is not None and judge.prompter.covered_point_ids:
-            added, pre = apply_coverage(judge.prompter.covered_point_ids, seg, s, rt.catalog, rt.points)
+        stale = (seg is None or seg.segment_id != t.segment_id
+                 or self._generations.get(t.transcript_id) != self._segment_generation)
+        # D-388 (user): the points the model marked covered always count, on the line's own segment (as D-373 does
+        # for ticks); only the switch and the cue are not applied to a line said before a switch or an undo
+        own = seg if not stale else await rt.get_segment(t.segment_id)
+        if own is not None and judge.prompter.covered_point_ids:
+            added, pre = apply_coverage(judge.prompter.covered_point_ids, own, s, rt.catalog, rt.points)
             if added:
-                await rt.save_segment(seg)
-                await rt.emit("prompter.updated", prompter_view(rt.catalog, seg, rt.points))
+                await rt.save_segment(own)
+                if seg is not None and own.segment_id == seg.segment_id:
+                    await rt.emit("prompter.updated", prompter_view(rt.catalog, seg, rt.points))
             if pre:
                 await rt.save_session(s)
+        elif judge.prompter.covered_point_ids:
+            log.info("context %s t=%s: covered points %s skipped (cannot apply: the line's segment is gone)", rt.sid,
+                     t.transcript_id, judge.prompter.covered_point_ids)
+        if stale:
+            log.info("context %s t=%s: said before a switch or undo; its points count, its cue and switch do not",
+                     rt.sid, t.transcript_id)
+            return
         if s.cue is not None and s.cue.status == "active" and s.cue.cue_id in judge.prompter.covered_cue_ids:
             s.cue.status, s.cue.done_by_transcript_id = "done", t.transcript_id
             await rt.save_session(s)

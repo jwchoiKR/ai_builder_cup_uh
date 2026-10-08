@@ -80,7 +80,7 @@ def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, li
                       promo=None) -> list[Passage]:
     """What the host prompter shows for this product, as passages (the same rules as the host screen's
     ProductPanel): the price (a time-sale price while a price promo runs), the list or live price, the set price,
-    the first ingredient amounts, the points (minus a price point that is not required) and the cautions. D-361/362:
+    the first ingredient amounts, every point (D-388) and the cautions. D-361/362:
     exactly what it can render: the first set offer only, every caution (the host can open "+N more"), no test result
     (the prompter shows none). Nothing else of the record reaches the fact checker."""
     from ..agents.fact_checker import CLAIMS_SECTION
@@ -109,10 +109,8 @@ def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, li
     shown = [(k, v) for k, v in p.key_facts.items() if SHOWN_AMOUNT.match(v.strip())][:SHOWN_INGREDIENTS]
     for k, v in shown:
         add("Ingredients", f"ingredient-{k}", f"{_ingredient_name(k)}: {v}")
-    symbol = catalog.pack.products.currency_symbol
-    for pt in points_of(catalog, product_id, overrides):
-        if pt.required or not symbol or symbol not in pt.text:
-            add(CLAIMS_SECTION, f"point-{pt.point_id}", pt.text)  # D-338: never a correction source
+    for pt in points_of(catalog, product_id, overrides):  # D-388: every point (the screen shows them all)
+        add(CLAIMS_SECTION, f"point-{pt.point_id}", pt.text)
     for i, c in enumerate(p.cautions, 1):
         add("Cautions", f"caution-{i}", c)
     return out
