@@ -1,7 +1,7 @@
 """D-358: the live compliance judge reads the regulation ORIGINALS (no rule JSON): the files of the show's law packs
 in its cached prefix, one instruction prompt, cited verdicts whose quote must be in that original (provenance), the
 alert's rule id from the citation, the severity the model chose, and corrections by handle. A fictional law pack
-("Kelmar supplement code", a text file) on a made-up food-supplement release; the judge's answers are scripted."""
+("Kelmar supplement code", a PDF) on a made-up food-supplement release; the judge's answers are scripted."""
 from __future__ import annotations
 
 import logging
@@ -11,13 +11,14 @@ import pytest
 from app.agents.originals import Original, citation_rule_id, originals_for
 from app.agents.utterance_judge import JudgeInput
 
+from .helpers import text_pdf
 from .judge_fakes import ScriptedBackend, close_env, speak
 
 pytestmark = pytest.mark.originals
 
-CODE = (b"Kelmar Supplement Code\n"
-        b"2.1 A supplement must not be presented as treating, curing or preventing disease.\n"
-        b"4.2 No claim may promise safety to infants or other vulnerable consumers.\n")
+CODE = text_pdf("Kelmar Supplement Code\n"
+                "2.1 A supplement must not be presented as treating, curing or preventing disease.\n"
+                "4.2 No claim may promise safety to infants or other vulnerable consumers.\n")
 CLAIM = "Honestly, this cures arthritis in a week."
 SORRY = "Sorry, scratch that, it supports normal joint comfort."
 
@@ -55,9 +56,9 @@ async def _show(tmp_path, llm):
         "language": "en", "rules": [
             {"rule_id": "K-DISEASE", "title": "No disease claims", "description": "No cure claims.",
              "severity": "HIGH", "rule_category": "Disease", "unacceptable_examples": [], "say_instead_hint": "",
-             "evidence": [{"file": "kelmar_code.txt", "locator": "2.1", "quote": "must not be presented"}]}]}))
+             "evidence": [{"file": "kelmar_code.pdf", "locator": "2.1", "quote": "must not be presented"}]}]}))
     save_lawpack(tmp_path, "SG", law, "jlaw")
-    store(tmp_path, "jlaw", "kelmar_code.txt", CODE)
+    store(tmp_path, "jlaw", "kelmar_code.pdf", CODE)
     rec, _ = normalise(ProductRecord.model_validate(_record(category="food_supplement", approved_claims=[
         {"text": "Supports normal joint comfort.", "evidence": EV}])))
     rid = save_release(tmp_path, rec, "j")
@@ -76,9 +77,8 @@ async def test_d358_the_judge_gets_the_originals_and_no_rule_json(tmp_path):
         await speak(rt, "This tub has sixty capsules.")
         req = [r for r in llm.requests if r.agent == "compliance_judge"][-1]
         assert '<data name="RULES">' not in req.user_message
-        assert '<data name="REGULATION_DOCUMENTS">' in req.user_message and "kelmar_code.txt" in req.user_message
-        assert (b"FILE kelmar_code.txt", "text/plain") in req.cache_parts
-        assert any(CODE in data for data, _ in req.cache_parts)
+        assert '<data name="REGULATION_DOCUMENTS">' in req.user_message and "kelmar_code.pdf" in req.user_message
+        assert (CODE, "application/pdf") in req.cache_parts
         schema = req.output_model.model_json_schema()
         assert list(schema["properties"])[0] == "alert_checks"
         assert "citation" in schema["$defs"]["ViolationO"]["properties"]
@@ -90,12 +90,12 @@ async def test_d358_the_judge_gets_the_originals_and_no_rule_json(tmp_path):
 async def test_d358_a_cited_verdict_becomes_an_alert_named_by_its_citation(tmp_path):
     llm = _Backend()
     llm.outputs[("compliance_judge", CLAIM)] = _verdict(
-        "kelmar_code.txt#2.1", "must not be presented as treating, curing or preventing disease")
+        "kelmar_code.pdf#2.1", "must not be presented as treating, curing or preventing disease")
     rt = await _show(tmp_path, llm)
     try:
         await speak(rt, CLAIM)
         [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
-        assert a.rule_id == citation_rule_id("kelmar_code.txt", "2.1") == "kelmar-code#2-1"
+        assert a.rule_id == citation_rule_id("kelmar_code.pdf", "2.1") == "kelmar-code#2-1"
         assert a.severity == "HIGH" and a.status == "active"
         assert a.say_instead == "It supports normal joint comfort."  # D-361: the model's own, no code rewording
     finally:
@@ -103,7 +103,7 @@ async def test_d358_a_cited_verdict_becomes_an_alert_named_by_its_citation(tmp_p
 
 
 @pytest.mark.parametrize("citation, quote, why", [
-    ("kelmar_code.txt#2.1", "a supplement may never be sold online", "the quote is not in kelmar_code.txt"),
+    ("kelmar_code.pdf#2.1", "a supplement may never be sold online", "the quote is not in kelmar_code.pdf"),
     ("other_code.pdf#3", "must not be presented", "names no regulation document given to the judge"),
 ])
 async def test_d358_a_verdict_without_provenance_is_dropped_and_logged(tmp_path, caplog, citation, quote, why):
@@ -122,7 +122,7 @@ async def test_d358_a_verdict_without_provenance_is_dropped_and_logged(tmp_path,
 async def test_d358_the_severity_is_the_model_s_and_a_correction_goes_by_handle(tmp_path):
     llm = _Backend()
     llm.outputs[("compliance_judge", CLAIM)] = _verdict(
-        "kelmar_code.txt#2.1", "must not be presented as treating", severity="MEDIUM")
+        "kelmar_code.pdf#2.1", "must not be presented as treating", severity="MEDIUM")
     llm.outputs[("compliance_judge", SORRY)] = {
         "alert_checks": [{"handle": "A1", "fixed_by_this_line": True}], "compliance": {"violations": []},
         "reason": "scripted"}

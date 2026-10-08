@@ -99,6 +99,8 @@ def test_d360_a_missing_original_is_looked_up_again_and_logged(tmp_path, caplog)
     from app.agents.originals import _load
     from app.onboarding.files import store
 
+    from .helpers import text_pdf
+
     sources = (("law_sg_x_v1", "", None),)
     with caplog.at_level(logging.WARNING):
         found, missing = _load(sources, str(tmp_path))
@@ -108,6 +110,6 @@ def test_d360_a_missing_original_is_looked_up_again_and_logged(tmp_path, caplog)
     with caplog.at_level(logging.WARNING):
         assert _load(sources, str(tmp_path))[1] == ("law_sg_x_v1",)
     assert "no " + str(tmp_path / "jx" / "files.json") in caplog.text  # says exactly what it looked for
-    store(tmp_path, "jx", "code.txt", b"2.1 No cure claims.")
+    store(tmp_path, "jx", "code.pdf", text_pdf("2.1 No cure claims."))
     found, missing = _load(sources, str(tmp_path))  # the earlier miss was not cached
-    assert [d.name for d in found] == ["code.txt"] and missing == ()
+    assert [d.name for d in found] == ["code.pdf"] and missing == ()

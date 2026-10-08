@@ -108,9 +108,13 @@ def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, .
         docs = _FOUND.get(key)
         if docs is None:
             got = _local(sid, title, file) or _pack_files(sid, Path(root))
-            docs = tuple(d for d in got if d is not None)
+            # D-367 (user): regulation originals are PDF only; any other file is never sent and marks the source missing
+            other = [d.name for d in got if d is not None and d.mime != "application/pdf"]
+            if other:
+                log.warning("compliance originals: %s: not a PDF, not given to the judge: %s", sid, other)
+            docs = tuple(d for d in got if d is not None and d.mime == "application/pdf")
             if not docs or len(docs) < len(got):  # none, or only some of its files: never kept for a later show
-                missing.append(sid)
+                missing.append(f"{sid} (not a PDF: {', '.join(other)})" if other else sid)
             else:
                 _FOUND[key] = docs
         names = {x.name for x in found}
