@@ -784,10 +784,12 @@ class UtterancePipeline:
         text = merge.text if merge else t.text
         high_before = alert_logic.high_alert_active(alerts)
         judge = res.output if res.status == "ok" else None
-        duplicate_rules = {a.rule_id for a in alerts if a.kind == "compliance" and a.status == "active"
-                           and (a.transcript_id in protected or
-                                (a.transcript_id != t.transcript_id and
-                                 t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain))}
+        # D-387 (user): the one dedupe left: the same claim (same span) of this line, already raised through the merge
+        # of this line (its fragments' alerts) or by this line itself
+        same_claims = {alert_logic.claim_key(a.span) for a in alerts if a.kind == "compliance"
+                       and (a.transcript_id in protected or a.transcript_id == t.transcript_id
+                            or t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain)
+                       and a.status in ("active", "corrected", "dismissed")}
         if judge is None and rt.settings.REFLEX_ON_FAIL == "card":
             # D-288 (A1): no rule alert from a regex alone ("suitable for eczema-prone skin" is approved wording); the
             # host and the operator get a neutral card to check the line, counted apart from alerts
@@ -807,7 +809,7 @@ class UtterancePipeline:
             for a in changed:
                 if a.unverified and not a.unverified_reason:  # D-309: the judge's own failure type, shown honestly
                     a.unverified_reason = res.meta.get("failure")
-                if a.rule_id in duplicate_rules:
+                if alert_logic.claim_key(a.span) in same_claims:
                     a.status = "cleared"
                 self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
@@ -817,29 +819,10 @@ class UtterancePipeline:
             # D-098: the replacement wording still corrects an alert without the judge
             await self._apply_corrections_locked(t, text, [], protected, now)
         else:
-            # D-088 dedupe: a rule already active from a fragment inside this merged utterance is the
-            # same spoken claim, so no second alert. Separate sentences keep §8.4.2.
-            active_rules = {a.rule_id for a in alerts
-                            if a.kind == "compliance" and a.status == "active"
-                            and (a.transcript_id in protected or
-                                 t.transcript_id in self._judged.get(a.transcript_id, Judged([], "")).chain)}
-            active_rules.update(a.rule_id for a in alerts if a.transcript_id == t.transcript_id
-                                and a.status in ("corrected", "dismissed"))
-            # D-118: the previous final, inside the merge window, already raised this rule: the same claim
-            # continuing ("treats acne." / "so you'll never break out again."), not a second card
-            prev = self._previous_final(t)
-            if (prev is not None and prev.segment_id == t.segment_id
-                    and t.received_at - prev.received_at <= rt.settings.UTTERANCE_MERGE_WINDOW_MS):
-                active_rules.update(a.rule_id for a in alerts if a.kind == "compliance"
-                                    and a.status in ("active", "provisional") and a.transcript_id == prev.transcript_id)
-            judge = judge.model_copy(deep=True)  # D-108: no second card while the same result's alert is active
-            late_addendum = self._addendum_after(t)  # D-151: the qualifier came in the next final, judged first
-            judge.compliance.violations = [
-                v for v in judge.compliance.violations
-                if not (v.rule_id == qualifier.RULE_ID and (late_addendum is not None
-                                                            or qualifier.is_repeat(v.say_instead or None, alerts, on_air)))]
+            # D-387 (user): every violation is its own alert; no dedupe by rule across lines (the D-088 rule dedupe,
+            # the D-118 previous-final window, the D-108 repeat qualifier and the D-151 late add-on are gone)
             changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.pack.rules_by_id,
-                                                                  rt.new_id, now, active_rule_ids=active_rules)
+                                                                  rt.new_id, now, same_claims=same_claims)
             for a in created:
                 self._reconcile_late_alert(a, t, now)
                 await rt.save_alert(a)
