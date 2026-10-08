@@ -281,8 +281,8 @@ async def test_d330_the_endorsing_line_s_check_first_still_counts_from_the_origi
         await _line(rt, 2, [_claim("ingredient_amount", attributed="host", **IRON)],
                     stances=[("ingredient_amount", "80 mg of iron", "endorses")])
         await _line(rt, 1, [_claim("ingredient_amount", **IRON)], at=heard)
-        [a] = [a for a in await rt.alerts() if a.kind == "fact"]
-        assert a.transcript_id == "tr_l1" and a.shown_at - heard == 2000
+        notes = [a for a in await rt.alerts() if a.kind == "fact"]  # D-398: the endorsed claim and line 1's own
+        assert {a.transcript_id for a in notes} == {"tr_l1"} and min(a.shown_at for a in notes) - heard == 2000
     finally:
         await close_env(rt)
 

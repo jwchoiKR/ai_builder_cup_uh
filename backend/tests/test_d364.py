@@ -27,8 +27,9 @@ class _Recording:
         llm.generate = generate
 
 
-async def test_d364_a_late_fix_from_an_older_line_does_not_close_a_note_shown_again_later():
-    """T1 wrong, T2 fix (its verdict comes last), T3 wrong again: the note T3 re-showed stays open."""
+async def test_d364_a_late_fix_from_an_older_line_closes_only_the_note_it_saw():
+    """T1 wrong, T2 fix (its verdict comes last), T3 wrong again: D-398, T3's claim is its own note; T2's fix closes
+    T1's note (the one it was shown) and never T3's, raised after it."""
     rt, llm = await make_env()
     t1, t2, t3 = "It has ten percent panthenol.", "Sorry, scratch that.", "Yeah, ten percent panthenol, so good."
     try:
@@ -42,8 +43,8 @@ async def test_d364_a_late_fix_from_an_older_line_does_not_close_a_note_shown_ag
         await rt.inject_transcript(t3)
         await rt.utterances.drain()
         await rt.ctx.scheduler.idle()
-        [note] = [a for a in await rt.alerts() if a.kind == "fact"]
-        assert note.status == "active"  # T2's fix is older than T3's showing
+        notes = sorted((a for a in await rt.alerts() if a.kind == "fact"), key=lambda a: a.created_at)
+        assert [a.status for a in notes] == ["corrected", "active"]
     finally:
         await close_env(rt)
 
@@ -91,23 +92,47 @@ async def test_d364_a_re_check_runs_in_the_line_s_own_context():
         await close_env(rt)
 
 
-async def test_d365_a_note_shown_again_carries_the_words_of_its_latest_showing():
-    """T1 "ten percent panthenol", T3 "twenty percent panthenol": the note's host_said is the 20% wording."""
+
+async def test_d398_two_wrong_claims_under_one_passage_are_corrected_one_at_a_time():
+    """D-398: each contradicted claim is its own note with its own handle, even when both cite one passage."""
     rt, llm = await make_env()
-    rec = _Recording(llm)
+    first, second = "It has ten percent panthenol.", "Honestly, it is twelve percent panthenol."
+    fix_second, fix_first = "Sorry, not twelve.", "And not ten either: five percent."
     try:
-        llm.facts("It has ten percent panthenol.", claim(
-            "ingredient_amount", "contradicted", stated="10%", correct="5%", passage_id=PANTHENOL,
-            quote="Panthenol: 5%", span="ten percent panthenol"))
-        llm.facts("Actually twenty percent panthenol.", claim(
-            "ingredient_amount", "contradicted", stated="20%", correct="5%", passage_id=PANTHENOL,
-            quote="Panthenol: 5%", span="twenty percent panthenol"))
-        await speak(rt, "It has ten percent panthenol.")
-        await speak(rt, "Actually twenty percent panthenol.")
+        _wrong(llm, first)
+        _wrong(llm, second)
+        from .judge_fakes import advance
+
+        await speak(rt, first)
+        await advance(rt, 5000)  # 5 s apart, so "newest first" has an order
+        await speak(rt, second)
+        notes = sorted((a for a in await rt.alerts() if a.kind == "fact"), key=lambda a: a.created_at)
+        assert len(notes) == 2 and notes[0].passage_id == notes[1].passage_id
+        llm.facts(fix_second, fixed=["F1"])  # newest first: F1 is the second claim's note
+        await speak(rt, fix_second)
+        assert [(await rt.get_alert(a.alert_id)).status for a in notes] == ["active", "corrected"]
+        llm.facts(fix_first, fixed=["F1"])  # now the first claim's note is the only one, F1
+        await speak(rt, fix_first)
+        assert [(await rt.get_alert(a.alert_id)).status for a in notes] == ["corrected", "corrected"]
+    finally:
+        await close_env(rt)
+
+
+async def test_d398_a_merged_verdict_replaces_the_fragment_s_note():
+    """D-398: a fragment ("... ten percent panthenol and") raised a note; the merged sentence's verdict finds no error
+    for it (the host goes on to correct the amount), so the fragment's note goes."""
+    from .judge_fakes import advance
+
+    rt, llm = await make_env()
+    fragment, rest = "It has ten percent panthenol and", "sorry, five percent, I misread."
+    try:
+        _wrong(llm, fragment)
+        llm.facts(f"{fragment} {rest}")  # the whole sentence: no error
+        await speak(rt, fragment)
         [note] = [a for a in await rt.alerts() if a.kind == "fact"]
-        assert (note.span, note.stated_value) == ("twenty percent panthenol", "20%")
-        await speak(rt, "Isn't that great.")
-        req = [r for r in rec.requests if r.agent == "fact_checker" and r.mock_primary_text == "Isn't that great."][-1]
-        assert '"host_said": "twenty percent panthenol"' in req.user_message
+        await advance(rt, 1200)
+        await speak(rt, rest)
+        assert (await rt.get_alert(note.alert_id)).status == "cleared"
+        assert [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"] == []
     finally:
         await close_env(rt)

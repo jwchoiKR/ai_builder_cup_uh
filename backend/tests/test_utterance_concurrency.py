@@ -108,7 +108,9 @@ async def test_d374_an_older_line_s_late_contradiction_is_applied_as_given(env):
     assert [a.status for a in await rt.alerts() if a.kind == 'fact'] == ['active']
 
 
-async def test_merged_supported_fact_does_not_erase_delayed_fragment(env):
+async def test_d398_a_fragment_verdict_after_the_merged_one_is_not_applied(env):
+    """D-398: the merged line already judged the whole sentence (supported); the fragment's late verdict is an older
+    state of the chain and is not applied."""
     rt, llm = env
     first, second = 'A former price', 'is thirty-six dollars.'
     joined = f'{first} {second}'
@@ -124,7 +126,7 @@ async def test_merged_supported_fact_does_not_erase_delayed_fragment(env):
     await wait_for(applied)
     gate.set()
     await rt.utterances.drain()
-    assert [a for a in await rt.alerts() if a.kind == 'fact' and a.status == 'active']
+    assert not [a for a in await rt.alerts() if a.kind == 'fact' and a.status == 'active']
 
 
 @pytest.mark.parametrize('mode', ['split3', 'split', 'single'])

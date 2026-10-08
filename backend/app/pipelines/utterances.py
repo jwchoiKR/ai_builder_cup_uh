@@ -637,7 +637,8 @@ class UtterancePipeline:
                                              judge_input.promo)
         s = await self.rt.load_session()
         offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
-        notes = [a for a in await self.rt.alerts() if a.kind == "fact" and a.status == "active"]  # D-363
+        notes = sorted((a for a in await self.rt.alerts() if a.kind == "fact" and a.status == "active"),
+                       key=lambda a: a.created_at, reverse=True)  # D-363; D-398: every one, newest first
         if transcript_id is not None:
             self._fact_shown[transcript_id] = {a.alert_id for a in notes}
         inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
@@ -1049,6 +1050,13 @@ class UtterancePipeline:
         for c in facts.claims:  # D-158: the only trace of a cloud replay (no session data is kept)
             log.info("facts %s t=%s: %s %s said=%r verdict=%s correct=%r", rt.sid, t.transcript_id, c.product_id,
                      c.field, c.stated_value, c.verdict, c.correct_value)
+        # D-398: a verdict on a line that a later merged line already judged (an older state of the chain) is not applied
+        later = next((x for x, j in self._judged.items() if x != t.transcript_id
+                      and t.transcript_id in j.chain and (x, "facts") in self._applied), None)
+        if later is not None:
+            log.info("facts %s t=%s: not applied, the merged line %s was judged after it", rt.sid, t.transcript_id,
+                     later)
+            return
         # D-374 (user, 10/9): every claim of the verdict is applied as given (no D-117 per-subject ordering drop)
         claims = list(facts.claims)
         if rt.settings.REPORTED_HOLD:
@@ -1180,21 +1188,43 @@ class UtterancePipeline:
             await self._show_reported_locked(tid, "show ended")
 
     async def _fact_alerts_locked(self, t: Transcript, claims: list, protected: set[str]) -> set[str]:
-        """New and re-shown fact notes; returns their ids (a line never corrects a note it raised)."""
+        """D-398: one note per contradicted claim. A merged line's verdict replaces the notes its chain's lines raised
+        (`protected`, transcript ids only): a new note citing the same passage id keeps the old note's id (no
+        flicker), the others are cleared; a verdict with no error clears them all. Returns the ids it showed (a line
+        never corrects a note it raised)."""
         rt = self.rt
-        created, reshown = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
-                                                       protected=protected,
-                                                       order=lambda tid: self._sequence.get(tid, 0))  # D-376
+        now = rt.now()
+        created = fact_logic.apply_fact_check(claims, t, rt.new_id, now)
+        chain = [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"
+                 and a.transcript_id in protected]
+        reused = []
+        for a in list(created):
+            old = next((x for x in chain if a.passage_id is not None and x.passage_id == a.passage_id), None)
+            if old is not None:
+                chain.remove(old)
+                created.remove(a)
+                old.transcript_id, old.field, old.stated_value, old.correct_value = (t.transcript_id, a.field,
+                                                                                     a.stated_value, a.correct_value)
+                old.say, old.span, old.quote, old.shown_at, old.host_hidden_at = a.say, a.span, a.quote, now, None
+                reused.append(old)
+        for old in chain:
+            old.status, old.resolved_at = "cleared", now
+            rt.ctx.scheduler.cancel(rt.key(f"facthide:{old.alert_id}"))
+            await rt.save_alert(old)
+            await rt.emit("alert.updated", old)
+        if protected and (reused or chain):
+            log.info("facts %s t=%s: merged verdict over %s: kept %s, cleared %s", rt.sid, t.transcript_id,
+                     sorted(protected), [a.alert_id for a in reused], [a.alert_id for a in chain])
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
             self.schedule_fact_hide(a)
             self._on_fact_note_active(a)
-        for a in reshown:
+        for a in reused:
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
             self.schedule_fact_hide(a)
-        return {a.alert_id for a in created + reshown}
+        return {a.alert_id for a in created + reused}
 
     async def _correct_fact_notes_locked(self, t: Transcript, note_ids, fresh=()) -> None:
         """D-363: the fact notes the model marked fixed (by handle), and nothing else. D-364: in line order: a fix
