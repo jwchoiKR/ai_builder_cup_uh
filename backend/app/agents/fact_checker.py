@@ -884,10 +884,10 @@ class FactChecker:
         self.relation_model = FactRelationOutputC if self.confidence else FactRelationOutput
         if getattr(settings, "FACT_PROMPT", "v1") in ("v2", "v3", "v4"):  # D-312, D-313, D-325: source_value before relation (no confidence field)
             self.relation_model = FactRelationOutputV2
-        if getattr(settings, "FACT_PROMPT", "v1") == "v5":  # D-331: a stance per claim
-            self.relation_model = FactRelationOutputV5
             if getattr(settings, "REPORTED_HOLD", False):  # D-328: whose words, and the previous line's fate
                 self.relation_model = FactRelationOutputH
+        if getattr(settings, "FACT_PROMPT", "v1") == "v5":  # D-331: a stance per claim (no hold)
+            self.relation_model = FactRelationOutputV5
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]
