@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>레포 재비교 10/9</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Roboto:wght@400;500&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#E8EAED;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0;box-shadow:0 2px 12px rgba(60,64,67,.25)}
+section{position:absolute;inset:0;box-sizing:border-box;display:none !important}
+section.on{display:flex !important}
+section *{margin:0;box-sizing:border-box;word-break:keep-all;overflow-wrap:anywhere}
+section p,section td,section span{text-wrap:pretty}
+section h1,section h2{text-wrap:balance}
+table{border-collapse:collapse;width:100%;color:#202124}
+th{text-align:left;font-weight:500;color:#5F6368;border-bottom:2px solid #BDC1C6;padding:14px 16px}
+td{border-bottom:1px solid #BDC1C6;padding:18px 16px;vertical-align:top}
+.pg{position:absolute;right:128px;bottom:56px;font-size:24px;color:#9AA0A6}
+aside{display:none}
+.bd>*{flex:0 0 auto !important}
+.fx>div{flex:1}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:30vh;overflow:auto;background:#fff;color:#202124;font:16px/1.5 'Noto Sans KR',sans-serif;padding:12px 20px;display:none;border-top:3px solid #1A73E8}
+#hint{position:fixed;right:12px;bottom:8px;color:#80868b;font:13px Roboto,sans-serif}
+.lane-wide .nd { align-items:center; text-align:center; }
+
+@keyframes an-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes an-pop { 0% { opacity: 0; transform: scale(.96); } 100% { opacity: 1; transform: none; } }
+@keyframes an-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } 40% { box-shadow: 0 0 0 10px var(--an-glow); } }
+.an-item { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both; }
+.an-img { animation: an-pop .6s cubic-bezier(.2,.7,.2,1) both; }
+.an-pulse { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both, an-pulse 1.2s ease-out both; }
+/* always-on motion while a slide is shown: arrows flow, a dot runs along them, AI badges breathe, flow steps light up in turn */
+@keyframes an-dash { to { stroke-dashoffset: -28; } }
+@keyframes an-breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); } 50% { box-shadow: 0 0 0 8px rgba(26,115,232,.16); } }
+@keyframes an-step { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); border-color: inherit; } 12%, 30% { box-shadow: 0 0 0 5px rgba(26,115,232,.22); } }
+@keyframes an-run { from { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
+.an-arrow { position: relative; display: inline-flex; align-items: center; justify-content: center; line-height: 0; flex: none; align-self: center; }
+@keyframes an-march { to { stroke-dashoffset: -11; } }
+section.on .an-shaft { animation: an-march .55s linear infinite; }
+</style></head><body>
+<div id="stage">
+<section id="cover" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:36px">
+<div style="display:inline-flex; align-items:center; gap:8px; background:#E8F0FE; color:#1A73E8; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>AI Builder Cup 2026 · 공개 레포 재비교 · 10/9</span></div>
+<h1 style="font-size:88px; font-weight:500; line-height:1.15">세 모델이 따로 채점해도<br>우리는 2~4위</h1>
+<p style="font-size:38px; color:#5F6368; line-height:1.45">공개 레포 101개, 배포 링크·영상·소개 글 꾸밈은 점수에서 뺌</p></div></div><p class="pg"></p><aside>GPT(codex gpt-6-astra high), Gemini(agy gemini-3.8-flash-high), Sonnet 비평 세션이 같은 자료로 서로 모르게 채점했다.</aside></section>
+<section id="method" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">어떻게 매겼나</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">공식 배점 그대로, 공개 자료로 확인되는 구현과 검증만 본다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; align-items:stretch; gap:22px"><table style="font-size:25px"><tr><th style="width:14%">항목</th><th style="width:10%">배점</th><th style="width:76%">본 것</th></tr><tr><td>기술</td><td>40</td><td>AI가 실제로 판단하는 것, 작동 여부, 평가 증거(규모, 처음 보는 데이터, 숫자), 확장</td></tr><tr><td>문제</td><td>25</td><td>실제로 겪는 문제인지, 가치가 큰지</td></tr><tr><td>혁신</td><td>25</td><td>같은 문제를 푸는 다른 방법과 무엇이 다른지</td></tr><tr><td>UX</td><td>10</td><td>사람이 할 일이 줄었는지</td></tr></table><div style="display:flex; flex-direction:column; gap:14px"><div style="height:2px; background:#BDC1C6"></div><div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px 14px"><p style="font-size:26px; font-weight:700; color:#5F6368; margin-right:6px">정해 둔 것</p><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>배포 링크·영상·꾸밈 제외</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>다른 팀은 README와 커밋만</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>우리는 측정된 결과만</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>10/9 변경은 측정 전이라 반영 안 함</span></div></div></div></div></div><p class="pg"></p><aside>사용자 규칙: 경쟁 비교는 서비스 내용만(10/5). 다른 팀 코드는 돌려 보지 않았다.</aside></section>
+<section id="field" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">참가작 현황</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">101개 중 작동과 평가 결과가 확인된 곳은 32개</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; align-items:stretch; gap:28px"><div style="display:flex; align-items:stretch; gap:32px"><div style="flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; background:#E6F4EA; border-radius:28px; padding:44px 32px"><p style="font-size:30px; font-weight:700; color:#1E8E3E">동작 + 평가</p><p style="font-size:96px; font-weight:700; line-height:1.1; color:#202124">32</p><p style="font-size:26px; color:#5F6368">개 / 101</p><p style="font-size:56px; font-weight:700; color:#1E8E3E"></p><p style="font-size:26px; color:#5F6368"></p></div><div style="flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; background:#FEF7E0; border-radius:28px; padding:44px 32px"><p style="font-size:30px; font-weight:700; color:#B06000">초기 시제품</p><p style="font-size:96px; font-weight:700; line-height:1.1; color:#202124">36</p><p style="font-size:26px; color:#5F6368">개 / 101</p><p style="font-size:56px; font-weight:700; color:#B06000"></p><p style="font-size:26px; color:#5F6368"></p></div><div style="flex:1; display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; background:#F8F9FA; border-radius:28px; padding:44px 32px"><p style="font-size:30px; font-weight:700; color:#5F6368">빈 레포·계획만</p><p style="font-size:96px; font-weight:700; line-height:1.1; color:#202124">33</p><p style="font-size:26px; color:#5F6368">개 / 101</p><p style="font-size:56px; font-weight:700; color:#5F6368"></p><p style="font-size:26px; color:#5F6368"></p></div></div><p style="font-size:26px; line-height:1.45; color:#5F6368; font-weight:400">10/6 상위권 중 Gapline, Taal, SentinelGraph, Groundtruth는 10/6 이후 커밋이 없다. 새로 강하게 올라온 곳은 Taal 작성자의 Emergency Green Corridor(10/6 이후 커밋 29개).</p></div></div><p class="pg"></p><aside>GitHub 검색 약 14가지 이름 변형, 코드 검색 3가지, 후보 185개 확인. 비공개 레포와 대회 이름을 안 쓴 레포는 못 찾는다. 같은 프로젝트를 합치면 약 98개. Finwings는 10/6에 이어 여전히 404.</aside></section>
+<section id="us" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">우리 순위</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">셋 다 2~4위, 범위로는 1~8위</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; align-items:stretch; gap:20px"><table style="font-size:26px"><tr><th style="width:12%">채점</th><th style="width:13%">우리 순위</th><th style="width:10%">점수</th><th style="width:12%">범위</th><th style="width:53%">한 줄</th></tr><tr><td>GPT</td><td>3위</td><td>7.70</td><td>1~7위</td><td>처음 보는 제품과 실제 STT로 시험한 점이 강점</td></tr><tr><td>Gemini</td><td>2위</td><td>8.75</td><td>2~5위</td><td>미노출 134줄 95.5%, p95 4.2초를 높게 봄</td></tr><tr><td>Sonnet</td><td>4위</td><td>7.3</td><td>2~8위</td><td>오경보 1.6%, 사람 진행자 없음, 서버 1대로 깎음</td></tr></table><p style="font-size:24px; line-height:1.45; color:#5F6368; font-weight:400">범위는 각 모델이 채점 불확실성을 감안해 직접 낸 것이다. 점수 크기는 모델마다 달라서 순위만 비교한다.</p></div></div><p class="pg"></p><aside>Gemini는 전체적으로 점수를 높게 준다(1위 8.90). GPT는 UX를 모두 5점으로 고정했다.</aside></section>
+<section id="top" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">전체 순위</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">세 모델 순위의 평균으로 줄 세우면 1~4위가 평균 1위 안쪽 차이다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:23px"><tr><th style="width:7%">평균</th><th style="width:22%">팀</th><th style="width:13%">분야</th><th style="width:7%">GPT</th><th style="width:9%">Gemini</th><th style="width:9%">Sonnet</th><th style="width:33%">강점</th></tr><tr><td>1</td><td>Groundtruth</td><td>도시 열환경</td><td>1</td><td>3</td><td>3</td><td>'Gemini 단독 0/18 vs 시스템 16/18' 비교, 비용 실측</td></tr><tr><td>2</td><td>Emergency Green Corridor</td><td>응급차 경로</td><td>6</td><td>1</td><td>1</td><td>정확도 90%, 지연 3.5초, 부하 시험. 합성 클립 12개</td></tr><tr><td>3</td><td><b>Live Studio (우리)</b></td><td>라이브 커머스</td><td>3</td><td>2</td><td>4</td><td>처음 보는 제품, 실제 STT, 제품별 합격선</td></tr><tr><td>4</td><td>Gapline</td><td>화면 해설</td><td>4</td><td>4</td><td>2</td><td>음성 인식부터 길이 맞추기까지 연결. 완성 4/6</td></tr><tr><td>5</td><td>ReadiCheck</td><td>사기 예방</td><td>5</td><td>5</td><td>5</td><td>Gemini Live 실시간 통화. 시험 작음</td></tr><tr><td>6</td><td>SentinelGraph</td><td>카드 사기</td><td>2</td><td>7</td><td>7</td><td>AUC 0.914(홀드아웃). 에이전트 정확도 미확인</td></tr><tr><td>7</td><td>ARTHA</td><td>소기업 대출</td><td>7</td><td>6</td><td>11</td><td>레드팀 우회 18 → 0. 합성 데이터</td></tr><tr><td>8</td><td>Taal</td><td>식품 폐기</td><td>9</td><td>8</td><td>9</td><td>닫힌 고리 설계. 실측은 5회</td></tr></table></div><p class="pg"></p><aside>평균은 세 모델 순위의 평균으로 다시 줄을 세웠다(Groundtruth 2.3, Green Corridor 2.7, 우리 3.0, Gapline 3.3).</aside></section>
+<section id="rivals" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">앞서거나 바짝 붙은 팀</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">세 모델이 공통으로 꼽은 경쟁자는 Groundtruth, Green Corridor, Gapline</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:25px"><tr><th style="width:24%">팀</th><th style="width:46%">우리보다 나은 점</th><th style="width:30%">약한 점</th></tr><tr><td>Groundtruth</td><td><span style='color:#1E8E3E'>시스템이 없을 때와 있을 때를 같은 문제로 비교, 질문당 비용</span></td><td>18문항으로 작다</td></tr><tr><td>Emergency Green Corridor</td><td><span style='color:#1E8E3E'>부하 시험, 추적, 테스트 412개, 공공 가치가 큼</span></td><td>합성 클립 12개, 예측은 기준 모델보다 약함</td></tr><tr><td>Gapline</td><td><span style='color:#1E8E3E'>끝까지 나오는 결과물, 클립당 비용과 시간 측정</span></td><td>영상 6개 중 4개만 완성</td></tr></table></div><p class="pg"></p><aside>세 모델 모두 이 세 팀을 '우리를 이길 수 있는 팀'으로 꼽았다(GPT는 Green Corridor 대신 SentinelGraph를 셋째로 둠).</aside></section>
+<section id="gap" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">우리 강점과 약점</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">검증은 앞서고, 실사용과 운영 규모 검증이 없다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:26px"><tr><th style="width:18%"></th><th style="width:82%">근거</th></tr><tr><td><span style='color:#1E8E3E'>앞서는 점</span></td><td>개발자가 본 적 없는 제품으로 시험, TTS 음성을 실제 STT 경로로 통과, 제품별 합격선, 4초 안 판정</td></tr><tr><td><span style='color:#D93025'>밀리는 점</span></td><td>오경보 1.6%(기준 1% 미만), 10/9에 바꾼 로직은 측정 전</td></tr><tr><td><span style='color:#D93025'>밀리는 점</span></td><td>실제 사람 진행자 없이 TTS 음성으로만 시험</td></tr><tr><td><span style='color:#D93025'>밀리는 점</span></td><td>서버 1대, 댓글은 재시작하면 복구 안 됨, 방송당 비용 숫자 없음</td></tr><tr><td><span style='color:#B06000'>GPT·Sonnet</span></td><td>'Gemini 단독 vs 우리 시스템' 비교가 없다</td></tr></table></div><p class="pg"></p><aside>세 모델의 공통 지적. 마지막 줄은 GPT와 Sonnet만 짚었다.</aside></section>
+<section id="next" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">점수를 올릴 일</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">새 기능이 아니라 증거가 점수를 올린다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:26px"><tr><th style="width:40%">할 일</th><th style="width:46%">보여 주는 것</th><th style="width:14%">동의한 모델</th></tr><tr><td>1. 로직 고정 후 새 제품 묶음으로 측정</td><td>오경보 1% 미만, 탐지 95% 이상</td><td>3/3</td></tr><tr><td>2. 실제 사람 진행자로 방송</td><td>도우미 끔/켬, 정정 성공률, 시간당 경고</td><td>3/3</td></tr><tr><td>3. 서버 여러 대와 재시작 복구</td><td>부하 중 지연, 방송당 비용</td><td>3/3</td></tr><tr><td>4. 'Gemini 단독' 비교표</td><td>같은 줄에서 단독 vs 우리 시스템</td><td>2/3</td></tr></table></div><p class="pg"></p><aside>1, 2, 4는 시험이고 비용이 든다. 할지는 사용자가 정한다. 3의 댓글 복구는 댓글 팀 범위다.</aside></section>
+</div>
+<div id="notes"></div><div id="hint">← → 이동 · N 노트 · F 전체 화면</div>
+<script>
+const s=[...document.querySelectorAll('#stage > section')];let i=0;
+s.forEach((x,j)=>{const p=x.querySelector('.pg'); if(p) p.textContent=j? (j+1)+' / '+s.length : '';});
+const notes=document.getElementById('notes');
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);document.getElementById('stage').style.transform='scale('+k+') translate(-50%,-50%)';}
+function show(n){i=Math.max(0,Math.min(s.length-1,n));s.forEach((x,j)=>x.classList.toggle('on',j===i));const a=s[i].querySelector('aside');notes.textContent=(i+1)+'/'+s.length+'  '+(a&&a.textContent.trim()?a.textContent.trim():'(노트 없음)');history.replaceState(null,'','#'+(i+1));}
+function over(b){const R=b.getBoundingClientRect();return [...b.querySelectorAll('*')].some(c=>{const r=c.getBoundingClientRect();return r.bottom>R.bottom+1||r.top<R.top-1||r.right>R.right+1||r.left<R.left-1;});}
+function autofit(){const out=[];s.forEach((x,j)=>{s.forEach(y=>y.classList.toggle('on',y===x));const b=x.querySelector('.bd');if(!b)return;
+const z0=parseFloat(b.style.zoom)||1;let z=z0;while(over(b)&&z>0.7){z=Math.round((z-0.03)*100)/100;b.style.zoom=z;}
+if(z<z0)out.push({slide:j+1,type:'shrunk',text:'zoom '+z0+' -> '+z});});return out;}
+function lint(out){s.forEach((x,j)=>{let small=null;s.forEach(y=>y.classList.toggle('on',y===x));const R=x.getBoundingClientRect(),b=x.querySelector('.bd');
+if(b&&over(b))out.push({slide:j+1,type:'overflow',text:'content taller than slide body'});
+const w=document.createTreeWalker(x,NodeFilter.SHOW_TEXT);let n;
+while(n=w.nextNode()){if(!n.textContent.trim()||n.parentElement.closest('aside,.pg'))continue;
+const r=document.createRange();r.selectNodeContents(n);const rs=[...r.getClientRects()].filter(q=>q.width>0);
+if(rs.length>1){const L=rs[rs.length-1],c=n.textContent.replace(/ /g,'').length;if(L.width<1.8*L.height)out.push({slide:j+1,type:'orphan',text:n.textContent.trim().slice(-20)});else if(c<=16&&new Set(rs.map(q=>Math.round(q.top))).size>1)out.push({slide:j+1,type:'wrap',text:n.textContent.trim()});}
+if(rs.length&&!small){let z=1;for(let e=n.parentElement;e;e=e.parentElement)z*=parseFloat(e.style.zoom)||1;const fs=parseFloat(getComputedStyle(n.parentElement).fontSize)*z;if(fs<21)small=n.textContent.trim().slice(0,20)+' ('+fs.toFixed(1)+'px)';}
+for(const q of rs)if(q.bottom>R.bottom+1||q.right>R.right+1||q.left<R.left-1){out.push({slide:j+1,type:'overflow',text:n.textContent.trim().slice(0,20)});break;}}
+if(small)out.push({slide:j+1,type:'small',text:small});if(x.textContent.includes('\u2014'))out.push({slide:j+1,type:'style',text:'em dash found'});});
+const pre=document.createElement('pre');pre.id='lint';pre.textContent=JSON.stringify(out);document.body.appendChild(pre);}
+addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key))show(i+1);else if(['ArrowLeft','PageUp'].includes(e.key))show(i-1);else if(e.key==='n'||e.key==='N')notes.style.display=notes.style.display==='block'?'none':'block';else if(e.key==='f'||e.key==='F')document.documentElement.requestFullscreen?.();});
+addEventListener('click',e=>show(e.clientX>innerWidth/2?i+1:i-1));
+addEventListener('resize',fit);fit();
+document.fonts.ready.then(()=>{const out=autofit();if(location.search.includes('lint'))lint(out);show((parseInt(location.hash.slice(1))||1)-1);});
+
+(function(){
+  const reduce = navigator.webdriver || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return;
+  const BOX = el => { const cs = getComputedStyle(el);
+    const bg = cs.backgroundColor, bd = parseFloat(cs.borderTopWidth) || 0;
+    return (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && bg !== 'rgb(255, 255, 255)') || bd > 0; };
+  const GLOW = { 'rgb(252, 232, 230)': 'rgba(217,48,37,.25)', 'rgb(230, 244, 234)': 'rgba(30,142,62,.25)',
+                 'rgb(254, 247, 224)': 'rgba(249,171,0,.3)' };
+  function animate(sec){
+    const bd = sec.querySelector('.bd'); if (!bd) return;
+    sec.querySelectorAll('.an-item,.an-img,.an-pulse').forEach(e => { e.classList.remove('an-item','an-img','an-pulse'); e.style.animationDelay=''; });
+    const picks = [];
+    bd.querySelectorAll('div, tr, img, svg').forEach(el => {
+      if (el.tagName === 'IMG') { picks.push([el, 'an-img']); return; }
+      if (el.tagName === 'TR') { picks.push([el, 'an-item']); return; }
+      if (el.tagName !== 'svg' && !BOX(el)) return;
+      let p = el.parentElement, inner = false;
+      while (p && p !== bd) { if (BOX(p) && p.tagName === 'DIV') { inner = true; break; } p = p.parentElement; }
+      if (inner) return;
+      if (el.tagName === 'svg') { picks.push([el, 'an-item']); return; }
+      const bg = getComputedStyle(el).backgroundColor;
+      if (GLOW[bg]) { el.style.setProperty('--an-glow', GLOW[bg]); picks.push([el, 'an-pulse']); }
+      else picks.push([el, 'an-item']);
+    });
+    picks.forEach(([el]) => { el.dataset.anTop = Math.round(el.getBoundingClientRect().top / 40); el.dataset.anLeft = el.getBoundingClientRect().left; });
+    picks.sort((a, b) => (a[0].dataset.anTop - b[0].dataset.anTop) || (a[0].dataset.anLeft - b[0].dataset.anLeft));
+    picks.forEach(([el, cls], k) => { el.style.animationDelay = (0.08 * k).toFixed(2) + 's' + (cls === 'an-pulse' ? ', ' + (0.08 * k + 0.4).toFixed(2) + 's' : '');
+                                      el.classList.add(cls); });
+  }
+  function live(sec){
+    const bd = sec.querySelector('.bd'); if (!bd) return;
+    bd.querySelectorAll('svg').forEach(sv => { const p = sv.querySelector('path'); if (!p) return;
+      const st = p.getAttribute('stroke') || ''; if (st.toUpperCase() === '#9AA0A6') {
+        if (!sv.parentElement.classList.contains('an-arrow')) {
+          const wrap = document.createElement('span'); wrap.className = 'an-arrow';
+          const holder = sv.parentElement;
+          if (holder && holder.style && holder.style.paddingTop) { holder.style.paddingTop = '0'; holder.style.alignSelf = 'center'; holder.style.display = 'flex'; holder.style.alignItems = 'center'; }
+          holder.insertBefore(wrap, sv); wrap.appendChild(sv);
+          const d = p.getAttribute('d'); const segs = d.match(/M[^M]*/g) || [d];
+          if (segs.length >= 2) {
+            const NS = 'http://www.w3.org/2000/svg';
+            p.setAttribute('d', segs[0]); p.classList.add('an-shaft');
+            p.setAttribute('stroke-dasharray', '0.01 11'); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-width', '4.5');
+            const head = document.createElementNS(NS, 'path'); head.setAttribute('d', segs.slice(1).join(' '));
+            head.setAttribute('stroke', p.getAttribute('stroke')); head.setAttribute('stroke-width', '3'); head.setAttribute('fill', 'none');
+            head.setAttribute('stroke-linecap', 'round'); head.setAttribute('stroke-linejoin', 'round'); sv.appendChild(head);
+          }
+        } } });
+    // scene rows: every box in a row gets the same height (rows too, when the grid has no label rows), so arrows meet box centres
+    bd.querySelectorAll('div').forEach(g => { if (getComputedStyle(g).display !== 'grid' || !g.querySelector('.an-arrow')) return;
+      const cells = [...g.children];
+      const labelRows = cells.some(c => (c.style.gridColumn || '').replace(/\s/g, '') === '1/-1');
+      g.style.alignItems = 'stretch';
+      cells.forEach(cell => {
+        if ((cell.style.gridColumn || '').replace(/\s/g, '') === '1/-1') return;
+        if (cell.querySelector('.an-arrow')) { Object.assign(cell.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '0' }); return; }
+        Object.assign(cell.style, { display: 'flex', alignItems: 'stretch' });
+        const comp = cell.firstElementChild; if (!comp) return;
+        comp.style.flex = '1'; comp.style.alignSelf = 'stretch';
+        const isBox = BOX(comp);
+        const boxes = isBox ? [comp] : [...comp.children].filter(k => k.tagName === 'DIV' && BOX(k));
+        if (!isBox) { comp.style.display = 'flex'; comp.style.alignItems = 'stretch';
+          [...comp.children].forEach(k => { if (!boxes.includes(k)) k.style.alignSelf = 'center'; }); }
+        boxes.forEach(bx => { bx.style.alignSelf = 'stretch';
+          if (getComputedStyle(bx).display === 'flex' && getComputedStyle(bx).flexDirection === 'row') bx.style.alignItems = 'center';
+          else Object.assign(bx.style, { display: 'flex', flexDirection: 'column', justifyContent: 'center' }); });
+      });
+    });
+    bd.querySelectorAll('div').forEach(el => { const cs = getComputedStyle(el);
+      if (cs.backgroundColor === 'rgb(232, 240, 254)' && cs.borderRadius && parseFloat(cs.width) <= 90 && parseFloat(cs.width) >= 40 && Math.abs(parseFloat(cs.width) - parseFloat(cs.height)) < 4) el.classList.add('an-ai'); });
+    bd.querySelectorAll('div').forEach(row => { const kids = [...row.children];
+      const arrows = kids.filter(k => k.tagName === 'svg' && (k.querySelector('path')?.getAttribute('stroke') || '').toUpperCase() === '#9AA0A6');
+      const boxes = kids.filter(k => k.tagName === 'DIV' && BOX(k));
+      if (arrows.length >= 1 && boxes.length >= 2) boxes.forEach((b, k) => { b.classList.add('an-seq'); b.style.setProperty('--an-at', (k * 0.9).toFixed(1) + 's'); b.style.setProperty('--an-cycle', (boxes.length * 0.9 + 1.2).toFixed(1) + 's'); }); });
+  }
+  const base = show;
+  show = function(n){ base(n); const cur = document.querySelector('section.on'); if (cur) requestAnimationFrame(() => { animate(cur); live(cur); }); };
+  window.addEventListener('load', () => { const cur = document.querySelector('section.on'); if (cur) setTimeout(() => { animate(cur); live(cur); }, 300); });
+})();
+</script></body></html>
