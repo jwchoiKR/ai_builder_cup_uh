@@ -16,14 +16,16 @@ LINE = "It's thirty-six dollars today."
 class _FirstFactCall(ScriptedBackend):
     """The first fact call fails in the given way; every fact call's seed is kept."""
 
-    def __init__(self, how: str):
+    def __init__(self, how: str, after: float = 0.0):
         super().__init__()
-        self.how, self.seeds = how, []
+        self.how, self.after, self.seeds, self.deadlines = how, after, [], []
 
     async def generate(self, req, timeout_ms):
         if req.agent == "fact_checker":
             self.seeds.append(req.seed)
+            self.deadlines.append(timeout_ms)
             if len(self.seeds) == 1:
+                await asyncio.sleep(self.after)
                 if self.how == "error":
                     raise LLMError("scripted failure")
                 if self.how == "invalid":
@@ -32,10 +34,10 @@ class _FirstFactCall(ScriptedBackend):
         return await super().generate(req, timeout_ms)
 
 
-async def _run(how: str):
-    backend = _FirstFactCall(how)
+async def _run(how: str, late_ms: int = 3000, after: float = 0.0):
+    backend = _FirstFactCall(how, after)
     backend.facts(LINE)
-    rt = await live_runtime(make_ctx(backend=backend, JUDGE_SEED="7", FACT_LATE_MS=300, FACT_TIMEOUT_MS=300))
+    rt = await live_runtime(make_ctx(backend=backend, JUDGE_SEED="7", FACT_LATE_MS=late_ms, FACT_TIMEOUT_MS=late_ms))
     await speak(rt, LINE)
     return rt, backend
 
@@ -59,7 +61,7 @@ async def test_d408_an_invalid_answer_is_retried_without_the_seed():
 
 
 async def test_d408_a_timeout_is_not_retried_and_shows_the_failure_at_once():
-    rt, backend = await _run("timeout")
+    rt, backend = await _run("timeout", late_ms=300)
     try:
         assert backend.seeds == [7]
         [card] = await events(rt, "line.check")
@@ -86,5 +88,26 @@ async def test_d408_the_retried_result_counts_the_failed_call_s_time():
         res = await rt.utterances._run_facts(LINE, CREAM, JudgeInput(utterance=LINE, on_air=CREAM), "default")
         assert res.latency_ms == 1500 and res.meta["first_failure"] == "invalid"
         assert calls == [{}, {"seeded": False}]
+    finally:
+        await close_env(rt)
+
+
+# ---- D-411: the retry gets only what is left of the fact deadline from the line end ---------------------------
+
+
+async def test_d411_the_retry_gets_only_the_time_left():
+    rt, backend = await _run("invalid", late_ms=3000, after=0.3)
+    try:
+        assert backend.seeds == [7, None]
+        assert backend.deadlines[1] <= 3000 - 300 + 50  # what the first call used is gone
+    finally:
+        await close_env(rt)
+
+
+async def test_d411_a_late_invalid_answer_is_not_retried_past_the_deadline():
+    rt, backend = await _run("invalid", late_ms=1400, after=0.55)  # less than MIN_FACT_RETRY_MS would be left
+    try:
+        assert backend.seeds == [7]
+        assert len(await events(rt, "line.check")) == 1  # the failed state at once
     finally:
         await close_env(rt)

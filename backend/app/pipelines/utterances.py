@@ -88,6 +88,7 @@ _KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever
 LATE_CORRECTION_MS = 10_000  # D-352: a line this soon after an alert's line may correct it before it turned active
 LATE_CORRECTION_LINES = 2
 MIN_CONTEXT_RETRY_MS = 1_000  # D-351: a context retry needs at least this much of its total deadline
+MIN_FACT_RETRY_MS = 1_000  # D-411: a fact retry needs at least this much left of the fact deadline from the line end
 
 
 def ends_sentence(text: str) -> bool:
@@ -639,15 +640,22 @@ class UtterancePipeline:
                         offers=offers, parts=parts or [], notes=notes, now=self.rt.now(), chain=judge_input.chain)
         if transcript_id is not None:
             self._fact_inputs[transcript_id] = inp
+        # D-411: the fact deadline counts from the line end; what the first call used is gone for a retry
+        line = self._prepared.get(transcript_id or "")
+        before = max(0, self.rt.now() - line[0].speech_end_at) if line is not None else 0
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
-        if res.status in ("error", "invalid"):
+        left = self.rt.settings.FACT_LATE_MS - before - res.latency_ms
+        if res.status in ("error", "invalid") and left < MIN_FACT_RETRY_MS:
+            log.info("fact check %s (%s) for %r: no retry, %d ms left of the fact deadline", res.status, res.error,
+                     text[:80], left)
+        elif res.status in ("error", "invalid"):
             # D-203/D-388: one fresh call, for every line. D-408 (codex): only after a fast failure; an invalid answer is
             # asked again without JUDGE_SEED (the same seed tends to repeat it). A timeout is not retried: its failure
-            # shows at once. The result's latency counts both calls (from the line's start of checking)
+            # shows at once. The result's latency counts both calls. D-411: the retry gets only the time left
             first = res
-            log.info("fact check %s (%s) for %r: once more%s", res.status, res.error, text[:80],
+            log.info("fact check %s (%s) for %r: once more within %d ms%s", res.status, res.error, text[:80], left,
                      ", without the seed" if res.status == "invalid" else "")
-            res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS, seeded=first.status != "invalid")
+            res = await self.facts.run(inp, deadline_ms=left, seeded=first.status != "invalid")
             res.latency_ms += first.latency_ms
             res.meta["first_failure"] = first.status
         if res.status != "ok":
