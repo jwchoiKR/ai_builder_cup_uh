@@ -2142,3 +2142,6 @@ D-337 (review-1008 A2, A3, E6): no 404/500 buttons and no raw server or infra st
   - "This show ended (server restarted)." is now "This show is no longer available." (KO "방송 연결이 끊겼습니다.").
   - "Google shared capacity busy" is now "AI service busy" (KO "AI 서버 혼잡").
 - **Tests:** `tests/test_d337.py`, `src/screens/screens.test.tsx` (the Hub's demo session; no feed buttons on a release show), and the updated strings.
+
+D-338 (review-1008 H3/H4, provenance only): in the single and verifier arms, `hard_validate` (`verify=True`) returned before its approved-claims check. A fact contradiction could cite the "Approved on-air claims" section, which holds the approved and the not-approved claim lists, and the host then got a fact note quoting the not-approved list. The verify branch now drops such a claim and logs "provenance: an approved-claims passage (claim wording is compliance's)". Claim wording stays with the compliance judge.
+- **Test (`tests/test_d338.py`):** the host says a not-approved phrase of the demo-fixture cream. The result is one compliance alert, no fact note, and the drop in the log. The test fails without the fix.
