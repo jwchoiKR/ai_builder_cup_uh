@@ -388,6 +388,10 @@ describe("compliance", () => {
     banner = screen.getByTestId("host-medium-banner");
     expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("○ +45%(not +70%)");
     expect(screen.queryByTestId("host-fact-note")).toBeNull();
+    // D-401: with the model's say line, the merged card shows it (as a fact note does)
+    rerender(view({ alerts: [qualifier, { ...wrongNumber, say: "Hydration went up 45%." }] }));
+    expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact"))
+      .toHaveTextContent("○ Hydration went up 45%.(not +70%)");
 
     // a fact note on another sentence keeps its own card
     rerender(view({ alerts: [qualifier, { ...wrongNumber, transcript_id: "tr_000008" }] }));

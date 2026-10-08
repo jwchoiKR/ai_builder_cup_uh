@@ -64,7 +64,8 @@ async def test_d335_an_alert_from_the_first_line_is_not_raised_again(monkeypatch
     llm.judge(RELAYED, violations=[violation("ASEAN-2D-DISEASE", "cures acne")])
     llm.judge(PAIR, violations=[violation("ASEAN-2D-DISEASE", "cures acne")])  # D-387: the same claim (span)
     row = await _case(monkeypatch, llm, [RELAYED, ANSWER])
-    assert len([a for a in row["alerts"] if a["kind"] == "compliance"]) == 1
+    # D-401: the pair's verdict replaces the first line's alert: one active alert, the other cleared
+    assert len([a for a in row["alerts"] if a["kind"] == "compliance" and a["status"] == "active"]) == 1
 
 
 async def test_d335_the_operator_sees_collecting_context_while_a_question_waits():

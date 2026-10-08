@@ -165,7 +165,7 @@ SOURCE includes [["S8","The pair offer ends on 30 November."]] for product_a.
 RECENT_TRANSCRIPT: ["Someone says the pair offer ends on November 3rd."]
 UTTERANCE: "Correct."
 ```json
-{"claims":[{"span":"the pair offer ends on November 3rd","stance":"HOST_ENDORSES","product_id":"product_a","field":"promo","stated_value":"ends 3 November","evidence":["S8"],"source_value":"ends on 30 November","relation":"contradicts","correct_value":"The pair offer ends on 30 November.","say":"The pair offer ends on 30 November."}]}
+{"claims":[{"span":"the pair offer ends on November 3rd","stance":"HOST_ENDORSES","product_id":"product_a","field":"promo","stated_value":"ends 3 November","evidence":["S8"],"source_value":"ends on 30 November","relation":"contradicts","correct_value":"30 November","say":"The pair offer ends on 30 November."}]}
 ```
 
 Example K
