@@ -11,7 +11,8 @@ from dataclasses import dataclass, field
 from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_file, quote_in_passage
 from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC,
-                               FactRelationOutputH, FactRelationOutputV2, FactRelationOutputV5)
+                               FactRelationOutputH, FactRelationOutputV2, FactRelationOutputV5,
+                               FactRelationOutputV7)
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -892,6 +893,8 @@ class FactChecker:
                 self.relation_model = FactRelationOutputH
         if getattr(settings, "FACT_PROMPT", "v1") in ("v5", "v6"):  # D-331, D-333: a stance per claim (no hold)
             self.relation_model = FactRelationOutputV5
+        if getattr(settings, "FACT_PROMPT", "v1") == "v7":  # D-345: v5 plus stated_as_heard
+            self.relation_model = FactRelationOutputV7
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]

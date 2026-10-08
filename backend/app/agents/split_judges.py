@@ -133,7 +133,7 @@ class ComplianceJudge(_SplitJudge):
         if getattr(getattr(llm, "settings", None), "COMPLIANCE_NEG", False):  # D-328: warnings are not the claim
             if extra := arms._addenda(str(llm.prompts_path)).get(("NEG", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "FACT_PROMPT", "v1") in ("v2", "v3", "v4", "v5", "v6"):  # D-312
+        if getattr(getattr(llm, "settings", None), "FACT_PROMPT", "v1") in ("v2", "v3", "v4", "v5", "v6", "v7"):  # D-312
             if extra := arms._addenda(str(llm.prompts_path)).get(("V2", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "FACT_RELATION", False):

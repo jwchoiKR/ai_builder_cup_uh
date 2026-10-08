@@ -2183,3 +2183,9 @@ D-344 (review-1008 E4/E5, wording only): display text from the review, small and
 - Summary: "Host said".
 - Viewer correction notice for non-price fields: "Correction: the {field_label} of {product_name} is {correct_value}." The old template read "Correction: Hydra Barrier Cream volume is 50 ml."
 - Not done: E1's 제품/상품 unification and the per-screen Korean keys. They touch many keys across screens and are left for after the freeze.
+
+D-345: `FACT_PROMPT=v7` (`prompts/fact_relation_v7.md`), a new arm. The default stays v5 until it is measured; user-approved 10/8 as the last change before the freeze, reviewed by GPT, Gemini and Sonnet.
+- **New field:** v7 is v5 plus `stated_as_heard` in the schema (`FactRelationOutputV7`), between `source_value` and `relation`. It is the stated value re-read with speech-to-text's number-word homophones as digits ("for"/"four" is 4, "to"/"too"/"two" is 2, "ate"/"eight" is 8). The order and place value of every digit are kept. Digits are never rearranged, dropped or computed to make a match. With no such word next to the number, it equals `stated_value`.
+- **Rule:** if `stated_value` differs from `source_value` but `stated_as_heard` equals it, the relation is `uncertain` (no alert). If both differ, it is `contradicts`, as before.
+- **Examples (made up):** uncertain: "for 0.5 g" for 4.5 g, "20 for dollars" for $24, "1 ate 0 ml" for 180 ml. Contradicts: "for 20 dollars" for $24 (read as 420), "30 ate dollars" for $28 (308), "for 5.5 g" for 4.5 g (45.5). v5's examples carry the field too.
+- **Tests (`tests/test_d345.py`):** the field order; the rule and examples; v7 through the pipeline on the fictional fixture product (uncertain gives no alert, contradicts gives one); the default is still v5.
