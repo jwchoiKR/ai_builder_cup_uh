@@ -827,6 +827,10 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
                     _drop(c, "relation: not a term of the active promo or offer")
             elif p is None:
                 _drop(c, "relation: unknown evidence")
+            elif p.section == CLAIMS_SECTION:
+                # D-338 (review H3/H4): the approved and not-approved claim lists are wording rules, which the
+                # compliance judge applies; they are no source of a fact correction
+                _drop(c, "provenance: an approved-claims passage (claim wording is compliance's)")
             elif right and not right <= _product_numbers(lex, catalog, c.product_id, passages):
                 _drop(c, "provenance: a number of the correction is in no passage of the product")
             continue
