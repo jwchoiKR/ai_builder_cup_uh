@@ -1661,7 +1661,7 @@ def test_d269_brief_offers_terms_arm_gives_every_offer_term_and_room_for_it():
 def test_d270_vulnerable_wording_arm_swaps_only_the_target_group_bullet(wording):
     ctx = make_ctx(VULNERABLE_WORDING=wording)
     try:
-        for name in ("compliance_judge", "utterance_judge", "judge_single"):
+        for name in ("compliance_judge_rules", "utterance_judge", "judge_single"):  # D-358: the rules prompt
             p = ctx.prompts[name]
             assert ("suitability promise" in p.system_instruction) is (wording == "d256"), name
             assert ("which ages may use it" in p.system_instruction) is (wording == "split"), name

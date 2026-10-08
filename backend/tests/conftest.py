@@ -33,6 +33,7 @@ LEGACY = {
     # D-336: the measured config became the default; the older tests keep the paths they were written for
     "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash", "SINGLE_THINKING": "LOW",
     "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",  # D-343
+    "CORRECTION_HANDLES": "false",  # D-358: on by default with the originals path; the rules-path tests script ids
 }
 for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)
@@ -104,3 +105,11 @@ def store() -> MemoryStore:
 @pytest.fixture
 def bus(store, clock) -> EventBus:
     return EventBus(store, clock)
+
+
+@pytest.fixture(autouse=True)
+def _compliance_path(request, monkeypatch):
+    """D-358: production reads the regulation originals; tests written for the rule-JSON verdicts keep that path
+    (pinned here, never in a setting). A test marked `originals` runs the production path."""
+    originals = request.node.get_closest_marker("originals") is not None
+    monkeypatch.setattr("app.agents.split_judges.LEGACY_RULES", not originals)

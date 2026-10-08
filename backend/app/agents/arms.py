@@ -74,7 +74,7 @@ def system_instruction(base: str, agent: str, arm: str, prompts_dir: Path | str,
 
 
 _TARGET_GROUP = re.compile(r"^- CURRENT_PRODUCT `target_group`.*?(?=^- )", re.M | re.S)
-TARGET_GROUP_PROMPTS = ("utterance_judge", "compliance_judge", "judge_single")
+TARGET_GROUP_PROMPTS = ("utterance_judge", "compliance_judge_rules", "judge_single")  # D-358: the rules prompt
 
 
 def split_target_group(prompts: dict, prompts_dir: Path | str) -> dict:

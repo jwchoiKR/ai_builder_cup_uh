@@ -18,7 +18,8 @@ from pathlib import Path
 from typing import Any
 
 PROMPT_NAMES = (
-    "utterance_judge", "judge_single", "compliance_judge", "context_judge", "fact_checker", "fact_relation",
+    "utterance_judge", "judge_single", "compliance_judge", "compliance_judge_rules", "context_judge", "fact_checker",
+    "fact_relation",
     "fact_relation_v2", "fact_relation_v3", "fact_relation_v4", "fact_relation_v5", "fact_relation_v6", "fact_relation_v7", "fact_relation_v8",
     "comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier", "brief_agent",
     "broadcast_summary", "verifier",

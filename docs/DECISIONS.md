@@ -2421,3 +2421,43 @@ D-357: a fix to D-352's spec. The re-check now fires every time a quick correcti
 - **Log:** each trigger decision, `correction <sid> re-check trigger: alert=<id> rule=<rule> t=<line> -> fired | skipped (<why>)`. The reasons are: too late, not judged yet (its judgment will show the alert), already shown the alert, or past the first 2 lines. There is also a line when no later line exists.
 - The unused D-352 field `_comp_done` is removed.
 - Test: `test_d357_...` in `tests/test_d352.py`: the claim's verdict arrives after the next line was judged, and that line's own verdict comes back even later. The re-check fires, in the handle format, and clears the alert.
+
+D-358 (user order): the live compliance judge reads the regulation ORIGINALS as they are. The rule JSON is gone from its input: no rules block, no bare index, no comparison arms. Its behaviour is fixed in one instruction prompt, and the planner chose option A for the test suite (below).
+- **Input:** the originals behind the show's products' rules, as the judge's cached prefix: each file after a "FILE <name>" line, plus a `REGULATION_DOCUMENTS` block naming them. The cache is warmed at session start.
+  - For SG cosmetics this is the market source's local file, `data/policy/asean_cosmetic_claims_guideline_appendix_iii_2007.pdf`.
+  - A law or brand pack's originals come from its onboarding job's `files.json` (`rule.source_id` -> `lawpacks/<id>.json` or `brandpacks/<id>.json` -> `job_id`).
+  - The rule pack is read only to find which documents apply. Onboarding, `sg.json` and the packs are unchanged.
+  - A rule source with no original is logged ("compliance originals missing") and marked on each call (`meta.originals_missing`). On the demo this is the product-sheet brand rules, which have no file.
+- **Tokens (Vertex count_tokens):**
+  - the SG PDF alone is 2,800;
+  - the whole cached prefix on the demo show is about 5,194: system instruction 2,177, FILE line plus PDF 2,822, data blocks 195.
+
+  That is above the 4,096 cache minimum.
+- **Prompt:** `prompts/compliance_judge.md` is replaced (version compliance_judge_v4). It is now the only compliance instruction, and no addenda apply to it.
+  - It flags only a claim the regulation prohibits. A product fact said wrong (dose, size, price, age, usage) is the fact checker's. A documented caution or intended user group said as documented is not a violation.
+  - It states the severity criteria. HIGH: disease, cure, safety or guarantee claims, or harm to a vulnerable group. MEDIUM: the rest, such as an unqualified test result.
+  - It covers question/answer pairs, split sentences, and corrections by meaning with handles (the D-355 RESAY content). The examples are fictional, in pairs.
+- **Output:** `alert_checks` first, then per violation: `citation` ("<document>#<section>" as written in the original, or "TEST-QUALIFIER"), `quote`, `span`, `severity` (the model's), `is_negated`, `is_quoted`, `say_instead`, `qualified_result_id`. The model never writes a rule id.
+- **Validation (`validate_original`, provenance only, user-approved):**
+  - The cited document must be one the judge was given, and the quote must be in its text (letters and digits compared, so PDF extraction artefacts do not matter).
+  - The alert's rule id is the normalised citation (`kelmar-code#2-1`).
+  - TEST-QUALIFIER needs a recorded test result, named by `qualified_result_id` or by a quote of its wording. The banner and its corrections key on the alert as before.
+  - Anything else is dropped with its reason ("compliance violation dropped by code: provenance: ..."), never silently.
+  - `say_instead` stays approved wording: the recorded result's wording for the qualifier, `approved_say` otherwise.
+  - The severity is the model's; `alerts.apply_judge_compliance` no longer looks the rule up in the pack.
+- **Corrections:** always by handle on this path. `CORRECTION_HANDLES` now defaults to true (and is in `deploy/cloudrun.sh`); it only matters for the legacy path.
+- **No production fallback:** the originals path is the code default and has no setting. The old rule-JSON path (`ComplianceJudge` with `prompts/compliance_judge_rules.md`, the old prompt, renamed) is reachable only:
+  - through `split_judges.LEGACY_RULES`, which `tests/conftest.py` pins for the existing suite (a test marked `originals` runs the production path);
+  - with the mock LLM provider, whose recorded outputs use the old schema.
+
+  It is listed for deletion once the tests are migrated. The old compliance prompt arms (COMPLIANCE_DOCS, ENDORSE, NEG, RESAY, the REL/SINGLE/CONF/V2/FR/Q6/PAIR addenda and DESIGN_ARM E's rule search) do not apply to the originals path.
+- `scripts/eval_show.py` records the compliance input in each show's settings: `COMPLIANCE_INPUT`, `COMPLIANCE_ORIGINALS`, `COMPLIANCE_ORIGINALS_MISSING`.
+- **Tests (`tests/test_d358.py`, marked `originals`, a fictional "Kelmar supplement code" law pack on a made-up release):**
+  - the judge gets the originals and no rules block, and the schema starts with the handles and has a citation but no rule id;
+  - a cited verdict becomes an alert named by its citation, with the model's severity and approved wording;
+  - a quote missing from the document and an unknown document are each dropped and logged;
+  - a correction goes by handle;
+  - TEST-QUALIFIER is checked against the recorded results;
+  - a rule source with no original is reported.
+
+  `test_prompts` and the D-270 test now read the legacy prompt by its new name.

@@ -15,7 +15,8 @@ import logging
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
-from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ComplianceOutputRC, ContextOutput,
+from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO, ComplianceOutputR,
+                               ComplianceOutputRC, ContextOutput,
                                ContextOutputB, ContextOutputQ, with_alert_checks, with_product,
                                with_switch_naming)
 from ..providers import rule_search
@@ -25,11 +26,16 @@ from ..providers.prompts import PromptTemplate
 from . import arms, inputs
 from .utterance_judge import (
     STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
-    validate_context,
+    validate_context, validate_original,
 )
 
 
 log = logging.getLogger(__name__)
+
+# D-358: the live compliance judge reads the regulation originals; there is no rule-JSON fallback in production. The
+# rules path (LEGACY_RULES) is kept only for the test suite, which pins it, and for the mock LLM provider, whose
+# recorded outputs use the old schema. None: the rules path only with the mock provider; True or False: forced (tests).
+LEGACY_RULES: bool | None = None
 
 
 class _SplitJudge:
@@ -133,7 +139,19 @@ class ComplianceJudge(_SplitJudge):
     output_model_b = ComplianceOutputB
 
     def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
+        settings = getattr(llm, "settings", None)
+        legacy = (getattr(settings, "LLM_PROVIDER", "vertex") == "mock") if LEGACY_RULES is None else LEGACY_RULES
+        originals = not legacy
+        if not originals and "compliance_judge_rules" in prompts:  # the legacy path keeps its own prompt
+            prompts = {**prompts, "compliance_judge": prompts["compliance_judge_rules"]}
         super().__init__(llm, prompts, catalog, reflex)
+        self.originals = originals
+        if self.originals:  # D-358: one instruction, the originals as the cached prefix, handles, cited verdicts
+            self.system_instruction = self.prompt.system_instruction
+            self.output_model = self.output_model_b = ComplianceOutputO
+            self.with_docs = self.handles = True
+            self._docs = None
+            return
         self.with_docs = bool(getattr(getattr(llm, "settings", None), "COMPLIANCE_DOCS", False))  # D-310
         if self.with_docs and (extra := arms._addenda(str(llm.prompts_path)).get(("DOCS", self.name))):
             self.system_instruction = f"{self.system_instruction}\n\n{extra}"
@@ -170,8 +188,23 @@ class ComplianceJudge(_SplitJudge):
                 if extra := arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)):
                     self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
+    def regulation(self):
+        """D-358: the originals behind the show's products' rules (the same for every line of the show)."""
+        if self._docs is None:
+            from .originals import originals_for
+
+            self._docs = originals_for(self.catalog, self.llm.settings.onboarding_path, self.catalog.order)
+        return self._docs
+
     def documents(self, pid: str) -> tuple[str, tuple]:
-        """D-310: the product's documents as a data block (its passages and its files' text) and its file parts."""
+        """D-310: the product's documents as a data block (its passages and its files' text) and its file parts.
+        D-358: in the originals path, the regulation originals: each file after a "FILE <name>" line, and a
+        REGULATION_DOCUMENTS block naming them."""
+        if self.originals:
+            docs, _ = self.regulation()
+            parts = tuple(x for d in docs for x in ((f"FILE {d.name}".encode(), "text/plain"), (d.data, d.mime)))
+            index = [{"document": d.name, "title": d.title} for d in docs]
+            return inputs.data_block("REGULATION_DOCUMENTS", index) + "\n", parts
         parts, file_passages = self.docs.get(pid, ((), ()))
         passages = [p for p in self.catalog.pack.passages if p.product_id == pid] + list(file_passages)
         return _documents_block(passages), parts
@@ -189,6 +222,8 @@ class ComplianceJudge(_SplitJudge):
             session_id=session_id))
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
+        if self.originals:  # no rule-based verdict without the rules
+            return {"alert_checks": [], "compliance": {"violations": []}, "reason": "no verdict"}
         return rule_based_compliance(inp, values, self.catalog, self.reflex)
 
     @staticmethod
@@ -234,7 +269,7 @@ class ComplianceJudge(_SplitJudge):
                       "scope_product_ids": [inp.on_air, prev]}
         if self.handles:
             values = self._with_handles(inp, values if values is not None else build_judge_values(self.catalog, inp))
-        search = rule_search.for_settings(self.llm.settings) if self.arm == "E" else None
+        search = rule_search.for_settings(self.llm.settings) if self.arm == "E" and not self.originals else None
         if search is not None:  # D-194 arm E: only the rules the search picks for this line (every rule on failure)
             values = dict(values if values is not None else build_judge_values(self.catalog, inp))
             m = self.catalog.pack.market
@@ -243,6 +278,8 @@ class ComplianceJudge(_SplitJudge):
                 by_id = {r["rule_id"]: r for r in values["rules_compact_json"]}
                 values["rules_compact_json"] = [by_id[i] for i in dict.fromkeys(ids) if i in by_id]
         res = await super().run(inp, deadline_ms=deadline_ms, values=values, **opts)
+        if self.originals and (missing := self.regulation()[1]):
+            res.meta["originals_missing"] = list(missing)  # D-358: judged without these sources' documents
         if self.handles:  # D-356: per call, what was shown, the handle map and the answer
             log.info("compliance handles call=%s line=%r active_alerts=%s handles=%s answer=%s corrects=%s",
                      res.call_id, inp.utterance[:80], json.dumps(values["active_alerts_json"], ensure_ascii=False),
@@ -255,7 +292,7 @@ class ComplianceJudge(_SplitJudge):
         if not arms.meaning_to_llm(self.arm):
             if not self.fact_record:
                 return ""
-            rel = issubclass(self.output_model, ComplianceOutputR)  # D-299: the judge names the result by id
+            rel = self.originals or issubclass(self.output_model, ComplianceOutputR)  # D-299: by id
             results = [{"product_id": p.product_id, "say": r.say} | ({"result_id": r.result_id} if rel else {})
                        for p in self.catalog.products
                        for r in p.qualified_results]
@@ -276,6 +313,8 @@ class ComplianceJudge(_SplitJudge):
                 *out.correction.corrects_alert_ids,
                 *(handles[c.handle] for c in checks if c.fixed_by_this_line and c.handle in handles)]))
             values = {**values, "active_alerts_json": [{"alert_id": i} for i in handles.values()]}
+        if self.originals:
+            return validate_original(out, self.catalog, values, self.regulation()[0])
         judge_arm = getattr(self.llm.settings, "JUDGE_ARM", "guards")
         return validate_compliance(out, self.catalog, values, arm=self.arm, verify=judge_arm in ("verify", "vote", "single"),
                                    model_severity=judge_arm == "single")  # D-309
