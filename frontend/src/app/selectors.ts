@@ -51,6 +51,24 @@ export function productById(catalog: Catalog | null, pid: string | null | undefi
   return catalog.products.find((p) => p.product_id === pid) ?? null;
 }
 
+const SAY_MAX = 120;
+const LOST = String.fromCharCode(0xfffd); // a character text extraction could not decode
+
+/** D-350: a say-instead line the host can read out, never a whole passage. A test result's wording is "<result>,
+ * <test conditions> (<qualifier>)"; when it is long, or holds characters that did not survive text extraction (U+FFFD),
+ * the conditions go and the result keeps its qualifier. The full text stays on the operator card's tooltip. */
+export function shortSay(text: string | null | undefined): string {
+  if (!text) return "";
+  const m = text.trim().match(/^([\s\S]*?)\s*(\([^()]*\))$/);
+  const [body, qual] = m ? [m[1], m[2]] : [text.trim(), ""];
+  if (body.length <= SAY_MAX && !body.includes(LOST)) return text.trim();
+  const clean = body.split(LOST)[0];
+  const comma = clean.indexOf(", ");
+  let out = comma > 0 ? clean.slice(0, comma) : clean;
+  if (out.length > SAY_MAX) out = `${out.slice(0, out.lastIndexOf(" ", SAY_MAX)).trimEnd()}…`;
+  return qual ? `${out.trimEnd()} ${qual}` : out.trimEnd();
+}
+
 /** D-348: a rule source that lists several files ("A.pdf Page 2 §7; B.pdf Page 2") puts the alert product's file first. */
 export function ownDocFirst(catalog: Catalog | null, sourceRef: string, pid: string | null | undefined): string {
   const docs = Object.values(catalog?.passages ?? {}).filter((p) => p.product_id === pid && p.doc).map((p) => p.doc);

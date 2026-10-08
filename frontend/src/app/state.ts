@@ -224,7 +224,13 @@ function prune<T>(items: T[], max: number): T[] {
 /** Apply one SSE event. Pure; `clientNow` only stamps client-side display times. */
 export function reduceEvent(state: ClientState, ev: SessionEvent, clientNow: number = Date.now()): ClientState {
   if (ev.seq > 0 && ev.seq <= state.lastSeq) return state;
-  const next = applyEvent(state, ev, clientNow);
+  let next = state;
+  try {
+    next = applyEvent(state, ev, clientNow);
+  } catch (e) {
+    // D-350: an event this client cannot apply (an odd payload) is skipped, never a crash of every screen
+    console.error("[live] event skipped", ev.type, e);
+  }
   return ev.seq > state.lastSeq ? { ...next, lastSeq: ev.seq } : next;
 }
 

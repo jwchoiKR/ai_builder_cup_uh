@@ -5,7 +5,7 @@ import { ShieldAlert, ShieldQuestionMark } from "lucide-react";
 import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
-import type { HighAlertView } from "../../app/selectors";
+import { shortSay, type HighAlertView } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { Elapsed } from "../../components";
 import { ruleInfo } from "./hostSelectors";
@@ -58,7 +58,7 @@ export function ComplianceOverlay({
         )}
       </div>
       <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
-      <span className={styles.alertSay}>“{alert.say_instead}”</span>
+      <span className={styles.alertSay}>“{shortSay(alert.say_instead)}”</span>
       <div className={styles.alertMeta}>
         <span className={styles.statusDot} aria-hidden />
         {t("Waiting for your correction")}

@@ -5,7 +5,7 @@ import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
 import { useNow } from "../../app/store";
-import { TEST_QUALIFIER_RULE } from "../../app/selectors";
+import { shortSay, TEST_QUALIFIER_RULE } from "../../app/selectors";
 import type { LineCheck } from "../../app/state";
 import type { Alert, Catalog, HostCue } from "../../app/types";
 import { factContext, factSayLine, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
@@ -130,7 +130,7 @@ export function MediumBanner({
       </div>
       <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
       <span className={styles.alertSay}>
-        {alert.say_instead ? `“${alert.say_instead}”` : t("Say the result with 'in our in-house test'.")}
+        {alert.say_instead ? `“${shortSay(alert.say_instead)}”` : t("Say the result with 'in our in-house test'.")}
       </span>
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>{rule.title}</span>
