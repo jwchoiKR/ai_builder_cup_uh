@@ -89,6 +89,8 @@ SENTENCE_END = (".", "?", "!")
 MAX_MERGED_FINALS = 3  # a merged judgment covers at most this many finals
 EXPECTS_WAIT_S = 0.3  # D-335: how long the next final waits for the previous line's context verdict
 _KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever needed)
+LATE_CORRECTION_MS = 10_000  # D-352: a line this soon after an alert's line may correct it before it turned active
+LATE_CORRECTION_LINES = 2
 MIN_CONTEXT_RETRY_MS = 1_000  # D-351: a context retry needs at least this much of its total deadline
 
 
@@ -206,6 +208,10 @@ class UtterancePipeline:
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
         self._addenda: dict[str, Transcript] = {}  # D-151: finals that only add "in our in-house test"
+        # D-352: a provisional alert the compliance judge said a later line corrects -> that line (applied the moment
+        # the alert turns active); and when each line's compliance verdict was applied
+        self._pending_fix: dict[str, Transcript] = {}
+        self._comp_done: dict[str, int] = {}
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
         key = (t.transcript_id, kind)
@@ -789,6 +795,7 @@ class UtterancePipeline:
                     a.status = "cleared"
                 self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
+                await self._on_active_locked(a)
             await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status,
                                            "alert_ids": [a.alert_id for a in changed if a.status == "active"]})
             # D-098: the replacement wording still corrects an alert without the judge
@@ -822,12 +829,15 @@ class UtterancePipeline:
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
                 self._schedule_escalation(a)
+                await self._on_active_locked(a)
             for a in changed:
                 self._reconcile_late_alert(a, t, now)
                 await self._save_alert_change_locked(a)
+                await self._on_active_locked(a)
             # D-089: an apology alone does not correct a compliance alert
             await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
                                                  quotes=getattr(judge.correction, "quotes", None))
+        self._comp_done[t.transcript_id] = now
         # §8.4.7 a new HIGH alert resets switch counting and cancels a pending switch
         await self._high_alert_switch_reset_locked(high_before)
 
@@ -894,6 +904,14 @@ class UtterancePipeline:
             # D-304: the compliance judge's listed alerts, with no word check and no replacement match
             ids = {a.alert_id for a in correctable if a.kind == "compliance"}
             accepted = [i for i in dict.fromkeys(listed) if i in ids]
+            # D-352: an alert still provisional (its own line's verdict not applied yet) is corrected the moment it
+            # turns active; apply_corrections only handles active alerts
+            by_id = {a.alert_id: a for a in correctable}
+            waiting = [i for i in accepted if by_id[i].status == "provisional"]
+            for i in waiting:
+                self._pending_fix[i] = t
+            self._log_corrections(t, listed, accepted, waiting)
+            accepted = [i for i in accepted if i not in waiting]
         else:
             accepted = self._substantive_corrections(correctable, listed, text) if listed else []
             for a in correctable:
@@ -918,6 +936,74 @@ class UtterancePipeline:
             rt.ctx.scheduler.cancel(rt.key(f"escalate:{a.alert_id}"))
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
+
+    def _log_corrections(self, t: Transcript, listed: list[str], accepted: list[str], waiting: list[str]) -> None:
+        """D-352: per alert the judge was shown or listed: was it in ACTIVE_ALERTS, did the judge list it, the result."""
+        inp = self._inputs.get(t.transcript_id)
+        shown = {a.alert_id for a in inp.active_alerts if a.kind == "compliance"} if inp is not None else set()
+        for aid in sorted(shown | set(listed)):
+            result = ("waits for its alert to turn active" if aid in waiting else "applied" if aid in accepted
+                      else "not an alert of an earlier line" if aid in listed else "not listed")
+            log.info("correction %s t=%s: alert=%s in_active_alerts=%s listed=%s -> %s", self.rt.sid,
+                     t.transcript_id, aid, aid in shown, aid in listed, result)
+
+    async def _on_active_locked(self, a: Alert) -> None:
+        """D-352: an alert just turned active. A correction the judge already gave for it (while it was provisional)
+        applies now. Otherwise, the later lines whose verdict came before the alert existed (at most 2, within
+        LATE_CORRECTION_MS of its line) are asked once each, by the compliance judge, whether they correct it or say
+        it again with the qualifier. A failed call is never a correction."""
+        rt = self.rt
+        if a.kind != "compliance" or a.status != "active":
+            return
+        fix = self._pending_fix.pop(a.alert_id, None)
+        if fix is not None:
+            log.info("correction %s: alert=%s turned active, corrected by t=%s (listed while provisional)", rt.sid,
+                     a.alert_id, fix.transcript_id)
+            await self._correct_locked(a, fix)
+            return
+        origin = self._prepared.get(a.transcript_id)
+        seq = self._sequence.get(a.transcript_id, 0)
+        since = origin[0].received_at if origin else a.created_at
+        later = sorted((x for x, _, _ in self._prepared.values()
+                        if self._sequence.get(x.transcript_id, 0) > seq and x.segment_id == self._segments.get(a.transcript_id)
+                        and x.transcript_id in self._comp_done and x.received_at - since <= LATE_CORRECTION_MS),
+                       key=lambda x: self._sequence[x.transcript_id])[:LATE_CORRECTION_LINES]
+        for x in later:
+            task = rt.spawn(self._recheck_correction(a.alert_id, x, origin[1] if origin else None),
+                            name=f"recheck:{a.alert_id}:{x.transcript_id}")
+            self._pending.add(task)
+            task.add_done_callback(self._pending.discard)
+
+    async def _correct_locked(self, a: Alert, t: Transcript) -> None:
+        rt = self.rt
+        for x in alert_logic.apply_corrections([a], [a.alert_id], t, rt.now()):
+            rt.ctx.scheduler.cancel(rt.key(f"escalate:{x.alert_id}"))
+            await rt.save_alert(x)
+            await rt.emit("alert.updated", x)
+
+    async def _recheck_correction(self, alert_id: str, t: Transcript, alert_line: str | None) -> None:
+        """D-352: one compliance-judge call on a line judged before `alert_id` existed: does it correct it?"""
+        rt = self.rt
+        async with rt.lock:
+            a = await rt.get_alert(alert_id)
+            if a is None or a.status != "active":
+                return
+            seg = await rt.get_segment(t.segment_id) if t.segment_id else await rt.current_segment()
+            text = self._prepared[t.transcript_id][1] if t.transcript_id in self._prepared else t.text
+            inp = JudgeInput(utterance=text, on_air=seg.product_id if seg else a.product_id, active_alerts=[a],
+                             previous=[alert_line] if alert_line else [], session_id=rt.sid)
+        res = await self.compliance.run(inp, deadline_ms=(rt.settings.VERIFY_TIMEOUT_MS
+                                                          if rt.settings.JUDGE_ARM == "single"
+                                                          else rt.settings.JUDGE_TIMEOUT_MS))
+        listed = res.output.correction.corrects_alert_ids if res.status == "ok" and res.output is not None else []
+        log.info("correction %s re-check: alert=%s t=%s status=%s listed=%s", rt.sid, alert_id, t.transcript_id,
+                 res.status, alert_id in listed)
+        if alert_id not in listed:
+            return
+        async with rt.lock:
+            a = await rt.get_alert(alert_id)
+            if a is not None and a.status == "active":
+                await self._correct_locked(a, t)
 
     def _qualifier_addendum(self, text: str) -> bool:
         """D-151: a short final that only names our test ("That's from our in-house test."), no number of its own."""
