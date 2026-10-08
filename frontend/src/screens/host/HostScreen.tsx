@@ -17,7 +17,7 @@ import {
   chatItems,
   cueStrip,
   formatClock,
-  hostBanners,
+  hostAlertStack,
   hostSlots,
   priceView,
   productById,
@@ -30,6 +30,7 @@ import { useCatalog, useNow, useSession } from "../../app/store";
 import { useT } from "../../app/i18n";
 import { COLS_MAX, HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReadingSize } from "../../app/prefs";
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
+import type { HostBox } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
 import { CorrectedBar, CueStrip, FactNote, LineCheckCard, MediumBanner, SwitchBanner, SwitchedBar } from "./Banners";
@@ -178,7 +179,6 @@ function TopBar({
   );
 }
 
-const MAX_ALERT_BOXES = 2; // D-402: two large boxes still leave the prompter readable
 const SWITCHED_BAR_MS = 8000; // D-349: how long the host sees "Switched to … · Undo"
 const EMBEDDED_MIN_SCALE = 0.7; // D-332: in a Studio pane the text stays readable (cautions about 10.5 px at 1440 px)
 
@@ -242,7 +242,6 @@ export function HostView({
   const prompter = hostPrompterView(state, catalog, product);
   const price = priceView(state, catalog, prompter.product ?? product);
   const cue = cueStrip(state, clientNow);
-  const { mediums, facts } = hostBanners(state);
   const onAir = runOfShow(state, catalog, now).find((i) => i.status === "on_air");
   const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
   // D-306: also while the verifier checks a line's candidates (an alert shows only once it answers)
@@ -252,26 +251,23 @@ export function HostView({
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
   // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
   // product box, in this order: HIGH, fact notes, MEDIUM. D-402 (user): red and orange at the same level: one stack
-  // of same-size boxes, at most MAX_ALERT_BOXES; the last one shown carries "+N", the active alerts not shown.
-  const boxes: { count: number; box: (more: number) => ReactNode }[] = [
-    ...(high ? [{ count: 1, box: (more: number) => (
-      <ComplianceOverlay key={high.alert.alert_id} view={high} fresh={redBlocking(state, now)}
+  // of same-size boxes, at most MAX_ALERT_BOXES; the last one shown carries "+N" (D-404: by alert id).
+  const stack = hostAlertStack(state);
+  const box = (b: HostBox, more: number) =>
+    b.kind === "high" ? (
+      <ComplianceOverlay key={b.view.alert.alert_id} view={b.view} fresh={redBlocking(state, now)}
         catalog={catalog} serverOffsetMs={state.serverOffsetMs} onRendered={actions.rendered} more={more} />
-    ) }] : []),
-    ...facts.map(({ alert: a, count }) => ({ count, box: (more: number) => (
-      <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} count={count} more={more} />
-    ) })),
-    ...mediums.map(({ alert: a, fact, count, factCount }) => ({ count, box: (more: number) => (
-      <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered}
-        serverOffsetMs={state.serverOffsetMs} count={count} more={more} factCount={factCount} />
-    ) })),
-  ];
-  const shown = boxes.slice(0, MAX_ALERT_BOXES);
-  const hidden = boxes.slice(MAX_ALERT_BOXES).reduce((n, b) => n + b.count, 0);
+    ) : b.kind === "fact" ? (
+      <FactNote key={b.alert.alert_id} alert={b.alert} catalog={catalog} onRendered={actions.rendered} count={b.count}
+        more={more} />
+    ) : (
+      <MediumBanner key={b.alert.alert_id} alert={b.alert} catalog={catalog} fact={b.fact} onRendered={actions.rendered}
+        serverOffsetMs={state.serverOffsetMs} count={b.count} more={more} factCount={b.factCount} />
+    );
   const prompterAlerts =
-    shown.length || lineCheck ? (
+    stack.shown.length || lineCheck ? (
       <>
-        {shown.map((b, i) => b.box(i === shown.length - 1 ? hidden : 0))}
+        {stack.shown.map((b, i) => box(b, i === stack.shown.length - 1 ? stack.more : 0))}
         {lineCheck && !high && <LineCheckCard key={lineCheck.transcript_id} check={lineCheck} />}
       </>
     ) : null;

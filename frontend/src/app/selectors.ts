@@ -321,23 +321,70 @@ function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; co
  *  passage id they cite (ids, never text; a note with no passage is not grouped): one card, the newest, with its count.
  *  Every alert stays its own record and handle; the operator screen lists each one. */
 export function hostBanners(state: ClientState): {
-  mediums: { alert: Alert; fact: Alert | null; count: number; factCount: number }[];
-  facts: { alert: Alert; count: number }[];
+  mediums: { alert: Alert; fact: Alert | null; count: number; factCount: number; ids: string[] }[];
+  facts: { alert: Alert; count: number; ids: string[] }[];
 } {
   const high = new Set(activeComplianceAlerts(state).filter((a) => a.severity === "HIGH").map((a) => a.transcript_id));
   // D-403: fact notes are grouped first; a qualifier card on a note's sentence takes that note's whole group
   const groups = groupNewest(factNotesForHost(state).filter((f) => !high.has(f.transcript_id)), (f) => f.passage_id);
   const merged = new Set<number>();
   const mediums = groupNewest(activeMediumAlerts(state).filter((a) => !high.has(a.transcript_id)), (a) => a.rule_id)
-    .map(({ item: alert, count }) => {
+    .map(({ item: alert, count, members }) => {
       const i = alert.rule_id === TEST_QUALIFIER_RULE
         ? groups.findIndex((g, j) => !merged.has(j) && g.members.some((f) => f.transcript_id === alert.transcript_id))
         : -1;
       if (i >= 0) merged.add(i);
-      return { alert, fact: i >= 0 ? groups[i].item : null, count, factCount: i >= 0 ? groups[i].count : 0 };
+      const ids = [...members, ...(i >= 0 ? groups[i].members : [])].map((a) => a.alert_id);
+      return { alert, fact: i >= 0 ? groups[i].item : null, count, factCount: i >= 0 ? groups[i].count : 0, ids };
     });
-  const notes = groups.filter((_, j) => !merged.has(j)).map(({ item: alert, count }) => ({ alert, count }));
+  const notes = groups.filter((_, j) => !merged.has(j))
+    .map(({ item: alert, count, members }) => ({ alert, count, ids: members.map((a) => a.alert_id) }));
   return { mediums, facts: notes };
+}
+
+/** D-402: at most this many alert boxes on the host screen. */
+export const MAX_ALERT_BOXES = 2;
+
+export type HostBox =
+  | { kind: "high"; view: HighAlertView; ids: string[]; units: number }
+  | { kind: "fact"; alert: Alert; count: number; ids: string[]; units: number }
+  | { kind: "medium"; alert: Alert; fact: Alert | null; count: number; factCount: number; ids: string[]; units: number };
+
+/** Where an active alert is for the host: in a box shown now, held behind a red on its line (D-342), or beyond the
+ *  box limit (counted in "+N"). */
+export type HostVisibility = "shown" | "held" | "more";
+
+/** D-402, D-404: the host's alert stack in order (red first, then fact notes, then MEDIUM; D-342 and the grouping
+ *  apply): the boxes shown, "+N" and each active alert's visibility. "+N" counts, by alert id, every active alert not
+ *  visible in the boxes shown: the other reds, the alerts held by D-342 and the members of the boxes not shown; a
+ *  qualifier card merged with a fact note counts as one (its other fact notes on top). The host and operator screens
+ *  both read this. */
+export function hostAlertStack(state: ClientState): {
+  shown: HostBox[];
+  more: number;
+  visibility: Record<string, HostVisibility>;
+} {
+  const high = activeHighAlert(state);
+  const { mediums, facts } = hostBanners(state);
+  const boxes: HostBox[] = [
+    ...(high ? [{ kind: "high" as const, view: high, ids: [high.alert.alert_id], units: 1 }] : []),
+    ...facts.map((f) => ({ kind: "fact" as const, ...f, units: f.count })),
+    ...mediums.map((m) => ({ kind: "medium" as const, ...m, units: m.count + Math.max(0, m.factCount - 1) })),
+  ];
+  const shown = boxes.slice(0, MAX_ALERT_BOXES);
+  const visibility: Record<string, HostVisibility> = {};
+  for (const b of shown) for (const id of b.ids) visibility[id] = "shown";
+  let more = 0;
+  for (const b of boxes.slice(MAX_ALERT_BOXES)) {
+    more += b.units;
+    for (const id of b.ids) visibility[id] = "more";
+  }
+  for (const a of [...activeComplianceAlerts(state), ...factNotesForHost(state)]) {
+    if (a.alert_id in visibility) continue;
+    visibility[a.alert_id] = a.kind === "compliance" && a.severity === "HIGH" ? "more" : "held";
+    more += 1;
+  }
+  return { shown, more, visibility };
 }
 
 export function activeFactAlerts(state: ClientState): Alert[] {

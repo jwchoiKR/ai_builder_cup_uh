@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { api } from "../../app/api";
 import { useT } from "../../app/i18n";
+import { hostAlertStack, type HostVisibility } from "../../app/selectors";
 import type { Alert } from "../../app/types";
 import { Button, Chip } from "../../components";
 import { useAction, useOperator } from "./context";
@@ -31,10 +32,12 @@ export function AlertStack() {
   const alerts = stackAlerts(state, now);
   const system = systemCards(state, catalog, now, t).filter((c) => !dismissed.has(c.key));
   if (!alerts.length && !system.length) return null;
+  const { visibility } = hostAlertStack(state); // D-404: what the host screen shows now, from its own selector
   return (
     <section className={styles.alertStack} aria-label={t("Alert stack")}>
       {alerts.map((a) =>
-        a.kind === "compliance" ? <ComplianceCard key={a.alert_id} alert={a} /> : <FactCard key={a.alert_id} alert={a} />,
+        a.kind === "compliance" ? <ComplianceCard key={a.alert_id} alert={a} seen={visibility[a.alert_id]} />
+          : <FactCard key={a.alert_id} alert={a} seen={visibility[a.alert_id]} />,
       )}
       {system.map((c) => (
         <SystemAlertCard key={c.key} card={c} onDismiss={() => setDismissed((d) => new Set(d).add(c.key))} />
@@ -43,7 +46,17 @@ export function AlertStack() {
   );
 }
 
-function ComplianceCard({ alert: a }: { alert: Alert }) {
+/** D-404: where this alert is on the host screen now. */
+function HostSees({ seen }: { seen?: HostVisibility }) {
+  const t = useT();
+  if (!seen) return null;
+  const text = seen === "shown" ? t("The host sees this alert now.")
+    : seen === "held" ? t("Waiting on the host screen: a red alert on the same line shows first.")
+      : t("Not on the host screen yet: counted in \"+N\" behind the two alerts shown.");
+  return <p className={styles.helper} data-testid="op-alert-host" data-seen={seen}>{text}</p>;
+}
+
+function ComplianceCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibility }) {
   const t = useT();
   const { sid, catalog, now } = useOperator();
   const [notice, setNotice] = useState(false);
@@ -93,11 +106,7 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
           {a.say_instead && (
             <p className={styles.alertMeta}>{t("Say:")} “{a.say_instead}”</p>
           )}
-          <p className={styles.helper}>
-            {a.severity === "MEDIUM"
-              ? t("The host is seeing a correction banner above the prompter.")
-              : t("The host is seeing a full-screen correction prompt.")}
-          </p>
+          <HostSees seen={seen} />
           <div className={styles.actions}>
             <Button size="sm" variant="danger" disabled={act.busy} onClick={() => act.run(() => api.alertCue(sid, a.alert_id))}>
               {t("Send correction cue")}
@@ -117,7 +126,7 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
   );
 }
 
-function FactCard({ alert: a }: { alert: Alert }) {
+function FactCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibility }) {
   const t = useT();
   const { sid, catalog } = useOperator();
   const [notice, setNotice] = useState(false);
@@ -140,6 +149,7 @@ function FactCard({ alert: a }: { alert: Alert }) {
         <>
           <p className={styles.alertMeta}>{t("The {field} differs from the host's statement.", { field: label })}</p>
           <p className={styles.alertMeta}>{t("Source:")} {sourceLabel(catalog, a.passage_id, t)}</p>
+          <HostSees seen={seen} />
           <div className={styles.actions}>
             <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.resendFactNote(sid, a.alert_id))}>
               {t("Resend to host")}
