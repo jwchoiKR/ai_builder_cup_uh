@@ -1,9 +1,24 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { setLang } from "../../app/i18n";
 import type { Product } from "../../app/types";
 import type { BriefRecord, GlossaryState, SetupClient, UploadJob, UploadStage } from "./setupApi";
 import { SetupView } from "./SetupView";
+
+// D-371: the Regulation documents area reads the regulation endpoints (the onboarding Regulations panel's)
+const regApi = vi.hoisted(() => ({
+  list: vi.fn(async () => ({
+    market: "SG", markets: ["SG"], categories: ["cosmetic"],
+    market_law: { name: "Cosmetics", covers: ["cosmetic"], files: ["kelmar_guideline.pdf"] },
+    packs: [{ pack_id: "law_sg_k_v1", market: "SG", name: "Kelmar code", regulator: "Kelmar authority",
+      covers: ["cosmetic"], approved_at: Date.UTC(2026, 9, 8), job_id: "law_1", files: ["kelmar_code.pdf"],
+      sections: [], active_for: ["cosmetic"] }],
+    releases: [],
+  })),
+  upload: vi.fn(async () => ({ job_id: "law_9" })), job: vi.fn(), approve: vi.fn(),
+}));
+vi.mock("../onboarding/onboardingApi", () => ({ regulationsApi: regApi }));
 
 const cream = {
   product_id: "cream_hydra_barrier",
@@ -256,5 +271,40 @@ describe("market and language (D-142)", () => {
   it("shows the market and broadcast language of new sessions, read-only", async () => {
     renderView(client());
     expect(await screen.findByTestId("setup-market")).toHaveTextContent("Singapore · English");
+  });
+});
+
+describe("product and regulation documents apart (D-371)", () => {
+  it("shows two labelled areas, each with its own files, both PDF only", async () => {
+    renderView(client());
+    expect(screen.getByTestId("setup-product-docs")).toHaveTextContent("Product documents");
+    expect(screen.getByTestId("setup-regulation-docs")).toHaveTextContent("Regulation documents");
+    const products = await screen.findByTestId("setup-documents");
+    expect(products).toHaveTextContent("DAON_LAB_Hydra_Barrier_Cream.pdf");
+    expect(products).not.toHaveTextContent("kelmar_code.pdf");
+    const regs = await screen.findByTestId("reg-packs");
+    expect(regs).toHaveTextContent("kelmar_code.pdf");
+    expect(regs).not.toHaveTextContent("DAON_LAB_Hydra_Barrier_Cream.pdf");
+    expect(screen.getByTestId("reg-files")).toHaveAttribute("accept", ".pdf,application/pdf");
+    fireEvent.change(screen.getByTestId("reg-files"), { target: { files: [new File(["x"], "code.docx")] } });
+    expect(screen.getByText("PDF files only. Not a PDF: code.docx")).toBeInTheDocument();
+    expect(screen.getByTestId("reg-read")).toBeDisabled();
+    fireEvent.change(screen.getByTestId("reg-files"), { target: { files: [new File(["x"], "code.pdf")] } });
+    fireEvent.click(screen.getByTestId("reg-read"));
+    await waitFor(() => expect(regApi.upload).toHaveBeenCalledWith(expect.any(Array), "SG", "cosmetic"));
+  });
+
+  it("labels both areas in Korean", async () => {
+    setLang("ko");
+    try {
+      renderView(client());
+      expect(screen.getByTestId("setup-product-docs")).toHaveTextContent("제품 문서");
+      expect(screen.getByTestId("setup-regulation-docs")).toHaveTextContent("규제 문서");
+      expect(screen.getByRole("button", { name: "PDF 업로드" })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "규제 읽기" })).toBeInTheDocument();
+      expect(await screen.findByText("승인된 규제")).toBeInTheDocument();
+    } finally {
+      setLang("en");
+    }
   });
 });

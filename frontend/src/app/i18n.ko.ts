@@ -215,4 +215,48 @@ export const KO_HUB: Record<string, string> = {
   "Start a new show": "새 방송 시작",
 };
 
-export const KO: Record<string, string> = { ...KO_OPERATOR, ...KO_HOST, ...KO_HUB };
+/** D-371: the Setup screen's two upload areas (product documents, regulation documents) and the PDF-only message. */
+export const KO_SETUP: Record<string, string> = {
+  "Product documents": "제품 문서",
+  "Regulation documents": "규제 문서",
+  "Upload PDF": "PDF 업로드",
+  "Uploading…": "업로드 중…",
+  Document: "문서",
+  Product: "제품",
+  Pages: "페이지",
+  Index: "색인",
+  "No documents.": "문서가 없습니다.",
+  "PDF files only. Not a PDF: {names}": "PDF 파일만 올릴 수 있습니다. PDF가 아닌 파일: {names}",
+  Regulations: "규제",
+  "The live compliance judge reads these documents as they are. Upload a regulator's documents (PDF only) for one market and one product category.":
+    "라이브 규제 판정은 이 문서를 원본 그대로 읽습니다. 규제 기관 문서(PDF만)를 시장 하나, 제품 카테고리 하나 단위로 올려 주세요.",
+  Market: "시장",
+  Category: "카테고리",
+  "Read regulation": "규제 읽기",
+  "Categories come from approved products. Approve a product first.":
+    "카테고리는 승인된 제품에서 가져옵니다. 먼저 제품을 승인하세요.",
+  "A read in progress is kept in the server's memory: it is lost if the server restarts.":
+    "읽는 중인 작업은 서버 메모리에만 있어 서버가 다시 시작되면 사라집니다.",
+  Queued: "대기 중",
+  "Reading the documents… about 1–3 minutes.": "문서를 읽는 중… 1~3분 정도 걸립니다.",
+  "Read. Review the source files and sections, then approve.": "읽기 완료. 원본 파일과 조항을 확인한 뒤 승인하세요.",
+  Failed: "실패",
+  "Source files:": "원본 파일:",
+  "Approval is write-once: an approved pack is never edited. A newer approved pack for the same market and category replaces it in live shows.":
+    "승인은 한 번만 기록되며 승인된 규제는 수정되지 않습니다. 같은 시장과 카테고리에 더 새로 승인된 규제가 있으면 라이브 방송에서 그것으로 바뀝니다.",
+  "Approve regulation": "규제 승인",
+  "Approved as {id}.": "{id}(으)로 승인했습니다.",
+  "Approved regulations": "승인된 규제",
+  "{market} market law:": "{market} 시장 법규:",
+  covers: "적용 범위",
+  none: "없음",
+  "approved {day}": "{day} 승인",
+  "Active for {list}": "적용 중: {list}",
+  "Replaced by a newer pack": "새 규제로 대체됨",
+  "What each product's live judge reads": "제품별 라이브 판정이 읽는 문서",
+  brand: "브랜드",
+  "No regulation matches this product's category ({category}): its live compliance judge has no regulation to read.":
+    "이 제품의 카테고리({category})에 맞는 규제가 없어 라이브 규제 판정이 읽을 문서가 없습니다.",
+};
+
+export const KO: Record<string, string> = { ...KO_OPERATOR, ...KO_HOST, ...KO_HUB, ...KO_SETUP };
