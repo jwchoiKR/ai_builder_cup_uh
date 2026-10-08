@@ -186,10 +186,11 @@ describe("fact note", () => {
     expect(within(screen.getByTestId("host-prompter")).getByTestId("host-corrected")).toHaveTextContent("Corrected");
   });
 
-  it("stacks HIGH, then fact notes, then MEDIUM in the box (D-107)", () => {
-    const high = alert({ alert_id: "al_000010", span: "erases wrinkles" });
-    const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best" });
-    render(view({ alerts: [medium, fx, high] }));
+  it("stacks HIGH, then fact notes, then MEDIUM in the box (D-107), each from its own sentence (D-342)", () => {
+    const high = alert({ alert_id: "al_000010", span: "erases wrinkles", transcript_id: "tr_high" });
+    const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
+      transcript_id: "tr_medium" });
+    render(view({ alerts: [medium, { ...fx, transcript_id: "tr_fact" }, high] }));
     const box = screen.getByTestId("host-prompter-alerts");
     expect([...box.children].map((c) => c.getAttribute("data-testid"))).toEqual([
       "host-compliance-overlay", "host-fact-note", "host-medium-banner"]);
