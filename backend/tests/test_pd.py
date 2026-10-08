@@ -49,7 +49,7 @@ def test_wrap_up_on_the_last_product_names_the_missing_points():
 def test_pause_offers_nothing_new_and_red_alert_offers_nothing():
     quiet = state(now=100_000, last_final_at=100_000 - pdl.SILENCE_MS, covered_ids=["x-p2", "x-p3"])
     assert pdl.candidates(quiet) == []
-    assert pdl.candidates(state(high_alert_active=True, now=800_000)) == []
+    assert pdl.candidates(state(alert_block=True, now=800_000)) == []
 
 
 def test_dismissed_topics_are_not_offered_again():
@@ -211,7 +211,7 @@ def test_a_question_waiting_past_its_ceiling_gets_a_card_at_the_next_break():
     assert (c.ref_id, c.priority) == ("g2", 1)  # the urgent one first
     recent_card = dict(just_after_final, last_question_card_at=100_000 - pdl.DUE_GAP_MS + 1)
     assert kinds_at(questions=old, **recent_card) == []
-    assert kinds_at(questions=old, high_alert_active=True, **just_after_final) == []  # a red alert pre-empts
+    assert kinds_at(questions=old, alert_block=True, **just_after_final) == []  # a red alert pre-empts
 
 
 class SaysNone:
@@ -268,16 +268,41 @@ async def test_an_uncorrected_red_alert_blocks_cards_only_while_it_is_fresh(env)
     assert (await rt.get_alert(red.alert_id)).status == "active"  # the red still waits for its correction
 
 
-def test_a_fresh_red_alert_is_one_created_within_the_block():
+async def test_d402_a_fact_note_blocks_cards_like_a_red(env):
+    """D-402 (user: red and orange at the same level): an orange alert blocks AI PD cards for RED_BLOCK_MS too."""
+    from .judge_fakes import price_contradiction
+
+    rt, llm = env
+    await speak(rt, "Welcome everyone, today we start with the cream.")
+    await say(rt, "Mei", "Is the cream okay for oily skin?")
+    [g] = await rt.groups()
+    line = "And today the live price is only thirty-two dollars."
+    llm.facts(line, price_contradiction("S$32"))
+    await speak(rt, line)
+    [note] = [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"]
+    await rt.ctx.scheduler.advance(pdl.SILENCE_MS)
+    assert (await rt.load_session()).pd_card is None
+    await rt.ctx.scheduler.advance(pdl.RED_BLOCK_MS - pdl.SILENCE_MS)
+    card = (await rt.load_session()).pd_card
+    assert card is not None and card.ref_id == g.group_id
+    assert (await rt.get_alert(note.alert_id)).status == "active"  # D-402: the note stays until closed
+
+
+def test_a_fresh_alert_is_one_created_within_the_block():
     from app.models.session import Alert
 
     base = dict(alert_id="al", kind="compliance", status="active", transcript_id="t", product_id="p",
                 severity="HIGH", rule_id="R", created_at=0)
-    assert pdl.red_blocks([Alert(**base)], pdl.RED_BLOCK_MS - 1)
-    assert not pdl.red_blocks([Alert(**base)], pdl.RED_BLOCK_MS)
-    assert not pdl.red_blocks([Alert(**base, escalated_at=5_000)], pdl.RED_BLOCK_MS)  # D-177
-    assert not pdl.red_blocks([Alert(**{**base, "severity": "MEDIUM"})], 1)
-    assert not pdl.red_blocks([Alert(**{**base, "status": "corrected"})], 1)
+    assert pdl.alert_blocks([Alert(**base)], pdl.RED_BLOCK_MS - 1)
+    assert not pdl.alert_blocks([Alert(**base)], pdl.RED_BLOCK_MS)
+    assert not pdl.alert_blocks([Alert(**base, escalated_at=5_000)], pdl.RED_BLOCK_MS)  # D-177
+    assert not pdl.alert_blocks([Alert(**{**base, "status": "corrected"})], 1)
+    # D-402: orange blocks the same way: a MEDIUM compliance alert and a fact note
+    assert pdl.alert_blocks([Alert(**{**base, "severity": "MEDIUM"})], 1)
+    fact = {**base, "kind": "fact", "severity": None, "rule_id": None}
+    assert pdl.alert_blocks([Alert(**fact)], pdl.RED_BLOCK_MS - 1)
+    assert not pdl.alert_blocks([Alert(**fact)], pdl.RED_BLOCK_MS)
+    assert not pdl.alert_blocks([Alert(**{**fact, "status": "dismissed"})], 1)
 
 
 class SlowTimeout:

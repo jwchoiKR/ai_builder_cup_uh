@@ -496,8 +496,6 @@ class SessionRuntime:
         for a in await self.alerts():
             if a.escalated_at is None:
                 self.utterances._schedule_escalation(a)  # it checks kind, severity and status itself
-            if a.kind == "fact" and a.status == "active" and a.host_hidden_at is None:
-                self.utterances.schedule_fact_hide(a)  # D-362: the fact note's hide timer too
         log.info("session %s read back: timers re-armed (%d promos, switch %s)", self.sid, len(s.active_promos),
                  s.switch.status)
 

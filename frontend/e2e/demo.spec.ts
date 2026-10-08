@@ -221,7 +221,7 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   await say(6);
   const overlay = host.getByTestId("host-compliance-overlay");
   await expect(overlay).toBeVisible({ timeout: 5_000 });
-  await expect(overlay).toContainText("HIGH-RISK CLAIM");
+  await expect(overlay).toContainText("Regulation");
   await expect(overlay).toContainText("Say this instead.");
   await expect(overlay).toContainText("your wrinkles will disappear overnight");
   await expect(overlay).toContainText("Appendix III");

@@ -1,13 +1,14 @@
 // HIGH-risk compliance alert (§12.3.7). D-106: shown at the top of the prompter card, where the host
 // is already looking, until the correction is confirmed; the prompter points stay visible below.
 // On mount it acknowledges the render once per alert (metrics, §8.16).
-import { ShieldAlert, ShieldQuestionMark } from "lucide-react";
+import { ShieldQuestionMark } from "lucide-react";
 import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
 import { type HighAlertView } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { Elapsed } from "../../components";
+import { AlertMore, KindLabel } from "./Banners";
 import { ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
 
@@ -17,6 +18,7 @@ export function ComplianceOverlay({
   catalog,
   serverOffsetMs,
   onRendered,
+  more = 0,
 }: {
   view: HighAlertView;
   /** D-177: within RED_BLOCK_MS of the alert: highlighted (a repeat is a new alert, so it highlights again) */
@@ -24,6 +26,8 @@ export function ComplianceOverlay({
   catalog: Catalog | null;
   serverOffsetMs: number;
   onRendered: (alertId: string) => void;
+  /** D-402: active alerts the stack does not show (on the last box shown) */
+  more?: number;
 }) {
   const t = useT();
   const { alert, position, total } = view;
@@ -38,10 +42,7 @@ export function ComplianceOverlay({
       data-testid="host-compliance-overlay" data-fresh={fresh} role="alert"
       aria-live="assertive" aria-label={t("High-risk claim")}>
       <div className={styles.alertTop}>
-        <span className={styles.riskBadge}>
-          <ShieldAlert aria-hidden />
-          {t("HIGH-RISK CLAIM")}
-        </span>
+        <KindLabel law />
         {alert.unverified && (
           <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
             <ShieldQuestionMark aria-hidden />
@@ -56,6 +57,7 @@ export function ComplianceOverlay({
             {t("{a} of {b}", { a: position, b: total })}
           </span>
         )}
+        <AlertMore n={more} />
       </div>
       <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
       <span className={styles.alertSay}>“{alert.say_instead}”</span>

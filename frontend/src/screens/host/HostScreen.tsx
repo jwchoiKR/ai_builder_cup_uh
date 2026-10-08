@@ -10,6 +10,7 @@ import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
   activeLineCheck,
+  alertBlocking,
   redBlocking,
   unansweredCount,
   activePdCard,
@@ -177,6 +178,7 @@ function TopBar({
   );
 }
 
+const MAX_ALERT_BOXES = 2; // D-402: two large boxes still leave the prompter readable
 const SWITCHED_BAR_MS = 8000; // D-349: how long the host sees "Switched to … · Undo"
 const EMBEDDED_MIN_SCALE = 0.7; // D-332: in a Studio pane the text stays readable (cautions about 10.5 px at 1440 px)
 
@@ -217,7 +219,7 @@ export function HostView({
   // D-349: an immediate switch shows "Switched to … · Undo" for a few seconds
   const switched = sw?.last_commit?.immediate && now - sw.last_commit.at < SWITCHED_BAR_MS ? sw.last_commit : null;
   const high = activeHighAlert(state); // D-177: full size until corrected
-  const blocking = redBlocking(state, now); // D-161: cards only after the first 20 s, below the red
+  const blocking = alertBlocking(state, now); // D-161, D-402: cards only after an alert's first 20 s, below it
   const pd = !blocking ? activePdCard(state, clientNow) : null;
 
   useEffect(() => {
@@ -249,27 +251,27 @@ export function HostView({
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
   // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
-  // product box, in this order: HIGH, fact notes, MEDIUM.
+  // product box, in this order: HIGH, fact notes, MEDIUM. D-402 (user): red and orange at the same level: one stack
+  // of same-size boxes, at most MAX_ALERT_BOXES; the last one shown carries "+N", the active alerts not shown.
+  const boxes: { count: number; box: (more: number) => ReactNode }[] = [
+    ...(high ? [{ count: 1, box: (more: number) => (
+      <ComplianceOverlay key={high.alert.alert_id} view={high} fresh={redBlocking(state, now)}
+        catalog={catalog} serverOffsetMs={state.serverOffsetMs} onRendered={actions.rendered} more={more} />
+    ) }] : []),
+    ...facts.map(({ alert: a, count }) => ({ count, box: (more: number) => (
+      <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} count={count} more={more} />
+    ) })),
+    ...mediums.map(({ alert: a, fact, count }) => ({ count, box: (more: number) => (
+      <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered}
+        serverOffsetMs={state.serverOffsetMs} count={count} more={more} />
+    ) })),
+  ];
+  const shown = boxes.slice(0, MAX_ALERT_BOXES);
+  const hidden = boxes.slice(MAX_ALERT_BOXES).reduce((n, b) => n + b.count, 0);
   const prompterAlerts =
-    high || facts.length || mediums.length || lineCheck ? (
+    shown.length || lineCheck ? (
       <>
-        {high && (
-          <ComplianceOverlay
-            key={high.alert.alert_id}
-            view={high}
-            fresh={blocking}
-            catalog={catalog}
-            serverOffsetMs={state.serverOffsetMs}
-            onRendered={actions.rendered}
-          />
-        )}
-        {facts.slice(0, 2).map(({ alert: a, count }) => (
-          <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} count={count} />
-        ))}
-        {mediums.map(({ alert: a, fact, count }) => (
-          <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered}
-            serverOffsetMs={state.serverOffsetMs} count={count} />
-        ))}
+        {shown.map((b, i) => b.box(i === shown.length - 1 ? hidden : 0))}
         {lineCheck && !high && <LineCheckCard key={lineCheck.transcript_id} check={lineCheck} />}
       </>
     ) : null;

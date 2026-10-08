@@ -161,7 +161,6 @@ export function alert(over: Partial<Alert> = {}): Alert {
     resolved_at: null,
     corrected_by_transcript_id: null,
     corrected_text: null,
-    host_hidden_at: null,
     dismissed_reason: null,
     ...over,
   };

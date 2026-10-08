@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { setLang } from "../../app/i18n";
+import { setLang, translate } from "../../app/i18n";
 import { activeLineCheck, LINE_CHECK_MS, RED_BLOCK_MS } from "../../app/selectors";
 import { reduceEvent, reduceSnapshot } from "../../app/state";
 import type { Catalog, StateSnapshot } from "../../app/types";
@@ -242,15 +242,35 @@ describe("fact note", () => {
     const high = alert({ alert_id: "al_000010", span: "erases wrinkles", transcript_id: "tr_high" });
     const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
       transcript_id: "tr_medium" });
-    render(view({ alerts: [medium, { ...fx, transcript_id: "tr_fact" }, high] }));
+    const { rerender } = render(view({ alerts: [medium, { ...fx, transcript_id: "tr_fact" }, high] }));
     const box = screen.getByTestId("host-prompter-alerts");
+    // D-402: at most two boxes; the second carries "+N", the active alerts not shown
     expect([...box.children].map((c) => c.getAttribute("data-testid"))).toEqual([
-      "host-compliance-overlay", "host-fact-note", "host-medium-banner"]);
+      "host-compliance-overlay", "host-fact-note"]);
+    expect(screen.getAllByTestId("host-alert-more")).toHaveLength(1);
+    expect(within(screen.getByTestId("host-fact-note")).getByTestId("host-alert-more")).toHaveTextContent("+1");
+    rerender(view({ alerts: [medium, { ...fx, transcript_id: "tr_fact" }] }));
+    expect([...screen.getByTestId("host-prompter-alerts").children].map((c) => c.getAttribute("data-testid")))
+      .toEqual(["host-fact-note", "host-medium-banner"]);
+    expect(screen.queryByTestId("host-alert-more")).toBeNull();
   });
 
-  it("is hidden after host_hidden_at and when corrected", () => {
-    const { rerender } = render(view({ alerts: [{ ...fx, host_hidden_at: now() }] }));
-    expect(screen.queryByTestId("host-fact-note")).toBeNull();
+  it("D-402: red says Regulation, orange says Product info, in the host's language", () => {
+    const high = alert({ alert_id: "al_000010", span: "erases wrinkles", transcript_id: "tr_high" });
+    const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
+      transcript_id: "tr_medium" });
+    const { rerender } = render(view({ alerts: [high, { ...fx, transcript_id: "tr_fact" }] }));
+    expect(within(screen.getByTestId("host-compliance-overlay")).getByTestId("host-alert-kind")).toHaveTextContent("Regulation");
+    expect(within(screen.getByTestId("host-fact-note")).getByTestId("host-alert-kind")).toHaveTextContent("Product info");
+    rerender(view({ alerts: [medium] }));
+    expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-alert-kind")).toHaveTextContent("Product info");
+    expect(translate("ko", "Regulation")).toBe("법규");
+    expect(translate("ko", "Product info")).toBe("제품 정보");
+  });
+
+  it("stays until corrected (D-402: no hide timer)", () => {
+    const { rerender } = render(view({ alerts: [{ ...fx, created_at: now() - 600_000, shown_at: now() - 600_000 }] }));
+    expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
     rerender(view({ alerts: [{ ...fx, status: "corrected" }] }));
     expect(screen.queryByTestId("host-fact-note")).toBeNull();
   });
@@ -286,7 +306,7 @@ describe("compliance", () => {
     render(view({ alerts: [older, newer] }, acts));
     const overlay = within(screen.getByTestId("host-prompter")).getByTestId("host-compliance-overlay");
     expect(screen.queryByTestId("host-point-cr-p1")).toBeNull(); // the product info gives way, nothing else moves
-    expect(overlay).toHaveTextContent("HIGH-RISK CLAIM");
+    expect(overlay).toHaveTextContent("Regulation");
     expect(overlay).toHaveTextContent("Say this instead.");
     expect(overlay).toHaveTextContent("Helps keep skin hydrated for up to 24 hours in our in-house test.");
     expect(overlay).toHaveTextContent('Heard: "your wrinkles will disappear overnight"');
@@ -669,6 +689,23 @@ describe("AI PD card", () => {
     const again = alert({ alert_id: "al_again", span: "erases wrinkles", created_at: T0 - 1000 });
     render(view({ session: session({ pd_card: card }), alerts: [old, again] }));
     expect(screen.getByTestId("host-compliance-overlay")).toHaveAttribute("data-fresh", "true");
+    expect(screen.queryByTestId("host-pd-card")).toBeNull();
+  });
+
+  it("D-402: an orange alert blocks the card for 20 s like a red, and stays after", () => {
+    const card = pdCard({ card_id: "card_ai_6", status: "active" });
+    const note = alert({ alert_id: "fx_new", kind: "fact", rule_id: null, severity: null, field: "price",
+      stated_value: "S$32", correct_value: "S$36", created_at: T0 - 1000 });
+    const { rerender } = render(view({ session: session({ pd_card: card }), alerts: [note] }));
+    expect(screen.queryByTestId("host-pd-card")).toBeNull();
+    expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("Questions resume after the correction");
+    const old = { ...note, created_at: T0 - RED_BLOCK_MS - 1000, shown_at: T0 - RED_BLOCK_MS - 1000 };
+    rerender(view({ session: session({ pd_card: card }), alerts: [old] }));
+    expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
+    expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
+    const medium = alert({ alert_id: "al_med", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
+      created_at: T0 - 1000 });
+    rerender(view({ session: session({ pd_card: card }), alerts: [medium] }));
     expect(screen.queryByTestId("host-pd-card")).toBeNull();
   });
 

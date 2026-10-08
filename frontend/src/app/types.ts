@@ -151,7 +151,6 @@ export interface Alert {
   resolved_at: number | null;
   corrected_by_transcript_id: string | null;
   corrected_text: string | null;
-  host_hidden_at: number | null;
   dismissed_reason: string | null;
 }
 

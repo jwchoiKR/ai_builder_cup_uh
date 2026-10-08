@@ -14,7 +14,6 @@ const SETTING_DEFAULTS: Record<string, number> = {
   STALE_COMMENT_SEC: 300,
   UNDO_SWITCH_WINDOW_SEC: 60,
   SWITCH_CONSECUTIVE_CUES: 2,
-  FACT_NOTE_HOST_MAX_SEC: 45,
 };
 
 export function setting(state: ClientState, key: keyof typeof SETTING_DEFAULTS): number {
@@ -193,12 +192,11 @@ export function stackAlerts(state: ClientState, now: number): Alert[] {
     });
 }
 
-export type AlertCardState = "active" | "escalated" | "corrected" | "hidden_from_host";
+export type AlertCardState = "active" | "escalated" | "corrected";
 
 export function alertCardState(a: Alert): AlertCardState {
   if (a.status === "corrected") return "corrected";
   if (a.kind === "compliance" && a.escalated_at !== null) return "escalated";
-  if (a.kind === "fact" && a.host_hidden_at !== null) return "hidden_from_host";
   return "active";
 }
 
@@ -221,7 +219,7 @@ export function alertOutcome(a: Alert, t: Translate = EN): string {
     case "dismissed":
       return t("Dismissed");
     case "active":
-      return a.escalated_at !== null || a.host_hidden_at !== null ? t("Not corrected") : t("Active");
+      return a.escalated_at !== null ? t("Not corrected") : t("Active");
     case "cleared":
       return t("Cleared");
     default:

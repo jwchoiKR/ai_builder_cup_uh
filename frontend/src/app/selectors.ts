@@ -266,10 +266,17 @@ export function activeHighAlert(state: ClientState): HighAlertView | null {
   return high.length ? { alert: high[0], position: 1, total: high.length } : null;
 }
 
-/** D-161, D-177: a red alert created less than RED_BLOCK_MS ago (server time): it is highlighted and blocks cards.
- *  The same claim said again is a new alert, so it highlights and blocks again. */
+/** D-177: a red alert created less than RED_BLOCK_MS ago (server time): the red box is highlighted. */
 export function redBlocking(state: ClientState, now: number): boolean {
   return activeComplianceAlerts(state).some((a) => a.severity === "HIGH" && now - a.created_at < RED_BLOCK_MS);
+}
+
+/** D-161, D-177: an alert created less than RED_BLOCK_MS ago (server time) blocks AI PD cards. The same claim said
+ *  again is a new alert, so it blocks again. D-402 (user): every alert, red or orange (a MEDIUM banner or a fact
+ *  note), the same way. Same rule as the server's. */
+export function alertBlocking(state: ClientState, now: number): boolean {
+  return Object.values(state.alerts).some((a) => (a.kind === "compliance" || a.kind === "fact") && a.status === "active"
+    && now - a.created_at < RED_BLOCK_MS);
 }
 
 export function activeMediumAlerts(state: ClientState): Alert[] {
@@ -282,7 +289,7 @@ export function provisionalAlerts(state: ClientState): Alert[] {
 
 export function factNotesForHost(state: ClientState): Alert[] {
   return Object.values(state.alerts)
-    .filter((a) => a.kind === "fact" && a.status === "active" && a.host_hidden_at === null)
+    .filter((a) => a.kind === "fact" && a.status === "active")  // D-402: until corrected or dismissed
     .sort((a, b) => alertTime(b) - alertTime(a));
 }
 

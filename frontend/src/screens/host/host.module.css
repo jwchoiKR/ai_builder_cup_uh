@@ -989,6 +989,12 @@
 .prompterAlerts > * {
   flex: 1 1 auto;
 }
+/* D-402: red and orange at the same level: the alert boxes share the box equally */
+.prompterAlerts > .alertHigh,
+.prompterAlerts > .alertFact,
+.prompterAlerts > .alertMedium {
+  flex-basis: 0;
+}
 .alertBlock {
   display: flex;
   flex-direction: column;
@@ -1023,15 +1029,6 @@
   .alertHighFresh {
     animation: none;
   }
-}
-/* D-115: the fact card keeps the box; the right value is the hero, heard and source are small */
-.alertFact .alertSay {
-  font-size: calc(38px * var(--hs));
-  font-weight: var(--fw-semibold);
-}
-.alertFact .alertSaid,
-.alertFact .alertMeta {
-  font-size: calc(16px * var(--hs));
 }
 /* D-288: a line the judge could not check: neutral, so it never reads as a rule alert */
 .alertCheck {
@@ -1084,6 +1081,18 @@
 .alertCount {
   font-weight: var(--fw-semibold);
   font-size: calc(24px * var(--hs));
+}
+
+/* D-402: "Regulation" on red, "Product info" on orange, large, so colour alone never carries the meaning */
+.kindLabel {
+  display: inline-flex;
+  align-items: center;
+  height: calc(40px * var(--hs));
+  padding: 0 calc(14px * var(--hs));
+  border-radius: var(--radius-chip);
+  border: calc(3px * var(--hs)) solid currentColor;
+  font-size: calc(24px * var(--hs));
+  font-weight: var(--fw-semibold);
 }
 
 .warnBadge {
