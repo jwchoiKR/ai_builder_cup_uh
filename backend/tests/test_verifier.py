@@ -91,7 +91,7 @@ def test_d300_the_flagger_keeps_what_the_guards_dropped_but_not_bad_provenance(c
     for line, correct, verify, alert in (
         ("A comment says the 50 mL is S$20; that mixes up sizes, it's S$24.", "S$24.00", False, False),
         ("A comment says the 50 mL is S$20; that mixes up sizes, it's S$24.", "S$24.00", True, True),
-        ("The 50 mL is S$20.", "S$137.00", True, False),  # a number in no passage of the product
+        ("The 50 mL is S$20.", "S$137.00", True, True),  # D-346: a number in no passage only logs "would drop"
     ):
         out = from_relation(_rel((line, CREAM, "price", "S$20", ["S1"], "contradicts", correct)), index, set())
         got = hard_validate(out, passages, catalog, None, (), {CREAM}, line, fixes, None, verify=verify)
