@@ -2753,3 +2753,8 @@ D-416 (codex review of D-410/D-412; user: "ㄱ"). Fixes to the failure display:
 Tests:
 - test_d412.py: a context-only failure shows; an earlier line's late success does not clear a later failure; busy then timeout on one line gives the same counts and latest cause live and in the snapshot.
 - host.test.tsx: a recovery clears only the named lines; the live state equals the refreshed state.
+
+D-416a (follow-up): D-416 was committed with 9 backend tests failing; this commit fixes them.
+- `line.check` is emitted once per line (the first failure). judge.failed is still emitted once per failed judge.
+- The tests that expected one judge.failed when both split judges fail, or none for a context-only failure, now expect one per failed judge.
+- Backend: 1128 passed.

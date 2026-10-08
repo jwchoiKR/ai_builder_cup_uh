@@ -813,10 +813,12 @@ class UtterancePipeline:
         self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
         event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now}
         self.failures[(t.transcript_id, agent)] = event
+        first = t.transcript_id not in self.unchecked
         self.unchecked[t.transcript_id] = event
         log.info("check failed %s t=%s: %s %s (%s)", rt.sid, t.transcript_id, agent, cause, res.meta.get("failure"))
-        await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
-                                     "cause": cause, "at": now})
+        if first:  # D-416: the line is unchecked once, whichever judges failed on it
+            await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
+                                         "cause": cause, "at": now})
         await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": [],
                                        "agent": agent, "cause": cause, "at": now})
 

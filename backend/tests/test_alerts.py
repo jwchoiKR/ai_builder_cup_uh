@@ -79,9 +79,10 @@ async def test_judge_failure_gives_the_check_card_and_no_alert(env, text):
     llm.fail("utterance_judge", text)
     t = await speak(rt, text)
     assert await rt.alerts() == []
-    [failed] = await events(rt, "judge.failed")
-    assert failed.payload["transcript_id"] == t.transcript_id and failed.payload["alert_ids"] == []
-    [card] = await events(rt, "line.check")
+    failed = await events(rt, "judge.failed")  # D-416: one per failed judge (both split judges fail here)
+    assert {f.payload["agent"] for f in failed} == {"compliance_judge", "context_judge"}
+    assert all(f.payload["transcript_id"] == t.transcript_id and f.payload["alert_ids"] == [] for f in failed)
+    [card] = await events(rt, "line.check")  # the line is unchecked once
     assert card.payload["text"] == text and card.payload["rule_ids"] == []
 
 
