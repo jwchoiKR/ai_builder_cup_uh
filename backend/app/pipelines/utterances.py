@@ -30,8 +30,6 @@ from typing import TYPE_CHECKING
 from ..agents import arms
 from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
 from ..agents.split_judges import ComplianceJudge, ContextJudge
-from ..agents import vote
-from ..agents.verifier import Verifier
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values, say_instead_fallback
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
@@ -154,9 +152,6 @@ class UtterancePipeline:
                                  rt.catalog)  # D-296
         self.compliance.docs = self.facts.files  # D-310: the same documents for COMPLIANCE_DOCS
         self.type_words = self._type_words() if rt.settings.SWITCH_MODE == "immediate" else None  # D-351
-        # D-300 R2: one verifier call per candidate alert, after the flaggers (their code drops off)
-        self.verifier = (Verifier(ctx.llm, ctx.prompts["verifier"], rt.catalog, self.facts.files)
-                         if rt.settings.JUDGE_ARM == "verify" else None)
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
         self._amber: set[str] = set()
@@ -421,11 +416,11 @@ class UtterancePipeline:
                 inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch, inp.promo)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
-                comp_task = rt.spawn(self._vote_compliance(self._verify_compliance(self._once_more(
+                comp_task = rt.spawn(self._once_more(
                     lambda: self.compliance.run(inp, deadline_ms=(rt.settings.VERIFY_TIMEOUT_MS  # D-309: the strong
                                                                   if rt.settings.JUDGE_ARM == "single"  # model's 5 s
                                                                   else rt.settings.JUDGE_TIMEOUT_MS), values=values)),
-                    inp, on_air, t.transcript_id), inp, values), name=f"compliance:{t.transcript_id}")
+                    name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self._context_once_more(inp, values) if self.type_words is not None
                                     else self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values),
                                     name=f"context:{t.transcript_id}")
@@ -592,58 +587,13 @@ class UtterancePipeline:
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS,
                                           all_products=rt.settings.JUDGE_PRODUCTS == "all")
 
-    @contextlib.asynccontextmanager
-    async def _verifying(self, transcript_id: str | None, kind: str):
-        """D-306: the host sees a grey "checking" chip while the verifier works on a line's candidates (no alert yet;
-        a HIGH overlay only after it confirms); the operator's count of verifier calls with no answer, by cause."""
-        rt = self.rt
-        before = dict(self.verifier.failures)
-        async with rt.lock:
-            await rt.emit("verify.started", {"transcript_id": transcript_id, "kind": kind})
-        try:
-            yield
-        finally:
-            async with rt.lock:
-                await rt.emit("verify.done", {"transcript_id": transcript_id, "kind": kind})
-                if self.verifier.failures != before:
-                    await rt.emit("verify.health", self.verify_health())
-
     def verify_health(self) -> dict:
-        """D-306: verifier calls with no answer this show, in total and by failure type."""
-        by = dict(self.verifier.failures) if self.verifier is not None else {}
-        return {"no_answer": sum(by.values()), "by": by}
+        """D-306: the snapshot's verifier block; D-392: the verifier arm is gone, so it is always empty."""
+        return {"no_answer": 0, "by": {}}
 
     def _by_judge(self) -> bool:
         """D-187 arm B, or D-304 VERBAL_CHECK=judge: a spoken answer's numbers and hedges come from the context judge."""
         return arms.meaning_to_llm(self.rt.settings.DESIGN_ARM) or self.rt.settings.VERBAL_CHECK == "judge"
-
-    def _vote_opts(self) -> dict:
-        t = self.rt.settings.VOTE_TEMPERATURE
-        return {"temperature": float(t) if t else None, "hedge": False}
-
-    async def _vote_compliance(self, call, inp: JudgeInput, values: dict):
-        """D-302 vote: a line with a compliance candidate gets two more runs of the judge, in parallel."""
-        res = await call
-        if self.rt.settings.JUDGE_ARM != "vote" or res.status != "ok" or not vote.candidates(res.output, "compliance"):
-            return res
-        start = self.rt.ctx.clock.now_ms()
-        extras = await asyncio.gather(*(self.compliance.run(inp, deadline_ms=self.rt.settings.JUDGE_TIMEOUT_MS,
-                                                            values=values, **self._vote_opts()) for _ in range(2)))
-        res.output = vote.compliance_votes(res.output, list(extras), self.rt.catalog)
-        log.info("vote: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
-        return res
-
-    async def _verify_compliance(self, call, inp: JudgeInput, on_air: str, transcript_id: str | None = None):
-        """D-300 R2: the compliance verdicts, each checked by the verifier (in parallel)."""
-        res = await call
-        if self.verifier is not None and res.status == "ok" and vote.candidates(res.output, "compliance"):
-            start = self.rt.ctx.clock.now_ms()
-            async with self._verifying(transcript_id, "compliance"):
-                res.output = await self.verifier.check_compliance(res.output, inp.utterance,
-                                                                  inp.recent if inp.recent is not None else inp.previous,
-                                                                  on_air, self.rt.sid)
-            log.info("verifier: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
-        return res
 
     async def _context_once_more(self, inp, values):
         """D-351 immediate switch arm (the switch hangs on the context verdict): a failed context call (timeout, error,
@@ -672,8 +622,6 @@ class UtterancePipeline:
 
     async def warm_facts_cache(self, on_air: str) -> None:
         """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
-        if self.verifier is not None:  # D-301: and the verifier's documents cache
-            self.rt.spawn(self.verifier.warm(on_air, self.rt.sid), name=f"verifier-cache:{on_air}")
         if self.compliance.with_docs:  # D-310: and the compliance judge's rules-and-documents cache
             self.rt.spawn(self.compliance.warm(on_air, self.rt.sid), name=f"compliance-cache:{on_air}")
         if self.facts._parts(on_air):
@@ -703,20 +651,6 @@ class UtterancePipeline:
             # D-203: one fresh call with its own deadline; D-388 (user): for every line, not only one with a number
             log.info("fact check %s for %r: once more", res.status, text[:80])
             res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)
-        if self.rt.settings.JUDGE_ARM == "vote" and res.status == "ok" and vote.candidates(res.output, "facts"):
-            start = self.rt.ctx.clock.now_ms()  # D-302: two more runs of the fact check, in parallel
-            extras = await asyncio.gather(*(self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS,
-                                                           **self._vote_opts()) for _ in range(2)))
-            res.output = vote.fact_votes(res.output, list(extras), self.rt.catalog)
-            log.info("vote: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
-        if self.verifier is not None and res.status == "ok" and vote.candidates(res.output, "facts"):
-            start = self.rt.ctx.clock.now_ms()  # D-300 R2
-            async with self._verifying(transcript_id, "fact"):
-                res.output = await self.verifier.check_facts(res.output, text,
-                                                             inp.recent if inp.recent is not None else inp.previous,
-                                                             on_air, [*passages, *self.facts.all_file_passages],
-                                                             self.rt.sid)
-            log.info("verifier: facts added %d ms", self.rt.ctx.clock.now_ms() - start)
         return res
 
     async def _apply_compliance_locked(self, t: Transcript, on_air: str, res: AgentResult, hits,

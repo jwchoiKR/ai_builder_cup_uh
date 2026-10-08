@@ -50,29 +50,19 @@ class Settings(BaseSettings):
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
     # D-309 "single": the compliance judge and the fact checker on one model (SINGLE_MODEL, SINGLE_THINKING; unless
     # COMPLIANCE_MODEL / FACTS_MODEL name another), no verifier, no code drops
-    JUDGE_ARM: Literal["guards", "verify", "vote", "single"] = "single"  # D-305; D-336: the measured config
-    # D-302 vote: two more runs of the agent on a line with a candidate; empty = the model's default temperature
-    # (1.0 on Gemini 3, which Google advises keeping)
-    VOTE_TEMPERATURE: str = ""  # a number, e.g. "0.7"
+    JUDGE_ARM: Literal["guards", "single"] = "single"  # D-305; D-336: the measured config; D-392: no verify or vote
     # D-314 (eval): the live judges' sampling (compliance_judge, fact_checker, context_judge); empty = not sent (the
     # model's default, D-008). JUDGE_TEMPERATURE is a number ("0"), JUDGE_SEED an integer ("7")
     JUDGE_TEMPERATURE: str = ""
     JUDGE_SEED: str = "7"  # D-336: the measured config (a seed removes most run-to-run flips)
     # D-302: "self" adds a confidence (0-1) to each violation and claim, a log field only
     VOTE_CONFIDENCE: Literal["off", "self"] = "off"
-    VERIFY_MODEL: str = "gemini-3.8-flash"
-    VERIFY_THINKING: ThinkingLevel = "LOW"
-    VERIFY_TIMEOUT_MS: int = 5000  # D-306 (was 3000): a slower verifier keeps the alert, "unverified (AI delayed)"
-    # D-301: "all" (the product's documents, cached) or "window" (the cited sentences and two neighbours each side)
-    VERIFY_EVIDENCE: Literal["all", "window"] = "window"  # D-305
+    VERIFY_TIMEOUT_MS: int = 5000  # D-306/D-309: the compliance judge's deadline in the single arm
     # D-303 (STT set): the judges and the verifier are told the line is speech-to-text (missing quote marks,
     # sound-alike names, misheard numbers, sentences in pieces)
     STT_AWARE: bool = False  # D-308: back (STT set: 96.3/11.1/5 with the STT bundle)
     # D-303: the judges read the finals of the last N ms (0 = the last two)
     CONTEXT_WINDOW_MS: int = 0  # D-308: back
-    # D-303: the verifier may answer "check" when the only mismatch is one number speech-to-text may have misheard;
-    # the host sees "check what was said" with the heard words, not a correction
-    NUMBER_CHECK: bool = False  # D-308: back
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
     SWITCH_ARM_NAME: bool = False  # D-353; True: a code name match must arm a two-step switch

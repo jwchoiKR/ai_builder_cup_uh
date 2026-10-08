@@ -464,10 +464,8 @@ def write_usage_report(path: str) -> None:
 
 
 # D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
-# D-301: "verifier" only when HEDGED_AGENTS names it (not in the default list)
 SAMPLED_AGENTS = frozenset({"compliance_judge", "fact_checker", "context_judge"})  # D-314
-HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker",
-                           "verifier"})
+HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker"})
 
 
 @dataclass(frozen=True)
@@ -506,8 +504,6 @@ class LLMClient:
                                facts_thinking if single else settings.FACTS_THINKING)  # D-246; D-309
         self.triage = ModelSpec(settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
         self.brief = ModelSpec(settings.BRIEF_MODEL or settings.LLM_QUALITY_MODEL, settings.BRIEF_THINKING)  # D-265
-        self.verify = ModelSpec(getattr(settings, "VERIFY_MODEL", settings.LLM_QUALITY_MODEL),
-                                getattr(settings, "VERIFY_THINKING", "LOW"))  # D-300
         self.warmup_status: dict[str, str] = {}
         # D-184: per agent, calls that sent a second request, and how many of those the second one answered
         self.hedges: dict[str, dict[str, int]] = {}

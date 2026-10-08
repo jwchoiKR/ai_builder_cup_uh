@@ -9,22 +9,6 @@ from .judge_fakes import close_env, events, make_env, speak, violation
 from .test_relation import _RelationBackend
 
 
-async def test_d305_a_compliance_alert_goes_through_the_verifier():
-    rt, llm = await make_env(**VERIFY_SHIPPED)
-    try:
-        line = "This cream cures eczema, honestly."
-        llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
-        await speak(rt, line)
-        await rt.utterances.drain()
-        [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
-        assert (a.status, a.severity, a.unverified) == ("active", "HIGH", False)
-        assert ("verifier", f"{line}|cures eczema") in llm.calls
-        # D-353: no regex chip by default; the alert is created once the judges confirm it
-        assert [e.payload["status"] for e in await events(rt, "alert.created")] == ["active"]
-    finally:
-        await close_env(rt)
-
-
 async def test_d305_a_fact_alert_from_the_relation_arm():
     from .helpers import live_runtime, make_ctx
 
