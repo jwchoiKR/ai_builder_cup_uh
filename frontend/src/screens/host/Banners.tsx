@@ -129,7 +129,8 @@ export function MediumBanner({
         </span>
         {fact && (
           <span className={styles.factValues} data-testid="host-medium-fact">
-            <span className={styles.factRight}>○ {fact.correct_value}</span>
+            {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
+            <span className={styles.factRight}>○ {fact.say ?? fact.correct_value}</span>
             <span className={styles.factWrong}>{t("(not {value})", { value: fact.stated_value ?? "" })}</span>
           </span>
         )}

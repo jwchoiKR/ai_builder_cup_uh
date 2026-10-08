@@ -131,13 +131,13 @@ async def test_s07_split_mid_claim_gives_exactly_one_alert(env, fragment_flagged
     rt, llm = env
     if fragment_flagged:
         llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
-    # D-397: the merged line's verdict replaces the fragment's alert (same rule: the same alert id, no flicker)
+    # D-397/D-401: the merged line's verdict replaces the fragment's alert (a new alert; the old one is cleared)
     llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
     a, b = await split(rt, S07_A, S07_B)
-    [alert] = compliance(await rt.alerts())
-    assert alert.status == "active" and alert.rule_id == "ASEAN-3-SKIN-AGEING"
+    [alert] = [x for x in compliance(await rt.alerts()) if x.status == "active"]
+    assert alert.rule_id == "ASEAN-3-SKIN-AGEING"
     assert alert.transcript_id == b.transcript_id and alert.span == "your wrinkles will disappear overnight"
-    assert len(await events(rt, "alert.created")) == 1
+    assert len(await events(rt, "alert.created")) == (2 if fragment_flagged else 1)
 
 
 async def test_s12_split_counts_the_switch_cue_once(env):
@@ -178,12 +178,13 @@ async def test_price_split_gives_one_fact_alert(env, fragment_contradicted):
         llm.facts(PRICE_A, price_contradiction("S$32"))
     llm.facts(PRICE, price_contradiction("S$32"))
     a, b = await split(rt, PRICE_A, PRICE_B)
-    [note] = [x for x in await rt.alerts() if x.kind == "fact"]
-    assert note.status == "active" and note.field == "price"
-    assert note.transcript_id == b.transcript_id  # D-374: a re-show carries the line that showed it last
-    assert len(await events(rt, "alert.created")) == 1
-    if fragment_contradicted:  # D-374: the merged verdict re-shows the same note (no merge protection), one note
-        assert [e for e in await events(rt, "alert.updated") if e.payload["alert_id"] == note.alert_id]
+    # D-401: the merged verdict's note is new; the fragment's is cleared (no id reuse, a short flicker)
+    [note] = [x for x in await rt.alerts() if x.kind == "fact" and x.status == "active"]
+    assert note.field == "price" and note.transcript_id == b.transcript_id
+    assert len(await events(rt, "alert.created")) == (2 if fragment_contradicted else 1)
+    if fragment_contradicted:
+        [old] = [x for x in await rt.alerts() if x.kind == "fact" and x.transcript_id == a.transcript_id]
+        assert old.status == "cleared"
 
 
 # ---- rule 4: a merged judgment never clears its fragment's alert ------------------------------------
@@ -303,3 +304,75 @@ async def test_d397_a_fragment_verdict_that_lands_after_the_merged_one_is_not_ap
     await rt.ctx.scheduler.idle()
     assert [a.span for a in compliance(await rt.alerts()) if a.status == "active"] == [
         "your wrinkles will disappear overnight"]
+
+
+# ---- D-401: codex review of the merge supersede -----------------------------------------------------
+
+
+async def _late(rt, first: str, second: str) -> None:
+    """The fragment's checks are slow; the merged line is checked first."""
+    import asyncio
+
+    await rt.inject_transcript(first)
+    await advance(rt, 1200)
+    await rt.inject_transcript(second)
+    await rt.utterances.drain()
+    await asyncio.sleep(0.5)
+    await rt.ctx.scheduler.idle()
+
+
+async def test_d401_a_failed_merged_verdict_does_not_block_the_fragment_s(env):
+    rt, llm = env
+    llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
+    llm.delays[("compliance_judge", S07_A)] = 0.4
+    llm.fail("compliance_judge", S07)
+    await _late(rt, S07_A, S07_B)
+    assert [a.span for a in compliance(await rt.alerts()) if a.status == "active"] == ["your wrinkles"]
+
+
+async def test_d401_two_claims_of_one_rule_from_a_merge_are_corrected_one_at_a_time(env):
+    rt, llm = env
+    llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
+    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles"),
+                               violation("ASEAN-3-SKIN-AGEING", "disappear overnight")])
+    a, b = await split(rt, S07_A, S07_B)
+    active = [x for x in compliance(await rt.alerts()) if x.status == "active"]
+    assert sorted(x.span for x in active) == ["disappear overnight", "your wrinkles"]
+    assert all(x.transcript_id == b.transcript_id for x in active)  # the merged line's own alerts, none reused
+    first = next(x for x in active if x.span == "your wrinkles")
+    await advance(rt, 5000)
+    fix = "Sorry, I take back the wrinkles part."
+    llm.judge(fix, corrects=[first.alert_id], utterance_type="correction")
+    await speak(rt, fix)
+    status = {x.alert_id: x.status for x in compliance(await rt.alerts())}
+    assert [status[x.alert_id] for x in active if x is not first] == ["active"] and status[first.alert_id] == "corrected"
+
+
+async def test_d401_an_alert_dismissed_while_the_merged_check_runs_does_not_come_back(env):
+    import asyncio
+
+    from app.pipelines.utterances import dismiss_alert
+
+    rt, llm = env
+    llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
+    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
+    llm.delays[("compliance_judge", S07)] = 0.4  # the merged check is out
+    await speak(rt, S07_A)
+    [frag] = compliance(await rt.alerts())
+    await advance(rt, 1200)
+    await rt.inject_transcript(S07_B)
+    await asyncio.sleep(0.1)
+    await dismiss_alert(rt, frag.alert_id)  # the operator dismisses it meanwhile
+    await rt.utterances.drain()
+    await asyncio.sleep(0.5)
+    await rt.ctx.scheduler.idle()
+    assert [x for x in compliance(await rt.alerts()) if x.status == "active"] == []
+
+
+async def test_d401_a_merged_fix_only_verdict_leaves_the_fragment_s_note_corrected(env):
+    rt, llm = env
+    llm.facts(PRICE_A, price_contradiction("S$32"))
+    llm.facts(PRICE, fixed=["F1"])  # the whole sentence: no contradiction, and it fixes the fragment's note
+    a, b = await split(rt, PRICE_A, PRICE_B)
+    [note] = [x for x in await rt.alerts() if x.kind == "fact"]
+    assert note.status == "corrected"
