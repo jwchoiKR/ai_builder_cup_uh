@@ -144,7 +144,7 @@ async def test_d400_a_document_citation_is_red_and_a_correction_goes_by_handle(t
         await close_env(rt)
 
 
-def test_d358_a_test_qualifier_verdict_is_checked_against_the_recorded_results(catalog):
+def test_d414_a_test_qualifier_verdict_keeps_the_model_s_say_instead(catalog):
     from app.agents.utterance_judge import validate_original
     from app.models.agent_io import ComplianceOutputO
 
@@ -154,16 +154,15 @@ def test_d358_a_test_qualifier_verdict_is_checked_against_the_recorded_results(c
     def run(rid, quote):
         out = ComplianceOutputO.model_validate({"compliance": {"violations": [{
             "citation": "TEST-QUALIFIER", "quote": quote, "span": "s", "severity": "MEDIUM", "is_negated": False,
-            "is_quoted": False, "say_instead": "x", "qualified_result_id": rid}]},
+            "is_quoted": False, "say_instead": "x", "qualified_result_id": rid}]},  # an old field: ignored
             "correction": {"corrects_alert_ids": []}, "reason": "r"})
         values = {"current_product_json": {"product_id": product.product_id}, "active_alerts_json": []}
         return validate_original(out, catalog, values, ()).compliance.violations
 
-    [v] = run(result.result_id, "anything")
-    assert (v.rule_id, v.say_instead) == ("TEST-QUALIFIER", result.say)
-    # D-374: an unknown or missing result id keeps the verdict with the model's own say_instead
-    assert [(x.rule_id, x.say_instead) for x in run(None, result.say)] == [("TEST-QUALIFIER", "x")]
-    assert [(x.rule_id, x.say_instead) for x in run("no-such-result", "anything")] == [("TEST-QUALIFIER", "x")]
+    # D-414 (user): the model's own say_instead, whatever it sends; no recorded wording put in by code
+    for rid in (result.result_id, None, "no-such-result"):
+        assert [(x.rule_id, x.say_instead) for x in run(rid, "anything")] == [("TEST-QUALIFIER", "x")]
+    assert "qualified_result_id" not in ComplianceOutputO.model_json_schema()["$defs"]["ViolationO"]["properties"]
 
 
 async def test_d358_a_rule_source_with_no_original_is_reported(caplog):
