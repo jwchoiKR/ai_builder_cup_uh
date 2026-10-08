@@ -774,7 +774,9 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
         c._attributed = getattr(r, "attributed", "host")  # D-328
         c._cited = list(dict.fromkeys(q.passage_id for q, _ in ev))  # D-372: prompter items it ticks
         if verdict == "contradicted" and not ev and not set(r.evidence) & terms:
-            _drop(c, f"relation: no valid evidence id ({', '.join(r.evidence) or 'none'})")
+            # D-374: applied as given (no evidence passage, so no quote); logged only
+            log.info("fact claim with no valid evidence id (%s): applied as given | field=%s stated=%r correct=%r",
+                     ", ".join(r.evidence) or "none", r.field, r.stated_value, r.correct_value)
         elif r.relation == "uncertain":
             log.info("fact relation uncertain | field=%s stated=%r source=%r evidence=%s", r.field, r.stated_value,
                      getattr(r, "source_value", None), r.evidence)
@@ -826,30 +828,17 @@ def hard_validate(out: FactCheckOutput, passages: Sequence[Passage], catalog: Ca
     lex = catalog.lexicon
     for c in o.claims:
         if not catalog.is_product(c.product_id) and not (c.field in PRICE_FIELDS and c.product_id in set_ids):
+            if c.verdict != "not_in_sources":  # D-374: the one verdict that cannot be applied
+                log.info("fact claim skipped (cannot apply): product %r is not in the show | field=%s stated=%r",
+                         c.product_id, c.field, c.stated_value)
             c.verdict = "not_in_sources"
             continue
         if c.verdict != "contradicted":
             continue
-        right = _numbers(lex, c.correct_value)
         if verify:
-            # D-300 R2: provenance only (the evidence exists, it is no claim-wording passage); the model decides the
-            # rest. D-346: the number checks below only log what they would have dropped
-            p = by_id.get(c.passage_id) if c.passage_id else None
-            if c.passage_id is None:
-                ok = ((promo is not None and promo.changes_prices and c.field in PRICE_FIELDS
-                       and (c.correct_value == catalog.price_display(c.product_id, promo) or _promo_term(c, promo)))
-                      or (c.field == "promo" and any(_offer_threshold(c, x) for x in offers)))
-                if not ok:
-                    _would_drop(c, "relation: not a term of the active promo or offer")
-            elif p is None:
-                _drop(c, "relation: unknown evidence")
-            elif p.section == CLAIMS_SECTION:
-                # D-338 (review H3/H4): the approved and not-approved claim lists are wording rules, which the
-                # compliance judge applies; they are no source of a fact correction
-                _drop(c, "provenance: an approved-claims passage (claim wording is compliance's)")
-            elif right and not right <= _product_numbers(lex, catalog, c.product_id, passages):
-                _would_drop(c, "provenance: a number of the correction is in no passage of the product")
+            # D-374 (user, 10/9): the model's verdict as given: no evidence, approved-claims (D-338) or number check
             continue
+        right = _numbers(lex, c.correct_value)
         if utterance and "Q2" in fixes and _quoted_then_corrected(catalog.pack.rules.quote_cues, utterance,
                                                                   _numbers(lex, c.stated_value), right):
             _drop(c, "Q2: the line quotes the value and states the right one")

@@ -424,42 +424,42 @@ def _check_correction_ids(o, values: dict):
 
 
 def validate_original(o, catalog: Catalog, values: dict, originals):
-    """D-358: a verdict cited from the regulation originals (no rule JSON). Provenance only, as the user approved:
-    the cited document is one the judge was given and the quote is in its text (or, for TEST-QUALIFIER, the result is
-    one of the products' recorded test results); the alert's rule id is the normalised citation. The severity is
-    the model's. Anything else is dropped with its reason in the log."""
-    from .originals import citation_rule_id, squash
+    """D-358: a verdict cited from the regulation originals (no rule JSON). D-374 (user, 10/9): the model's verdict is
+    applied as given: no check of the quote's wording or of the cited document (both are shown as the model wrote
+    them, as its citation and summary); the alert's rule id is the document and the section, normalised, for
+    duplicate suppression only. The severity is the model's. TEST-QUALIFIER takes the recorded result's wording by
+    `qualified_result_id`, else keeps the model's. Only a verdict that cannot be applied is skipped and logged: a
+    product id that is not in the show."""
+    from .originals import citation_rule_id
 
     by_name = {d.name.casefold(): d for d in originals}
     results = {r.result_id: r for p in catalog.products for r in p.qualified_results}
-    on_air_id = (values.get("current_product_json") or {}).get("product_id")
-    on_air_product = catalog.get_product(on_air_id) if catalog.is_product(on_air_id) else None
     scope = values.get("scope_product_ids")  # D-349: two products in scope right after a switch
     kept = []
     for v in o.compliance.violations:
-        product = on_air_product
-        if scope:
-            if getattr(v, "product_id", None) not in scope:
-                v.product_id = on_air_id
-            product = catalog.get_product(v.product_id)
-        cite, quote = (v.citation or "").strip(), squash(v.quote or "")
+        if scope and getattr(v, "product_id", None) not in scope:
+            if catalog.is_product(getattr(v, "product_id", None)):
+                log.info("compliance verdict on %s, outside the line's scope %s: applied as given", v.product_id,
+                         sorted(scope))
+            else:
+                log.info("compliance verdict skipped (cannot apply): product %r is not in the show | span=%r",
+                         getattr(v, "product_id", None), v.span)
+                continue
+        cite = (v.citation or "").strip()
         if cite.upper() == qualifier.RULE_ID:
-            # D-361: the recorded result named by id (provenance), its wording the say_instead; no text matching
+            # D-361: the recorded result named by id, its wording the say_instead; no text matching
             r = results.get(getattr(v, "qualified_result_id", None))
             if r is None:
-                _cdrop(v, "provenance: a TEST-QUALIFIER verdict that names no recorded test result by id")
-                continue
-            v.rule_id, v.say_instead = qualifier.RULE_ID, r.say
+                log.info("compliance TEST-QUALIFIER verdict names no recorded result (%r): the model's say_instead "
+                         "stays | span=%r", getattr(v, "qualified_result_id", None), v.span)
+            v.rule_id, v.say_instead = qualifier.RULE_ID, (r.say if r is not None else v.say_instead)
         else:
             doc, _, section = cite.partition("#")
             d = by_name.get(doc.strip().casefold())
             if d is None:
-                _cdrop(v, f"provenance: the citation names no regulation document given to the judge ({cite!r})")
-                continue
-            if not quote or quote not in squash(d.text):
-                _cdrop(v, f"provenance: the quote is not in {d.name} ({(v.quote or '')[:80]!r})")
-                continue
-            v.rule_id = citation_rule_id(d.name, section or "document")
+                log.info("compliance verdict cites a document the judge was not given (%r): applied as given", cite)
+            v.rule_id = citation_rule_id(d.name if d is not None else doc.strip() or "regulation",
+                                         section or "document")
             # D-361: the model's own say_instead (the prompt builds it from APPROVED_CLAIMS); no code word matching
         kept.append(v)
     o.compliance.violations = kept
@@ -470,15 +470,21 @@ def validate_context(o, catalog: Catalog, values: dict):
     """In place, on any output with `answer` and `prompter`: drop group, point and cue ids that were
     not in the input, and an unknown switch target."""
     group_ids = {q["group_id"] for q in values["open_questions_json"]}
+    point_ids = {p["point_id"] for p in values["prompter_points_json"]}
+    cue_ids = {c["cue_id"] for c in values["host_cues_json"]}
+    unknown = ([o.answer.matched_group_id] if o.answer.matched_group_id not in group_ids | {None} else []) + [
+        x for x in [*o.prompter.covered_point_ids, *o.prompter.covered_cue_ids] if x not in point_ids | cue_ids]
+    if unknown or not (o.prompter.switch.target_product_id is None
+                       or catalog.is_product(o.prompter.switch.target_product_id)):
+        log.info("context ids skipped (cannot apply, not in the input): %s target=%r", unknown,  # D-374
+                 o.prompter.switch.target_product_id)
     if o.answer.matched_group_id is not None and o.answer.matched_group_id not in group_ids:
         o.answer.matched_group_id = None
         o.answer.is_answer = o.answer.consistent_with_suggested = False
     o.answer.also_answered_group_ids = (
         [g for g in dict.fromkeys(o.answer.also_answered_group_ids) if g in group_ids and g != o.answer.matched_group_id]
         if o.answer.matched_group_id is not None and o.answer.is_answer else [])
-    point_ids = {p["point_id"] for p in values["prompter_points_json"]}
     o.prompter.covered_point_ids = [p for p in dict.fromkeys(o.prompter.covered_point_ids) if p in point_ids]
-    cue_ids = {c["cue_id"] for c in values["host_cues_json"]}
     o.prompter.covered_cue_ids = [c for c in o.prompter.covered_cue_ids if c in cue_ids]
     if not catalog.is_product(o.prompter.switch.target_product_id):
         o.prompter.switch.target_product_id = None

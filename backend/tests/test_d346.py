@@ -79,9 +79,9 @@ async def _run(tmp_path, cite):
         await close_env(rt)
 
 
-async def test_d346_the_record_s_not_approved_sentence_gives_no_fact_alert(tmp_path):
+async def test_d374_the_record_s_not_approved_sentence_keeps_the_fact_alert(tmp_path):
     kinds, cited = await _run(tmp_path, "Claims not approved: Cures eczema.")
-    assert cited and kinds == ["compliance"]  # D-338: the claims section is no fact source
+    assert cited and sorted(kinds) == ["compliance", "fact"]  # D-374: the model's verdict, no D-338 drop
 
 
 @pytest.mark.xfail(strict=True, reason="D-346 finding: a NOT APPROVED line in a release file ('Source file' section) "

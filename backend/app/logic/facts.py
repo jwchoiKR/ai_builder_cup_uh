@@ -28,10 +28,8 @@ def apply_fact_check(
     protected: Collection[str] = (),
 ) -> tuple[list[Alert], list[Alert]]:
     """Returns (created, re-shown). One active note per subject (product, field, passage). D-363: corrections are
-    the model's, by handle (`correct_notes`).
-
-    `protected`: transcript ids whose words are part of this (merged) utterance (D-088). Their
-    active notes are the same claim heard again, so they are neither re-shown nor corrected."""
+    the model's, by handle (`correct_notes`). D-374: `protected` (a merged utterance's own fragments) no longer holds
+    back a re-show; the argument stays for callers."""
     active = {subject_key(a.product_id, a.field, a.passage_id): a for a in active_fact_alerts(alerts)}
     created: list[Alert] = []
     reshown: list[Alert] = []
@@ -41,8 +39,6 @@ def apply_fact_check(
             continue
         key = subject_key(c.product_id, c.field, c.passage_id)
         a = active.get(key)
-        if a is not None and a.transcript_id in protected:
-            continue
         if a is not None:
             a.stated_value, a.correct_value = c.stated_value, c.correct_value or a.correct_value
             a.passage_id, a.quote, a.span = c.passage_id, c.quote, c.span  # D-365: the words of this showing
@@ -63,11 +59,11 @@ def apply_fact_check(
 
 def correct_notes(note_ids, alerts: Sequence[Alert], t: Transcript, now: int,
                   fresh: Collection[str] = ()) -> list[Alert]:
-    """D-363: the active fact notes the model marked fixed by this line (by handle, mapped to ids); a note raised or
-    re-shown by this same line is not corrected by it."""
+    """D-363: the active fact notes the model marked fixed by this line (by handle, mapped to ids). D-374: as given,
+    also a note this same line raised or re-showed (`fresh` stays for callers)."""
     corrected = []
     for a in alerts:
-        if a.kind == "fact" and a.status == "active" and a.alert_id in note_ids and a.alert_id not in fresh:
+        if a.kind == "fact" and a.status == "active" and a.alert_id in note_ids:
             a.status, a.resolved_at = "corrected", now
             a.corrected_by_transcript_id, a.corrected_text = t.transcript_id, t.text
             corrected.append(a)

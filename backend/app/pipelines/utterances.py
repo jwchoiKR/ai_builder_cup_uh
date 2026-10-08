@@ -198,7 +198,6 @@ class UtterancePipeline:
         self._consistent: dict[int, list] = {}  # D-330: line number -> its consistent claims (retire a held alert)
         self._prepared: dict[str, tuple[Transcript, str, Merge | None]] = {}
         self._applied: set[tuple[str, str]] = set()
-        self._fact_sequence: dict[tuple[str, str], tuple[int, str, str]] = {}
         self._segment_generation = 0
         self._generations: dict[str, int] = {}
         self._segments: dict[str, str] = {}
@@ -1222,25 +1221,8 @@ class UtterancePipeline:
         for c in facts.claims:  # D-158: the only trace of a cloud replay (no session data is kept)
             log.info("facts %s t=%s: %s %s said=%r verdict=%s correct=%r", rt.sid, t.transcript_id, c.product_id,
                      c.field, c.stated_value, c.verdict, c.correct_value)
-        seq = self._sequence.get(t.transcript_id, 0)
-        claims = []
-        for claim in facts.claims:
-            # D-117 B3: ordered per subject; a claim without a passage also counts for the whole field
-            key = fact_logic.subject_key(claim.product_id, claim.field, claim.passage_id)
-            wide = fact_logic.subject_key(claim.product_id, claim.field, "*")
-            seen = [x for x in (self._fact_sequence.get(key), self._fact_sequence.get(wide)) if x is not None]
-            latest = max(seen, key=lambda x: x[0]) if seen else None
-            if latest is not None and seq < latest[0]:
-                newer = self._judged.get(latest[1])
-                if not (latest[2] == "supported" and newer is not None
-                        and t.transcript_id in newer.chain):
-                    continue
-            if claim.verdict in ("supported", "contradicted"):
-                if latest is None or seq >= latest[0]:
-                    self._fact_sequence[key] = (seq, t.transcript_id, claim.verdict)
-                    if claim.passage_id is None:
-                        self._fact_sequence[wide] = (seq, t.transcript_id, claim.verdict)
-            claims.append(claim)
+        # D-374 (user, 10/9): every claim of the verdict is applied as given (no D-117 per-subject ordering drop)
+        claims = list(facts.claims)
         if rt.settings.REPORTED_HOLD:
             seq = self._sequence.get(t.transcript_id, 0)
             stances = list(getattr(facts, "_previous_line", []))
@@ -1266,8 +1248,7 @@ class UtterancePipeline:
                 await self._hold_reported_locked(t, held, protected)
         fresh = await self._fact_alerts_locked(t, claims, protected)
         await self._correct_fact_notes_locked(t, getattr(facts, "_corrects", []), fresh)
-        # D-373: ticks from every supported claim of the line; the per-subject recency filter above is for alerts only
-        await self._tick_prompter_locked(t, facts.claims)
+        await self._tick_prompter_locked(t, facts.claims)  # D-373: every supported claim of the line
 
     async def _hold_reported_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
         """D-328: a contradiction in someone else's words (a viewer quoted, a co-host's question) is not shown yet:

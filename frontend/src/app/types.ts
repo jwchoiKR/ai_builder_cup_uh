@@ -140,7 +140,8 @@ export interface Alert {
   stated_value: string | null;
   correct_value: string | null;
   passage_id: string | null;
-  quote: string | null;
+  quote: string | null; // D-374: on a compliance alert, the model's summary of the cited section (not verbatim)
+  citation?: string | null; // D-374: compliance, the model's citation ("<document>#<section>")
   created_at: number;
   provisional_at: number | null;
   shown_at: number | null;

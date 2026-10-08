@@ -226,6 +226,15 @@ describe("Operator screen", () => {
     expect(screen.getByText(/BROADCAST WORKSPACE/)).toBeInTheDocument();
   });
 
+  it("D-374: shows the model's citation and summary, labelled as the AI's", async () => {
+    snap = snapshot({ alerts: [alert({ citation: "guideline.pdf#3", quote: "Removes wrinkles or reverses skin ageing." })] });
+    render(<Operator sessionId="ses_op_citation" />);
+    const card = await screen.findByTestId("op-alert-al_000001");
+    expect(within(card).getByTestId("op-alert-citation")).toHaveTextContent("AI citation: guideline.pdf#3");
+    expect(within(card).getByTestId("op-alert-summary")).toHaveTextContent(
+      "AI summary: Removes wrinkles or reverses skin ageing.");
+  });
+
   it("requires Post anyway for a restricted phrase", async () => {
     const g = group({ group_id: "grp_ship", intent: "shipping", product_id: null, status: "needs_review", route: "OPERATOR", canonical_question: "Do you ship to Malaysia?", member_comment_ids: ["cm_9"] });
     snap = snapshot({ groups: [g], comments: [comment({ comment_id: "cm_9", group_id: "grp_ship", text: "Do you ship to Malaysia?", author_name: "Kumar" })] });

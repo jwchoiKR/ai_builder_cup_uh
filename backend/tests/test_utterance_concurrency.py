@@ -110,7 +110,8 @@ async def test_late_context_cannot_change_new_segment(env):
     assert (await rt.load_session()).switch.status == 'idle'
 
 
-async def test_new_supported_fact_prevents_old_note(env):
+async def test_d374_an_older_line_s_late_contradiction_is_applied_as_given(env):
+    """D-117 dropped an older line's contradiction once a newer line was judged supported; D-374: no ordering drop."""
     rt, llm = env
     first, second = 'A former price.', 'A corrected price.'
     llm.facts(first, price_contradiction())
@@ -125,7 +126,7 @@ async def test_new_supported_fact_prevents_old_note(env):
     await wait_for(applied)
     gate.set()
     await rt.utterances.drain()
-    assert not [a for a in await rt.alerts() if a.kind == 'fact']
+    assert [a.status for a in await rt.alerts() if a.kind == 'fact'] == ['active']
 
 
 async def test_merged_supported_fact_does_not_erase_delayed_fragment(env):
