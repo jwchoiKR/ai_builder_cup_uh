@@ -13,6 +13,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Never commit `.env` or keys. Run a key-pattern scan of the diff from origin before every push, and push only when it finds nothing. Never force-push.
 - Never edit agent permission or config files. Do not touch the user's Chrome.
 - Call peers with explicit models: `codex exec -m gpt-6-astra -c model_reasoning_effort=high`, `agy --model gemini-3.8-flash-high`.
+- Hard gate (user, 10/8, after repeated misses): no plan, design, prompt or test plan goes to dev until GPT, Gemini and the Sonnet critic have answered on it. Build exactly the user's spec: add no scenarios of your own, and do not restate a user rule with an exception. Check the user's earlier instructions before changing a feature. Test every feature in a normal show flow before tuning.
 - At every plan, test, result and logic review, write the judge's view: what an AI Builder Cup judge would criticize and what change raises the score.
 - The goal is a general platform: 100% on any unseen product. No product-specific prompts, few-shots, heuristics or rule carve-outs; products enter only via onboarding; pass/fail on a sealed pool of other products.
 - Manual steps are design flaws: never ask a customer to match a template; absorb any document format; humans only approve.
@@ -23,7 +24,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 ## Quirks
 
 - STT chirp_3 works only in region `us` (403 in Asia). Gemini 3.5 Flash-Lite and 3.8 Flash work only on the global endpoint.
-- Cloud Run runs `STORE=memory` with max-instances 1. Firestore `live-studio` is empty, so read past shows from Cloud Logging.
+- Cloud Run runs max-instances 1. From D-369 the deploy script sets `STORE=firestore` (database `live-studio`, created 10/9 in ai-budiler-cup-uh-team-pjt, us-central1). Show data (sessions, transcripts, alerts, events, segments, agent calls) is written there; revision 00007 still ran `STORE=memory` because it was deployed before D-369.
 - Gemini 3 context caching needs a prefix of 4,096 tokens or more. Only the fact checker benefits today.
 - Korean output from Python on this Windows machine needs `PYTHONIOENCODING=utf-8`.
 - Writing eval or corpus task text through bash `python -c "..."` or an unquoted heredoc expands `$80` to empty ("S$80" became "S0" in sealed pool 3). Use the Write tool or `<<'EOF'`.
@@ -46,7 +47,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 
 - **Cloud:** `live-studio-us` revision 00003 runs fd62170 (D-308). The verifier arm is on (`JUDGE_ARM=verify`, 3.8 Flash on cited sentences, 5 s, "확인 중" chip, "미확인 (AI 응답 지연)" label). The other meaning-rule switches are back on their code defaults until each one wins an on/off test. Smoke-tested 10/6. The eval VM `live-studio-eval` now lives in ai-budiler-cup-uh-team-pjt (its SA has speech.client). The separk-cloocus leftovers are not deleted yet.
 - **User rules added 10/6-7:**
-  - Meaning judgments go to models; code only checks provenance.
+  - Meaning judgments go to models. Code does not verify values either (user, 10/8). The user approved only this plumbing: the cited evidence id exists, the quote is built from it, the product id is known, and no approved-claims passage is used as a correction source (D-338). Ask the user before adding any other code check.
   - Alert latency (line end to shown) p95 ≤ 5 s is a pass line, next to detection 95%+, false alerts below 1% and wrong HIGH 0, per product.
   - When a test misses a pass line, stop: explain the cause, then design the fix WITH the user before asking dev.
   - Comments and pre-broadcast (onboarding) now belong to other people; this session and dev touch only the live path (STT, judges, display, latency).
