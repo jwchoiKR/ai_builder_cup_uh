@@ -10,7 +10,8 @@ from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_file, quote_in_passage
-from ..models.agent_io import FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC, FactRelationOutputV2
+from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC,
+                               FactRelationOutputH, FactRelationOutputV2)
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -750,6 +751,7 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                       correct_value=r.correct_value, passage_id=p.passage_id if p else None,
                       quote=" ".join(t for q, t in ev if q.passage_id == p.passage_id) if p else None)
         c._evidence = [i for i in r.evidence if i in index or i in terms]  # D-302: carried to the alert
+        c._attributed = getattr(r, "attributed", "host")  # D-328
         if verdict == "contradicted" and not ev and not set(r.evidence) & terms:
             _drop(c, f"relation: no valid evidence id ({', '.join(r.evidence) or 'none'})")
         elif r.relation == "uncertain":
@@ -760,7 +762,9 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                              "correct": r.correct_value, "passage_id": c.passage_id, "quote": c.quote}
                             | ({"source": r.source_value} if hasattr(r, "source_value") else {}))  # D-312
         claims.append(c)
-    return FactCheckOutput(claims=claims, reason="relation")
+    result = FactCheckOutput(claims=claims, reason="relation")
+    result._previous_line = getattr(out, "previous_line", "unrelated")  # D-328
+    return result
 
 
 def _numbers(lex, t: str | None) -> set[str]:
@@ -875,6 +879,8 @@ class FactChecker:
         self.relation_model = FactRelationOutputC if self.confidence else FactRelationOutput
         if getattr(settings, "FACT_PROMPT", "v1") in ("v2", "v3", "v4"):  # D-312, D-313, D-325: source_value before relation (no confidence field)
             self.relation_model = FactRelationOutputV2
+            if getattr(settings, "REPORTED_HOLD", False):  # D-328: whose words, and the previous line's fate
+                self.relation_model = FactRelationOutputH
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]
@@ -883,6 +889,8 @@ class FactChecker:
         extras += [fix_addenda.get((f, self.name)) for f in sorted(self.fixes)]
         if self.confidence:  # D-302
             extras.append(arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)))
+        if self.relation_model is FactRelationOutputH:  # D-328
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("HOLD", self.name)))
         if getattr(settings, "STT_AWARE", False):  # D-303
             extras.append(arms._addenda(str(llm.prompts_path)).get(("STT", self.name)))
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])

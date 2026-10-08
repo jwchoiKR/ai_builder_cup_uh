@@ -188,6 +188,31 @@ D-312: speech-to-text may spell a tester, laboratory or test name as a sound-ali
 Labs"). A line that names the tester of a result in such a spelling states its qualifier. Do not report a missing or
 wrong qualifier only because the name is spelled differently from APPROVED_CLAIMS or the product's data.
 
+## NEG: compliance_judge
+
+D-328: a line that warns against a risky use, or negates a claim, is not that claim. "Don't skip meals and rely on
+this bar instead", "Please don't stop your medicine because of this tea" and "It is not a replacement for sunscreen"
+tell viewers what not to do: list such a violation only with `is_negated = true`. A line breaks a rule only when it
+asserts or recommends the claim ("You can skip lunch, this bar has it all", "Stop the tablets, this tea does the
+job").
+
+## HOLD: fact_checker
+
+D-328: for each claim, set `attributed` before anything else. `host`: the host states or endorses it. `other`: the
+words are reported from a viewer or another person ("a viewer says ...", "someone wrote ..."), or the line is a
+question put to someone (a co-host asking "Does one bottle qualify for the gift?"). Fill the rest as usual.
+Set `previous_line` first: what this line does with the facts the last line of RECENT_TRANSCRIPT reported or asked.
+`endorses` ("Correct.", "Yes, you can."), `rejects` ("No, it's 18 mg.", "Not true.", "No, you need two bottles."), or
+`unrelated` (anything else, or no such last line).
+
+Example: RECENT_TRANSCRIPT: []. UTTERANCE: "A viewer says each tablet has 80 mg." with SOURCE [["S3","Each tablet
+contains 18 mg of iron."]] gives
+{"previous_line":"unrelated","claims":[{"span":"each tablet has 80 mg","attributed":"other","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet"}]}
+Example: RECENT_TRANSCRIPT: ["A viewer says each tablet has 80 mg."]. UTTERANCE: "No, it's 18 mg." gives
+{"previous_line":"rejects","claims":[{"span":"it's 18 mg","attributed":"host","product_id":"product_h","field":"ingredient_amount","stated_value":"18 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"consistent","correct_value":null}]}
+Example: a co-host asks "Does one bottle qualify for the gift?" with ACTIVE_OFFERS [{"promo_id":"gift_set","terms":"Buy two bottles, get a pouch."}] gives
+{"previous_line":"unrelated","claims":[{"span":"one bottle qualify for the gift","attributed":"other","product_id":"product_a","field":"promo","stated_value":"one bottle qualifies","evidence":["gift_set"],"source_value":"two bottles","relation":"contradicts","correct_value":"Buy two bottles, get a pouch."}]}
+
 ## SINGLE: compliance_judge
 
 D-309 (one strong judge, no verifier): `severity` is the rule's severity, or MEDIUM when the line makes only a lesser

@@ -148,6 +148,10 @@ class UtterancePipeline:
         self._context_tail: asyncio.Task | None = None
         self._pending: set[asyncio.Task] = set()
         self._sequence: dict[str, int] = {}
+        # D-328 REPORTED_HOLD: transcript id -> (its contradicted claims in someone else's words, the transcript, the
+        # protected ids, when the hold began), waiting for the next line's fact check
+        self._reported: dict[str, tuple[list, Transcript, set[str], int]] = {}
+        self._checked: dict[int, str] = {}  # D-328: line number -> its fact check's word on the previous line
         self._prepared: dict[str, tuple[Transcript, str, Merge | None]] = {}
         self._applied: set[tuple[str, str]] = set()
         self._fact_sequence: dict[tuple[str, str], tuple[int, str, str]] = {}
@@ -213,6 +217,11 @@ class UtterancePipeline:
             self.rt.ctx.scheduler.cancel(self.rt.key(f"hold:{tid}"))
             await self._release(tid)
         await asyncio.gather(*tuple(self._pending), return_exceptions=True)
+        while self._reported:  # D-328: no next line is coming either: each hold ends on its own time (eval, tests)
+            tid, (_, _, _, began) = next(iter(self._reported.items()))
+            await asyncio.sleep(max(0, began + self.rt.settings.REPORTED_HOLD_MS - self.rt.now()) / 1000)
+            async with self.rt.lock:
+                await self._show_reported_locked(tid, "hold ended")
 
     # ---- steps 1-4 -----------------------------------------------------------------------------
 
@@ -941,6 +950,78 @@ class UtterancePipeline:
                     if claim.passage_id is None:
                         self._fact_sequence[wide] = (seq, t.transcript_id, claim.verdict)
             claims.append(claim)
+        if rt.settings.REPORTED_HOLD:
+            stance = getattr(facts, "_previous_line", "unrelated")
+            self._checked[self._sequence.get(t.transcript_id, 0)] = stance
+            await self._settle_reported_locked(t, stance)
+            held = [c for c in claims if c.verdict == "contradicted" and getattr(c, "_attributed", "host") == "other"]
+            if held:
+                claims = [c for c in claims if all(c is not h for h in held)]
+                await self._hold_reported_locked(t, held, protected)
+        await self._fact_alerts_locked(t, claims, protected)
+
+    async def _hold_reported_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
+        """D-328: a contradiction in someone else's words (a viewer quoted, a co-host's question) is not shown yet:
+        the host sees the grey "checking" chip until the next line's fact check says whether the host endorses or
+        rejects it, or REPORTED_HOLD_MS passes with no next line. The model decides whose words; code only waits."""
+        rt = self.rt
+        seq = self._sequence.get(t.transcript_id, 0)
+        if (stance := self._checked.get(seq + 1)) is not None:  # the next line's check came back first
+            if stance == "rejects":
+                log.info("held alert dropped: rejected by next line %s t=%s after 0 ms (%d claim(s))", rt.sid,
+                         t.transcript_id, len(claims))
+            else:
+                await self._fact_alerts_locked(t, claims, protected)
+            return
+        self._reported[t.transcript_id] = (claims, t, protected, rt.now())
+        log.info("fact alert held %s t=%s: %d claim(s) in someone else's words", rt.sid, t.transcript_id, len(claims))
+        await rt.emit("verify.started", {"transcript_id": t.transcript_id, "kind": "reported"})
+        rt.ctx.scheduler.call_later(rt.key(f"reported:{t.transcript_id}"), rt.settings.REPORTED_HOLD_MS,
+                                    lambda: self._reported_timeout(t.transcript_id))
+
+    async def _reported_timeout(self, tid: str) -> None:
+        """The hold's time is up. A next line already heard keeps it waiting for that line's check (at most two fact
+        timeouts more); otherwise, or then, the alert shows: a missed risk is worse than a late one."""
+        rt = self.rt
+        async with rt.lock:
+            entry = self._reported.get(tid)
+            if entry is None:
+                return
+            seq, began = self._sequence.get(tid, 0), entry[3]
+            later = any(s > seq and s not in self._checked for s in self._sequence.values())  # heard, not checked
+            cap = rt.settings.REPORTED_HOLD_MS + 2 * rt.settings.FACT_TIMEOUT_MS
+            if later and rt.now() - began < cap:
+                rt.ctx.scheduler.call_later(rt.key(f"reported:{tid}"), 250, lambda: self._reported_timeout(tid))
+                return
+            await self._show_reported_locked(tid, "hold ended")
+
+    async def _settle_reported_locked(self, t: Transcript, stance: str) -> None:
+        """The next line's fact check is back: it rejects the previous line's reported words (drop the held alert),
+        endorses them or does neither (show it). A hold older than the previous line shows."""
+        seq = self._sequence.get(t.transcript_id, 0)
+        for tid in [x for x in self._reported if self._sequence.get(x, 0) < seq]:
+            if stance == "rejects" and self._sequence.get(tid, 0) == seq - 1:
+                claims, _, _, began = self._reported.pop(tid)
+                self.rt.ctx.scheduler.cancel(self.rt.key(f"reported:{tid}"))
+                log.info("held alert dropped: rejected by next line %s t=%s after %d ms (%d claim(s))", self.rt.sid,
+                         tid, self.rt.now() - began, len(claims))
+                await self.rt.emit("verify.done", {"transcript_id": tid, "kind": "reported"})
+            else:
+                await self._show_reported_locked(tid, "endorsed" if stance == "endorses" else "next line")
+
+    async def _show_reported_locked(self, tid: str, why: str) -> None:
+        entry = self._reported.pop(tid, None)
+        if entry is None:
+            return
+        claims, t, protected, began = entry
+        rt = self.rt
+        rt.ctx.scheduler.cancel(rt.key(f"reported:{tid}"))
+        log.info("held alert shown (%s) %s t=%s after %d ms", why, rt.sid, tid, rt.now() - began)
+        await rt.emit("verify.done", {"transcript_id": tid, "kind": "reported"})
+        await self._fact_alerts_locked(t, claims, protected)
+
+    async def _fact_alerts_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
+        rt = self.rt
         created, reshown, corrected = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
                                                                   protected=protected, lex=rt.catalog.lexicon)
         for a in created:

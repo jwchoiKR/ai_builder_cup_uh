@@ -88,6 +88,13 @@ class Settings(BaseSettings):
     # ("Correct.") of the previous line's facts
     # D-325 v4: v3 plus "a documents' value with a condition, said without it, contradicts"
     FACT_PROMPT: Literal["v1", "v2", "v3", "v4"] = "v1"
+    # D-328: the fact checker marks each claim host or other (reported words, a question to someone); a contradiction
+    # in someone else's words waits for the next line's check (it endorses, rejects or neither), at most
+    # REPORTED_HOLD_MS when no next line comes. Needs FACT_PROMPT v2-v4.
+    REPORTED_HOLD: bool = False
+    REPORTED_HOLD_MS: int = 2500
+    # D-328: the compliance judge's rule for lines that warn against a risky use or negate a claim
+    COMPLIANCE_NEG: bool = False
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
