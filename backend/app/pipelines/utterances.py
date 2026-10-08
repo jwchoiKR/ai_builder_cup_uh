@@ -165,7 +165,8 @@ class UtterancePipeline:
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         relation = {"v2": "fact_relation_v2", "v3": "fact_relation_v3", "v4": "fact_relation_v4",
-                    "v5": "fact_relation_v5", "v6": "fact_relation_v6"}.get(rt.settings.FACT_PROMPT,
+                    "v5": "fact_relation_v5", "v6": "fact_relation_v6",
+                    "v7": "fact_relation_v7"}.get(rt.settings.FACT_PROMPT,
                                                                             "fact_relation")  # D-312 ... D-333
         self.facts = FactChecker(ctx.llm, ctx.prompts[relation if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296

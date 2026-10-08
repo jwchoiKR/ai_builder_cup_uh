@@ -255,6 +255,25 @@ class FactRelationOutputV5(BaseModel):
     claims: list[FactRelationClaimV5]
 
 
+class FactRelationClaimV7(BaseModel):
+    """D-345 FACT_PROMPT=v7: v5 plus the stated value re-read with number-word homophones as digits, before the
+    relation."""
+    span: str
+    stance: Literal["HOST_ASSERTS", "HOST_ENDORSES", "REPORTS_OR_ASKS"]
+    product_id: str
+    field: FactField
+    stated_value: str
+    evidence: list[str]
+    source_value: str | None
+    stated_as_heard: str
+    relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
+    correct_value: str | None
+
+
+class FactRelationOutputV7(BaseModel):
+    claims: list[FactRelationClaimV7]
+
+
 class FactRelationClaimH(BaseModel):
     """D-328 REPORTED_HOLD: v2's claim, and whose words it is, decided before the rest."""
     span: str
