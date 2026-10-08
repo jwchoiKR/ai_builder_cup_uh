@@ -2819,3 +2819,9 @@ D-423 (user: "ㅇㅇ ㄱ"): the host prompter shows everything the product has f
 Tests:
 - tests/test_d423.py: the snapshot is the item list; Panthenol 1% is on it; every ingredient of an onboarded product, with a name-only one; the items in prompter.updated, and the time-sale items after a price promo starts.
 - test_d360, test_d362 (every set, every caution) and host.test.tsx (the panel renders the server's items: every caution with no toggle, every set, a name-only ingredient) are updated, and the fixtures carry the cream's items.
+
+D-424 (Sonnet review of D-422; night rule): when a fact note's `say` and correct_value are both blank, the host screen shows no empty line.
+- The fact note shows no say line.
+- The merged qualifier card shows neither empty quotes nor the "Say this instead" label.
+- factSayLine returns "" in that case.
+Tests: factSayLine with a blank say (falls back to the value) and with both blank (returns ""); the merged card with both blank.

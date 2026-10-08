@@ -81,9 +81,12 @@ export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
         </span>
       </div>
       {/* D-136: one line the host can read out, with the product and the promo condition */}
-      <span className={styles.alertSay} data-testid="host-fact-right">
-        ○ {factSayLine(catalog, alert)}
-      </span>
+      {/* D-424: no line when the note has nothing to say */}
+      {factSayLine(catalog, alert) && (
+        <span className={styles.alertSay} data-testid="host-fact-right">
+          ○ {factSayLine(catalog, alert)}
+        </span>
+      )}
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>
           {context ? `${context} · ` : ""}
@@ -129,6 +132,8 @@ export function MediumBanner({
   // D-418: with the line's fact note, the card says the note's line once (its say, else its value), and the qualifier
   // becomes the top instruction; without one, the model's say_instead
   const factLine = fact ?? factFixed;
+  // D-424: the note's line (a blank say is a missing one); empty when both say and correct_value are blank
+  const factText = factLine ? (factLine.say?.trim() || factLine.correct_value?.trim() || "") : "";
   return (
     <div className={cx(styles.alertBlock, styles.alertMedium)} data-testid="host-medium-banner" role="alert">
       <div className={styles.alertTop}>
@@ -151,13 +156,15 @@ export function MediumBanner({
           {t("Heard:")} "{alert.span}"
         </span>
       </div>
-      <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
+      {!(factLine && !factText) && <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>}
       {factLine ? (
-        <span className={styles.alertSay} data-testid="host-medium-fact">
-          {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
-          “{factLine.say?.trim() || factLine.correct_value}”{/* D-422: a blank say is a missing one */}
-          {fact && factCount > 1 && <span className={styles.alertCount} data-testid="host-medium-fact-count"> ×{factCount}</span>}
-        </span>
+        factText && (
+          <span className={styles.alertSay} data-testid="host-medium-fact">
+            {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
+            “{factText}”
+            {fact && factCount > 1 && <span className={styles.alertCount} data-testid="host-medium-fact-count"> ×{factCount}</span>}
+          </span>
+        )
       ) : (
         <span className={styles.alertSay}>
           {alert.say_instead ? `“${alert.say_instead}”` : t("Say the result with where it comes from (e.g. 'in our in-house test').")}
