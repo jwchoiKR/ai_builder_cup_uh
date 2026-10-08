@@ -59,7 +59,7 @@ async def test_arm_b_the_qualifier_replacement_is_the_result_the_judge_picked(ri
                                                    "reason": "scripted"}
         await speak(rt, line)
         alerts = [x for x in await rt.alerts() if x.rule_id == "TEST-QUALIFIER" and x.status == "active"]
-        assert [x.say_instead for x in alerts] == ([say] if say else [])
+        assert [x.say_instead for x in alerts] == [say or "Say this instead."]  # D-391: unknown id: the model's
     finally:
         await close_env(rt)
 

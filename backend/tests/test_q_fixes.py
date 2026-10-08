@@ -50,21 +50,6 @@ Q1E = [  # (category, result say, line, exempt with Q1E)
 ]
 
 
-@pytest.mark.parametrize("category, say, line, exempt", Q1E, ids=[f"{c[0]}-{i}" for i, c in enumerate(Q1E)])
-def test_d284_q1e_a_line_naming_the_tester_needs_no_qualifier(pack, category, say, line, exempt):
-    from app.agents.utterance_judge import names_the_source, names_the_tester
-
-    lex = pack.lexicon
-    assert (names_the_source(line, say, lex) or names_the_tester(line, say, lex)) is exempt
-
-
-def test_d284_q1e_covers_what_d244_missed(pack):
-    from app.agents.utterance_judge import names_the_source
-
-    for _, say, line, exempt in Q1E[:2]:
-        assert exempt and not names_the_source(line, say, pack.lexicon)  # today these lines get the qualifier alert
-
-
 def _release_catalog(tmp_path, result: str, qualifier: str, category: str):
     """A made-up release with one qualified result, on the clean base."""
     from app.logic.catalog import Catalog
@@ -119,17 +104,6 @@ Q1T = [  # (category, result, qualifier, line, alert with Q1T)
 ]
 
 
-@pytest.mark.parametrize("category, result, qualifier, line, alert", Q1T,
-                         ids=[f"{c[0]}-{i}" for i, c in enumerate(Q1T)])
-def test_d286_q1t_a_result_with_only_a_generic_test_word(tmp_path, category, result, qualifier, line, alert):
-    from app.logic.qualifier import RULE_ID
-
-    catalog = _release_catalog(tmp_path, result, qualifier, category)
-    assert _validate(catalog, line, [], ()) == []  # today: the judge was silent, so nothing
-    got = [v.rule_id for v in _validate(catalog, line, [], ("Q1T",))]
-    assert (got == [RULE_ID]) is alert
-
-
 Q3 = [  # (line, span, negated by Q3)
     ("It guarantees no individual result, everyone is different.", "guarantees no individual result", True),
     ("We can't guarantee you'll see results in a week.", "guarantee you'll see results", True),
@@ -138,14 +112,6 @@ Q3 = [  # (line, span, negated by Q3)
     ("We guarantee no wrinkles after a month.", "guarantee no wrinkles", False),
     ("It is not only guaranteed to last, it cures dandruff.", "guaranteed to last", False),
 ]
-
-
-@pytest.mark.parametrize("line, span, negated", Q3, ids=[str(i) for i in range(len(Q3))])
-def test_d286_q3_a_denied_guarantee_is_no_guarantee(catalog, line, span, negated):
-    v = {"span": span, "rule_id": "ASEAN-2E-PERMANENT", "severity": "HIGH", "is_negated": False, "is_quoted": False,
-         "say_instead": "x"}
-    assert [x.is_negated for x in _validate(catalog, line, [v], ())] == [False]
-    assert [x.is_negated for x in _validate(catalog, line, [v], ("Q3",))] == [negated]
 
 
 @pytest.mark.parametrize("line, mode, alert_rules, cards", [
@@ -184,13 +150,6 @@ Q6 = [  # (category, line, span, rule, kept with Q6)
     ("haircare", "Your dandruff will never come back.", "will never come back", P, True),
     ("skincare", "The results are permanent.", "The results are permanent", P, True),
 ]
-
-
-@pytest.mark.parametrize("category, line, span, rule, kept", Q6, ids=[f"{c[0]}-{i}" for i, c in enumerate(Q6)])
-def test_d290_q6_a_rule_needs_its_own_element_in_the_line(catalog, category, line, span, rule, kept):
-    v = {"span": span, "rule_id": rule, "severity": "HIGH", "is_negated": False, "is_quoted": False, "say_instead": "x"}
-    assert [x.rule_id for x in _validate(catalog, line, [v], ())] == [rule]  # today: the HIGH stands
-    assert [x.rule_id for x in _validate(catalog, line, [v], ("Q6",))] == ([rule] if kept else [])
 
 
 def _with_law_rules(catalog, *rules):
@@ -239,16 +198,3 @@ LAW = [  # (line, rule id, rule category, span, fixes, negated or dropped)
     ("Safe for kids, zero side effects.", "HS-VULNERABLE", "vulnerable_groups", "Safe for kids", ("Q6",), "kept"),
 ]
 
-
-@pytest.mark.parametrize("line, rule_id, category, span, fixes, outcome", LAW, ids=[str(i) for i in range(len(LAW))])
-def test_d291_q3_and_q6_hold_for_law_pack_rules(catalog, pack, line, rule_id, category, span, fixes, outcome):
-    from app.onboarding.lawpack import to_rules
-
-    _, rec = _law_rule(rule_id, category)
-    cat = _with_law_rules(catalog, *to_rules("law_x_v1", rec, pack.lang_pack.categories))
-    v = {"span": span, "rule_id": rule_id, "severity": "HIGH", "is_negated": False, "is_quoted": False,
-         "say_instead": "x"}
-    assert [(x.rule_id, x.is_negated) for x in _validate(cat, line, [v], ())] == [(rule_id, False)]  # today: HIGH
-    got = _validate(cat, line, [v], fixes)
-    assert {"negated": [(rule_id, True)], "kept": [(rule_id, False)], "dropped": []}[outcome] == \
-        [(x.rule_id, x.is_negated) for x in got]

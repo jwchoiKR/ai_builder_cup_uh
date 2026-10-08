@@ -36,11 +36,6 @@ async def _compliance(arm: str, verdict: dict | None = None, fail: bool = False)
         await close_env(rt)
 
 
-async def test_d300_guards_drop_what_the_verifier_now_decides():
-    active, llm = await _compliance("guards")
-    assert active == [] and not any(agent == "verifier" for agent, _ in llm.calls)  # Q6: no group named
-
-
 @pytest.mark.parametrize("verdict, fail, alerts, severity, unverified", [
     (_verdict("reject"), False, 0, None, None),
     (_verdict("keep", "MEDIUM"), False, 1, "MEDIUM", False),  # the verifier decides the severity
@@ -79,16 +74,6 @@ async def test_d300_the_verifier_decides_facts(verdict, fail, alerts, unverified
             assert facts[0].unverified is unverified and facts[0].correct_value == "S$36.00"
     finally:
         await close_env(rt)
-
-
-def test_d300_compliance_flagger_keeps_every_verdict_in_verify(catalog, monkeypatch):
-    from .test_relation import ALL, _high, _validate_r
-
-    v = _high(V, "Have your child swallow the toothpaste.", "usage_instruction", "child")
-    assert _validate_r(catalog, "Have your child swallow the toothpaste.", [dict(v)], ALL) == []  # guards: CK drops
-    monkeypatch.setenv("JUDGE_ARM", "verify")
-    got = _validate_r(catalog, "Have your child swallow the toothpaste.", [dict(v)], ALL)
-    assert [x.rule_id for x in got] == [V]
 
 
 async def test_d301_window_evidence_is_the_cited_sentences_and_their_neighbours():

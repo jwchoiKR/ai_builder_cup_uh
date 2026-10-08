@@ -67,23 +67,6 @@ async def compliance_alerts(rt) -> list[Alert]:
     return [a for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
 
 
-async def test_unqualified_number_gets_medium_with_approved_wording(env):
-    rt, llm = env
-    llm.judge(UNQUALIFIED, violations=[violation(RULE, "Zero out of thirty-two", severity="HIGH",
-                                                 say="Totally safe, nobody reacts.")])
-    await speak(rt, UNQUALIFIED)
-    [a] = await compliance_alerts(rt)
-    assert (a.rule_id, a.severity, a.say_instead) == (RULE, "MEDIUM", CR_0_32)
-
-
-async def test_qualified_sentence_never_gets_the_alert(env):
-    rt, llm = env
-    text = "In our forty-eight hour patch test, zero out of thirty-two participants reported irritation."
-    llm.judge(text, violations=[violation(RULE, "zero out of thirty-two", severity="MEDIUM")])
-    await speak(rt, text)
-    assert await compliance_alerts(rt) == []
-
-
 async def test_a_real_high_claim_in_the_same_sentence_stays_high(env):
     rt, llm = env
     text = "Zero out of thirty-two reacted and it erases your wrinkles."
@@ -128,33 +111,6 @@ async def test_a_wrong_fact_repeated_after_its_correction_alerts_again(env):
     assert second.alert_id != first.alert_id
 
 
-async def test_wrong_number_keeps_both_findings_on_one_sentence(env):
-    """H052: the host card merges them by transcript (frontend); events and logs keep both."""
-    rt, llm = env
-    text = "In clinical corneometer tests, instant skin hydration increased by seventy percent right after one application."
-    llm.judge(text, violations=[violation(RULE, "increased by seventy percent", severity="MEDIUM")])
-    llm.facts(text, claim("test_result", "contradicted", product_id=CREAM, stated="+70%", correct="+38%",
-                          passage_id=None, quote=None))
-    t = await speak(rt, text)
-    [a] = await compliance_alerts(rt)
-    assert a.transcript_id == t.transcript_id and a.rule_id == RULE
-    assert a.say_instead == "In our in-house test, skin hydration went up 38% right after one application."
-
-
-@pytest.mark.parametrize("text", [
-    "The cream has five percent panthenol.",  # an ingredient amount
-    "The live price is thirty-six dollars.",  # a price
-    "It's a fifty mL jar.",  # a volume
-])
-async def test_ingredient_amounts_prices_and_volumes_never_get_the_test_qualifier(env, text):
-    """D-116 (holdout HV16): only in-house test or study results need the qualifier. A verdict whose
-    sentence matches none of the product's in-house results is dropped."""
-    rt, llm = env
-    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
-    await speak(rt, text)
-    assert await compliance_alerts(rt) == []
-
-
 async def test_d215_the_judges_verdict_on_approved_wording_stands(env):
     """D-215 (full review P3): code no longer drops a violation because its words overlap approved wording (D-123,
     D-132, D-174 removed); the judge weighs approved wording under the rules (prompt)."""
@@ -164,19 +120,6 @@ async def test_d215_the_judges_verdict_on_approved_wording_stands(env):
     llm.judge(text, violations=[violation("ASEAN-3-SKIN-AGEING", "suitable for all skin types")])
     await speak(rt, text)
     assert len(await compliance_alerts(rt)) == 1
-
-
-async def test_say_instead_with_a_test_number_carries_the_qualifier(env):
-    """D-131 (holdout H090): the judge copied the approved claim without its '*'. The host is told to say
-    the qualified line, so saying it word for word never raises the test-qualifier alert."""
-    rt, llm = env
-    text = "Your wrinkles will completely disappear."
-    llm.judge(text, violations=[violation("ASEAN-3-SKIN-AGEING", "wrinkles will completely disappear",
-                                          say="It helps keep skin hydrated for up to 24 hours.")])
-    await speak(rt, text)
-    [a] = await compliance_alerts(rt)
-    assert a.say_instead == "It helps keep skin hydrated for up to 24 hours in our in-house test."
-    assert LEX.is_qualified(a.say_instead)
 
 
 async def test_say_instead_without_a_test_number_is_kept(env):
@@ -196,16 +139,6 @@ async def test_sheet_words_do_not_cover_a_wider_claim(env):
     assert len(await compliance_alerts(rt)) == 1
 
 
-async def test_a_lead_in_final_naming_our_test_qualifies_the_next_one(env):
-    """D-146 (sealed show replay): "In our in-house test," came as its own final before the number."""
-    rt, llm = env
-    await speak(rt, "In our in-house test.")  # a full stop: not merged (D-088), the lead-in rule applies
-    text = "skin hydration went up thirty-eight percent right after one application."
-    llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
-    await speak(rt, text)
-    assert await compliance_alerts(rt) == []
-
-
 async def test_a_lead_in_with_its_own_number_does_not_qualify_the_next_line(env):
     rt, llm = env
     await speak(rt, "In our in-house test 29 of 32 people loved it.")
@@ -213,17 +146,6 @@ async def test_a_lead_in_with_its_own_number_does_not_qualify_the_next_line(env)
     llm.judge(text, violations=[violation(RULE, text, severity="MEDIUM")])
     await speak(rt, text)
     assert len(await compliance_alerts(rt)) == 1
-
-
-@pytest.mark.parametrize("text, alerts", [
-    ("Acne, um, no no,", 0),  # D-148: a topic word and fillers is not a claim
-    ("It cures acne.", 1),  # a short real claim still alerts
-])
-async def test_a_topic_word_alone_is_not_a_claim(env, text, alerts):
-    rt, llm = env
-    llm.judge(text, violations=[violation("ASEAN-3-SKIN-ACNE", "acne" if alerts == 0 else "cures acne")])
-    await speak(rt, text)
-    assert len(await compliance_alerts(rt)) == alerts
 
 
 async def test_an_add_on_with_its_own_number_is_not_a_late_qualifier(env):

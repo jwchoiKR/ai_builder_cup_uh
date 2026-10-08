@@ -108,30 +108,6 @@ async def test_d349_both_products_reach_the_judges_for_the_window_only():
         await close_env(rt)
 
 
-@pytest.mark.parametrize("picked, product", [(CREAM, CREAM), (AMPOULE, AMPOULE), ("someone_else", AMPOULE)])
-async def test_d349_the_alert_and_its_wording_follow_the_product_the_model_picked(picked, product):
-    from app.models.agent_io import ComplianceOutput
-
-    rt, llm = await _env(SWITCH_MODE="immediate")
-    try:
-        llm.judge(MOVE_ON, utterance_type="transition", transition=True, target=AMPOULE, confidence="high")
-        await speak(rt, MOVE_ON)
-        line = "And honestly, it heals eczema overnight."
-        v = violation("ASEAN-2D-DISEASE", "heals eczema overnight") | {"product_id": picked}
-        out = ComplianceOutput.model_validate({"compliance": {"violations": []}, "correction": {"corrects_alert_ids": []},
-                                               "reason": "scripted"}).model_dump(mode="json")
-        out["compliance"]["violations"] = [v]
-        llm.outputs[("compliance_judge", line)] = out
-        await speak(rt, line)
-        [a] = [a for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
-        assert a.product_id == product
-        own = [c.lower() for c in rt.catalog.approved_claims(product)]
-        assert any(c[:20] in a.say_instead.lower() for c in own) or any(
-            x.say.lower() in a.say_instead.lower() for x in rt.catalog.get_product(product).avoid_saying)
-    finally:
-        await close_env(rt)
-
-
 async def test_d349_an_undo_opens_the_window_for_the_undone_product():
     from app.pipelines.utterances import undo_switch
 

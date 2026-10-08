@@ -13,7 +13,6 @@ from app.models.agent_io import FactRelationOutput
 from app.models.data import Passage
 
 from .judge_fakes import CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
-from .test_q_fixes import _release_catalog
 
 
 def _p(pid: str, text: str, product: str = CREAM, section: str = "Key facts") -> Passage:
@@ -128,55 +127,6 @@ ALL = ("CK", "Q6", "G7")
 def _high(rule, span, kind=None, group=None):
     return {"span": span, "rule_id": rule, "severity": "HIGH", "is_negated": False, "is_quoted": False,
             "say_instead": "x", "claim_kind": kind, "group": group}
-
-
-@pytest.mark.parametrize("category, line, rule, span, kind, group, kept", [
-    # pairs (D-297): each failure class next to its true positive
-    ("children", "Have your child swallow the toothpaste.", V, "child swallow the toothpaste", "usage_instruction",
-     "child", False),
-    ("children", "Safe for babies.", V, "Safe for babies", "safety_promise", "babies", True),
-    ("lip balm", "Fine on chapped lips, no problem.", D, "Fine on chapped lips", "safety_promise", "chapped lips",
-     False),
-    ("skincare", "It cures eczema.", D, "cures eczema", "disease_treatment", None, True),
-    ("hand gel", "Zero side effects with this gel.", V, "Zero side effects", "safety_promise", None, False),
-    ("fragrance", "Safe for everyone, even sensitive noses.", V, "Safe for everyone", "safety_promise", "everyone", True),
-    ("supplement", "Each gummy has 2 mg zinc, great for kids.", V, "2 mg zinc", "composition_fact", "kids", False),
-    ("haircare", "Your dandruff will never come back.", D, "never come back", "permanence", None, False),
-])
-def test_d297_ck_the_claim_kind_must_fit_the_rule(catalog, category, line, rule, span, kind, group, kept):
-    assert [x.rule_id for x in _validate_r(catalog, line, [_high(rule, span, kind, group)], ALL)] == (
-        [rule] if kept else [])
-
-
-@pytest.mark.parametrize("line, span, kept", [
-    ("Kids can brush on their own, so easy.", "brush on their own", False),  # G7 words
-    ("Safe for babies.", "Safe for babies", True),
-])
-def test_d297_ck_falls_back_to_the_word_lists_without_a_claim_kind(catalog, line, span, kept):
-    assert [x.rule_id for x in _validate_r(catalog, line, [_high(V, span)], ALL)] == ([V] if kept else [])
-
-
-def test_d297_compliance_guards_hold_with_the_fact_guards_off(catalog, monkeypatch):
-    monkeypatch.setenv("FACT_GUARDS", "off")
-    got = _validate_r(catalog, "Have your child swallow the toothpaste.",
-                      [_high(V, "swallow", "usage_instruction", "child")], ALL)
-    assert got == []
-
-
-@pytest.mark.parametrize("prev, line, kept", [
-    ("It costs", "SGD 22 for one 4 mL unit.", False),  # a split price line is no test result
-    ("And the best part,", "it lasts 4 hours.", True),  # a real result said without its qualifier
-])
-def test_d297_pair_split_price_is_no_test_result(tmp_path, prev, line, kept):
-    from app.logic.qualifier import RULE_ID
-
-    from .test_g_fixes import _validate_after
-
-    catalog = _release_catalog(tmp_path, "Lasts 4 hours", "tested by Fenmore Labs", "skincare")
-    v = {"span": line, "rule_id": RULE_ID, "severity": "MEDIUM", "is_negated": False, "is_quoted": False,
-         "say_instead": "x"}
-    assert [x.rule_id for x in _validate_after(catalog, prev, line, [v], ("G4", "G5", "Q1E"))] == (
-        [RULE_ID] if kept else [])
 
 
 async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():

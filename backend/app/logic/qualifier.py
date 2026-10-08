@@ -40,24 +40,6 @@ def result_numbers(r: QualifiedResult, lex: Lexicon) -> set[str]:
     return number_set(" ".join(r.numbers)) | number_set(statement) | lex.spoken_numbers(statement)
 
 
-def matches_result(text: str, products: Sequence[Product], lex: Lexicon) -> bool:
-    """D-295 G4: the line is about a qualified result by the result's own words (tear-free, water-resistant, the
-    measured property; numbers left out on both sides), or by two or more of its numbers ("zero out of thirty-two").
-    One number alone is no match: "zinc at 2 percent" is not "2 times faster"."""
-    heard = lex.content_words(text)
-    words_heard = [w for w in heard if not any(ch.isdigit() for ch in w)]
-    numbers = {w for w in heard if w.isdigit()} | lex.spoken_numbers(text)
-    for p in products:
-        for r in p.qualified_results:
-            statement = r.say[:r.say.rfind("(")] if "(" in r.say else r.say
-            words = [w for w in lex.claim_words(statement) if not any(ch.isdigit() for ch in w)]
-            hits = numbers & result_numbers(r, lex)
-            # D-299: one decimal number is as specific as two ("SPF 22.5"); one whole number is not ("2 percent")
-            if (words and lex.coverage(words, words_heard) >= MIN_COVERAGE) or len(hits) >= 2 or any("." in n for n in hits):
-                return True
-    return False
-
-
 def approved_replacement(text: str, on_air: Product, others: Sequence[Product], lex: Lexicon,
                          statement_only: bool = False) -> QualifiedResult | None:
     """The approved result the sentence is about: most matching numbers, then the product on air,
