@@ -107,6 +107,8 @@ class Settings(BaseSettings):
     COMPLIANCE_NEG: bool = False
     # D-333: the compliance judge judges what this line endorses from the previous line as this line's own claim
     COMPLIANCE_ENDORSE: bool = False
+    # D-355 arm: a correction job addendum: a qualified re-say of the same test result clears its TEST-QUALIFIER alert
+    COMPLIANCE_RESAY: bool = False
     # D-334 (the user's design): a final ending with "?" waits for the next final (QUESTION_HOLD_MS), and the two are
     # judged as one utterance by all three judges; with none, the question is judged alone
     QUESTION_HOLD: bool = True  # D-343: measured (pool 7 + pairs: two-host lines 82.8% -> 96.6%, no one-host loss)

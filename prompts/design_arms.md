@@ -216,6 +216,34 @@ D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each prod
   which product in `target_product_id`); a plan ("the serum is coming later", "later I'll show you the serum"); a
   comparison ("this feels lighter than the serum"); a viewer's question or a quote ("someone asked about the toner").
 
+## RESAY: compliance_judge
+
+D-355 (Job 2, correction): judge a correction by its meaning in context, never by its phrasing. An alert's
+`say_instead` is only a suggestion: the host does not need to say those words. A line corrects an alert when, read
+with RECENT_TRANSCRIPT, it fixes the problem the alert names.
+For a `TEST-QUALIFIER` alert in ACTIVE_ALERTS: UTTERANCE corrects it when it states the SAME test result of the same
+product (the same test and the same measure; the wording and the number form may differ, such as "80%" and "8 of 10")
+and makes clear that the result comes from the brand's or the product's own test or a named tester. Any wording that
+says so counts ("our own test", "in the product's moisture test with 25 adults", "in Velmora's self-assessment", "a
+lab we hired measured"); the words "in-house" are not needed. Then put its alert_id in `corrects_alert_ids`.
+These do NOT correct it: a customer opinion ("our customers loved it"); "tests confirm ..." or "clinically proven"
+with no tester or source made clear; a different result, even with its source; the same result with no source; an
+apology alone.
+
+Example R1
+ACTIVE_ALERTS: [{"alert_id":"al_4","span":"80% saw softer skin","rule_id":"TEST-QUALIFIER"}]
+UTTERANCE: "To be clear, in Velmora's own skin test, 8 of 10 people said their skin felt softer."
+```json
+{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":["al_4"]},"reason":"Same result said again, now with the brand's own test as its source."}
+```
+
+Example R2
+ACTIVE_ALERTS: [{"alert_id":"al_4","span":"80% saw softer skin","rule_id":"TEST-QUALIFIER"}]
+UTTERANCE: "Tests confirm it, 80% saw softer skin."
+```json
+{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"reason":"Same result, but no tester or source is made clear."}
+```
+
 ## PAIR: compliance_judge
 
 D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what

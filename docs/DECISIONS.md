@@ -2383,3 +2383,16 @@ D-354: `STORE=firestore` stores the live show data in Firestore. The database is
   - `delete_session` deletes it in Firestore too.
 
   The same contract runs on the Firestore emulator when `FIRESTORE_EMULATOR_HOST` is set. This laptop has no Java and no emulator, so those 4 tests were skipped here.
+
+D-355: a qualified re-say should clear the TEST-QUALIFIER banner. Reviewed by GPT, Gemini and Sonnet.
+- **Evidence:** in a logged replay the re-say line had the banner in ACTIVE_ALERTS, but the compliance judge did not list it, in the line's own call or in the D-352 re-check. The correction job of `compliance_judge.md` (Job 2, Example C) covers only retractions.
+- **Prompt arm `COMPLIANCE_RESAY`** (off until measured): the system addendum `design_arms.md` "RESAY: compliance_judge", with fictional examples only.
+  - It says to judge a correction by its meaning in context, never by its phrasing. An alert's say_instead is only a suggestion (user, 10/8).
+  - For a TEST-QUALIFIER alert, a line corrects it when it states the same test result of the same product (the wording and the number form may differ: "80%" and "8 of 10") and makes clear the result comes from the brand's or the product's own test or a named tester. Any such wording counts, and the words "in-house" are not needed.
+  - These do not clear it: a customer opinion; "tests confirm" or "clinically proven" with no source; a different result; the same result with no source; an apology alone.
+- **Input (on by default):** `active_alerts_json` keeps the 3 newest alerts plus every active TEST-QUALIFIER banner, so a banner is never dropped from ACTIVE_ALERTS while it is active.
+- **Host banner text (display only):** the qualifier banner is now worded as a suggestion, with KO versions:
+  - "Say where the result comes from (e.g. 'in our in-house test')"
+  - after 10 s, "Say the result again with where it comes from (e.g. 'in our in-house test')"
+  - when there is no say_instead, "Say the result with where it comes from (e.g. 'in our in-house test')."
+- Tests: `tests/test_d355.py` (the banner stays in the list beyond the newest 3; a corrected banner and other old alerts do not; the addendum is on only with the arm). The host tests use the new wording.

@@ -331,13 +331,13 @@ describe("compliance", () => {
 
   it("D-341: after 10 s the qualifier banner asks for the result again, with the qualifier", () => {
     render(view({ alerts: [{ ...qualifier, created_at: T0 - 11_000 }] }));
-    expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("SAY THE RESULT AGAIN WITH 'IN OUR IN-HOUSE TEST'");
+    expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("Say the result again with where it comes from (e.g. 'in our in-house test')");
   });
 
   it("MEDIUM test qualifier: one card with the right number when the fact note is on the same sentence", () => {
     const { rerender } = render(view({ alerts: [qualifier] }));
     let banner = screen.getByTestId("host-medium-banner");
-    expect(banner).toHaveTextContent("ADD 'IN OUR IN-HOUSE TEST'");
+    expect(banner).toHaveTextContent("Say where the result comes from (e.g. 'in our in-house test')");
     expect(banner).toHaveTextContent("“In our in-house test, skin hydration went up 45% right after one use.”");
     expect(screen.queryByTestId("host-medium-fact")).toBeNull();
 
@@ -355,7 +355,7 @@ describe("compliance", () => {
 
   it("MEDIUM test qualifier without an approved sentence asks for the qualifier", () => {
     render(view({ alerts: [{ ...qualifier, say_instead: null }] }));
-    expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("Say the result with 'in our in-house test'.");
+    expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("Say the result with where it comes from (e.g. 'in our in-house test').");
   });
 });
 

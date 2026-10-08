@@ -135,6 +135,9 @@ class ComplianceJudge(_SplitJudge):
         if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
             if extra := arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        if getattr(getattr(llm, "settings", None), "COMPLIANCE_RESAY", False):  # D-355: a qualified re-say corrects
+            if extra := arms._addenda(str(llm.prompts_path)).get(("RESAY", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "COMPLIANCE_ENDORSE", False):  # D-333: endorsed claims
             if extra := arms._addenda(str(llm.prompts_path)).get(("ENDORSE", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
