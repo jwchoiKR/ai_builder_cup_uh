@@ -105,7 +105,7 @@ export const KO_OPERATOR: Record<string, string> = {
 
   // question desk
   "Question desk": "질문 데스크",
-  "Grouped by intent, ready for your next move.": "의도별로 묶었습니다. 다음 조치를 고르세요.",
+  "Grouped by topic.": "주제별로 묶었습니다.",
   "{n}/{max} on host": "진행자 화면 {n}/{max}",
   All: "전체",
   "Needs review": "검토 필요",

@@ -567,7 +567,7 @@ describe("AI PD card", () => {
     expect(screen.queryByTestId("host-pd-card")).toBeNull();
     expect(screen.getByTestId("host-compliance-overlay")).toBeInTheDocument();
     // one instruction at a time: the Q hint gives way to the correction
-    expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("Finish the correction first");
+    expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("Questions resume after the correction");
 
     // When alert is corrected or dismissed, card comes back
     rerender(view({ session: session({ pd_card: card }), alerts: [{ ...high, status: "corrected", resolved_at: now() }] }));

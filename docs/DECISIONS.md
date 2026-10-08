@@ -2172,3 +2172,14 @@ D-342 (review-1008 H20): a sentence with an active HIGH compliance alert shows o
 
 D-343 (logic freeze, user 10/8): `QUESTION_HOLD=true` is now the code default and is set in `deploy/cloudrun.sh`. Measured on pool 7 plus the paired set: two-host lines went from 82.8% to 96.6%, with no one-host regression. STT_DUAL is cancelled. From here, no changes to the judges, prompts or STT logic.
 - **Tests:** the older tests pin `QUESTION_HOLD=false` through the conftest pins and `VERIFY_SHIPPED`. `tests/test_d336.py` checks the new default.
+
+D-344 (review-1008 E4/E5, wording only): display text from the review, small and display-only under the logic freeze. Korean is updated with each key.
+- Hub: "…chat with fact-checked AI answers."
+- Operator question desk: "Grouped by topic."
+- Host:
+  - "Questions resume after the correction" (was "Finish the correction first")
+  - "AI check is slow. Some alerts may be late or skipped."
+- Test drive: "Loading the saved reading…"
+- Summary: "Host said".
+- Viewer correction notice for non-price fields: "Correction: the {field_label} of {product_name} is {correct_value}." The old template read "Correction: Hydra Barrier Cream volume is 50 ml."
+- Not done: E1's 제품/상품 unification and the per-screen Korean keys. They touch many keys across screens and are left for after the freeze.
