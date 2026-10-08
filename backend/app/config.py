@@ -100,6 +100,13 @@ class Settings(BaseSettings):
     COMPLIANCE_NEG: bool = False
     # D-333: the compliance judge judges what this line endorses from the previous line as this line's own claim
     COMPLIANCE_ENDORSE: bool = False
+    # D-334 (the user's design): a final ending with "?" waits for the next final (QUESTION_HOLD_MS), and the two are
+    # judged as one utterance by all three judges; with none, the question is judged alone
+    QUESTION_HOLD: bool = False
+    QUESTION_HOLD_MS: int = 2500
+    # D-334 alternative: the fact checker reads a CONVERSATION block (the last 3 finals, oldest first) and checks only
+    # the last line, using the earlier ones to understand it
+    CONTEXT_JUDGE: bool = False
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"

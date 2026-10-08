@@ -188,6 +188,19 @@ D-312: speech-to-text may spell a tester, laboratory or test name as a sound-ali
 Labs"). A line that names the tester of a result in such a spelling states its qualifier. Do not report a missing or
 wrong qualifier only because the name is spelled differently from APPROVED_CLAIMS or the product's data.
 
+## CTX: fact_checker
+
+D-334: this message has no UTTERANCE or RECENT_TRANSCRIPT. CONVERSATION holds the last finals in order, oldest first;
+its last line is the line to check (where these instructions say UTTERANCE), and the lines before it are the recent
+transcript. Check only the facts asserted, or endorsed, in the LAST line; use the earlier lines to understand what the
+last line refers to (a question it answers, a claim it rejects or endorses). Facts that appear only in earlier lines
+were already checked: do not report them again. `span` is taken from the last line, or from an earlier line only for a
+fact the last line endorses.
+Example: CONVERSATION ["For 30 mL of concentrate, how much water goes in?", "90 mL."] with SOURCE [["S4","Mix 30 mL of
+concentrate with 120 mL of water."],["S9","Caffeine: 90 mg per serving."]] gives one claim: the water for 30 mL is
+90 mL (field usage, evidence ["S4"], source_value "120 mL of water"), which contradicts; the 90 mg of caffeine is
+another fact.
+
 ## ENDORSE: compliance_judge
 
 D-333: when this line endorses what the last line of RECENT_TRANSCRIPT reported or asked ("A viewer says it treats

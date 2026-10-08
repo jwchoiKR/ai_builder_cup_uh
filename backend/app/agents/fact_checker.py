@@ -898,6 +898,9 @@ class FactChecker:
             extras.append(arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)))
         if self.relation_model is FactRelationOutputH:  # D-328
             extras.append(arms._addenda(str(llm.prompts_path)).get(("HOLD", self.name)))
+        self.conversation = bool(getattr(settings, "CONTEXT_JUDGE", False))  # D-334
+        if self.conversation:
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("CTX", self.name)))
         if getattr(settings, "STT_AWARE", False):  # D-303
             extras.append(arms._addenda(str(llm.prompts_path)).get(("STT", self.name)))
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
@@ -946,6 +949,20 @@ class FactChecker:
         return [*inp.passages, *self.files.get(inp.on_air, ((), self.file_passages))[1]]
 
     def _render(self, inp: FactInput) -> tuple[str, str]:
+        user, prefix = self._render_template(inp)
+        if self.conversation:  # D-334: the last 3 finals in one block, the last one checked
+            from ..providers.prompts import render_value
+
+            line = " / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance
+            earlier = (inp.recent if inp.recent is not None else inp.previous)[-2:]
+            block = f'<data name="CONVERSATION">{render_value("conversation_json", [*earlier, line])}</data>'
+            user = re.sub(r'<data name="RECENT_TRANSCRIPT">.*?</data>\n?', "", user, flags=re.S)
+            user = re.sub(r'<data name="UTTERANCE">.*?</data>', lambda _: block, user, flags=re.S)
+            user = user.replace("Return the JSON fact check for UTTERANCE.",
+                                "Return the JSON fact check for the last line of CONVERSATION.")
+        return user, prefix
+
+    def _render_template(self, inp: FactInput) -> tuple[str, str]:
         return self.prompt.render_cached({
             "current_product_compact_json": inputs.current_product_compact_json(self.catalog, inp.on_air),
             "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
