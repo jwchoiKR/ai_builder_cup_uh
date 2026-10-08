@@ -92,6 +92,9 @@ class LLMServerError(LLMError):
     """HTTP 5xx: retried once."""
 
 
+MIN_RETRY_ROOM_MS = 1_000  # D-340: a 429 retry is worth it only with this much of the deadline left after the wait
+
+
 class LLMTimeout(Exception):
     pass
 
@@ -586,17 +589,27 @@ class LLMClient:
 
     async def _generate(self, req: LLMRequest, t0: float) -> RawReply:
         attempts = 1 + max(0, self._settings.LLM_RETRY_ON_5XX)
-        for attempt in range(1, attempts + 1):
+        backoff_429 = self._settings.LLM_RETRY_ON_429_MS
+        attempt = 0
+        while True:
+            attempt += 1
             remaining_ms = req.deadline_ms - (time.perf_counter() - t0) * 1000
             if remaining_ms <= 0:
                 raise LLMTimeout("deadline reached before retry")
             try:
                 return await self.backend.generate(req, int(remaining_ms))
             except LLMServerError as e:
-                if attempt == attempts:
+                if attempt >= attempts:
                     raise
                 log.warning("agent=%s 5xx (%s), retry %d/%d", req.agent, e, attempt, attempts - 1)
-        raise AssertionError("unreachable")
+            except LLMError as e:
+                # D-340: one short wait and retry on a 429, only when the deadline leaves room for an answer
+                left = req.deadline_ms - (time.perf_counter() - t0) * 1000
+                if (not backoff_429 or backoff_429 < 0 or attempt > 1 or failure_kind("error", str(e)) != "http_429"
+                        or left < backoff_429 + MIN_RETRY_ROOM_MS):
+                    raise
+                log.warning("agent=%s 429: retry once after %d ms (%d ms left)", req.agent, backoff_429, left)
+                await asyncio.sleep(backoff_429 / 1000)
 
     async def _hedged(self, req: LLMRequest, t0: float, hedge_ms: int) -> RawReply:
         """D-184: the first request; if it has not answered after `hedge_ms`, one identical second request. The first
