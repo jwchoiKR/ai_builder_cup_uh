@@ -3,6 +3,8 @@ asked again without JUDGE_SEED; a timeout is not retried and shows the judge-fai
 latency counts both calls."""
 from __future__ import annotations
 
+import pytest
+
 import asyncio
 
 from app.providers.llm import AgentResult, LLMError, RawReply
@@ -92,22 +94,53 @@ async def test_d408_the_retried_result_counts_the_failed_call_s_time():
         await close_env(rt)
 
 
-# ---- D-411: the retry gets only what is left of the fact deadline from the line end ---------------------------
+# ---- D-411/D-417: one fact deadline for the line, from its end; the time left is measured by the clock ------------
 
 
-async def test_d411_the_retry_gets_only_the_time_left():
-    rt, backend = await _run("invalid", late_ms=3000, after=0.3)
+async def _deadline_run(first_ms: int, end_ago_ms: int = 0, status: str = "invalid"):
+    """_run_facts on a line that ended `end_ago_ms` ago; the first call takes `first_ms` of clock time (its audit save
+    included) and comes back `status`. Returns (calls as (deadline_ms, opts), result)."""
+    from app.agents.utterance_judge import JudgeInput
+    from app.models.session import Transcript
+
+    rt = await live_runtime(make_ctx(backend=ScriptedBackend(), FACT_LATE_MS=5000))
+    now = rt.now()
+    t = Transcript(transcript_id="tr_x", text=LINE, is_final=True, speech_end_at=now - end_ago_ms, received_at=now,
+                   source="injected", segment_id="seg_x")
+    rt.utterances._prepared["tr_x"] = (t, LINE, None)
+    calls = []
+
+    async def run(inp, *, deadline_ms, **opts):
+        calls.append((deadline_ms, opts))
+        if len(calls) == 1:
+            rt.ctx.clock.advance(first_ms)
+            return AgentResult(status=status, output=None, latency_ms=first_ms, call_id="c1")
+        return AgentResult(status="ok", output=None, latency_ms=10, call_id="c2")
+
+    rt.utterances.facts.run = run
     try:
-        assert backend.seeds == [7, None]
-        assert backend.deadlines[1] <= 3000 - 300 + 50  # what the first call used is gone
+        res = await rt.utterances._run_facts(LINE, CREAM, JudgeInput(utterance=LINE, on_air=CREAM), "default",
+                                             transcript_id="tr_x")
     finally:
         await close_env(rt)
+    return calls, res
 
 
-async def test_d411_a_late_invalid_answer_is_not_retried_past_the_deadline():
-    rt, backend = await _run("invalid", late_ms=1400, after=0.55)  # less than MIN_FACT_RETRY_MS would be left
-    try:
-        assert backend.seeds == [7]
-        assert len(await events(rt, "line.check")) == 1  # the failed state at once
-    finally:
-        await close_env(rt)
+async def test_d417_a_call_starting_2_s_after_the_line_end_gets_only_the_rest():
+    calls, res = await _deadline_run(first_ms=3000, end_ago_ms=2000, status="timeout")
+    assert [d for d, _ in calls] == [3000]  # it times out at the line's deadline, 5 s after the line end
+    assert res.status == "timeout"
+
+
+async def test_d417_a_line_whose_deadline_passed_is_not_checked():
+    calls, res = await _deadline_run(first_ms=0, end_ago_ms=5000)
+    assert calls == [] and res.status == "timeout" and res.meta["failure"] == "client_timeout"
+
+
+@pytest.mark.parametrize("first_ms, retried", [(3999, True), (4000, True), (4001, False), (4100, False)])
+async def test_d417_the_retry_needs_1_s_left_by_the_clock(first_ms, retried):
+    # the first call (with its slow audit save) used first_ms of the line's 5 s
+    calls, _ = await _deadline_run(first_ms=first_ms)
+    assert len(calls) == (2 if retried else 1)
+    if retried:
+        assert calls[1] == (5000 - first_ms, {"seeded": False})

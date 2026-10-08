@@ -2758,3 +2758,13 @@ D-416a (follow-up): D-416 was committed with 9 backend tests failing; this commi
 - `line.check` is emitted once per line (the first failure). judge.failed is still emitted once per failed judge.
 - The tests that expected one judge.failed when both split judges fail, or none for a context-only failure, now expect one per failed judge.
 - Backend: 1128 passed.
+
+D-417 (codex review of D-411; user: "ㅇㅇㄱ"): the fact check has one deadline per line, speech_end_at + FACT_LATE_MS.
+- The first call gets only what is left of it. If the deadline has already passed when the call would start, the call is not made, and the result is a timeout (client_timeout), so the failed state shows at once.
+- After the first call, the time left is measured by the clock against the line's deadline. It is no longer computed from the call's latency, so the audit save after the call counts too.
+- A retry needs at least MIN_FACT_RETRY_MS (1 s) left, and the log records the real time left.
+Tests (tests/test_d408.py):
+- A call that starts 2 s after the line end gets 3 s.
+- A line whose deadline has passed is not checked.
+- With a slow first call or audit save, the retry happens at 1000 ms left and not at 999 ms; the retry's deadline is exactly what is left.
+- The real-time D-411 tests are replaced by these clock-based ones.

@@ -669,11 +669,17 @@ class UtterancePipeline:
                         offers=offers, parts=parts or [], notes=notes, now=self.rt.now(), chain=judge_input.chain)
         if transcript_id is not None:
             self._fact_inputs[transcript_id] = inp
-        # D-411: the fact deadline counts from the line end; what the first call used is gone for a retry
+        # D-411/D-417: one fact deadline for the line, FACT_LATE_MS from its end (D-144: on time is FACT_TIMEOUT_MS);
+        # every call gets only what is left of it, measured by the clock
         line = self._prepared.get(transcript_id or "")
-        before = max(0, self.rt.now() - line[0].speech_end_at) if line is not None else 0
-        res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
-        left = self.rt.settings.FACT_LATE_MS - before - res.latency_ms
+        deadline = (line[0].speech_end_at if line is not None else self.rt.now()) + self.rt.settings.FACT_LATE_MS
+        left = deadline - self.rt.now()
+        if left <= 0:
+            log.info("fact check for %r: not called, the line's fact deadline passed %d ms ago", text[:80], -left)
+            return AgentResult(status="timeout", output=None, latency_ms=0, call_id="", error="line deadline passed",
+                               meta={"failure": "client_timeout"})
+        res = await self.facts.run(inp, deadline_ms=left)
+        left = deadline - self.rt.now()  # D-417: by the clock, so the call's audit save counts too
         if res.status in ("error", "invalid") and left < MIN_FACT_RETRY_MS:
             log.info("fact check %s (%s) for %r: no retry, %d ms left of the fact deadline", res.status, res.error,
                      text[:80], left)
