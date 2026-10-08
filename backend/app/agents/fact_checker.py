@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from ..logic.catalog import Catalog
 from ..logic.verify import number_set, quote_in_file, quote_in_passage
 from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC,
-                               FactRelationOutputH, FactRelationOutputV2)
+                               FactRelationOutputH, FactRelationOutputV2, FactRelationOutputV5)
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -746,6 +746,11 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
     for r in out.claims:
         ev = [index[i] for i in r.evidence if i in index]
         verdict = {"contradicts": "contradicted", "consistent": "supported"}.get(r.relation, "not_in_sources")
+        if getattr(r, "stance", None) == "REPORTS_OR_ASKS":  # D-331: the model's own stance; never checked or shown
+            verdict = "not_in_sources"
+            if r.relation == "contradicts" and (sink := DROPS.get()) is not None:
+                sink.append({"reason": "reported or asked: not checked", "field": r.field, "stated": r.stated_value,
+                             "correct": r.correct_value, "passage_id": None, "quote": None})
         p = ev[0][0] if ev else None
         c = FactClaim(span=r.span, field=r.field, product_id=r.product_id, stated_value=r.stated_value, verdict=verdict,
                       correct_value=r.correct_value, passage_id=p.passage_id if p else None,
@@ -879,6 +884,8 @@ class FactChecker:
         self.relation_model = FactRelationOutputC if self.confidence else FactRelationOutput
         if getattr(settings, "FACT_PROMPT", "v1") in ("v2", "v3", "v4"):  # D-312, D-313, D-325: source_value before relation (no confidence field)
             self.relation_model = FactRelationOutputV2
+        if getattr(settings, "FACT_PROMPT", "v1") == "v5":  # D-331: a stance per claim
+            self.relation_model = FactRelationOutputV5
             if getattr(settings, "REPORTED_HOLD", False):  # D-328: whose words, and the previous line's fate
                 self.relation_model = FactRelationOutputH
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
@@ -961,6 +968,10 @@ class FactChecker:
                                      else {"claims": [], "reason": "rule-based: no fact check"}), preview=inp.utterance,
         ))
         if res.output is not None and self.relation:
+            # D-331: claims per call and their stances, to compare prompt versions (over-extraction)
+            stances = [getattr(c, "stance", None) for c in res.output.claims]
+            log.info("fact claims %d %s: %r", len(stances), self.prompt_version,
+                     {s: stances.count(s) for s in set(stances) if s})
             _, index = sentence_index(self._source(inp))
             terms = ({"promo"} if inp.promo is not None else set()) | {o.promo_id for o in inp.offers}
             out = from_relation(res.output, index, terms)

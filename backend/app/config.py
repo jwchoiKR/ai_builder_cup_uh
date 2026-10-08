@@ -87,7 +87,8 @@ class Settings(BaseSettings):
     # before the relation) and the compliance judge's sound-alike tester-name line; D-313 v3: v2 plus endorsements
     # ("Correct.") of the previous line's facts
     # D-325 v4: v3 plus "a documents' value with a condition, said without it, contradicts"
-    FACT_PROMPT: Literal["v1", "v2", "v3", "v4"] = "v1"
+    # D-331 v5: v3 plus a stance per claim (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked
+    FACT_PROMPT: Literal["v1", "v2", "v3", "v4", "v5"] = "v1"
     # D-328: the fact checker marks each claim host or other (reported words, a question to someone); a contradiction
     # in someone else's words waits for the next line's check (it endorses, rejects or neither), at most
     # REPORTED_HOLD_MS when no next line comes. Needs FACT_PROMPT v2-v4.
