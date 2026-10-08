@@ -67,7 +67,7 @@ export const KO_OPERATOR: Record<string, string> = {
   "Switched with missing required points: {points}": "필수 포인트를 빠뜨린 채 전환됨: {points}",
   "AI check unavailable for the last sentence": "마지막 문장은 AI 확인을 못 했습니다",
   "No AI answer: {n} · {cause}": "AI 응답 없음 {n}건 · {cause}",
-  "Google shared capacity busy": "Google 공용 용량 혼잡",
+  "AI service busy": "AI 서버 혼잡",
   "AI response delayed": "AI 응답 지연",
   "AI error": "AI 오류",
   "Overtime +{time} on {product}": "{product} 시간 초과 +{time}",

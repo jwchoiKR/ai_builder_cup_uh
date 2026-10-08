@@ -58,7 +58,8 @@ class FeedEngine:
     # ---- state for the Demo Console --------------------------------------------------------------
 
     def state(self) -> dict[str, Any]:
-        return {"pool_running": self.pool_running, "armed": sorted(self.armed), "fired": list(self.fired),
+        return {"pool_running": self.pool_running, "pool_available": bool(self.pool["items"]),  # D-337
+                "armed": sorted(self.armed), "fired": list(self.fired),
                 "bursts": [{"burst_id": k, "scene": v.get("scene"), "description": v.get("description"),
                             "anchor": v.get("anchor", "trigger"), "count": len(v["comments"])}
                            for k, v in self.script["bursts"].items()]}
@@ -77,7 +78,7 @@ class FeedEngine:
         self.rt.spawn(self.rt.emit("feed.updated", self.state()), name="feed.updated")
 
     def start_pool(self) -> None:
-        if self.pool_running:
+        if self.pool_running or not self.pool["items"]:  # D-337: a release show has no demo chatter (was a 500)
             return
         self.pool_running = True
         self._schedule_next()

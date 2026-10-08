@@ -2,7 +2,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent } from "react";
 
-import { api } from "../app/api";
+import { api, userMessage } from "../app/api";
 import { navigate, withSession } from "../app/nav";
 import { useMic } from "../app/mic";
 import { MEASURED_LANGUAGES, micLanguages, setMicLang, useMicLang } from "../app/prefs";
@@ -18,6 +18,11 @@ export const BURST_BUTTONS: { id: string; label: string }[] = [
   { id: "B3", label: "B3 Sensitive & spam" },
   { id: "B4", label: "B4 Time sale questions" },
 ];
+
+/** D-337: the show has this burst (a release show has none: its buttons would answer 404). */
+function hasBurst(feed: FeedState | null | undefined, id: string): boolean {
+  return Boolean(feed?.bursts.some((b) => b.burst_id.split("_", 1)[0].toLowerCase() === id.toLowerCase()));
+}
 
 // The open console's height, remembered per browser. Storage may throw (private mode): fall back.
 const HEIGHT_KEY = "ls.console.height";
@@ -115,7 +120,7 @@ export function DemoConsole({
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(userMessage(e));
     } finally {
       setBusy(null);
     }
@@ -175,7 +180,7 @@ export function DemoConsole({
               <Button
                 size="sm"
                 disabled={busy !== null}
-                onClick={() => run("new", async () => onSessionChange?.((await api.createSession(undefined, newMode)).session_id))}
+                onClick={() => run("new", async () => onSessionChange?.((await api.demoSession(newMode)).session_id))}
               >
                 New demo session
               </Button>
@@ -194,23 +199,29 @@ export function DemoConsole({
 
           <div className={styles.section}>
             <Eyebrow>Feed</Eyebrow>
+            {/* D-337: a show with no demo chatter or bursts (a release show) shows none of their buttons */}
+            {feed?.pool_available !== false && (
+              <div className={styles.buttons}>
+                <Button size="sm" disabled={disabled || feed?.pool_running} onClick={() => run("pool", async () => setFeed(await api.feedStart(sid, { pool: true, bursts: false })))}>
+                  Start background chatter
+                </Button>
+                <Button size="sm" disabled={disabled || !feed?.pool_running} onClick={() => run("stop", async () => setFeed(await api.feedStop(sid)))}>
+                  Stop
+                </Button>
+              </div>
+            )}
+            {!feed?.pool_available && !feed?.bursts.length && <span className={styles.muted}>No demo feed for this show.</span>}
             <div className={styles.buttons}>
-              <Button size="sm" disabled={disabled || feed?.pool_running} onClick={() => run("pool", async () => setFeed(await api.feedStart(sid, { pool: true, bursts: false })))}>
-                Start background chatter
-              </Button>
-              <Button size="sm" disabled={disabled || !feed?.pool_running} onClick={() => run("stop", async () => setFeed(await api.feedStop(sid)))}>
-                Stop
-              </Button>
-            </div>
-            <div className={styles.buttons}>
-              {BURST_BUTTONS.map((b) => (
+              {BURST_BUTTONS.filter((b) => hasBurst(feed, b.id)).map((b) => (
                 <Button key={b.id} size="sm" disabled={disabled} onClick={() => run(b.id, async () => setFeed((await api.burst(sid, b.id)).feed))}>
                   {b.label}
                 </Button>
               ))}
-              <Button size="sm" disabled={disabled || b5Armed} onClick={() => run("B5", async () => setFeed((await api.burst(sid, "B5")).feed))}>
-                {b5Armed ? "B5 armed" : "Arm B5 Switch boundary"}
-              </Button>
+              {hasBurst(feed, "B5") && (
+                <Button size="sm" disabled={disabled || b5Armed} onClick={() => run("B5", async () => setFeed((await api.burst(sid, "B5")).feed))}>
+                  {b5Armed ? "B5 armed" : "Arm B5 Switch boundary"}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -268,7 +279,7 @@ export function DemoConsole({
               <Button
                 size="sm"
                 disabled={!sessionId || !health?.providers || health.providers.stt === "mock" || mic.state === "listening"}
-                title={health?.providers?.stt === "mock" ? "Speech-to-text is off (STT_PROVIDER=mock)" : undefined}
+                title={health?.providers?.stt === "mock" ? "Speech-to-text is off in this environment" : undefined}
                 onClick={() => sessionId && mic.start(sessionId)}
               >
                 Start

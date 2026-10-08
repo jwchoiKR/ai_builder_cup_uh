@@ -3,7 +3,7 @@
 // citation, a spoken answer, a viewer's purchase), then the show ends.
 import { useEffect, useState } from "react";
 
-import { request } from "../app/api";
+import { request, userMessage } from "../app/api";
 import { navigate } from "../app/nav";
 import { Button, Chip, Eyebrow, HubLink } from "../components";
 import { onboardingApi, type Job } from "./onboarding/onboardingApi";
@@ -20,7 +20,7 @@ export function TestDrive() {
 
   useEffect(() => {
     if (!start || job?.status === "done" || job?.status === "failed") return;
-    const t = window.setTimeout(() => onboardingApi.job(start.job_id).then(setJob, (e) => setError(String(e))),
+    const t = window.setTimeout(() => onboardingApi.job(start.job_id).then(setJob, (e) => setError(userMessage(e))),
       job ? 1500 : 300);
     return () => window.clearTimeout(t);
   }, [start, job]);
@@ -31,7 +31,7 @@ export function TestDrive() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(userMessage(e));
     } finally {
       setBusy(false);
     }

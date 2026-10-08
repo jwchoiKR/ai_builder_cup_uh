@@ -1,7 +1,7 @@
 import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, Loader2, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 
-import { api } from "../app/api";
+import { api, userMessage } from "../app/api";
 import { useLang, useT } from "../app/i18n";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useHealth } from "../app/store";
@@ -122,7 +122,7 @@ function ReleasePicker() {
       setOpen(false);
       navigate(`/studio?session=${encodeURIComponent(s.session_id)}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(t(userMessage(e)));
     } finally {
       setBusy(false);
     }
@@ -230,7 +230,7 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
       const s = await fn();
       onSessionChange?.(s.session_id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(t(userMessage(e)));
     } finally {
       setBusy(false);
     }
@@ -247,7 +247,7 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
           </div>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="primary" disabled={busy} onClick={() => run(() => api.createSession())}>
+          <Button variant="primary" disabled={busy} onClick={() => run(() => api.demoSession())}>
             {t("New demo session")}
           </Button>
           <Button

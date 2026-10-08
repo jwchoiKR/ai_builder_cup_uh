@@ -2132,3 +2132,13 @@ D-336 (review-1008 H6): the code defaults are now the measured config, and `depl
   - `.env.example` matches.
 - **Deploy:** the script's `--set-env-vars` lists the same values, `QUESTION_HOLD=false` included. Nothing is deployed until the user deploys.
 - **Tests:** the older tests keep the paths they were written for (the conftest pins the previous values). The verifier-arm tests use `VERIFY_SHIPPED`, the config as shipped from D-305 to D-335. `tests/test_d336.py` checks the defaults and the deploy script.
+
+D-337 (review-1008 A2, A3, E6): no 404/500 buttons and no raw server or infra strings on screen.
+- **"New demo session"** (the Hub and the demo console) now asks for `POST /api/demo/sessions`, the demo show. The empty `POST /api/sessions` answered 404 `unknown_runsheet`, because there is no shipped run-sheet.
+- **Demo feed:** a show with no demo chatter (a release show) no longer starts it; `start_pool` raised `KeyError 'min_gap_ms'`, a 500. The feed state carries `pool_available`. The console hides the chatter buttons and every burst button the show does not have, and says "No demo feed for this show."
+- **Errors:** screens show `userMessage(e)` instead of the server's text: Hub, demo console, test drive, summary, and the app's session lookup. It is a short neutral line, in Korean too: can't reach the server, the show is no longer available, the test drive is busy, demo tools are off, something went wrong. The onboarding screens are someone else's and were not changed.
+- **Infra strings removed:**
+  - "Speech-to-text is off (STT_PROVIDER=mock)" is now "… in this environment" (mic and console).
+  - "This show ended (server restarted)." is now "This show is no longer available." (KO "방송 연결이 끊겼습니다.").
+  - "Google shared capacity busy" is now "AI service busy" (KO "AI 서버 혼잡").
+- **Tests:** `tests/test_d337.py`, `src/screens/screens.test.tsx` (the Hub's demo session; no feed buttons on a release show), and the updated strings.

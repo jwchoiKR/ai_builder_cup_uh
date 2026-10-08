@@ -118,7 +118,7 @@ def test_mock_stt_rejects_audio():
         sid = client.post("/api/sessions").json()["session_id"]
         with client.websocket_connect(f"/api/sessions/{sid}/audio") as ws:
             msg = json.loads(ws.receive_text())
-            assert msg["state"] == "error" and "STT_PROVIDER=mock" in msg["message"]
+            assert msg["state"] == "error" and msg["message"] == "Speech-to-text is off in this environment."
 
 
 def test_stream_state_maps_offsets_to_arrival_times():

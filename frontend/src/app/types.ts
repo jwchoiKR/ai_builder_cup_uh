@@ -292,6 +292,7 @@ export interface FeedBurst {
 
 export interface FeedState {
   pool_running: boolean;
+  pool_available?: boolean; // D-337: false on a show with no demo chatter (a release show)
   armed: string[];
   fired: string[];
   bursts: FeedBurst[];
