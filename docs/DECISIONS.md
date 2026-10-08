@@ -2482,3 +2482,25 @@ D-359: a regulation upload UI on the onboarding screen. It is frontend plus ONE 
 - Tests:
   - `frontend/src/screens/onboarding/regulations.test.tsx`: pick-lists; queued, reading and failed statuses; a done read with sections, approval and the write-once note; active and replaced packs; the no-match warning.
   - `backend/tests/test_d359.py`, a mock-LLM flow: upload a fictional law pack, approve it, a matching release lists the original, and a release of another category shows the warning.
+
+D-360: user decisions, reviewed by GPT, Gemini and Sonnet, now the defaults in code and in `deploy/cloudrun.sh`.
+- **Compliance thinks LOW:** `SINGLE_THINKING=LOW` (was MEDIUM, D-336).
+- **The fact checker flags only facts the host prompter shows:** `FACT_MODE=prompter`, a new mode and the default.
+  - Its passages are the prompter's display snapshot (`logic/prompter.py: prompter_passages`), built with the same rules as the host screen's ProductPanel:
+    - the price (a time-sale price while a price promo runs, else the live and list price) and the set price;
+    - the first 4 ingredient amounts;
+    - the points, minus a price point that is not required, under the claims section, so D-338 keeps them out of corrections;
+    - the in-house test results;
+    - every caution.
+  - No product files and no record facts the prompter does not show, such as a size line or the fifth ingredient. The snapshot is both the checker's input and its provenance.
+  - In the 10 s dual scope after a switch, the previous product's snapshot is there too. Other show products are not, because they are not on the prompter.
+  - The release pack is still built at record level for its other readers (answers to viewers); only the fact checker's input changed.
+  - The D-346 log-only checks stay; with no files there is no file route.
+  - The snapshot is under the 4,096-token cache minimum, so it goes uncached.
+  - `record` and `docs` stay as non-default modes. The older tests are pinned to `docs` in `tests/conftest.py`, and `VERIFY_SHIPPED` keeps the verifier arm as it shipped.
+- **Item 3** (extracted text in place of the PDF part) was cancelled by the user. The originals stay as the PDF part (D-358), and the compliance prefix is unchanged at about 5,194 tokens.
+- **Originals lookup (the pool-7 HSA pack `law_sg_bb0dff9c_v1` was "missing"):**
+  - A lookup that finds nothing is no longer cached, so a pack or file approved or read back later is found on the next call. Before, the lru_cache kept the first miss for the life of the process.
+  - Each way the lookup fails is logged with the exact path it tried: no law or brand pack under the root, a pack with no `job_id`, no `<root>/<job_id>/files.json` (local or in the bucket), or a missing file.
+  - That pack is not in the cloud bucket (`onboarding/lawpacks/` has no objects) and not in the repo; it lives in the eval VM's onboarding directory, so this session could not verify the load. The likely cause is a pack approved by a script that read the law documents without storing them under its job (`store()` writes `<job_id>/files.json`; `eval_lawpack.py` does not). The next run's log names the missing path.
+- Tests (`tests/test_d360.py`): the snapshot is what the prompter shows (no volume line); a price on the prompter said wrongly alerts; a volume that is in the record but not on the prompter, said wrongly, gives no alert; the previous product's snapshot is there in the dual scope; a missing original is looked up again, logged with its path, and found once its files exist. `test_d336` states the new defaults.

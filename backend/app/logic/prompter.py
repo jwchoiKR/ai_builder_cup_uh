@@ -1,9 +1,10 @@
 """Prompter point coverage (DEV_SPEC §8.7.1). Covered points are never removed."""
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 
-from ..models.data import PrompterPoint
+from ..models.data import Passage, PrompterPoint
 from ..models.session import Segment, Session
 from .catalog import Catalog
 
@@ -62,3 +63,53 @@ def prompter_view(catalog: Catalog, segment: Segment | None,
         "required_total": len(required),
         "required_covered": sum(1 for p in required if p in covered),
     }
+
+
+# ---- D-360: the prompter's display snapshot, the fact checker's only source ---------------------------------------
+
+SHOWN_AMOUNT = re.compile(r"^\d+(\.\d+)?\s*(%|mg|mcg|µg|g|iu)$", re.IGNORECASE)  # the host screen's PERCENT
+SHOWN_INGREDIENTS = 4  # the host screen's MAX_INGREDIENTS
+
+
+def _ingredient_name(key: str) -> str:
+    return " ".join(w.upper() if len(w) <= 2 else w[0].upper() + w[1:] for w in key.split("_"))
+
+
+def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, list[PrompterPoint]] | None = None,
+                      promo=None) -> list[Passage]:
+    """What the host prompter shows for this product, as passages (the same rules as the host screen's
+    ProductPanel): the price (a time-sale price while a price promo runs), the list or live price, the set price,
+    the first ingredient amounts, the points (minus a price point that is not required), the in-house test results
+    and every caution. Nothing else of the record reaches the fact checker."""
+    from ..agents.fact_checker import CLAIMS_SECTION
+
+    p = catalog.get_product(product_id)
+    out: list[Passage] = []
+
+    def add(section: str, key: str, text: str) -> None:
+        out.append(Passage(passage_id=f"{p.code}#prompter#{key}", product_id=product_id, doc="prompter",
+                           section=section, text=text))
+
+    sale = promo is not None and product_id in getattr(promo, "promo_prices", {})
+    if sale:
+        add("Price & offers", "sale-price", f"Time sale price: {catalog.price_display(product_id, promo)}")
+        add("Price & offers", "live-price", f"Live price: {catalog.money(p.live_price)}")
+    else:
+        add("Price & offers", "live-price", f"Live price: {catalog.money(p.live_price)}")
+        add("Price & offers", "list-price", f"List price: {catalog.money(p.list_price)}")
+    for s in catalog.set_offers:
+        if product_id in s.product_ids:
+            value = promo.promo_prices.get(s.set_id) if sale and s.set_id in promo.promo_prices else s.live_price
+            add("Price & offers", f"set-{s.set_id}", f"Set {s.name}: {catalog.money(value)}")
+    shown = [(k, v) for k, v in p.key_facts.items() if SHOWN_AMOUNT.match(v.strip())][:SHOWN_INGREDIENTS]
+    for k, v in shown:
+        add("Ingredients", f"ingredient-{k}", f"{_ingredient_name(k)}: {v}")
+    symbol = catalog.pack.products.currency_symbol
+    for pt in points_of(catalog, product_id, overrides):
+        if pt.required or not symbol or symbol not in pt.text:
+            add(CLAIMS_SECTION, f"point-{pt.point_id}", pt.text)  # D-338: never a correction source
+    for r in p.qualified_results:
+        add("In-house test results", f"result-{r.result_id}", r.say)
+    for i, c in enumerate(p.cautions, 1):
+        add("Cautions", f"caution-{i}", c)
+    return out

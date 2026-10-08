@@ -6,7 +6,6 @@ files.json). The model gets the files as parts of its cached prefix; code keeps 
 cited quote is really in that original (provenance). The rule pack is read only to find which documents apply."""
 from __future__ import annotations
 
-import functools
 import json
 import logging
 import re
@@ -62,7 +61,8 @@ def _local(source_id: str, title: str, file: str | None) -> list[Original]:
 
 
 def _pack_files(source_id: str, root: Path) -> list[Original]:
-    """A law or brand pack's originals: the files of the onboarding job that made it."""
+    """A law or brand pack's originals: the files of the onboarding job that made it (`<root>/<job_id>/files.json`,
+    read back from the bucket when needed). D-360: each way the lookup fails is logged with the path it tried."""
     from ..onboarding.files import model_part
     from ..onboarding.storage import ensure
 
@@ -71,22 +71,35 @@ def _pack_files(source_id: str, root: Path) -> list[Original]:
         if not ensure(pack):
             continue
         job = json.loads(pack.read_text(encoding="utf-8")).get("job_id")
-        index = root / job / "files.json" if job else None
-        if index is None or not ensure(index):
+        if not job:
+            log.warning("compliance originals: pack %s names no job_id (%s)", source_id, pack)
+            return []
+        index = root / job / "files.json"
+        if not ensure(index):
+            log.warning("compliance originals: pack %s: no %s (local or in the bucket)", source_id, index)
             return []
         out = []
         for e in json.loads(index.read_text(encoding="utf-8")):
             path = root / job / e["file"]
-            if ensure(path):
-                data = path.read_bytes()
-                part = model_part(e["name"], data)
-                out.append(Original(e["name"], e["name"], source_id, part.data, part.mime, _text(e["name"], data)))
+            if not ensure(path):
+                log.warning("compliance originals: pack %s: file %s (%s) is missing", source_id, e["name"], path)
+                continue
+            data = path.read_bytes()
+            part = model_part(e["name"], data)
+            out.append(Original(e["name"], e["name"], source_id, part.data, part.mime, _text(e["name"], data)))
         return out
+    log.warning("compliance originals: no law or brand pack %s under %s", source_id, root)
     return []
 
 
-@functools.lru_cache(maxsize=16)
+_LOADED: dict[tuple, tuple] = {}
+
+
 def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, ...]]:
+    """D-360: a complete result is kept; one with a source missing is looked up again next time (a file read back from
+    the bucket later, or a pack approved after the first show), never cached as missing."""
+    if (sources, root) in _LOADED:
+        return _LOADED[(sources, root)]
     found, missing = [], []
     for sid, title, file in sources:
         docs = _local(sid, title, file) or _pack_files(sid, Path(root))
@@ -94,7 +107,10 @@ def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, .
             found.extend(d for d in docs if d.name not in {x.name for x in found})
         else:
             missing.append(sid)
-    return tuple(found), tuple(missing)
+    out = (tuple(found), tuple(missing))
+    if not missing:
+        _LOADED[(sources, root)] = out
+    return out
 
 
 def originals_of_rules(rules, sources, onboarding_root: Path) -> tuple[tuple[Original, ...], tuple[str, ...]]:

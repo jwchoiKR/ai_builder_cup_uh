@@ -34,12 +34,14 @@ LEGACY = {
     "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash", "SINGLE_THINKING": "LOW",
     "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",  # D-343
     "CORRECTION_HANDLES": "false",  # D-358: on by default with the originals path; the rules-path tests script ids
+    "FACT_MODE": "docs",  # D-360: the default is the prompter snapshot; older tests cite the release's sheet passages
 }
 for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)
 SHIPPED = {k: Settings.model_fields[k].default for k in LEGACY}
 # D-336: the verifier arm as it shipped from D-305 to D-335 (the default is now the single arm)
-VERIFY_SHIPPED = SHIPPED | {"JUDGE_ARM": "verify", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "QUESTION_HOLD": False}
+VERIFY_SHIPPED = SHIPPED | {"JUDGE_ARM": "verify", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "QUESTION_HOLD": False,
+                            "FACT_MODE": "docs", "SINGLE_THINKING": "MEDIUM"}  # D-360: as it shipped
 
 _REPO = Path(__file__).resolve().parents[2]
 _TEST_DATA: Path | None = None

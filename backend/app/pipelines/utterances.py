@@ -463,7 +463,7 @@ class UtterancePipeline:
         waiting = set()
         try:
             if self.single:
-                inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch)
+                inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch, inp.promo)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
                 comp_task = rt.spawn(self._vote_compliance(self._verify_compliance(self._once_more(
@@ -623,8 +623,15 @@ class UtterancePipeline:
             return switch
         return switch.model_copy(update={"previous_product_id": None, "previous_until": None})
 
-    async def _fact_passages(self, text: str, on_air: str, switch: SwitchState):
+    async def _fact_passages(self, text: str, on_air: str, switch: SwitchState, promo=None):
         rt = self.rt
+        if rt.settings.FACT_MODE == "prompter":  # D-360: only what the host prompter shows, the previous product's
+            # snapshot too inside the dual scope after a switch (D-349)
+            from ..logic.prompter import prompter_passages
+
+            pids = [on_air, *([switch.previous_product_id] if switch.previous_product_id
+                              and switch.previous_product_id != on_air else [])]
+            return [x for pid in pids for x in prompter_passages(rt.catalog, pid, rt.points, promo)]
         rt.sync_doc_version()
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS,
@@ -723,7 +730,8 @@ class UtterancePipeline:
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
                          parts: list[str] | None = None, transcript_id: str | None = None) -> AgentResult:
         # D-172: a product the last lines named stays citable ("the ampoule on its own is $32," / "list price 42")
-        passages = await self._fact_passages(" ".join([*judge_input.previous[-1:], text]), on_air, judge_input.switch)
+        passages = await self._fact_passages(" ".join([*judge_input.previous[-1:], text]), on_air, judge_input.switch,
+                                             judge_input.promo)
         s = await self.rt.load_session()
         offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
         inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
