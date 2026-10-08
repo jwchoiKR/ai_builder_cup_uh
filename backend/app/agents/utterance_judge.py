@@ -148,7 +148,8 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
     """D-358: a verdict cited from the regulation originals (no rule JSON). D-374 (user, 10/9): the model's verdict is
     applied as given: no check of the quote's wording or of the cited document (both are shown as the model wrote
     them, as its citation and summary); the alert's rule id is the document and the section, normalised, for
-    duplicate suppression only. The severity is the model's. TEST-QUALIFIER takes the recorded result's wording by
+    duplicate suppression only. D-400: the severity comes from the citation type (a regulation document HIGH,
+    TEST-QUALIFIER MEDIUM), never from the model. TEST-QUALIFIER takes the recorded result's wording by
     `qualified_result_id`, else keeps the model's. Only a verdict that cannot be applied is skipped and logged: a
     product id that is not in the show."""
     from .originals import citation_rule_id
@@ -167,6 +168,9 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
                          getattr(v, "product_id", None), v.span)
                 continue
         cite = (v.citation or "").strip()
+        # D-400 (user): the colour comes from what is cited: a regulation document is red (HIGH); the product's own
+        # test result said without its source is orange (MEDIUM); the model does not grade
+        v.severity = "MEDIUM" if cite.upper() == qualifier.RULE_ID else "HIGH"
         if cite.upper() == qualifier.RULE_ID:
             # D-361: the recorded result named by id, its wording the say_instead; no text matching
             r = results.get(getattr(v, "qualified_result_id", None))

@@ -124,7 +124,7 @@ async def test_d374_a_cited_verdict_is_applied_as_given(tmp_path, caplog, citati
         await close_env(rt)
 
 
-async def test_d358_the_severity_is_the_model_s_and_a_correction_goes_by_handle(tmp_path):
+async def test_d400_a_document_citation_is_red_and_a_correction_goes_by_handle(tmp_path):
     llm = _Backend()
     llm.outputs[("compliance_judge", CLAIM)] = _verdict(
         "kelmar_code.pdf#2.1", "must not be presented as treating", severity="MEDIUM")
@@ -135,7 +135,7 @@ async def test_d358_the_severity_is_the_model_s_and_a_correction_goes_by_handle(
     try:
         await speak(rt, CLAIM)
         [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
-        assert a.severity == "MEDIUM"  # the model's choice; there is no pack severity
+        assert a.severity == "HIGH"  # D-400: a regulation document is red, whatever the model sent
         await speak(rt, SORRY)
         await rt.utterances.drain()
         [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
@@ -187,3 +187,17 @@ async def test_d358_a_rule_source_with_no_original_is_reported(caplog):
         assert isinstance(found[0], Original) and found[0].mime == "application/pdf"
     finally:
         await close_env(rt)
+
+
+def test_d400_the_model_is_not_asked_for_a_severity_and_test_qualifier_is_orange(catalog):
+    from app.agents.utterance_judge import validate_original
+    from app.models.agent_io import ComplianceOutputO
+
+    assert "severity" not in ComplianceOutputO.model_json_schema()["$defs"]["ViolationO"]["properties"]
+    out = ComplianceOutputO.model_validate({"compliance": {"violations": [
+        {"citation": "TEST-QUALIFIER", "quote": "q", "span": "s", "is_negated": False, "is_quoted": False,
+         "say_instead": "x", "qualified_result_id": None},
+        {"citation": "guideline.pdf#3", "quote": "q", "span": "t", "is_negated": False, "is_quoted": False,
+         "say_instead": "y", "qualified_result_id": None}]}, "correction": {"corrects_alert_ids": []}, "reason": "r"})
+    values = {"current_product_json": {"product_id": catalog.order[0]}, "active_alerts_json": []}
+    assert [v.severity for v in validate_original(out, catalog, values, ()).compliance.violations] == ["MEDIUM", "HIGH"]
