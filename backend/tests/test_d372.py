@@ -251,3 +251,37 @@ async def test_d377_the_product_that_just_left_is_ticked_even_when_it_is_also_th
         assert not (await rt.load_session()).pre_covered.get(AMPOULE)
     finally:
         await close_env(rt)
+
+
+async def test_d382_a_second_undo_after_the_line_does_not_change_its_reopen_state():
+    """Cream -> ampoule (B1) -> cream -> ampoule (B2), undo; the ampoule's price is said; then ampoule (B3) and undo
+    again before the verdict lands: the line is judged on the reopen before it, so B1 is not ticked."""
+    import asyncio
+
+    from app.pipelines.utterances import operator_switch, undo_switch
+
+    from .judge_fakes import advance
+
+    rt, llm = await _env(SWITCH_MODE="immediate")
+    try:
+        await advance(rt, 1000)
+        first_amp = (await operator_switch(rt, AMPOULE)).segment_id
+        await advance(rt, 1000)
+        await operator_switch(rt, CREAM)
+        await advance(rt, 1000)
+        await operator_switch(rt, AMPOULE)
+        await undo_switch(rt)
+        await advance(rt, 1000)
+        line = "And the ampoule is on its live price today."
+        _verdict(llm, line, "consistent", [_sid(rt, AMP_LIVE, (CREAM, AMPOULE))], product=AMPOULE)
+        llm.delays[("fact_checker", line)] = 0.3
+        await rt.inject_transcript(line)
+        await asyncio.sleep(0.05)
+        rt.ctx.clock.set(rt.ctx.clock.now_ms() + 1000)  # while the call is out: another switch and undo
+        await operator_switch(rt, AMPOULE)
+        await undo_switch(rt)
+        await _settle(rt)
+        assert (await rt.get_segment(first_amp)).ticked_item_ids == []
+        assert (await rt.load_session()).pre_covered.get(AMPOULE) == [AMP_LIVE]
+    finally:
+        await close_env(rt)

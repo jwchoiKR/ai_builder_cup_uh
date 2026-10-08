@@ -104,7 +104,7 @@ class Segment(BaseModel):  # [sessions/{sid}/segments/{segment_id}]
     planned_duration_sec: int
     covered_point_ids: list[str] = []  # monotonic, never removed
     ticked_item_ids: list[str] = []  # D-372: prompter items (prices, ingredients, cautions) said right; monotonic
-    reopened_at: int | None = None  # D-381: when an undo reopened this segment (the switch after it was undone)
+    reopen_times: list[int] = []  # D-381/382: every time an undo reopened this segment (a later undo adds, never moves)
 
 
 class Transcript(BaseModel):  # [sessions/{sid}/transcripts/{transcript_id}]
