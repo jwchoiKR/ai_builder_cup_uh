@@ -2265,3 +2265,23 @@ D-349 (follow-up): `scripts/eval_switch.py` becomes `scripts/eval_show.py`, a ge
   - `calls`: every model call with its usage.
   - `timeline`: the raw live events in order.
   - `switch_score`.
+
+D-350: white screens in demos (user report). The frontend had no React error boundary, so a render exception unmounted the whole app. This is a display and robustness change only; there is no judge, switch or STT change.
+
+- **Error boundaries (`PanelBoundary`):** there is one at the app root and one around each Studio pane (host, operator, viewer) and around the demo console.
+  - On an error, the other panels keep running, and the broken one shows a small card: "This panel hit an error · Reload panel" (KO: "이 패널에 오류가 났습니다 · 패널 다시 불러오기"). Reload remounts the panel, so its state comes fresh from the server.
+  - The error goes to `console.error("[panel-error]", panel, message, {stack, componentStack, lastEventType})`. There is no client-log endpoint, and adding one would be a backend change.
+  - `lastEventType()` in `sse.ts` is the type of the last live event received.
+- **Event guard:** `reduceEvent` now catches an exception while applying one event. A payload this client cannot apply would otherwise throw inside every screen's state update at once. The event is skipped and logged (`[live] event skipped <type>`), its seq still advances, and later events apply.
+- **Likely crash:** the screens were fed the suspects named in the report:
+  - null say_instead, span, rule, severity, field and values
+  - an unknown alert kind
+  - a product missing from the catalog after a switch (the on-air segment's product not in the catalog)
+  - an empty prompter
+  - an unknown event type, and `segment.switch_decided`
+
+  Host, operator and viewer all rendered without a crash, so no single render bug reproduced. The one reproducible way to crash is an event whose payload a reducer branch cannot read (for example `segment.extended` with no segment): that throws inside the state update of every screen at once, which matches "the whole screen goes white". The event guard covers it, and the boundaries cover any render error not found yet. `checked_against` is a field of `eval_show.py`'s output, not of the app.
+- **TEST-QUALIFIER say_instead:** a test result's wording is "<result>, <test conditions> (<qualifier>)". The format is built by the onboarding release (not this team's code), and the conditions can be a long passage.
+  - Neither the demo releases nor our PDF text extraction contain U+FFFD; the demo PDFs' "30°C" extracts cleanly. So the broken "22 ± 2 °C" text comes from a non-demo release's record (onboarding) or from the console the replay was read in. It is not fixed at the source here.
+  - The host overlay, the MEDIUM banner and the operator card now show `shortSay(...)`. A line longer than 120 characters, or one holding U+FFFD, loses its test conditions but keeps the result and its qualifier. The operator card keeps the full text as a tooltip.
+- Tests: `src/screens/robust.test.tsx`: an unknown event; an event that cannot be applied is skipped and later events apply; host, operator and viewer render the odd data without the error card; a throwing panel shows the card, its sibling stays, the error is reported, and Reload brings it back; shortSay cases.

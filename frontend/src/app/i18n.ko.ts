@@ -100,6 +100,8 @@ export const KO_HOST: Record<string, string> = {
   "Cancel switch (Esc)": "전환 취소 (Esc)",
   "Switched to {name}": "{name}(으)로 전환됨",
   "Undo (Esc)": "되돌리기 (Esc)",
+  "This panel hit an error": "이 패널에 오류가 났습니다",
+  "Reload panel": "패널 다시 불러오기",
   "AI PD card": "AI PD 카드",
   Answer: "답변하기",
   "Say this point": "이 포인트 말하기",

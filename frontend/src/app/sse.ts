@@ -59,6 +59,13 @@ export const EVENT_TYPES = [
 
 export type EventType = (typeof EVENT_TYPES)[number];
 
+let lastType: string | null = null;
+
+/** D-350: the type of the last live event received, for a panel's error report. */
+export function lastEventType(): string | null {
+  return lastType;
+}
+
 export function eventsUrl(sessionId: string, role: Role, afterSeq: number): string {
   return `${API_BASE}/sessions/${encodeURIComponent(sessionId)}/events?after_seq=${afterSeq}&role=${role}`;
 }
@@ -84,6 +91,7 @@ export function openEventStream(opts: EventStreamOptions): () => void {
   const setStatus = (st: ConnectionStatus) => opts.onStatus?.(st);
 
   const handle = (type: string) => (e: MessageEvent) => {
+    lastType = type;
     const seq = Number(e.lastEventId);
     if (Number.isFinite(seq) && seq > 0) {
       if (seq <= lastSeq) return; // already applied

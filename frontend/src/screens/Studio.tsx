@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ComponentType } from "react";
 import type { ScreenProps } from "../app/nav";
 import { useHealth, useSession } from "../app/store";
 import { useTheme, type ScreenKey } from "../app/theme";
-import { Eyebrow, HubLink, SettingsButton } from "../components";
+import { Eyebrow, HubLink, PanelBoundary, SettingsButton } from "../components";
 import { DemoConsole } from "./DemoConsole";
 import { Host } from "./Host";
 import { Operator } from "./Operator";
@@ -75,7 +75,9 @@ function Pane({
         </div>
       )}
       <div className={styles.paneBody}>
-        <Screen sessionId={sessionId} theme={theme} embedded onSessionChange={onSessionChange} />
+        <PanelBoundary name={screen}>
+          <Screen sessionId={sessionId} theme={theme} embedded onSessionChange={onSessionChange} />
+        </PanelBoundary>
       </div>
     </section>
   );
@@ -202,12 +204,14 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
         ))}
       </div>
       {demoTools && !recording && (
-        <DemoConsole
-          sessionId={sessionId}
-          open={consoleOpen}
-          onToggle={() => setConsoleOpen((o) => !o)}
-          onSessionChange={onSessionChange}
-        />
+        <PanelBoundary name="demo console">
+          <DemoConsole
+            sessionId={sessionId}
+            open={consoleOpen}
+            onToggle={() => setConsoleOpen((o) => !o)}
+            onSessionChange={onSessionChange}
+          />
+        </PanelBoundary>
       )}
     </div>
   );

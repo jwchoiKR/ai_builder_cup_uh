@@ -10,7 +10,7 @@ import { Setup } from "../screens/Setup";
 import { Studio } from "../screens/Studio";
 import { Summary } from "../screens/Summary";
 import { Viewer } from "../screens/Viewer";
-import { Button } from "../components";
+import { Button, PanelBoundary } from "../components";
 import styles from "../screens/screens.module.css";
 import { api, onStaleSession, userMessage } from "./api";
 import { useLang, useT } from "./i18n";
@@ -103,5 +103,9 @@ export function App() {
     };
     return <SessionEnded onNew={onNew} />;
   }
-  return <Screen sessionId={sessionId} onSessionChange={setSessionId} />;
+  return (
+    <PanelBoundary name={pathname}>
+      <Screen sessionId={sessionId} onSessionChange={setSessionId} />
+    </PanelBoundary>
+  );
 }
