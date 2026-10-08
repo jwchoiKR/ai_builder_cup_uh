@@ -107,6 +107,7 @@ export function MediumBanner({
   serverOffsetMs = 0,
   count = 1,
   more = 0,
+  factCount = 1,
 }: {
   alert: Alert;
   catalog: Catalog | null;
@@ -119,6 +120,8 @@ export function MediumBanner({
   count?: number;
   /** D-402: active alerts the stack does not show */
   more?: number;
+  /** D-403: how many active notes cite the merged note's passage (the note shown is the newest) */
+  factCount?: number;
 }) {
   // D-106: a block at the top of the prompter card, yellow, with the replacement as the biggest text.
   const t = useT();
@@ -156,6 +159,7 @@ export function MediumBanner({
             {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
             <span className={styles.factRight}>○ {fact.say ?? fact.correct_value}</span>
             <span className={styles.factWrong}>{t("(not {value})", { value: fact.stated_value ?? "" })}</span>
+            {factCount > 1 && <span className={styles.alertCount} data-testid="host-medium-fact-count">×{factCount}</span>}
           </span>
         )}
       </div>

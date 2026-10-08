@@ -261,9 +261,9 @@ export function HostView({
     ...facts.map(({ alert: a, count }) => ({ count, box: (more: number) => (
       <FactNote key={a.alert_id} alert={a} catalog={catalog} onRendered={actions.rendered} count={count} more={more} />
     ) })),
-    ...mediums.map(({ alert: a, fact, count }) => ({ count, box: (more: number) => (
+    ...mediums.map(({ alert: a, fact, count, factCount }) => ({ count, box: (more: number) => (
       <MediumBanner key={a.alert_id} alert={a} catalog={catalog} fact={fact} onRendered={actions.rendered}
-        serverOffsetMs={state.serverOffsetMs} count={count} more={more} />
+        serverOffsetMs={state.serverOffsetMs} count={count} more={more} factCount={factCount} />
     ) })),
   ];
   const shown = boxes.slice(0, MAX_ALERT_BOXES);

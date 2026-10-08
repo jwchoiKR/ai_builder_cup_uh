@@ -419,6 +419,16 @@ describe("compliance", () => {
     expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
   });
 
+  it("D-403: the merged card takes the note's whole passage group (×2), no second card for the older note", () => {
+    const newer = { ...wrongNumber, passage_id: "P#test", created_at: T0 - 1000, shown_at: T0 - 1000 };
+    const older = { ...wrongNumber, alert_id: "fx_old", transcript_id: "tr_000003", passage_id: "P#test",
+      created_at: T0 - 9000, shown_at: T0 - 9000 };
+    render(view({ alerts: [qualifier, newer, older] }));
+    expect(screen.getAllByTestId("host-medium-banner")).toHaveLength(1);
+    expect(screen.queryByTestId("host-fact-note")).toBeNull();
+    expect(screen.getByTestId("host-medium-fact-count")).toHaveTextContent("×2");
+  });
+
   it("D-399: two unresolved qualifier alerts show as one card with ×2, the newest", () => {
     const older = { ...qualifier, alert_id: "al_q_old", transcript_id: "tr_old", span: "the older claim",
       created_at: qualifier.created_at - 5000, shown_at: (qualifier.shown_at ?? qualifier.created_at) - 5000 };

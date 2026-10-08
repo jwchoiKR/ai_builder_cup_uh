@@ -6,7 +6,7 @@ import pytest
 from app.models.session import Transcript
 from app.pipelines.utterances import ends_sentence
 
-from .judge_fakes import AMPOULE, advance, close_env, events, make_env, price_contradiction, speak, violation
+from .judge_fakes import AMPOULE, advance, claim, close_env, events, make_env, price_contradiction, speak, violation
 from .test_publish import ANSWER, messages, oily_on_host
 
 S08_A, S08_B = "Just to be clear, it does not", "treat acne. It's a moisturiser."
@@ -348,27 +348,6 @@ async def test_d401_two_claims_of_one_rule_from_a_merge_are_corrected_one_at_a_t
     assert [status[x.alert_id] for x in active if x is not first] == ["active"] and status[first.alert_id] == "corrected"
 
 
-async def test_d401_an_alert_dismissed_while_the_merged_check_runs_does_not_come_back(env):
-    import asyncio
-
-    from app.pipelines.utterances import dismiss_alert
-
-    rt, llm = env
-    llm.judge(S07_A, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles")])
-    llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
-    llm.delays[("compliance_judge", S07)] = 0.4  # the merged check is out
-    await speak(rt, S07_A)
-    [frag] = compliance(await rt.alerts())
-    await advance(rt, 1200)
-    await rt.inject_transcript(S07_B)
-    await asyncio.sleep(0.1)
-    await dismiss_alert(rt, frag.alert_id)  # the operator dismisses it meanwhile
-    await rt.utterances.drain()
-    await asyncio.sleep(0.5)
-    await rt.ctx.scheduler.idle()
-    assert [x for x in compliance(await rt.alerts()) if x.status == "active"] == []
-
-
 async def test_d401_a_merged_fix_only_verdict_leaves_the_fragment_s_note_corrected(env):
     rt, llm = env
     llm.facts(PRICE_A, price_contradiction("S$32"))
@@ -376,3 +355,55 @@ async def test_d401_a_merged_fix_only_verdict_leaves_the_fragment_s_note_correct
     a, b = await split(rt, PRICE_A, PRICE_B)
     [note] = [x for x in await rt.alerts() if x.kind == "fact"]
     assert note.status == "corrected"
+
+
+# ---- D-403: the model says which listed note a claim repeats (same_as) -----------------------------------------
+
+
+async def test_d403_a_merged_line_repeating_f1_keeps_the_note_s_id(env):
+    rt, llm = env
+    llm.facts(PRICE_A, price_contradiction("S$32"))
+    llm.facts(PRICE, {**price_contradiction("S$32"), "span": "only thirty-two dollars", "same_as": "F1"})
+    a, b = await split(rt, PRICE_A, PRICE_B)
+    [note] = [x for x in await rt.alerts() if x.kind == "fact"]
+    assert note.status == "active" and note.transcript_id == a.transcript_id and note.span == "only thirty-two dollars"
+    assert len(await events(rt, "alert.created")) == 1  # no new note, no flicker
+
+
+async def test_d403_a_note_dismissed_during_the_merge_stays_closed_and_a_new_claim_shows(env):
+    import asyncio
+
+    from app.pipelines.utterances import dismiss_alert
+
+    rt, llm = env
+    llm.facts(PRICE_A, price_contradiction("S$32"))
+    vol = claim("volume", "contradicted", stated="30 mL", correct="50 mL", span="a thirty mL tube")
+    llm.facts(PRICE, {**price_contradiction("S$32"), "same_as": "F1"}, vol, delay=0.4)
+    await speak(rt, PRICE_A)
+    [frag] = [x for x in await rt.alerts() if x.kind == "fact"]
+    await advance(rt, 1200)
+    await rt.inject_transcript(PRICE_B)
+    await asyncio.sleep(0.1)
+    await dismiss_alert(rt, frag.alert_id)  # the operator dismisses it while the merged check runs
+    await rt.utterances.drain()
+    await asyncio.sleep(0.5)
+    await rt.ctx.scheduler.idle()
+    status = {x.field: x.status for x in await rt.alerts() if x.kind == "fact"}
+    assert status == {"price": "dismissed", "volume": "active"}
+
+
+async def test_d403_the_summary_leaves_out_a_superseded_note(env):
+    """A fragment's note replaced by the merged line's note, then corrected: one note in the summary, corrected."""
+    from app.pipelines.summary import compute_stats
+
+    rt, llm = env
+    llm.facts(PRICE_A, price_contradiction("S$32"))
+    llm.facts(PRICE, price_contradiction("S$32"))
+    fix = "Sorry, it's thirty-six dollars."
+    llm.facts(fix, fixed=["F1"])
+    await split(rt, PRICE_A, PRICE_B)
+    await advance(rt, 3000)
+    await speak(rt, fix)
+    assert sorted(x.status for x in await rt.alerts() if x.kind == "fact") == ["cleared", "corrected"]
+    facts = (await compute_stats(rt))["fact_alerts"]
+    assert [(f["corrected"], f["shown_to_corrected_ms"] != "uncorrected") for f in facts] == [(True, True)]

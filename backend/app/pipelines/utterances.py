@@ -532,7 +532,7 @@ class UtterancePipeline:
                          all_products=rt.settings.JUDGE_PRODUCTS == "all",
                          session_id=rt.sid, scenario=scenario,
                          switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen,
-                         run_sheet_types=self.type_words)
+                         run_sheet_types=self.type_words, now=rt.now())
         # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
         offered: dict[str, Answer | None] = {}
         for g, _ in questions:
@@ -646,7 +646,7 @@ class UtterancePipeline:
         inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
                         passages=passages, previous=judge_input.previous, recent=judge_input.recent,
                         session_id=self.rt.sid, scenario=scenario,
-                        offers=offers, parts=parts or [], notes=notes)
+                        offers=offers, parts=parts or [], notes=notes, now=self.rt.now())
         if transcript_id is not None:
             self._fact_inputs[transcript_id] = inp
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
@@ -707,21 +707,18 @@ class UtterancePipeline:
                          t.transcript_id, later)
                 return
             self._verdict_ok.add((t.transcript_id, "compliance"))
-            # D-387 (user): every violation is its own alert
-            changed, created = alert_logic.apply_judge_compliance(judge, t, on_air, provisional, rt.pack.rules_by_id,
-                                                                  rt.new_id, now)
-            # D-397/D-401: the merged line's verdict replaces the alerts its chain's lines raised: its violations are
-            # new alerts and the chain's are cleared (no id reuse: code never decides two claims are one; a short
-            # flicker is accepted). Only transcript ids decide it
+            # D-387 (user): every violation is its own alert. D-403 (user, option A): one the model marks as repeating
+            # a listed alert (`same_as`) keeps that alert, or leaves it closed
+            changed, created, closed = alert_logic.apply_judge_compliance(
+                judge, t, on_air, provisional, rt.pack.rules_by_id, rt.new_id, now, listed={a.alert_id: a for a in alerts})
+            kept = {a.alert_id for a in changed if a.transcript_id != t.transcript_id}
+            if kept or closed:
+                log.info("compliance %s t=%s: same_as kept %s; not raised again (closed): %s", rt.sid, t.transcript_id,
+                         sorted(kept), closed)
+            # D-397/D-401/D-403: the merged line's verdict replaces the alerts its chain's lines raised: the ones it
+            # neither repeats (same_as) nor corrects are cleared. Only transcript ids and the model's handles decide it
             chain = [a for a in alerts if a.kind == "compliance" and a.transcript_id in protected
-                     and a.status in ("active", "provisional")]
-            # D-401: an alert of the chain the host or operator closed while this request was out is not raised again
-            closed = {a.rule_id for a in alerts if a.kind == "compliance" and a.transcript_id in protected
-                      and a.status in ("corrected", "dismissed") and (a.resolved_at or 0) >= t.received_at}
-            if closed:
-                log.info("compliance %s t=%s: not raised again (closed while the merged check ran): %s", rt.sid,
-                         t.transcript_id, sorted(closed))
-                created = [a for a in created if a.rule_id not in closed]
+                     and a.status in ("active", "provisional") and a.alert_id not in kept]
             fixed = set(judge.correction.corrects_alert_ids)
             for old in [x for x in chain if x.alert_id not in fixed]:  # one the verdict lists as fixed is corrected
                 old.status, old.resolved_at = "cleared", now
@@ -736,7 +733,8 @@ class UtterancePipeline:
                 await self._on_active_locked(a)
             for a in changed:
                 await self._save_alert_change_locked(a)
-                await self._on_active_locked(a)
+                if a.alert_id not in kept:  # D-403: a kept alert was already active; nothing turns active
+                    await self._on_active_locked(a)
             # D-089: an apology alone does not correct a compliance alert
             await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
                                                  quotes=getattr(judge.correction, "quotes", None))
@@ -1191,22 +1189,34 @@ class UtterancePipeline:
             await self._show_reported_locked(tid, "show ended")
 
     async def _fact_alerts_locked(self, t: Transcript, claims: list, protected: set[str], corrects=()) -> set[str]:
-        """D-398: one note per contradicted claim. A merged line's verdict replaces the notes its chain's lines raised
-        (`protected`, transcript ids only): its notes are new and the chain's are cleared (D-401: no id reuse), except
-        one the verdict marks fixed (`corrects`), which its correction marks corrected. A note of the chain closed
-        while this request was out is not raised again. Returns the ids it showed (a line never corrects a note it
-        raised)."""
+        """D-398: one note per contradicted claim. D-403 (user, option A): a contradiction the model marks as repeating
+        a listed note (`same_as`) raises nothing new: an active note is kept (its words take the new verdict), a closed
+        one stays closed. A merged line's verdict replaces the notes its chain's lines raised (`protected`, transcript
+        ids only): the ones it neither repeats nor marks fixed (`corrects`) are cleared. Returns the ids it showed."""
         rt = self.rt
         now = rt.now()
         alerts = await rt.alerts()
-        created = fact_logic.apply_fact_check(claims, t, rt.new_id, now)
+        by_id = {a.alert_id: a for a in alerts if a.kind == "fact"}
+        rest, kept, closed = [], [], []
+        for c in claims:
+            same = by_id.get(getattr(c, "same_as", None) or "") if c.verdict == "contradicted" else None
+            if same is None:
+                rest.append(c)
+            elif same.status == "active":
+                same.span, same.stated_value, same.say = c.span, c.stated_value, c.say or same.say
+                kept.append(same)
+            else:
+                closed.append(same.alert_id)
+        if kept or closed:
+            log.info("facts %s t=%s: same_as kept %s; not raised again (closed): %s", rt.sid, t.transcript_id,
+                     [a.alert_id for a in kept], closed)
+        created = fact_logic.apply_fact_check(rest, t, rt.new_id, now)
+        keep = {a.alert_id for a in kept} | set(corrects)
         chain = [a for a in alerts if a.kind == "fact" and a.status == "active" and a.transcript_id in protected
-                 and a.alert_id not in set(corrects)]
-        closed = {a.passage_id for a in alerts if a.kind == "fact" and a.transcript_id in protected
-                  and a.passage_id is not None and a.status in ("corrected", "dismissed")
-                  and (a.resolved_at or 0) >= t.received_at}
-        if closed:
-            created = [a for a in created if a.passage_id not in closed]
+                 and a.alert_id not in keep]
+        for a in kept:
+            await rt.save_alert(a)
+            await rt.emit("alert.updated", a)
         for old in chain:
             old.status, old.resolved_at = "cleared", now
             await rt.save_alert(old)
@@ -1218,7 +1228,7 @@ class UtterancePipeline:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
             self._on_fact_note_active(a)
-        return {a.alert_id for a in created}
+        return {a.alert_id for a in created} | {a.alert_id for a in kept}
 
     async def _correct_fact_notes_locked(self, t: Transcript, note_ids, fresh=()) -> None:
         """D-363: the fact notes the model marked fixed (by handle), and nothing else. D-364: in line order: a fix
@@ -1338,7 +1348,7 @@ class UtterancePipeline:
             return
         # D-364: the line's own context (its on-air product, previous lines, switch state, passages), only the note
         # added; never rebuilt from the current product (a line about B after a switch is not re-checked as A)
-        inp = dataclasses.replace(original, notes=[a])
+        inp = dataclasses.replace(original, notes=[a], now=rt.now())
         res = await self.facts.run(inp, deadline_ms=rt.settings.FACT_LATE_MS)
         fixed = res.status == "ok" and res.output is not None and note_id in getattr(res.output, "_corrects", [])
         log.info("fact note %s re-check: note=%s t=%s status=%s fixed=%s", rt.sid, note_id, t.transcript_id,

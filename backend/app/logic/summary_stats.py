@@ -101,8 +101,11 @@ def compute_summary_stats(
     ]
 
     # ---- alerts ---------------------------------------------------------------------------------
+    # D-403: a cleared alert (replaced by a merged line's verdict, or a provisional one never confirmed) is not an
+    # alert of the show: left out, never counted as uncorrected
     compliance = []
-    for a in sorted((a for a in alerts if a.kind == "compliance" and a.shown_at is not None), key=lambda a: a.shown_at):
+    for a in sorted((a for a in alerts if a.kind == "compliance" and a.shown_at is not None and a.status != "cleared"),
+                    key=lambda a: a.shown_at):
         t = by_transcript.get(a.transcript_id)
         rule = catalog.pack.rules_by_id.get(a.rule_id or "")
         if a.status == "corrected" and a.resolved_at is not None:
@@ -118,7 +121,7 @@ def compute_summary_stats(
             "shown_to_corrected_ms": outcome, "corrected_text": a.corrected_text, "unverified": a.unverified,
         })
     facts = []
-    for a in sorted((a for a in alerts if a.kind == "fact"), key=lambda a: a.created_at):
+    for a in sorted((a for a in alerts if a.kind == "fact" and a.status != "cleared"), key=lambda a: a.created_at):
         corrected = a.status == "corrected"
         t = by_transcript.get(a.transcript_id)
         shown = a.shown_at if a.shown_at is not None else a.created_at
