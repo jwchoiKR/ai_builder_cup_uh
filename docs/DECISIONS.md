@@ -2324,3 +2324,28 @@ D-352: a correction, or a qualifier said again, that comes before its alert turn
 - **Log per correction:** `correction <sid> t=<line>: alert=<id> in_active_alerts=<bool> listed=<bool> -> applied | waits for its alert to turn active | not listed | not an alert of an earlier line`, and `correction <sid> re-check: alert=<id> t=<line> status=<call status> listed=<bool>`.
 - This works with `CORRECTION_CHECK=judge`, which is the default from D-353. Provenance only: the listed id must be an alert the judge was shown. There is no word check: the arm-A correction schema carries no quote to check against the line.
 - Tests (`tests/test_d352.py`): a provisional alert corrected while provisional turns active as corrected, without a second call; a line judged before the alert existed is asked again and corrects it; a failed re-check leaves the alert active.
+
+D-353 (user order 10/8, top priority): no code check that matches words, names, numbers or regexes against the host's speech text on the live path. The model's alternative is now the default, and the D-308 "back until measured" defaults are overruled by the user. Each setting is also in `deploy/cloudrun.sh`, except FACT_FIXES: `--set-env-vars` splits values on commas, so the code default applies. The live path was audited end to end: STT final, hold and merge, judges, validation, alerts, corrections, escalation, qualifier banner, prompter coverage and switch.
+
+| Setting or function | What the code did | New state |
+|---|---|---|
+| `CORRECTION_CHECK` words → judge | `check_correction` (word coverage, numbers, negation plus 50% of the span), `says_the_replacement` (D-098), and `_reconcile_late_alert` corrected or vetoed corrections | the compliance judge's listed alert ids only (provenance: an alert it was shown); D-352 handles the timing |
+| `SWITCH_ARM_NAME` True → False | a code name match on the line was needed to arm a two-step switch | the model's target alone (two-step); the immediate arm (D-351) was already model-only |
+| `VERBAL_CHECK` code → judge | regexes for hedges and parsed numbers decided whether a spoken answer posts, and which draft it answers (`verbal_check`, `relink_candidate`) | the context judge's fields (arm B's) |
+| `JUDGE_PRODUCTS` named → all | an alias match on the line picked which products' rules and fact passages the judges got, and filtered reflex hits | every show product; the model says which one a claim is about |
+| `REFLEX_SCAN` True → False | the regex pre-scan chip, with negation and quote word cues | off; a line whose judge call fails gets the neutral "check this line" card (`REFLEX_ON_FAIL=card`, no regex) |
+| `QUALIFIER_ADDON` True → False | a regex found an "in our in-house test" add-on that corrected or dropped qualifier alerts (D-151/155) | off; the compliance judge corrects (D-352 covers a re-say that comes early) |
+| `FACT_FIXES` all → `F1,F5,Q6` | Q5 held a fragment ending in a word from a list or a bare number; Q1T made a code-added TEST-QUALIFIER alert from regexes, number matching and tester-name regexes (with G4 and G5); Q2, G1 and the other letters are code checks of the guards arm | only the fixes that are prompt lines (`design_arms.md` F1, F5, Q6). The code parts of F1 and Q6 run only in the guards arm and in `post_validate`, both off. Tests of the code checks name `ALL_FIXES` |
+| `validate_compliance` D-252 `lex.affirms` | affirmation words on the line turned a quoted violation into the host's own claim | the guards arm only; the model's `is_quoted` stands |
+| TEST-QUALIFIER `qualifier.approved_replacement` on the line | the numbers and words of the line chose which recorded result the say_instead uses | the guards arm only; the model's `qualified_result_id` names it, otherwise `approved_say` on its say_instead |
+| `negated_caution` | negation words plus caution word coverage on the line chose the say_instead | the guards arm only |
+| `NUMBER_CHECK`, `FACT_GUARDS`, the D-346 log-only checks | (unchanged) | off, off, log-only |
+
+Kept (the user-approved plumbing): the evidence id exists, the code-built quote, a known product id, D-338, scheduling and timing, the seed, retries. Not changed in this batch, listed for the user's call:
+- `ends_sentence` (D-088 merge) and `asks` (D-334 question hold) read STT punctuation (". ? !"), not words.
+- `approved_say` and `qualified_say` map the model's say_instead (model text, not STT) onto approved wording by word coverage. Turning them off would show the model's own sentence to the host. The model alternative needs an approved-claim id in the schema, which is a new field.
+- `qualifier.is_repeat`: string equality of say_instead to avoid a second card for the same result.
+- `facts._corrected_note`: number equality of the model's stated and correct values to close a promo note.
+- `utterances._run_facts`: the fact check is retried only for a line with a spoken number (a retry condition).
+- `publish.states_number` and the rest of the spoken-answer posting belong to the comments team (out of scope).
+- Tests: `test_d305` (no regex chip by default); `test_d298`, `test_d299` and `test_relation` now name `ALL_FIXES` for the opt-in code checks they test.

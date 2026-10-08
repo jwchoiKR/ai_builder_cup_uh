@@ -40,7 +40,10 @@ class Settings(BaseSettings):
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"  # D-308: back until measured
     # D-280: switchable fixes of fact-claim code drops ("F1,F2,..."); empty = today's checks
-    FACT_FIXES: str = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK"  # D-293 freeze: all on; D-294 G1-G7; D-297 CK
+    # D-353 (user order): only the fixes that are prompt lines (F1, F5, Q6 in prompts/design_arms.md); every code text
+    # check is off: Q5 fragment hold, Q1T code-added qualifier alert, G4/G5, Q2/G1 and the guards-arm checks.
+    # Was "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK" (D-293, D-294, D-297)
+    FACT_FIXES: str = "F1,F5,Q6"
     # D-296: the fact checker returns evidence sentence ids and a relation (contradicts, consistent, not in the
     # documents, uncertain); code builds the quote. FACT_GUARDS=off keeps only the hard checks on its verdicts
     # D-300 R2: "verify" turns the flaggers' code drops off and sends each candidate alert to one stronger model
@@ -71,12 +74,13 @@ class Settings(BaseSettings):
     # the host sees "check what was said" with the heard words, not a correction
     NUMBER_CHECK: bool = False  # D-308: back
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
-    SWITCH_ARM_NAME: bool = True  # D-308: back; # False: arm a switch from the context judge's target and confidence alone
-    CORRECTION_CHECK: Literal["words", "judge"] = "words"  # D-308: back;  # judge: the compliance judge's listed alerts, unchecked
-    QUALIFIER_ADDON: bool = True  # D-308: back; # False: no late "in our in-house test" add-on (D-151/155)
-    VERBAL_CHECK: Literal["code", "judge"] = "code"  # D-308: back;  # judge: numbers said and hedges from the context judge (arm B's)
-    REFLEX_SCAN: bool = True  # D-308: back; # False: no regex pre-scan; with REFLEX_ON_FAIL=card, a card on every failed line
-    JUDGE_PRODUCTS: Literal["named", "all"] = "named"  # D-308: back;  # all: every show product in the judges' inputs
+    # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
+    SWITCH_ARM_NAME: bool = False  # D-353; True: a code name match must arm a two-step switch
+    CORRECTION_CHECK: Literal["words", "judge"] = "judge"  # D-353; words: code word overlap and replacement match
+    QUALIFIER_ADDON: bool = False  # D-353; True: a code word check finds a late "in our in-house test" add-on
+    VERBAL_CHECK: Literal["code", "judge"] = "judge"  # D-353; code: numbers and hedges parsed from the text by code
+    REFLEX_SCAN: bool = False  # D-353; True: the regex pre-scan chip; off, a failed line gets the neutral card
+    JUDGE_PRODUCTS: Literal["named", "all"] = "all"  # D-353; named: a code alias match picks the products in scope
     COMMENT_PRODUCT: Literal["code", "triage"] = "code"  # D-308: back;  # triage: the comment's product from triage, no alias rules
     DRAFT_GATE: Literal["full", "provenance"] = "full"  # D-308: back;  # provenance: citations, products and numbers only
     GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins

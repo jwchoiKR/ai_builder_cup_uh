@@ -12,6 +12,7 @@ from app.agents.fact_checker import DROPS, from_relation, hard_validate, post_va
 from app.models.agent_io import FactRelationOutput
 from app.models.data import Passage
 
+from .conftest import ALL_FIXES
 from .judge_fakes import AMPOULE, CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
 from .test_g_fixes import FACT
 from .test_q_fixes import _release_catalog
@@ -250,9 +251,7 @@ def test_d297_pair_split_price_is_no_test_result(tmp_path, prev, line, kept):
 def test_d297_pairs_on_the_fact_side(catalog, line, stated, correct, quote, field, alert):
     """FACT_GUARDS=off keeps the quote-then-reject guard (Q2, G1): the relation model still read these as
     contradictions."""
-    from app.config import get_settings
-
-    fixes = frozenset(x.strip() for x in get_settings().FACT_FIXES.split(","))
+    fixes = frozenset(ALL_FIXES.split(","))  # D-353: the opt-in code checks, named (no longer the default)
     passages = [_p("DL-CR-01#key-facts#x", quote)]
     _, index = sentence_index(passages)
     out = from_relation(_rel((line, CREAM, field, stated, ["S1"], "contradicts", correct)), index, set())
