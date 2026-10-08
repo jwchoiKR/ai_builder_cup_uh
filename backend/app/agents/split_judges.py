@@ -33,8 +33,8 @@ from .utterance_judge import (
 log = logging.getLogger(__name__)
 
 # D-358: the live compliance judge reads the regulation originals; there is no rule-JSON fallback in production. The
-# rules path (LEGACY_RULES) is kept only for the test suite, which pins it, and for the mock LLM provider, whose
-# recorded outputs use the old schema. None: the rules path only with the mock provider; True or False: forced (tests).
+# rules path (LEGACY_RULES) is kept only for the test suite, which pins it. D-391: the mock provider runs the
+# originals path, like production; None and False: originals; True: the rules path (tests).
 LEGACY_RULES: bool | None = None
 
 
@@ -140,8 +140,7 @@ class ComplianceJudge(_SplitJudge):
     output_model_b = ComplianceOutputB
 
     def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
-        settings = getattr(llm, "settings", None)
-        legacy = (getattr(settings, "LLM_PROVIDER", "vertex") == "mock") if LEGACY_RULES is None else LEGACY_RULES
+        legacy = bool(LEGACY_RULES)  # D-391: the mock provider runs the production path too
         originals = not legacy
         if not originals and "compliance_judge_rules" in prompts:  # the legacy path keeps its own prompt
             prompts = {**prompts, "compliance_judge": prompts["compliance_judge_rules"]}

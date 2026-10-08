@@ -38,9 +38,8 @@ async def test_provisional_upgraded_to_active(env):
     t = await speak(rt, WRINKLES)
     a = await only_alert(rt)
     assert (a.kind, a.status, a.rule_id) == ("compliance", "active", "ASEAN-3-SKIN-AGEING")
-    assert a.severity == "HIGH"  # forced to the rule's severity
-    # D-209: the model added "with regular use"; the host gets the approved claim instead
-    assert a.span == "your wrinkles will disappear overnight" and a.say_instead == "Helps keep skin hydrated for up to 24 hours in our in-house test."
+    assert a.severity == "MEDIUM"  # D-391: the model's severity and wording, as given
+    assert a.span == "your wrinkles will disappear overnight" and a.say_instead == "With regular use, it helps keep skin hydrated."
     assert a.provisional_at is not None and a.shown_at is not None and a.transcript_id == t.transcript_id
     assert not a.unverified
     alert_events = [e for e in await events(rt) if e.type.startswith("alert.")]

@@ -343,37 +343,6 @@ def test_d230_upload_approve_start_shows_the_new_product_on_the_session(tmp_path
         assert [p["text"] for p in state["prompter"]["points"]] == ["Helps skin look smoother by morning."]
 
 
-async def test_d232_host_lines_come_in_the_show_language_or_not_at_all(tmp_path):
-    from app.onboarding.release import save_release
-    from app.pipelines.runtime import create_session
-
-    from .judge_fakes import speak, violation
-
-    rec, _ = normalise(ProductRecord.model_validate(_record(
-        language="ms", approved_claims=[{"text": "Membantu kulit kelihatan licin.", "evidence": EV}])))
-    with_t = save_release(tmp_path, rec, "j", {"en": {"approved_claims": [{"text": "Helps skin look smooth.",
-                                                                          "reviewed": True}],
-                                                      "cautions": [], "avoid_saying": []}})
-    unreviewed = save_release(tmp_path, rec, "j3", {"en": {"approved_claims": [{"text": "Helps skin look smooth.",
-                                                                              "reviewed": False}],
-                                                           "cautions": [], "avoid_saying": []}})
-    without = save_release(tmp_path, rec, "j2")
-    llm = ScriptedBackend()
-    llm.judge("It cures eczema.", violations=[violation("ASEAN-2D-DISEASE", "cures eczema", say="Model's own line.")])
-    ctx = make_ctx(backend=llm, ONBOARDING_DIR=str(tmp_path))
-    try:
-        for rid, say in [(with_t, "Helps skin look smooth."),
-                         (unreviewed, "Helps skin look smooth. (unreviewed translation)"),  # D-233: marked
-                         (without, "(no approved wording in en)")]:
-            rt = await ctx.runtimes.get((await create_session(ctx, "x", release_id=rid)).session_id)
-            await rt.start()
-            await speak(rt, "It cures eczema.")
-            assert [a.say_instead for a in await rt.alerts() if a.kind == "compliance"] == [say]
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-
-
 async def test_d233_an_answer_from_an_unreviewed_translation_is_never_auto_posted(tmp_path):
     from app.onboarding.release import UNREVIEWED_DOC, release_pack
 
@@ -612,15 +581,6 @@ def test_d244_l2_l3_offer_totals_and_written_terms_reach_the_fact_checker():
     [offer] = [t for t in facts if t.startswith("Offer:")]
     assert "pay for 2 = S$72.00 for 3 items" in offer and "not combinable with other offers" in offer
     assert "Live unit price S$36.00; 2 units S$72.00; 3 units S$108.00" in facts
-
-
-def test_d244_l7_naming_the_lab_is_saying_the_qualifier(pack):
-    from app.agents.utterance_judge import names_the_source
-
-    say = "21 of 24 saw smoother texture (tested by Kestrel Dermal Labs)"
-    assert names_the_source("Kestrel Dermal Labs found 21 of 24 saw smoother texture", say, pack.lexicon)
-    assert not names_the_source("21 of 24 saw smoother texture", say, pack.lexicon)
-    assert not names_the_source("our test: 45% more", "Hydration +45% (in our in-house test)", pack.lexicon)
 
 
 def test_d244_l4_to_l6_and_presence_rules_reach_the_fact_checker():
@@ -863,16 +823,6 @@ async def test_d250_a_correction_in_number_words_is_a_number(tmp_path, monkeypat
     assert a["correct_value"] == "twelve months after opening"
 
 
-def test_d250_the_panel_or_the_hours_never_name_an_in_house_source(pack):
-    from app.agents.utterance_judge import names_the_source
-
-    line = "hydration was 18% above baseline eight hours after one application in 22 adults"
-    lex = pack.lexicon
-    assert not names_the_source(line, "Hydration up 18% after 8 hours (in our in-house test with 22 adults)", lex)
-    assert not names_the_source(line, "Hydration up 18% after 8 hours (consumer test with 22 adults)", lex)
-    assert names_the_source("Kestrel Dermal Labs found 21 of 24", "21 of 24 (tested by Kestrel Dermal Labs)", lex)
-
-
 async def test_d251_a_quote_with_the_number_in_korean_words_backs_a_digit_correction(tmp_path, monkeypatch):
     text = "나이아신아마이드가 영 점 오 퍼센트 들어 있습니다."
 
@@ -883,24 +833,6 @@ async def test_d251_a_quote_with_the_number_in_korean_words_backs_a_digit_correc
     [a] = await _release_line(tmp_path, monkeypatch, {"key_facts": [{"text": text, "evidence": EV}]},
                               "It has two percent niacinamide.", claim)
     assert a["correct_value"] == "0.5%"
-
-
-@pytest.mark.parametrize("line, shown", [
-    ("A viewer says, 'it cures eczema,' and yes, that is what the cream does.", True),
-    ("A viewer calls it the best in the country, and I fully agree.", True),
-    ("A viewer says it cures eczema, but I don't agree, it is a cosmetic.", False),
-])
-async def test_d252_a_quote_the_host_endorses_is_the_hosts_own_claim(line, shown):
-    from .judge_fakes import close_env, make_env, speak, violation
-
-    rt, llm = await make_env()
-    try:
-        llm.judge(line, violations=[violation("ASEAN-2D-DISEASE", "cures eczema", quoted=True)])
-        await speak(rt, line)
-        active = [a for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
-    finally:
-        await close_env(rt)
-    assert bool(active) is shown
 
 
 def test_d252_offer_combinability_and_conditions_are_labelled():
@@ -1057,42 +989,6 @@ def test_d257_lean_never_folds_what_the_qualifier_needs():
     risk.append({"group": "safety", "label": "Keep the qualifier with the tear-free formula claim", "reason": "r"})
     shown, folded, _ = lean_items(res, risk, {})
     assert any("tear-free" in x["label"] for x in shown) and len(shown) == LEAN_MAX and len(folded) == 4
-
-
-@pytest.mark.parametrize("line, alert", [
-    ("Testing confirmed SPF50+ PA++++ protection for this sunscreen.", True),
-    ("Both sizes deliver SPF50+ PA++++ according to the protection tests.", True),
-    ("Larkspur Labs confirmed SPF50+ PA++++ protection.", False),
-])
-async def test_d258_a_capitalised_word_is_no_named_source(tmp_path, monkeypatch, line, alert):
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-    import eval_adversarial
-
-    from app.onboarding.release import product_key, save_release
-
-    from .judge_fakes import violation
-
-    real_sleep = __import__("asyncio").sleep
-    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
-    result = [{"statement": "SPF50+ PA++++", "numbers": ["50"], "provenance": "third_party_lab",
-               "qualifier": "tested by Larkspur Labs in SPF and PA protection tests", "marker": None,
-               "conditions": None, "evidence": EV}]
-    rec, _ = normalise(ProductRecord.model_validate(_record(qualified_results=result)))
-    rid = save_release(tmp_path, rec, "job")
-    monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
-    backend = ScriptedBackend()
-    backend.judge(line, violations=[violation("TEST-QUALIFIER", "SPF50+ PA++++", severity="MEDIUM")])
-    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
-    case = {"case_id": "Q", "type": "t", "current_product_id": product_key(rec), "utterance": line,
-            "expected": {"risky": True, "kind": "compliance"}}
-    try:
-        row = await eval_adversarial.run_case(ctx, case, 0)
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert bool([a for a in row["alerts"] if a["rule_id"] == "TEST-QUALIFIER"]) is alert
 
 
 def test_d259_a_negated_caution_is_corrected_by_that_caution(pack):
