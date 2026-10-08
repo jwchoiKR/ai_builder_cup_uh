@@ -2739,3 +2739,17 @@ Mock fixtures and the mock's rule-based context answer now fill `moving_to_next_
 Tests:
 - Deleted: the two_step tests in test_prompter_segments, test_split_judges, test_utterance_merge, test_d304, test_d349, test_d394, and the host and state switch-countdown tests.
 - Migrated to the immediate switch: the demo script, orchestrator case 10 and the eval_adversarial split case. The split case sets the dual scope to 0, because its operator switch would otherwise put both products in scope.
+
+D-416 (codex review of D-410/D-412; user: "ㄱ"). Fixes to the failure display:
+1. A context-judge-only failure (429, timeout, error, invalid) now shows like the other judges. It emits judge.failed with its cause and agent, and the line becomes unchecked: it shows in the host strip, in the operator's per-line cause and in the 5-minute count, and in the snapshot. The health-dot rule is unchanged.
+2. A normal answer no longer clears every unchecked line. A line whose checks all answer clears only the unchecked lines said at or before it, by line order. A later line's failure stays until a line said after it is answered normally, so an earlier line's late success does not clear it. `checks.recovered` carries the answered line and the cleared ids.
+   Note: the planner's wording was "a line leaves the list only when its own checks answer". A failed line is never judged again, so read literally the strip would never clear. The rule above clears it once a later line answers normally (D-412: "goes away when the judges answer normally again").
+3. The server and the browser now apply one rule:
+   - Each failure event (line, judge) counts once, in time order. The snapshot's `recent` lists these events, so a line that failed in two judges counts twice in the 5-minute count.
+   - The unchecked lines carry the latest failure's cause and time. On a tie, the later event wins.
+   - The browser builds the unchecked list from judge.failed (line.check is no longer read) and removes only the ids that checks.recovered names.
+   - The snapshot rebuilds exactly what the live stream showed.
+
+Tests:
+- test_d412.py: a context-only failure shows; an earlier line's late success does not clear a later failure; busy then timeout on one line gives the same counts and latest cause live and in the snapshot.
+- host.test.tsx: a recovery clears only the named lines; the live state equals the refreshed state.

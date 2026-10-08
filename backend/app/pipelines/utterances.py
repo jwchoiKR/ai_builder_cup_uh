@@ -197,10 +197,10 @@ class UtterancePipeline:
         # D-146: a spoken answer to a question whose draft was still being written: group -> what was said
         self._early: dict[str, EarlyAnswer] = {}
         self._fact_shown: dict[str, set[str]] = {}  # D-363: line -> the fact notes its fact check was shown
-        # D-412: failed checks of the last FAILURE_WINDOW_MS (line -> cause and time), and the lines left unchecked
-        # since the judges last answered a line normally (line -> cause); both go into the snapshot
-        self.failures: dict[str, dict] = {}
-        self.unchecked: dict[str, str] = {}
+        # D-412/D-416: the failure events of the last FAILURE_WINDOW_MS, one per (line, agent), in time order, and the
+        # lines still unchecked (line -> its latest failure); the snapshot rebuilds what the live stream showed
+        self.failures: dict[tuple[str, str], dict] = {}
+        self.unchecked: dict[str, dict] = {}
         self._fact_inputs: dict[str, FactInput] = {}  # D-364: line -> its fact check's input (a re-check reuses it)
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
@@ -447,7 +447,7 @@ class UtterancePipeline:
                         else "compliance_judge" if self.split3 else "utterance_judge",
                         "timeout" if late else res.status)
                     output = res.output if res.status == "ok" else None
-                    failed = failed or (task is not ctx_task and output is None)
+                    failed = failed or output is None  # D-416: the context judge's failure counts too
                     if task is comp_task:
                         comp = output
                         async with rt.lock:
@@ -463,6 +463,9 @@ class UtterancePipeline:
                     elif task is ctx_task:
                         ctx = output
                         ready.set_result(ctx)
+                        if output is None:  # D-416: shown like the other judges' failures
+                            async with rt.lock:
+                                await self._check_failed_locked(t, merge.text if merge else t.text, res, "context_judge")
                     else:
                         facts = output
                         if facts is not None:
@@ -471,10 +474,17 @@ class UtterancePipeline:
                         else:  # D-408: a failed fact check shows the judge-failed state at once, as a failed judge
                             async with rt.lock:
                                 await self._check_failed_locked(t, merge.text if merge else t.text, res, "fact_checker")
-            if not failed and self.unchecked:  # D-412: the judges answered this line normally again
-                async with rt.lock:
-                    self.unchecked.clear()
-                    await rt.emit("checks.recovered", {"transcript_id": t.transcript_id, "at": rt.now()})
+            if not failed and self.unchecked:
+                # D-412/D-416: the judges answered this line normally again: the unchecked lines said at or before it
+                # are cleared; a line said after it (a late success of an earlier line) stays
+                seq = self._sequence.get(t.transcript_id, 0)
+                cleared = [x for x in self.unchecked if self._sequence.get(x, 0) <= seq]
+                if cleared:
+                    async with rt.lock:
+                        for x in cleared:
+                            self.unchecked.pop(x, None)
+                        await rt.emit("checks.recovered", {"transcript_id": t.transcript_id, "cleared": cleared,
+                                                           "at": rt.now()})
             if comp is None:
                 return None, facts
             if ctx is None and self.split3:
@@ -795,13 +805,15 @@ class UtterancePipeline:
             await self._switch_now_locked(judge, t, seg.product_id)
 
     async def _check_failed_locked(self, t: Transcript, text: str, res: AgentResult, agent: str) -> None:
-        """D-288/D-408/D-412: a check of this line failed. The events say why (`cause`); the line is counted once in the
-        last 5 minutes' failures and stays unchecked until the judges answer a line normally again."""
+        """D-288/D-408/D-412: a check of this line failed. The events say why (`cause`). D-416: each failure event
+        (line, agent) counts once in the last 5 minutes; the line stays unchecked until a line said at or after it is
+        answered normally."""
         rt = self.rt
         now, cause = rt.now(), failure_cause(res)
         self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
-        self.failures[t.transcript_id] = {"transcript_id": t.transcript_id, "cause": cause, "at": now}
-        self.unchecked[t.transcript_id] = cause
+        event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now}
+        self.failures[(t.transcript_id, agent)] = event
+        self.unchecked[t.transcript_id] = event
         log.info("check failed %s t=%s: %s %s (%s)", rt.sid, t.transcript_id, agent, cause, res.meta.get("failure"))
         await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
                                      "cause": cause, "at": now})
@@ -809,11 +821,16 @@ class UtterancePipeline:
                                        "agent": agent, "cause": cause, "at": now})
 
     def check_failures(self) -> dict:
-        """D-412: the snapshot's block: the last 5 minutes' failed checks and the lines unchecked now."""
+        """D-412/D-416: the snapshot's block, by the live stream's rule: the last 5 minutes' failure events in time
+        order, and the unchecked lines with the latest failure's cause and time."""
         now = self.rt.now()
         recent = sorted((v for v in self.failures.values() if now - v["at"] < FAILURE_WINDOW_MS), key=lambda v: v["at"])
-        last = list(self.unchecked.values())[-1] if self.unchecked else None  # the most recent failure's cause
-        return {"recent": recent, "unchecked": {"ids": list(self.unchecked), "cause": last}}
+        last = None  # the latest failure; on a tie the later one, as the live stream applies them
+        for v in self.unchecked.values():
+            last = v if last is None or v["at"] >= last["at"] else last
+        return {"recent": recent, "unchecked": {"ids": list(self.unchecked),
+                                                "cause": last["cause"] if last else None,
+                                                "at": last["at"] if last else None}}
 
     async def _apply_corrections_locked(self, t: Transcript, text: str, listed: list[str], protected: set[str],
                                         now: int, quotes=None) -> None:

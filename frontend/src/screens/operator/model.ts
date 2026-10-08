@@ -274,10 +274,11 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
   }
   for (const j of state.judgeFailures) {
     const cause = j.cause ? ` · ${t(FAILURE_CAUSES[j.cause] ?? "AI error")}` : "";
-    cards.push({ key: `judge:${j.transcript_id}`, kind: "judge_failed",
+    cards.push({ key: `judge:${j.transcript_id}:${j.agent ?? ""}`, kind: "judge_failed",
       text: `${t("AI check unavailable for the last sentence")}${cause}` });
   }
-  // D-412: how many lines failed in the last 5 minutes, by cause (one line counts once); a new failure shows it again
+  // D-412/D-416: the failure events of the last 5 minutes, by cause (one per line and judge, as the server counts
+  // them); a new failure shows the card again
   const recent = state.judgeFailures.filter((j) => j.cause && j.at !== undefined && now - j.at < FAILURE_WINDOW_MS);
   if (recent.length) {
     const by = new Map<string, number>();

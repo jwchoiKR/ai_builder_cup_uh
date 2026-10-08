@@ -930,22 +930,37 @@ describe("immediate switch (D-349)", () => {
 });
 
 describe("unchecked lines (D-412)", () => {
-  const ev = (seq: number, id: string, cause: string) =>
-    ({ seq, type: "line.check", payload: { transcript_id: id, text: "x", rule_ids: [], phrases: [], cause } });
+  const ev = (seq: number, id: string, cause: string, agent = "compliance_judge", at = T0 + seq) =>
+    ({ seq, type: "judge.failed", payload: { transcript_id: id, status: "error", alert_ids: [], agent, cause, at } });
   const show = (s: ReturnType<typeof reduceSnapshot>) =>
     render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
 
   it("collapses every unchecked line into one strip, named by the latest cause, never an alert box", () => {
     let s = reduceSnapshot(snapshot(), "host");
     s = reduceEvent(s, ev(11, "tr_1", "busy"));
-    s = reduceEvent(s, ev(12, "tr_1", "busy"));  // the other judge of the same line: counted once
+    s = reduceEvent(s, ev(12, "tr_1", "busy", "fact_checker"));  // the other judge of the same line: one line
     s = reduceEvent(s, ev(13, "tr_2", "timeout"));
     const { rerender } = show(s);
     expect(screen.getByTestId("host-unchecked")).toHaveTextContent("AI slow: 2 lines unchecked");
     expect(screen.queryByTestId("host-prompter-alerts")).toBeNull();
-    s = reduceEvent(s, { seq: 14, type: "checks.recovered", payload: { transcript_id: "tr_3", at: 1 } });
+    s = reduceEvent(s, { seq: 14, type: "checks.recovered", payload: { transcript_id: "tr_3", cleared: ["tr_1", "tr_2"], at: 1 } });
     rerender(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
     expect(screen.queryByTestId("host-unchecked")).toBeNull();
+  });
+
+  it("D-416: a recovery clears only the lines the server names; counts and cause match a refresh", () => {
+    let s = reduceSnapshot(snapshot(), "host");
+    s = reduceEvent(s, ev(11, "tr_b", "busy"));
+    s = reduceEvent(s, ev(12, "tr_b", "timeout", "fact_checker"));
+    s = reduceEvent(s, { seq: 13, type: "checks.recovered", payload: { transcript_id: "tr_a", cleared: [], at: 1 } });
+    expect(s.unchecked).toEqual({ ids: ["tr_b"], cause: "timeout", at: T0 + 12 });  // A's late success leaves B
+    expect(s.judgeFailures.map((j) => [j.agent, j.cause])).toEqual([["compliance_judge", "busy"], ["fact_checker", "timeout"]]);
+    const refreshed = reduceSnapshot(snapshot({ check_failures: {
+      recent: [{ transcript_id: "tr_b", agent: "compliance_judge", cause: "busy", at: T0 + 11 },
+        { transcript_id: "tr_b", agent: "fact_checker", cause: "timeout", at: T0 + 12 }],
+      unchecked: { ids: ["tr_b"], cause: "timeout", at: T0 + 12 } } }), "host");
+    expect(refreshed.unchecked).toEqual(s.unchecked);
+    expect(refreshed.judgeFailures.map((j) => [j.agent, j.cause])).toEqual(s.judgeFailures.map((j) => [j.agent, j.cause]));
   });
 
   it("is kept on refresh from the snapshot, and reads in Korean", () => {
