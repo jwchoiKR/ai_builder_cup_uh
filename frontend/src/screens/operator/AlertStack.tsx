@@ -49,7 +49,7 @@ function ComplianceCard({ alert: a }: { alert: Alert }) {
   const [notice, setNotice] = useState(false);
   const act = useAction();
   const state = alertCardState(a);
-  const rule = ruleInfo(catalog, a.rule_id);
+  const rule = ruleInfo(catalog, a.rule_id, a.product_id);
   const corrected = correctedLine(a, t);
   const cls = [styles.alertCard, styles.riskCard, state === "escalated" && styles.escalated, state === "corrected" && styles.correctedCard]
     .filter(Boolean)

@@ -121,6 +121,16 @@ describe("screens", () => {
     expect(screen.queryByTestId("console-grip")).toBeNull();
     unmount();
 
+    // D-348: a console dragged tall earlier never squeezes the panes above below about half the window
+    window.localStorage.setItem("ls.console.height", "5000");
+    const tall = render(<Studio sessionId="ses_000001" />);
+    fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
+    const grip2 = await screen.findByTestId("console-grip");
+    expect(grip2.parentElement!.style.maxHeight).toBe(""); // the CSS cap (46vh) applies
+    fireEvent.keyDown(grip2, { key: "ArrowUp" });
+    expect(Number(window.localStorage.getItem("ls.console.height"))).toBe(Math.round(window.innerHeight * 0.46));
+    tall.unmount();
+
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
       throw new Error("blocked");
     });

@@ -51,6 +51,14 @@ export function productById(catalog: Catalog | null, pid: string | null | undefi
   return catalog.products.find((p) => p.product_id === pid) ?? null;
 }
 
+/** D-348: a rule source that lists several files ("A.pdf Page 2 §7; B.pdf Page 2") puts the alert product's file first. */
+export function ownDocFirst(catalog: Catalog | null, sourceRef: string, pid: string | null | undefined): string {
+  const docs = Object.values(catalog?.passages ?? {}).filter((p) => p.product_id === pid && p.doc).map((p) => p.doc);
+  const parts = sourceRef.split("; ");
+  const own = parts.filter((s) => docs.some((d) => s.startsWith(d)));
+  return [...own, ...parts.filter((s) => !own.includes(s))].join("; ");
+}
+
 export function runsheetOf(state: ClientState, catalog: Catalog | null) {
   if (!catalog) return null;
   const id = state.session?.runsheet_id;

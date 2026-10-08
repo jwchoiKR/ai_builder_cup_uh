@@ -100,7 +100,7 @@ export function MediumBanner({
     onRendered?.(alert.alert_id);
     if (fact) onRendered?.(fact.alert_id);
   }, [alert.alert_id, fact?.alert_id, onRendered]);
-  const rule = ruleInfo(catalog, alert.rule_id);
+  const rule = ruleInfo(catalog, alert.rule_id, alert.product_id);
   const qualifier = alert.rule_id === TEST_QUALIFIER_RULE;
   // D-341 (review H16): the qualifier alone fixes the alert only within 10 s; after that, say the result again with it
   const now = useNow(1000) + serverOffsetMs;

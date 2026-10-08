@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, 
 import { api, userMessage } from "../app/api";
 import { navigate, withSession } from "../app/nav";
 import { useMic } from "../app/mic";
-import { MEASURED_LANGUAGES, micLanguages, setMicLang, useMicLang } from "../app/prefs";
+import { setMicLang, STT_LANGUAGES, useMicLang } from "../app/prefs";
 import { onAirSegment } from "../app/selectors";
 import { useDemoScript, useHealth, useSession } from "../app/store";
 import type { FeedState } from "../app/types";
@@ -27,7 +27,8 @@ function hasBurst(feed: FeedState | null | undefined, id: string): boolean {
 // The open console's height, remembered per browser. Storage may throw (private mode): fall back.
 const HEIGHT_KEY = "ls.console.height";
 const MIN_HEIGHT = 120;
-const maxHeight = () => Math.round(window.innerHeight * 0.85);
+// D-348: at most the CSS cap (46vh), so the panes above keep a readable prompter
+const maxHeight = () => Math.round(window.innerHeight * 0.46);
 const clampHeight = (h: number) => Math.max(MIN_HEIGHT, Math.min(maxHeight(), Math.round(h)));
 
 export function readConsoleHeight(): number | null {
@@ -138,7 +139,7 @@ export function DemoConsole({
       ref={drawer}
       className={styles.drawer}
       aria-label="Demo console"
-      style={open && height ? { height, maxHeight: "none" } : undefined}
+      style={open && height ? { height } : undefined}
     >
       {open && (
         <div
@@ -287,19 +288,17 @@ export function DemoConsole({
               <Button size="sm" disabled={mic.state === "off"} onClick={() => mic.stop()}>
                 Stop
               </Button>
-              {/* D-317: shown only when there is a choice (unmeasured languages appear in labs mode, ?labs=1) */}
-              {micLanguages().length > 1 && (
-                <select value={micLang} onChange={(e) => setMicLang(e.target.value)} disabled={mic.state !== "off"}
-                  aria-label="Speech-recognition language" data-testid="console-mic-lang"
-                  title={mic.state !== "off" ? "Stop the mic to change the language" : undefined}>
-                  <option value="">Session default</option>
-                  {micLanguages().map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {MEASURED_LANGUAGES.has(l.code) ? l.name : `${l.name} · 실험 중 · 정확도 미측정`}
-                    </option>
-                  ))}
-                </select>
-              )}
+              {/* D-348: Session default, English or Korean, for everyone */}
+              <select value={micLang} onChange={(e) => setMicLang(e.target.value)} disabled={mic.state !== "off"}
+                aria-label="Speech-recognition language" data-testid="console-mic-lang"
+                title={mic.state !== "off" ? "Stop the mic to change the language" : undefined}>
+                <option value="">Session default</option>
+                {STT_LANGUAGES.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
               <span className={styles.micState} data-testid="console-mic">
                 {mic.state === "listening" ? "Listening" : mic.state === "connecting" ? "Connecting…" : mic.state === "error" ? (mic.message ?? "Error") : "Off"}
                 {mic.lastFinal ? ` · "${mic.lastFinal}"` : ""}
