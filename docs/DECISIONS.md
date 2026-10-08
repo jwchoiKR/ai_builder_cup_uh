@@ -2046,3 +2046,14 @@ D-329: fixes to D-328's hold, from codex's review (four P2s).
 - **Per claim:** `previous_line` is now a list of {product_id, field, stance}. It names each fact of the last line that this line endorses or rejects. A rejected claim is dropped and an endorsed one shows. A held claim this line does not name stays held until the timeout, so correcting only the price no longer loses the amount alert. An empty list means this line does neither. The HOLD addendum and its examples changed to match.
 - **Latency:** an endorsed alert keeps the line it came from. The endorsing line's same claim (product and field) joins it instead of re-showing it on the later line, so `ms_to_shown` counts the hold.
 - **Tests (`tests/test_d328.py`):** a partial rejection; the completion order L1, L3, L2; an endorsement's latency (2000 ms); two holds in a row; a timeout waiting for the next check up to the cap; the show ending with a hold open.
+
+D-330: the hold of D-328/329 works on claim subjects, not fields, after codex's second review.
+- **Matching by the claim's words:** each `previous_line` item now carries `span`, the last line's words for that fact. A held claim is settled only by the item of its product and field whose words are the claim's (`span` or `stated_value`, one inside the other, case and punctuation aside). When the claim is the only held one of that product and field, a matching product and field is enough. So rejecting iron no longer drops a held zinc claim on the same field.
+- **One subject:** two outputs are the same subject when they have the same product and field and share an evidence sentence, or, without evidence ids, the same passage.
+- **Endorsement:**
+  - The endorsing line's own claim joins the endorsed alert only when it is the same subject. Its other contradictions (zinc next to an endorsed iron) still alert on that line.
+  - When the endorsing line's check comes back before the original line's, its endorsed contradiction is made on the original line at once, so the delay counts from there.
+  - An endorsed alert already shown on the endorsing line moves to the original line and keeps its shown time.
+- **Retiring a hold:** when the hold times out, a held claim whose subject a later line stated consistently (that line's own `supported` output) is retired, logged as "held alert retired: corrected later".
+- **Known limit (unchanged, D-117):** `apply_fact_check` keeps one note per (product, field, passage). Two wrong amounts cited from one passage still share a note.
+- **Tests (`tests/test_d328.py`, `d330_*`):** the same-field partial rejection, the endorsing line's check first (latency 2000 ms on the original line), an endorsement next to a new claim, and a retired hold.

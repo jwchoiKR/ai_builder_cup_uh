@@ -182,8 +182,8 @@ class FactClaim(BaseModel):
 class FactCheckOutput(BaseModel):
     claims: list[FactClaim]
     reason: str
-    # D-328/329: this line on the previous one's reported words, per (product, field): "endorses" or "rejects"
-    _previous_line: dict = PrivateAttr(default_factory=dict)
+    # D-328-330: this line on the previous one's reported claims: [{product_id, field, span, stance}]
+    _previous_line: list = PrivateAttr(default_factory=list)
 
 
 # ---- D-296 FACT_RELATION: the evidence by sentence id, then the relation; code builds the quote ------------------
@@ -246,6 +246,7 @@ class PreviousLineStance(BaseModel):
     """D-329: one fact the last line reported or asked, and what this line does with it."""
     product_id: str
     field: FactField
+    span: str  # D-330: the last line's words that state that fact
     stance: Literal["endorses", "rejects"]
 
 
