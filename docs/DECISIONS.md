@@ -2530,3 +2530,22 @@ D-362: fixes from the codex re-review of D-361 (5cfe8b2..4d4a544), live path onl
 - **F:** a fact note is corrected by the model's verdict only: the same cited passage; or, without a passage, the one note whose correct value equals the model's own correct value; or the only note of that field. The numbers parsed from the host's line (`spoken_numbers`) are gone from `logic/facts.py`, and so is its unused `lex` parameter.
 - Not changed (the comments team's): `publish.py` spoken-answer posting (an unsure regex, a number compare, word overlap). The planner flags them to the user. #6's remaining case is a non-default DESIGN_ARM path.
 - Tests: `tests/test_d362.py` (one set and every caution; a note corrected by the verdict, not by numbers; the fact-note hide timer re-armed at the same time; a partly found pack not kept; the quote check on the request's own snapshot, which fails on the old code). `test_facts` now has the supported claim cite its passage.
+
+D-363: two user decisions after the codex review of D-362.
+- **Regulation originals are loaded ONCE per show** (user: "the originals are just put into the prompt"). The judge reads them at show start (the cache warm-up, or the first line) and keeps that snapshot for the whole show; the prefix it gets and the quote check both use it.
+  - Never re-read during the show. Removed: the per-call re-read of a missing source (D-361 #10) and the per-request snapshot plumbing (D-362 E). Codex's open point (a failing re-read losing a verdict) goes away with it.
+  - A missing original is logged once when the show loads ("compliance originals missing for this show") and stays marked on every call (`meta.originals_missing`). The release screen warns before the show (D-359).
+  - Kept: the D-358/D-360 lookup fixes (each failed path logged; a source found incomplete or not at all is never cached for a later show).
+- **Fact-note corrections by handle, like compliance alerts (D-356):**
+  - Every active fact note goes to the fact checker as an ACTIVE_FACT_NOTES entry with a per-call handle (F1, F2 ...), its product, field, the wrong value stated, the correct value and its status. No real id is sent.
+  - The answer then starts with `note_checks`, one `{handle, fixed_by_this_line}` per note (`with_note_checks`, first in the schema). Code maps each handle marked fixed to its id (`FactCheckOutput._corrects`), and `facts.correct_notes` corrects those notes and nothing else.
+  - The old matching is gone: by passage, by value, and "the only note of that field" (the regression codex found: a right squalane 3% cleared the panthenol note).
+  - The instruction is `design_arms.md` "NOTES: fact_checker" (always on), with a fictional example.
+  - **Re-check, as D-357:** when a fact note appears after a later line was already checked without it (at most 2 lines, within 10 s), that line is asked once more with that note alone. Each trigger decision is logged.
+  - **Logs:** `fact notes call=<call id> line=... notes=<the block sent> handles=<map> answer=<note_checks> corrects=<ids>`, plus any unknown handles dropped.
+  - A line never corrects a note it raised or re-showed.
+  - The two mock fixtures of the demo script that correct a note now mark F1 fixed.
+- Tests:
+  - `tests/test_d363.py`: an active panthenol 5% note plus a right squalane 3% line leaves the note open, and "Sorry, panthenol is five percent" closes it; the request shows handles and no ids; `note_checks` comes first in the schema; a supported claim alone closes nothing; a note that appears after its fix was checked is asked again and closed.
+  - `test_d362`: the originals load once and stay fixed for the show.
+  - The fact tests script the fix by handle.

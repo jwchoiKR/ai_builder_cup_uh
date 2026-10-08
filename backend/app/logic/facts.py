@@ -23,26 +23,12 @@ def _price_kind(field: str | None) -> str | None:
     return "price" if field in ("price", "promo") else field
 
 
-def _corrected_note(c: FactClaim, notes: Sequence[Alert]) -> Alert | None:
-    """The active note a supported claim corrects, by the model's verdict: the same cited passage, or without a
-    passage the note whose right value is the model's own correct value, or the only note of that field. D-362: no
-    numbers parsed from the host's line."""
-    # D-148: during a time sale a stale price note (field price) is corrected by the sale price (field promo)
-    same = [a for a in notes if a.product_id == c.product_id and _price_kind(a.field) == _price_kind(c.field)]
-    if c.passage_id is not None:
-        return next((a for a in same if a.passage_id == c.passage_id), None)
-    if c.correct_value:
-        hit = [a for a in same if (a.correct_value or "").strip() == c.correct_value.strip()]
-        if len(hit) == 1:
-            return hit[0]
-    return same[0] if len(same) == 1 else None
-
-
 def apply_fact_check(
     claims: Sequence[FactClaim], alerts: Sequence[Alert], t: Transcript, new_id: Callable[[str], str], now: int,
     protected: Collection[str] = (),
-) -> tuple[list[Alert], list[Alert], list[Alert]]:
-    """Returns (created, re-shown, corrected). One active note per subject (product, field, passage).
+) -> tuple[list[Alert], list[Alert]]:
+    """Returns (created, re-shown). One active note per subject (product, field, passage). D-363: corrections are
+    the model's, by handle (`correct_notes`).
 
     `protected`: transcript ids whose words are part of this (merged) utterance (D-088). Their
     active notes are the same claim heard again, so they are neither re-shown nor corrected."""
@@ -72,13 +58,17 @@ def apply_fact_check(
                       unverified_reason=getattr(c, "_unverified_reason", None))
             active[key] = a
             created.append(a)
-    fresh = {a.alert_id for a in created + reshown}
-    for c in claims:
-        if c.verdict != "supported":
-            continue
-        a = _corrected_note(c, [x for x in active.values() if x.status == "active"])
-        if a is not None and a.alert_id not in fresh and a.transcript_id not in protected:
+    return created, reshown
+
+
+def correct_notes(note_ids, alerts: Sequence[Alert], t: Transcript, now: int,
+                  fresh: Collection[str] = ()) -> list[Alert]:
+    """D-363: the active fact notes the model marked fixed by this line (by handle, mapped to ids); a note raised or
+    re-shown by this same line is not corrected by it."""
+    corrected = []
+    for a in alerts:
+        if a.kind == "fact" and a.status == "active" and a.alert_id in note_ids and a.alert_id not in fresh:
             a.status, a.resolved_at = "corrected", now
             a.corrected_by_transcript_id, a.corrected_text = t.transcript_id, t.text
             corrected.append(a)
-    return created, reshown, corrected
+    return corrected

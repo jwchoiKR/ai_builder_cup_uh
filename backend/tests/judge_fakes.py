@@ -80,9 +80,11 @@ class ScriptedBackend:
         data = judge_output(**kw) | {"facts": {"claims": list(claims), "reason": "scripted"}}
         self.outputs[("judge_single", text)] = JudgeSingleOutput.model_validate(data).model_dump(mode="json")
 
-    def facts(self, text: str, *claims: dict, delay: float = 0.0) -> None:
+    def facts(self, text: str, *claims: dict, delay: float = 0.0, fixed=()) -> None:
+        """`fixed`: D-363, the handles (F1, F2 ...) of the active fact notes this line fixes."""
         self.outputs[("fact_checker", text)] = FactCheckOutput.model_validate(
-            {"claims": list(claims), "reason": "scripted"}).model_dump(mode="json")
+            {"claims": list(claims), "reason": "scripted"}).model_dump(mode="json") | {
+            "note_checks": [{"handle": h, "fixed_by_this_line": True} for h in fixed]}
         if delay:
             self.delays[("fact_checker", text)] = delay
 

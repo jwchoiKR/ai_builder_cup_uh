@@ -120,6 +120,28 @@ def with_alert_checks(model: type[BaseModel]) -> type[BaseModel]:
     })
 
 
+class NoteCheck(_ArmB):
+    """D-363: the verdict on one ACTIVE_FACT_NOTES entry, named by its per-call handle (F1, F2 ...)."""
+    handle: str
+    fixed_by_this_line: bool
+
+
+@functools.cache
+def with_note_checks(model: type[BaseModel]) -> type[BaseModel]:
+    """D-363: the fact checker's output with `note_checks` FIRST, asked for only when notes are active."""
+    def schema(s: dict) -> None:
+        props = dict(s.get("properties", {}))
+        s["properties"] = {"note_checks": props.pop("note_checks"), **props}
+        s["required"] = list(s["properties"])
+
+    return type(f"{model.__name__}N", (model,), {
+        "__module__": __name__,
+        "__annotations__": {"note_checks": list[NoteCheck]},
+        "note_checks": Field(default_factory=list),
+        "model_config": ConfigDict(json_schema_extra=schema),
+    })
+
+
 class SwitchCueN(_ArmB):
     """D-351 SWITCH_MODE=immediate: the switch verdict with the one decision field, `moving_to_next_named` (the host
     moves on now to the next product and names it: name, short name or type word); it comes before the target, as
@@ -279,6 +301,8 @@ class FactCheckOutput(BaseModel):
     reason: str
     # D-328-330: this line on the previous one's reported claims: [{product_id, field, span, stance}]
     _previous_line: list = PrivateAttr(default_factory=list)
+    # D-363: the ids of the active fact notes this line fixes, by the model's handles (code maps handle -> id)
+    _corrects: list = PrivateAttr(default_factory=list)
 
 
 # ---- D-296 FACT_RELATION: the evidence by sentence id, then the relation; code builds the quote ------------------

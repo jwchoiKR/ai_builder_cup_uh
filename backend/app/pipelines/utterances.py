@@ -211,6 +211,7 @@ class UtterancePipeline:
         # D-352: a provisional alert the compliance judge said a later line corrects -> that line (applied the moment
         # the alert turns active)
         self._pending_fix: dict[str, Transcript] = {}
+        self._fact_shown: dict[str, set[str]] = {}  # D-363: line -> the fact notes its fact check was shown
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
         key = (t.transcript_id, kind)
@@ -734,10 +735,13 @@ class UtterancePipeline:
                                              judge_input.promo)
         s = await self.rt.load_session()
         offers = [p for p in (self.rt.promo(ap.promo_id) for ap in s.active_promos) if p is not None and not p.changes_prices]
+        notes = [a for a in await self.rt.alerts() if a.kind == "fact" and a.status == "active"]  # D-363
+        if transcript_id is not None:
+            self._fact_shown[transcript_id] = {a.alert_id for a in notes}
         inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
                         passages=passages, previous=judge_input.previous, recent=judge_input.recent,
                         session_id=self.rt.sid, scenario=scenario,
-                        offers=offers, parts=parts or [])
+                        offers=offers, parts=parts or [], notes=notes)
         res = await self.facts.run(inp, deadline_ms=self.rt.settings.FACT_LATE_MS)  # D-144: on time is FACT_TIMEOUT_MS
         if res.status in ("timeout", "error") and self.rt.catalog.lexicon.spoken_numbers(text):
             # D-203: a line that states a number posts only after a completed check (D-195): one fresh call with its
@@ -1254,7 +1258,8 @@ class UtterancePipeline:
             if held:
                 claims = [c for c in claims if all(c is not h for h in held)]
                 await self._hold_reported_locked(t, held, protected)
-        await self._fact_alerts_locked(t, claims, protected)
+        fresh = await self._fact_alerts_locked(t, claims, protected)
+        await self._correct_fact_notes_locked(t, getattr(facts, "_corrects", []), fresh)
 
     async def _hold_reported_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
         """D-328: a contradiction in someone else's words (a viewer quoted, a co-host's question) is not shown yet:
@@ -1357,22 +1362,77 @@ class UtterancePipeline:
         for tid in list(self._reported):
             await self._show_reported_locked(tid, "show ended")
 
-    async def _fact_alerts_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
+    async def _fact_alerts_locked(self, t: Transcript, claims: list, protected: set[str]) -> set[str]:
+        """New and re-shown fact notes; returns their ids (a line never corrects a note it raised)."""
         rt = self.rt
-        created, reshown, corrected = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
-                                                                  protected=protected)
+        created, reshown = fact_logic.apply_fact_check(claims, await rt.alerts(), t, rt.new_id, rt.now(),
+                                                       protected=protected)
         for a in created:
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
             self.schedule_fact_hide(a)
+            self._on_fact_note_active(a)
         for a in reshown:
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
             self.schedule_fact_hide(a)
-        for a in corrected:
+        return {a.alert_id for a in created + reshown}
+
+    async def _correct_fact_notes_locked(self, t: Transcript, note_ids, fresh=()) -> None:
+        """D-363: the fact notes the model marked fixed (by handle), and nothing else."""
+        rt = self.rt
+        for a in fact_logic.correct_notes(set(note_ids), await rt.alerts(), t, rt.now(), fresh):
             rt.ctx.scheduler.cancel(rt.key(f"facthide:{a.alert_id}"))
             await rt.save_alert(a)
             await rt.emit("alert.updated", a)
+
+    def _on_fact_note_active(self, a: Alert) -> None:
+        """D-363 (as D-357 for compliance): a fact note just appeared; the later lines whose fact check was shown no
+        such note (at most 2, within LATE_CORRECTION_MS of its line) are asked once each whether they fix it."""
+        rt = self.rt
+        origin = self._prepared.get(a.transcript_id)
+        seq = self._sequence.get(a.transcript_id, 0)
+        since = origin[0].received_at if origin else a.created_at
+        fire = []
+        for x in sorted((x for x, _, _ in self._prepared.values() if self._sequence.get(x.transcript_id, 0) > seq),
+                        key=lambda x: self._sequence[x.transcript_id]):
+            shown = self._fact_shown.get(x.transcript_id)
+            if x.received_at - since > LATE_CORRECTION_MS:
+                why = f"more than {LATE_CORRECTION_MS} ms after the note's line"
+            elif shown is None:
+                why = "not checked yet (its check will show this note)"
+            elif a.alert_id in shown:
+                why = "its check already showed this note"
+            elif len(fire) >= LATE_CORRECTION_LINES:
+                why = f"only the first {LATE_CORRECTION_LINES} lines are asked"
+            else:
+                fire.append(x)
+                why = None
+            log.info("fact note %s re-check trigger: note=%s t=%s -> %s", rt.sid, a.alert_id, x.transcript_id,
+                     "fired" if why is None else f"skipped ({why})")
+        for x in fire:
+            task = rt.spawn(self._recheck_fact_note(a.alert_id, x), name=f"factcheck:{a.alert_id}:{x.transcript_id}")
+            self._pending.add(task)
+            task.add_done_callback(self._pending.discard)
+
+    async def _recheck_fact_note(self, note_id: str, t: Transcript) -> None:
+        """D-363: one fact-check call on a line checked before the note existed: does it fix this note?"""
+        rt = self.rt
+        async with rt.lock:
+            a = await rt.get_alert(note_id)
+            if a is None or a.status != "active":
+                return
+            text = self._prepared[t.transcript_id][1] if t.transcript_id in self._prepared else t.text
+        switch = SwitchState()
+        inp = FactInput(utterance=text, on_air=a.product_id, switch=switch, promo=None,
+                        passages=await self._fact_passages(text, a.product_id, switch), notes=[a], session_id=rt.sid)
+        res = await self.facts.run(inp, deadline_ms=rt.settings.FACT_LATE_MS)
+        fixed = res.status == "ok" and res.output is not None and note_id in getattr(res.output, "_corrects", [])
+        log.info("fact note %s re-check: note=%s t=%s status=%s fixed=%s", rt.sid, note_id, t.transcript_id,
+                 res.status, fixed)
+        if fixed:
+            async with rt.lock:
+                await self._correct_fact_notes_locked(t, [note_id])
 
     def schedule_fact_hide(self, a: Alert) -> None:
         """§8.5: the host stops showing an uncorrected note after FACT_NOTE_HOST_MAX_SEC."""

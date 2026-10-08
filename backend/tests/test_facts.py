@@ -111,7 +111,8 @@ async def test_other_product_gets_its_own_note(env):
 async def test_supported_claim_corrects_the_note(env):
     rt, llm = env
     llm.facts(WRONG, price_contradiction())
-    llm.facts(RIGHT, claim("price", "supported", stated="S$36"))
+    llm.facts(RIGHT, claim("price", "supported", stated="S$36", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE),
+              fixed=["F1"])  # D-363: the model marks the note fixed by its handle
     await speak(rt, WRONG)
     await advance(rt, 4000)
     t = await speak(rt, RIGHT)
@@ -153,7 +154,7 @@ async def test_host_hide_after_max_seconds_and_resend(env):
 async def test_resend_only_active_fact_notes(env):
     rt, llm = env
     llm.facts(WRONG, price_contradiction())
-    llm.facts(RIGHT, claim("price", "supported"))
+    llm.facts(RIGHT, claim("price", "supported", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE), fixed=["F1"])
     await speak(rt, WRONG)
     await speak(rt, RIGHT)
     [a] = await fact_alerts(rt)
@@ -182,14 +183,16 @@ def test_apply_fact_check_pure(ids):
                    segment_id="seg_1")
     new_id = lambda p: ids.new(p, "s")  # noqa: E731
     c = FactClaim.model_validate(price_contradiction("S$32"))
-    created, reshown, corrected = fact_logic.apply_fact_check([c], [], t, new_id, now=100)
-    assert len(created) == 1 and not reshown and not corrected
+    created, reshown = fact_logic.apply_fact_check([c], [], t, new_id, now=100)
+    assert len(created) == 1 and not reshown
     alerts = created
     c2 = FactClaim.model_validate(price_contradiction("S$31"))
-    created, reshown, corrected = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200)
+    created, reshown = fact_logic.apply_fact_check([c2], alerts, t, new_id, now=200)
     assert not created and reshown[0].stated_value == "S$31" and reshown[0].shown_at == 200
-    sup = FactClaim.model_validate(claim("price", "supported"))
-    created, reshown, corrected = fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300)
+    # D-363: a supported claim corrects nothing by itself; the model's handle (mapped to the id) does
+    sup = FactClaim.model_validate(claim("price", "supported", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE))
+    assert fact_logic.apply_fact_check([sup], alerts, t, new_id, now=300) == ([], [])
+    corrected = fact_logic.correct_notes({alerts[0].alert_id}, alerts, t, now=300)
     assert corrected and corrected[0].status == "corrected" and corrected[0].resolved_at == 300
     assert fact_logic.PURCHASE_FIELDS >= {"price", "volume", "ingredient_amount"}
 
@@ -283,7 +286,7 @@ async def test_a_right_fact_about_another_ingredient_does_not_clear_the_note(env
     assert len([a for a in await fact_alerts(rt) if a.status == "active"]) == 2  # two subjects, two notes
     fix = "Sorry, panthenol is five percent."
     # D-362: the model's verdict names the note (its cited passage); no number parsed from the line
-    llm.facts(fix, claim("ingredient_amount", "supported", stated="5%", passage_id=PANTHENOL))
+    llm.facts(fix, claim("ingredient_amount", "supported", stated="5%", passage_id=PANTHENOL), fixed=["F1"])
     await speak(rt, fix)
     assert (await rt.get_alert(note.alert_id)).status == "corrected"
 
