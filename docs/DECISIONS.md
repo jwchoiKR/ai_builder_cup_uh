@@ -2351,3 +2351,35 @@ Kept (the user-approved plumbing): the evidence id exists, the code-built quote,
 - Tests: `test_d305` (no regex chip by default); `test_d298`, `test_d299` and `test_relation` now name `ALL_FIXES` for the opt-in code checks they test.
 
 D-353 addendum (user order, 10/8): `VERBAL_CHECK` goes back to `code`. Spoken-answer posting belongs to the comments team, so it is outside this team's scope. The code default is back, `VERBAL_CHECK=judge` is removed from `deploy/cloudrun.sh`, and `.env.example` matches. No test had been changed for it. The D-353 table row for VERBAL_CHECK no longer holds.
+
+D-354: `STORE=firestore` stores the live show data in Firestore. The database is `live-studio` (setting `FIRESTORE_DATABASE`) in project ai-budiler-cup-uh-team-pjt, created by the user. The design follows 2 of 3 peer reviews (GPT, Gemini, Sonnet). The default stays `STORE=memory`, and tests use MemoryStore.
+- **Memory stays the read model.** `FirestoreStore` extends `MemoryStore`: every get and query is served from memory, so the alert hot path never waits on Firestore. That matters because `bus.emit` awaits `store.put` under the session lock.
+- **Write-behind:** every put, delete and committed transaction write is mirrored to Firestore through one ordered queue.
+  - Writes to the same document are coalesced (the latest wins), and they go out with `set()` (whole documents, no dotted updates) in batches of at most 500.
+  - The queue is flushed when a show ends (`end()` waits up to 10 s) and at app shutdown (SIGTERM: the lifespan's `aclose` waits up to 8 s, inside Cloud Run's 10 s).
+- **Failures:**
+  - A transient failure keeps the whole batch queued and retries it with backoff (0.5 s, doubling, up to 30 s), logged as `firestore: write failed`.
+  - A document Firestore refuses (InvalidArgument, FailedPrecondition or BadRequest) is retried alone, then as one JSON string field; if it is still refused it is logged as an error.
+  - A document over the 1 MiB limit is logged as an error and not written (`failures` counts these).
+  - Nothing is dropped silently.
+- **Read-back:** the first time a process touches a session, it reads back the session document and its subcollections, so the event seq continues on a new instance. A document already in memory or in the queue is never overwritten by the read-back.
+  - Other top-level collections load whole on first touch. A listing of `sessions` loads only the session documents.
+  - A failed read-back is logged, and memory serves alone for 30 s before the next try.
+- **Documents:**
+  - Paths are `sessions/{sid}/<collection>`, and a doc id with "/" is refused.
+  - A document holding an array inside an array (Firestore has none) is written as one `_json` string field and decoded on read-back.
+  - `delete_session` drops the session's queued writes and then calls `recursive_delete`.
+  - No composite index is needed: the queries run on memory.
+- **Deploy:** max-instances stays 1, and `STORE=firestore` goes into `deploy/cloudrun.sh` only when the user says so. IAM is the user's job: `roles/datastore.user` for the run service account. New dependency: `google-cloud-firestore`.
+- **Tests (`tests/test_d354.py`, on an in-process stand-in of the Firestore client in `tests/fake_firestore.py`):**
+  - the store contract of `test_store`, with Firestore equal to memory after a flush;
+  - the write path makes no network read, coalesces writes and keeps batches at 500 or fewer;
+  - an outage is retried with nothing lost;
+  - a refused document neither blocks the others nor is lost;
+  - nested arrays round-trip as JSON;
+  - "/" in a doc id is refused;
+  - a document over 1 MiB is logged and not written;
+  - a show replayed through the real pipeline has the same documents per collection in Firestore as in memory, and a new store on the same database reads the session back and continues the event seq;
+  - `delete_session` deletes it in Firestore too.
+
+  The same contract runs on the Firestore emulator when `FIRESTORE_EMULATOR_HOST` is set. This laptop has no Java and no emulator, so those 4 tests were skipped here.

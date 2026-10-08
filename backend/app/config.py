@@ -117,6 +117,7 @@ class Settings(BaseSettings):
     FACT_MODE: Literal["sheet", "record", "docs"] = "docs"  # D-242/D-247/D-255: a release's fact checks read its files  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
+    FIRESTORE_DATABASE: str = "live-studio"  # D-354: the Firestore database of STORE=firestore
     RETRIEVER: Literal["local", "vertex_search"] = "local"
     LLM_PROVIDER: Literal["vertex", "mock"] = "vertex"
     STT_PROVIDER: Literal["google_v2", "mock"] = "google_v2"

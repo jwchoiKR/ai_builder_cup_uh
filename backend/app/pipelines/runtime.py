@@ -306,6 +306,8 @@ class SessionRuntime:
             await self.save_session(s)
             self.ctx.scheduler.cancel_prefix(f"{self.sid}:")
             await self.emit("session.ended", s)
+        if hasattr(self.ctx.store, "flush"):  # D-354: the show's writes are in Firestore when it ends
+            await self.ctx.store.flush(timeout=10.0)
         # §8.1.4: summary stats, then the recap in the background; `summary.ready` follows.
         try:
             from .summary import run_summary

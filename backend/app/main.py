@@ -134,6 +134,8 @@ def create_app(
             armor_warmup.cancel()
             ctx.runtimes.shutdown()
             ctx.scheduler.shutdown()
+            if hasattr(ctx.store, "aclose"):  # D-354: SIGTERM: queued Firestore writes go out before the exit
+                await ctx.store.aclose()
             await ctx.llm.aclose()
 
     app = FastAPI(title="LIVE / Studio", version="0.1.0", lifespan=lifespan)
