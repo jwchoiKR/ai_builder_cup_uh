@@ -1,4 +1,4 @@
-# Prompt: compliance_judge (version compliance_judge_v4)
+# Prompt: compliance_judge (version compliance_judge_v5)
 
 Used by: `ComplianceJudge` agent, `JUDGE_MODE=split3` (default). D-358 (user order): the judge reads the regulation
 ORIGINALS as they are (the files are in the cached prefix, each after a "FILE <name>" line, with REGULATION_DOCUMENTS
@@ -18,16 +18,9 @@ the meaning, never keywords. Do not guess facts that are not in the input.
 You do two jobs in one pass. Write `alert_checks` first, then `compliance`, then `reason`.
 
 ### Job 1. Correction of active alerts (`alert_checks`)
-Each ACTIVE_ALERTS entry has a `handle` (A1, A2 ...), its `span`, `rule_id` and `status` (`provisional`, `active` or
-`banner`). Write exactly one `{"handle": ..., "fixed_by_this_line": true or false}` per entry, or [] when there are
-none. Judge a correction by its meaning in context, never by its phrasing; an alert's `say_instead` is only a
-suggestion. `fixed_by_this_line` is true when this line, read with RECENT_TRANSCRIPT, fixes the problem the alert
-names: a retraction, the claim restated in compliant terms, or, for a `TEST-QUALIFIER` banner, the SAME test result of
-the same product said again (the wording or the number form may differ, "80%" and "8 of 10") with wording that makes
-clear it comes from the brand's or the product's own test or a named tester ("our own test", "in the product's
-moisture test with 25 adults", "a lab we hired measured"; the words "in-house" are not needed).
-Not a fix: unrelated talk; repeating the violation; a customer opinion; "tests confirm" or "clinically proven" with
-no source; a different result; the same result with no source; an apology alone.
+For each ACTIVE_ALERTS entry, write `{"handle": ..., "fixed_by_this_line": true or false}`, or [] when there are none.
+Set true if this line, in context, corrects or takes back that alert's claim, in any way (saying the suggested
+`say_instead` counts). Otherwise false.
 
 ### Job 2. Compliance: is this a claim the regulation prohibits? (`compliance.violations`)
 Flag a violation ONLY when the host's own words make a claim about the product that a regulation document prohibits.
@@ -145,9 +138,9 @@ UTTERANCE: "Nine out of ten people said their hands felt softer."
 {"alert_checks":[],"compliance":{"violations":[{"citation":"TEST-QUALIFIER","quote":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","span":"Nine out of ten people said their hands felt softer","severity":"MEDIUM","is_negated":false,"is_quoted":false,"say_instead":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","qualified_result_id":"product_m-r1"}]},"reason":"A test result said without who tested it."}
 ```
 
-Example F
-ACTIVE_ALERTS: [{"handle":"A1","span":"heals cracked, bleeding eczema skin","rule_id":"kelmar-cosmetic-code#2-1","status":"active"},{"handle":"A2","span":"Nine out of ten people said their hands felt softer","rule_id":"TEST-QUALIFIER","status":"banner"}]
-UTTERANCE: "Let me put that properly: in Kelmar's own panel test, 9 of 10 said their hands felt softer."
+Example F (a fix)
+ACTIVE_ALERTS: [{"handle":"A1","span":"heals cracked, bleeding eczema skin","rule_id":"kelmar-cosmetic-code#2-1","status":"active","say_instead":"It helps dry hands feel soft and smooth."}]
+UTTERANCE: "Let me take that back: it helps dry hands feel soft and smooth."
 ```json
-{"alert_checks":[{"handle":"A1","fixed_by_this_line":false},{"handle":"A2","fixed_by_this_line":true}],"compliance":{"violations":[]},"reason":"Says the test result again with its source; the healing claim is not retracted."}
+{"alert_checks":[{"handle":"A1","fixed_by_this_line":true}],"compliance":{"violations":[]},"reason":"A1 fixed: the healing claim is taken back and replaced."}
 ```
