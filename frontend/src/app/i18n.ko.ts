@@ -52,6 +52,7 @@ export const KO_HOST: Record<string, string> = {
   Said: "말함",
   Caution: "주의",
   "Avoid saying": "피해야 할 말",
+  "Lines with alerts {a} / {n} lines": "알림이 뜬 줄 {a} / 전체 {n}줄",
   "{n} required point left": "필수 포인트 {n}개 남음",
   "{n} required points left": "필수 포인트 {n}개 남음",
   "All required points said": "필수 포인트 모두 말함",

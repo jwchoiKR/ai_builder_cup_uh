@@ -27,7 +27,7 @@ export function ComplianceOverlay({
 }) {
   const t = useT();
   const { alert, position, total } = view;
-  const rule = ruleInfo(catalog, alert.rule_id);
+  const rule = ruleInfo(catalog, alert.rule_id, alert.product_id);
 
   useEffect(() => {
     onRendered(alert.alert_id);

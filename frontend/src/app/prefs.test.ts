@@ -64,29 +64,14 @@ describe("host panel sizes (D-181)", () => {
 });
 
 describe("the mic's speech-recognition language (D-316)", () => {
-  it("D-317: offers only measured languages unless labs mode is on (?labs=1, kept per browser)", async () => {
-    let prefs = await import("./prefs");
-    expect(prefs.micLanguages().map((l) => l.code)).toEqual(["en-US"]);
-    window.localStorage.setItem("ls.mic.lang", "ko-KR");  // chosen in labs mode earlier
-    expect(prefs.getMicLang()).toBe("");
-    window.history.replaceState(null, "", "/studio?labs=1");
-    vi.resetModules();
-    prefs = await import("./prefs");
-    expect(prefs.micLanguages()).toHaveLength(prefs.STT_LANGUAGES.length);
-    expect(prefs.getMicLang()).toBe("ko-KR");
-    window.history.replaceState(null, "", "/studio");
-    vi.resetModules();
-    prefs = await import("./prefs");
-    expect(prefs.isLabs()).toBe(true);  // remembered
-    window.history.replaceState(null, "", "/studio?labs=0");
-    vi.resetModules();
-    prefs = await import("./prefs");
-    expect(prefs.isLabs()).toBe(false);
-    window.history.replaceState(null, "", "/");
+  it("D-348: offers English and Korean to everyone, with no labs gating", async () => {
+    window.localStorage.setItem("ls.mic.lang", "ko-KR");
+    const prefs = await import("./prefs");
+    expect(prefs.STT_LANGUAGES.map((l) => [l.code, l.name])).toEqual([["en-US", "English (en-US)"], ["ko-KR", "Korean (ko-KR)"]]);
+    expect(prefs.getMicLang()).toBe("ko-KR");  // no ?labs=1 needed
   });
 
-  it("defaults to none (the server's language), remembers a listed code and ignores an unknown one", async () => {
-    window.localStorage.setItem("ls.labs", "1");
+  it("defaults to none (the server's language), remembers a listed code and ignores an unlisted one", async () => {
     let prefs = await import("./prefs");
     expect(prefs.getMicLang()).toBe("");
     prefs.setMicLang("ko-KR");
@@ -94,27 +79,23 @@ describe("the mic's speech-recognition language (D-316)", () => {
     vi.resetModules();
     prefs = await import("./prefs");
     expect(prefs.getMicLang()).toBe("ko-KR");
-    window.localStorage.setItem("ls.mic.lang", "xx-YY");
-    vi.resetModules();
-    prefs = await import("./prefs");
-    expect(prefs.getMicLang()).toBe("");
+    for (const gone of ["xx-YY", "ja-JP", "auto"]) {  // D-348: the other languages are no longer offered
+      window.localStorage.setItem("ls.mic.lang", gone);
+      vi.resetModules();
+      prefs = await import("./prefs");
+      expect(prefs.getMicLang()).toBe("");
+    }
   });
 });
 
 describe("the mic's WebSocket URL (D-316/D-318)", () => {
-  it("sends ?lang= only for a language picked in labs mode, none by default or for Session default", async () => {
+  it("sends ?lang= only for a picked language, none by default or for Session default", async () => {
     const url = async () => (await import("./mic")).audioUrl("ses_1");
     expect(await url()).toMatch(/\/api\/sessions\/ses_1\/audio$/);  // default: no choice
-    window.localStorage.setItem("ls.labs", "1");
-    vi.resetModules();
     const prefs = await import("./prefs");
     prefs.setMicLang("ko-KR");
     expect(await url()).toMatch(/\/audio\?lang=ko-KR$/);
     prefs.setMicLang("");  // Session default
-    expect(await url()).toMatch(/\/audio$/);
-    window.localStorage.setItem("ls.mic.lang", "ko-KR");
-    window.localStorage.removeItem("ls.labs");  // labs off: the stored pick is not sent
-    vi.resetModules();
     expect(await url()).toMatch(/\/audio$/);
   });
 });

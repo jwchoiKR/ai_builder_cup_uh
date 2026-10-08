@@ -121,8 +121,29 @@ describe("prompter", () => {
     expect(screen.getByTestId("host-cautions")).toHaveTextContent("Do not apply to broken or damaged skin.");
     expect(screen.getByTestId("host-avoid")).toHaveTextContent("✕ Heals eczema→Helps relieve the feeling of dryness.");
     expect(screen.getByTestId("host-ing-panthenol").className).not.toMatch(/said/);
+    expect(within(screen.getByTestId("host-ing-panthenol")).queryByLabelText("Said")).toBeNull();
     rerender(view({ segments: [segment({ covered_point_ids: ["cr-p2"] })] }));
     expect(screen.getByTestId("host-ing-panthenol").className).toMatch(/said/);
+    expect(within(screen.getByTestId("host-ing-panthenol")).getByLabelText("Said")).toBeInTheDocument(); // D-348
+  });
+
+  it("D-348: no AVOID SAYING heading when the product has no wording to avoid", () => {
+    const bare: Catalog = { ...cat, products: cat.products.map((p) => ({ ...p, avoid_saying: [] })) };
+    const s = { ...reduceSnapshot(snapshot(), "host", Date.now()), serverOffsetMs: 0 };
+    render(<HostView state={s} catalog={bare} connection="connected" theme="dark" actions={actions()} />);
+    expect(screen.queryByTestId("host-avoid")).toBeNull();
+    expect(screen.queryByText("Avoid saying")).toBeNull();
+  });
+
+  it("D-348: a covered point is highlighted with a check and keeps its full text; an open point keeps its bullet", () => {
+    render(view({ segments: [segment({ covered_point_ids: ["cr-p1"] })] }));
+    const said = screen.getByTestId("host-point-cr-p1");
+    const todo = screen.getByTestId("host-point-cr-p2");
+    expect(said.className).toMatch(/said/);
+    expect(within(said).getByLabelText("Said").querySelector("svg")).not.toBeNull();
+    expect(todo.className).not.toMatch(/said/);
+    expect(within(todo).queryByLabelText("Said")).toBeNull();
+    expect(said).toHaveTextContent("Lightweight gel-cream. Absorbs quickly."); // the text stays whole
   });
 
   it("shows TIME SALE prices during a price promo", () => {

@@ -56,7 +56,8 @@ export function impactChips(metrics: { impact?: Impact } | undefined, t: Transla
   if (!i) return [];
   const q = i.questions;
   return [
-    t("Risky lines alerted {a}/{n}", { a: String(i.risky_lines.alerted), n: String(i.risky_lines.of_lines) }),
+    // D-348: the denominator is every final line (switch and correction lines too), so name what it counts
+    t("Lines with alerts {a} / {n} lines", { a: String(i.risky_lines.alerted), n: String(i.risky_lines.of_lines) }),
     t("Askers answered: AI {a} · host {h} · operator {o} of {n}",
       { a: String(q.ai), h: String(q.host), o: String(q.operator), n: String(q.of_askers) }),
     t("Operator actions {n}", { n: String(i.operator_actions) }),

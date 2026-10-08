@@ -230,16 +230,18 @@ function ProductPanel({
         <div>
           <h4 className={styles.factsLabel}>{t("Ingredients")}</h4>
           <div className={styles.nums}>
-            {ingredientsOf(product).map((i) => (
-              <div
-                key={i.key}
-                className={cx(styles.num, saidText.includes(i.name.toLowerCase()) && styles.said)}
-                data-testid={`host-ing-${i.key}`}
-              >
-                <b className="tabular">{i.value}</b>
-                <span>{i.name}</span>
-              </div>
-            ))}
+            {ingredientsOf(product).map((i) => {
+              const said = saidText.includes(i.name.toLowerCase());
+              return (
+                <div key={i.key} className={cx(styles.num, said && styles.said)} data-testid={`host-ing-${i.key}`}>
+                  <b className="tabular">{i.value}</b>
+                  <span>
+                    {said && <span className={styles.saidMark} aria-label={t("Said")}><Check /></span>}
+                    {i.name}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
         <div>
@@ -279,19 +281,22 @@ function ProductPanel({
             </button>
           )}
         </div>
-        <div className={cx(styles.guard, styles.guardAvoid)} data-testid="host-avoid">
-          <h5>
-            <Ban aria-hidden />
-            {t("Avoid saying")}
-          </h5>
-          {(product.avoid_saying ?? []).map((a) => (
-            <p key={a.say_not}>
-              <span className={styles.avoidNo}>✕ {a.say_not}</span>
-              <span className={styles.avoidTo}>→</span>
-              <b>{a.say}</b>
-            </p>
-          ))}
-        </div>
+        {/* D-348: no heading over an empty list */}
+        {(product.avoid_saying ?? []).length > 0 && (
+          <div className={cx(styles.guard, styles.guardAvoid)} data-testid="host-avoid">
+            <h5>
+              <Ban aria-hidden />
+              {t("Avoid saying")}
+            </h5>
+            {product.avoid_saying!.map((a) => (
+              <p key={a.say_not}>
+                <span className={styles.avoidNo}>✕ {a.say_not}</span>
+                <span className={styles.avoidTo}>→</span>
+                <b>{a.say}</b>
+              </p>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

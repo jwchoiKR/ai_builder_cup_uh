@@ -1,6 +1,6 @@
 // Pure helpers for the operator control room (DEV_SPEC §12.4). No React here, so they are unit-tested.
 import { translate, type Translate } from "../../app/i18n";
-import { formatMmSs, onAirSegment, productById } from "../../app/selectors";
+import { formatMmSs, onAirSegment, ownDocFirst, productById } from "../../app/selectors";
 import type { ClientState } from "../../app/state";
 import type { Alert, Answer, Catalog, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
 
@@ -68,8 +68,9 @@ export function productLabel(catalog: Catalog | null, g: QuestionGroup, t: Trans
   return scope === "multi" ? t("Both products") : scope === "none" ? t("General") : t("No product");
 }
 
-export function ruleInfo(catalog: Catalog | null, ruleId: string | null) {
-  return catalog?.rules?.find((r) => r.rule_id === ruleId) ?? null;
+export function ruleInfo(catalog: Catalog | null, ruleId: string | null, pid?: string) {
+  const rule = catalog?.rules?.find((r) => r.rule_id === ruleId);
+  return rule ? { ...rule, source_ref: ownDocFirst(catalog, rule.source_ref, pid) } : null;
 }
 
 /** "Hydra Barrier Cream product sheet · Key facts", or "Active promotion" (§8.5). */

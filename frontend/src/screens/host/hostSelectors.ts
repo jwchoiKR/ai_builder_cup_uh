@@ -5,6 +5,7 @@ import {
   nextProduct,
   onAirProduct,
   onAirSegment,
+  ownDocFirst,
   productById,
   productOrder,
   prompterView,
@@ -109,10 +110,10 @@ export function shortRef(sourceRef: string): string {
   return parts.slice(0, 2).join(", ");
 }
 
-export function ruleInfo(catalog: Catalog | null, ruleId: string | null): RuleInfo {
+export function ruleInfo(catalog: Catalog | null, ruleId: string | null, pid?: string): RuleInfo {
   const rule = catalog?.rules?.find((r) => r.rule_id === ruleId);
   if (!rule) return { title: ruleId ?? "Restricted claim", ref: "" };
-  return { title: rule.title, ref: shortRef(rule.source_ref) };
+  return { title: rule.title, ref: shortRef(ownDocFirst(catalog, rule.source_ref, pid)) };
 }
 
 /** Source chip under the suggested answer: "Product sheet · FAQ" style (§12.3.4). */
