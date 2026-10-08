@@ -142,6 +142,7 @@ export interface Alert {
   passage_id: string | null;
   quote: string | null; // D-374: on a compliance alert, the model's summary of the cited section (not verbatim)
   citation?: string | null; // D-374: compliance, the model's citation ("<document>#<section>")
+  say?: string | null; // D-396: fact note, the model's line the host says to fix it
   created_at: number;
   provisional_at: number | null;
   shown_at: number | null;

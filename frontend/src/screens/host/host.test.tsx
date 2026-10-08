@@ -211,31 +211,24 @@ describe("fact note", () => {
     const wrong = screen.getByTestId("host-fact-wrong");
     expect(wrong).toHaveTextContent("Heard: ✕ S$32");
     // D-136: one line the host can read out, with the product
-    // D-386: the line names what the value is, from the source's label
-    expect(screen.getByTestId("host-fact-right")).toHaveTextContent("○ Cream: Live broadcast price is S$36.00");
+    // D-396: with no `say` from the model, the note shows its correct value
+    expect(screen.getByTestId("host-fact-right")).toHaveTextContent("○ Cream: S$36.00");
     expect(wrong.closest("s, del, strike")).toBeNull();
     expect(wrong.querySelector("s, del, strike")).toBeNull();
     expect(wrong.style.textDecoration).not.toContain("line-through");
     expect(wrong.className).not.toMatch(/strike/i);
   });
 
-  it("D-136: a promo price note names the product and the time sale", async () => {
+  it("D-396: the say line is the product and the model's `say`, as it wrote it", async () => {
     const { factSayLine } = await import("./hostSelectors");
-    const promo = { ...fx, passage_id: null, correct_value: "S$32.40" };
-    expect(factSayLine(catalog, { ...promo, quote: null }, "Time sale: extra 10% off"))
-      .toBe("Cream: S$32.40 during the time sale");  // D-386: no source label: the value as the model wrote it
-    expect(factSayLine(catalog, { ...fx, product_id: "set_cream_ampoule", quote: "Set price: S$62.00",
-      correct_value: "S$62.00" }, null)).toBe("Cream + Ampoule set: Set price is S$62.00");
-  });
-
-  it("D-386: the say line names the ingredient, or keeps the model's sentence as it is", async () => {
-    const { factSayLine } = await import("./hostSelectors");
-    const ing = { ...fx, field: "ingredient_amount", stated_value: "45%", correct_value: "5%",
-      passage_id: "DL-CR-01#prompter#ingredient-panthenol", quote: "Panthenol: 5%" };
-    expect(factSayLine(catalog, ing, null)).toBe("Cream: Panthenol is 5%");
-    expect(factSayLine(catalog, { ...ing, quote: "Claims not approved: Treats eczema",
-      correct_value: "It does not treat eczema." }, null)).toBe("Cream: It does not treat eczema.");
-    expect(factSayLine(catalog, { ...ing, quote: null }, null)).toBe("Cream: 5%");
+    const promo = { ...fx, passage_id: null, correct_value: "S$32.40",
+      say: "The live price is S$32.40 during the time sale" };
+    expect(factSayLine(catalog, promo)).toBe("Cream: The live price is S$32.40 during the time sale");
+    expect(factSayLine(catalog, { ...fx, product_id: "set_cream_ampoule", say: "The set is S$62.00." }))
+      .toBe("Cream + Ampoule set: The set is S$62.00.");
+    const ing = { ...fx, field: "ingredient_amount", correct_value: "5%", quote: "Claims not approved: Treats eczema" };
+    expect(factSayLine(catalog, { ...ing, say: "Panthenol is 5%" })).toBe("Cream: Panthenol is 5%");
+    expect(factSayLine(catalog, ing)).toBe("Cream: 5%");  // no `say`: the correct value, never a code-built line
   });
 
   it("a corrected fact shows the green Corrected in the box (D-107)", () => {

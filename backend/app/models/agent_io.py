@@ -288,6 +288,7 @@ class FactClaim(BaseModel):
     correct_value: str | None
     passage_id: str | None
     quote: str | None
+    say: str | None = None  # D-396: the model's say line for a contradiction (relation arm v5)
     _unverified: bool = PrivateAttr(default=False)  # D-300: kept without the verifier's verdict (timeout)
     _votes: int | None = PrivateAttr(default=None)  # D-302
     _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
@@ -361,6 +362,7 @@ class FactRelationClaimV5(BaseModel):
     source_value: str | None
     relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
     correct_value: str | None
+    say: str | None = None  # D-396: the line the host says to fix it (contradicts only)
 
 
 class FactRelationOutputV5(BaseModel):

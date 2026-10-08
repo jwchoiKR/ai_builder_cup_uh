@@ -140,7 +140,8 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                              "correct": r.correct_value, "passage_id": None, "quote": None})
         p = ev[0][0] if ev else None
         c = FactClaim(span=r.span, field=r.field, product_id=r.product_id, stated_value=r.stated_value, verdict=verdict,
-                      correct_value=r.correct_value, passage_id=p.passage_id if p else None,
+                      correct_value=r.correct_value, say=getattr(r, "say", None),
+                      passage_id=p.passage_id if p else None,
                       quote=" ".join(t for q, t in ev if q.passage_id == p.passage_id) if p else None)
         c._evidence = [i for i in r.evidence if i in index or i in terms]  # D-302: carried to the alert
         c._attributed = getattr(r, "attributed", "host")  # D-328

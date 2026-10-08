@@ -31,12 +31,11 @@ export function CueStrip({ cue }: { cue: HostCue }) {
   );
 }
 
-export function FactNote({ alert, catalog, onRendered, pricePromoTitle = null }: {
+export function FactNote({ alert, catalog, onRendered }: {
   alert: Alert;
   catalog: Catalog | null;
   onRendered?: (alertId: string) => void;
   /** the active price promotion's title, for the "during the time sale" condition (D-136) */
-  pricePromoTitle?: string | null;
 }) {
   // D-107: wrong product information is as urgent as a compliance alert, so it takes the prompter's
   // product box too: what was heard small, the right value as the biggest text.
@@ -67,7 +66,7 @@ export function FactNote({ alert, catalog, onRendered, pricePromoTitle = null }:
       </div>
       {/* D-136: one line the host can read out, with the product and the promo condition */}
       <span className={styles.alertSay} data-testid="host-fact-right">
-        ○ {factSayLine(catalog, alert, pricePromoTitle)}
+        ○ {factSayLine(catalog, alert)}
       </span>
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>
