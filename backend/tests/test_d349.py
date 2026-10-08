@@ -57,11 +57,9 @@ async def test_d349_a_transition_verdict_switches_at_once():
 
 @pytest.mark.parametrize("kw", [
     {"quote": True},  # a viewer's words read out
-    {"utterance_type": "answer"},
-    {"confidence": "low"},
     {"target": CREAM},  # back to the on-air product
-])
-async def test_d349_no_switch_on_a_quote_an_answer_low_confidence_or_another_target(kw):
+])  # D-351: an answer line and a low confidence no longer block a switch (tests/test_d351.py)
+async def test_d349_no_switch_on_a_quote_or_another_target(kw):
     rt, llm = await _env(SWITCH_MODE="immediate")
     try:
         llm.judge(MOVE_ON, **({"utterance_type": "transition", "transition": True, "target": AMPOULE,

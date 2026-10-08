@@ -15,7 +15,7 @@ import json
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ComplianceOutputRC, ContextOutput,
-                               ContextOutputB, ContextOutputQ, with_product)
+                               ContextOutputB, ContextOutputQ, with_product, with_switch_naming)
 from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -243,6 +243,11 @@ class ContextJudge(_SplitJudge):
         if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: does the next line resolve it?
             self.output_model = ContextOutputQ
             if extra := arms._addenda(str(llm.prompts_path)).get(("QHOLD", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        if getattr(getattr(llm, "settings", None), "SWITCH_MODE", "two_step") == "immediate":  # D-351
+            self.output_model = with_switch_naming(self.output_model)
+            self.output_model_b = with_switch_naming(self.output_model_b)
+            if extra := arms._addenda(str(llm.prompts_path)).get(("SWITCH", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:

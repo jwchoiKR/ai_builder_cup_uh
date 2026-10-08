@@ -140,7 +140,7 @@ class Settings(BaseSettings):
     LLM_RETRY_ON_5XX: int = 1
     # D-340 (review H15): a 429 (Google's shared capacity) is retried once after this many ms, when the call's
     # deadline leaves room for it; 0 = no retry (as before), a switch until measured
-    LLM_RETRY_ON_429_MS: int = 0
+    LLM_RETRY_ON_429_MS: int = 500  # D-351: on (user-approved); retried only when the deadline leaves 1 s after it
     LLM_CONTEXT_CACHE: bool = True  # measured 10/5: fact checker cached share 44% -> 72.5%, accuracy and latency unchanged
     LLM_CONTEXT_CACHE_TTL_SEC: int = 3600  # request session duration overrides this fallback
     JUDGE_MODE: Literal["split3", "split", "single"] = "split3"  # D-099; split = one UtteranceJudge (rollback)
@@ -221,6 +221,8 @@ class Settings(BaseSettings):
     # no 5 s pending); for SWITCH_DUAL_SCOPE_SEC after a switch or an undo the judges get both products, labelled
     SWITCH_MODE: Literal["two_step", "immediate"] = "two_step"
     SWITCH_DUAL_SCOPE_SEC: int = 10
+    # D-351: the context call and its one retry share this deadline (immediate switch arm only)
+    CONTEXT_RETRY_TOTAL_MS: int = 4000
     UNDO_SWITCH_WINDOW_SEC: int = 60
     STREAM_GRACE_SEC: int = 2
     HOST_TOP_N: int = 6  # D-113: the compact waiting list (cards are released one at a time by the AI PD)

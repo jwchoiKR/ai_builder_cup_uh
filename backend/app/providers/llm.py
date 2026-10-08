@@ -74,6 +74,7 @@ class LLMRequest(Generic[T]):
     temperature: float | None = None  # D-302: a vote run's sampling temperature; None = the model's default
     seed: int | None = None  # D-314: the sampling seed; None = not sent
     hedge: bool = True  # D-302: False sends no second request (vote runs)
+    retry_429: bool = True  # D-351: False skips the 429 wait (a caller that retries the whole call itself)
 
 
 @dataclass
@@ -605,7 +606,8 @@ class LLMClient:
             except LLMError as e:
                 # D-340: one short wait and retry on a 429, only when the deadline leaves room for an answer
                 left = req.deadline_ms - (time.perf_counter() - t0) * 1000
-                if (not backoff_429 or backoff_429 < 0 or attempt > 1 or failure_kind("error", str(e)) != "http_429"
+                if (not backoff_429 or backoff_429 < 0 or attempt > 1 or not req.retry_429
+                        or failure_kind("error", str(e)) != "http_429"
                         or left < backoff_429 + MIN_RETRY_ROOM_MS):
                     raise
                 log.warning("agent=%s 429: retry once after %d ms (%d ms left)", req.agent, backoff_429, left)

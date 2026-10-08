@@ -69,9 +69,12 @@ class ScriptedBackend:
         self.errors: set[tuple[str, str]] = set()
         self.calls: list[tuple[str, str]] = []
         self.expects: dict[str, bool] = {}  # D-335: the context judge's expects_resolution per line
+        self.named: dict[str, bool] = {}  # D-351: moving_to_next_named per line (default: the transition flag)
 
-    def judge(self, text: str, **kw) -> None:
+    def judge(self, text: str, named: bool | None = None, **kw) -> None:
         self.outputs[("utterance_judge", text)] = judge_output(**kw)
+        if named is not None:
+            self.named[text] = named
 
     def single(self, text: str, *, claims=(), **kw) -> None:
         data = judge_output(**kw) | {"facts": {"claims": list(claims), "reason": "scripted"}}
@@ -107,6 +110,11 @@ class ScriptedBackend:
             part = split_part(req.agent, data)
             if "expects_resolution" in getattr(req.output_model, "model_fields", {}):  # D-335 QUESTION_HOLD
                 part = {"expects_resolution": self.expects.get(req.mock_primary_text, False), **part}
+            if "prompter" in part:  # D-351 SWITCH_MODE=immediate: the switch verdict says whether the line names it
+                sw_model = req.output_model.model_fields["prompter"].annotation.model_fields["switch"].annotation
+                if "moving_to_next_named" in sw_model.model_fields:
+                    sw = part["prompter"]["switch"]
+                    sw["moving_to_next_named"] = self.named.get(req.mock_primary_text, sw["is_transition"])
             return RawReply(json.dumps(part), model_version="scripted")
         if req.agent in ("utterance_judge", "judge_single"):
             # Unscripted sentences: a neutral verdict (no reflex-derived violations).
