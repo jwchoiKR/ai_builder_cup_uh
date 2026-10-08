@@ -1,4 +1,4 @@
-# JAPAC cosmetic-claim regulators (research 10/5, GPT with web search)
+# JAPAC cosmetic-claim regulators (research 10/5, automated web search)
 
 Sources are the official pages linked in the table, checked 2026-10-05. These are candidate rule-pack categories, not legal advice.
 

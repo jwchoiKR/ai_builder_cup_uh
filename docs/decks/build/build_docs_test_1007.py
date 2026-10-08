@@ -2,10 +2,11 @@
 of the false alerts. Run: python docs/decks/build/build_docs_test_1007.py
 Numbers from sealed_sets/results/docs_arms.json (docs_arms.py, scorer v3 --semantic --restore). Sealed text never shown:
 examples are made up."""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)

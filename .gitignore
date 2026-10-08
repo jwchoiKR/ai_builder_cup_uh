@@ -10,9 +10,12 @@ data/onboarding/
 frontend/test-results/
 frontend/playwright-report/
 
-# AI assistant (Claude Code) files
+# Local tool files
 .claude/
 **/.claude/
+CLAUDE.md
+**/CLAUDE.md
 CLAUDE.local.md
 **/CLAUDE.local.md
+AGENTS.md
 .mcp.json

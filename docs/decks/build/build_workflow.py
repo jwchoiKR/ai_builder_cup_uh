@@ -1,9 +1,10 @@
 """Detailed workflow deck: before, during and after the show, one flow per slide (google-slide-deck design).
 Run: python docs/decks/build/build_workflow.py"""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\User.DESKTOP-G5S2APU\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -236,7 +237,7 @@ slide("tests-3", "처음 보는 제품 (1/4)", "밤사이 로직만 고쳐서 85
         ["93064de", "영어 숫자 단어, 출처 이름 오인 수정", "88.9%", "평균 2.8%"],
         ["fcfc870 FR", "한국어 숫자 인용, 가격 조건, 중복 사용 칸", "94.7%", "평균 1.6%"],
         ["fcfc870 FD", "사실 확인이 원본 파일까지 봄", ok("97.2%"), "평균 1.6%"]], [18, 50, 16, 16], 23),
-    notes="6개 제품 × 36줄 × 3회, Flash-Lite. 탐지율은 결과를 보지 않은 codex가 정한 '말했어야 할 값'으로 채점했다(Sonnet 독립 검토). 제품 정보는 하나도 넣지 않았다.")
+    notes="6개 제품 × 36줄 × 3회, Flash-Lite. 탐지율은 결과를 보지 않은 검토자가 정한 '말했어야 할 값'으로 채점했다(별도 독립 검토). 제품 정보는 하나도 넣지 않았다.")
 
 slide("tests-4", "처음 보는 제품 (2/4)", "사실 확인은 5초 마감, Flash-Lite로 정했다", table(
     ["마감", "사실 확인 모델", "평균 탐지", "p50 / p95", "판정 못 끝낸 줄 (720줄)"], [
@@ -265,14 +266,14 @@ slide("tests-6", "처음 보는 제품 (4/4)", "처음 보는 제품: 72.5% → 
         ["3차 봉인 (처음 보는 6개, 한 번만)", "", warn("84.6%"), "후보 5 그대로: 처음 보는 제품 실력은 약 84%"]], [16, 24, 22, 38], 23),
     tags("정직하게", chip("2차 세트도 이제 본 세트: 다음은 3차 세트로", "yellow", "warn"),
          chip("같은 제품이 실행마다 67~78% 흔들림", "grey"), chip("2차 세트 실패는 유형만 개발에 전달", "grey")), gap=20),
-    notes="2차 세트: 말레이어 아기 바디워시, 비타민 젤리(식품), HTML 립틴트, 중국어 선스틱, 엑셀 향수, 구·신버전 풋크림. 문서는 codex, 정답은 codex와 Sonnet이 따로 붙여 212/216 일치. 후보 5 제품별 87.0 / 85.2 / 79.6 / 68.5 / 88.9 / 88.9, 오경고 2.5%, 사실 확인 p95 2.5~2.9초.")
+    notes="2차 세트: 말레이어 아기 바디워시, 비타민 젤리(식품), HTML 립틴트, 중국어 선스틱, 엑셀 향수, 구·신버전 풋크림. 문서와 정답은 작성자가 만들고, 정답은 독립 검토자도 따로 붙여 212/216 일치. 후보 5 제품별 87.0 / 85.2 / 79.6 / 68.5 / 88.9 / 88.9, 오경고 2.5%, 사실 확인 p95 2.5~2.9초.")
 
 slide("tests-7", "채점 정직성", "채점을 고친 것은 모두 따로 기록했다", col(
-    listing([("정정 값 채점", "라벨의 맥락 숫자 때문에 맞는 정정을 틀렸다고 셈 → 결과를 안 본 codex가 '말했어야 할 값'을 따로 씀"),
-             ("규칙 이름 매핑", "식품 규정 팩(HSA 원문)의 규칙 이름을 시험 전에 미리 대응시킴, Sonnet이 두 개를 빼라고 해서 뺌"),
+    listing([("정정 값 채점", "라벨의 맥락 숫자 때문에 맞는 정정을 틀렸다고 셈 → 결과를 안 본 검토자가 '말했어야 할 값'을 따로 씀"),
+             ("규칙 이름 매핑", "식품 규정 팩(HSA 원문)의 규칙 이름을 시험 전에 미리 대응시킴, 비평 검토에서 두 개를 빼라고 해서 뺌"),
              ("항목 이름 차이", "복용량 ↔ 사용법, 성분 ↔ 향료처럼 앱의 칸 이름이 다른 경우만 인정")], "check", BLUE),
     t("모든 변경: sealed_sets/LABEL_CHANGES.md. 로직 개선과 섞지 않고 따로 보고한다. 봉인 세트는 개발 쪽에 보이지 않는다.", 24, SUB), gap=20),
-    notes="Sonnet이 '첫 숫자' 규칙을 반례 2개로 거부해서 쓰지 않았다. 주의사항을 뒤집은 말은 사실 정정이 떠야 잡은 것으로 센다(규정 경고는 감점 없음).")
+    notes="비평 검토가 '첫 숫자' 규칙을 반례 2개로 거부해서 쓰지 않았다. 주의사항을 뒤집은 말은 사실 정정이 떠야 잡은 것으로 센다(규정 경고는 감점 없음).")
 
 write(OUT, "상세 워크플로")
 print("wrote", OUT)

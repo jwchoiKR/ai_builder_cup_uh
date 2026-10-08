@@ -1,9 +1,10 @@
 """10/6 deck: where hand-written code makes meaning judgments, and the plan to compare each on/off.
 Run: python docs/decks/build/build_rule_code_1006.py  (numbers only; sealed text never shown, examples are made up)"""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)

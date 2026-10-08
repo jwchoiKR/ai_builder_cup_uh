@@ -1,4 +1,7 @@
-# Live Studio (AI Builder Cup 2026)
+# Live Studio (AI Builder Cup 2026): handover notes
+
+Working rules, environment quirks and the dated handover notes of the live (speech) path. The comment path and the
+summary are described in `docs/comments.md` and `docs/comments-firestore.md`.
 
 Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current state, how to run the evals and where the sealed sets are.
 
@@ -11,8 +14,6 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Viewer questions: post when the product info answers them, send to the operator when it does not.
 - Deploy only to project `ai-budiler-cup-uh-team-pjt` (moved from separk-cloocus on 10/6), and only after the user approves (the user runs `! bash deploy/cloudrun.sh`).
 - Never commit `.env` or keys. Run a key-pattern scan of the diff from origin before every push, and push only when it finds nothing. Never force-push.
-- Never edit agent permission or config files. Do not touch the user's Chrome.
-- Call peers with explicit models: `codex exec -m gpt-6-astra -c model_reasoning_effort=high`, `agy --model gemini-3.8-flash-high`.
 - At every plan, test, result and logic review, write the judge's view: what an AI Builder Cup judge would criticize and what change raises the score.
 - The goal is a general platform: 100% on any unseen product. No product-specific prompts, few-shots, heuristics or rule carve-outs; products enter only via onboarding; pass/fail on a sealed pool of other products.
 - Manual steps are design flaws: never ask a customer to match a template; absorb any document format; humans only approve.
@@ -26,7 +27,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Cloud Run runs `STORE=memory` with max-instances 1. Firestore `live-studio` is empty, so read past shows from Cloud Logging.
 - Gemini 3 context caching needs a prefix of 4,096 tokens or more. Only the fact checker benefits today.
 - Korean output from Python on this Windows machine needs `PYTHONIOENCODING=utf-8`.
-- Writing eval or corpus task text through bash `python -c "..."` or an unquoted heredoc expands `$80` to empty ("S$80" became "S0" in sealed pool 3). Use the Write tool or `<<'EOF'`.
+- Writing eval or corpus task text through bash `python -c "..."` or an unquoted heredoc expands `$80` to empty ("S$80" became "S0" in sealed pool 3). Write the file directly or use `<<'EOF'`.
 - PowerShell flattens `@(@("a","b"))` into one list, so a one-element list of arrays loops over strings. Write `@(,@("a","b"))`.
 - Eval scorers must treat zero-decimal currencies (KRW, JPY, VND, IDR) as whole units; the app already does (D-243).
 - Vertex AI Search defaults drop low-relevance hits ("It cures eczema" returned nothing). Use `relevanceThreshold: LOWEST`, `pageSize` 5-10 and the market filter.
@@ -94,7 +95,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)
 
 State: branch `multi_agent_test` pushed at ec9559c (later dev commits c0d4f7b may be local). Cloud is still 00009 (41411fd): nothing from today is deployed.
-- **User rules added 10/6:** pass lines are false alerts **below 1%**, detection **95%+**, wrong HIGH 0, and they must hold **for every product** (no pool average). Report, then proceed (no approval wait), except deploy, IAM, new cloud resources and spending. Never judge alone: send results and plans to GPT (codex), Gemini (Vertex gemini-3.8-flash HIGH, since agy.exe is blocked on the work laptop) and the Sonnet critic, and report consensus vs disagreement. Clean base: no earlier product's data in the runtime base. Multi-product shows are in scope (no set prices).
+- **User rules added 10/6:** pass lines are false alerts **below 1%**, detection **95%+**, wrong HIGH 0, and they must hold **for every product** (no pool average). Report, then proceed (no approval wait), except deploy, IAM, new cloud resources and spending. Never judge alone: have results and plans cross-checked by three independent reviewers, and report consensus vs disagreement. Clean base: no earlier product's data in the runtime base. Multi-product shows are in scope (no set prices).
 - **Cost:** about 400k KRW of Gemini in 2 days, nearly all gemini-3.5-flash-lite input (1.01B tokens in 3 days) from live-judge eval runs plus hedges. All bulk measurement is paused until the user sets a daily budget. When it resumes: 1 run per line (rerun only flaky lines), `--concurrency 2`, `HEDGED_AGENTS=compliance`, and state the expected tokens before each run.
 - **Eval VM:** `live-studio-eval` (separk-cloocus, us-central1-a, e2-standard-4, no external IP, IAP SSH, SA `live-studio-eval` with Vertex AI User + bucket), currently STOPPED. Network `live-studio-eval-vpc` with IAP firewall and Cloud NAT. Bucket `gs://separk-cloocus-live-studio-eval` (sealed sets, repo bundle, .env). The laptop's own network times out 40%+ of judge calls, so live evals run only on the VM. Runners in `C:\code_test\study\ai_builder_cup_git\`: `vm_live.sh` (one product, clean base: deletes data/products, runsheets, promos, demo in the worktree), `vm_full.sh` (from scratch: onboarding to live), `vm_multi.sh`, `vm_comments.sh`, `vm_queue_*.sh`. Ship code with `git bundle` to the bucket.
 - **Sealed sets on this laptop:** `C:\code_test\study\ai_builder_cup_git\sealed_sets\` (from the bundle zip; the D: paths below are the old PC). New today: `onboarding4/` (pool 4, now diagnostic; comments `comments_S<n>.jsonl`), `onboarding5/` (pool 5, fresh: run once on the frozen candidate; `cert/` = 300 safe + 60 risky lines per product being written), `multi1/` (multi-product shows A/B/C). Scorer v2.1: `rescore_live.py --semantic` (reported apart). Label patches for the clean base: `label_patch_live_cb.json`. Tools: `cells_summary.py`, `miss_causes.py`, `dump_misses.py`, `timeouts.py` (>10% judge timeouts = invalid run).
@@ -107,25 +108,18 @@ State: branch `multi_agent_test` pushed at ec9559c (later dev commits c0d4f7b ma
 Cloud: `live-studio-us` revision 00009-qcf runs 41411fd (deployed 10/6 morning, IAP on). Where things stand: unseen-product live detection is about **84%** (fresh sealed pool 3, one clean run, fbb8aa7: 84.6%; pool 2: 83-84%). The goal is 100%. Onboarding passes product/governance/safety/offers on nearly all 21 sealed products with at most 10 human checks each. Numbers and history: `docs/eval/proof-plan.md` (last sections), `docs/HANDOFF.md`. Nothing is running.
 
 ### Planning/eval session (writes docs, data, evals; never app code)
-- Owns: sealed pools, scoring, the measurement loop, decks, handoff, coordinating dev/critic/peers, commit+push of the branch.
-- Not in git (copy `D:\code_test\study\ai_builder_cup_git\handoff_bundle_1006.zip` to another PC by a private channel, never via the repo): `sealed_sets/` (pools, results, scorers, LABEL_CHANGES, `run_scripts/` with every .ps1 used), `ops_scripts/`, the `google-slide-deck` and `natural-writing` skills (unzip into `~/.claude/skills/`; deck build scripts hard-code that skill path, so adjust the path on the new PC), and the Claude memory files. Also set up `.env`, `gcloud auth application-default login`, and the codex and agy logins. Peer sessions (dev, critic) are local to this PC; start new ones from this file.
-- Sealed pools (outside the repo, `D:\code_test\study\ai_builder_cup_git\sealed_sets\`): `onboarding/` pool 1 (P1-P9 docs, live_P1-6), `onboarding2/` pool 2 (Q1-Q6), `onboarding3/` pool 3 (R1-R6; known quirk "S0" offers, see its README). Pools 1-3 are all "seen" now: **build pool 4 before any new claim** (copy the onboarding3 recipe: codex `task_corpus.md` written with the Write tool, `render3.py`, codex `task_live_lines.md`, Sonnet `task_blind_truth.md` + `task_blind_live.md`, then `finalize.py`).
+- Owns: sealed pools, scoring, the measurement loop, decks, handoff, coordinating dev/critic/reviewers, commit+push of the branch.
+- Not in git (copy `D:\code_test\study\ai_builder_cup_git\handoff_bundle_1006.zip` to another PC by a private channel, never via the repo): `sealed_sets/` (pools, results, scorers, LABEL_CHANGES, `run_scripts/` with every .ps1 used), `ops_scripts/`, the `google-slide-deck` and `natural-writing` helper libraries (unzip into a local tools folder; deck build scripts hard-code that path, so adjust the path on the new PC), and the local working notes. Also set up `.env` and `gcloud auth application-default login`. The dev and critic sessions are local to this PC; start new ones from this file.
+- Sealed pools (outside the repo, `D:\code_test\study\ai_builder_cup_git\sealed_sets\`): `onboarding/` pool 1 (P1-P9 docs, live_P1-6), `onboarding2/` pool 2 (Q1-Q6), `onboarding3/` pool 3 (R1-R6; known quirk "S0" offers, see its README). Pools 1-3 are all "seen" now: **build pool 4 before any new claim** (copy the onboarding3 recipe: `task_corpus.md`, `render3.py`, `task_live_lines.md`, the critic's `task_blind_truth.md` + `task_blind_live.md`, then `finalize.py`).
 - One measurement round: worktree at the candidate commit (`armtree`, `armtree3`, `armtree4`; `deploy158` is dev's), `uv sync`, then `scripts/eval_onboarding.py <by_product\Xn> --out ... --verify-mode lean` per product, `sealed_sets/approve_sealed.py` (approval as the API does; `--prefix`, set `MARKET=MY` for MY-only products), `sealed_sets/store_files.py` (FD files), `scripts/eval_adversarial.py --runs 3 --release <id> --cases live_Xn.jsonl --out ...`. Examples: `armtree/run_pool3.ps1`, `armtree3/run_p3b.ps1`. Run live evals serially; parallel runs cause timeouts.
 - Scoring: always `sealed_sets/rescore_live.py <raw.json> <cases> --main mainvalue.json --patch label_patch_live.json --rule-map lawsrc/rule_map_supp.json` (blind main values, field/kind aliases, pre-registered rule maps, no-penalty extras). Onboarding: `onboarding/score_groups.py <dir> <truth>`; safety by meaning needs the critic (keyword matching fails across languages). Every label/scorer change goes to `sealed_sets/LABEL_CHANGES.md` and is reported apart from logic gains.
 - To dev: send failure CLASSES with made-up examples, never sealed text. Read `row["dropped"]` first: most misses were code drops of right verdicts.
-- Next: pool 4; the open items in the dev list below; deck refresh after new numbers (`docs/decks/build/*.py`, then google-slide-deck `check.py`, natural-writing `check_text.py`, `shots.py`, codex image review).
+- Next: pool 4; the open items in the dev list below; deck refresh after new numbers (`docs/decks/build/*.py`, then google-slide-deck `check.py`, natural-writing `check_text.py`, `shots.py`, an independent image review).
 
 ### Dev session (writes all app code)
 - Latest: 809adbf (D-262). Defaults: `FACT_MODE=docs`, Flash-Lite `FACTS_THINKING=LOW`, `FACT_TIMEOUT_MS=FACT_LATE_MS=5000`, compliance 3 s, `VERIFY_MODE=lean` in evals. Decisions D-243…D-262 in `docs/DECISIONS.md`.
 - Conventions: product-neutral fixes only (no product words, prompts use fictional examples); pipeline tests through `eval_adversarial.run_case` with made-up releases; every code drop logged with a reason; record shape changes need re-onboarding to measure.
 - Open (classes): HIGH compliance alerts on fact-error lines for food/children products (wrong HIGH 4-7 per pool); children's toothpaste stuck at 72% (usage/age lines); false alerts 7.4% on two products (restatements in other scripts); Chinese-document product swings 67-78% across runs; onboarding quality (Malay/Chinese-only cautions, padded caution lists, archived-size "not orderable" fact missing); multiplicatives/number words only for `en` so far.
-
-### Critic (Sonnet session `ai-builder-cup-uh-38`)
-- Does: blind truth from documents only, blind live labels, grading onboarding safety by meaning, verdicts on label policy and scorer fairness. Never shown to dev.
-- Brief it with the exact files it may read and the output file; ask for per-item verdicts with reasons; apply only what it approves (its rulings so far are in LABEL_CHANGES.md: main values, negated cautions as fact catches with no-penalty compliance extras, rule-map tightening).
-
-### Peer models
-- codex (`codex exec -m gpt-6-astra -c model_reasoning_effort=high --skip-git-repo-check -o out.md - < task.md`): corpora, live lines, blind main values, deck image review (`--image`), cross-check of research. agy (`agy --model gemini-3.8-flash-high`) for a second opinion. Run codex in the background with a done-marker file; write task files with the Write tool.
 
 ### Team (humans, user's plan 10/5)
 - Dev lead (user): decisions, merges, deploy approval, IAP removal, Gemini Live timing.

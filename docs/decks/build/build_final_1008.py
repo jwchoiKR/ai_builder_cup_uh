@@ -1,10 +1,11 @@
 """Final deck 10/8: the frozen live logic (STT -> question hold -> three Flash-Lite judges -> provenance check -> screens)
 and how we tested it, round by round. Run: python docs/decks/build/build_final_1008.py
 Numbers: sealed_sets/results/all_arms_1008_v7.json + headline7.py (pool 7, voice A). Examples are made up; sealed text never shown."""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -19,7 +20,7 @@ slide("sum", "최종 정리 · 10/8", "처음 보는 제품에서 탐지 95.5%, 
     tags("측정 조건", chip("새 제품 6개 (7차 세트)", "grey"), chip("TTS 음성 → 우리 STT → 앱 판정", "grey"),
          chip("현실적인 진행 문장만", "grey"), chip("잘못된 HIGH 0", "green", "check")),
     gap=26),
-    notes="7차 세트, 목소리 A, 1회, 최종 설정(v5 + 질문 보류). 비평(Sonnet) 판정 반영: 정정 인정 2줄, 무벌점 추가 경고 3줄, "
+    notes="7차 세트, 목소리 A, 1회, 최종 설정(v5 + 질문 보류). 비평 검토 판정 반영: 정정 인정 2줄, 무벌점 추가 경고 3줄, "
           "소리로 두 가지로 들리는 1줄 제외. 오경고 2줄은 STT가 four를 for로 적은 줄. 로직은 10/8 밤 동결, 클라우드 00006에 배포.")
 
 slide("goal", "목표와 기준", "처음 보는 제품에서, 제품마다 기준을 넘는 것이 목표다", col(
@@ -92,7 +93,7 @@ slide("stt", "STT 안정성", "STT가 멈추거나 늦어도 방송을 놓치지
          chip("Google SLA는 서버 오류만 보장해서 멈춤은 직접 감시", "grey")),
     gap=28),
     notes="D-339. 리뷰에서 본 36초 공백은 침묵이 아니라 결과가 늦게 몰려온 경우였다(27.5초 늦은 문장 포함). 원인(음성 전송 vs Google)은 "
-          "새 로그로 가린다. STT 이중화(STT_DUAL)는 같은 리전·같은 음성 경로라 함께 멈출 수 있어 만들지 않았다(GPT·Gemini·Sonnet 의견).")
+          "새 로그로 가린다. STT 이중화(STT_DUAL)는 같은 리전·같은 음성 경로라 함께 멈출 수 있어 만들지 않았다(세 검토자 의견).")
 
 DEC = [
     ["검증 모델(3.8 Flash) 삭제", "p95 8.7초, 504 5%, 비용", "Flash-Lite 한 번 판정, p95 4초대"],
@@ -106,18 +107,18 @@ DEC = [
 slide("why", "왜 이렇게 정했나", "모든 결정은 같은 세트에서 켜고 끄며 잰 숫자로 정했다", table(
     ["결정", "이전 문제 (측정)", "바꾼 뒤 (측정)"], DEC, ["28%", "38%", "34%"]),
     notes="각 결정의 측정은 docs/decks/test_log.html, docs_test_1007.html, test_1008.html, week_1008.html. 모든 후보는 켜고 끄는 설정으로 "
-          "만들어 같은 세트로 비교했다. 계획은 GPT·Gemini·Sonnet에 먼저 보내 합의와 이견을 확인했다.")
+          "만들어 같은 세트로 비교했다. 계획은 독립 검토자 셋에게 먼저 보내 합의와 이견을 확인했다.")
 
 slide("method", "시험 방법", "실제 방송과 같은 길로, 매번 처음 보는 제품으로 잰다", col(
-    chain4(step4(1, "book", BLUE, "#E8F0FE", "새 제품 문서", "GPT가 6개씩 지어냄 · 앱은 못 봄"),
-           step4(2, "check", GRN, "#E6F4EA", "정답 매기기", "Sonnet이 줄을 섞어 따로 매김"),
+    chain4(step4(1, "book", BLUE, "#E8F0FE", "새 제품 문서", "별도 작성자가 6개씩 지어냄 · 앱은 못 봄"),
+           step4(2, "check", GRN, "#E6F4EA", "정답 매기기", "독립 검토자가 줄을 섞어 따로 매김"),
            step4(3, "mic", BLUE, "#E8F0FE", "음성으로", "TTS 음성 → 우리 STT"),
            step4(4, "rules", RED, "#FCE8E6", "앱 판정·채점", "배포와 같은 설정, 1회")),
     tags("채점 원칙", chip("현실적인 진행 문장만 합격 판단 (함정 문장은 따로)", "grey"),
          chip("제품 규정 팩 밖의 위반은 정답 아님", "grey"), chip("라벨 바꾸면 전·후 숫자 함께", "grey"),
          chip("본 세트는 진단용, 새 세트는 한 번만", "grey")),
     gap=28),
-    notes="정답 일치: GPT 라벨과 Sonnet 블라인드 라벨 286~288/288. 판정 변경은 sealed_sets/LABEL_CHANGES.md에 기록. 시험 세트는 앱 개발 세션이 보지 않는다.")
+    notes="정답 일치: 작성자 라벨과 독립 블라인드 라벨 286~288/288. 판정 변경은 sealed_sets/LABEL_CHANGES.md에 기록. 시험 세트는 앱 개발 세션이 보지 않는다.")
 
 slide("timeline", "시험 경과", "처음 보는 세트의 탐지가 84%에서 95.5%까지 올라왔다", col(
     timeline([("10/5", "3차 세트<br>84%", RED), ("10/6", "4차 세트<br>91.0%", "#B06000"),
