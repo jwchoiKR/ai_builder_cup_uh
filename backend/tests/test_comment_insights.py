@@ -156,7 +156,7 @@ async def test_a_failed_analysis_falls_back_to_the_stored_labels(tmp_path):
 async def test_with_the_comment_mirror_the_documents_are_read_from_firestore(tmp_path):
     fake = FakeFirestore()
     reply = {"topics": [{"label": "Price and offers", "buying": True, "keys": ["q1", "q2"]}], "notes": []}
-    ctx, rt, _ = await ended_show(tmp_path, reply, COMMENTS_FIRESTORE=True, GCP_PROJECT="p", comments_client=fake)
+    ctx, rt, _ = await ended_show(tmp_path, reply, SESSIONS_FIRESTORE=True, GCP_PROJECT="p", firestore_client=fake)
     try:
         got = await run_comment_insights(rt)
         assert got["source"] == "firestore" and got["questions"] == 2 and got["comments"] == 3

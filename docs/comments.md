@@ -103,7 +103,7 @@ line a viewer sees under their own comment), `pipelines/translation.py`.
 ### After the show: what viewers asked (summary page)
 
 Topics are not assigned to route anything during the show. When the broadcast ends, `pipelines/comment_insights.py`
-reads the session's stored comments, questions and posted replies once (with `COMMENTS_FIRESTORE` from Firestore,
+reads the session's stored comments, questions and posted replies once (with `SESSIONS_FIRESTORE` from Firestore,
 after the write queue is flushed; otherwise from the app's store) and the `CommentInsights` agent
 (`prompts/comment_insights.md`, `LLM_QUALITY_MODEL`, deadline `SUMMARY_TIMEOUT_MS`) sorts the questions into topics
 and marks the topics that are buying questions. It runs next to the recap, and the result is stored in the summary
@@ -153,13 +153,13 @@ them, and what was changed there:
 | viewer page | a reply shows only its text and "AI answer" (no sources); a status line under the viewer's own comment; replies in the asker's language | `showSources` prop, default false |
 | operator page | To do / Answered / All; one reply box per question (suggested reply as starting text, the standard no-source reply when there is none); no category strip | |
 | summary | `SummaryDoc.comment_insights` and the "What viewers asked" card; the top counters use it when present | `GET /sessions/{sid}/summary` returns the extra key; the recap agent and its statistics are untouched |
-| store | `store/comment_mirror.py` wraps the store when `COMMENTS_FIRESTORE=true`; `store/firestore.py` is untouched | see `docs/comments-firestore.md`, "At the merge" |
+| store | `store/session_mirror.py` wraps the store when `SESSIONS_FIRESTORE=true`; `store/firestore.py` is untouched | see `docs/comments-firestore.md`, "At the merge" |
 | shared files touched | `pipelines/runtime.py` (agents wired, reply translation, waiting-question TTL), `bus.py` (viewer and host views of events), `providers/llm.py`, `models/session.py`, `models/agent_io.py`, `agents/inputs.py`, `config.py`, `main.py`, `context.py`, `tests/conftest.py` (new defaults pinned for older tests), `tests/helpers.py` | conflicts are expected in `config.py`, `conftest.py`, `test_prompts.py`, `pyproject.toml`, `uv.lock`, `HostScreen.tsx`, `operator/model.ts` |
 | speech path | not changed (STT, judges, alerts, prompter, product switch) | |
 
 New files of the comment path and summary: `agents/reply_phraser.py`, `agents/reply_translator.py`,
 `agents/comment_insights.py` and their prompts; `logic/record_answers.py`, `logic/reply_status.py`;
-`pipelines/translation.py`, `pipelines/comment_insights.py`; `store/comment_mirror.py`;
+`pipelines/translation.py`, `pipelines/comment_insights.py`; `store/session_mirror.py`;
 `scripts/eval_comment_holdout.py`; the live checks `frontend/e2e/comments-live.mjs` and `summary-live.mjs`.
 
 ## 6. Measured: set 4, 240 comments never seen before
@@ -221,7 +221,7 @@ second triage call), two more runs on flash-lite: kind 233/233 both; auto or app
 composed reply p50 / p95 6.9 / 12.3 s and 7.8 / 13.6 s. The runs before it gave 89.5% to 91.8% on the same set: one
 run differs from the next by a few points, so a change of this size is not resolved by single runs.
 
-Browser check on the running server (`frontend/e2e/comments-live.mjs`, real models, `COMMENTS_FIRESTORE=true`), 8 of
+Browser check on the running server (`frontend/e2e/comments-live.mjs`, real models, Firestore writes on), 8 of
 8 steps passed: a viewer joins and asks the price, the reply appears as "AI answer" with no sources shown; a pregnancy
 question posts nothing by itself and reaches the operator with a suggested reply, which the viewer sees after the
 operator posts it; a shipping question gets no suggestion, the standard no-source reply is offered with the note only
@@ -256,7 +256,7 @@ approval 91.9% (94.7% without rows defensible either way). Those sets had been s
   list holds six questions: when it is full of earlier ones, a later question waits outside it until the operator
   sends it (seen in `test_bursts_api`). A trial that grouped only the questions waiting for a person (10/9, sets 3
   and 4) made 0 wrong merges but found 2 of 20 and 1 of 5 of the labelled same-question pairs; it was not kept.
-- Firestore: the comment path writes its five collections through `store/comment_mirror.py`
-  (`COMMENTS_FIRESTORE=true`); contract and merge notes in `docs/comments-firestore.md`. No read-back after a restart.
+- Firestore: every session is written by `store/session_mirror.py` (`SESSIONS_FIRESTORE=true`), read back after a
+  restart and evicted from memory after it ended; one instance only. See `docs/comments-firestore.md` §6.
 - Not measured: a fifth unseen set after the run-2 changes, real viewers, bursts beyond 1 comment per 1.5 s, Model
   Armor on, cost per comment.

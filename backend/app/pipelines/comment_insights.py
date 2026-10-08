@@ -1,7 +1,7 @@
 """What viewers asked, for the summary page: one analysis of a finished broadcast's comments.
 
 Nothing is classified into topics while the show runs (a question is answered by itself or waits for a person). After
-`End broadcast` the stored comment documents of the session are read once: with COMMENTS_FIRESTORE from Firestore
+`End broadcast` the stored comment documents of the session are read once: with SESSIONS_FIRESTORE from Firestore
 (the durable copy, after the write queue is flushed), otherwise from the app's store. The CommentInsights agent sorts
 the questions into topics; every number is counted here from the stored records. When the agent fails or returns
 nothing usable, the topics are the labels triage stored with each question.

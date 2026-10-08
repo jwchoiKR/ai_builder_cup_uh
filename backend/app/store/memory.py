@@ -103,6 +103,18 @@ class MemoryStore:
             yield txn
             txn._commit()
 
+    def has_document(self, path: str, doc_id: str) -> bool:
+        return doc_id in self._data.get(path, {})
+
+    def document_ids(self, path: str) -> list[str]:
+        return list(self._data.get(path, {}))
+
+    def load_documents(self, path: str, docs: dict[str, dict[str, Any]]) -> None:
+        """Documents read back from a durable copy. A document already here is newer and stays."""
+        target = self._data.setdefault(path, {})
+        for doc_id, data in docs.items():
+            target.setdefault(doc_id, data)
+
     async def delete_session(self, session_id: str) -> None:
         self._data.get(SESSIONS, {}).pop(session_id, None)
         for name in SUBCOLLECTIONS:

@@ -1,14 +1,18 @@
-"""Viewer-comment documents in Firestore (COMMENTS_FIRESTORE=true). Contract: docs/comments-firestore.md.
+"""Sessions in Firestore (SESSIONS_FIRESTORE=true). Contract of the comment documents: docs/comments-firestore.md.
 
-The comment path owns five collections of a session: `comments`, `analyses`, `groups`, `answers`, `messages`. This
-module is the only code that writes them to Firestore, and it writes nothing else, so it works next to any main store
-(STORE=memory, or the show's own Firestore store for sessions, transcripts, alerts and events).
+Memory holds only the shows this process is working on; Firestore holds every show.
 
-`CommentMirrorStore` wraps the app's store. Every call goes to the wrapped store unchanged, so the runtime reads and
-writes exactly as before and never waits on the network. A write to one of the five collections is also queued, and
-one background writer sends the queue to Firestore in order, in batches: `sessions/{sid}/<collection>/{id}`, the
-document being the model's JSON. Firestore is a durable copy for after the show, behind by the flush interval; this
-the only read is `CommentWriter.read`, used once after a show for the summary's comment analysis.
+`SessionMirrorStore` wraps the app's in-memory store. Every call goes to the wrapped store unchanged, so the runtime
+reads and writes exactly as before and never waits on the network during a show. A write to a session document or to
+one of a session's collections is also queued, and one background writer (`MirrorWriter`) sends the queue to Firestore
+in order, in batches: `sessions/{sid}` and `sessions/{sid}/<collection>/{id}`, the document being the model's JSON.
+
+- Recovery: a session that is not in memory (the process restarted, or the session was evicted) is read back from
+  Firestore the first time it is asked for, with all its collections.
+- Eviction: `evict(session_id)` drops an ended session from memory once everything queued for it is written. It
+  comes back from Firestore when someone opens it again.
+- One process owns a show at a time (the service runs as one instance): Firestore is behind memory by the flush
+  interval and is not read while the show is in memory.
 """
 from __future__ import annotations
 
@@ -25,7 +29,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from .base import SESSIONS, Store, Transaction, sub
+from .base import SESSIONS, SUBCOLLECTIONS, Store, Transaction, sub
 
 log = logging.getLogger(__name__)
 
@@ -45,10 +49,35 @@ MAX_QUEUE = 50_000  # writes waiting; beyond it the oldest are dropped and count
 CLOSE_TIMEOUT_SEC = 8  # shutdown waits this long for the queue (Cloud Run gives 10 s)
 
 
-def session_of(path: str) -> str | None:
-    """The session of a comment collection path (`sessions/{sid}/comments`), None for every other path."""
+SKIP_EVENT_TYPES = frozenset({"transcript.interim"})  # many per second and of no use after the show: memory only
+JSON_FIELD = "_json"  # a document holding an array inside an array, which Firestore cannot store, as one JSON string
+NOT_FOUND_TTL_SEC = 30  # an unknown session id is not looked up again for this long
+
+
+def session_of(path: str, doc_id: str = "") -> str | None:
+    """The session a write belongs to: `sessions` (the session document) or `sessions/{sid}/<collection>`. None for
+    every other path (setup, agent calls outside a session)."""
+    if path == SESSIONS:
+        return doc_id or None
     parts = path.split("/")
-    return parts[1] if len(parts) == 3 and parts[0] == SESSIONS and parts[2] in COMMENT_COLLECTIONS else None
+    return parts[1] if len(parts) == 3 and parts[0] == SESSIONS and parts[2] in SUBCOLLECTIONS else None
+
+
+def _nested_array(x: Any, in_array: bool = False) -> bool:
+    if isinstance(x, list):
+        return in_array or any(_nested_array(v, True) for v in x)
+    if isinstance(x, dict):
+        return any(_nested_array(v, False) for v in x.values())
+    return False
+
+
+def encode(data: dict) -> dict:
+    """The fields written to Firestore for one document."""
+    return {JSON_FIELD: json.dumps(data, ensure_ascii=False)} if _nested_array(data) else data
+
+
+def decode(data: dict) -> dict:
+    return json.loads(data[JSON_FIELD]) if JSON_FIELD in data else data
 
 
 def under_pytest() -> bool:
@@ -66,13 +95,13 @@ def _permanent(e: BaseException) -> bool:
 
 
 class _Purge:
-    """Queue marker: delete one session's comment collections in Firestore."""
+    """Queue marker: delete one session and its collections in Firestore."""
 
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id
 
 
-class CommentWriter:
+class MirrorWriter:
     """The ordered write-behind queue to Firestore. Groups of writes (one put, or the writes of one transaction) are
     committed together; writes to the same document within a batch are coalesced, the latest wins. A batch that
     keeps failing is retried before anything later is sent, so the order of writes never changes."""
@@ -82,7 +111,7 @@ class CommentWriter:
                  retry_base_sec: float = RETRY_BASE_SEC, max_queue: int = MAX_QUEUE) -> None:
         if client is None and under_pytest():
             # A test run must never reach the real database: tests inject a fake client.
-            raise RuntimeError("CommentWriter: no real Firestore client under pytest; inject a fake client")
+            raise RuntimeError("MirrorWriter: no real Firestore client under pytest; inject a fake client")
         self._project, self.database, self._client = project, database, client
         self._linger, self._attempts, self._retry_base, self._max_queue = (
             flush_interval_sec, max(1, attempts), retry_base_sec, max(1, max_queue))
@@ -95,14 +124,14 @@ class CommentWriter:
         self._idle = asyncio.Event()
         self._idle.set()
         self._closed = False
-        self._written: set[str] = set()  # sessions this process wrote comment documents for
+        self._written: set[str] = set()  # sessions this process wrote to or loaded: only these are ever deleted
         self._commits = self._committed = self._retries = self._lost = self._oversize = self._failed_purges = 0
         self._last_commit_at: int | None = None
         self._last_error: str | None = None
 
     def _db(self) -> Any:
         if self._client is None:
-            from google.cloud.firestore import AsyncClient  # lazy: only COMMENTS_FIRESTORE=true needs the library
+            from google.cloud.firestore import AsyncClient  # lazy: only SESSIONS_FIRESTORE=true needs the library
 
             self._client = AsyncClient(project=self._project, database=self.database)
         return self._client
@@ -110,13 +139,15 @@ class CommentWriter:
     # ---- queue ---------------------------------------------------------------------------------------------
 
     def enqueue(self, writes: list[Write]) -> None:
+        writes = [w for w in writes if not (w[2] is not None and w[0].endswith("/events")
+                                            and w[2].get("type") in SKIP_EVENT_TYPES)]
         if not writes:
             return
         if self._closed:
             self._lost += len(writes)
-            log.error("comment mirror: %d write(s) after close are not persisted", len(writes))
+            log.error("session mirror: %d write(s) after close are not persisted", len(writes))
             return
-        self._written.update(sid for path, _, _ in writes if (sid := session_of(path)) is not None)
+        self._written.update(sid for path, doc_id, _ in writes if (sid := session_of(path, doc_id)) is not None)
         # A group larger than one commit cannot be atomic; it goes as consecutive commits.
         for i in range(0, len(writes), BATCH_MAX_OPS):
             group = writes[i:i + BATCH_MAX_OPS]
@@ -127,8 +158,8 @@ class CommentWriter:
         self._kick()
 
     def purge(self, session_id: str) -> None:
-        """Delete the session's comment documents in Firestore, if this process wrote any (the database is shared:
-        documents of a session written by another process are left alone)."""
+        """Delete the session in Firestore, if this process wrote to it or loaded it (the database is shared: a
+        session of another process is left alone)."""
         if session_id not in self._written:
             return
         if self._closed:
@@ -142,17 +173,17 @@ class CommentWriter:
         if isinstance(item, _Purge):
             self._depth -= 1
             self._failed_purges += 1
-            log.error("comment mirror: LOST delete of session %s (queue full)", item.session_id)
+            log.error("session mirror: LOST delete of session %s (queue full)", item.session_id)
         else:
             self._depth -= len(item)
             self._lost += len(item)
-            log.error("comment mirror: LOST %d write(s) (queue full), first %s/%s", len(item), item[0][0], item[0][1])
+            log.error("session mirror: LOST %d write(s) (queue full), first %s/%s", len(item), item[0][0], item[0][1])
 
     def _kick(self) -> None:
         self._idle.clear()
         self._wake.set()
         if self._task is None or self._task.done():
-            self._task = asyncio.get_running_loop().create_task(self._run(), name="comment-mirror-writer")
+            self._task = asyncio.get_running_loop().create_task(self._run(), name="session-mirror-writer")
 
     # ---- writer --------------------------------------------------------------------------------------------
 
@@ -171,7 +202,7 @@ class CommentWriter:
                 except asyncio.CancelledError:
                     raise
                 except Exception:  # the show goes on; the durable copy is behind
-                    log.exception("comment mirror: writer step failed")
+                    log.exception("session mirror: writer step failed")
             self._hurry.clear()
             self._idle.set()
 
@@ -213,7 +244,7 @@ class CommentWriter:
                 if n > MAX_DOC_BYTES:
                     # Firestore refuses a document over 1 MiB, and with it the whole commit: leave it out.
                     self._oversize += 1
-                    log.error("comment mirror: %s/%s is %d bytes, too large for Firestore; not persisted", w[0], w[1], n)
+                    log.error("session mirror: %s/%s is %d bytes, too large for Firestore; not persisted", w[0], w[1], n)
                     continue
                 fits.append(w)
                 size += n
@@ -253,7 +284,7 @@ class CommentWriter:
     def _lose(self, writes: dict[tuple[str, str], dict | None]) -> None:
         self._lost += len(writes)
         first = next(iter(writes))
-        log.error("comment mirror: LOST %d write(s), first %s/%s, lost so far %d: %s",
+        log.error("session mirror: LOST %d write(s), first %s/%s, lost so far %d: %s",
                   len(writes), first[0], first[1], self._lost, self._last_error)
 
     async def _backoff(self, attempt: int) -> None:
@@ -271,9 +302,9 @@ class CommentWriter:
             except Exception as e:
                 self._last_error = f"{type(e).__name__}: {e}"
                 if _permanent(e):
-                    log.error("comment mirror: commit of %d write(s) refused: %s", len(writes), self._last_error)
+                    log.error("session mirror: commit of %d write(s) refused: %s", len(writes), self._last_error)
                     return "permanent"
-                log.warning("comment mirror: commit of %d write(s) failed (attempt %d of %d): %s",
+                log.warning("session mirror: commit of %d write(s) failed (attempt %d of %d): %s",
                             len(writes), attempt, self._attempts, self._last_error)
                 if attempt < self._attempts:
                     await self._backoff(attempt)
@@ -287,7 +318,7 @@ class CommentWriter:
             if data is None:
                 batch.delete(ref)
             else:
-                batch.set(ref, data)
+                batch.set(ref, encode(data))
         await asyncio.wait_for(batch.commit(), COMMIT_TIMEOUT_SEC)
         self._commits += 1
         self._committed += len(writes)
@@ -302,18 +333,18 @@ class CommentWriter:
                 raise
             except Exception as e:
                 self._last_error = f"{type(e).__name__}: {e}"
-                log.warning("comment mirror: delete of session %s failed (attempt %d of %d): %s",
+                log.warning("session mirror: delete of session %s failed (attempt %d of %d): %s",
                             session_id, attempt, self._attempts, self._last_error)
                 if _permanent(e):
                     break
                 if attempt < self._attempts:
                     await self._backoff(attempt)
         self._failed_purges += 1
-        log.error("comment mirror: comment documents of session %s were NOT fully deleted in Firestore", session_id)
+        log.error("session mirror: session %s was NOT fully deleted in Firestore", session_id)
 
     async def _purge_once(self, session_id: str) -> None:
         db = self._db()
-        for name in COMMENT_COLLECTIONS:  # the session document and every other collection are not this module's
+        for name in SUBCOLLECTIONS:
             refs: list[Any] = []
             async for ref in db.collection(sub(session_id, name)).list_documents(page_size=BATCH_MAX_OPS):
                 refs.append(ref)
@@ -322,6 +353,7 @@ class CommentWriter:
                     refs = []
             if refs:
                 await self._delete_refs(refs)
+        await self._delete_refs([db.collection(SESSIONS).document(session_id)])
 
     async def _delete_refs(self, refs: list[Any]) -> None:
         batch = self._db().batch()
@@ -337,11 +369,35 @@ class CommentWriter:
         db = self._db()
 
         async def one(name: str) -> list[dict]:
-            return [snap.to_dict() async for snap in db.collection(sub(session_id, name)).stream()]
+            return [decode(snap.to_dict()) async for snap in db.collection(sub(session_id, name)).stream()]
 
-        names = [n for n in names if n in COMMENT_COLLECTIONS]
+        names = [n for n in names if n in SUBCOLLECTIONS]
         docs = await asyncio.wait_for(asyncio.gather(*(one(n) for n in names)), timeout)
         return dict(zip(names, docs))
+
+    async def read_session(self, session_id: str, timeout: float = 30) -> dict[str, dict[str, dict]] | None:
+        """A whole session as {collection path: {document id: document}}, the session document under `sessions`.
+        None when Firestore has no such session. Read only."""
+        db = self._db()
+        snap = await asyncio.wait_for(db.collection(SESSIONS).document(session_id).get(), timeout)
+        if not snap.exists:
+            return None
+
+        async def one(name: str) -> tuple[str, dict[str, dict]]:
+            path = sub(session_id, name)
+            return path, {s.id: decode(s.to_dict()) async for s in db.collection(path).stream()}
+
+        out: dict[str, dict[str, dict]] = {SESSIONS: {session_id: decode(snap.to_dict())}}
+        for path, docs in await asyncio.wait_for(asyncio.gather(*(one(n) for n in SUBCOLLECTIONS)), timeout):
+            if docs:
+                out[path] = docs
+        self._written.add(session_id)
+        return out
+
+    def pending(self, session_id: str) -> int:
+        """Writes of this session still waiting in the queue."""
+        return sum(1 for item in self._queue if not isinstance(item, _Purge)
+                   for path, doc_id, _ in item if session_of(path, doc_id) == session_id)
 
     # ---- flush, close, status ------------------------------------------------------------------------------
 
@@ -362,7 +418,7 @@ class CommentWriter:
         if not await self.flush(CLOSE_TIMEOUT_SEC):
             left = self._depth + self._in_flight
             self._lost += left
-            log.error("comment mirror: closing with %d write(s) not persisted", left)
+            log.error("session mirror: closing with %d write(s) not persisted", left)
         self._closed = True
         if self._task is not None:
             self._task.cancel()
@@ -378,7 +434,7 @@ class CommentWriter:
                 if asyncio.iscoroutine(result):
                     await result
             except Exception:
-                log.warning("comment mirror: closing the client failed", exc_info=True)
+                log.warning("session mirror: closing the client failed", exc_info=True)
 
     def status(self) -> dict[str, Any]:
         return {
@@ -395,24 +451,69 @@ class CommentWriter:
         }
 
 
-class CommentMirrorStore:
-    """The app's store, with the comment collections also written to Firestore."""
+class SessionMirrorStore:
+    """The app's in-memory store with every session also written to Firestore, read back when it is not in memory."""
 
-    def __init__(self, inner: Store, writer: CommentWriter) -> None:
+    def __init__(self, inner: Store, writer: MirrorWriter) -> None:
         self._inner, self.writer = inner, writer
-        self.name = f"{inner.name}+comments"
+        self.name = f"{inner.name}+firestore"
+        self.on_loaded = None  # set by the app: called with the session id after a session came back from Firestore
+        self._loads: dict[str, asyncio.Lock] = {}
+        self._missing: dict[str, float] = {}  # session id -> when Firestore last said it does not exist
+        self.loaded = 0
+        self.evicted = 0
 
-    def __getattr__(self, attr: str) -> Any:  # get, query and whatever else the wrapped store offers
+    def __getattr__(self, attr: str) -> Any:  # whatever else the wrapped store offers
         return getattr(self._inner, attr)
+
+    # ---- reads: a session that is not in memory is loaded from Firestore first --------------------------------
+
+    async def _ensure(self, path: str, doc_id: str = "") -> None:
+        sid = session_of(path, doc_id)
+        if sid is None or self._inner.has_document(SESSIONS, sid):
+            return
+        if time.monotonic() - self._missing.get(sid, -NOT_FOUND_TTL_SEC) < NOT_FOUND_TTL_SEC:
+            return
+        async with self._loads.setdefault(sid, asyncio.Lock()):
+            if self._inner.has_document(SESSIONS, sid):
+                return
+            try:
+                await self.writer.flush(CLOSE_TIMEOUT_SEC)  # nothing of it may still be on its way out
+                docs = await self.writer.read_session(sid)
+            except Exception:  # noqa: BLE001 - Firestore unreachable: the session is simply not found for now
+                log.exception("session mirror: reading session %s from Firestore failed", sid)
+                return
+            if docs is None:
+                self._missing[sid] = time.monotonic()
+                return
+            for p, by_id in docs.items():
+                self._inner.load_documents(p, by_id)
+            self.loaded += 1
+            log.info("session mirror: loaded session %s from Firestore (%d documents)", sid,
+                     sum(len(d) for d in docs.values()))
+        self._loads.pop(sid, None)
+        if self.on_loaded is not None:
+            await self.on_loaded(sid)
+
+    async def get(self, path: str, doc_id: str, model: type) -> Any:
+        await self._ensure(path, doc_id)
+        return await self._inner.get(path, doc_id, model)
+
+    async def query(self, path: str, model: type, **kwargs: Any) -> list:
+        await self._ensure(path)
+        return await self._inner.query(path, model, **kwargs)
+
+    # ---- writes: memory first, then the queue ------------------------------------------------------------------
 
     async def put(self, path: str, doc_id: str, doc: BaseModel) -> None:
         await self._inner.put(path, doc_id, doc)
-        if session_of(path) is not None:
+        if (sid := session_of(path, doc_id)) is not None:
+            self._missing.pop(sid, None)
             self.writer.enqueue([(path, doc_id, doc.model_dump(mode="json"))])
 
     async def delete(self, path: str, doc_id: str) -> None:
         await self._inner.delete(path, doc_id)
-        if session_of(path) is not None:
+        if session_of(path, doc_id) is not None:
             self.writer.enqueue([(path, doc_id, None)])
 
     @asynccontextmanager
@@ -420,24 +521,29 @@ class CommentMirrorStore:
         async with self._inner.transaction() as txn:
             yield txn
         # Reached only when the block succeeded and the wrapped store has the writes: one group, one commit.
-        self.writer.enqueue([w for w in getattr(txn, "_writes", ()) if session_of(w[0]) is not None])
+        self.writer.enqueue([w for w in getattr(txn, "_writes", ()) if session_of(w[0], w[1]) is not None])
 
     async def delete_session(self, session_id: str) -> None:
         await self._inner.delete_session(session_id)
         self.writer.purge(session_id)
 
+    async def evict(self, session_id: str) -> bool:
+        """Drop a session from memory; Firestore keeps it. Only when nothing of it is still waiting to be written and
+        no write was lost, so the copy that stays is complete. False when it was kept in memory."""
+        await self.writer.flush(CLOSE_TIMEOUT_SEC)
+        if self.writer.pending(session_id) or self.writer.status()["lost_writes"]:
+            log.warning("session mirror: session %s stays in memory (writes pending or lost)", session_id)
+            return False
+        await self._inner.delete_session(session_id)  # the wrapped store's own copy only
+        self.evicted += 1
+        return True
+
     async def flush(self, *args: Any, **kwargs: Any) -> Any:
-        """The wrapped store's own flush, if it has one, with its arguments; the comment queue first."""
-        ok = await self.writer.flush(CLOSE_TIMEOUT_SEC)
-        if (inner := getattr(self._inner, "flush", None)) is not None:
-            return await inner(*args, **kwargs)
-        return ok
+        return await self.writer.flush(CLOSE_TIMEOUT_SEC)
 
     async def aclose(self) -> None:
         await self.writer.aclose()
-        if (inner := getattr(self._inner, "aclose", None)) is not None:
-            await inner()
 
     def status(self) -> dict[str, Any]:
-        inner = getattr(self._inner, "status", None)
-        return {**(inner() if inner is not None else {}), "comments": self.writer.status()}
+        # "comments" keeps the key the health page and the summary already read
+        return {"comments": self.writer.status(), "sessions_loaded": self.loaded, "sessions_evicted": self.evicted}

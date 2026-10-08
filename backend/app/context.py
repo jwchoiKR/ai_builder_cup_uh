@@ -114,7 +114,7 @@ def build_context(
     clock: Clock | None = None,
     llm_backend: LLMBackend | None = None,
     scheduler: AsyncScheduler | ManualScheduler | None = None,
-    comments_client: object | None = None,
+    firestore_client: object | None = None,
 ) -> AppContext:
     from .pipelines.runtime import Runtimes
 
@@ -131,7 +131,7 @@ def build_context(
         from .agents.arms import split_target_group
 
         prompts = split_target_group(prompts, settings.prompts_path)
-    store = make_store(settings, comments_client=comments_client)
+    store = make_store(settings, firestore_client=firestore_client)
     bus = EventBus(store, clock)
     llm = LLMClient(llm_backend or make_backend(settings), settings, clock, ids, StoreAudit(store, bus))
     if settings.RETRIEVER != "local":
@@ -144,6 +144,8 @@ def build_context(
         armor=make_armor(settings),
     )
     ctx.runtimes = Runtimes(ctx)
+    if hasattr(store, "on_loaded"):  # SESSIONS_FIRESTORE: a session came back from Firestore
+        store.on_loaded = ctx.runtimes.session_loaded
     return ctx
 
 

@@ -119,13 +119,13 @@ def create_app(
     clock: Clock | None = None,
     llm_backend: LLMBackend | None = None,
     scheduler=None,
-    comments_client=None,
+    firestore_client=None,
 ) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # Built eagerly: a broken data pack or prompt file stops the app at startup.
     ctx = build_context(settings, clock=clock, llm_backend=llm_backend, scheduler=scheduler,
-                        comments_client=comments_client)
+                        firestore_client=firestore_client)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

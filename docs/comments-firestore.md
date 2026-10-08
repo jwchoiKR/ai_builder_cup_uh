@@ -3,11 +3,11 @@
 Status 2026-10-09. For whoever merges the comment branch (`perf/realtime-overhaul`) with `multi_agent_test`.
 Database: `live-studio` (Firestore Native, us-central1) in project `ai-budiler-cup-uh-team-pjt`.
 
-Short version: the comment path writes its own five collections to Firestore through one small module,
-`backend/app/store/comment_mirror.py`, switched on with `COMMENTS_FIRESTORE=true`. It writes nothing else and reads
-nothing, so it runs next to whatever the main store is (`STORE=memory`, or the show's Firestore store for sessions,
-transcripts, alerts and events). This file is the contract for those five documents: paths, keys, fields, the
-reasons, and what to do at the merge.
+Short version: with `SESSIONS_FIRESTORE=true` every session is written to Firestore by one module,
+`backend/app/store/session_mirror.py`. Memory holds only the shows the process is working on: a session that is not
+in memory (the process restarted, or the session was evicted after it ended) is read back from Firestore when it is
+opened. This file is the contract for the five documents of the comment path (paths, keys, fields, reasons), and §6
+describes the store.
 
 ## 1. Where the documents live
 
@@ -173,61 +173,69 @@ Single-field filters within one session need no composite index. A filter on one
 (for example `needs_approval == true` ordered by `first_at`) needs a composite index; none is defined yet because
 nothing in the app queries Firestore during a show.
 
-## 6. The module, and how it fits the show's Firestore store
-
-Ownership (agreed 10/9): the show's store (`store/firestore.py`, D-354, D-369) keeps sessions, transcripts, alerts,
-segments, events and agent calls; the comment collections are the comment path's to write.
+## 6. The session store
 
 ```
-runtime ──put/get──▶ CommentMirrorStore ──every call, unchanged──▶ the app's store (memory, or the show's Firestore store)
-                            │
-                            └─ a write to comments / analyses / groups / answers / messages is also queued
-                                      │
-                               CommentWriter: one ordered queue, one background task, batched commits
-                                      ▼
-                            Firestore `live-studio`:  sessions/{sid}/<collection>/{id}
+runtime ──put/get/query──▶ SessionMirrorStore ──every call, unchanged──▶ MemoryStore (the shows being worked on)
+                                 │  a write under sessions/… is also queued
+                                 ▼
+                          MirrorWriter: one ordered queue, one background task, batched commits
+                                 ▼
+                          Firestore `live-studio`:  sessions/{sid}  and  sessions/{sid}/<collection>/{id}
 ```
 
-- **`CommentMirrorStore`** wraps the store `make_store()` built (`store/__init__.py`). Reads, queries and every write
-  go to the wrapped store first, so the runtime behaves exactly as without it and never waits on the network. Only
-  paths of the form `sessions/{sid}/<one of the five collections>` are also queued (`session_of()`); a transaction's
-  comment writes are queued as one group after it succeeded.
-- **`CommentWriter`** sends the queue in order. Writes to one document within a batch are coalesced (the latest
-  wins); a batch is at most 400 documents and 6 MiB; a failing commit is retried 5 times with backoff before anything
-  later is sent, then counted as lost and logged; a document over 900 kB is not sent; at shutdown the queue is flushed
-  for up to 8 s (`aclose`, called from the app's lifespan). Its counters are in `/api/health` under
-  `store_status.comments` (queue depth, last commit, retries, lost writes, last error).
-- **Deleting a session** removes only its documents in the five collections, and only for a session this process
-  wrote comment documents for: the database is shared, the session document and the other collections belong to the
-  show's store.
-- **Nothing is read from Firestore.** After a restart the comment documents of an earlier show are in Firestore but
-  not in memory (see open points).
+- **During a show nothing waits on the network.** Reads and writes go to memory; the queue is sent every 0.25 s.
+  Writes to one document within a batch are coalesced (the latest wins); a batch is at most 400 documents and 6 MiB;
+  a failing commit is retried 5 times with backoff before anything later is sent, then counted as lost and logged; a
+  document over 900 kB is not sent. At shutdown the queue is flushed for up to 8 s.
+- **What is written:** the session document and every collection of the session (comments, analyses, groups,
+  answers, messages, segments, transcripts, alerts, events, agent calls, summary). Not written: `transcript.interim`
+  events (several per second, of no use after the show), setup state, agent calls outside a session. A document with
+  an array inside an array is written as one JSON string field `_json` (Firestore has no nested arrays); none of the
+  five comment documents needs it.
+- **Recovery.** `get` or `query` for a session that memory does not have reads the session document and all its
+  collections from Firestore once (`MirrorWriter.read_session`) and loads them into memory. Then
+  `Runtimes.session_loaded` moves the event numbers ahead by 10 000 (browsers skip numbers they have seen, and the
+  last events of the old process may not have reached Firestore), and a live show's one-second tick and promo end
+  timers run again (`SessionRuntime.resume`). An unknown session id is not looked up again for 30 s.
+- **Eviction.** `SESSION_EVICT_AFTER_SEC` (default 900) after a show's summary is written, `Runtimes.evict` drops the
+  ended session from memory: only when nothing of it is still queued and no write was lost, so the copy that stays is
+  complete. Opening it later (the summary page) reads it back. A live show is never evicted.
+- **Deleting a session** deletes it in Firestore only if this process wrote to it or loaded it: the database is
+  shared.
+- **Counters** are in `/api/health` under `store_status`: queue depth, last commit, retries, lost writes, sessions
+  loaded and evicted.
 - **Tests never reach the real database**: without an injected client the writer refuses to start under pytest
-  (`tests/firestore_fake.py` is the fake; `tests/test_comment_mirror.py`).
+  (`tests/firestore_fake.py`, `tests/test_session_mirror.py`).
 
 | setting | default | meaning |
 |---|---|---|
-| `COMMENTS_FIRESTORE` | false | write the five collections to Firestore (needs `GCP_PROJECT`) |
-| `COMMENTS_FIRESTORE_DATABASE` | `live-studio` | the database |
+| `SESSIONS_FIRESTORE` | false | write every session to Firestore and read it back when it is not in memory (needs `GCP_PROJECT`) |
+| `SESSIONS_FIRESTORE_DATABASE` | `live-studio` | the database |
+| `SESSION_EVICT_AFTER_SEC` | 900 | an ended session leaves memory this long after its summary; 0 keeps every session in memory |
+
+### Limits
+
+- **One instance.** One process owns a show; Firestore is behind memory by the flush interval and is not read while
+  the show is in memory. Two instances would each hold their own copy of a live show. Running several instances
+  needs an owner per show and a way to pass events between instances; that is not built.
+- **A crash loses what was still queued**, at most the flush interval of writes, and the interim transcripts.
+- **Timers of the old process do not come back**: the cancel window of a pending post, alert escalations, question
+  holds, a switch countdown, the demo feed. The tick and promo end timers do.
+- **Loading reads the whole session**, every event included. Not measured on a long show.
 
 ### At the merge with `multi_agent_test`
 
-1. `store/firestore.py` is untouched on this branch (the earlier full store of this branch is removed), so the team's
-   file merges as it is. `store/__init__.py` conflicts in `make_store`: keep both, the team's `FirestoreStore(settings)`
-   and the `COMMENTS_FIRESTORE` wrap after it.
-2. The show's store mirrors every `put` today. To give the five collections one writer, skip them there (a path
-   test like `session_of()` in its enqueue), or leave `COMMENTS_FIRESTORE` off until that is done; with both on, the
-   same documents are written twice to the same paths (harmless, wasteful).
-3. `main.py`: this branch calls `ctx.store.aclose()` at shutdown with the same two lines as D-354; keep one copy.
-4. `COMMENTS_FIRESTORE_DATABASE` can be dropped for the team's `FIRESTORE_DATABASE` (same default).
-5. `pyproject.toml` / `uv.lock`: both branches add `google-cloud-firestore`; keep one line and run `uv lock`.
-6. The show's store reads a session back after a restart. If it stops writing the comment collections it also stops
-   reading them back: a show that continues on a new instance would have its transcripts and alerts but not its open
-   questions. Either the show's store keeps reading the five collections, or a read-back is added here.
+`multi_agent_test` has its own `STORE=firestore` (`store/firestore.py`, D-354, D-369): memory as the read model, a
+write-behind mirror at the same paths, read-back on first touch. The two do the same job at the same paths with the
+same `_json` convention, so documents written by one can be read by the other. This branch leaves `store/firestore.py`
+untouched and adds `store/session_mirror.py` next to it; `make_store` uses `STORE=firestore` when it is set and
+`SESSIONS_FIRESTORE` only with `STORE=memory`. One of the two should be kept: what this one adds is eviction of ended
+sessions and the read used by the summary's comment analysis.
 
 ### Checked on the real database (2026-10-09)
 
-Server with `COMMENTS_FIRESTORE=true STORE=memory`, six comments through the API (a price question, a pregnancy
+Server with the comment collections written to Firestore (the first version of the store, `STORE=memory`), six comments through the API (a price question, a pregnancy
 question, a shipping question, a reaction, an insult, a size question in Korean), then read back from `live-studio`
 (session `ses_01M4EBGGRAA5DXTFZV38EZBR10`, left in the database):
 
@@ -241,6 +249,13 @@ question, a shipping question, a reaction, an insult, a size question in Korean)
   agent calls.
 - Writer counters after the run: 21 commits, 81 writes, 0 retries, 0 lost.
 
+Restart and eviction, same day (`SESSIONS_FIRESTORE=true`, session `ses_01M4EPS2S0D1GBDKAQXCG1RCH9`): a live show with
+three comments, then the server process was killed and a new one started. Opening the session in the new process
+took 5.2 s and gave back the live show with its 3 comments, 3 questions and the host card; a new comment was triaged
+and answered; after End broadcast the summary was written with the comment analysis read from Firestore; the session
+left memory after the eviction delay (set to 25 s for the check) and opening the summary again took 1.2 s and
+returned the same recap. Writer counters: 0 retries, 0 lost writes. One run on a short show.
+
 Not checked: a long show, a burst of comments, Firestore being unreachable during a show (covered by tests with a
 fake client only), and the deployed service.
 
@@ -250,6 +265,7 @@ fake client only), and the deployed service.
   `personal_info` (a phone number, an address). A retention period or a redacted copy for hidden comments is not
   decided.
 - **Retention.** No TTL policy on the database; sessions stay until deleted.
+- **Several instances.** See the limits in §6.
 - **Security rules.** Browsers never read Firestore; only the Cloud Run service account does. The rules should deny
   client access to these collections.
 - **Dynamic values.** Prices and promotions are read from `data/` files, not from Firestore.
