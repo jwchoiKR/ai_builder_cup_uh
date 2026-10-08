@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     COMPLIANCE_ENDORSE: bool = False
     # D-334 (the user's design): a final ending with "?" waits for the next final (QUESTION_HOLD_MS), and the two are
     # judged as one utterance by all three judges; with none, the question is judged alone
-    QUESTION_HOLD: bool = False
+    QUESTION_HOLD: bool = True  # D-343: measured (pool 7 + pairs: two-host lines 82.8% -> 96.6%, no one-host loss)
     QUESTION_HOLD_MS: int = 2500
     # D-334 alternative: the fact checker reads a CONVERSATION block (the last 3 finals, oldest first) and checks only
     # the last line, using the earlier ones to understand it
