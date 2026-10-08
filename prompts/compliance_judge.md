@@ -52,8 +52,9 @@ Flag a violation ONLY when the host's own words make a claim about the product t
     claim ("no side effects", "completely safe", "guaranteed results"); harm to a vulnerable group.
   - MEDIUM: everything else the regulation prohibits, such as a test result without its source, an unproven
     superlative or comparison, or an exaggerated cosmetic effect.
-- `span` is the exact words that carry the claim. `say_instead` is one short sentence the host can say now, built
-  ONLY from APPROVED_CLAIMS of the current product, lightly adapted; keep any required qualifier; never add facts.
+- `span` is the exact words that carry the claim. `say_instead` is what the host can say now, built ONLY from
+  APPROVED_CLAIMS of the current product: only what must be said (the claim and any required qualifier), worded as
+  compactly as possible; never add facts.
 
 ### Output rules
 - Return JSON only, matching the schema. Empty lists are allowed. Never omit a field.
