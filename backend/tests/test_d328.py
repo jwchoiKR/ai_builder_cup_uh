@@ -40,15 +40,17 @@ class _HoldBackend(ScriptedBackend):
                     "source_value": "S$36.00", "relation": relation,
                     "correct_value": "S$36.00" if relation == "contradicts" else None}
 
-        out = {"previous_line": "unrelated", "claims": []}
+        out = {"previous_line": [], "claims": []}
         if line == REPORTED:
             out["claims"] = [claim("other", "contradicts")]
         elif line == HOST:
             out["claims"] = [claim("host", "contradicts")]
         elif "thirty-two" in recent and line.startswith("No"):
-            out = {"previous_line": "rejects", "claims": [claim("host", "consistent", "it's thirty-six")]}
+            out = {"previous_line": [{"product_id": CREAM, "field": "price", "stance": "rejects"}],
+                   "claims": [claim("host", "consistent", "it's thirty-six")]}
         elif "thirty-two" in recent and line == "Correct.":
-            out = {"previous_line": "endorses", "claims": [claim("host", "contradicts")]}
+            out = {"previous_line": [{"product_id": CREAM, "field": "price", "stance": "endorses"}],
+                   "claims": [claim("host", "contradicts")]}
         return RawReply(json.dumps(out), model_version="scripted")
 
 
@@ -77,7 +79,7 @@ async def _case(monkeypatch, parts: list[str], **settings) -> dict:
     ([REPORTED, "No, it's thirty-six."], 0),  # rejected by the next line: dropped
     ([REPORTED, "Correct."], 1),  # endorsed: shown (one alert, the endorsement's own claim joins it)
     ([REPORTED], 1),  # nothing comes: shown when the hold ends
-    ([REPORTED, "It feels light."], 1),  # the next line neither endorses nor rejects: shown
+    ([REPORTED, "It feels light."], 1),  # the next line neither endorses nor rejects: shown when the hold ends
     ([HOST], 1),  # the host's own claim: not held
 ])
 async def test_d328_a_reported_contradiction_waits_for_the_next_line(monkeypatch, caplog, parts, alerts):
@@ -122,6 +124,125 @@ async def test_d328_the_host_sees_the_checking_chip_while_it_waits():
         assert [a for a in await rt.alerts() if a.kind == "fact"] == []  # nothing shown yet
         await rt.ctx.scheduler.advance(2500)
         assert len([a for a in await rt.alerts() if a.kind == "fact"]) == 1  # the hold ended: shown
+        assert [e.payload["kind"] for e in await events(rt, "verify.done")] == ["reported"]
+    finally:
+        await close_env(rt)
+
+
+# ---- D-329: the hold settled by its own next line, per claim, with the originating line's timing ----------------
+
+def _claim(field: str, attributed: str = "other", verdict: str = "contradicted"):
+    from app.models.agent_io import FactClaim
+
+    c = FactClaim(span=field, field=field, product_id=CREAM, stated_value="x", verdict=verdict, correct_value="y",
+                  passage_id=f"P-{field}", quote="q")
+    c._attributed = attributed
+    return c
+
+
+async def _line(rt, n: int, claims=(), stances=None, at: int | None = None):
+    """Line n's fact check arriving: its transcript (numbered n) and output, applied as the pipeline does."""
+    from app.models.agent_io import FactCheckOutput
+    from app.models.session import Transcript
+
+    seg = await rt.current_segment()
+    t = Transcript(transcript_id=f"tr_l{n}", text=f"line {n}", is_final=True, speech_end_at=at or rt.now(),
+                   received_at=at or rt.now(), source="mic", segment_id=seg.segment_id)
+    rt.utterances._sequence[t.transcript_id] = n
+    out = FactCheckOutput(claims=list(claims), reason="t")
+    out._previous_line = {(CREAM, f): s for f, s in (stances or {}).items()}
+    async with rt.lock:
+        await rt.utterances._apply_facts_locked(t, out, set())
+    return t
+
+
+def _heard(rt, n: int) -> None:
+    rt.utterances._sequence[f"tr_l{n}"] = n  # heard, its fact check not back yet
+
+
+async def _facts(rt):
+    return sorted((a.field, a.transcript_id) for a in await rt.alerts() if a.kind == "fact" and a.status == "active")
+
+
+async def _rt():
+    from .helpers import live_runtime, make_ctx
+
+    return await live_runtime(make_ctx(backend=ScriptedBackend(), REPORTED_HOLD=True, REPORTED_HOLD_MS=2500))
+
+
+async def test_d329_a_partial_rejection_drops_only_the_named_claim():
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("price"), _claim("volume")])
+        await _line(rt, 2, stances={"price": "rejects"})
+        assert await _facts(rt) == []  # the amount is still held
+        await rt.ctx.scheduler.advance(2500)
+        assert await _facts(rt) == [("volume", "tr_l1")]
+    finally:
+        await close_env(rt)
+
+
+async def test_d329_only_the_next_line_settles_a_hold():
+    """Completion order L1, L3, L2: L3 (unrelated) does not release L1; L2's rejection still drops it."""
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("price")])
+        _heard(rt, 2)
+        await _line(rt, 3, stances={})
+        assert await _facts(rt) == []
+        await rt.ctx.scheduler.advance(2500)  # the hold's time is up, but line 2 was heard and is not checked yet
+        assert await _facts(rt) == []
+        await _line(rt, 2, stances={"price": "rejects"})
+        await rt.ctx.scheduler.advance(20_000)
+        assert await _facts(rt) == []
+    finally:
+        await close_env(rt)
+
+
+async def test_d329_an_endorsed_alert_keeps_its_own_line_and_its_delay():
+    rt = await _rt()
+    try:
+        heard = rt.now()
+        await _line(rt, 1, [_claim("price")], at=heard)
+        await rt.ctx.scheduler.advance(2000)
+        await _line(rt, 2, [_claim("price", attributed="host")], stances={"price": "endorses"})
+        [a] = [a for a in await rt.alerts() if a.kind == "fact"]
+        assert a.transcript_id == "tr_l1" and a.shown_at - heard == 2000  # the hold's cost shows in the latency
+    finally:
+        await close_env(rt)
+
+
+async def test_d329_two_holds_in_a_row():
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("price")])
+        await _line(rt, 2, [_claim("volume")], stances={})  # also someone else's words; says nothing on line 1
+        await _line(rt, 3, stances={"volume": "rejects"})
+        await rt.ctx.scheduler.advance(2500)
+        assert await _facts(rt) == [("price", "tr_l1")]
+    finally:
+        await close_env(rt)
+
+
+async def test_d329_a_timeout_waits_for_the_next_line_s_check_up_to_a_cap():
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("price")])
+        _heard(rt, 2)
+        await rt.ctx.scheduler.advance(2500 + 2 * rt.settings.FACT_TIMEOUT_MS - 500)
+        assert await _facts(rt) == []  # still waiting for line 2's check
+        await rt.ctx.scheduler.advance(1000)
+        assert await _facts(rt) == [("price", "tr_l1")]  # the cap: shown
+    finally:
+        await close_env(rt)
+
+
+async def test_d329_the_show_ending_shows_what_is_still_held():
+    rt = await _rt()
+    try:
+        await _line(rt, 1, [_claim("price")])
+        await rt.end()
+        assert [a.field for a in await rt.alerts() if a.kind == "fact"] == ["price"]
         assert [e.payload["kind"] for e in await events(rt, "verify.done")] == ["reported"]
     finally:
         await close_env(rt)

@@ -297,6 +297,7 @@ class SessionRuntime:
                 seg.ended_at = now
                 await self.ctx.store.put(self.path("segments"), seg.segment_id, seg)
             self.feed.stop_all()
+            await self.utterances.end_reported_locked()  # D-329: alerts still held show before the show closes
             for m in await self.ctx.store.query(self.path("messages"), Message, where=[("state", "==", "pending")]):
                 m.state = "cancelled"
                 await self.save_message(m)

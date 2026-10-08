@@ -763,7 +763,7 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                             | ({"source": r.source_value} if hasattr(r, "source_value") else {}))  # D-312
         claims.append(c)
     result = FactCheckOutput(claims=claims, reason="relation")
-    result._previous_line = getattr(out, "previous_line", "unrelated")  # D-328
+    result._previous_line = {(x.product_id, x.field): x.stance for x in getattr(out, "previous_line", [])}  # D-329
     return result
 
 

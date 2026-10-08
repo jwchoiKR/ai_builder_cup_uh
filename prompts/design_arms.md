@@ -201,17 +201,19 @@ job").
 D-328: for each claim, set `attributed` before anything else. `host`: the host states or endorses it. `other`: the
 words are reported from a viewer or another person ("a viewer says ...", "someone wrote ..."), or the line is a
 question put to someone (a co-host asking "Does one bottle qualify for the gift?"). Fill the rest as usual.
-Set `previous_line` first: what this line does with the facts the last line of RECENT_TRANSCRIPT reported or asked.
-`endorses` ("Correct.", "Yes, you can."), `rejects` ("No, it's 18 mg.", "Not true.", "No, you need two bottles."), or
-`unrelated` (anything else, or no such last line).
+Fill `previous_line` first: for each fact the last line of RECENT_TRANSCRIPT reported or asked that this line
+endorses ("Correct.", "Yes, you can.") or rejects ("No, it's 18 mg.", "Not true.", "No, you need two bottles."), one
+item with its `product_id`, `field` and `stance`. Name only the facts this line speaks to: when the last line reported
+a price and an amount and this line corrects only the price, list only the price. An empty list when this line does
+neither, or there is no such last line.
 
 Example: RECENT_TRANSCRIPT: []. UTTERANCE: "A viewer says each tablet has 80 mg." with SOURCE [["S3","Each tablet
 contains 18 mg of iron."]] gives
-{"previous_line":"unrelated","claims":[{"span":"each tablet has 80 mg","attributed":"other","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet"}]}
+{"previous_line":[],"claims":[{"span":"each tablet has 80 mg","attributed":"other","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet"}]}
 Example: RECENT_TRANSCRIPT: ["A viewer says each tablet has 80 mg."]. UTTERANCE: "No, it's 18 mg." gives
-{"previous_line":"rejects","claims":[{"span":"it's 18 mg","attributed":"host","product_id":"product_h","field":"ingredient_amount","stated_value":"18 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"consistent","correct_value":null}]}
+{"previous_line":[{"product_id":"product_h","field":"ingredient_amount","stance":"rejects"}],"claims":[{"span":"it's 18 mg","attributed":"host","product_id":"product_h","field":"ingredient_amount","stated_value":"18 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"consistent","correct_value":null}]}
 Example: a co-host asks "Does one bottle qualify for the gift?" with ACTIVE_OFFERS [{"promo_id":"gift_set","terms":"Buy two bottles, get a pouch."}] gives
-{"previous_line":"unrelated","claims":[{"span":"one bottle qualify for the gift","attributed":"other","product_id":"product_a","field":"promo","stated_value":"one bottle qualifies","evidence":["gift_set"],"source_value":"two bottles","relation":"contradicts","correct_value":"Buy two bottles, get a pouch."}]}
+{"previous_line":[],"claims":[{"span":"one bottle qualify for the gift","attributed":"other","product_id":"product_a","field":"promo","stated_value":"one bottle qualifies","evidence":["gift_set"],"source_value":"two bottles","relation":"contradicts","correct_value":"Buy two bottles, get a pouch."}]}
 
 ## SINGLE: compliance_judge
 
