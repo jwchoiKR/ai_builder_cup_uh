@@ -419,12 +419,19 @@ describe("compliance", () => {
     // the fact checker finishes later: the same card gains the number, no second banner
     rerender(view({ alerts: [qualifier, wrongNumber] }));
     banner = screen.getByTestId("host-medium-banner");
-    expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("○ +45%(not +70%)");
+    expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("“+45%”");
     expect(screen.queryByTestId("host-fact-note")).toBeNull();
-    // D-401: with the model's say line, the merged card shows it (as a fact note does)
-    rerender(view({ alerts: [qualifier, { ...wrongNumber, say: "Hydration went up 45%." }] }));
+    // D-401/D-418: the note's say line, once, as the line to say; the qualifier is the top instruction
+    const said = { ...wrongNumber, say: "Hydration went up 45%." };
+    rerender(view({ alerts: [qualifier, said] }));
+    banner = screen.getByTestId("host-medium-banner");
+    expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("“Hydration went up 45%.”");
+    expect(banner).toHaveTextContent("Also say where the result comes from (e.g. 'in our in-house test')");
+    expect(banner).not.toHaveTextContent("went up 45% right after one use");  // the model's say_instead is not shown too
+    // D-418: once the note is corrected, the card keeps its right line (the old number never comes back)
+    rerender(view({ alerts: [qualifier, { ...said, status: "corrected", resolved_at: now() }] }));
     expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact"))
-      .toHaveTextContent("○ Hydration went up 45%.(not +70%)");
+      .toHaveTextContent("“Hydration went up 45%.”");
 
     // a fact note on another sentence keeps its own card
     rerender(view({ alerts: [qualifier, { ...wrongNumber, transcript_id: "tr_000008" }] }));

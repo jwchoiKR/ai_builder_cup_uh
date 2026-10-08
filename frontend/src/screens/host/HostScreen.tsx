@@ -256,7 +256,8 @@ export function HostView({
       <FactNote key={b.alert.alert_id} alert={b.alert} catalog={catalog} onRendered={actions.rendered} count={b.count}
         more={more} />
     ) : (
-      <MediumBanner key={b.alert.alert_id} alert={b.alert} catalog={catalog} fact={b.fact} onRendered={actions.rendered}
+      <MediumBanner key={b.alert.alert_id} alert={b.alert} catalog={catalog} fact={b.fact} factFixed={b.factFixed}
+        onRendered={actions.rendered}
         count={b.count} more={more} factCount={b.factCount} />
     );
   const prompterAlerts =
