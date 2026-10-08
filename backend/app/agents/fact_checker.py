@@ -886,7 +886,7 @@ class FactChecker:
             self.relation_model = FactRelationOutputV2
             if getattr(settings, "REPORTED_HOLD", False):  # D-328: whose words, and the previous line's fate
                 self.relation_model = FactRelationOutputH
-        if getattr(settings, "FACT_PROMPT", "v1") == "v5":  # D-331: a stance per claim (no hold)
+        if getattr(settings, "FACT_PROMPT", "v1") in ("v5", "v6"):  # D-331, D-333: a stance per claim (no hold)
             self.relation_model = FactRelationOutputV5
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
