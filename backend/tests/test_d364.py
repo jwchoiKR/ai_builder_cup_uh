@@ -89,3 +89,25 @@ async def test_d364_a_re_check_runs_in_the_line_s_own_context():
         assert note.status == "corrected"
     finally:
         await close_env(rt)
+
+
+async def test_d365_a_note_shown_again_carries_the_words_of_its_latest_showing():
+    """T1 "ten percent panthenol", T3 "twenty percent panthenol": the note's host_said is the 20% wording."""
+    rt, llm = await make_env()
+    rec = _Recording(llm)
+    try:
+        llm.facts("It has ten percent panthenol.", claim(
+            "ingredient_amount", "contradicted", stated="10%", correct="5%", passage_id=PANTHENOL,
+            quote="Panthenol: 5%", span="ten percent panthenol"))
+        llm.facts("Actually twenty percent panthenol.", claim(
+            "ingredient_amount", "contradicted", stated="20%", correct="5%", passage_id=PANTHENOL,
+            quote="Panthenol: 5%", span="twenty percent panthenol"))
+        await speak(rt, "It has ten percent panthenol.")
+        await speak(rt, "Actually twenty percent panthenol.")
+        [note] = [a for a in await rt.alerts() if a.kind == "fact"]
+        assert (note.span, note.stated_value) == ("twenty percent panthenol", "20%")
+        await speak(rt, "Isn't that great.")
+        req = [r for r in rec.requests if r.agent == "fact_checker" and r.mock_primary_text == "Isn't that great."][-1]
+        assert '"host_said": "twenty percent panthenol"' in req.user_message
+    finally:
+        await close_env(rt)
