@@ -54,7 +54,8 @@ async def test_context_failure_keeps_alerts_and_skips_publish(env):
     await speak(rt, BACTERIA)
     assert await messages(rt, "host_answer") == []
     assert [a.rule_id for a in await rt.alerts() if a.status == "active"] == ["ASEAN-3-SKIN-ANTIMICROBIAL"]
-    assert await events(rt, "judge.failed") == []  # only a compliance failure is shown to the operator
+    # D-416: a context failure is shown too (each line once per judge)
+    assert [e.payload["agent"] for e in await events(rt, "judge.failed")] == ["context_judge", "context_judge"]
 
 
 async def test_compliance_failure_fails_toward_warning_and_skips_publish(env):
