@@ -106,7 +106,14 @@ class ScriptedBackend:
         if self._alias(*key, self.errors) in self.errors:
             raise LLMError("scripted failure")
         if key in self.outputs:
-            return RawReply(json.dumps(self.outputs[key]), model_version="scripted")
+            out = self.outputs[key]
+            if req.agent in ("utterance_judge", "judge_single") and "prompter" in out:  # D-419: as the split path
+                sw_model = req.output_model.model_fields["prompter"].annotation.model_fields["switch"].annotation
+                if "moving_to_next_named" in sw_model.model_fields:
+                    out = json.loads(json.dumps(out))
+                    sw = out["prompter"]["switch"]
+                    sw.setdefault("moving_to_next_named", self.named.get(req.mock_primary_text, sw["is_transition"]))
+            return RawReply(json.dumps(out), model_version="scripted")
         if req.agent in SPLIT_PARTS:
             data = self.outputs.get((JUDGE, req.mock_primary_text)) or judge_output()
             part = split_part(req.agent, data)

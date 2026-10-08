@@ -13,7 +13,7 @@ from ..logic.catalog import Catalog
 from ..logic import qualifier
 from ..logic.grouping import normalise_question
 from ..logic.reflex import Reflex
-from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput
+from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput, with_switch_naming
 from ..models.data import Passage, Promo, PrompterPoint
 from ..models.session import Alert, HostCue, QuestionGroup, SwitchState
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -315,7 +315,9 @@ class UtteranceJudge:
     async def run(self, inp: JudgeInput, *, deadline_ms: int) -> AgentResult:
         values = self.build_values(inp)
         encode, decode = symbolic_ids(values)
-        output_model = JudgeSingleOutput if self.single else UtteranceJudgeOutput
+        # D-419: the switch verdict's decision field too (the immediate switch reads only it; D-415). These modes run only
+        # on the mock provider and in the tests (D-361), whose answers fill it
+        output_model = with_switch_naming(JudgeSingleOutput if self.single else UtteranceJudgeOutput)
         user, prefix = self.prompt.render_cached(values, STATIC_JUDGE_KEYS)
         res = await self.llm.call(LLMRequest(
             agent="judge_single" if self.single else self.name, model=self.llm.fast.model,
