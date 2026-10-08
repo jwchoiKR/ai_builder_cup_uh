@@ -9,7 +9,6 @@ import { useMic, type MicSnapshot, type MicState } from "../../app/mic";
 import type { ScreenProps } from "../../app/nav";
 import {
   activeHighAlert,
-  activeLineCheck,
   alertBlocking,
   RED_BLOCK_MS,
   unansweredCount,
@@ -32,7 +31,7 @@ import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { HostBox } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
-import { CorrectedBar, CueStrip, FactNote, LineCheckCard, MediumBanner, SwitchBanner, SwitchedBar } from "./Banners";
+import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchBanner, SwitchedBar, UncheckedStrip } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
 import { useCorrectedToast, useHostScale } from "./hooks";
@@ -133,6 +132,8 @@ function TopBar({
           {t("No law checks for this category")} · {state.market.category}
         </span>
       )}
+      {/* D-412: the lines no judge could check, one compact strip (never an alert box) */}
+      <UncheckedStrip count={state.unchecked.ids.length} cause={state.unchecked.cause} />
       <div className={styles.nowNext}>
         <span className={styles.nnLabel}>{t("NOW")}</span>
         <span className={styles.nowName} data-testid="host-now">
@@ -245,7 +246,6 @@ export function HostView({
   const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
   // D-306: also while the verifier checks a line's candidates (an alert shows only once it answers)
   const checking = Object.keys(state.verifying).length > 0;  // D-410: no provisional alert any more
-  const lineCheck = activeLineCheck(state, clientNow); // D-288: below every alert
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
   // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
@@ -266,12 +266,7 @@ export function HostView({
         serverOffsetMs={state.serverOffsetMs} count={b.count} more={more} factCount={b.factCount} />
     );
   const prompterAlerts =
-    stack.shown.length || lineCheck ? (
-      <>
-        {stack.shown.map((b, i) => box(b, i === stack.shown.length - 1 ? stack.more : 0))}
-        {lineCheck && !high && <LineCheckCard key={lineCheck.transcript_id} check={lineCheck} />}
-      </>
-    ) : null;
+    stack.shown.length ? <>{stack.shown.map((b, i) => box(b, i === stack.shown.length - 1 ? stack.more : 0))}</> : null;
 
   return (
     <div

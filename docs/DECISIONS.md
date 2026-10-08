@@ -2679,3 +2679,22 @@ Tests:
 - Added in tests/test_d403.py: a merged line is told only its chain's handles, both for compliance and for fact notes.
 
 D-411 (codex review of D-408; user: "1. ㅇㅇ 그렇게 하고"). The fact retry no longer gets a fresh FACT_LATE_MS. Before, a first call that failed at 4.9 s let the line take about 9.8 s in total. Now the fact deadline counts from the line end (speech_end_at). The retry gets only what is left: FACT_LATE_MS, minus the time from the line end to the first call, minus the first call's latency. When less than MIN_FACT_RETRY_MS (1 s) is left, there is no retry. The failed state (the card and judge.failed) then shows at once, and the log says how much time was left. Tests in tests/test_d408.py: the retry's deadline is what is left after a 0.3 s invalid answer; an invalid answer at 0.55 s of a 1.4 s budget is not retried and the card shows. The D-408 tests now use a 3 s budget, except the timeout test.
+
+D-412 (user: "2. ㅇㅋ"; GPT, Gemini and Sonnet agreed on the shape): AI service problems shown on screen.
+
+1. Events. A failed check (compliance judge or fact checker) carries its cause in `line.check` and `judge.failed`, along with the agent and the server time:
+   - "busy": a 429;
+   - "timeout": our deadline or the server's 504;
+   - "invalid": an answer that could not be read;
+   - "error": anything else.
+   The pipeline keeps the failed lines of the last 5 minutes (one entry per line) and the lines left unchecked since the judges last answered a line normally. Both go into the snapshot as `check_failures`, so a refresh keeps them. A line whose checks all answer clears the unchecked list and emits `checks.recovered`.
+
+2. Operator. Each failed line's card adds the cause in plain words with the code: "AI busy (429)", "AI timed out", "AI error" or "AI answer unreadable". One more card counts the last 5 minutes by cause: "Last 5 min: AI busy (429) 2 · AI timed out 1". KO strings are included.
+
+3. Host. The per-line "CHECK THIS LINE" card is gone (LineCheckCard, activeLineCheck, LINE_CHECK_MS, the lineChecks state). Every unchecked line now collapses into one compact strip in the top bar, outside the alert boxes, in plain words without codes: "AI busy: N lines unchecked", or KO "AI 혼잡: 확인 못 한 문장 N개". Its cause word follows the most recent failure: AI busy, AI slow or AI error. The strip never takes a red or orange box and never hides the prompter. It goes away on `checks.recovered`. The health dot is unchanged.
+
+Tests:
+- tests/test_d412.py: the cause mapping; events with causes, snapshot, recovery and the 5-minute window.
+- host.test.tsx: one strip for two lines with the latest cause and no alert box; the strip kept from the snapshot; the KO wording.
+- operator.test.tsx: causes with codes, and the 5-minute counts.
+- state.test.ts: the new event type.

@@ -249,6 +249,15 @@ const VERIFY_CAUSES: Record<string, string> = {
   other_error: "AI error",
 };
 
+/** D-412: the operator's words for a failed check, with the code where there is one */
+export const FAILURE_CAUSES: Record<string, string> = {
+  busy: "AI busy (429)",
+  timeout: "AI timed out",
+  error: "AI error",
+  invalid: "AI answer unreadable",
+};
+export const FAILURE_WINDOW_MS = 300_000; // D-412: the same 5 minutes as the server's
+
 export function systemCards(state: ClientState, catalog: Catalog | null, now: number, t: Translate = EN): SystemCard[] {
   const cards: SystemCard[] = [];
   for (const m of state.missingPoints) {
@@ -265,7 +274,18 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
     });
   }
   for (const j of state.judgeFailures) {
-    cards.push({ key: `judge:${j.transcript_id}`, kind: "judge_failed", text: t("AI check unavailable for the last sentence") });
+    const cause = j.cause ? ` · ${t(FAILURE_CAUSES[j.cause] ?? "AI error")}` : "";
+    cards.push({ key: `judge:${j.transcript_id}`, kind: "judge_failed",
+      text: `${t("AI check unavailable for the last sentence")}${cause}` });
+  }
+  // D-412: how many lines failed in the last 5 minutes, by cause (one line counts once); a new failure shows it again
+  const recent = state.judgeFailures.filter((j) => j.cause && j.at !== undefined && now - j.at < FAILURE_WINDOW_MS);
+  if (recent.length) {
+    const by = new Map<string, number>();
+    for (const j of recent) by.set(j.cause!, (by.get(j.cause!) ?? 0) + 1);
+    const parts = [...by].map(([c, n]) => `${t(FAILURE_CAUSES[c] ?? "AI error")} ${n}`);
+    cards.push({ key: `failures:${recent.length}:${recent[recent.length - 1].transcript_id}`, kind: "ai_delay",
+      text: t("Last 5 min: {counts}", { counts: parts.join(" · ") }) });
   }
   const vh = state.verifyHealth;
   if (vh && vh.no_answer > 0) {

@@ -6,7 +6,6 @@ import { useEffect } from "react";
 import { useT } from "../../app/i18n";
 import { useNow } from "../../app/store";
 import { TEST_QUALIFIER_RULE } from "../../app/selectors";
-import type { LineCheck } from "../../app/state";
 import type { Alert, Catalog, HostCue } from "../../app/types";
 import { factContext, factSayLine, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
@@ -174,25 +173,20 @@ export function MediumBanner({
   );
 }
 
-/** D-288: the judge could not check a line with a risky phrase; neutral, not a rule alert */
-export function LineCheckCard({ check }: { check: LineCheck }) {
+/** D-412: the host's words for a failed check (no codes) */
+const UNCHECKED_CAUSE: Record<string, string> = { busy: "AI busy", timeout: "AI slow", invalid: "AI error", error: "AI error" };
+
+/** D-412: every line no judge could check, as one compact strip outside the alert boxes; it goes away when the judges
+ *  answer normally again */
+export function UncheckedStrip({ count, cause }: { count: number; cause: string | null }) {
   const t = useT();
+  if (count === 0) return null;
+  const word = t(UNCHECKED_CAUSE[cause ?? "error"] ?? "AI error");
   return (
-    <div className={cx(styles.alertBlock, styles.alertCheck)} data-testid="host-line-check" role="status">
-      <div className={styles.alertTop}>
-        <span className={styles.warnBadge}>
-          <CircleAlert aria-hidden />
-          {t("CHECK THIS LINE")}
-        </span>
-        <span className={styles.alertSaid}>
-          {t("Heard:")} "{check.text}"
-        </span>
-      </div>
-      <span className={styles.alertMeta}>
-        {t("The check did not finish. Keep to approved wording.")}
-        {check.phrases.length ? ` (${check.phrases.join(", ")})` : ""}
-      </span>
-    </div>
+    <span className={styles.previewTag} data-testid="host-unchecked" role="status">
+      <CircleAlert aria-hidden />
+      {count === 1 ? t("{cause}: 1 line unchecked", { cause: word }) : t("{cause}: {n} lines unchecked", { cause: word, n: count })}
+    </span>
   );
 }
 

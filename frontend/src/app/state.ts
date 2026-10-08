@@ -45,17 +45,16 @@ export interface JudgeFailure {
   transcript_id: string;
   status?: string;
   alert_ids?: string[];
+  /** D-412: "busy" (429), "timeout", "invalid" or "error", and when (server time) */
+  cause?: string;
+  at?: number;
 }
 
-/** D-288: a reflex hit whose judge failed (REFLEX_ON_FAIL=card): a neutral card, not an alert */
-export interface LineCheck {
-  seq: number;
-  transcript_id: string;
-  text: string;
-  rule_ids: string[];
-  phrases: string[];
-  /** client time it arrived, for how long the card shows */
-  at: number;
+/** D-412: the lines no judge could check since the judges last answered a line normally */
+export interface Unchecked {
+  ids: string[];
+  /** the most recent failure's cause */
+  cause: string | null;
 }
 
 export interface OperatorAction {
@@ -89,7 +88,7 @@ export interface ClientState {
   overtime: Record<string, OvertimeInfo>;
   missingPoints: MissingPoints[];
   judgeFailures: JudgeFailure[];
-  lineChecks: LineCheck[]; // oldest first, max 10
+  unchecked: Unchecked;
   /** D-137: judges that failed on the last finals in a row (empty: healthy) */
   judgeDegraded: string[];
   /** D-306: lines whose candidates the verifier is checking ("transcript id|kind" -> kind): the host's grey chip */
@@ -151,7 +150,7 @@ export function emptyState(role: Role): ClientState {
     overtime: {},
     missingPoints: [],
     judgeFailures: [],
-    lineChecks: [],
+    unchecked: { ids: [], cause: null },
     summaryReady: false,
     voiceLine: null,
     needsResync: false,
@@ -196,6 +195,9 @@ export function reduceSnapshot(snap: StateSnapshot, role: Role, clientNow: numbe
     metrics: snap.metrics ?? {},
     feed: snap.feed ?? null,
     judgeDegraded: snap.judge_health?.degraded ?? [],
+    // D-412: kept on refresh: the last 5 minutes' failures and the lines unchecked now
+    judgeFailures: (snap.check_failures?.recent ?? []).map((f) => ({ ...f, seq: 0 })),
+    unchecked: snap.check_failures?.unchecked ?? { ids: [], cause: null },
     verifyHealth: snap.verify_health ?? null,
     market: snap.market ?? null,
     agentCalls: [...(snap.agent_calls ?? [])].reverse().slice(0, MAX_LOG),
@@ -468,12 +470,15 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       if (state.judgeFailures.some((j) => j.transcript_id === p.transcript_id)) return state;
       return { ...state, judgeFailures: [...state.judgeFailures, { ...p, seq: ev.seq } as JudgeFailure] };
 
-    case "line.check":
-      if (state.lineChecks.some((c) => c.transcript_id === p.transcript_id)) return state;
-      return {
-        ...state,
-        lineChecks: [...state.lineChecks, { ...p, seq: ev.seq, at: clientNow } as LineCheck].slice(-10),
-      };
+    case "line.check": {
+      // D-412: one more unchecked line (once per line); the strip names the most recent cause
+      const id = p.transcript_id as string;
+      const ids = state.unchecked.ids.includes(id) ? state.unchecked.ids : [...state.unchecked.ids, id];
+      return { ...state, unchecked: { ids, cause: (p.cause as string | undefined) ?? state.unchecked.cause } };
+    }
+
+    case "checks.recovered":
+      return { ...state, unchecked: { ids: [], cause: null } };
 
     case "judge.health":
       return { ...state, judgeDegraded: (p.degraded as string[]) ?? [] };

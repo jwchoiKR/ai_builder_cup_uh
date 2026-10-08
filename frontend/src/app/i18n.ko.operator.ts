@@ -74,6 +74,11 @@ export const KO_OPERATOR: Record<string, string> = {
   "AI service busy": "AI 서버 혼잡",
   "AI response delayed": "AI 응답 지연",
   "AI error": "AI 오류",
+  // D-412: a failed check's cause, with the code where there is one, and the last 5 minutes' counts
+  "AI busy (429)": "AI 혼잡 (429)",
+  "AI timed out": "AI 시간 초과",
+  "AI answer unreadable": "AI 응답 해석 불가",
+  "Last 5 min: {counts}": "최근 5분: {counts}",
   "Overtime +{time} on {product}": "{product} 시간 초과 +{time}",
   "Active promotion": "진행 중인 프로모션",
   "Product sheet": "상품 자료",

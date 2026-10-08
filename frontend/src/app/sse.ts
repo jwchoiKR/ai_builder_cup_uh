@@ -48,6 +48,7 @@ export const EVENT_TYPES = [
   // D-320: emitted but never subscribed before (D-298 line.check, D-306 verify.*), and the test drive's voice
   "feed.updated",
   "line.check",
+  "checks.recovered",  // D-412: the judges answered a line normally again
   "verify.started",
   "verify.done",
   "verify.health",

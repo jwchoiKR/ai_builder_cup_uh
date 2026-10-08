@@ -99,6 +99,19 @@ describe("alert cards", () => {
       "Overtime +0:05 on Hydra Barrier Cream",
     ]);
   });
+  it("D-412: a failed line says its cause with the code; the last 5 minutes are counted by cause", () => {
+    let st = reduceSnapshot(snapshot(), "operator", T0);
+    st = { ...st, judgeFailures: [
+      { seq: 1, transcript_id: "tr_old", cause: "busy", at: T0 - 400_000 },
+      { seq: 2, transcript_id: "tr_1", cause: "busy", at: T0 - 60_000 },
+      { seq: 3, transcript_id: "tr_2", cause: "busy", at: T0 - 30_000 },
+      { seq: 4, transcript_id: "tr_3", cause: "timeout", at: T0 - 1000 },
+    ] };
+    const texts = systemCards(st, catalog, T0).map((c) => c.text);
+    expect(texts).toContain("AI check unavailable for the last sentence · AI busy (429)");
+    expect(texts).toContain("AI check unavailable for the last sentence · AI timed out");
+    expect(texts).toContain("Last 5 min: AI busy (429) 2 · AI timed out 1");  // tr_old is older than 5 minutes
+  });
   it("stale questions turn amber after STALE_COMMENT_SEC", () => {
     expect(isStale(group({ status: "needs_review", first_at: T0 }), T0 + 300_000, 300)).toBe(true);
     expect(isStale(group({ status: "answered", first_at: T0 }), T0 + 900_000, 300)).toBe(false);
