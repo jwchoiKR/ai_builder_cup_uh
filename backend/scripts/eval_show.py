@@ -58,7 +58,7 @@ QUALIFIER_RESAY_MS = 10_000  # the host screen's QUALIFIER_ADDON_MS (D-341): aft
 JUDGES = ("compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "verifier")
 SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_MODE", "SWITCH_ARM_NAME", "SWITCH_DUAL_SCOPE_SEC",
                    "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT", "COMPLIANCE_RESAY", "CORRECTION_CHECK", "REFLEX_SCAN",
-                   "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC")
+                   "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC", "FACT_MODE")
 
 
 def _target(show: dict, expect: str) -> str | None:
@@ -196,7 +196,9 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                       for c in call_rows if c["line"] == x["id"]]
     segments = sorted(await store.query(rt.path("segments"), Segment), key=lambda x: x.started_at)
     raw = {"show_id": show["show_id"], "release_ids": show["release_ids"], "session_id": rt.sid,
-           "settings": {k: getattr(rt.ctx.settings, k, None) for k in SETTINGS_LOGGED} | _compliance_input(rt),
+           "settings": {k: getattr(rt.ctx.settings, k, None) for k in SETTINGS_LOGGED} | _compliance_input(rt)
+           # D-366: each judge's cached prefix as counted by Vertex (None on the mock backend)
+           | {"PREFIX_TOKENS": dict(getattr(rt.ctx.llm.backend, "prefix_tokens", {}))},
            "lines": lines, "switch_events": switch, "alerts": alerts, "prompter": prompter, "chips": chips,
            "judge": judge, "calls": call_rows, "timeline": timeline,
            "segments": [{"release": release_of.get(x.product_id), "started_at": x.started_at, "ended_at": x.ended_at,

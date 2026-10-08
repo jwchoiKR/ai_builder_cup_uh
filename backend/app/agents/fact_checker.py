@@ -947,6 +947,8 @@ class FactChecker:
         first = next(iter(self.files.values()), ((), ()))
         self.file_parts, self.file_passages = first  # the first product's (one-release shows, the eval)
         self.all_file_passages = tuple(x for _, ps in self.files.values() for x in ps)
+        log.info("fact checker FACT_MODE=%s, release files sent: %d", mode,  # D-366
+                 sum(len(parts) for parts, _ in self.files.values()))
 
     def _parts(self, on_air: str) -> tuple:
         return self.files.get(on_air, (self.file_parts,))[0]

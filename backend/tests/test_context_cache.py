@@ -64,6 +64,7 @@ async def test_create_reuse_and_structured_output(backend):
     assert config.response_mime_type == "application/json"
     assert config.thinking_config.thinking_level == "MINIMAL"
     assert first.usage["cached"] == 4100
+    assert first.usage["prefix"] == 4100 and backend.prefix_tokens == {"fact": 4100}  # D-366
 
 
 @pytest.mark.asyncio

@@ -220,6 +220,7 @@ class _ContextCache:
     name: str | None = None
     expires_at: float = 0
     eligible: bool | None = None
+    tokens: int | None = None  # D-366: the cached prefix's size (system instruction, files, static blocks)
 
 
 class VertexBackend:
@@ -235,6 +236,7 @@ class VertexBackend:
         self._context_cache = context_cache
         self._cache_ttl_sec = cache_ttl_sec
         self._caches: dict[str, _ContextCache] = {}
+        self.prefix_tokens: dict[str, int] = {}  # D-366: agent -> its latest counted prefix, for eval settings
 
     def _cache_entry(self, req: LLMRequest) -> _ContextCache | None:
         if (not self._context_cache or not req.session_id or not (req.cache_prefix or req.cache_parts)
@@ -301,6 +303,9 @@ class VertexBackend:
                 if count.total_tokens is None:
                     raise LLMError("token count returned no total")
                 entry.eligible = count.total_tokens >= minimum
+                entry.tokens = self.prefix_tokens[req.agent] = count.total_tokens
+                log.info("context cache prefix %s: %d tokens (%d files, eligible=%s)", req.agent, count.total_tokens,
+                         len(req.cache_parts), entry.eligible)
             if not entry.eligible:
                 entry.expires_at = time.monotonic() + ttl
                 return None
@@ -387,6 +392,7 @@ class VertexBackend:
         usage = None if u is None else {
             "prompt": u.prompt_token_count, "output": u.candidates_token_count,
             "thoughts": u.thoughts_token_count, "cached": u.cached_content_token_count,
+            "prefix": entry.tokens if entry is not None else None,  # D-366
         }
         return RawReply(text, resp.model_version, usage, finish)
 
