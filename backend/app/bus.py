@@ -53,7 +53,9 @@ class EventBus:
             last = await self._store.query(
                 sub(session_id, "events"), Event, order_by="seq", descending=True, limit=1
             )
-            self._seq[session_id] = last[0].seq if last else 0
+            # D-380: a store that keeps only some events (Firestore without the comment events) gives a floor
+            floor = getattr(self._store, "seq_floor", None)
+            self._seq[session_id] = max(last[0].seq if last else 0, await floor(session_id) if floor else 0)
         return self._seq[session_id]
 
     async def last_seq(self, session_id: str) -> int:

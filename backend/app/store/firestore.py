@@ -27,7 +27,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from ..config import Settings
-from .base import SESSIONS, SUBCOLLECTIONS, Filter, M
+from .base import SESSIONS, SUBCOLLECTIONS, Filter, M, sub
 from .memory import MemoryStore, MemoryTransaction
 
 log = logging.getLogger(__name__)
@@ -48,6 +48,9 @@ COMMENT_AGENTS = frozenset({"comment_triage", "comment_triage_batch", "answer_co
 COMMENT_EVENTS = frozenset({"comment.created", "comment.analyzed", "comment.hidden", "comment.unhidden",
                             "group.updated", "hostqueue.updated", "message.pending", "message.published",
                             "message.updated", "message.cancelled", "notice.updated"})
+# D-380: comment data on the session document (the host's question slots, the pinned notice) stays in memory
+SESSION_MEMORY_ONLY = ("host_slots", "pinned_notice")
+SEQ_HW = "_event_seq_hw"  # D-380: the highest event seq emitted, on the session document (memory-only events too)
 
 
 def mirrored(path: str, data: Any) -> bool:
@@ -114,6 +117,7 @@ class FirestoreStore(MemoryStore):
         self._loaded: set[str] = set()  # sessions (and other top-level collections) read back from Firestore
         self._load_locks: dict[str, asyncio.Lock] = {}
         self._retry_now = asyncio.Event()  # D-361: a flush wakes a write retry that is waiting
+        self._seq_hw: dict[str, int] = {}  # D-380: session -> the highest event seq emitted (or read back)
         self.failures = 0  # writes Firestore refused or that failed and were retried
 
     # ---- writes: memory now, Firestore behind -------------------------------------------------------------
@@ -123,6 +127,10 @@ class FirestoreStore(MemoryStore):
             raise ValueError(f"a Firestore document id cannot hold '/': {path}/{doc_id}")
         if not mirrored(path, value):
             return  # D-378: comment data stays in memory
+        if path == SESSIONS and isinstance(value, dict):  # D-380: no comment data; the seq high-water mark
+            value = {k: v for k, v in value.items() if k not in SESSION_MEMORY_ONLY}
+            if doc_id in self._seq_hw:
+                value[SEQ_HW] = self._seq_hw[doc_id]
         key = (path, doc_id)
         self._queue.pop(key, None)  # coalesce: the latest value, at the end of the order
         self._queue[key] = value
@@ -138,6 +146,19 @@ class FirestoreStore(MemoryStore):
         await self._ensure_loaded(path, doc_id)
         await super().put(path, doc_id, doc)
         self._enqueue(path, doc_id, doc.model_dump(mode="json"))
+        sid = _session_of(path, doc_id)
+        if path.endswith("/events") and sid is not None and getattr(doc, "seq", 0) > self._seq_hw.get(sid, 0):
+            # D-380: every event, mirrored or not, raises the session's high-water mark (coalesced with the session
+            # document in the queue, so a burst of events is one session write)
+            self._seq_hw[sid] = doc.seq
+            session = self._data.get(SESSIONS, {}).get(sid)
+            if session is not None:
+                self._enqueue(SESSIONS, sid, dict(session))
+
+    async def seq_floor(self, session_id: str) -> int:
+        """D-380: the lowest seq the next event may follow: the high-water mark read back with the session."""
+        await self._ensure_loaded(sub(session_id, "events"), None)
+        return self._seq_hw.get(session_id, 0)
 
     async def delete(self, path: str, doc_id: str) -> None:
         await self._ensure_loaded(path, doc_id)
@@ -154,6 +175,7 @@ class FirestoreStore(MemoryStore):
 
     async def delete_session(self, session_id: str) -> None:
         await super().delete_session(session_id)
+        self._seq_hw.pop(session_id, None)
         for key in [k for k in self._queue if _session_of(*k) == session_id]:
             del self._queue[key]  # nothing of it needs writing any more
         self._enqueue(SESSIONS, session_id, _DELETE_SESSION)
@@ -206,7 +228,9 @@ class FirestoreStore(MemoryStore):
         snap = await self._client.collection(SESSIONS).document(sid).get()
         if not snap.exists:
             return
-        staged = [(SESSIONS, sid, snap.to_dict())]
+        doc = snap.to_dict()
+        hw = doc.pop(SEQ_HW, None)  # D-380: the high-water mark is the store's, not a session field
+        staged = [(SESSIONS, sid, doc)]
         for name in (n for n in SUBCOLLECTIONS if n not in MEMORY_ONLY):  # D-378: no comment data read back
             path = f"{SESSIONS}/{sid}/{name}"
             async for d in self._client.collection(path).stream():
@@ -214,6 +238,8 @@ class FirestoreStore(MemoryStore):
                     staged.append((path, d.id, d.to_dict()))
         for path, doc_id, data in staged:
             self._fill(path, doc_id, data)
+        if hw is not None:
+            self._seq_hw[sid] = max(self._seq_hw.get(sid, 0), int(hw))
         log.info("firestore: session %s read back (%d events)", sid,
                  len(self._data.get(f"{SESSIONS}/{sid}/events", {})))
 

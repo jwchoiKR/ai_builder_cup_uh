@@ -209,5 +209,23 @@ async def test_d379_comment_events_stay_out_of_firestore_and_the_seq_continues()
     assert sorted(v["type"] for v in stored.values()) == ["alert.created", "transcript.final"]
     fresh, _ = _store(client)
     bus2 = EventBus(fresh, bus._clock)
-    assert await bus2.last_seq("ses_1") == 4  # alert.created was seq 4; the comment events are gaps
-    assert (await bus2.emit("ses_1", "transcript.final", {})).seq == 5
+    # D-380: the high-water mark on the session document: the next seq follows the last comment event (5)
+    assert await bus2.last_seq("ses_1") == 5
+    assert (await bus2.emit("ses_1", "transcript.final", {})).seq == 6
+
+
+async def test_d380_the_session_document_holds_no_comment_data():
+    from pydantic import BaseModel
+
+    class _Session(BaseModel):  # the fields that matter here
+        session_id: str = "ses_1"
+        status: str = "live"
+        pinned_notice: str | None = "Free shipping today"
+        host_slots: list[dict] = [{"slot": 1, "group_id": "grp_1"}]
+
+    store, client = _store()
+    await store.put(SESSIONS, "ses_1", _Session())
+    assert await store.flush(5)
+    doc = client.data[SESSIONS]["ses_1"]
+    assert doc["status"] == "live" and "pinned_notice" not in doc and "host_slots" not in doc
+    assert store._data[SESSIONS]["ses_1"]["pinned_notice"] == "Free shipping today"  # memory keeps it
