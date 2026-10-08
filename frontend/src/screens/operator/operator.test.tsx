@@ -219,11 +219,29 @@ describe("Operator screen", () => {
     const card = await screen.findByTestId("op-alert-al_000001");
     expect(card).toHaveAttribute("data-state", "escalated");
     expect(within(card).getByText(/^Not corrected · /)).toBeInTheDocument();
-    expect(within(card).getByText("The host is seeing a full-screen correction prompt.")).toBeInTheDocument();
+    expect(within(card).getByTestId("op-alert-host")).toHaveTextContent("The host sees this alert now.");
     expect(within(card).getByText("Send correction cue")).toBeInTheDocument();
     expect(within(card).getByText("Dismiss false alert")).toBeInTheDocument();
     expect(screen.getByText("Live control room")).toBeInTheDocument();
     expect(screen.getByText(/BROADCAST WORKSPACE/)).toBeInTheDocument();
+  });
+
+  it("D-404: says where each alert is on the host screen: shown, held behind a red, or in +N", async () => {
+    const red = alert({ alert_id: "al_red", transcript_id: "tr_red", span: "erases wrinkles" });
+    const held = alert({ alert_id: "al_held", transcript_id: "tr_red", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM",
+      span: "the best" });
+    const fact = alert({ alert_id: "fx_1", kind: "fact", transcript_id: "tr_f1", rule_id: null, severity: null,
+      field: "price", passage_id: "P#1" });
+    const beyond = alert({ alert_id: "fx_2", kind: "fact", transcript_id: "tr_f2", rule_id: null, severity: null,
+      field: "volume", passage_id: "P#2", created_at: T0 - 5000, shown_at: T0 - 5000 });
+    snap = snapshot({ alerts: [red, held, fact, beyond] });
+    render(<Operator sessionId="ses_op_seen" />);
+    const seen = async (id: string) =>
+      within(await screen.findByTestId(`op-alert-${id}`)).getByTestId("op-alert-host").getAttribute("data-seen");
+    expect(await seen("al_red")).toBe("shown");
+    expect(await seen("al_held")).toBe("held");
+    expect(await seen("fx_1")).toBe("shown");
+    expect(await seen("fx_2")).toBe("more");
   });
 
   it("D-374: shows the model's citation and summary, labelled as the AI's", async () => {

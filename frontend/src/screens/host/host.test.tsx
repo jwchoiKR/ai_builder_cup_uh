@@ -255,6 +255,30 @@ describe("fact note", () => {
     expect(screen.queryByTestId("host-alert-more")).toBeNull();
   });
 
+  it("D-404: +N counts every active alert not visible, by id: another red, D-342-held ones", () => {
+    const red1 = alert({ alert_id: "al_r1", span: "erases wrinkles", transcript_id: "tr_r1", shown_at: now() - 1000 });
+    const red2 = alert({ alert_id: "al_r2", span: "cures acne", transcript_id: "tr_r2", shown_at: now() - 5000 });
+    const note = { ...fx, transcript_id: "tr_fact" };
+    const { rerender } = render(view({ alerts: [red1, red2, note] }));
+    expect(within(screen.getByTestId("host-fact-note")).getByTestId("host-alert-more")).toHaveTextContent("+1");
+    // a MEDIUM on the red's own line is held back by D-342: counted too
+    const held = alert({ alert_id: "al_held", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
+      transcript_id: "tr_r1" });
+    rerender(view({ alerts: [red1, red2, note, held] }));
+    expect(screen.getByTestId("host-alert-more")).toHaveTextContent("+2");
+  });
+
+  it("D-404: a hidden qualifier card merged with its fact note counts as one", () => {
+    const red = alert({ alert_id: "al_r1", span: "erases wrinkles", transcript_id: "tr_r1" });
+    const note = { ...fx, transcript_id: "tr_fact" };
+    const q = alert({ alert_id: "al_q", rule_id: "TEST-QUALIFIER", severity: "MEDIUM", span: "up seventy percent",
+      transcript_id: "tr_q" });
+    const qFact = { ...fx, alert_id: "fx_q", transcript_id: "tr_q", field: "test_result", passage_id: "P#q" };
+    render(view({ alerts: [red, note, q, qFact] }));
+    expect(screen.queryByTestId("host-medium-banner")).toBeNull();
+    expect(screen.getByTestId("host-alert-more")).toHaveTextContent("+1");
+  });
+
   it("D-402: red says Regulation, orange says Product info, in the host's language", () => {
     const high = alert({ alert_id: "al_000010", span: "erases wrinkles", transcript_id: "tr_high" });
     const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
