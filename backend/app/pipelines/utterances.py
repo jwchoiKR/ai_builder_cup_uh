@@ -103,6 +103,11 @@ includes include costs cost about than its our your their this that these those 
 just around nearly almost up down plus minus""".split())
 
 
+def asks(text: str) -> bool:
+    """D-334: the final ends with a question mark (closing quotes and brackets ignored)."""
+    return text.rstrip().rstrip("\"'”’)]").endswith("?")
+
+
 def mid_clause(text: str) -> bool:
     """D-285 Q5: the final has no end mark and ends on a dangling word or a number."""
     if ends_sentence(text):
@@ -175,6 +180,8 @@ class UtterancePipeline:
         self._context_tail: asyncio.Task | None = None
         self._pending: set[asyncio.Task] = set()
         self._sequence: dict[str, int] = {}
+        self._questions: dict[str, int] = {}  # D-334: held question finals -> when the hold began
+        self._question_finals = 0  # D-334: finals that end with "?" (a log of STT punctuation)
         # D-328 REPORTED_HOLD: transcript id -> (its contradicted claims in someone else's words, the transcript, the
         # protected ids, when the hold began), waiting for the next line's fact check
         self._reported: dict[str, list] = {}  # [claims still held, transcript, protected ids, when it began]
@@ -257,7 +264,11 @@ class UtterancePipeline:
         """D-088: join with the previous final if it arrived within the window and is unfinished."""
         prev = self._last
         window = self.rt.settings.UTTERANCE_MERGE_WINDOW_MS
-        if (prev is None or window <= 0 or t.received_at - prev.received_at > window or ends_sentence(prev.text)
+        if prev is not None and prev.transcript_id in self._questions:  # D-334: a held question takes its answer
+            window = self.rt.settings.QUESTION_HOLD_MS
+        elif prev is not None and ends_sentence(prev.text):
+            return None
+        if (prev is None or window <= 0 or t.received_at - prev.received_at > window
                 or prev.segment_id != t.segment_id
                 or self._generations.get(prev.transcript_id) != self._generations.get(t.transcript_id)):
             return None
@@ -311,6 +322,21 @@ class UtterancePipeline:
         if merge is not None and merge.prev.transcript_id in self._held:  # D-285 Q5: the held fragment joins this one
             self._held.pop(merge.prev.transcript_id)
             rt.ctx.scheduler.cancel(rt.key(f"hold:{merge.prev.transcript_id}"))
+            if self._questions.pop(merge.prev.transcript_id, None) is not None:
+                log.info("question %s answered by %s after %d ms: judged as one", merge.prev.transcript_id,
+                         t.transcript_id, t.received_at - merge.prev.received_at)
+        if asks(t.text):  # D-334: how often speech-to-text ends a line with "?" (is its punctuation reliable?)
+            self._question_finals += 1
+            log.info("question final %s %s (%d of %d finals)", rt.sid, t.transcript_id, self._question_finals,
+                     len(self._sequence))
+        if (rt.settings.QUESTION_HOLD and asks(t.text) and rt.settings.QUESTION_HOLD_MS > 0
+                and len((merge.chain if merge else [])) + 1 < MAX_MERGED_FINALS):
+            # D-334: a question is not judged alone: its answer, the next final, joins it into one utterance
+            self._held[t.transcript_id] = (t, text, merge, scenario)
+            self._questions[t.transcript_id] = rt.now()
+            rt.ctx.scheduler.call_later(rt.key(f"hold:{t.transcript_id}"), rt.settings.QUESTION_HOLD_MS,
+                                        lambda tid=t.transcript_id: self._release(tid))
+            return
         window = rt.settings.UTTERANCE_MERGE_WINDOW_MS
         if ("Q5" in fixes_of(rt.settings.FACT_FIXES) and window > 0 and mid_clause(t.text)
                 and len((merge.chain if merge else [])) + 1 < MAX_MERGED_FINALS):
@@ -325,7 +351,11 @@ class UtterancePipeline:
         """D-285 Q5: no final joined the held fragment within the window: it is judged on its own."""
         held = self._held.pop(tid, None)
         if held is not None:
-            log.info("held fragment %s judged alone after the merge window", tid)
+            began = self._questions.pop(tid, None)
+            if began is not None:  # D-334
+                log.info("question %s judged alone: no answer within %d ms", tid, self.rt.now() - began)
+            else:
+                log.info("held fragment %s judged alone after the merge window", tid)
             await self._judge(*held)
 
     async def _judge(self, t: Transcript, text: str, merge: Merge | None, scenario: str) -> None:

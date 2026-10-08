@@ -99,7 +99,14 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 await asyncio.sleep(PART_GAP_S)
         await rt.utterances.drain()
         alerts = [a for a in await rt.alerts() if a.shown_at is not None]
-        heard = {t.transcript_id: t.received_at for t in await rt.ctx.store.query(rt.path("transcripts"), Transcript)}
+        finals = {t.transcript_id: t for t in await rt.ctx.store.query(rt.path("transcripts"), Transcript)}
+        heard = {tid: t.received_at for tid, t in finals.items()}
+
+        def first_heard(tid: str) -> int:  # D-334: the first final of a merged utterance (a held question, a fragment)
+            t = finals[tid]
+            while t.merged_from_transcript_id in finals:
+                t = finals[t.merged_from_transcript_id]
+            return t.received_at
         calls = sorted(await rt.ctx.store.query(rt.path("agent_calls"), AgentCall), key=lambda c: c.started_at)
         # the fact checker's tries per line (D-203 retries once after a timeout or error): retried, final status
         tries = collections.defaultdict(list)
@@ -131,7 +138,10 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                             "unverified_reason": a.unverified_reason,
                             # D-309: from the final received to the alert created and to it shown (active)
                             "ms_to_created": a.created_at - heard[a.transcript_id] if a.transcript_id in heard else None,
-                            "ms_to_shown": a.shown_at - heard[a.transcript_id] if a.transcript_id in heard else None}
+                            "ms_to_shown": a.shown_at - heard[a.transcript_id] if a.transcript_id in heard else None,
+                            # D-334: from the first final of the utterance it was judged in (a held question's wait)
+                            "ms_from_first_final": (a.shown_at - first_heard(a.transcript_id)
+                                                    if a.transcript_id in finals else None)}
                            for a in alerts]}
     finally:
         await ctx.runtimes.drop(rt.sid)

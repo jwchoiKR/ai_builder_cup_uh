@@ -2096,3 +2096,15 @@ D-333: `FACT_PROMPT=v6` and `COMPLIANCE_ENDORSE`, both prompt-only and off by de
   - Claim counts are logged as for v5.
 - **`COMPLIANCE_ENDORSE`:** the `ENDORSE: compliance_judge` addendum. When this line endorses what the last line reported or asked ("A viewer says it treats eczema." then "Yes, that's what it does."), the judge treats the endorsed claim as this line's own claim and judges it with the RULES given (`is_quoted = false`). A rejection is not a violation. It never invents or widens a rule.
 - **Tests:** `tests/test_d331.py` (`d333_*`).
+
+D-334: two switches for a meaning that spans two finals ("For 30 mL of concentrate, how much water goes in?" then "90 mL"), both off by default, on top of `FACT_PROMPT=v5` (user-approved 10/8; QUESTION_HOLD is the user's design).
+- **`QUESTION_HOLD` (`QUESTION_HOLD_MS` 2500):**
+  - A final that ends with "?" is held. The next final within `QUESTION_HOLD_MS` joins it, and all three judges see the pair as one utterance. The fact checker shows it as "question / answer". The D-285 merge path is reused: the held question is never judged alone, and the answer is judged only inside the pair.
+  - With no answer in time, the question is judged alone, as today.
+  - It is a scheduling rule on STT punctuation only; the models decide the meaning. Each question final is logged ("question final … (n of m finals)") so chirp_3's "?" can be checked, and so are the pairing and the wait.
+  - Eval rows get `ms_from_first_final`, measured from the first final of the utterance an alert was judged in. It shows the wait of a held question or fragment. `ms_to_shown` keeps its meaning (from the alert's own final), so earlier runs stay comparable.
+- **`CONTEXT_JUDGE`:**
+  - The fact checker's message has a CONVERSATION block (the last 3 finals, oldest first, the line to check last) in place of UTTERANCE and RECENT_TRANSCRIPT, and asks for the check of the last line.
+  - The `CTX: fact_checker` addendum: check only the facts asserted or endorsed in the last line; use the earlier lines to understand it; do not report facts that appear only in earlier lines. It includes the made-up concentrate example (90 mL of water, not 90 mg of caffeine).
+  - Same schema, no hold. The compliance and context judges are unchanged under this switch.
+- **Tests:** `tests/test_d334.py` (the pair judged once by each judge, a lone question judged alone after the hold, the CONVERSATION block).
