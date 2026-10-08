@@ -2245,8 +2245,23 @@ D-349: `SWITCH_MODE=immediate`, a new switch arm (user-approved; chosen by GPT a
   - Code keeps a pick only if it is one of the two products; anything else becomes the on-air product. say_instead comes from the picked product's approved wording (`approved_say` / `negated_caution` on that product), and the alert carries that product.
   - Outside the window, the prompts and schemas are exactly the default ones.
 - **No handling of back-references** (user, 10/8: the host does not go back to the previous product).
-- **Eval tool `scripts/eval_switch.py`:** replays one show's ordered lines with their real gaps through ONE sequential multi-release session (`release_ids`). Input is a JSONL of `{show_id, release_ids, lines:[{id, text, gap_ms, expect: "stay" | "switch_to:<n>"}]}`.
+- **Eval tool `scripts/eval_switch.py` (now `scripts/eval_show.py`, below):** replays one show's ordered lines with their real gaps through ONE sequential multi-release session (`release_ids`). Input is a JSONL of `{show_id, release_ids, lines:[{id, text, gap_ms, expect: "stay" | "switch_to:<n>"}]}`.
   - Flags: `--mode two_step|immediate`, and `--arm-name on|off` for two-step.
   - Output (`<out>.json` and `.md`): every line with its transcript id and time; every switch event in order (decided, counting, pending, cancelled, committed, undone) with its time and transcript id; every alert with its release and `ms_to_shown`.
   - Score: a caught switch is a commit to the expected product between its line and the next expected line, with latency = commit time minus the line's final. Any other commit is a false switch.
 - Tests: `tests/test_d349.py` (switch at once; no switch on a quote, an answer, low confidence or another target; default unchanged; both products in scope inside the window only; the alert and its wording follow the picked product, and a pick outside the scope falls back to the on-air product; an undo opens the window; the eval tool on a made-up two-release show), plus frontend tests (the Undo bar, Esc, no preview card, no bar after a two-step commit, the event reducer).
+
+D-349 (follow-up): `scripts/eval_switch.py` becomes `scripts/eval_show.py`, a general show replay. The user wants every live feature measured, not only alert accuracy. It is an eval script only; there is no app change.
+
+- **Input:** the same format as before, plus optional per-line `labels`, which are copied to the output untouched.
+- **Run:** one sequential session per show, with real gaps.
+- **Output:** `<out>/<show_id>.json` per show and `<out>/summary.md`. Times are on the session clock, and each `ms_*` is from the line's final. The JSON has these parts:
+  - `lines`: each line with its transcript id and line end, the release on air, the context judge's verdict (covered_point_ids, covered_cue_ids, switch verdict, reason) and its model calls (status, failure, latency, usage).
+  - `switch_events`: decided (with the judge's reason and confidence), counting, pending, cancelled, committed and undone.
+  - `alerts`: kind, rule or field, severity, the release it was checked against, then the provisional reflex chip, shown, escalated and resolved times, and the line that corrected it. For the qualifier rule, it also records whether the banner was shown, when the 10 s re-say prompt appeared and whether the alert was cleared.
+  - `prompter`: each coverage update with the required points left, attributed to the line said just before.
+  - `chips`: question holds, "checking" (verify.started/done), and provisional chips that never became an alert.
+  - `judge`: failures and health changes.
+  - `calls`: every model call with its usage.
+  - `timeline`: the raw live events in order.
+  - `switch_score`.
