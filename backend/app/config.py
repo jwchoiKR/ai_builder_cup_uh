@@ -136,6 +136,9 @@ class Settings(BaseSettings):
     FACTS_MODEL: str = ""  # D-246: the fact checker's model (base and FR); empty = LLM_FAST_MODEL
     TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1
+    # D-340 (review H15): a 429 (Google's shared capacity) is retried once after this many ms, when the call's
+    # deadline leaves room for it; 0 = no retry (as before), a switch until measured
+    LLM_RETRY_ON_429_MS: int = 0
     LLM_CONTEXT_CACHE: bool = True  # measured 10/5: fact checker cached share 44% -> 72.5%, accuracy and latency unchanged
     LLM_CONTEXT_CACHE_TTL_SEC: int = 3600  # request session duration overrides this fallback
     JUDGE_MODE: Literal["split3", "split", "single"] = "split3"  # D-099; split = one UtteranceJudge (rollback)
