@@ -1,8 +1,9 @@
 """Comment pipeline explainer (google-slide-deck design). Run: python build_comments.py"""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\User.DESKTOP-G5S2APU\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)

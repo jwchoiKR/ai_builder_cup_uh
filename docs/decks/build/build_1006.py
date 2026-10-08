@@ -1,10 +1,11 @@
 """10/6 team update deck (google-slide-deck design). Run: python docs/decks/build/build_1006.py"""
 import base64
 import re
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\User.DESKTOP-G5S2APU\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -95,7 +96,7 @@ slide("probe", "방법 탐색", "처음 보는 6개 제품의 파일 10개에서
          stat("6/6", "카테고리", "화장품·식품·헤어", GRN, GRNBG),
          stat("1/1", "문서 충돌 발견", "구버전·신버전 용량 차이", GRN, GRNBG), gap=24),
     t("방법 탐색: 스크립트가 gemini-3.8-flash를 직접 불렀다. 우리 앱 결과가 아니며, 앱의 자동 등록 경로로 다시 잰다. 형식: 표 PDF, 브로슈어, 한국어 워드, 웹페이지, 엑셀, 글자가 그림 안에 있는 PNG.", 24, SUB),
-    gap=24), notes="정답은 GPT 작성 + Sonnet 블라인드 추출로 확인(숫자 전부 일치). 봉인 세트라 개발 쪽에 공개하지 않는다.")
+    gap=24), notes="정답은 작성본 + 독립 블라인드 추출로 확인(숫자 전부 일치). 봉인 세트라 개발 쪽에 공개하지 않는다.")
 
 # ---- 6 arms
 slide("arms", "설계 비교", "AI에게 다 맡기자 틀린 답이 공개 채팅에 올라갔다", col(
@@ -163,7 +164,7 @@ slide("principles", "원칙", "앞으로 모든 일은 이 여섯 가지로 판�
       + listing([("측정으로 고른다", "방향이 여럿이면 전부 만들어 비교"),
                  ("안 되면 버린다", "두 번 고쳐도 안 되면 다시 설계"),
                  ("심사위원 시점", "계획·결과마다 약점과 바꿀 것을 적음")], "check", BLUE) + "</div>",
-      notes="사용자 10/5 결정들. CLAUDE.md, docs/HANDOFF.md에 기록.")
+      notes="사용자 10/5 결정들. HANDOVER.md, docs/HANDOFF.md에 기록.")
 
 # ---- 9 scope
 slide("scope", "기능 범위", "기능은 충분하다, 빠진 것은 자동화와 증거다", col(
@@ -175,7 +176,7 @@ slide("scope", "기능 범위", "기능은 충분하다, 빠진 것은 자동화
         ["업로드 문서 공격 시험과 상한", "공개 업로드에 심사위원이 먼저 물을 질문"]], [48, 52], 25),
     tags("뺄 것", chip("새 라이브 기능", "grey"), chip("카메라·영상 분석", "grey"), chip("언어 추가", "grey"),
          chip("영상 속 화면 순회", "grey")), gap=24),
-    notes="codex·agy·Sonnet 토론 결과(PLANNING 10/5 밤). '언어 추가'는 세 모델 모두 반대.")
+    notes="세 검토자 토론 결과(PLANNING 10/5 밤). '언어 추가'는 세 검토자 모두 반대.")
 
 # ---- 10 cloud
 slide("cloud", "클라우드 결과", "지금 구조로 심은 실수는 모두 잡았다", col(

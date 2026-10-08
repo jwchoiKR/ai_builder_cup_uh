@@ -1,9 +1,10 @@
 """10/6 deck: the architecture after D-305 (meaning judgments by models, code only checks provenance).
 Run: python docs/decks/build/build_arch_llm_1006.py  (numbers only; sealed text never shown)"""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -21,7 +22,7 @@ slide("sum", "10/6 · 아키텍처 변경", "뜻은 모델이 판단하고, 코�
          chip("코드: 개인정보 거르기, Model Armor", "green", "shield"),
          chip("나머지 코드 규칙 15개는 켜 둔 채 하나씩 끄고 비교 중", "grey")),
     t("근거: STT를 거친 5차 세트에서 코드 검증 오경고 19.4%, 모델 검증 0.9%. STT 안내·20초 문맥 묶음은 오경고 11.1%로 나빠져 되돌림", 24, SUB),
-    gap=36), notes="D-300(검증 모델), D-304(규칙별 스위치), D-306(확인 중 표시·5초·미확인), D-308(측정한 설정으로 되돌림, fd62170). D-305 전체 전환은 세 모델 합의로 되돌렸다.")
+    gap=36), notes="D-300(검증 모델), D-304(규칙별 스위치), D-306(확인 중 표시·5초·미확인), D-308(측정한 설정으로 되돌림, fd62170). D-305 전체 전환은 세 검토자 합의로 되돌렸다.")
 
 slide("live", "방송 중 · 진행자 말", "진행자 말 한 문장이 경고가 되기까지", col(
     lanes(stage("1차: 세 모델이 동시에 넓게 잡는다 → 2차: 걸린 문장만 상위 모델이 확정한다"),
