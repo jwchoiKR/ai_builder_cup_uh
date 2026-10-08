@@ -48,7 +48,10 @@ def products_compact_json(catalog: Catalog) -> list[dict]:
     return [{"product_id": p.product_id, "name": p.name, "aliases": p.aliases} for p in catalog.products]
 
 
-def run_sheet_compact_json(catalog: Catalog, on_air_product_id: str | None) -> list[dict]:
+def run_sheet_compact_json(catalog: Catalog, on_air_product_id: str | None,
+                           types: dict[str, str] | None = None) -> list[dict]:
+    """The show's products in order with their status. D-351 (`types` given, SWITCH_MODE=immediate): also each
+    product's short name and type word, so the context judge can tell when the host names the next product."""
     on_air = catalog.order.index(on_air_product_id) if on_air_product_id else -1
     out = []
     for i, pid in enumerate(catalog.order):
@@ -61,7 +64,9 @@ def run_sheet_compact_json(catalog: Catalog, on_air_product_id: str | None) -> l
         else:
             status = "later"
         out.append({"order": catalog.runsheet_item(pid).order, "product_id": pid,
-                    "name": catalog.get_product(pid).name, "status": status})
+                    "name": catalog.get_product(pid).name, "status": status}
+                   | ({"short_name": catalog.get_product(pid).short_name, "type": types.get(pid) or None}
+                      if types is not None else {}))
     return out
 
 

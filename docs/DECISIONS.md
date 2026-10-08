@@ -2285,3 +2285,35 @@ D-350: white screens in demos (user report). The frontend had no React error bou
   - Neither the demo releases nor our PDF text extraction contain U+FFFD; the demo PDFs' "30°C" extracts cleanly. So the broken "22 ± 2 °C" text comes from a non-demo release's record (onboarding) or from the console the replay was read in. It is not fixed at the source here.
   - The host overlay, the MEDIUM banner and the operator card now show `shortSay(...)`. A line longer than 120 characters, or one holding U+FFFD, loses its test conditions but keeps the result and its qualifier. The operator card keeps the full text as a tooltip.
 - Tests: `src/screens/robust.test.tsx`: an unknown event; an event that cannot be applied is skipped and later events apply; host, operator and viewer render the odd data without the error card; a throwing panel shows the card, its sibling stays, the error is reported, and Reload brings it back; shortSay cases.
+
+D-351: the user's switch rule for `SWITCH_MODE=immediate`, after a review by GPT, Gemini and Sonnet. The rule stays as the user gave it. Also: the 429 retry is on.
+
+- **The rule:** the run-sheet order is fixed, and the target is always and only the next product.
+  - The switch happens when the host says they are moving on now AND names that next product: its name, its short name, or its type word without the brand ("next up, the serum").
+  - Naming any other product does not switch: the product after next, a later product of the same type.
+  - There is no catch-up and no "switch to X?" chip. The operator's manual switch covers a missed switch (user's rule).
+- **Who decides:** the context judge, not a code string match.
+  - In this arm its switch verdict has one decision field, `moving_to_next_named`, written before `target_product_id`.
+  - Code checks only that the line is not a quote and that the target is the next product. There is no confidence threshold, and a line that answers a viewer and then moves on can switch (the answer gate of D-349 is gone in this arm).
+  - Every transition verdict is logged and emitted as `segment.switch_decided`, now with `named`.
+- **Run sheet for the context judge:** each product's name, short name, type word (`generic_word`, read from its approved release record) and status (done, on_air, next, later).
+- **Prompt:** a system addendum, `design_arms.md` "SWITCH: context_judge", with fictional examples only. It also covers:
+  - an answer followed by a move;
+  - a move split over two finals: the last line of RECENT_TRANSCRIPT plus UTTERANCE, counted on the second line only and never from an older line;
+  - plans ("the serum is coming later"), comparisons and quotes, which are not moves.
+- **Late verdicts:** a verdict on a line said before a switch or an undo is dropped by its segment generation, so a switch is never applied twice. A test covers an Undo followed by a late verdict.
+- **Context retry:** in this arm, a failed context call (timeout, error, invalid, or a 429) is made once more.
+  - Both calls share `CONTEXT_RETRY_TOTAL_MS`=4000 from the first call's start. The retry runs only with at least 1 s left, and each call is capped at `JUDGE_TIMEOUT_MS` (2.5 s).
+  - These calls skip the LLM layer's own 429 wait (`LLMRequest.retry_429=False`), so the two retries never stack.
+  - Worst case: the switch verdict comes 1.5 s later than without the retry.
+- **429 retry on (user-approved):** `LLM_RETRY_ON_429_MS`=500 is the code default and is set in `deploy/cloudrun.sh`. A 429 is retried once after 500 ms, only when the deadline still leaves 1 s (D-340). For a 2.5 s context call that answers a 429 within about 1 s, the retry fits. A 5 s compliance or fact call always fits.
+- Tests (`tests/test_d351.py`, made-up three-product shows):
+  - the run sheet carries short names and type words;
+  - a name, a type word only, and an answer followed by a move all switch;
+  - a split move switches on its second line;
+  - two serums: only the next one switches;
+  - no switch for a plan, a comparison, a move with nothing named, the product after next, or a quote;
+  - a late verdict after an Undo is never applied;
+  - a failed context call is made once more, without the 429 wait, inside the deadline.
+
+  The D-349 test that blocked an answer line and a low confidence is narrowed to quotes and other targets.

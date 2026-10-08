@@ -93,6 +93,25 @@ class _ArmB(BaseModel):
     model_config = ConfigDict(json_schema_extra=_all_required)
 
 
+class SwitchCueN(_ArmB):
+    """D-351 SWITCH_MODE=immediate: the switch verdict with the one decision field, `moving_to_next_named` (the host
+    moves on now to the next product and names it: name, short name or type word); it comes before the target, as
+    the model writes in order. `confidence` stays in the schema but decides nothing."""
+    is_transition: bool
+    is_quote: bool
+    moving_to_next_named: bool = False
+    target_product_id: str | None
+    confidence: Literal["low", "medium", "high"]
+
+
+@functools.cache
+def with_switch_naming(model: type[BaseModel]) -> type[BaseModel]:
+    """D-351: the context output with `SwitchCueN` in place of `SwitchCue` (immediate switch mode only)."""
+    prompter = model.model_fields["prompter"].annotation
+    p = create_model(f"{prompter.__name__}N", __base__=prompter, switch=(SwitchCueN, ...))
+    return create_model(f"{model.__name__}N", __base__=model, prompter=(p, ...))
+
+
 @functools.cache
 def with_product(model: type[BaseModel]) -> type[BaseModel]:
     """D-349 SWITCH_MODE=immediate: the same compliance output with a `product_id` per violation, asked for only in

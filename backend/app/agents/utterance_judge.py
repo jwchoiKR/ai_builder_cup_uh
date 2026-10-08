@@ -46,6 +46,8 @@ class JudgeInput:
     switch: SwitchState = field(default_factory=SwitchState)
     promo: Promo | None = None
     passages: list[Passage] = field(default_factory=list)
+    # D-351 SWITCH_MODE=immediate: each product's type word ("cream", "serum") for the run sheet the context judge gets
+    run_sheet_types: dict[str, str] | None = None
 
 
 def spoken_claim(text: str) -> str:
@@ -450,7 +452,7 @@ def build_judge_values(catalog: Catalog, inp: JudgeInput, single: bool = False) 
     """Prompt values shared by the UtteranceJudge, judge_single and the split judges (D-099)."""
     values = {
         "current_product_json": inputs.current_product_json(catalog, inp.on_air),
-        "run_sheet_compact_json": inputs.run_sheet_compact_json(catalog, inp.on_air),
+        "run_sheet_compact_json": inputs.run_sheet_compact_json(catalog, inp.on_air, inp.run_sheet_types),
         "approved_claims_of_current_product_json": inputs.approved_claims_of_current_product_json(catalog, inp.on_air),
         "rules_compact_json": inputs.rules_compact_json(catalog, judge_products(catalog, inp)),
         "active_alerts_json": inputs.active_alerts_json(inp.active_alerts),

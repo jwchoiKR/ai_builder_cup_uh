@@ -200,6 +200,22 @@ When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ..."
 [this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
 a report by someone, not a claim of [this line].
 
+## SWITCH: context_judge
+
+D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each product has `name`, `short_name`, `type`
+(its category or type word, such as "cream", "serum" or "toner") and `status`: `on_air`, `next`, `later` or `done`.
+- `switch.moving_to_next_named` decides the switch. Set it to `true` only when the host says they are moving on now
+  ("next", "now let me show you", "moving on to", "let's look at") AND names the product with status `next`: its
+  `name`, its `short_name`, or its `type` word, even without the brand ("next up, the serum"). Then
+  `switch.target_product_id` is that product.
+- A line may answer a viewer first and then move on ("Yes, it ships today. Okay, now the toner!"): judge the move.
+- Speech-to-text can split one move over two lines: the last line of RECENT_TRANSCRIPT ("Okay, next up ...") and
+  UTTERANCE ("... the serum."). When the two lines together move on and name the next product, set
+  `moving_to_next_named = true` on UTTERANCE. Use only that last line, never an older one.
+- `false` for: a move that names no product ("okay, next one"); naming a product whose status is not `next` (say
+  which product in `target_product_id`); a plan ("the serum is coming later", "later I'll show you the serum"); a
+  comparison ("this feels lighter than the serum"); a viewer's question or a quote ("someone asked about the toner").
+
 ## PAIR: compliance_judge
 
 D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what

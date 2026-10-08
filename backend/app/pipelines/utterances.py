@@ -89,6 +89,7 @@ SENTENCE_END = (".", "?", "!")
 MAX_MERGED_FINALS = 3  # a merged judgment covers at most this many finals
 EXPECTS_WAIT_S = 0.3  # D-335: how long the next final waits for the previous line's context verdict
 _KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever needed)
+MIN_CONTEXT_RETRY_MS = 1_000  # D-351: a context retry needs at least this much of its total deadline
 
 
 def ends_sentence(text: str) -> bool:
@@ -171,6 +172,7 @@ class UtterancePipeline:
         self.facts = FactChecker(ctx.llm, ctx.prompts[relation if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296
         self.compliance.docs = self.facts.files  # D-310: the same documents for COMPLIANCE_DOCS
+        self.type_words = self._type_words() if rt.settings.SWITCH_MODE == "immediate" else None  # D-351
         # D-300 R2: one verifier call per candidate alert, after the flaggers (their code drops off)
         self.verifier = (Verifier(ctx.llm, ctx.prompts["verifier"], rt.catalog, self.facts.files)
                          if rt.settings.JUDGE_ARM == "verify" else None)
@@ -464,8 +466,9 @@ class UtterancePipeline:
                                                                   if rt.settings.JUDGE_ARM == "single"  # model's 5 s
                                                                   else rt.settings.JUDGE_TIMEOUT_MS), values=values)),
                     inp, on_air, t.transcript_id), inp, values), name=f"compliance:{t.transcript_id}")
-                ctx_task = rt.spawn(self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS,
-                                                     values=values), name=f"context:{t.transcript_id}")
+                ctx_task = rt.spawn(self._context_once_more(inp, values) if self.type_words is not None
+                                    else self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values),
+                                    name=f"context:{t.transcript_id}")
             else:
                 comp_task = rt.spawn(self.judge.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS),
                                      name=f"judge:{t.transcript_id}")
@@ -571,7 +574,8 @@ class UtterancePipeline:
                          cue=s.cue, previous=previous, recent=recent, points_by_product=rt.points or None,
                          all_products=rt.settings.JUDGE_PRODUCTS == "all",
                          session_id=rt.sid, scenario=scenario,
-                         switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen)
+                         switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen,
+                         run_sheet_types=self.type_words)
         # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
         offered: dict[str, Answer | None] = {}
         for g, _ in questions:
@@ -594,6 +598,18 @@ class UtterancePipeline:
         for g in (chosen + rest)[:limit]:
             answer = await rt.get_answer(g.answer_id)
             out.append((g, answer.text if answer is not None and answer.verified else None))
+        return out
+
+    def _type_words(self) -> dict[str, str]:
+        """D-351: each release product's type word ("cream", "serum"), read from its approved release record."""
+        from ..onboarding.release import load_release
+
+        out = {}
+        for pid, rid in self.rt.pack.releases.items():
+            try:
+                out[pid] = load_release(self.rt.settings.onboarding_path, rid).generic_word or ""
+            except Exception:  # noqa: BLE001 - a missing word only leaves the run sheet without it
+                log.warning("no type word for %s (%s)", pid, rid)
         return out
 
     def _scoped(self, switch: SwitchState) -> SwitchState:
@@ -660,6 +676,21 @@ class UtterancePipeline:
                                                                   inp.recent if inp.recent is not None else inp.previous,
                                                                   on_air, self.rt.sid)
             log.info("verifier: compliance added %d ms", self.rt.ctx.clock.now_ms() - start)
+        return res
+
+    async def _context_once_more(self, inp, values):
+        """D-351 immediate switch arm (the switch hangs on the context verdict): a failed context call (timeout, error,
+        invalid, a 429 included) is made once more, inside one total deadline, CONTEXT_RETRY_TOTAL_MS from the first
+        call. These calls skip the LLM layer's own 429 wait, so the two retries never stack. Worst case: the verdict
+        comes CONTEXT_RETRY_TOTAL_MS - JUDGE_TIMEOUT_MS later than without the retry (4.0 - 2.5 = 1.5 s by default)."""
+        st = self.rt.settings
+        start = self.rt.ctx.clock.now_ms()
+        res = await self.context.run(inp, deadline_ms=st.JUDGE_TIMEOUT_MS, values=values, retry_429=False)
+        left = st.CONTEXT_RETRY_TOTAL_MS - (self.rt.ctx.clock.now_ms() - start)
+        if res.status in ("timeout", "error", "invalid") and left >= MIN_CONTEXT_RETRY_MS:
+            log.info("context check %s: once more within %d ms", res.status, left)
+            res = await self.context.run(inp, deadline_ms=min(st.JUDGE_TIMEOUT_MS, left), values=values,
+                                         retry_429=False)
         return res
 
     @staticmethod
@@ -1025,23 +1056,28 @@ class UtterancePipeline:
             await rt.emit("segment.switch_cancelled", {"reason": "speech", "transcript_id": t.transcript_id})
 
     async def _switch_now_locked(self, judge: ContextOutput | UtteranceJudgeOutput, t: Transcript, on_air: str) -> None:
-        """D-349 SWITCH_MODE=immediate: the context judge's transition verdict alone switches, at once. A transition
-        to the next product, medium or high confidence, not a quote or an answer. No name match, no confirming line,
-        no pending countdown; the host gets an Undo bar and the 60 s undo stays."""
+        """D-349 SWITCH_MODE=immediate: the context judge's transition verdict alone switches, at once. D-351 (the
+        user's rule): the host says they move on AND names the next product (its name, short name or type word), as
+        the model judged it (`moving_to_next_named`; no code string match). The target is only the next product in
+        the run sheet; naming any other product does not switch, and nothing recovers a missed switch (the operator
+        switches by hand). No confirming line, no pending countdown; the host gets an Undo bar and the 60 s undo
+        stays. A verdict on a line said before a switch or an undo is never applied (`_apply_context_locked` drops
+        it by its segment generation), so a switch is never applied twice."""
         rt = self.rt
         sw = judge.prompter.switch
         nxt = rt.catalog.next_product(on_air)
-        talk = not sw.is_quote and judge.answer.utterance_type != "answer"
-        go = (nxt is not None and talk and sw.is_transition and sw.target_product_id == nxt
-              and sw.confidence in ("medium", "high"))
-        if not (sw.is_transition or go):
+        named = getattr(sw, "moving_to_next_named", False)
+        # the model's one decision; code checks only that it is not a quote and that the target is the next product
+        # (a line that answers a viewer and then moves on can switch; there is no confidence threshold)
+        go = nxt is not None and named and not sw.is_quote and sw.target_product_id == nxt
+        if not (sw.is_transition or named or go):
             return
         decision = {"transcript_id": t.transcript_id, "switch": go, "on_air": on_air, "target_product_id":
-                    sw.target_product_id, "confidence": sw.confidence, "is_quote": sw.is_quote,
+                    sw.target_product_id, "confidence": sw.confidence, "is_quote": sw.is_quote, "named": named,
                     "utterance_type": judge.answer.utterance_type, "reason": judge.reason}
-        log.info("switch decision %s t=%s: switch=%s on_air=%s next=%s target=%s conf=%s quote=%s type=%s reason=%r",
-                 rt.sid, t.transcript_id, go, on_air, nxt, sw.target_product_id, sw.confidence, sw.is_quote,
-                 judge.answer.utterance_type, judge.reason)
+        log.info("switch decision %s t=%s: switch=%s on_air=%s next=%s target=%s named=%s conf=%s quote=%s type=%s "
+                 "reason=%r", rt.sid, t.transcript_id, go, on_air, nxt, sw.target_product_id, named, sw.confidence,
+                 sw.is_quote, judge.answer.utterance_type, judge.reason)
         await rt.emit("segment.switch_decided", decision)
         if go:
             await commit_switch_locked(rt, nxt, "auto_speech")
