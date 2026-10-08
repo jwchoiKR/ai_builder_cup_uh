@@ -323,12 +323,6 @@ describe("fact note", () => {
 });
 
 describe("compliance", () => {
-  it("provisional: only the amber chip, no overlay", () => {
-    render(view({ alerts: [alert({ status: "provisional", shown_at: null, provisional_at: now() })] }));
-    expect(screen.getByTestId("host-checking-chip")).toHaveTextContent("Checking a phrase…");
-    expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
-  });
-
   it("HIGH: the newest alert takes the prompter box, 1 of N, render ack (D-106)", () => {
     const acts = actions();
     const older = alert({ alert_id: "al_000001", span: "older claim", shown_at: now() - 5000 });

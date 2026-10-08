@@ -26,7 +26,7 @@ def _two(eczema_same_as: str | None) -> dict:
 
 async def _merge(rt, dismiss: bool = False) -> None:
     await speak(rt, FRAG)
-    [frag] = [a for a in await rt.alerts() if a.kind == "compliance"]
+    frag = next(a for a in await rt.alerts() if a.kind == "compliance" and a.span == "cures eczema")
     await advance(rt, 1200)
     await rt.inject_transcript(REST)
     await asyncio.sleep(0.1)
@@ -182,3 +182,45 @@ async def test_d406_a_late_correction_of_t2_does_not_close_t3_s_alert(tmp_path):
         assert status == {"cures eczema": "corrected", "it cures eczema": "active"}
     finally:
         await close_env(rt)
+
+
+# ---- D-410: MERGED_LINE lists the chain's own handles --------------------------------------------------------
+
+
+async def test_d410_the_merged_line_is_told_which_handles_are_its_chain_s(tmp_path):
+    import json
+    import re
+
+    llm = _Backend()
+    other = "And it prevents diabetes."
+    llm.outputs[("compliance_judge", other)] = _verdict("kelmar_code.pdf#2.1", "q", span="prevents diabetes")
+    llm.outputs[("compliance_judge", FRAG)] = _verdict("kelmar_code.pdf#2.1", "must not be presented",
+                                                       span="cures eczema")
+    llm.outputs[("compliance_judge", MERGED)] = _two("A1")
+    rt = await _show(tmp_path, llm)
+    try:
+        await speak(rt, other)
+        await advance(rt, 5000)
+        await _merge(rt)
+        req = _req(llm, MERGED)
+        block = json.loads(re.search(r'<data name="MERGED_LINE">(.*?)</data>', req.user_message, re.S).group(1))
+        assert block["chain_handles"] == ["A1"]  # the fragment's alert (newest); A2, the earlier diabetes one, is not
+    finally:
+        await close_env(rt)
+
+
+def test_d410_the_fact_notes_block_names_the_chain_s_notes():
+    import json
+    import re
+
+    from app.agents.fact_checker import FactChecker, FactInput
+    from app.models.session import Alert, SwitchState
+
+    def note(aid, tid):
+        return Alert(alert_id=aid, kind="fact", status="active", transcript_id=tid, product_id="p", created_at=0)
+
+    inp = FactInput(utterance="x", on_air="p", switch=SwitchState(), promo=None, passages=[], parts=["a", "b"],
+                    notes=[note("fx_1", "tr_frag"), note("fx_2", "tr_old")], chain=["tr_frag"], now=1000)
+    block, handles = FactChecker._notes(None, inp)
+    merged = json.loads(re.search(r'<data name="MERGED_LINE">(.*?)</data>', block, re.S).group(1))
+    assert merged["chain_handles"] == ["F1"] and handles == {"F1": "fx_1", "F2": "fx_2"}

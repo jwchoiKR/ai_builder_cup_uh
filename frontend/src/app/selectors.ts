@@ -278,10 +278,6 @@ export function activeMediumAlerts(state: ClientState): Alert[] {
   return activeComplianceAlerts(state).filter((a) => a.severity === "MEDIUM");
 }
 
-export function provisionalAlerts(state: ClientState): Alert[] {
-  return Object.values(state.alerts).filter((a) => a.kind === "compliance" && a.status === "provisional");
-}
-
 export function factNotesForHost(state: ClientState): Alert[] {
   return Object.values(state.alerts)
     .filter((a) => a.kind === "fact" && a.status === "active")  // D-402: until corrected or dismissed

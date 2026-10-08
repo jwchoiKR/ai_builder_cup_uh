@@ -24,10 +24,11 @@ log = logging.getLogger(__name__)
 
 # D-406: sent only with a merged line's re-judgment (a line speech-to-text split)
 MERGED_NOTE = (
-    'UTTERANCE joins lines that speech-to-text split. For each `contradicts` claim, `same_as` is the '
-    'handle of the ACTIVE_FACT_NOTES entry whose wrong fact it repeats (the same fact from the split '
-    'line), else null. Example: F1 is host_said "ten percent niacin"; UTTERANCE "So niacin is ten '
-    'percent, and the tube is 30 ml." gives the niacin claim `same_as` "F1" and the tube claim null.')
+    'UTTERANCE joins lines that speech-to-text split. `chain_handles` are the ACTIVE_FACT_NOTES entries '
+    'raised from those lines. For each `contradicts` claim, `same_as` is the one of `chain_handles` whose '
+    'wrong fact it repeats (the same fact from the split line), else null. Example: F1 is host_said "ten '
+    'percent niacin"; UTTERANCE "So niacin is ten percent, and the tube is 30 ml." gives the niacin claim '
+    '`same_as` "F1" and the tube claim null.')
 
 CLAIMS_SECTION = "Approved on-air claims"
 # D-250: the eval collects the drops of one case here (a list set by the caller; tasks inherit it)
@@ -64,6 +65,7 @@ class FactInput:
     scenario: str = "default"
     notes: list = field(default_factory=list)  # D-363: the active fact notes, shown to the model by handle
     now: int | None = None  # D-403: when the input was built, for each note's age
+    chain: list[str] = field(default_factory=list)  # D-410: a merged line's split lines (its notes' handles listed)
 
 
 async def gather_fact_passages(
@@ -348,7 +350,10 @@ class FactChecker:
                  "subject": a.quote, "stated_value": a.stated_value, "correct_value": a.correct_value,
                  "status": a.status, "raised_s_ago": max(0, (inp.now - a.created_at) // 1000) if inp.now else None}
                 for h, a in zip(handles, inp.notes)]
-        merged = ("\n" + inputs.data_block("MERGED_LINE", {"note": MERGED_NOTE})) if len(inp.parts) > 1 else ""
+        # D-410: the merged line is told which handles are its own chain's notes (same_as may name only those)
+        chain = [h for h, a in zip(handles, inp.notes) if a.transcript_id in inp.chain]
+        merged = ("\n" + inputs.data_block("MERGED_LINE", {"note": MERGED_NOTE, "chain_handles": chain})
+                  if len(inp.parts) > 1 else "")
         return "\n" + inputs.data_block("ACTIVE_FACT_NOTES", rows) + merged, handles  # D-406: same_as when merged
 
     async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:

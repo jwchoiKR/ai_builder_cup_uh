@@ -148,7 +148,6 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     say: str | None = None  # D-396: fact note, the model's line the host says to fix it
     # timing
     created_at: int
-    provisional_at: int | None = None  # reflex chip shown (compliance only)
     shown_at: int | None = None  # became active; escalation and latency use this
     host_rendered_at: int | None = None
     escalated_at: int | None = None

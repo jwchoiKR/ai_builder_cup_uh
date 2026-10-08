@@ -6,10 +6,9 @@ from __future__ import annotations
 
 import pytest
 
-from app.providers.llm import LLMError
 
-from .conftest import SHIPPED, VERIFY_SHIPPED
-from .judge_fakes import CREAM, ScriptedBackend, close_env, events, make_env, speak, violation
+from .conftest import SHIPPED
+from .judge_fakes import CREAM, ScriptedBackend, close_env, events, speak, violation
 
 
 def test_d309_the_single_arm_s_models(settings, clock, ids, store, bus):
@@ -57,25 +56,6 @@ async def test_d309_one_judge_no_verifier_no_drops(said, severity):
         assert a.severity == severity  # the judge may lower a HIGH rule to MEDIUM
         assert not any(r.agent == "verifier" for r in llm.reqs) and await events(rt, "verify.started") == []
         assert {r.deadline_ms for r in llm.reqs if r.agent == "compliance_judge"} == {5000}
-    finally:
-        await close_env(rt)
-
-
-async def test_d309_a_failed_judge_s_unverified_alert_says_why():
-    class Busy(ScriptedBackend):
-        async def generate(self, req, timeout_ms):
-            if req.agent in ("compliance_judge", "utterance_judge"):
-                raise LLMError("504 DEADLINE_EXCEEDED")
-            return await super().generate(req, timeout_ms)
-
-    from .helpers import live_runtime, make_ctx
-
-    rt = await live_runtime(make_ctx(backend=Busy(), REFLEX_ON_FAIL="alert"))
-    try:
-        await speak(rt, "This cream cures eczema.")
-        await rt.utterances.drain()
-        [a] = [a for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
-        assert (a.unverified, a.unverified_reason) == (True, "http_504")
     finally:
         await close_env(rt)
 

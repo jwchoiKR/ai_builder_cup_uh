@@ -52,21 +52,15 @@ async def test_d304_verbal_check_by_the_context_judge():
             await close_env(rt)
 
 
-@pytest.mark.parametrize("scan, line, provisional, cards", [
-    (True, "This cream cures eczema.", 1, 1),
-    (False, "This cream cures eczema.", 0, 1),  # no pre-scan: no chip, the failed line still gets a card
-    (True, "It feels light and soft.", 0, 0),
-    (False, "It feels light and soft.", 0, 1),  # every failed line, with no phrase
-])
-async def test_d304_no_reflex_scan(scan, line, provisional, cards):
-    rt, llm = await make_env(REFLEX_SCAN=scan, REFLEX_ON_FAIL="card")
+@pytest.mark.parametrize("line", ["This cream cures eczema.", "It feels light and soft."])
+async def test_d304_d410_a_failed_line_gets_the_card_and_no_alert(line):
+    rt, llm = await make_env()
     try:
         llm.fail("utterance_judge", line)
         await speak(rt, line)
         await rt.utterances.drain()
-        created = [e.payload for e in await events(rt, "alert.created")]
-        assert sum(p["status"] == "provisional" for p in created) == provisional
-        assert len(await events(rt, "line.check")) == cards
+        assert await events(rt, "alert.created") == []  # D-410: no regex pre-scan, no provisional alert
+        assert len(await events(rt, "line.check")) == 1
     finally:
         await close_env(rt)
 

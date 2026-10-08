@@ -68,10 +68,10 @@ async def case_01_prompter_point(rt, llm):
 
 
 async def case_02_compliance_violation(rt, llm):
-    """A HIGH claim: reflex marks it at once, the judge confirms it, the host gets the red alert."""
+    """A HIGH claim: the judge raises it, the host gets the red alert (D-410: no reflex mark first)."""
     a = await violate(rt, llm)
     assert (a.rule_id, a.severity, a.say_instead) == ("ASEAN-3-SKIN-AGEING", "HIGH", SAY)
-    assert a.provisional_at is not None and a.shown_at is not None  # reflex first, then judge
+    assert a.shown_at is not None
     await advance(rt, 5000)
     assert (await rt.get_alert(a.alert_id)).escalated_at is not None  # not corrected in 5 s
 
@@ -96,10 +96,10 @@ async def case_04_correction(rt, llm):
 
 
 async def case_05_negated_claim(rt, llm):
-    """A negated claim: reflex marks it, the judge clears it, nothing reaches the host."""
+    """A negated claim: the judge marks it negated, nothing reaches the host."""
     llm.judge(NEGATED, violations=[violation("ASEAN-3-SKIN-ACNE", "treat acne", negated=True)])
     await speak(rt, NEGATED)
-    assert [(a.rule_id, a.status) for a in await compliance(rt)] == [("ASEAN-3-SKIN-ACNE", "cleared")]
+    assert await compliance(rt) == []
 
 
 async def case_06_quoted_claim(rt, llm):

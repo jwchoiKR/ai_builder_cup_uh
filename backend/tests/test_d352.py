@@ -51,19 +51,13 @@ async def _run(backend, **settings):
         await close_env(rt)
 
 
-async def test_d352_a_correction_of_a_provisional_alert_applies_when_it_turns_active():
-    alerts, llm = await _run(_Backend(), REFLEX_SCAN=True)  # the reflex chip makes the alert provisional at once
-    assert [a.status for a in alerts if a.status != "cleared"] == ["corrected"]
-    assert llm.sorry_calls == 1  # the stored correction applied; no second call
-
-
 async def test_d352_a_line_judged_before_the_alert_existed_is_asked_once_more():
-    alerts, llm = await _run(_Backend(), REFLEX_SCAN=False)  # no chip: the apology's verdict saw no alert at all
+    alerts, llm = await _run(_Backend())  # the apology's verdict saw no alert at all
     assert [a.status for a in alerts] == ["corrected"] and llm.sorry_calls == 2
 
 
 async def test_d352_a_failed_re_check_is_never_a_correction():
-    alerts, llm = await _run(_Backend(fail_recheck=True), REFLEX_SCAN=False)
+    alerts, llm = await _run(_Backend(fail_recheck=True))
     assert [a.status for a in alerts] == ["active"] and llm.sorry_calls == 2
 
 
@@ -89,6 +83,6 @@ async def test_d357_the_re_check_fires_although_the_line_s_own_verdict_has_not_c
     import logging
 
     with caplog.at_level(logging.INFO):
-        alerts, llm = await _run(_HandleBackend(), REFLEX_SCAN=False, CORRECTION_HANDLES=True)
+        alerts, llm = await _run(_HandleBackend(), CORRECTION_HANDLES=True)
     assert [a.status for a in alerts] == ["corrected"] and llm.sorry_calls == 2
     assert "re-check trigger" in caplog.text and "-> fired" in caplog.text

@@ -144,7 +144,6 @@ export interface Alert {
   citation?: string | null; // D-374: compliance, the model's citation ("<document>#<section>")
   say?: string | null; // D-396: fact note, the model's line the host says to fix it
   created_at: number;
-  provisional_at: number | null;
   shown_at: number | null;
   host_rendered_at: number | null;
   escalated_at: number | null;

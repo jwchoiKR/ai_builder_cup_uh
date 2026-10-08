@@ -1,5 +1,5 @@
-"""Compliance alert lifecycle (DEV_SPEC §8.4):
-provisional -> active -> corrected | dismissed, or provisional -> cleared.
+"""Compliance alert lifecycle (DEV_SPEC §8.4): active -> corrected | dismissed | cleared. D-410: no provisional state
+(the regex pre-scan is gone; only the judge raises an alert).
 
 Functions change the given Alert objects in place and return the ones they created or changed;
 the pipeline stores them and emits events.
@@ -11,36 +11,20 @@ from collections.abc import Callable, Sequence
 from ..models.agent_io import UtteranceJudgeOutput
 from ..models.data import Rule
 from ..models.session import Alert, Transcript
-from .reflex import ReflexHit
 
 NewId = Callable[[str], str]
 
 
 def is_live(a: Alert) -> bool:
-    return a.status in ("provisional", "active")
+    return a.status == "active"
 
 
 def high_alert_active(alerts: Sequence[Alert]) -> bool:
     return any(a.kind == "compliance" and a.status == "active" and a.severity == "HIGH" for a in alerts)
 
 
-def provisional_from_reflex(
-    hits: Sequence[ReflexHit], t: Transcript, product_id: str, alerts: Sequence[Alert], new_id: NewId, now: int,
-) -> list[Alert]:
-    """§8.2 step 2: one provisional alert per rule hit, unless an active alert already covers the rule."""
-    covered = {a.rule_id for a in alerts if a.kind == "compliance" and a.status == "active"}
-    out: list[Alert] = []
-    for h in hits:
-        if h.rule_id in covered or any(a.rule_id == h.rule_id for a in out):
-            continue
-        out.append(Alert(alert_id=new_id("al_"), kind="compliance", status="provisional", transcript_id=t.transcript_id,
-                         product_id=product_id, rule_id=h.rule_id, severity=h.severity, span=h.phrase,
-                         created_at=now, provisional_at=now))
-    return out
-
-
 def apply_judge_compliance(
-    judge: UtteranceJudgeOutput, t: Transcript, product_id: str, provisional: Sequence[Alert],
+    judge: UtteranceJudgeOutput, t: Transcript, product_id: str,
     rules: dict[str, Rule], new_id: NewId, now: int, listed: dict[str, Alert] | None = None,
 ) -> tuple[list[Alert], list[Alert], list[str]]:
     """§8.4.1. Returns (changed, created, closed).
@@ -54,19 +38,12 @@ def apply_judge_compliance(
     changed: list[Alert] = []
     created: list[Alert] = []
     closed: list[str] = []
-    pending = {a.rule_id: a for a in provisional if a.status == "provisional" and a.transcript_id == t.transcript_id}
     for v in judge.compliance.violations:
         if v.is_negated or v.is_quoted:
-            a = pending.pop(v.rule_id, None)
-            if a is not None and a.status == "provisional":
-                a.status = "cleared"
-                changed.append(a)
             continue
         same = (listed or {}).get(getattr(v, "same_as", None) or "")
         if same is not None:
-            if same.status in ("active", "provisional"):
-                if same.status == "provisional":  # D-406: confirmed by the merged verdict: shown now, as a new one
-                    same.status, same.shown_at = "active", now
+            if same.status == "active":
                 same.span, same.say_instead = v.span, v.say_instead or same.say_instead
                 same.quote, same.citation = getattr(v, "quote", None) or same.quote, getattr(v, "citation", None) or same.citation
                 changed.append(same)
@@ -75,46 +52,14 @@ def apply_judge_compliance(
             continue
         # D-300: the verifier's; D-358: else the verdict's own (the legacy rules path set it from the rule)
         severity = getattr(v, "_severity", None) or v.severity
-        a = pending.pop(v.rule_id, None)
-        if a is not None:
-            a.status, a.span, a.say_instead, a.severity, a.shown_at = "active", v.span, v.say_instead or None, severity, now
-            a.product_id = getattr(v, "product_id", None) or a.product_id  # D-349: the product the judge picked
-            a.unverified = a.unverified or getattr(v, "_unverified", False)
-            a.unverified_reason = getattr(v, "_unverified_reason", None) or a.unverified_reason  # D-306
-            a.votes = getattr(v, "_votes", None)  # D-302
-            a.quote, a.citation = getattr(v, "quote", None), getattr(v, "citation", None)  # D-374: the model's
-            changed.append(a)
-        else:
-            created.append(Alert(alert_id=new_id("al_"), kind="compliance", status="active", transcript_id=t.transcript_id,
-                                 product_id=getattr(v, "product_id", None) or product_id,  # D-349
-                                 rule_id=v.rule_id, severity=severity, span=v.span,
-                                 say_instead=v.say_instead or None, created_at=now, shown_at=now,
-                                 unverified=getattr(v, "_unverified", False), votes=getattr(v, "_votes", None),
-                                 unverified_reason=getattr(v, "_unverified_reason", None),
-                                 quote=getattr(v, "quote", None), citation=getattr(v, "citation", None)))
-    for a in pending.values():
-        if a.status == "provisional":  # not confirmed by the judge
-            a.status = "cleared"
-            changed.append(a)
+        created.append(Alert(alert_id=new_id("al_"), kind="compliance", status="active", transcript_id=t.transcript_id,
+                             product_id=getattr(v, "product_id", None) or product_id,  # D-349
+                             rule_id=v.rule_id, severity=severity, span=v.span,
+                             say_instead=v.say_instead or None, created_at=now, shown_at=now,
+                             unverified=getattr(v, "_unverified", False), votes=getattr(v, "_votes", None),
+                             unverified_reason=getattr(v, "_unverified_reason", None),
+                             quote=getattr(v, "quote", None), citation=getattr(v, "citation", None)))
     return changed, created, closed
-
-
-def apply_judge_failure(
-    provisional: Sequence[Alert], hits: Sequence[ReflexHit], say_instead: str, now: int,
-) -> list[Alert]:
-    """§8.4.3: fail toward warning. A HIGH reflex hit that is neither negated nor quoted becomes an
-    unverified active alert; everything else is cleared."""
-    out: list[Alert] = []
-    for a in provisional:
-        if a.status != "provisional":
-            continue
-        rule_hits = [h for h in hits if h.rule_id == a.rule_id]
-        if a.severity == "HIGH" and any(not h.negated and not h.quoted for h in rule_hits):
-            a.status, a.shown_at, a.unverified, a.say_instead = "active", now, True, say_instead
-        else:
-            a.status = "cleared"
-        out.append(a)
-    return out
 
 
 def apply_corrections(alerts: Sequence[Alert], corrects_ids: Sequence[str], t: Transcript, now: int) -> list[Alert]:
@@ -131,7 +76,7 @@ def apply_corrections(alerts: Sequence[Alert], corrects_ids: Sequence[str], t: T
 
 
 def dismiss(a: Alert, now: int, reason: str = "false_alarm") -> bool:
-    if a.status not in ("active", "provisional"):
+    if a.status != "active":
         return False
     a.status, a.resolved_at, a.dismissed_reason = "dismissed", now, reason
     return True

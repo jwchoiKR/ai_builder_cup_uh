@@ -4,8 +4,7 @@ from __future__ import annotations
 import pytest
 
 from app.logic import alerts as alert_logic
-from app.logic.reflex import Reflex
-from app.models.session import Alert, Transcript
+from app.models.session import Alert
 from app.pipelines import utterances as utt
 from app.pipelines.runtime import ActionError
 
@@ -13,12 +12,11 @@ from .judge_fakes import CREAM, advance, close_env, events, make_env, speak, vio
 
 WRINKLES = "Use it every night and your wrinkles will disappear overnight."
 BACTERIA = "It kills the bacteria on your skin."
-FALLBACK_SAY = "Helps keep skin hydrated for up to 24 hours in our in-house test."
 
 
 @pytest.fixture
 async def env():
-    rt, llm = await make_env(REFLEX_ON_FAIL="alert")  # D-293: the default is "card"; these tests check the alert path
+    rt, llm = await make_env()
     yield rt, llm
     await close_env(rt)
 
@@ -31,7 +29,7 @@ async def only_alert(rt) -> Alert:
 # ---- judge confirms / clears -------------------------------------------------------------------
 
 
-async def test_provisional_upgraded_to_active(env):
+async def test_a_judge_violation_is_an_active_alert(env):
     rt, llm = env
     llm.judge(WRINKLES, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight",
                                               severity="MEDIUM", say="With regular use, it helps keep skin hydrated.")])
@@ -40,11 +38,9 @@ async def test_provisional_upgraded_to_active(env):
     assert (a.kind, a.status, a.rule_id) == ("compliance", "active", "ASEAN-3-SKIN-AGEING")
     assert a.severity == "MEDIUM"  # D-391: the model's severity and wording, as given
     assert a.span == "your wrinkles will disappear overnight" and a.say_instead == "With regular use, it helps keep skin hydrated."
-    assert a.provisional_at is not None and a.shown_at is not None and a.transcript_id == t.transcript_id
-    assert not a.unverified
-    alert_events = [e for e in await events(rt) if e.type.startswith("alert.")]
-    assert [e.type for e in alert_events] == ["alert.created", "alert.updated"]
-    assert alert_events[0].payload["status"] == "provisional" and alert_events[1].payload["status"] == "active"
+    assert a.shown_at is not None and a.transcript_id == t.transcript_id and not a.unverified
+    # D-410: no provisional alert first; the judge's verdict is the only alert event
+    assert [e.type for e in await events(rt) if e.type.startswith("alert.")] == ["alert.created"]
 
 
 async def test_judge_violation_without_reflex_hit_creates_active(env):
@@ -52,7 +48,7 @@ async def test_judge_violation_without_reflex_hit_creates_active(env):
     llm.judge(BACTERIA, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL", "kills the bacteria")])
     await speak(rt, BACTERIA)
     a = await only_alert(rt)
-    assert a.status == "active" and a.provisional_at is None and a.shown_at is not None
+    assert a.status == "active" and a.shown_at is not None
     assert [e.type for e in await events(rt) if e.type.startswith("alert.")] == ["alert.created"]
 
 
@@ -67,55 +63,26 @@ async def test_unknown_rule_is_dropped(env):
     ("Just to be clear, it does not treat acne. It's a moisturiser.", "ASEAN-3-SKIN-ACNE", {"negated": True}),
     ("Someone asked if it cures eczema.", "ASEAN-2D-DISEASE", {"quoted": True}),
 ])
-async def test_negated_or_quoted_clears_provisional(env, text, rule, flags):
+async def test_negated_or_quoted_gives_no_alert(env, text, rule, flags):
     rt, llm = env
     llm.judge(text, violations=[violation(rule, **flags)])
     await speak(rt, text)
-    a = await only_alert(rt)
-    assert a.status == "cleared" and a.shown_at is None
+    assert await rt.alerts() == []
 
 
-async def test_unconfirmed_provisional_is_cleared(env):
-    rt, llm = env
-    llm.judge(WRINKLES)  # no violations
-    await speak(rt, WRINKLES)
-    a = await only_alert(rt)
-    assert a.status == "cleared"
+# ---- judge failure: D-410, the neutral card only ----------------------------------------------------
 
 
-# ---- judge failure (§8.4.3) ---------------------------------------------------------------------
-
-
-async def test_judge_failure_upgrades_high_unverified(env):
-    rt, llm = env
-    llm.fail("utterance_judge", WRINKLES)
-    t = await speak(rt, WRINKLES)
-    a = await only_alert(rt)
-    assert a.status == "active" and a.unverified and a.say_instead == FALLBACK_SAY and a.shown_at is not None
-    [failed] = await events(rt, "judge.failed")
-    assert failed.payload["transcript_id"] == t.transcript_id and failed.payload["alert_ids"] == [a.alert_id]
-
-
-@pytest.mark.parametrize("text", [
-    "Honestly this is the best moisturiser in Singapore.",  # MEDIUM
-    "It definitely does not cure eczema.",  # negated HIGH
-    "Someone asked if it cures eczema.",  # quoted HIGH
-])
-async def test_judge_failure_clears_medium_negated_quoted(env, text):
+@pytest.mark.parametrize("text", [WRINKLES, "Hello everyone."])
+async def test_judge_failure_gives_the_check_card_and_no_alert(env, text):
     rt, llm = env
     llm.fail("utterance_judge", text)
-    await speak(rt, text)
-    alerts = await rt.alerts()
-    assert alerts and all(a.status == "cleared" for a in alerts)
-    assert len(await events(rt, "judge.failed")) == 1
-
-
-async def test_judge_failure_without_reflex_hit(env):
-    rt, llm = env
-    llm.fail("utterance_judge", "Hello everyone.")
-    await speak(rt, "Hello everyone.")
+    t = await speak(rt, text)
     assert await rt.alerts() == []
-    assert (await events(rt, "judge.failed"))[0].payload["alert_ids"] == []
+    [failed] = await events(rt, "judge.failed")
+    assert failed.payload["transcript_id"] == t.transcript_id and failed.payload["alert_ids"] == []
+    [card] = await events(rt, "line.check")
+    assert card.payload["text"] == text and card.payload["rule_ids"] == []
 
 
 # ---- escalation, correction, dismiss ------------------------------------------------------------
@@ -234,8 +201,7 @@ async def test_repeat_of_active_rule_creates_a_second_alert(env):
     llm.judge(again, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL", "kills bacteria")])
     await speak(rt, again)
     alerts = await rt.alerts()
-    # the reflex phrase is already covered by an active alert: no provisional, the judge creates a new one
-    assert [a.status for a in alerts] == ["active", "active"] and alerts[1].provisional_at is None
+    assert [a.status for a in alerts] == ["active", "active"]
 
 
 async def test_d387_two_claims_of_one_rule_in_adjacent_finals_are_two_alerts(env):
@@ -265,17 +231,6 @@ async def test_render_ack(env):
 
 
 # ---- pure functions -----------------------------------------------------------------------------
-
-
-def test_provisional_from_reflex_skips_rules_with_active_alert(pack, ids):
-    reflex = Reflex(pack.rules, pack.lexicon)
-    t = Transcript(transcript_id="tr_1", text="It cures eczema and removes wrinkles.", is_final=True,
-                   speech_end_at=0, received_at=0, source="injected", segment_id="seg_1")
-    existing = [Alert(alert_id="al_x", kind="compliance", status="active", transcript_id="tr_0", product_id=CREAM,
-                      rule_id="ASEAN-2D-DISEASE", severity="HIGH", created_at=0, shown_at=0)]
-    out = alert_logic.provisional_from_reflex(reflex.scan(t.text), t, CREAM, existing, lambda p: ids.new(p, "s"), 10)
-    assert [a.rule_id for a in out] == ["ASEAN-3-SKIN-AGEING"]
-    assert out[0].status == "provisional" and out[0].provisional_at == 10
 
 
 def test_dismiss_function_states():

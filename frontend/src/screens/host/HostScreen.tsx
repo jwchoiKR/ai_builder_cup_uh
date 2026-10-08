@@ -21,7 +21,6 @@ import {
   hostSlots,
   priceView,
   productById,
-  provisionalAlerts,
   runOfShow,
 } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
@@ -245,7 +244,7 @@ export function HostView({
   const onAir = runOfShow(state, catalog, now).find((i) => i.status === "on_air");
   const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
   // D-306: also while the verifier checks a line's candidates (an alert shows only once it answers)
-  const checking = provisionalAlerts(state).length > 0 || Object.keys(state.verifying).length > 0;
+  const checking = Object.keys(state.verifying).length > 0;  // D-410: no provisional alert any more
   const lineCheck = activeLineCheck(state, clientNow); // D-288: below every alert
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   const target = pendingSwitch ? productById(catalog, pendingSwitch.target_product_id) : null;
