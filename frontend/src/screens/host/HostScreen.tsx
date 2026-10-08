@@ -176,6 +176,8 @@ function TopBar({
   );
 }
 
+const EMBEDDED_MIN_SCALE = 0.7; // D-332: in a Studio pane the text stays readable (cautions about 10.5 px at 1440 px)
+
 export function HostView({
   state,
   catalog,
@@ -202,7 +204,7 @@ export function HostView({
   const rootRef = useRef<HTMLDivElement>(null);
   const readingSize = useReadingSize(); // D-119: 100 / 125 / 150% from the Settings gear
   const layout = useHostLayout(); // D-181: the panel sizes, one per browser (Studio's host pane too)
-  const scale = useHostScale(rootRef) * readingSize;
+  const scale = useHostScale(rootRef, embedded ? EMBEDDED_MIN_SCALE : undefined) * readingSize;
   const clientNow = useNow(250);
   const now = clientNow + state.serverOffsetMs;
   const mic = useMic();
@@ -308,7 +310,7 @@ export function HostView({
                   <CueStrip cue={cue} />
                 ) : (
                   <span className={cx(styles.pointsStatus, "tabular")} data-testid="host-points-status">
-                    {pointsStatus(t, prompter.requiredTotal - prompter.requiredCovered, timing)}
+                    {pointsStatus(t, prompter.requiredTotal - prompter.requiredCovered, timing, prompter.requiredTotal)}
                   </span>
                 )
               }

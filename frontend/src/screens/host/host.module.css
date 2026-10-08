@@ -1356,3 +1356,21 @@
 
 /* D-239: the source of an AI reply */
 .cite { display: block; color: var(--text-3); font-size: var(--fs-12); margin-top: 2px; }
+
+/* D-332: "+N more" under the first cautions */
+.moreToggle {
+  align-self: flex-start;
+  margin-top: calc(4px * var(--hs));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: calc(15px * var(--hs));
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.moreToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

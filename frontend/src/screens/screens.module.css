@@ -561,3 +561,10 @@
   margin: 15vh auto 0;
   padding: 0 var(--space-4);
 }
+
+/* D-332: an older version of a product in the approved-products list */
+.hubReleaseOld {
+  font-size: 13px;
+  font-weight: var(--fw-regular, 400);
+  color: var(--text-2);
+}

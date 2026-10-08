@@ -3,7 +3,7 @@
 // blocks (caution | avoid saying), as in the earlier prototype. Facts already said turn grey; the price
 // never does. Compliance alerts take this same box while they are active, so nothing else moves.
 import { Ban, Check, CircleDot, ListChecks, TriangleAlert } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { useT, type Translate } from "../../app/i18n";
 import type { PriceView, PrompterPointRow, PrompterViewModel } from "../../app/selectors";
@@ -30,6 +30,7 @@ export function ingredientsOf(product: Product): { key: string; name: string; va
 }
 
 const MIN_ZOOM = 0.8; // below this the text gets too small to read
+const CAUTIONS_SHOWN = 4; // D-332: the first cautions (the record's order); the rest behind "+N more"
 const LATE_SHARE = 0.8; // D-107: from here an unsaid required point is emphasised once
 
 /** Planned time of the on-air segment, for the status line and the late emphasis. */
@@ -44,13 +45,15 @@ const mmss = (ms: number) => {
 };
 
 /** "2 required points left · 0:30", or "+0:15 over" past the planned time. */
-export function pointsStatus(t: Translate, left: number, timing: SegmentTiming | null): string {
+export function pointsStatus(t: Translate, left: number, timing: SegmentTiming | null, total = 1): string {
+  // D-332: a product with no required points says nothing about them
   const points = left
     ? t(left === 1 ? "{n} required point left" : "{n} required points left", { n: left })
-    : t("All required points said");
+    : total > 0 ? t("All required points said") : "";
   if (!timing || !timing.plannedMs) return points;
   const rest = timing.plannedMs - timing.elapsedMs;
-  return `${points} · ${rest >= 0 ? mmss(rest) : t("+{time} over", { time: mmss(rest) })}`;
+  const time = rest >= 0 ? mmss(rest) : t("+{time} over", { time: mmss(rest) });
+  return points ? `${points} · ${time}` : time;
 }
 
 /** D-107 (the prototype's fitSlot): when the box content is taller than the box, shrink it step by
@@ -192,6 +195,8 @@ function ProductPanel({
   late: boolean;
 }) {
   const t = useT();
+  const cautions = product.cautions ?? [];
+  const [showAll, setShowAll] = useState(false);
   const saidText = points
     .filter((p) => p.covered)
     .map((p) => p.text.toLowerCase())
@@ -264,9 +269,15 @@ function ProductPanel({
             <TriangleAlert aria-hidden />
             {t("Caution")}
           </h5>
-          {(product.cautions ?? []).map((c) => (
+          {(showAll ? cautions : cautions.slice(0, CAUTIONS_SHOWN)).map((c) => (
             <p key={c}>{c}</p>
           ))}
+          {cautions.length > CAUTIONS_SHOWN && (
+            <button type="button" className={styles.moreToggle} aria-expanded={showAll}
+              onClick={() => setShowAll((v) => !v)} data-testid="host-cautions-more">
+              {showAll ? t("Show fewer") : t("+{n} more", { n: cautions.length - CAUTIONS_SHOWN })}
+            </button>
+          )}
         </div>
         <div className={cx(styles.guard, styles.guardAvoid)} data-testid="host-avoid">
           <h5>

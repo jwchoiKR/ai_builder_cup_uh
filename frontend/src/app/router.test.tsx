@@ -71,4 +71,11 @@ describe("D-315: a show lost to a server restart", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByTestId("session-ended")).toBeNull();
   });
+
+  it("D-332: a screen opened without ?session loads the current demo show's own catalog", async () => {
+    const calls = server([], ["ses_cat4"]);
+    window.history.replaceState(null, "", "/host");
+    render(<App />);
+    await waitFor(() => expect(calls).toContain("/api/catalog?session=ses_cat4"));
+  });
 });

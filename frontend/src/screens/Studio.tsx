@@ -19,7 +19,7 @@ type PaneScreen = Extract<ScreenKey, "host" | "operator" | "viewer">;
 export type PresetKey = "host_operator" | "host_viewer" | "all";
 
 export const PRESETS: Record<PresetKey, { label: string; panes: { screen: PaneScreen; width: number }[] }> = {
-  host_operator: { label: "Host + Operator", panes: [{ screen: "host", width: 60 }, { screen: "operator", width: 40 }] },
+  host_operator: { label: "Host + Operator", panes: [{ screen: "host", width: 68 }, { screen: "operator", width: 32 }] },
   host_viewer: { label: "Host + Viewer", panes: [{ screen: "host", width: 70 }, { screen: "viewer", width: 30 }] },
   all: {
     label: "All three",

@@ -206,6 +206,7 @@ describe("Viewer product strip and time sale", () => {
     render(view(stateWith({ session: session({ status: "ready", started_at: null, current_segment_id: null }), segments: [] })));
     const video = screen.getByTestId("viewer-video");
     expect(within(video).getByText("Sample product preview")).toBeInTheDocument();
+    expect(within(video).getByText("DL")).toBeInTheDocument();  // D-332: the brand's initials, not an empty frame
     expect(within(video).getByText("Hydra Barrier Cream")).toBeInTheDocument();
     expect(within(video).getByText("DAON LAB")).toBeInTheDocument();
     expect(screen.queryByText("LIVE")).toBeNull();
