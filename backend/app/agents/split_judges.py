@@ -10,12 +10,14 @@ Both read the same input values as the UtteranceJudge (`build_judge_values`) and
 from __future__ import annotations
 
 import json
+import logging
 
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ComplianceOutputRC, ContextOutput,
-                               ContextOutputB, ContextOutputQ, with_product, with_switch_naming)
+                               ContextOutputB, ContextOutputQ, with_alert_checks, with_product,
+                               with_switch_naming)
 from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -25,6 +27,9 @@ from .utterance_judge import (
     STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
     validate_context,
 )
+
+
+log = logging.getLogger(__name__)
 
 
 class _SplitJudge:
@@ -135,6 +140,11 @@ class ComplianceJudge(_SplitJudge):
         if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
             if extra := arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        # D-356: ACTIVE_ALERTS by per-call handle, and a yes or no per listed alert first in the answer
+        self.handles = bool(getattr(getattr(llm, "settings", None), "CORRECTION_HANDLES", False))
+        if self.handles:
+            if extra := arms._addenda(str(llm.prompts_path)).get(("HANDLES", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "COMPLIANCE_RESAY", False):  # D-355: a qualified re-say corrects
             if extra := arms._addenda(str(llm.prompts_path)).get(("RESAY", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
@@ -199,12 +209,31 @@ class ComplianceJudge(_SplitJudge):
             "approved_claims": inputs.approved_claims_of_current_product_json(self.catalog, prev)})
 
     def model_for(self, inp: JudgeInput, model: type) -> type:
-        return with_product(model) if self._previous(inp) else model
+        model = with_product(model) if self._previous(inp) else model
+        return with_alert_checks(model) if self.handles else model
+
+    def _with_handles(self, inp: JudgeInput, values: dict) -> dict:
+        """D-356: ACTIVE_ALERTS as handles (A1, A2 ...) with span, rule and status; the handle -> id map stays in
+        the values (never sent) and restores the ids before the id check."""
+        from ..logic.qualifier import RULE_ID as QUALIFIER
+
+        by_id = {a.alert_id: a for a in inp.active_alerts}
+        shown, handles = [], {}
+        for i, row in enumerate(values["active_alerts_json"], 1):
+            a = by_id.get(row["alert_id"])
+            status = ("provisional" if a is not None and a.status == "provisional"
+                      else "banner" if row["rule_id"] == QUALIFIER else "active")
+            handles[f"A{i}"] = row["alert_id"]
+            shown.append({"handle": f"A{i}", "span": row["span"], "rule_id": row["rule_id"], "status": status,
+                          "say_instead": row.get("say_instead")})
+        return {**values, "active_alerts_json": shown, "alert_handles": handles}
 
     async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None, **opts) -> AgentResult:
         if (prev := self._previous(inp)) is not None:  # D-349: the products a violation may name
             values = {**(values if values is not None else build_judge_values(self.catalog, inp)),
                       "scope_product_ids": [inp.on_air, prev]}
+        if self.handles:
+            values = self._with_handles(inp, values if values is not None else build_judge_values(self.catalog, inp))
         search = rule_search.for_settings(self.llm.settings) if self.arm == "E" else None
         if search is not None:  # D-194 arm E: only the rules the search picks for this line (every rule on failure)
             values = dict(values if values is not None else build_judge_values(self.catalog, inp))
@@ -213,7 +242,14 @@ class ComplianceJudge(_SplitJudge):
             if ids is not None:
                 by_id = {r["rule_id"]: r for r in values["rules_compact_json"]}
                 values["rules_compact_json"] = [by_id[i] for i in dict.fromkeys(ids) if i in by_id]
-        return await super().run(inp, deadline_ms=deadline_ms, values=values, **opts)
+        res = await super().run(inp, deadline_ms=deadline_ms, values=values, **opts)
+        if self.handles:  # D-356: per call, what was shown, the handle map and the answer
+            log.info("compliance handles call=%s line=%r active_alerts=%s handles=%s answer=%s corrects=%s",
+                     res.call_id, inp.utterance[:80], json.dumps(values["active_alerts_json"], ensure_ascii=False),
+                     values["alert_handles"],
+                     [c.model_dump() for c in res.output.alert_checks] if res.output is not None else res.status,
+                     res.output.correction.corrects_alert_ids if res.output is not None else None)
+        return res
 
     def extra_data(self) -> str:
         if not arms.meaning_to_llm(self.arm):
@@ -230,6 +266,16 @@ class ComplianceJudge(_SplitJudge):
         return super().extra_data() + inputs.data_block("QUALIFIED_RESULTS", results)
 
     def validate(self, out: ComplianceOutput, values: dict) -> ComplianceOutput:
+        handles = values.get("alert_handles")
+        if handles is not None:  # D-356: the handles the model said this line fixes, as ids, before the id check
+            checks = getattr(out, "alert_checks", [])
+            unknown = [c.handle for c in checks if c.handle not in handles]
+            if unknown:
+                log.info("compliance handles: unknown handles dropped: %s (shown: %s)", unknown, sorted(handles))
+            out.correction.corrects_alert_ids = list(dict.fromkeys([
+                *out.correction.corrects_alert_ids,
+                *(handles[c.handle] for c in checks if c.fixed_by_this_line and c.handle in handles)]))
+            values = {**values, "active_alerts_json": [{"alert_id": i} for i in handles.values()]}
         judge_arm = getattr(self.llm.settings, "JUDGE_ARM", "guards")
         return validate_compliance(out, self.catalog, values, arm=self.arm, verify=judge_arm in ("verify", "vote", "single"),
                                    model_severity=judge_arm == "single")  # D-309
