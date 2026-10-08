@@ -235,6 +235,7 @@ class ViolationO(Violation, _ArmB):
     rule_id: str = ""
     severity: Literal["HIGH", "MEDIUM"] = "HIGH"  # D-400: set by code from the citation type, never asked
     qualified_result_id: str | None = None  # the QUALIFIED_RESULTS entry a TEST-QUALIFIER verdict states
+    same_as: str | None = None  # D-403: the ACTIVE_ALERTS handle this violation repeats (code maps it to the id)
 
 
 class ComplianceO(Compliance, _ArmB):
@@ -292,6 +293,7 @@ class FactClaim(BaseModel):
     passage_id: str | None
     quote: str | None
     say: str | None = None  # D-396: the model's say line for a contradiction (relation arm v5)
+    same_as: str | None = None  # D-403: the ACTIVE_FACT_NOTES handle this claim repeats (code maps it to the id)
     _unverified: bool = PrivateAttr(default=False)  # D-300: kept without the verifier's verdict (timeout)
     _votes: int | None = PrivateAttr(default=None)  # D-302
     _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
@@ -366,6 +368,7 @@ class FactRelationClaimV5(BaseModel):
     relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
     correct_value: str | None
     say: str | None = None  # D-396: the line the host says to fix it (contradicts only)
+    same_as: str | None = None  # D-403: the ACTIVE_FACT_NOTES handle this contradiction repeats
 
 
 class FactRelationOutputV5(BaseModel):

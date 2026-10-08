@@ -297,15 +297,18 @@ export function factNotesForHost(state: ClientState): Alert[] {
 export const TEST_QUALIFIER_RULE = "TEST-QUALIFIER";
 
 /** D-399: the newest of each group (the list is newest first) and how many there are; a null key is never grouped. */
-function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; count: number }[] {
-  const out: { item: T; count: number }[] = [];
+function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; count: number; members: T[] }[] {
+  const out: { item: T; count: number; members: T[] }[] = [];
   const at = new Map<string, number>();
   for (const x of items) {
     const k = key(x);
-    if (k !== null && at.has(k)) out[at.get(k)!].count += 1;
-    else {
+    if (k !== null && at.has(k)) {
+      const g = out[at.get(k)!];
+      g.count += 1;
+      g.members.push(x);
+    } else {
       if (k !== null) at.set(k, out.length);
-      out.push({ item: x, count: 1 });
+      out.push({ item: x, count: 1, members: [x] });
     }
   }
   return out;
@@ -318,23 +321,22 @@ function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; co
  *  passage id they cite (ids, never text; a note with no passage is not grouped): one card, the newest, with its count.
  *  Every alert stays its own record and handle; the operator screen lists each one. */
 export function hostBanners(state: ClientState): {
-  mediums: { alert: Alert; fact: Alert | null; count: number }[];
+  mediums: { alert: Alert; fact: Alert | null; count: number; factCount: number }[];
   facts: { alert: Alert; count: number }[];
 } {
   const high = new Set(activeComplianceAlerts(state).filter((a) => a.severity === "HIGH").map((a) => a.transcript_id));
-  const facts = factNotesForHost(state).filter((f) => !high.has(f.transcript_id));
-  const merged = new Set<string>();
+  // D-403: fact notes are grouped first; a qualifier card on a note's sentence takes that note's whole group
+  const groups = groupNewest(factNotesForHost(state).filter((f) => !high.has(f.transcript_id)), (f) => f.passage_id);
+  const merged = new Set<number>();
   const mediums = groupNewest(activeMediumAlerts(state).filter((a) => !high.has(a.transcript_id)), (a) => a.rule_id)
     .map(({ item: alert, count }) => {
-      const fact =
-        alert.rule_id === TEST_QUALIFIER_RULE
-          ? (facts.find((f) => f.transcript_id === alert.transcript_id && !merged.has(f.alert_id)) ?? null)
-          : null;
-      if (fact) merged.add(fact.alert_id);
-      return { alert, fact, count };
+      const i = alert.rule_id === TEST_QUALIFIER_RULE
+        ? groups.findIndex((g, j) => !merged.has(j) && g.members.some((f) => f.transcript_id === alert.transcript_id))
+        : -1;
+      if (i >= 0) merged.add(i);
+      return { alert, fact: i >= 0 ? groups[i].item : null, count, factCount: i >= 0 ? groups[i].count : 0 };
     });
-  const notes = groupNewest(facts.filter((f) => !merged.has(f.alert_id)), (f) => f.passage_id)
-    .map(({ item: alert, count }) => ({ alert, count }));
+  const notes = groups.filter((_, j) => !merged.has(j)).map(({ item: alert, count }) => ({ alert, count }));
   return { mediums, facts: notes };
 }
 

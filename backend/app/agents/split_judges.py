@@ -265,8 +265,11 @@ class ComplianceJudge(_SplitJudge):
             status = ("provisional" if a is not None and a.status == "provisional"
                       else "banner" if row["rule_id"] == QUALIFIER else "active")
             handles[f"A{i}"] = row["alert_id"]
+            # D-403: and how many seconds ago it was raised, so the model can tell a repeat from a new claim
+            age = max(0, (inp.now - a.created_at) // 1000) if inp.now is not None and a is not None else None
             shown.append({"handle": f"A{i}", "product_id": row.get("product_id"), "span": row["span"],
-                          "rule_id": row["rule_id"], "status": status, "say_instead": row.get("say_instead")})
+                          "rule_id": row["rule_id"], "status": status, "say_instead": row.get("say_instead"),
+                          "raised_s_ago": age})
         return {**values, "active_alerts_json": shown, "alert_handles": handles}
 
     async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None, **opts) -> AgentResult:
@@ -318,6 +321,12 @@ class ComplianceJudge(_SplitJudge):
             out.correction.corrects_alert_ids = list(dict.fromkeys([
                 *out.correction.corrects_alert_ids,
                 *(handles[c.handle] for c in checks if c.fixed_by_this_line and c.handle in handles)]))
+            for v in out.compliance.violations:  # D-403: the alert a violation repeats, by handle, as its id
+                if getattr(v, "same_as", None) is not None:
+                    if v.same_as not in handles:
+                        log.info("compliance same_as %r is not a listed handle: a new alert (shown: %s)", v.same_as,
+                                 sorted(handles))
+                    v.same_as = handles.get(v.same_as)
             values = {**values, "active_alerts_json": [{"alert_id": i} for i in handles.values()]}
         if self.originals:
             return validate_original(out, self.catalog, values, self.regulation()[0])  # the show's snapshot

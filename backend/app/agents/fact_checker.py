@@ -56,6 +56,7 @@ class FactInput:
     session_id: str | None = None
     scenario: str = "default"
     notes: list = field(default_factory=list)  # D-363: the active fact notes, shown to the model by handle
+    now: int | None = None  # D-403: when the input was built, for each note's age
 
 
 async def gather_fact_passages(
@@ -140,7 +141,7 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                              "correct": r.correct_value, "passage_id": None, "quote": None})
         p = ev[0][0] if ev else None
         c = FactClaim(span=r.span, field=r.field, product_id=r.product_id, stated_value=r.stated_value, verdict=verdict,
-                      correct_value=r.correct_value, say=getattr(r, "say", None),
+                      correct_value=r.correct_value, say=getattr(r, "say", None), same_as=getattr(r, "same_as", None),
                       passage_id=p.passage_id if p else None,
                       quote=" ".join(t for q, t in ev if q.passage_id == p.passage_id) if p else None)
         c._evidence = [i for i in r.evidence if i in index or i in terms]  # D-302: carried to the alert
@@ -334,9 +335,11 @@ class FactChecker:
             return "", {}
         handles = {f"F{i}": a.alert_id for i, a in enumerate(inp.notes, 1)}
         # D-364: the host's words and the source sentence say WHAT the note is about (panthenol vs niacinamide)
+        # D-403: and how many seconds ago each was raised, so the model can tell a repeat from a new claim
         rows = [{"handle": h, "product_id": a.product_id, "field": a.field, "host_said": a.span,
                  "subject": a.quote, "stated_value": a.stated_value, "correct_value": a.correct_value,
-                 "status": a.status} for h, a in zip(handles, inp.notes)]
+                 "status": a.status, "raised_s_ago": max(0, (inp.now - a.created_at) // 1000) if inp.now else None}
+                for h, a in zip(handles, inp.notes)]
         return "\n" + inputs.data_block("ACTIVE_FACT_NOTES", rows), handles
 
     async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:
@@ -356,6 +359,12 @@ class FactChecker:
             unknown = [c.handle for c in checks if c.handle not in handles]
             res.output._corrects = list(dict.fromkeys(handles[c.handle] for c in checks
                                                       if c.fixed_by_this_line and c.handle in handles))
+            for c in res.output.claims:  # D-403: the note a claim repeats, by handle, as its id
+                if c.same_as is not None:
+                    if c.same_as not in handles:
+                        log.info("fact claim same_as %r is not a listed handle: a new claim (shown: %s)", c.same_as,
+                                 sorted(handles))
+                    c.same_as = handles.get(c.same_as)
             if handles or checks:
                 log.info("fact notes call=%s line=%r notes=%s handles=%s answer=%s corrects=%s%s", res.call_id,
                          inp.utterance[:80], block.strip(), handles, [c.model_dump() for c in checks],

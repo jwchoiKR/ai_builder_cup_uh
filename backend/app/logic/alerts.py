@@ -41,14 +41,18 @@ def provisional_from_reflex(
 
 def apply_judge_compliance(
     judge: UtteranceJudgeOutput, t: Transcript, product_id: str, provisional: Sequence[Alert],
-    rules: dict[str, Rule], new_id: NewId, now: int,
-) -> tuple[list[Alert], list[Alert]]:
-    """§8.4.1. Returns (changed, created).
+    rules: dict[str, Rule], new_id: NewId, now: int, listed: dict[str, Alert] | None = None,
+) -> tuple[list[Alert], list[Alert], list[str]]:
+    """§8.4.1. Returns (changed, created, closed).
 
     D-387 (user): each violation the model returns is its own alert, also two claims under one rule or section. D-397:
-    no text dedupe; a merged line's verdict replaces its chain's alerts (pipelines/utterances.py)."""
+    no text dedupe; a merged line's verdict replaces its chain's alerts (pipelines/utterances.py). D-403 (user, option
+    A): a violation the model marks as repeating a listed alert (`same_as`, an id of `listed`) raises nothing new: an
+    active one is kept (its span and wording take the new verdict; it is in `changed`), a closed one stays closed (its
+    id is in `closed`). Code never decides that two claims are one."""
     changed: list[Alert] = []
     created: list[Alert] = []
+    closed: list[str] = []
     pending = {a.rule_id: a for a in provisional if a.status == "provisional" and a.transcript_id == t.transcript_id}
     for v in judge.compliance.violations:
         if v.is_negated or v.is_quoted:
@@ -56,6 +60,15 @@ def apply_judge_compliance(
             if a is not None and a.status == "provisional":
                 a.status = "cleared"
                 changed.append(a)
+            continue
+        same = (listed or {}).get(getattr(v, "same_as", None) or "")
+        if same is not None:
+            if same.status in ("active", "provisional"):
+                same.span, same.say_instead = v.span, v.say_instead or same.say_instead
+                same.quote, same.citation = getattr(v, "quote", None) or same.quote, getattr(v, "citation", None) or same.citation
+                changed.append(same)
+            else:
+                closed.append(same.alert_id)
             continue
         # D-300: the verifier's; D-358: else the verdict's own (the legacy rules path set it from the rule)
         severity = getattr(v, "_severity", None) or v.severity
@@ -80,7 +93,7 @@ def apply_judge_compliance(
         if a.status == "provisional":  # not confirmed by the judge
             a.status = "cleared"
             changed.append(a)
-    return changed, created
+    return changed, created, closed
 
 
 def apply_judge_failure(
