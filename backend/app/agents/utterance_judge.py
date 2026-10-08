@@ -49,6 +49,7 @@ class JudgeInput:
     # D-351 SWITCH_MODE=immediate: each product's type word ("cream", "serum") for the run sheet the context judge gets
     run_sheet_types: dict[str, str] | None = None
     now: int | None = None  # D-403: when the input was built, for each active alert's age
+    chain: list[str] = field(default_factory=list)  # D-406: the split lines a merged line joins (same_as is asked)
 
 
 def spoken_claim(text: str) -> str:

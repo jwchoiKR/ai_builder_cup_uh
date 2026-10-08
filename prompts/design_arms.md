@@ -282,13 +282,10 @@ them apart by `subject` and `host_said`. Your answer then starts with
 context: `fixed_by_this_line` is true when this line, read with the line before it, states that note's fact correctly
 (the host corrects themselves: "Sorry, it's 5%", "let me fix that, the 50 ml one"). A right value of ANOTHER fact (another
 ingredient, another size) does not fix the note; neither does an apology alone or the wrong value said again.
-D-403: on a `contradicts` claim, `same_as` is the handle of the note whose wrong fact this claim repeats (the same fact
-said again, for example when a split line is joined; `raised_s_ago` says how long ago that note was shown), else null.
 
 Example N
 ACTIVE_FACT_NOTES: [{"handle":"F1","product_id":"product_r","field":"ingredient_amount","stated_value":"10% niacin","correct_value":"4% niacin","status":"active"}]
 UTTERANCE: "And the ceramide is 2%." -> F1 false (another ingredient). UTTERANCE: "Sorry, niacin is four percent." -> F1 true.
-UTTERANCE: "So niacin is ten percent, and the tube is 30 ml." -> the niacin claim `same_as` "F1"; the tube claim null.
 
 ## PAIR: fact_checker
 
