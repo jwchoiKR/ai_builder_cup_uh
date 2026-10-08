@@ -76,6 +76,12 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
   - Pool 5 with production hints, A / B: 95.4 / 98.1%, false 0.9 / 0.0%, wrong HIGH 0, p95 3.8 / 4.1 s. FACT_PROMPT=v4 (D-325/326) did not catch its target and added a false line → dropped.
   - Pool 6 (fresh) with production hints, A / B: 89.6 / 90.3%, false 5.6 / 5.6%, wrong HIGH 3 / 2, p95 4.2 / 4.0 s → FAIL. It was also run once with the old hints (93.1 / 91.7%, 6.9 / 5.6%). Causes: overlapping speech (STT keeps one speaker; 7-10 misses), reported speech "A viewer says X" judged as the host's claim at facts LOW (9-11 false), compliance HIGH on negation lines (2-3). Pool 6 is now seen; build pool 7 before any unseen claim.
   - The laptop restarted for a Windows update at 10/8 00:31 (not a crash). The VM runs had already finished.
+- **10/8 day (deck `docs/decks/week_1008.html`: As-is/To-be and why):**
+  - User rules: test only realistic host speech (contrived lines = stress, reported apart); labels only with rules in the product's own pack (category "other" has no cosmetic pack; 13 such labels in pools 5-7 are out of scope); budget ~130k KRW left: one voice per run, stop the VM after runs, no new runs without the user.
+  - FACT_PROMPT=v5 (D-331, per-claim stance HOST_ASSERTS/HOST_ENDORSES/REPORTS_OR_ASKS) is the chosen fact prompt. Pairs set (pairs5, 168 lines, pre-registered): report-then-reject false alerts 14-16 → 3-6 of 24, all must-alert variants ≥95%. Pool 5 (voice A): 98.1% / 0.0%.
+  - Dropped: REPORTED_HOLD (D-328-330) and COMPLIANCE_NEG (brought back quote false alerts / no target), v6 + COMPLIANCE_ENDORSE (D-333: no net gain, new wrong HIGH, tag-question 22/24).
+  - Pool 7 (fresh, realistic, voice A, v5): detection 94.0% (126/134), false 3.1% (4/128), wrong HIGH 0, p95 4.5 s, after critic rulings (2 extras, 2 credits) and without out-of-pack and overlap lines. FAIL by a little. Left: question/answer pairs, rejection with a new value, STT noise lines.
+  - Cloud: revision 00005 (0fe1ca3 not yet deployed: UI fixes D-332). The VM is stopped.
 - **Decks:** `docs/decks/old/live_logic_1006.html`, `fix_plan_1006.html`, `rule_code_1006.html`, `arch_llm_1006.html` (all earlier decks moved to `docs/decks/old/` on 10/7). The arch deck still shows the R2 verifier and needs an update once the design settles.
 
 ## Handoff 10/6 16:30 (work laptop; read this first, then the older sections below)

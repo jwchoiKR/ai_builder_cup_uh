@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
 
 OUT = Path(__file__).parent.parent / "week_1008.html"
-V6 = globals().get("V6_ROWS")  # filled in by the final build when the v6 runs exist
+V6 = [["7차 (같은 세트 2회차) · v6", "94.0%", "3.1%", "3", "4.3초"]]  # v6 + COMPLIANCE_ENDORSE: no gain, dropped
 
 slide("sum", "이번 주 정리 · 10/6~8", "판정을 Flash-Lite 한 번으로 바꾸고, 프롬프트로 오경고를 줄였다", col(
     rowx(fx(big("처음 보는 7차 세트 탐지", "94%", "", YEL, "#FEF7E0", "현실적 문장 · 규정 팩 안 · 기준 95%", "")),
@@ -18,7 +18,7 @@ slide("sum", "이번 주 정리 · 10/6~8", "판정을 Flash-Lite 한 번으로 
     tags("이번 주에 정한 것", chip("검증 모델 2단계 → Flash-Lite 한 번 판정", "blue", "ai"),
          chip("코드 규칙 판단 → 모델 판단, 코드는 출처 대조만", "blue", "ai"),
          chip("사실 확인 프롬프트 v1 → v5 (말의 종류 먼저)", "blue", "ai"), chip("seed 고정 · STT STANDARD", "blue", "ai")),
-    tags("아직", chip("기준(95%, 1% 미만)에 조금 못 미침", "yellow", "warn"), chip("v6로 남은 실패 유형을 고치는 중", "grey")),
+    tags("아직", chip("기준(95%, 1% 미만)에 조금 못 미침", "yellow", "warn"), chip("v6은 효과 없어 버림, v5 유지", "grey")),
     gap=26),
     notes="7차: 새 제품 6개, 목소리 하나, 1회. 탐지 94%는 비평 판정(정정 인정 2줄) 반영, 반영 전 92.5%. 잘못된 HIGH 0은 판정 반영(반영 전 2).")
 
@@ -92,6 +92,6 @@ slide("left", "남은 문제", "남은 실패는 주로 질문과 답, 단서, S
      ["STT 잡음", "\"four point five\" → \"for 0.5\"", "판정으로는 못 고침"],
      ["동시 발화", "마이크 하나에서 뒷사람 말이 사라짐", "진행자별 마이크로 확장 가능"]],
     ["22%", "48%", "30%"]),
-    notes="v6(D-333) 측정 중. 비용 때문에 목소리 하나로만 잰다.")
+    notes="v6(D-333) + 규정 동의 판정: 7차 탐지·오경고 그대로(94.0%, 3.1%), 질문·답 2줄은 풀렸지만 다른 2줄을 새로 놓치고 주의 뒤집기 줄에 규정 HIGH 3건이 새로 생김. 시험 문장 짝에서 확인 질문이 22/24(91.7%)로 중단 기준 미달. 그래서 v6은 버리고 v5를 유지한다.")
 
 write(str(OUT), "이번 주 정리")
