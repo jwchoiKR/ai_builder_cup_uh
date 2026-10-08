@@ -17,6 +17,7 @@ import {
   cueStrip,
   formatClock,
   hostAlertStack,
+  uncheckedStrip,
   hostSlots,
   priceView,
   runOfShow,
@@ -130,7 +131,7 @@ function TopBar({
         </span>
       )}
       {/* D-412: the lines no judge could check, one compact strip (never an alert box) */}
-      <UncheckedStrip count={state.unchecked.ids.length} cause={state.unchecked.cause} />
+      <UncheckedStrip {...uncheckedStrip(state)} />
       <div className={styles.nowNext}>
         <span className={styles.nnLabel}>{t("NOW")}</span>
         <span className={styles.nowName} data-testid="host-now">

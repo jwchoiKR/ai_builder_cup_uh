@@ -339,6 +339,13 @@ export function hostBanners(state: ClientState): {
   return { mediums, facts: notes };
 }
 
+/** D-420: the host's strip: how many lines are unchecked and the latest failure's cause among them, by the server's
+ *  order (at, then n); after a partial recovery it is the latest of the lines still unchecked. */
+export function uncheckedStrip(state: ClientState): { count: number; cause: string | null } {
+  const latest = [...state.unchecked].sort((a, b) => (a.at ?? 0) - (b.at ?? 0) || (a.n ?? 0) - (b.n ?? 0)).at(-1);
+  return { count: new Set(state.unchecked.map((j) => j.transcript_id)).size, cause: latest?.cause ?? null };
+}
+
 /** D-402: at most this many alert boxes on the host screen. */
 export const MAX_ALERT_BOXES = 2;
 

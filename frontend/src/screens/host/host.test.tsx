@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { describe, expect, it, vi } from "vitest";
 
 import { setLang, translate } from "../../app/i18n";
-import { RED_BLOCK_MS } from "../../app/selectors";
+import { RED_BLOCK_MS, uncheckedStrip } from "../../app/selectors";
 import { reduceEvent, reduceSnapshot } from "../../app/state";
 import type { Catalog, StateSnapshot } from "../../app/types";
 import { alert, AMPOULE, answer, catalog, comment, CREAM, group, message, pdCard, segment, session, snapshot, T0 } from "../../test/fixtures";
@@ -937,8 +937,9 @@ describe("immediate switch (D-349)", () => {
 });
 
 describe("unchecked lines (D-412)", () => {
-  const ev = (seq: number, id: string, cause: string, agent = "compliance_judge", at = T0 + seq) =>
-    ({ seq, type: "judge.failed", payload: { transcript_id: id, status: "error", alert_ids: [], agent, cause, at } });
+  const ev = (seq: number, id: string, cause: string, agent = "compliance_judge", at = T0 + seq, n = seq) =>
+    ({ seq, type: "judge.failed", payload: { transcript_id: id, status: "error", alert_ids: [], agent, cause, at, n } });
+  const strip = (s: ReturnType<typeof reduceSnapshot>) => uncheckedStrip(s);
   const show = (s: ReturnType<typeof reduceSnapshot>) =>
     render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
 
@@ -960,18 +961,30 @@ describe("unchecked lines (D-412)", () => {
     s = reduceEvent(s, ev(11, "tr_b", "busy"));
     s = reduceEvent(s, ev(12, "tr_b", "timeout", "fact_checker"));
     s = reduceEvent(s, { seq: 13, type: "checks.recovered", payload: { transcript_id: "tr_a", cleared: [], at: 1 } });
-    expect(s.unchecked).toEqual({ ids: ["tr_b"], cause: "timeout", at: T0 + 12 });  // A's late success leaves B
+    expect(strip(s)).toEqual({ count: 1, cause: "timeout" });  // A's late success leaves B
     expect(s.judgeFailures.map((j) => [j.agent, j.cause])).toEqual([["compliance_judge", "busy"], ["fact_checker", "timeout"]]);
-    const refreshed = reduceSnapshot(snapshot({ check_failures: {
-      recent: [{ transcript_id: "tr_b", agent: "compliance_judge", cause: "busy", at: T0 + 11 },
-        { transcript_id: "tr_b", agent: "fact_checker", cause: "timeout", at: T0 + 12 }],
-      unchecked: { ids: ["tr_b"], cause: "timeout", at: T0 + 12 } } }), "host");
-    expect(refreshed.unchecked).toEqual(s.unchecked);
+    const events = [{ transcript_id: "tr_b", agent: "compliance_judge", cause: "busy", at: T0 + 11, n: 11 },
+      { transcript_id: "tr_b", agent: "fact_checker", cause: "timeout", at: T0 + 12, n: 12 }];
+    const refreshed = reduceSnapshot(snapshot({ check_failures: { recent: events, unchecked: events } }), "host");
+    expect(strip(refreshed)).toEqual(strip(s));
     expect(refreshed.judgeFailures.map((j) => [j.agent, j.cause])).toEqual(s.judgeFailures.map((j) => [j.agent, j.cause]));
   });
 
+  it("D-420: after a partial recovery the strip names the latest cause of the lines still unchecked; ties by n", () => {
+    let s = reduceSnapshot(snapshot(), "host");
+    s = reduceEvent(s, ev(11, "tr_1", "busy"));
+    s = reduceEvent(s, ev(12, "tr_2", "timeout"));
+    s = reduceEvent(s, { seq: 13, type: "checks.recovered", payload: { transcript_id: "tr_x", cleared: ["tr_2"], at: 1 } });
+    expect(strip(s)).toEqual({ count: 1, cause: "busy" });  // not tr_2's "timeout"
+    let t = reduceSnapshot(snapshot(), "host");
+    t = reduceEvent(t, ev(21, "tr_3", "timeout", "compliance_judge", T0, 7));
+    t = reduceEvent(t, ev(22, "tr_4", "busy", "compliance_judge", T0, 6));  // same at, an earlier n
+    expect(strip(t).cause).toBe("timeout");
+  });
+
   it("is kept on refresh from the snapshot, and reads in Korean", () => {
-    const s = reduceSnapshot(snapshot({ check_failures: { recent: [], unchecked: { ids: ["tr_1"], cause: "busy" } } }), "host");
+    const s = reduceSnapshot(snapshot({ check_failures: { recent: [],
+      unchecked: [{ transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0, n: 1 }] } }), "host");
     show(s);
     expect(screen.getByTestId("host-unchecked")).toHaveTextContent("AI busy: 1 line unchecked");
     expect(translate("ko", "{cause}: {n} lines unchecked", { cause: translate("ko", "AI busy"), n: 3 }))
