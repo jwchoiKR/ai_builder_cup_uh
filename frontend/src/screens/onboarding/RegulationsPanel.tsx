@@ -4,6 +4,7 @@
 // The source documents are the authority; the extracted rules are not shown as such.
 import { useCallback, useEffect, useState } from "react";
 
+import { PDF_ACCEPT, pdfOnly } from "../../app/pdfOnly";
 import { Button, Chip } from "../../components";
 import { regulationsApi, type LawJob, type Regulations } from "./onboardingApi";
 import styles from "./onboarding.module.css";
@@ -69,13 +70,12 @@ export function RegulationsPanel() {
       </p>
 
       <div className={styles.inline}>
-        <input type="file" multiple accept=".pdf,application/pdf" data-testid="reg-files"
+        <input type="file" multiple accept={PDF_ACCEPT} data-testid="reg-files"
                onChange={(e) => {
-                 // D-367 (user): regulation originals are PDF only
-                 const picked = Array.from(e.target.files ?? []);
-                 const other = picked.filter((f) => !f.name.toLowerCase().endsWith(".pdf"));
-                 setError(other.length ? `PDF files only. Not a PDF: ${other.map((f) => f.name).join(", ")}` : null);
-                 setFiles(other.length ? [] : picked);
+                 const pick = pdfOnly(Array.from(e.target.files ?? []));  // D-367 (user): PDF only
+                 setError(pick.error);
+                 setFiles(pick.files);
+                 if (pick.error) e.target.value = "";
                }} />
         <label>
           Market{" "}
