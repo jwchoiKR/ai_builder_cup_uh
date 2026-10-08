@@ -532,7 +532,8 @@ class UtterancePipeline:
                          all_products=rt.settings.JUDGE_PRODUCTS == "all",
                          session_id=rt.sid, scenario=scenario,
                          switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen,
-                         run_sheet_types=self.type_words, now=rt.now())
+                         run_sheet_types=self.type_words, now=rt.now(),
+                         chain=list(merge.chain) if merge and not merge.pair else [])
         # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
         offered: dict[str, Answer | None] = {}
         for g, _ in questions:
@@ -707,10 +708,22 @@ class UtterancePipeline:
                          t.transcript_id, later)
                 return
             self._verdict_ok.add((t.transcript_id, "compliance"))
-            # D-387 (user): every violation is its own alert. D-403 (user, option A): one the model marks as repeating
-            # a listed alert (`same_as`) keeps that alert, or leaves it closed
+            # D-387 (user): every violation is its own alert. D-403/D-406 (user, option A): only on a merged line's
+            # re-judgment (a line speech-to-text split), a violation the model marks as repeating an alert of that
+            # line's own chain and product (`same_as`) keeps that alert, or leaves it closed; any other same_as is a
+            # new alert
+            split = set(merge.chain) if merge and not merge.pair else set()
+            listed = {a.alert_id: a for a in alerts if a.kind == "compliance" and a.transcript_id in split}
+            for v in judge.compliance.violations:
+                same = getattr(v, "same_as", None)
+                if same is not None and (same not in listed
+                                         or listed[same].product_id != (getattr(v, "product_id", None) or on_air)):
+                    log.info("compliance %s t=%s: same_as %s is not an alert of this merged line's chain and product: "
+                             "a new alert", rt.sid, t.transcript_id, same)
+                    v.same_as = None
+            was_provisional = {a.alert_id for a in listed.values() if a.status == "provisional"}
             changed, created, closed = alert_logic.apply_judge_compliance(
-                judge, t, on_air, provisional, rt.pack.rules_by_id, rt.new_id, now, listed={a.alert_id: a for a in alerts})
+                judge, t, on_air, provisional, rt.pack.rules_by_id, rt.new_id, now, listed=listed)
             kept = {a.alert_id for a in changed if a.transcript_id != t.transcript_id}
             if kept or closed:
                 log.info("compliance %s t=%s: same_as kept %s; not raised again (closed): %s", rt.sid, t.transcript_id,
@@ -733,7 +746,9 @@ class UtterancePipeline:
                 await self._on_active_locked(a)
             for a in changed:
                 await self._save_alert_change_locked(a)
-                if a.alert_id not in kept:  # D-403: a kept alert was already active; nothing turns active
+                if a.alert_id in kept and a.alert_id in was_provisional:  # D-406: it turns active now, as a new one
+                    self._schedule_escalation(a)
+                if a.alert_id not in kept or a.alert_id in was_provisional:  # D-403: a kept active one stays as is
                     await self._on_active_locked(a)
             # D-089: an apology alone does not correct a compliance alert
             await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
@@ -1196,10 +1211,17 @@ class UtterancePipeline:
         rt = self.rt
         now = rt.now()
         alerts = await rt.alerts()
-        by_id = {a.alert_id: a for a in alerts if a.kind == "fact"}
+        # D-406: only a note of this merged line's own chain and product can be repeated; any other same_as is new
+        by_id = {a.alert_id: a for a in alerts if a.kind == "fact" and a.transcript_id in protected}
         rest, kept, closed = [], [], []
         for c in claims:
-            same = by_id.get(getattr(c, "same_as", None) or "") if c.verdict == "contradicted" else None
+            sid = getattr(c, "same_as", None) if c.verdict == "contradicted" else None
+            same = by_id.get(sid or "")
+            if same is not None and same.product_id != c.product_id:
+                same = None
+            if sid is not None and same is None:
+                log.info("facts %s t=%s: same_as %s is not a note of this merged line's chain and product: a new note",
+                         rt.sid, t.transcript_id, sid)
             if same is None:
                 rest.append(c)
             elif same.status == "active":

@@ -173,6 +173,21 @@ def with_product(model: type[BaseModel]) -> type[BaseModel]:
     return create_model(f"{model.__name__}P", __base__=model, compliance=(c, ...))
 
 
+def with_same_as(model: type[BaseModel], list_field: str) -> type[BaseModel]:
+    """D-403/D-406: the same output with `same_as` per violation (compliance) or per claim (facts), asked for only on a
+    merged line's re-judgment (a line speech-to-text split): the handle of the listed alert or note it repeats."""
+    if list_field == "violations":
+        comp = model.model_fields["compliance"].annotation
+        item = comp.model_fields["violations"].annotation.__args__[0]
+        base = item if issubclass(item, _ArmB) else (item, _ArmB)
+        v = create_model(f"{item.__name__}S", __base__=base, same_as=(str | None, None))
+        c = create_model(f"{comp.__name__}S", __base__=comp, violations=(list[v], ...))
+        return create_model(f"{model.__name__}S", __base__=model, compliance=(c, ...))
+    item = model.model_fields["claims"].annotation.__args__[0]
+    v = create_model(f"{item.__name__}S", __base__=item, same_as=(str | None, None))
+    return create_model(f"{model.__name__}S", __base__=model, claims=(list[v], ...))
+
+
 class CorrectionQuote(_ArmB):
     alert_id: str
     quote: str  # the exact words of the utterance that make the correction
@@ -235,7 +250,6 @@ class ViolationO(Violation, _ArmB):
     rule_id: str = ""
     severity: Literal["HIGH", "MEDIUM"] = "HIGH"  # D-400: set by code from the citation type, never asked
     qualified_result_id: str | None = None  # the QUALIFIED_RESULTS entry a TEST-QUALIFIER verdict states
-    same_as: str | None = None  # D-403: the ACTIVE_ALERTS handle this violation repeats (code maps it to the id)
 
 
 class ComplianceO(Compliance, _ArmB):
@@ -293,7 +307,7 @@ class FactClaim(BaseModel):
     passage_id: str | None
     quote: str | None
     say: str | None = None  # D-396: the model's say line for a contradiction (relation arm v5)
-    same_as: str | None = None  # D-403: the ACTIVE_FACT_NOTES handle this claim repeats (code maps it to the id)
+    same_as: str | None = None  # D-403/D-406: a merged line's: the note this claim repeats (an id once mapped)
     _unverified: bool = PrivateAttr(default=False)  # D-300: kept without the verifier's verdict (timeout)
     _votes: int | None = PrivateAttr(default=None)  # D-302
     _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
@@ -368,7 +382,6 @@ class FactRelationClaimV5(BaseModel):
     relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
     correct_value: str | None
     say: str | None = None  # D-396: the line the host says to fix it (contradicts only)
-    same_as: str | None = None  # D-403: the ACTIVE_FACT_NOTES handle this contradiction repeats
 
 
 class FactRelationOutputV5(BaseModel):

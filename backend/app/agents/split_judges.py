@@ -18,7 +18,7 @@ from ..logic.reflex import Reflex
 from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO, ComplianceOutputR,
                                ComplianceOutputRC, ContextOutput,
                                ContextOutputB, ContextOutputQ, with_alert_checks, with_product,
-                               with_switch_naming)
+                               with_same_as, with_switch_naming)
 from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -31,6 +31,14 @@ from .utterance_judge import (
 
 
 log = logging.getLogger(__name__)
+
+# D-406: sent only with a merged line's re-judgment (a line speech-to-text split)
+MERGED_NOTE = (
+    'UTTERANCE joins lines that speech-to-text split. Some of its claims may already have an alert from '
+    'those lines in ACTIVE_ALERTS. For each violation, `same_as` is the handle of the ACTIVE_ALERTS entry'
+    ' whose claim it repeats (the same claim from the split line), else null. Example: A1 is "cures '
+    'eczema"; UTTERANCE "It cures eczema and psoriasis too." gives "cures eczema" `same_as` "A1" and '
+    '"psoriasis too" null.')
 
 # D-358: the live compliance judge reads the regulation originals; there is no rule-JSON fallback in production. The
 # rules path (LEGACY_RULES) is kept only for the test suite, which pins it. D-391: the mock provider runs the
@@ -240,9 +248,11 @@ class ComplianceJudge(_SplitJudge):
     def scope_data(self, inp: JudgeInput) -> str:
         """D-349 SWITCH_MODE=immediate: in the seconds after a switch, the product that just left the air, labelled."""
         prev = self._previous(inp)
+        # D-406: a merged line's re-judgment (a line speech-to-text split) is asked which listed alert it repeats
+        merged = inputs.data_block("MERGED_LINE", {"note": MERGED_NOTE}) if self.originals and inp.chain else ""
         if prev is None:
-            return ""
-        return inputs.data_block("PREVIOUS_PRODUCT", {
+            return merged
+        return merged + inputs.data_block("PREVIOUS_PRODUCT", {
             "note": ("The host switched products a few seconds ago. CURRENT_PRODUCT is now on air; this product was "
                      "on air just before. For each violation, set product_id to the product the claim is about "
                      "(CURRENT_PRODUCT or this one) and take say_instead from that product's approved claims."),
@@ -251,6 +261,7 @@ class ComplianceJudge(_SplitJudge):
 
     def model_for(self, inp: JudgeInput, model: type) -> type:
         model = with_product(model) if self._previous(inp) else model
+        model = with_same_as(model, "violations") if self.originals and inp.chain else model  # D-406
         return with_alert_checks(model) if self.handles else model
 
     def _with_handles(self, inp: JudgeInput, values: dict) -> dict:

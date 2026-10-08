@@ -33,9 +33,6 @@ Flag a violation ONLY when the host's own words make a claim about the product t
 - `is_negated = true` when the host denies the claim. `is_quoted = true` when the host reads out or reports someone
   else's words; when the host then agrees with or vouches for it, it is the host's own claim (`is_quoted = false`).
   A negated or quoted claim is still listed with its flag; the software ignores it.
-- `same_as`: the ACTIVE_ALERTS handle whose claim this violation repeats (the same claim said again, for example when a
-  split line is joined; `raised_s_ago` says how long ago that alert was shown), else null. Example: A1 is "cures
-  eczema"; UTTERANCE "It cures eczema and psoriasis too." gives "cures eczema" `same_as` "A1" and "psoriasis too" null.
 - Speech-to-text can split one sentence over two lines: when UTTERANCE completes a claim begun in the last line of
   RECENT_TRANSCRIPT, judge the completed claim, with `span` from UTTERANCE. When UTTERANCE has two marked lines,
   "[previous line] ..." and "[this line] ...", they are one exchange: judge what [this line] asserts, endorses or
@@ -84,8 +81,7 @@ Return the JSON verdict for UTTERANCE.
         "is_negated": false,
         "is_quoted": false,
         "say_instead": "string",
-        "qualified_result_id": null,
-        "same_as": null
+        "qualified_result_id": null
       }
     ]
   },
@@ -103,7 +99,7 @@ kelmar_cosmetic_code.pdf, section 4.2: "No claim may promise safety to infants o
 CURRENT_PRODUCT: product_k (a baby balm, target_group: babies from 6 months)
 UTTERANCE: "It's totally safe for newborns, zero risk."
 ```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#4.2","quote":"No claim may promise safety to infants or other vulnerable consumers.","span":"totally safe for newborns, zero risk","is_negated":false,"is_quoted":false,"say_instead":"A gentle balm for babies from 6 months.","qualified_result_id":null,"same_as":null}]},"reason":"Section 4.2 prohibits promising safety to infants."}
+{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#4.2","quote":"No claim may promise safety to infants or other vulnerable consumers.","span":"totally safe for newborns, zero risk","is_negated":false,"is_quoted":false,"say_instead":"A gentle balm for babies from 6 months.","qualified_result_id":null}]},"reason":"Section 4.2 prohibits promising safety to infants."}
 ```
 
 Example B
@@ -125,14 +121,14 @@ REGULATION_DOCUMENTS: [{"document":"kelmar_cosmetic_code.pdf","title":"Kelmar Co
 CURRENT_PRODUCT: product_m (a hand cream)
 UTTERANCE: "It heals cracked, bleeding eczema skin in two days."
 ```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#2.1","quote":"A cosmetic must not be presented as treating or preventing disease.","span":"heals cracked, bleeding eczema skin","is_negated":false,"is_quoted":false,"say_instead":"It helps dry hands feel soft and smooth.","qualified_result_id":null,"same_as":null}]},"reason":"Claims to heal a skin condition."}
+{"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#2.1","quote":"A cosmetic must not be presented as treating or preventing disease.","span":"heals cracked, bleeding eczema skin","is_negated":false,"is_quoted":false,"say_instead":"It helps dry hands feel soft and smooth.","qualified_result_id":null}]},"reason":"Claims to heal a skin condition."}
 ```
 
 Example E
 QUALIFIED_RESULTS: [{"product_id":"product_m","result_id":"product_m-r1","say":"9 of 10 users said hands felt softer (in Kelmar's own panel test)"}]
 UTTERANCE: "Nine out of ten people said their hands felt softer."
 ```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"TEST-QUALIFIER","quote":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","span":"Nine out of ten people said their hands felt softer","is_negated":false,"is_quoted":false,"say_instead":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","qualified_result_id":"product_m-r1","same_as":null}]},"reason":"A test result said without who tested it."}
+{"alert_checks":[],"compliance":{"violations":[{"citation":"TEST-QUALIFIER","quote":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","span":"Nine out of ten people said their hands felt softer","is_negated":false,"is_quoted":false,"say_instead":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","qualified_result_id":"product_m-r1"}]},"reason":"A test result said without who tested it."}
 ```
 
 Example F (a fix)

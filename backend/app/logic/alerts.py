@@ -47,7 +47,8 @@ def apply_judge_compliance(
 
     D-387 (user): each violation the model returns is its own alert, also two claims under one rule or section. D-397:
     no text dedupe; a merged line's verdict replaces its chain's alerts (pipelines/utterances.py). D-403 (user, option
-    A): a violation the model marks as repeating a listed alert (`same_as`, an id of `listed`) raises nothing new: an
+    A; D-406: only a merged line's, `listed` is its chain): a violation the model marks as repeating a listed alert
+    (`same_as`, an id of `listed`) raises nothing new: an
     active one is kept (its span and wording take the new verdict; it is in `changed`), a closed one stays closed (its
     id is in `closed`). Code never decides that two claims are one."""
     changed: list[Alert] = []
@@ -64,6 +65,8 @@ def apply_judge_compliance(
         same = (listed or {}).get(getattr(v, "same_as", None) or "")
         if same is not None:
             if same.status in ("active", "provisional"):
+                if same.status == "provisional":  # D-406: confirmed by the merged verdict: shown now, as a new one
+                    same.status, same.shown_at = "active", now
                 same.span, same.say_instead = v.span, v.say_instead or same.say_instead
                 same.quote, same.citation = getattr(v, "quote", None) or same.quote, getattr(v, "citation", None) or same.citation
                 changed.append(same)

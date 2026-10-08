@@ -11,7 +11,7 @@ from ..logic.catalog import Catalog
 from ..logic.verify import number_set
 from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC,
                                FactRelationOutputH, FactRelationOutputV2, FactRelationOutputV5,
-                               FactRelationOutputV7, with_note_checks)
+                               FactRelationOutputV7, with_note_checks, with_same_as)
 from ..onboarding.numwords import numbers_in_text, plain as plain_number
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -21,6 +21,13 @@ from ..providers.retriever import Retriever
 from . import inputs
 
 log = logging.getLogger(__name__)
+
+# D-406: sent only with a merged line's re-judgment (a line speech-to-text split)
+MERGED_NOTE = (
+    'UTTERANCE joins lines that speech-to-text split. For each `contradicts` claim, `same_as` is the '
+    'handle of the ACTIVE_FACT_NOTES entry whose wrong fact it repeats (the same fact from the split '
+    'line), else null. Example: F1 is host_said "ten percent niacin"; UTTERANCE "So niacin is ten '
+    'percent, and the tube is 30 ml." gives the niacin claim `same_as` "F1" and the tube claim null.')
 
 CLAIMS_SECTION = "Approved on-air claims"
 # D-250: the eval collects the drops of one case here (a list set by the caller; tasks inherit it)
@@ -340,7 +347,8 @@ class FactChecker:
                  "subject": a.quote, "stated_value": a.stated_value, "correct_value": a.correct_value,
                  "status": a.status, "raised_s_ago": max(0, (inp.now - a.created_at) // 1000) if inp.now else None}
                 for h, a in zip(handles, inp.notes)]
-        return "\n" + inputs.data_block("ACTIVE_FACT_NOTES", rows), handles
+        merged = ("\n" + inputs.data_block("MERGED_LINE", {"note": MERGED_NOTE})) if len(inp.parts) > 1 else ""
+        return "\n" + inputs.data_block("ACTIVE_FACT_NOTES", rows) + merged, handles  # D-406: same_as when merged
 
     async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:
         user, prefix = self._render(inp)
@@ -348,7 +356,8 @@ class FactChecker:
         base = self.relation_model if self.relation else FactCheckOutput
         res = await self.llm.call(self._request(
             user + block, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), **opts,
-            output_model=with_note_checks(base) if handles else base, mock_primary_text=inp.utterance,
+            output_model=(with_note_checks(with_same_as(base, "claims") if self.relation and len(inp.parts) > 1
+                                           else base) if handles else base), mock_primary_text=inp.utterance,
             mock_scenario=inp.scenario,
             mock_fallback=lambda _: ({"claims": []} if self.relation
                                      else {"claims": [], "reason": "rule-based: no fact check"}), preview=inp.utterance,
