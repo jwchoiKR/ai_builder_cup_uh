@@ -7,6 +7,7 @@ import pytest
 
 from app.agents.fact_checker import from_relation, hard_validate, sentence_index
 
+from .conftest import ALL_FIXES
 from .judge_fakes import CREAM
 from .test_relation import ALL, V, _high, _p, _rel, _validate_r
 
@@ -50,9 +51,7 @@ PRICE = "Live broadcast price (50 mL): S$24.00"
      "No reapplication needed", "Reapply every 2 hours", "Reapply every 2 hours.", "usage", True),
 ])
 def test_d298_a_rejection_of_the_previous_quote(catalog, prev, line, stated, correct, quote, field, alert):
-    from app.config import get_settings
-
-    fixes = frozenset(x.strip() for x in get_settings().FACT_FIXES.split(","))
+    fixes = frozenset(ALL_FIXES.split(","))  # D-353: the opt-in code checks, named (no longer the default)
     passages = [_p("DL-CR-01#key-facts#x", quote)]
     _, index = sentence_index(passages)
     out = from_relation(_rel((line, CREAM, field, stated, ["S1"], "contradicts", correct)), index, set())

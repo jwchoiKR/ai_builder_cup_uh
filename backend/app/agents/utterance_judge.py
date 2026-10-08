@@ -285,7 +285,8 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
     o.compliance.violations = [v for v in o.compliance.violations
                                if not (drops and len(said) == 1 and lex.content_words(v.span) == said)]
     for v in o.compliance.violations:
-        if v.is_quoted and not v.is_negated and lex.affirms(text):
+        # D-353: only in the guards arm; otherwise the model's is_quoted stands (no code word cue on the line)
+        if drops and v.is_quoted and not v.is_negated and lex.affirms(text):
             # D-252 (sealed: "A viewer says 'it cures eczema', and yes, that is what it does" got no alert): a quote
             # the host endorses in the same line is the host's own claim
             v.is_quoted = False
@@ -317,9 +318,10 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
             on_air = catalog.get_product(values["current_product_json"]["product_id"])
             # D-299: the result the judge names by id ("complete coverage of every grey hair" states "100% of
             # assessed strands"); otherwise D-116's match by numbers and words
-            r = _named_result(v, catalog) or qualifier.approved_replacement(
+            # D-353: outside the guards arm only the model's id names the result (no number or word match on the line)
+            r = _named_result(v, catalog) or (qualifier.approved_replacement(
                 text, on_air, [p for p in catalog.products if p is not on_air], catalog.lexicon,
-                "G4" in fact_checker.fixes_of())
+                "G4" in fact_checker.fixes_of()) if drops else None)
             if r is None and not drops:
                 v.say_instead = approved_say(v.say_instead, on_air_product, catalog)
                 kept.append(v)
@@ -341,7 +343,8 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
         else:
             # D-259: a line that negates one of the product's cautions is corrected by that caution, not by an
             # unrelated approved claim
-            v.say_instead = (negated_caution(text, product, lex)
+            # D-353: the caution match on the line (negation words, word coverage) only in the guards arm
+            v.say_instead = ((negated_caution(text, product, lex) if drops else None)
                              or approved_say(v.say_instead, product, catalog))
         kept.append(v)
     o.compliance.violations = kept

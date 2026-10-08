@@ -6,15 +6,14 @@ import pytest
 from app.agents.fact_checker import from_relation, hard_validate, sentence_index
 from app.logic.qualifier import RULE_ID
 
+from .conftest import ALL_FIXES
 from .judge_fakes import CREAM
 from .test_q_fixes import _release_catalog
 from .test_relation import V, _high, _p, _rel, _validate_r
 
 
 def _fixes() -> tuple:
-    from app.config import get_settings
-
-    return tuple(x.strip() for x in get_settings().FACT_FIXES.split(","))
+    return tuple(ALL_FIXES.split(","))  # D-353: the opt-in code checks, named (no longer the default)
 
 
 def _qualifier(span: str, rid: str | None = None) -> dict:

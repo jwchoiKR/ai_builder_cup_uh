@@ -19,8 +19,8 @@ async def test_d305_a_compliance_alert_goes_through_the_verifier():
         [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
         assert (a.status, a.severity, a.unverified) == ("active", "HIGH", False)
         assert ("verifier", f"{line}|cures eczema") in llm.calls
-        # D-308: the regex chip is back by default; it is only the grey chip, the HIGH shows once confirmed
-        assert all(e.payload["status"] == "provisional" for e in await events(rt, "alert.created"))
+        # D-353: no regex chip by default; the alert is created once the judges confirm it
+        assert [e.payload["status"] for e in await events(rt, "alert.created")] == ["active"]
     finally:
         await close_env(rt)
 
