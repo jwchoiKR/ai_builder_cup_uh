@@ -399,7 +399,8 @@ class UtterancePipeline:
                 s = await rt.load_session()
                 target = s.switch.target_product_id if s.switch.status in ("counting", "pending") else None
                 line = (set(rt.catalog.order) if rt.settings.JUDGE_PRODUCTS == "all"  # D-304
-                        else rt.catalog.line_products(on_air, target, [text]))
+                        else rt.catalog.line_products(on_air, target, [text])
+                        | ({self._scoped(s.switch).previous_product_id} - {None}))  # D-349
                 allowed = {r.rule_id for r in rt.catalog.rules_for(line)}
                 hits = [h for h in hits if h.rule_id in allowed]
             alerts = await rt.alerts()
@@ -570,7 +571,7 @@ class UtterancePipeline:
                          cue=s.cue, previous=previous, recent=recent, points_by_product=rt.points or None,
                          all_products=rt.settings.JUDGE_PRODUCTS == "all",
                          session_id=rt.sid, scenario=scenario,
-                         switch=s.switch, promo=promo, on_screen_group_id=on_screen)
+                         switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen)
         # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
         offered: dict[str, Answer | None] = {}
         for g, _ in questions:
@@ -594,6 +595,12 @@ class UtterancePipeline:
             answer = await rt.get_answer(g.answer_id)
             out.append((g, answer.text if answer is not None and answer.verified else None))
         return out
+
+    def _scoped(self, switch: SwitchState) -> SwitchState:
+        """D-349: the product that just left the air stays in the judges' scope only inside its window."""
+        if switch.previous_product_id and (switch.previous_until or 0) > self.rt.now():
+            return switch
+        return switch.model_copy(update={"previous_product_id": None, "previous_until": None})
 
     async def _fact_passages(self, text: str, on_air: str, switch: SwitchState):
         rt = self.rt
@@ -951,6 +958,9 @@ class UtterancePipeline:
     async def _switch_locked(self, judge: ContextOutput | UtteranceJudgeOutput, t: Transcript, seg: Segment, *, high_became_active: bool,
                              replaces: str | None = None, text: str | None = None) -> None:
         rt = self.rt
+        if rt.settings.SWITCH_MODE == "immediate":
+            await self._switch_now_locked(judge, t, seg.product_id)
+            return
         text = text if text is not None else t.text
         s = await rt.load_session()
         st = rt.settings
@@ -1013,6 +1023,28 @@ class UtterancePipeline:
         elif event == "cancelled":
             rt.ctx.scheduler.cancel(rt.key("switch-commit"))
             await rt.emit("segment.switch_cancelled", {"reason": "speech", "transcript_id": t.transcript_id})
+
+    async def _switch_now_locked(self, judge: ContextOutput | UtteranceJudgeOutput, t: Transcript, on_air: str) -> None:
+        """D-349 SWITCH_MODE=immediate: the context judge's transition verdict alone switches, at once. A transition
+        to the next product, medium or high confidence, not a quote or an answer. No name match, no confirming line,
+        no pending countdown; the host gets an Undo bar and the 60 s undo stays."""
+        rt = self.rt
+        sw = judge.prompter.switch
+        nxt = rt.catalog.next_product(on_air)
+        talk = not sw.is_quote and judge.answer.utterance_type != "answer"
+        go = (nxt is not None and talk and sw.is_transition and sw.target_product_id == nxt
+              and sw.confidence in ("medium", "high"))
+        if not (sw.is_transition or go):
+            return
+        decision = {"transcript_id": t.transcript_id, "switch": go, "on_air": on_air, "target_product_id":
+                    sw.target_product_id, "confidence": sw.confidence, "is_quote": sw.is_quote,
+                    "utterance_type": judge.answer.utterance_type, "reason": judge.reason}
+        log.info("switch decision %s t=%s: switch=%s on_air=%s next=%s target=%s conf=%s quote=%s type=%s reason=%r",
+                 rt.sid, t.transcript_id, go, on_air, nxt, sw.target_product_id, sw.confidence, sw.is_quote,
+                 judge.answer.utterance_type, judge.reason)
+        await rt.emit("segment.switch_decided", decision)
+        if go:
+            await commit_switch_locked(rt, nxt, "auto_speech")
 
     async def _commit_timer(self) -> None:
         rt = self.rt
@@ -1540,6 +1572,11 @@ async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -
     s.current_segment_id = new.segment_id
     s.switch = SwitchState(last_commit={"closed_segment_id": old.segment_id if old else None,
                                         "opened_segment_id": new.segment_id, "at": now})
+    if rt.settings.SWITCH_MODE == "immediate":  # D-349: the judges get both products for a few seconds
+        if old is not None:
+            s.switch.previous_product_id = old.product_id
+            s.switch.previous_until = now + rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
+        s.switch.last_commit["immediate"] = reason == "auto_speech"  # the host's "Switched to … · Undo" bar
     await rt.save_session(s)
     await rt.emit("segment.started", new)
     if old is not None:
@@ -1602,6 +1639,9 @@ async def undo_switch(rt: "SessionRuntime") -> Segment:
             pre = s.pre_covered.setdefault(opened.product_id, [])
             pre.extend(p for p in opened.covered_point_ids if p not in pre)
         s.current_segment_id, s.switch = closed.segment_id, SwitchState()
+        if rt.settings.SWITCH_MODE == "immediate":  # D-349: both products for a few seconds after an undo too
+            s.switch.previous_product_id = opened.product_id
+            s.switch.previous_until = now + rt.settings.SWITCH_DUAL_SCOPE_SEC * 1000
         await rt.save_session(s)
         await rt.emit("segment.undone", {"segment_id": opened.segment_id})
         await rt.emit("segment.started", closed)

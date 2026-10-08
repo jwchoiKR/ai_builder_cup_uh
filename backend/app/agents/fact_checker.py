@@ -520,6 +520,8 @@ async def gather_fact_passages(
     others = set(catalog.order) if all_products else catalog.products_mentioned(utterance) - {on_air}
     if switch.status in ("counting", "pending"):
         others.add(switch.target_product_id or catalog.next_product(on_air) or on_air)
+    if switch.previous_product_id:  # D-349: the product that just left the air, inside its window
+        others.add(switch.previous_product_id)
     others.discard(on_air)
     out: dict[str, Passage] = {}
     local_sheets = getattr(retriever, "passages_of", None)
@@ -965,8 +967,11 @@ class FactChecker:
             await self.llm.warm_cache(self._request(prefix, prefix, 60_000, inp.session_id, parts))
 
     def _source(self, inp: FactInput) -> list[Passage]:
-        """D-296: what the relation arm numbers: the line's passages and the on-air product's file text."""
-        return [*inp.passages, *self.files.get(inp.on_air, ((), self.file_passages))[1]]
+        """D-296: what the relation arm numbers: the line's passages and the on-air product's file text. D-349: and
+        the previous product's file text while it is in scope after a switch."""
+        prev = inp.switch.previous_product_id
+        return [*inp.passages, *self.files.get(inp.on_air, ((), self.file_passages))[1],
+                *(self.files.get(prev, ((), ()))[1] if prev and prev != inp.on_air else ())]
 
     def _render(self, inp: FactInput) -> tuple[str, str]:
         user, prefix = self._render_template(inp)
@@ -1019,7 +1024,8 @@ class FactChecker:
             else:
                 products = (set(self.catalog.order) if getattr(self.llm.settings, "JUDGE_PRODUCTS", "named") == "all"
                             else self.catalog.line_products(inp.on_air, inp.switch.target_product_id,
-                                                            [inp.utterance, *inp.previous[-1:]]))  # D-304
+                                                            [inp.utterance, *inp.previous[-1:]])  # D-304
+                            | ({inp.switch.previous_product_id} - {None}))  # D-349
                 res.output = hard_validate(out, passages, self.catalog, inp.promo, inp.offers, products,
                                            inp.utterance, self.fixes, inp.previous[-1] if inp.previous else None,
                                            verify=getattr(self.llm.settings, "JUDGE_ARM", "guards") in ("verify", "vote", "single"))

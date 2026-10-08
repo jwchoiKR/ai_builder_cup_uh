@@ -15,7 +15,7 @@ import json
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputR, ComplianceOutputRC, ContextOutput,
-                               ContextOutputB, ContextOutputQ)
+                               ContextOutputB, ContextOutputQ, with_product)
 from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -76,6 +76,13 @@ class _SplitJudge:
     def validate(self, out, values: dict):
         raise NotImplementedError
 
+    def scope_data(self, inp: JudgeInput) -> str:
+        """D-349: data blocks for this line's scope (none by default)."""
+        return ""
+
+    def model_for(self, inp: JudgeInput, model: type) -> type:
+        return model
+
     async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None, **opts) -> AgentResult:
         values = values if values is not None else build_judge_values(self.catalog, inp)
         encode, decode = symbolic_ids(values)
@@ -90,13 +97,14 @@ class _SplitJudge:
         if self.with_docs:  # D-310: the on-air product's documents, cached with the rules
             pre, parts = self.documents(inp.on_air)
             user, prefix = pre + user, pre + prefix
-        user += self.extra_data()
+        user += self.extra_data() + self.scope_data(inp)
         b = self.b
         res = await self.llm.call(LLMRequest(
             agent=self.name, model=getattr(self.llm, self.spec).model,
             thinking_level=getattr(self.llm, self.spec).thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
-            user_message=user, output_model=self.output_model_b if b else self.output_model, deadline_ms=deadline_ms,
+            user_message=user, output_model=self.model_for(inp, self.output_model_b if b else self.output_model),
+            deadline_ms=deadline_ms,
             cache_prefix=prefix, cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items),
             cache_parts=parts,
             session_id=inp.session_id, mock_primary_text=inp.utterance, mock_scenario=inp.scenario,
@@ -170,7 +178,30 @@ class ComplianceJudge(_SplitJudge):
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         return rule_based_compliance(inp, values, self.catalog, self.reflex)
 
+    @staticmethod
+    def _previous(inp: JudgeInput) -> str | None:
+        prev = inp.switch.previous_product_id
+        return prev if prev and prev != inp.on_air else None
+
+    def scope_data(self, inp: JudgeInput) -> str:
+        """D-349 SWITCH_MODE=immediate: in the seconds after a switch, the product that just left the air, labelled."""
+        prev = self._previous(inp)
+        if prev is None:
+            return ""
+        return inputs.data_block("PREVIOUS_PRODUCT", {
+            "note": ("The host switched products a few seconds ago. CURRENT_PRODUCT is now on air; this product was "
+                     "on air just before. For each violation, set product_id to the product the claim is about "
+                     "(CURRENT_PRODUCT or this one) and take say_instead from that product's approved claims."),
+            "product": inputs.current_product_json(self.catalog, prev),
+            "approved_claims": inputs.approved_claims_of_current_product_json(self.catalog, prev)})
+
+    def model_for(self, inp: JudgeInput, model: type) -> type:
+        return with_product(model) if self._previous(inp) else model
+
     async def run(self, inp: JudgeInput, *, deadline_ms: int, values: dict | None = None, **opts) -> AgentResult:
+        if (prev := self._previous(inp)) is not None:  # D-349: the products a violation may name
+            values = {**(values if values is not None else build_judge_values(self.catalog, inp)),
+                      "scope_product_ids": [inp.on_air, prev]}
         search = rule_search.for_settings(self.llm.settings) if self.arm == "E" else None
         if search is not None:  # D-194 arm E: only the rules the search picks for this line (every rule on failure)
             values = dict(values if values is not None else build_judge_values(self.catalog, inp))

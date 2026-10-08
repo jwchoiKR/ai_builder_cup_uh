@@ -257,7 +257,9 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
         switch: {
           ...IDLE_SWITCH,
           last_commit: switched
-            ? { closed_segment_id: closedId ?? "", opened_segment_id: seg.segment_id, at: seg.started_at }
+            ? { closed_segment_id: closedId ?? "", opened_segment_id: seg.segment_id, at: seg.started_at,
+                ...(seg.start_reason === "auto_speech" && s.switch?.decided_target === seg.product_id
+                  ? { immediate: true } : {}) }
             : null,
         },
       }));
@@ -295,6 +297,10 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
         },
       }));
     }
+
+    case "segment.switch_decided":
+      // D-349: an immediate switch verdict; its segment.started follows at once
+      return p.switch ? withSession(state, (s) => ({ ...s, switch: { ...s.switch, decided_target: p.target_product_id } })) : state;
 
     case "segment.switch_pending":
       return withSession(state, (s) => ({

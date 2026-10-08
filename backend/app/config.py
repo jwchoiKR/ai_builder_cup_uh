@@ -217,6 +217,10 @@ class Settings(BaseSettings):
     SWITCH_CONSECUTIVE_CUES: int = 2
     SWITCH_CUE_WINDOW_SEC: int = 30
     SWITCH_CANCEL_WINDOW_SEC: int = 5
+    # D-349 arm: immediate = the context judge's transition verdict alone switches at once (no name match, no confirm,
+    # no 5 s pending); for SWITCH_DUAL_SCOPE_SEC after a switch or an undo the judges get both products, labelled
+    SWITCH_MODE: Literal["two_step", "immediate"] = "two_step"
+    SWITCH_DUAL_SCOPE_SEC: int = 10
     UNDO_SWITCH_WINDOW_SEC: int = 60
     STREAM_GRACE_SEC: int = 2
     HOST_TOP_N: int = 6  # D-113: the compact waiting list (cards are released one at a time by the AI PD)

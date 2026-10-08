@@ -2,9 +2,10 @@
 sent to the model, so field names and order follow the prompt files exactly."""
 from __future__ import annotations
 
+import functools
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, PrivateAttr
+from pydantic import BaseModel, ConfigDict, PrivateAttr, create_model
 
 # ---- UtteranceJudge (§7.3) -------------------------------------------------------------------
 
@@ -90,6 +91,18 @@ def _all_required(schema: dict) -> None:
 
 class _ArmB(BaseModel):
     model_config = ConfigDict(json_schema_extra=_all_required)
+
+
+@functools.cache
+def with_product(model: type[BaseModel]) -> type[BaseModel]:
+    """D-349 SWITCH_MODE=immediate: the same compliance output with a `product_id` per violation, asked for only in
+    the seconds after a switch when two products are in scope (the model says which one each claim is about)."""
+    comp = model.model_fields["compliance"].annotation
+    viol = comp.model_fields["violations"].annotation.__args__[0]
+    base = viol if issubclass(viol, _ArmB) else (viol, _ArmB)
+    v = create_model(f"{viol.__name__}P", __base__=base, product_id=(str | None, None))
+    c = create_model(f"{comp.__name__}P", __base__=comp, violations=(list[v], ...))
+    return create_model(f"{model.__name__}P", __base__=model, compliance=(c, ...))
 
 
 class CorrectionQuote(_ArmB):

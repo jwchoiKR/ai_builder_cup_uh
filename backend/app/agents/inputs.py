@@ -143,10 +143,13 @@ def active_offers_json(catalog: Catalog, offers: Sequence[Promo]) -> list[dict]:
 
 def switch_context_json(catalog: Catalog, switch: SwitchState, on_air_product_id: str | None) -> dict:
     nxt = switch.target_product_id or catalog.next_product(on_air_product_id)
+    prev = switch.previous_product_id
     return {
         "in_progress": switch.status in ("counting", "pending"),
         "next_product": {"product_id": nxt, "name": catalog.get_product(nxt).name} if nxt else None,
-    }
+    } | ({"previous_product": {  # D-349: only inside the few seconds after a switch (SWITCH_MODE=immediate)
+        "product_id": prev, "name": catalog.get_product(prev).name,
+        "note": "was on air until a few seconds ago; the current product is now on air"}} if prev else {})
 
 
 # ---- policy ----------------------------------------------------------------------------------

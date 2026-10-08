@@ -98,6 +98,8 @@ export const KO_HOST: Record<string, string> = {
   "the next product": "다음 제품",
   "{n} seconds": "{n}초",
   "Cancel switch (Esc)": "전환 취소 (Esc)",
+  "Switched to {name}": "{name}(으)로 전환됨",
+  "Undo (Esc)": "되돌리기 (Esc)",
   "AI PD card": "AI PD 카드",
   Answer: "답변하기",
   "Say this point": "이 포인트 말하기",
