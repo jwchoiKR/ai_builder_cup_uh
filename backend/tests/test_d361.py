@@ -52,11 +52,11 @@ async def test_d361_a_flush_wakes_a_waiting_write_retry(monkeypatch):
     client = FakeFirestore()
     client.fail_next_commits = 1
     store = FirestoreStore(client=client)
-    await store.put(sub("ses_1", "comments"), "cm_1", Comment(comment_id="cm_1", author_id="u", author_name="A",
+    await store.put(sub("ses_1", "transcripts"), "cm_1", Comment(comment_id="cm_1", author_id="u", author_name="A",
                                                                text="hi", received_at=1, source="script"))
     await asyncio.sleep(0.05)  # the first commit fails; the writer now waits 30 s
     assert await store.flush(2)
-    assert client.count(sub("ses_1", "comments")) == 1
+    assert client.count(sub("ses_1", "transcripts")) == 1
 
 
 def test_d361_the_quote_check_keeps_letters_of_every_script():

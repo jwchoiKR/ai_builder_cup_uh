@@ -10,7 +10,7 @@ import pytest
 from app.bus import EventBus
 from app.models.session import Comment, Event, Session
 from app.store.base import SESSIONS, sub
-from app.store.firestore import JSON_FIELD, FirestoreStore
+from app.store.firestore import JSON_FIELD, FirestoreStore, mirrored
 
 from . import test_store
 from .fake_firestore import FakeFirestore
@@ -33,14 +33,15 @@ async def test_d354_the_store_contract_holds(case):
     store, client = _store()
     await case(store)
     assert await store.flush(5)
-    # what Firestore holds equals what memory holds
+    # what Firestore holds equals what memory holds, except comment data (D-378: memory only)
     for path, docs in store._data.items():
-        assert {k: v for k, v in client.data.get(path, {}).items()} == docs, path
+        want = {k: v for k, v in docs.items() if mirrored(path, v)}
+        assert {k: v for k, v in client.data.get(path, {}).items()} == want, path
 
 
 async def test_d354_writes_do_not_wait_and_are_coalesced_and_batched():
     store, client = _store()
-    path = sub("ses_1", "comments")
+    path = sub("ses_1", "transcripts")
     await store.put(SESSIONS, "ses_1", _comment(0))  # any model: the session read-back has happened once
     reads = client.reads
     for i in range(1200):
@@ -56,16 +57,16 @@ async def test_d354_writes_do_not_wait_and_are_coalesced_and_batched():
 async def test_d354_an_outage_is_retried_and_nothing_is_lost(caplog):
     store, client = _store()
     client.fail_next_commits = 2
-    await store.put(sub("ses_1", "comments"), "cm_000001", _comment(1))
+    await store.put(sub("ses_1", "transcripts"), "cm_000001", _comment(1))
     assert await store.flush(10)
-    assert client.count(sub("ses_1", "comments")) == 1 and store.failures == 2
+    assert client.count(sub("ses_1", "transcripts")) == 1 and store.failures == 2
     assert "write failed" in caplog.text
 
 
 async def test_d354_a_refused_document_is_logged_and_does_not_block_the_others(caplog):
     store, client = _store()
     client.refuse_ids = {"cm_000002"}
-    path = sub("ses_1", "comments")
+    path = sub("ses_1", "transcripts")
     for i in (1, 2, 3):
         await store.put(path, f"cm_{i:06d}", _comment(i))
     assert await store.flush(5)
@@ -89,18 +90,18 @@ async def test_d354_nested_arrays_are_written_as_json_and_read_back():
 async def test_d354_a_doc_id_with_a_slash_is_refused():
     store, _ = _store()
     with pytest.raises(ValueError):
-        await store.put(sub("ses_1", "comments"), "a/b", _comment(1))
+        await store.put(sub("ses_1", "transcripts"), "a/b", _comment(1))
 
 
 async def test_d354_a_too_large_document_is_logged_not_written(caplog):
     store, client = _store()
     big = Comment(comment_id="cm_big", author_id="u", author_name="A", text="x" * 1_100_000, received_at=1,
                   source="script")
-    await store.put(sub("ses_1", "comments"), "cm_big", big)
-    await store.put(sub("ses_1", "comments"), "cm_000001", _comment(1))
+    await store.put(sub("ses_1", "transcripts"), "cm_big", big)
+    await store.put(sub("ses_1", "transcripts"), "cm_000001", _comment(1))
     assert await store.flush(5)
     assert "over the 1 MiB document limit" in caplog.text and store.failures == 1
-    assert set(client.data[sub("ses_1", "comments")]) == {"cm_000001"}
+    assert set(client.data[sub("ses_1", "transcripts")]) == {"cm_000001"}
 
 
 async def test_d354_a_replayed_show_matches_memory_and_a_new_process_continues_it(monkeypatch):
@@ -126,7 +127,7 @@ async def test_d354_a_replayed_show_matches_memory_and_a_new_process_continues_i
         assert await ctx.store.flush(10)
         mem = ctx.store._data
         for path in [p for p in mem if p == SESSIONS or p.startswith(f"{SESSIONS}/{sid}/")]:
-            assert set(client.data.get(path, {})) == set(mem[path]), path
+            assert set(client.data.get(path, {})) == {k for k, v in mem[path].items() if mirrored(path, v)}, path
         last = (await ctx.bus.events_after(sid, 0))[-1].seq
     finally:
         ctx.runtimes.shutdown()
@@ -143,11 +144,11 @@ async def test_d354_a_replayed_show_matches_memory_and_a_new_process_continues_i
 async def test_d354_delete_session_deletes_it_in_firestore_too():
     store, client = _store()
     await store.put(SESSIONS, "ses_1", _comment(0))
-    await store.put(sub("ses_1", "comments"), "cm_000001", _comment(1))
+    await store.put(sub("ses_1", "transcripts"), "cm_000001", _comment(1))
     assert await store.flush(5)
     await store.delete_session("ses_1")
     assert await store.flush(5)
-    assert not client.data.get(SESSIONS) and not client.data.get(sub("ses_1", "comments"))
+    assert not client.data.get(SESSIONS) and not client.data.get(sub("ses_1", "transcripts"))
 
 
 @pytest.mark.skipif(not os.environ.get("FIRESTORE_EMULATOR_HOST"), reason="needs the Firestore emulator")
@@ -167,3 +168,26 @@ async def test_d354_the_store_contract_on_the_emulator(case):
             sid = path.split("/")[1]
             got = await fresh.query(path, Comment)
             assert {c.comment_id for c in got} == set(docs), (sid, path)
+
+
+async def test_d378_comment_data_stays_in_memory_and_live_data_goes_to_firestore():
+    """D-378 (user): the comments session keeps comment data in its own Firestore storage."""
+    from app.models.session import AgentCall, QuestionGroup
+
+    store, client = _store()
+    await store.put(SESSIONS, "ses_1", _comment(0))
+    for name in ("comments", "analyses", "groups", "answers", "messages"):
+        await store.put(sub("ses_1", name), "x_1", _comment(1))
+    await store.put(sub("ses_1", "transcripts"), "t_1", _comment(2))
+    for agent in ("comment_triage", "answer_composer", "fact_checker"):
+        call = AgentCall.model_construct(call_id=f"call_{agent}", agent=agent)
+        await store.put(sub("ses_1", "agent_calls"), f"call_{agent}", call)
+    assert await store.flush(5)
+    assert not any(client.data.get(sub("ses_1", n)) for n in ("comments", "analyses", "groups", "answers",
+                                                              "messages"))
+    assert set(client.data[sub("ses_1", "transcripts")]) == {"t_1"}
+    assert set(client.data[sub("ses_1", "agent_calls")]) == {"call_fact_checker"}
+    # a comment row left in Firestore from before is never read back
+    client.data.setdefault(sub("ses_1", "groups"), {})["old"] = {"group_id": "old"}
+    fresh, _ = _store(client)
+    assert await fresh.query(sub("ses_1", "groups"), QuestionGroup) == []
