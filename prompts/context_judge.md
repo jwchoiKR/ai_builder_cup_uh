@@ -34,7 +34,6 @@ OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested
 - Mentioning another product while reading a viewer's comment, answering a question, or saying "we'll get to it later" is NOT a transition. Set `switch.is_quote = true` in those cases.
 - `switch.target_product_id` is the product being introduced, or null.
 - `switch.confidence` is `high` only for an explicit introduction of the next product.
-- If the host goes back to talking about the previous product ("going back to the vitamins for a second"), set `is_transition = true` and `target_product_id` to that previous product. The software uses this to cancel a pending switch.
 - A sentence that keeps describing the product named in the last transition (its texture, usage, ingredients) is a continuation: set `is_transition = false` and list the covered points of that product.
 
 ### Output rules
