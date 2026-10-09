@@ -15,3 +15,17 @@ Issues found and waiting for a team decision. Each entry: what happens, where in
 **Why it matters.** Several judges or testers opening the public URL at the same time would interfere with each other's demo.
 
 **Status.** The user will discuss the fix with the team. No code change yet.
+
+## I-2. A health question the product info answers reaches the host only about 3 times in 10 (10/10, comments path)
+
+**What happens.** "I get redness easily, will this cream irritate my skin?" on the DAON cream (whose documents say "Suitable for sensitive skin. Patch tested with no irritation reactions in our in-house test.") was sent 10 times, each in a new session, on revision 00015. The triage was the same every time (health, needs approval, HOST). Three times the answer composer used the suitability sentence and the draft verified, so the question reached the host list. Three times the composer returned `grounded: false` with no answer. Four times it answered with cautions only, and the draft verifier failed it ("does not answer the viewer's question"). Those seven went to the operator.
+
+**Where.** The comments team's `answer_composer` and `draft_verifier` (prompts and agents). Session ids and agent calls are in Firestore `live-studio` (sessions `ses_01M4GHK…` to `ses_01M4GHPQ…`, 10/10).
+
+**Status.** The user told the comments team that consistency is not guaranteed. Not ours to change.
+
+## I-3. The viewer is told "The host will answer this on air" before the show starts (10/10, comments path)
+
+**What happens.** After a demo reset the new session is `ready`, with no product on air. A HOST question with a verified draft gets reply status "host" (`logic/reply_status.py`), so the viewer reads "The host will answer this on air", but the host list only takes questions about the on-air product, so the host sees nothing until the show starts.
+
+**Status.** Noted for the comments team.
