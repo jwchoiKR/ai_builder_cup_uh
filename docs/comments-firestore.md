@@ -3,7 +3,13 @@
 Status 2026-10-09. For whoever merges the comment branch (`perf/realtime-overhaul`) with `multi_agent_test`.
 Database: `live-studio` (Firestore Native, us-central1) in project `ai-budiler-cup-uh-team-pjt`.
 
-Short version: with `SESSIONS_FIRESTORE=true` every session is written to Firestore by one module,
+**Since the merge into `multi_agent_test` (D-428, 10/10):** `session_mirror.py` is gone. `STORE=firestore`
+(`backend/app/store/firestore.py`) is the one writer: it writes and reads back the five comment collections, keeps
+`read()`/`read_session()`, the `status()` shape and eviction of ended sessions. `SESSIONS_FIRESTORE` and
+`SESSIONS_FIRESTORE_DATABASE` are no longer used: set `STORE=firestore` (database `FIRESTORE_DATABASE`). The paths and
+fields below are unchanged. The rest of this file describes the mirror as it was before the merge.
+
+Short version (before the merge): with `SESSIONS_FIRESTORE=true` every session is written to Firestore by one module,
 `backend/app/store/session_mirror.py`. Memory holds only the shows the process is working on: a session that is not
 in memory (the process restarted, or the session was evicted after it ended) is read back from Firestore when it is
 opened. This file is the contract for the five documents of the comment path (paths, keys, fields, reasons), and §6
@@ -210,8 +216,8 @@ runtime ──put/get/query──▶ SessionMirrorStore ──every call, unchan
 
 | setting | default | meaning |
 |---|---|---|
-| `SESSIONS_FIRESTORE` | false | write every session to Firestore and read it back when it is not in memory (needs `GCP_PROJECT`) |
-| `SESSIONS_FIRESTORE_DATABASE` | `live-studio` | the database |
+| `STORE` | memory | `firestore`: write every session to Firestore and read it back when it is not in memory (needs `GCP_PROJECT`); replaces `SESSIONS_FIRESTORE` (D-428) |
+| `FIRESTORE_DATABASE` | `live-studio` | the database; replaces `SESSIONS_FIRESTORE_DATABASE` (D-428) |
 | `SESSION_EVICT_AFTER_SEC` | 900 | an ended session leaves memory this long after its summary; 0 keeps every session in memory |
 
 ### Limits
