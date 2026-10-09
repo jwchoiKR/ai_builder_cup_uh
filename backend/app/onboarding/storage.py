@@ -10,6 +10,7 @@ nothing changes (local disk only).
 """
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Protocol
@@ -147,3 +148,18 @@ def ensure(path: Path) -> bool:
         return True
     m = _mirror(path)
     return m is not None and m.fetch(path)
+
+
+def publish_sources(root: Path, job_id: str, bucket: Bucket) -> int:
+    """An approved job's original files into the Vertex AI Search data store's bucket, as <job_id>/<file name>
+    (the store streams them in). Write-once, like the files themselves. Returns how many were sent."""
+    index = root / job_id / "files.json"
+    if not ensure(index):
+        return 0
+    n = 0
+    for e in json.loads(index.read_text(encoding="utf-8")):
+        path = root / job_id / e["file"]
+        if ensure(path):
+            bucket.upload(f"{job_id}/{Path(e['name']).name}", path.read_bytes(), create_only=True)
+            n += 1
+    return n

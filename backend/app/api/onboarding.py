@@ -136,6 +136,15 @@ async def approve_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
         warnings.append(f"no approved wording in {ctx.pack.lang}: alerts will have no replacement line")
     live = _live_summary(pack, record)  # D-231: what will happen live, in plain words
     release_id = save_release(ctx.settings.onboarding_path, record, job_id, translations)
+    if ctx.settings.VERTEX_SEARCH_GCS_BUCKET:  # the product documents become the evidence of viewer answers
+        from ..onboarding.storage import bucket_for, publish_sources
+
+        try:
+            await asyncio.to_thread(publish_sources, ctx.settings.onboarding_path, job_id,
+                                    bucket_for(ctx.settings.VERTEX_SEARCH_GCS_BUCKET, ctx.settings.GCP_PROJECT))
+        except Exception as e:  # noqa: BLE001 - the release stands; viewer answers lack these documents
+            log.warning("documents of %s not sent to the search bucket: %s", job_id, e)
+            warnings.append(f"documents not sent to Vertex AI Search: {str(e)[:200]}")
     # D-265/D-266: the BriefAgent on the release (STT glossary, prompter points) runs after the approval returns
     _briefs[release_id] = "running"
     ctx.scheduler.spawn(_brief(ctx, release_id, record), name=f"brief:{release_id}")
