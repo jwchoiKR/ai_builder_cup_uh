@@ -250,6 +250,12 @@ class FirestoreStore(MemoryStore):
                 staged.append((path, d.id, d.to_dict()))
         for path, doc_id, data in staged:
             self._fill(path, doc_id, data)
+        if hw is None:
+            # D-430: a session the comments team's mirror wrote (before D-428) has no mark; its last events may not
+            # have reached Firestore, so the next seq starts a block past the highest stored one (the mirror jumped
+            # ahead on read-back for the same reason). With no stored event no browser saw a seq: no jump.
+            last = max((decode(d).get("seq", 0) for p, _, d in staged if p == f"{SESSIONS}/{sid}/events"), default=0)
+            hw = last + HW_BLOCK if last else None
         if hw is not None:
             self._seq_hw[sid] = max(self._seq_hw.get(sid, 0), int(hw))
         self.loaded += 1

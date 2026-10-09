@@ -113,8 +113,8 @@ class Settings(BaseSettings):
     # D-428: an ended session leaves memory this long after its summary is written; STORE=firestore keeps it and reads
     # it back when it is opened. 0 keeps every session in memory.
     SESSION_EVICT_AFTER_SEC: int = 900
-    # D-428: the comments team's second Firestore writer was merged into STORE=firestore; set, it stops the app so two
-    # writers never run
+    # D-428: the comments team's second Firestore writer was merged into STORE=firestore. D-430: true runs as
+    # STORE=firestore (one warning), so there is still one writer; false changes nothing
     SESSIONS_FIRESTORE: bool = False
     RETRIEVER: Literal["local", "vertex_search"] = "local"
     LLM_PROVIDER: Literal["vertex", "mock"] = "vertex"
@@ -291,8 +291,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
-        if self.SESSIONS_FIRESTORE:
-            raise ValueError("SESSIONS_FIRESTORE was merged into STORE=firestore (D-428): set STORE=firestore instead")
+        if self.SESSIONS_FIRESTORE:  # D-430: never stops the server
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "SESSIONS_FIRESTORE is merged into STORE=firestore (D-428); using STORE=firestore")
+            self.STORE = "firestore"
         # §5: DEMO_TOOLS_ENABLED MUST be false in `cloud` unless explicitly set.
         if self.APP_ENV == "cloud" and "DEMO_TOOLS_ENABLED" not in self.model_fields_set:
             self.DEMO_TOOLS_ENABLED = False
