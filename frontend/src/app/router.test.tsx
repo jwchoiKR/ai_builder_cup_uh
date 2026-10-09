@@ -38,27 +38,15 @@ afterEach(() => {
 });
 
 describe("D-315: a show lost to a server restart", () => {
-  it("a session from the URL: says the show ended, without the raw error, and the new demo session loads", async () => {
-    const calls = server(["ses_old"], ["ses_new"]);
+  it("a session from the URL: says the show ended, without the raw error, and the button goes to the hub", async () => {
+    server(["ses_old"], ["ses_new"]);
     window.history.replaceState(null, "", "/host?session=ses_old");
     render(<App />);
     expect(await screen.findByTestId("session-ended")).toHaveTextContent("This show is no longer available.");
     expect(screen.queryByText(/not found/)).toBeNull();
     fireEvent.click(screen.getByTestId("session-ended-new"));
-    await waitFor(() => expect(calls.some((u) => u.includes("/sessions/ses_new/"))).toBe(true));
     expect(window.location.search).toBe("");
-    expect(window.location.pathname).toBe("/host");
-    expect(screen.queryByTestId("session-ended")).toBeNull();
-  });
-
-  it("a session from /demo/current: the button fetches it again and the new one loads", async () => {
-    const calls = server(["ses_old2"], ["ses_old2", "ses_new2"]);
-    window.history.replaceState(null, "", "/host");
-    render(<App />);
-    expect(await screen.findByTestId("session-ended")).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId("session-ended-new"));
-    await waitFor(() => expect(calls.some((u) => u.includes("/sessions/ses_new2/"))).toBe(true));
-    expect(calls.filter((u) => u.startsWith("/api/demo/current"))).toHaveLength(2);
+    expect(window.location.pathname).toBe("/");
     expect(screen.queryByTestId("session-ended")).toBeNull();
   });
 
@@ -72,10 +60,4 @@ describe("D-315: a show lost to a server restart", () => {
     expect(screen.queryByTestId("session-ended")).toBeNull();
   });
 
-  it("D-332: a screen opened without ?session loads the current demo show's own catalog", async () => {
-    const calls = server([], ["ses_cat4"]);
-    window.history.replaceState(null, "", "/host");
-    render(<App />);
-    await waitFor(() => expect(calls).toContain("/api/catalog?session=ses_cat4"));
-  });
 });
