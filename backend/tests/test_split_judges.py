@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from .judge_fakes import close_env, events, make_env, speak, violation
+from .judge_fakes import rid, close_env, events, make_env, speak, violation
 from .test_publish import ANSWER, messages, oily_on_host
 
 BACTERIA = "It kills the bacteria on your skin."
@@ -53,7 +53,7 @@ async def test_context_failure_keeps_alerts_and_skips_publish(env):
     await speak(rt, ANSWER)
     await speak(rt, BACTERIA)
     assert await messages(rt, "host_answer") == []
-    assert [a.rule_id for a in await rt.alerts() if a.status == "active"] == ["ASEAN-3-SKIN-ANTIMICROBIAL"]
+    assert [a.rule_id for a in await rt.alerts() if a.status == "active"] == [rid("ASEAN-3-SKIN-ANTIMICROBIAL")]
     # D-416: a context failure is shown too (each line once per judge)
     assert [e.payload["agent"] for e in await events(rt, "judge.failed")] == ["context_judge", "context_judge"]
 
@@ -80,6 +80,7 @@ async def test_both_verdicts_publish_the_host_answer(env):
     assert m.state == "pending"
 
 
+@pytest.mark.legacy_live  # D-434: JUDGE_MODE=split reads the rule JSON (deleted with it, N2)
 async def test_split_mode_is_kept_for_rollback():
     rt, llm = await make_env(JUDGE_MODE="split")
     try:
@@ -91,6 +92,3 @@ async def test_split_mode_is_kept_for_rollback():
         assert (await rt.current_segment()).covered_point_ids == ["cr-p1"]
     finally:
         await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

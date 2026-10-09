@@ -8,7 +8,7 @@ from app.models.session import Alert
 from app.pipelines import utterances as utt
 from app.pipelines.runtime import ActionError
 
-from .judge_fakes import CREAM, advance, close_env, events, make_env, speak, violation
+from .judge_fakes import rid, CREAM, advance, close_env, events, make_env, speak, violation
 
 WRINKLES = "Use it every night and your wrinkles will disappear overnight."
 BACTERIA = "It kills the bacteria on your skin."
@@ -32,11 +32,11 @@ async def only_alert(rt) -> Alert:
 async def test_a_judge_violation_is_an_active_alert(env):
     rt, llm = env
     llm.judge(WRINKLES, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight",
-                                              severity="MEDIUM", say="With regular use, it helps keep skin hydrated.")])
+                                              say="With regular use, it helps keep skin hydrated.")])
     t = await speak(rt, WRINKLES)
     a = await only_alert(rt)
-    assert (a.kind, a.status, a.rule_id) == ("compliance", "active", "ASEAN-3-SKIN-AGEING")
-    assert a.severity == "MEDIUM"  # D-391: the model's severity and wording, as given
+    assert (a.kind, a.status, a.rule_id) == ("compliance", "active", rid("ASEAN-3-SKIN-AGEING"))
+    assert a.severity == "HIGH"  # D-400: a regulation citation is red; D-391: the model's wording as given
     assert a.span == "your wrinkles will disappear overnight" and a.say_instead == "With regular use, it helps keep skin hydrated."
     assert a.shown_at is not None and a.transcript_id == t.transcript_id and not a.unverified
     # D-410: no provisional alert first; the judge's verdict is the only alert event
@@ -52,6 +52,7 @@ async def test_judge_violation_without_reflex_hit_creates_active(env):
     assert [e.type for e in await events(rt) if e.type.startswith("alert.")] == ["alert.created"]
 
 
+@pytest.mark.legacy_live  # D-434: the rules-JSON path's unknown-rule skip (deleted with it, N1)
 async def test_unknown_rule_is_dropped(env):
     rt, llm = env
     llm.judge(BACTERIA, violations=[violation("NOT-A-RULE")])
@@ -105,6 +106,7 @@ async def test_escalation_at_five_seconds_and_no_auto_expiry(env):
     assert len(await events(rt, "alert.escalated")) == 1
 
 
+@pytest.mark.legacy_live  # D-434: a MEDIUM compliance alert comes only from the rules-JSON path (N1)
 async def test_medium_alert_is_not_escalated(env):
     rt, llm = env
     text = "Honestly this is the best moisturiser in Singapore."
@@ -125,17 +127,17 @@ async def test_correction_resolves_only_the_listed_alert(env):
     llm.judge(other, violations=[violation("ASEAN-3-SKIN-AGEING", "ten years younger")])
     t1 = await speak(rt, double)
     await speak(rt, other)
-    first = next(a for a in await rt.alerts() if a.rule_id == "ASEAN-2D-DISEASE")
+    first = next(a for a in await rt.alerts() if a.rule_id == rid("ASEAN-2D-DISEASE"))
     fix = "Let me correct that. It helps relieve the feeling of dryness."
     llm.judge(fix, corrects=[first.alert_id], utterance_type="correction")
     t3 = await speak(rt, fix)
     by_rule = {a.rule_id: a for a in await rt.alerts()}
-    a = by_rule["ASEAN-2D-DISEASE"]
+    a = by_rule[rid("ASEAN-2D-DISEASE")]
     assert a.transcript_id == t1.transcript_id
     assert a.status == "corrected" and a.resolved_at is not None
     assert a.corrected_by_transcript_id == t3.transcript_id and a.corrected_text == fix
-    assert by_rule["ASEAN-3-SKIN-ANTIMICROBIAL"].status == "active"  # same sentence, not corrected
-    assert by_rule["ASEAN-3-SKIN-AGEING"].status == "active"  # other transcript, not listed
+    assert by_rule[rid("ASEAN-3-SKIN-ANTIMICROBIAL")].status == "active"  # same sentence, not corrected
+    assert by_rule[rid("ASEAN-3-SKIN-AGEING")].status == "active"  # other transcript, not listed
 
 
 async def test_corrected_before_five_seconds_is_not_escalated(env):
@@ -307,6 +309,3 @@ async def test_a_fact_call_slower_than_the_on_time_line_counts_for_the_health_do
     await advance(rt, 1000)
     await rt.utterances._note_health("fact_checker", "timeout")
     assert rt.utterances.degraded == ["fact_checker"]
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

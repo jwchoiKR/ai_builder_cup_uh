@@ -207,6 +207,3 @@ async def test_d431_a_question_card_stored_before_d429_ends_at_the_next_decision
     assert (await rt.load_session()).pd_card is None
     [ev] = [e for e in await events(rt, "pd.card") if e.payload["card_id"] == "pd_old"]
     assert ev.payload["status"] == "done"
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

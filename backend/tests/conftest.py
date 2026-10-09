@@ -141,5 +141,9 @@ def _live_path(request, monkeypatch):
         for key, value in LEGACY_LIVE.items():
             monkeypatch.setenv(key, value)
     monkeypatch.setattr("app.agents.split_judges.LEGACY_RULES", legacy)
+    from . import judge_fakes
+
+    judge_fakes.ADAPTER_ERRORS.clear()
     yield
     get_settings.cache_clear()
+    assert not judge_fakes.ADAPTER_ERRORS, judge_fakes.ADAPTER_ERRORS  # a scripted verdict the adapter refused

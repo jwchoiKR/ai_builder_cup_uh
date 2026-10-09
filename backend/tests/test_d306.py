@@ -8,7 +8,6 @@ import pytest
 
 from app.providers.llm import LLMError, failure_kind
 
-from .conftest import VERIFY_SHIPPED
 from .judge_fakes import ScriptedBackend, close_env, events, make_env, speak, violation
 
 

@@ -108,7 +108,7 @@ async def test_d361_a_correction_the_model_lists_is_not_excluded_by_the_merge():
     from app.providers.llm import RawReply
 
     from .helpers import live_runtime, make_ctx
-    from .judge_fakes import ScriptedBackend, close_env, judge_output, split_part, violation
+    from .judge_fakes import ScriptedBackend, close_env, rid, violation
 
     claim, sorry = "Honestly it cures eczema", "sorry, I take that back."
 
@@ -116,8 +116,9 @@ async def test_d361_a_correction_the_model_lists_is_not_excluded_by_the_merge():
         async def generate(self, req, timeout_ms):
             if req.agent == "compliance_judge" and "take that back" in req.mock_primary_text:
                 block = re.search(r'<data name="ACTIVE_ALERTS">(.*?)</data>', req.user_message, re.S)
-                ids = [a["alert_id"] for a in json.loads(block.group(1))] if block else []
-                out = split_part("compliance_judge", judge_output(corrects=ids, utterance_type="correction"))
+                shown = json.loads(block.group(1)) if block else []  # D-356: by handle (raw production JSON)
+                out = {"alert_checks": [{"handle": a["handle"], "fixed_by_this_line": True} for a in shown],
+                       "compliance": {"violations": []}, "reason": "scripted"}
                 return RawReply(json.dumps(out), model_version="scripted")
             return await super().generate(req, timeout_ms)
 
@@ -130,7 +131,7 @@ async def test_d361_a_correction_the_model_lists_is_not_excluded_by_the_merge():
         await rt.inject_transcript(sorry)
         await rt.utterances.drain()
         await rt.ctx.scheduler.idle()
-        alerts = [a for a in await rt.alerts() if a.rule_id == "ASEAN-2D-DISEASE" and a.status != "cleared"]
+        alerts = [a for a in await rt.alerts() if a.rule_id == rid("ASEAN-2D-DISEASE") and a.status != "cleared"]
         assert alerts and all(a.status == "corrected" for a in alerts)
     finally:
         await close_env(rt)
@@ -171,6 +172,3 @@ def test_d361_the_rule_json_judge_modes_do_not_start_in_production(monkeypatch):
         with pytest.raises(ValueError, match="production runs split3 only"):
             make_ctx(JUDGE_MODE=mode)
     make_ctx(JUDGE_MODE="split3").runtimes.shutdown()
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

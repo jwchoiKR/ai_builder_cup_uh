@@ -11,7 +11,7 @@ import pytest
 
 from app.models.session import Message
 
-from .judge_fakes import (AMPOULE, CREAM, PRICE_PASSAGE, PRICE_QUOTE, advance, claim, close_env, events, make_env,
+from .judge_fakes import (rid, AMPOULE, CREAM, PRICE_PASSAGE, PRICE_QUOTE, advance, claim, close_env, events, make_env,
                           price_contradiction, speak, violation)
 from .test_publish import oily_on_host
 
@@ -70,7 +70,7 @@ async def case_01_prompter_point(rt, llm):
 async def case_02_compliance_violation(rt, llm):
     """A HIGH claim: the judge raises it, the host gets the red alert (D-410: no reflex mark first)."""
     a = await violate(rt, llm)
-    assert (a.rule_id, a.severity, a.say_instead) == ("ASEAN-3-SKIN-AGEING", "HIGH", SAY)
+    assert (a.rule_id, a.severity, a.say_instead) == (rid("ASEAN-3-SKIN-AGEING"), "HIGH", SAY)
     assert a.shown_at is not None
     await advance(rt, 5000)
     assert (await rt.get_alert(a.alert_id)).escalated_at is not None  # not corrected in 5 s
@@ -165,6 +165,3 @@ async def test_orchestrator_case(env, case):
     rt, llm = env
     assert (await rt.current_segment()).product_id == CREAM
     await case(rt, llm)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

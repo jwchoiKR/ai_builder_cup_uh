@@ -7,7 +7,6 @@ from __future__ import annotations
 import pytest
 
 
-from .conftest import SHIPPED
 from .judge_fakes import CREAM, ScriptedBackend, close_env, events, speak, violation
 
 
@@ -21,8 +20,10 @@ def test_d309_the_single_arm_s_models(settings, clock, ids, store, bus):
 
     fast = settings.LLM_FAST_MODEL
     assert specs(JUDGE_ARM="verify") == ((fast, settings.COMPLIANCE_THINKING), (fast, settings.FACTS_THINKING))
-    assert specs(JUDGE_ARM="single") == (("gemini-3.8-flash", "LOW"), ("gemini-3.8-flash", "LOW"))  # cell B
-    lite = specs(JUDGE_ARM="single", SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="HIGH")  # cell A
+    # D-434: the production defaults (Flash-Lite, compliance LOW, facts LOW)
+    assert specs(JUDGE_ARM="single") == (("gemini-3.5-flash-lite", "LOW"), ("gemini-3.5-flash-lite", "LOW"))
+    lite = specs(JUDGE_ARM="single", SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="HIGH",
+                 SINGLE_FACTS_THINKING="")  # cell A: empty = the facts follow SINGLE_THINKING
     assert lite == (("gemini-3.5-flash-lite", "HIGH"), ("gemini-3.5-flash-lite", "HIGH"))
     assert specs(JUDGE_ARM="single", COMPLIANCE_MODEL="m1")[0][0] == "m1"
     # D-311: compliance MEDIUM, facts LOW on Flash-Lite
@@ -41,19 +42,19 @@ class _Record(ScriptedBackend):
         return await super().generate(req, timeout_ms)
 
 
-@pytest.mark.parametrize("said, severity", [("HIGH", "HIGH"), ("MEDIUM", "MEDIUM")])
+@pytest.mark.parametrize("said, severity", [("HIGH", "HIGH"), ("MEDIUM", "HIGH")])  # D-400: a citation is red
 async def test_d309_one_judge_no_verifier_no_drops(said, severity):
     from .helpers import live_runtime, make_ctx
 
     llm = _Record()
     line = "Zero side effects with this cream."  # Q6/CK would drop it in guards mode: no group named
     llm.judge(line, violations=[violation("ASEAN-2D-VULNERABLE", "Zero side effects", severity=said)])
-    rt = await live_runtime(make_ctx(backend=llm, **(SHIPPED | {"JUDGE_ARM": "single"})))
+    rt = await live_runtime(make_ctx(backend=llm))  # D-434: the production defaults
     try:
         await speak(rt, line)
         await rt.utterances.drain()
         [a] = [a for a in await rt.alerts() if a.kind == "compliance" and a.status == "active"]
-        assert a.severity == severity  # the judge may lower a HIGH rule to MEDIUM
+        assert a.severity == severity  # D-400: code's, from the citation; the model does not grade
         assert not any(r.agent == "verifier" for r in llm.reqs) and await events(rt, "verify.started") == []
         assert {r.deadline_ms for r in llm.reqs if r.agent == "compliance_judge"} == {5000}
     finally:
@@ -84,6 +85,3 @@ async def test_d309_eval_rows_carry_the_alert_latency(monkeypatch):
         ctx.scheduler.shutdown()
     [a] = [a for a in row["alerts"] if a["kind"] == "compliance"]
     assert a["ms_to_shown"] is not None and a["ms_to_shown"] >= 0 and a["ms_to_created"] is not None
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

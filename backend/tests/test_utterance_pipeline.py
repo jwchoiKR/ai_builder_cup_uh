@@ -9,7 +9,7 @@ import pytest
 from app.pipelines.runtime import ActionError
 
 from .helpers import say
-from .judge_fakes import (
+from .judge_fakes import (rid, 
     ScriptedBackend,
     close_env,
     events,
@@ -76,7 +76,9 @@ async def test_transcripts_are_processed_in_order(env):
 async def test_preparation_does_not_wait_for_the_previous_judge(env):
     rt, llm = env
     llm.judge(BACTERIA, violations=[violation("ASEAN-3-SKIN-ANTIMICROBIAL")])
-    llm.delays[("utterance_judge", BACTERIA)] = 0.3
+    # D-335 (QUESTION_HOLD): the next final waits up to 0.3 s for this line's context verdict, so the slow judge is
+    # slower than that wait
+    llm.delays[("utterance_judge", BACTERIA)] = 0.6
     llm.judge(WRINKLES, violations=[violation("ASEAN-3-SKIN-AGEING")])
     await speak(rt, BACTERIA, wait=False)
     await speak(rt, WRINKLES, wait=False)
@@ -84,7 +86,7 @@ async def test_preparation_does_not_wait_for_the_previous_judge(env):
     created = [e.payload["rule_id"] for e in await events(rt, "alert.created")]
     # BACTERIA has no reflex hit, so its alert comes from its slow judge; WRINKLES' reflex alert no
     # longer waits for that judge (D-101).
-    assert created == ["ASEAN-3-SKIN-AGEING", "ASEAN-3-SKIN-ANTIMICROBIAL"]
+    assert created == [rid("ASEAN-3-SKIN-AGEING"), rid("ASEAN-3-SKIN-ANTIMICROBIAL")]
 
 
 async def test_slow_fact_check_does_not_block_next_compliance(env):
@@ -126,17 +128,19 @@ async def test_judge_input_lists(tmp_path):
         second = llm.messages[("compliance_judge", "Next sentence.")]
         second_ctx = llm.messages[("context_judge", "Next sentence.")]
         [a] = await rt.alerts()
-        assert f'"alert_id":"{a.alert_id}"' in data_block(second, "ACTIVE_ALERTS")
+        # D-356: the production judge sees each active alert by handle, never its id
+        assert '"handle":"A1"' in data_block(second, "ACTIVE_ALERTS") and a.alert_id not in second
         assert data_block(second, "RECENT_TRANSCRIPT") == f'["{WRINKLES}"]'
         points = data_block(second_ctx, "PROMPTER_POINTS")
         assert '"point_id":"cr-p1"' in points and '"point_id":"am-p1"' in points
         facts_msg = llm.messages[("fact_checker", "Next sentence.")]
         assert '"next_product"' in data_block(facts_msg, "SWITCH_CONTEXT")  # D-415: no in_progress
-        assert "DL-CR-01#key-facts#live-broadcast-price" in data_block(facts_msg, "SOURCE")
+        assert "DL-CR-01#prompter#live-price" in data_block(facts_msg, "SOURCE")  # D-360: the prompter snapshot
     finally:
         await close_env(rt)
 
 
+@pytest.mark.legacy_live  # D-434: JUDGE_MODE=single reads the rule JSON (deleted with it, N2)
 async def test_single_mode_applies_compliance_and_facts_from_one_call():
     rt, llm = await make_env(JUDGE_MODE="single")
     try:
@@ -168,11 +172,8 @@ async def test_snapshot_blocks(env):
     await speak(rt, BACTERIA)
     op = await rt.snapshot("operator")
     host = await rt.snapshot("host")
-    assert [a["rule_id"] for a in op["alerts"]] == ["ASEAN-3-SKIN-ANTIMICROBIAL"] and host["alerts"] == op["alerts"]
+    assert [a["rule_id"] for a in op["alerts"]] == [rid("ASEAN-3-SKIN-ANTIMICROBIAL")] and host["alerts"] == op["alerts"]
     assert op["prompter"]["covered_point_ids"] == ["cr-p1"] and op["prompter"]["required_total"] == 3
     assert [t["text"] for t in op["transcripts"]] == [BACTERIA] and "transcripts" not in host
     assert {"compliance_judge", "context_judge"} <= {c["agent"] for c in op["agent_calls"]} and "agent_calls" not in host
     assert op["metrics"]["alert"]["count"] == 1
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
