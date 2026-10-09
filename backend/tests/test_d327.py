@@ -1,15 +1,14 @@
-"""D-327: STT_HINTS=record adds each on-show release's own names and sizes (record) to the speech hints, after the
-brief glossary and the base names, under the same cap; STT_HINT_BOOST puts one boost on the phrase set. The eval
-hook `phrases_for_release` returns exactly what the live stream sends. Made-up products only."""
+"""D-327: the eval hook `phrases_for_release` returns exactly the speech hints the live stream sends (production's
+base hints: the brief glossary, then the brand, product and ingredient names). D-435: the record-names mode and the
+boost are gone. Made-up products only."""
 from __future__ import annotations
 
 import json
 import time
 
-import pytest
 from fastapi.testclient import TestClient
 
-from app.api.audio_ws import phrases_for_release, record_terms
+from app.api.audio_ws import phrases_for_release
 from app.onboarding.read import normalise
 from app.onboarding.record import ProductRecord
 from app.onboarding.release import product_key
@@ -27,19 +26,7 @@ RECORD = _record(
                {"text": "Light gel texture.", "evidence": EV}])
 
 
-def test_d327_record_terms():
-    r, _ = normalise(ProductRecord.model_validate(RECORD))
-    terms = record_terms(r)
-    assert terms[:3] == ["Quillon", "Kelpa Night Serum", "kelpa serum"]
-    for t in ("P 30", "Tessel Quay Labs", "TQ-2291", "Brindle Panel Group", "30 ml", "Korea", "ISO 22716"):
-        assert t in terms, t
-    assert not any(t.isdigit() or "S$" in t or "36" in t for t in terms)  # no prices or bare numbers
-    assert "Light gel texture." not in terms and "Light" not in terms  # no sentences, no sentence-start words
-    assert len({t.lower() for t in terms}) == len(terms)
-
-
-@pytest.mark.parametrize("mode", ["base", "record"])
-def test_d327_the_eval_hook_returns_what_the_stream_sends(tmp_path, mode):
+def test_d327_the_eval_hook_returns_what_the_stream_sends(tmp_path):
     from app.main import create_app
 
     from .helpers import make_settings
@@ -48,8 +35,7 @@ def test_d327_the_eval_hook_returns_what_the_stream_sends(tmp_path, mode):
     backend = ScriptedBackend()
     backend.outputs[("onboarding_read", "spec.txt")] = RECORD
     backend.fail("brief_agent", rid)
-    app = create_app(make_settings(ONBOARDING_DIR=str(tmp_path), STT_HINTS=mode, STT_RISK_HINTS=True),
-                     llm_backend=backend)
+    app = create_app(make_settings(ONBOARDING_DIR=str(tmp_path)), llm_backend=backend)
     with TestClient(app) as c:
         job = c.post("/api/onboarding/jobs", files=[("files", ("spec.txt", b"hello", "text/plain"))]).json()["job_id"]
         for _ in range(100):
@@ -63,31 +49,6 @@ def test_d327_the_eval_hook_returns_what_the_stream_sends(tmp_path, mode):
             assert json.loads(ws.receive_text())["phrases"] > 0
         [sent] = app.state.ctx.stt.opened
         ctx = app.state.ctx
-        assert phrases_for_release(ctx, rid) == sent
-        assert phrases_for_release(ctx, rid, mode="record" if mode == "base" else "base") != sent
-    assert ("Tessel Quay Labs" in sent) is (mode == "record")
+        assert phrases_for_release(ctx, rid) == sent == phrases_for_release(ctx, rid, mode="base")
+    assert "Tessel Quay Labs" not in sent  # a test result's lab name is not a base hint
     assert sent[0] == "Quillon"
-
-
-def test_d327_the_boost_goes_on_the_phrase_set():
-    from app.clock import SystemClock
-    from app.providers.stt import GoogleV2Stt
-
-    from .helpers import make_settings
-
-    def boost(value):
-        stt = GoogleV2Stt(make_settings(GCP_PROJECT="p", STT_HINT_BOOST=value), SystemClock())
-        return stt.first_request(["Tessel Quay"]).streaming_config.config.adaptation.phrase_sets[0] \
-            .inline_phrase_set.boost
-
-    assert boost("") == 0 and boost("10") == 10
-
-
-@pytest.mark.parametrize("value", ["loud", "25"])
-def test_d327_a_bad_boost_fails_at_startup(value):
-    from pydantic import ValidationError
-
-    from .helpers import make_settings
-
-    with pytest.raises(ValidationError):
-        make_settings(STT_HINT_BOOST=value)
