@@ -178,7 +178,7 @@ export function SwitchedBar({ productName, onUndo }: { productName: string; onUn
         <span className={styles.switchTitle}>{t("Switched to {name}", { name: productName })}</span>
       </div>
       <button type="button" className={styles.switchCancel} onClick={onUndo}>
-        {t("Undo (Esc)")}
+        {t("Undo")}
       </button>
     </div>
   );

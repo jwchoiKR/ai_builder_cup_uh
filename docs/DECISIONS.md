@@ -2865,3 +2865,19 @@ D-428 (user go 10/10; plan decided with the user on 10/9): main (6dc6698, the co
 - CLAUDE.md and AGENTS.md are kept (main deleted them and moved the text to HANDOVER.md, which is taken as main has it): they are the agent sessions' instruction files.
 - Tests: tests/test_d428.py (two writers refused, the status counters after a transaction, the queue cap, a delete that leaves another process's session alone, a show surviving a restart with its comment collections, an ended show evicted and read back). test_d354's D-378..D-380 tests now check that comment data and events are stored and read back; test_comment_insights reads from Firestore with STORE=firestore; test_d375 expects one group per question (main no longer groups by meaning, 142c1dd); host.mic.test uses undoSwitch (D-349).
 - Not changed: the comment path's logic, prompts and settings. docs/comments-firestore.md still describes SESSIONS_FIRESTORE (a planning-session document).
+
+D-429 (user, approved 10/10; the host is hands-free and questions reach the host already filtered and ranked by the comments team): no AI PD question cards, no question-card timing, and no host keys Q, N, E or Esc.
+- Backend:
+  - logic/pd.py loses the question candidates (answer_question, read_question, clarify_product), the Question type and their pacing: Q_GAP_MS, CEILING_MS, URGENT_CEILING_MS, BREAK_MS, DUE_GAP_MS, the operator push and host pull priorities, "forced" (D-146, D-153, D-163) and QUESTION_KINDS.
+  - pipelines/pd.py no longer builds questions from the host slots, no longer keeps a question card in place, and loses pull() and mention() (utterances.py no longer calls mention). The /pd/pull route (key Q) is deleted.
+  - PdCard loses askers. The three question kinds stay in its kind list so a stored card still loads.
+  - A shout-out still waits while a question is open on the host's list (PdState.questions_waiting).
+  - The context judge's on-screen question is the first host slot (there is no answer card any more).
+  - The D-135 deferral line ("no verified answer") reached the host only on a question card; such a question now waits on the list as "No answer yet". notices.host_deferrals stays in the data schema, unused.
+- Prompt ai_pd.md: the question priority (3), the "no question waiting" words of the next priority, the two-questions tie rule and the question examples (A's question candidate, B to E) are deleted; nothing else changed. Only Example A is left.
+- Frontend:
+  - The host's Q (pull), N (dismiss card), E (+2 min) and Esc (undo switch) keys are gone (M and T stay).
+  - The question card no longer opens in place of its row; the Q hint and the "On your card" state are gone; PdCard shows no question or asker line.
+  - The dismiss button and the "Undo" button keep working for anyone who clicks them, without key hints. The operator's +2 min button and /segments/extend stay.
+  - api.pullQuestion and its KO strings and CSS are removed.
+- Tests: test_pd (question card tests deleted; promo, switch and shout-out tests without questions; the D-161 and D-402 alert blocks shown with a switch card), test_comment_pipeline (questions_waiting in place of the PD question list), host.test (the keys do nothing; dismiss and undo by click; no question-card tests), the fixture card is a promo, i18n.test uses another variable label.

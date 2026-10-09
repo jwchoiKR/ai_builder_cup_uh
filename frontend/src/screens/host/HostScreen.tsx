@@ -48,10 +48,6 @@ export interface HostActions {
   undoSwitch: () => void;
   /** POST /sessions/{sid}/pd/dismiss {card_id: "..."}. */
   dismissPd: (cardId: string) => void;
-  /** POST /sessions/{sid}/pd/pull: the top waiting question now (key Q, D-113). */
-  pullQuestion: () => void;
-  /** POST /sessions/{sid}/segments/extend: +2 min on the on-air product (key E, D-138). */
-  extendSegment: () => void;
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -231,17 +227,13 @@ export function HostView({
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "Escape" && switched) actions.undoSwitch();
-      else if ((e.key === "m" || e.key === "M") && sessionId) mic.toggle(sessionId);
+      // D-429 (user): the host is hands-free; the keys Q, N, E and Esc are gone
+      if ((e.key === "m" || e.key === "M") && sessionId) mic.toggle(sessionId);
       else if ((e.key === "t" || e.key === "T") && !embedded) onToggleTheme?.();
-      else if ((e.key === "n" || e.key === "N") && sessionId && pd && pd.status === "active") {
-        actions.dismissPd(pd.card_id);
-      } else if ((e.key === "q" || e.key === "Q") && sessionId) actions.pullQuestion();
-      else if ((e.key === "e" || e.key === "E") && sessionId) actions.extendSegment();
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, [actions, embedded, onToggleTheme, switched, sessionId, mic, pd]);
+  }, [embedded, onToggleTheme, sessionId, mic]);
 
   const { now: product } = hostProducts(state, catalog);
   const prompter = hostPrompterView(state, catalog, product);
@@ -373,21 +365,13 @@ export function HostScreen(props: ScreenProps) {
     },
     [sid],
   );
-  const pullQuestion = useCallback(() => {
-    if (sid) void api.pullQuestion(sid).catch(() => undefined);
-  }, [sid]);
-  const extendSegment = useCallback(() => {
-    if (sid) void api.extendSegment(sid).catch(() => undefined);
-  }, [sid]);
   // One stable object for the view; its functions call the latest callbacks.
-  const latest = useRef<HostActions>({ rendered, undoSwitch, dismissPd, pullQuestion, extendSegment });
-  latest.current = { rendered, undoSwitch, dismissPd, pullQuestion, extendSegment };
+  const latest = useRef<HostActions>({ rendered, undoSwitch, dismissPd });
+  latest.current = { rendered, undoSwitch, dismissPd };
   const [actions] = useState<HostActions>(() => ({
     rendered: (id) => latest.current.rendered(id),
     undoSwitch: () => latest.current.undoSwitch(),
     dismissPd: (id) => latest.current.dismissPd(id),
-    pullQuestion: () => latest.current.pullQuestion(),
-    extendSegment: () => latest.current.extendSegment(),
   }));
 
   return (

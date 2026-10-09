@@ -27,7 +27,7 @@ const cat: Catalog = {
 };
 
 function actions(): HostActions {
-  return { rendered: vi.fn(), undoSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn(), extendSegment: vi.fn() };
+  return { rendered: vi.fn(), undoSwitch: vi.fn(), dismissPd: vi.fn() };
 }
 
 function view(over: Partial<StateSnapshot> = {}, acts: HostActions = actions()) {
@@ -464,7 +464,7 @@ describe("audience questions", () => {
       }),
     );
     const card = screen.getByTestId("host-questions");
-    expect(card).toHaveTextContent("take the top one now");
+    expect(within(card).queryByTestId("host-questions-hint")).toBeNull();  // D-429: no Q key hint
     const items = within(card).getAllByRole("article");
     expect(items.map((i) => i.getAttribute("data-testid"))).toEqual([
       "host-question-grp_000002",
@@ -502,7 +502,7 @@ describe("audience questions", () => {
     expect(screen.getByTestId("host-question-grp_000008")).toHaveTextContent("No answer yet");
   });
 
-  it("D-113: drafting, which product and on-your-card states", () => {
+  it("D-113: drafting and which product states; D-429: no question card, so no on-your-card state", () => {
     const drafting = group({ group_id: "grp_000004", status: "composing", answer_id: null });
     const which = group({ group_id: "grp_000005", status: "needs_review", route_reason: "unresolved_product", answer_id: null });
     const onCard = group({ group_id: "grp_000006", answer_id: "ans_000001" });
@@ -515,18 +515,16 @@ describe("audience questions", () => {
       }),
     );
     const states = screen.getAllByTestId("host-question-state").map((e) => e.textContent);
-    // D-127: the question on the card is no row any more; the card opened in its place
-    expect(states).toEqual(["Drafting…", "Which product?"]);
-    expect(within(screen.getByTestId("host-question-grp_000006")).getByTestId("host-pd-card")).toBeInTheDocument();
+    expect(states).toEqual(["Drafting…", "Which product?", "Ready to answer"]);
+    expect(within(screen.getByTestId("host-question-grp_000006")).queryByTestId("host-pd-card")).toBeNull();
   });
 
-  it("D-113: Q pulls the top waiting question", () => {
+  it("D-429: the host keys Q, N, E and Esc do nothing (the host is hands-free)", () => {
     const acts = actions();
-    render(view({}, acts));
-    fireEvent.keyDown(window, { key: "q" });
-    fireEvent.keyDown(window, { key: "e" }); // D-138: +2 min on the on-air product
-    expect(acts.extendSegment).toHaveBeenCalledTimes(1);
-    expect(acts.pullQuestion).toHaveBeenCalledTimes(1);
+    render(view({ session: session({ pd_card: pdCard({ card_id: "card_k", status: "active" }) }) }, acts));
+    for (const key of ["q", "n", "e", "Escape"]) fireEvent.keyDown(window, { key });
+    expect(acts.dismissPd).not.toHaveBeenCalled();
+    expect(acts.undoSwitch).not.toHaveBeenCalled();
   });
 
   it("shows the Posting answer chip while a host answer is pending", () => {
@@ -561,26 +559,6 @@ describe("audience questions", () => {
     render(view());
     expect(screen.getByText("No questions waiting.")).toBeInTheDocument();
     expect(screen.queryByTestId("host-pd-slot")).toBeNull();
-  });
-
-  it("D-127: a question card opens in place of its own row; the question shows once", () => {
-    const a = group({ group_id: "grp_a", canonical_question: "Can I use it under makeup?" });
-    const b = group({ group_id: "grp_b", canonical_question: "Is it okay for oily skin?" });
-    const card = pdCard({ card_id: "card_q", kind: "answer_question", ref_id: "grp_b", say: "Yes.", detail: "Is it okay for oily skin?", status: "active" });
-    render(
-      view({
-        session: session({ pd_card: card }),
-        groups: [a, b],
-        host_slots: [
-          { group_id: "grp_a", pinned: false, on_host_since: now() },
-          { group_id: "grp_b", pinned: false, on_host_since: now() },
-        ],
-      }),
-    );
-    const rows = screen.getByTestId("host-questions").querySelectorAll('[data-testid^="host-question-grp_"]');
-    expect([...rows].map((r) => r.getAttribute("data-testid"))).toEqual(["host-question-grp_a", "host-question-grp_b"]);
-    expect(within(screen.getByTestId("host-question-grp_b")).getByTestId("host-pd-card")).toBeInTheDocument();
-    expect(screen.getAllByText("Is it okay for oily skin?")).toHaveLength(1);
   });
 
   it("D-127: a non-question card goes on top of the list", () => {
@@ -630,52 +608,12 @@ describe("judge health (D-137)", () => {
 });
 
 describe("AI PD card", () => {
-  it("D-113: a question card shows the question and askers above the answer, in the fixed slot", () => {
-    const card = pdCard({
-      card_id: "card_ai_1",
-      kind: "answer_question",
-      say: "Yes. Apply sunscreen after the cream, then makeup.",
-      detail: "Raj: Can I use it under makeup?",
-      source: "ai",
-      status: "active",
-      askers: 4,
-    });
-    render(view({ session: session({ pd_card: card }) }));
-    expect(within(screen.getByTestId("host-pd-slot")).getByTestId("host-pd-card")).toBeInTheDocument();
-    const el = screen.getByTestId("host-pd-card");
-    expect(el).toBeInTheDocument();
-    expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Answer");
-    expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Yes. Apply sunscreen after the cream, then makeup.");
-    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("Raj: Can I use it under makeup?4 asking");
-    expect(screen.getByText("AI PD")).toBeInTheDocument();
-  });
-
-  it("a read-out card says '1 viewer asked' for one viewer and '{n} viewers asked' for more", () => {
-    const read = (n: number) => pdCard({ card_id: `card_r${n}`, kind: "read_question", say: "S$36.", detail: `${n} people asked: How much?`, source: "ai", status: "active", askers: n });
-    const { rerender } = render(view({ session: session({ pd_card: read(1) }) }));
-    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("1 viewer asked: How much?");
-    expect(screen.getByTestId("host-pd-question")).not.toHaveTextContent(/people/);
-    rerender(view({ session: session({ pd_card: read(4) }) }));
-    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("4 viewers asked: How much?");
-    // the count is in the sentence: no second "4 asking" beside it
-    expect(screen.getByTestId("host-pd-question")).not.toHaveTextContent("asking");
-  });
-
-  it("the other question cards keep the question and the asker count", () => {
-    const card = pdCard({ card_id: "card_c", kind: "clarify_product", say: "Which product do you mean?", detail: "Is it vegan?", source: "ai", status: "active", askers: 1 });
-    render(view({ session: session({ pd_card: card }) }));
-    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("Is it vegan?1 asking");
-  });
-
-  it("pressing N or clicking dismiss calls dismissPd with card_id", () => {
+  it("clicking dismiss calls dismissPd with card_id (D-429: no N key)", () => {
     const acts = actions();
     const card = pdCard({ card_id: "card_ai_2", status: "active" });
     render(view({ session: session({ pd_card: card }) }, acts));
-    fireEvent.keyDown(window, { key: "n" });
-    expect(acts.dismissPd).toHaveBeenCalledWith("card_ai_2");
-
     fireEvent.click(screen.getByTestId("host-pd-dismiss"));
-    expect(acts.dismissPd).toHaveBeenCalledTimes(2);
+    expect(acts.dismissPd).toHaveBeenCalledWith("card_ai_2");
   });
 
   it("sits below the prompter, so the prompter box never moves (D-107)", () => {
@@ -690,14 +628,14 @@ describe("AI PD card", () => {
     const { rerender } = render(view({ session: session({ pd_card: card }), alerts: [high] }));
     expect(screen.queryByTestId("host-pd-card")).toBeNull();
     expect(screen.getByTestId("host-compliance-overlay")).toBeInTheDocument();
-    // one instruction at a time: the Q hint gives way to the correction
+    // one instruction at a time: the cards wait for the correction
     expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("Questions resume after the correction");
 
     // When alert is corrected or dismissed, card comes back
     rerender(view({ session: session({ pd_card: card }), alerts: [{ ...high, status: "corrected", resolved_at: now() }] }));
     expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
     expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
-    expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("take the top one now");
+    expect(screen.queryByTestId("host-questions-hint")).toBeNull();  // D-429: no Q key hint
   });
 
   it("D-177: a red not corrected within 20 s stays full size and the card shows below it", () => {
@@ -707,7 +645,7 @@ describe("AI PD card", () => {
     render(view({ session: session({ pd_card: card }), alerts: [old] }));
     expect(screen.getByTestId("host-compliance-overlay")).toHaveAttribute("data-fresh", "false");
     expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
-    expect(screen.getByTestId("host-questions-hint")).toHaveTextContent("take the top one now");
+    expect(screen.queryByTestId("host-questions-hint")).toBeNull();  // D-429: no Q key hint
     cleanup();
     // the same claim said again is a new alert: highlighted, and cards wait 20 s again
     const again = alert({ alert_id: "al_again", span: "erases wrinkles", created_at: T0 - 1000, shown_at: T0 - 1000 });
@@ -744,18 +682,16 @@ describe("AI PD card", () => {
     expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Ceramide NP 1%, panthenol 5%, squalane 3%.");
   });
 
-  it("shows done indicator when status is done, in the place of the answered question's row", () => {
+  it("shows done indicator when status is done, on top of the list", () => {
     const a = group({ group_id: "grp_a" });
-    const b = group({ group_id: "grp_000001" });
-    const slots = [a, b].map((g) => ({ group_id: g.group_id, pinned: false, on_host_since: now() }));
+    const slots = [{ group_id: a.group_id, pinned: false, on_host_since: now() }];
     const active = pdCard({ card_id: "card_ai_5", status: "active" });
-    const { rerender } = render(view({ session: session({ pd_card: active }), groups: [a, b], host_slots: slots }));
-    // answered: the row leaves and the card turns done at the same moment
-    rerender(view({ session: session({ pd_card: { ...active, status: "done", done_at: now() } }), groups: [a], host_slots: slots.slice(0, 1) }));
+    const { rerender } = render(view({ session: session({ pd_card: active }), groups: [a], host_slots: slots }));
+    rerender(view({ session: session({ pd_card: { ...active, status: "done", done_at: now() } }), groups: [a], host_slots: slots }));
     expect(screen.getByTestId("host-pd-done")).toHaveTextContent("Done");
     expect(screen.queryByTestId("host-pd-dismiss")).toBeNull();
     const slot = screen.getByTestId("host-pd-slot");
-    expect(screen.getByTestId("host-question-grp_a").compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(slot.compareDocumentPosition(screen.getByTestId("host-question-grp_a")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 
@@ -945,7 +881,7 @@ describe("immediate switch (D-349)", () => {
   const started = (seq: number, at: number) => ({ seq, type: "segment.started", payload: segment({
     segment_id: "seg_000002", product_id: AMPOULE, order: 2, started_at: at, start_reason: "auto_speech" }) });
 
-  it("an immediate switch shows one prompter and a Switched to … · Undo bar for 8 s; Esc undoes", () => {
+  it("an immediate switch shows one prompter and a Switched to … · Undo bar for 8 s; its button undoes", () => {
     const at = Date.now();
     let s = reduceSnapshot(snapshot(), "host", at);
     s = reduceEvent(s, { seq: 11, type: "segment.switch_decided", payload: { transcript_id: "tr_000009", switch: true,
@@ -957,7 +893,9 @@ describe("immediate switch (D-349)", () => {
     expect(screen.getByTestId("host-switched-bar")).toHaveTextContent("Switched to Deep Hydration Ampoule");
     expect(screen.getByTestId("host-now")).toHaveTextContent("Deep Hydration Ampoule");
     expect(screen.queryByTestId("host-preview")).toBeNull(); // one prompter, no preview card
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(window, { key: "Escape" });  // D-429: no Esc key
+    expect(acts.undoSwitch).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByTestId("host-switched-bar")).getByRole("button", { name: "Undo" }));
     expect(acts.undoSwitch).toHaveBeenCalledTimes(1);
     const old = { ...s, session: { ...s.session!, switch: { ...s.session!.switch,
       last_commit: { ...s.session!.switch.last_commit!, at: at - 8001 } } } };

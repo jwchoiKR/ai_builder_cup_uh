@@ -13,7 +13,7 @@ vi.mock("../../app/mic", async (orig) => ({
   useMic: () => ({ state: micState, level: 0.5, message: null, start: vi.fn(), stop: vi.fn(), toggle: vi.fn() }),
 }));
 
-const actions: HostActions = { rendered: vi.fn(), undoSwitch: vi.fn(), dismissPd: vi.fn(), pullQuestion: vi.fn(), extendSegment: vi.fn() };
+const actions: HostActions = { rendered: vi.fn(), undoSwitch: vi.fn(), dismissPd: vi.fn() };
 
 function show(over = {}) {
   const state = { ...reduceSnapshot(snapshot(over), "host", Date.now()), serverOffsetMs: 0 };

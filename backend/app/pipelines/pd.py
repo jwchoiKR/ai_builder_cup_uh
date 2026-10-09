@@ -53,11 +53,8 @@ class PdDirector:
         self._last_decision_at = 0
         self._last_cands: tuple[str, ...] = ()
         # D-113 pacing
-        self.mentioned: set[str] = set()  # groups the host named or read out (context judge)
-        self.last_question_card_at: int | None = None
         self.last_shout_at: int | None = None
         self.used_shouts: set[str] = set()
-        self._pull = False
 
     # ---- inputs (never take the lock here) ------------------------------------------------------
 
@@ -104,39 +101,9 @@ class PdDirector:
             return None
         now = rt.now()
         groups = {g.group_id: g for g in await rt.groups()}
-        questions = []
-        deferrals = rt.pack.notices.host_deferrals
-        solo = "_solo" if s.show_mode == "solo" else ""  # a solo host promises no chat reply
-        for slot in s.host_slots:  # the host's waiting list, in order (D-113)
-            g = groups.get(slot.group_id)
-            if g is None or g.status in ("answered", "closed", "rejected") or g.host_verbal_answer_transcript_id:
-                continue
-            askers = len(g.unique_author_ids)
-            # D-146: how long it has waited on the host's list, and whether it may not wait long
-            extra = {"waiting_ms": now - (slot.on_host_since or now),
-                     "urgent": rt.intent(g.intent).sensitive or askers >= rt.settings.HOST_REPEAT_THRESHOLD}
-            if g.status == "needs_review" and g.route_reason == "unresolved_product":
-                if g.group_id not in self.mentioned:
-                    questions.append(pdl.Question(g.group_id, g.canonical_question, None, "clarify", askers,
-                                                  slot.pinned, **extra))
-                continue
-            a = await rt.get_answer(g.answer_id)
-            if g.status == "needs_review" and g.route_reason == "no_verified_answer":
-                # D-135: no verified answer: the host says so honestly instead of guessing (since D-178 only
-                # when the operator pushed it to the host)
-                kind = "sensitive" if rt.intent(g.intent).sensitive else "general"
-                questions.append(pdl.Question(g.group_id, g.canonical_question, deferrals[kind + solo],
-                                              "answer", askers, slot.pinned, **extra))
-                continue
-            if a is None or not a.verified:
-                continue  # still drafting: it waits in the list, no card yet
-            if g.status == "auto_answered":  # AI answered in chat, many asked: the host reads it out
-                if g.group_id not in self.mentioned:
-                    questions.append(pdl.Question(g.group_id, g.canonical_question, a.text, "read", askers,
-                                                  slot.pinned, **extra))
-            else:  # D-135: a sensitive question with a verified draft shows the draft (it is on the sheet)
-                questions.append(pdl.Question(g.group_id, g.canonical_question, a.text, "answer", askers,
-                                              slot.pinned, **extra))
+        # D-429: no question cards; a shout-out still waits while a question is open on the host's list
+        waiting = any((g := groups.get(slot.group_id)) is not None and g.status not in ("answered", "closed", "rejected")
+                      and not g.host_verbal_answer_transcript_id for slot in s.host_slots)
         promos = []
         price, offers = await rt.active_price_promo(), await rt.active_offers()
         for ap in s.active_promos:
@@ -152,11 +119,9 @@ class PdDirector:
             product_name=rt.catalog.get_product(seg.product_id).name, started_at=seg.started_at,
             planned_ms=seg.planned_duration_sec * 1000, points=points_of(rt.catalog, seg.product_id, rt.points),
             required_ids=required_ids(rt.catalog, seg.product_id), covered_ids=list(seg.covered_point_ids),
-            next_product=(nxt, rt.catalog.get_product(nxt).name) if nxt else None, questions=questions,
+            next_product=(nxt, rt.catalog.get_product(nxt).name) if nxt else None, questions_waiting=waiting,
             promos=promos, alert_block=block, last_final_at=self.last_final_at, recent_lines=list(self.recent),
-            dismissed_refs=frozenset(self.dismissed[seg.segment_id]),
-            product_names=[rt.catalog.get_product(i.product_id).name for i in rt.catalog.runsheet.items],
-            last_question_card_at=self.last_question_card_at, last_shout_at=self.last_shout_at, pull=self._pull,
+            dismissed_refs=frozenset(self.dismissed[seg.segment_id]), last_shout_at=self.last_shout_at,
             shoutouts=[so for so in rt.shoutouts
                        if so.comment_id not in self.used_shouts and now - so.at <= pdl.SHOUT_MAX_AGE_MS])
 
@@ -166,8 +131,6 @@ class PdDirector:
             return True  # the product changed: every card of the old segment is over
         if card.kind == "cover_point":
             return card.ref_id in st.covered_ids
-        if card.kind in pdl.QUESTION_KINDS:  # answered, read out or named by the host, or gone from the list
-            return card.ref_id not in {q.group_id for q in st.questions}
         if card.kind == "promo":
             return card.ref_id not in {p.promo_id for p in st.promos}
         return False
@@ -191,12 +154,8 @@ class PdDirector:
             if st.alert_block:
                 return
             cands = pdl.candidates(st)
-            if card is not None and card.kind in pdl.QUESTION_KINDS:
-                # D-113: a question card stays until it ends; only a pushed or pulled question or a promo replaces it
-                cands = [c for c in cands if c.priority <= 1 and c.ref_id != card.ref_id]
             if not cands:
                 return
-            # D-153: the priority is part of the key, so a question that becomes due is decided again
             key = tuple((c.cid, c.priority) for c in cands)
             if key == self._last_cands:
                 return  # nothing new since the last decision (a card or "none"): no repeated model calls
@@ -209,13 +168,7 @@ class PdDirector:
                      "current_card": card.say if card else None}
             payload = [{"id": c.cid, "kind": c.kind, "say": c.say, "detail": c.detail} for c in cands]
         chosen, source, reason = None, "rule", "rule fallback"
-        # D-163 (local SEED1 replay): a due card is offered only at a break; a model call longer than the break
-        # (timeouts took ~2.1 s) made the re-check below drop it. A pulled, pushed or due question has no choice to
-        # make (D-153: the rules show it anyway), so the rules decide at once.
-        forced = any(c.forced for c in cands)
-        if forced:
-            reason = "due question"
-        if self.agent is not None and not forced:
+        if self.agent is not None:
             choice, ms, status = await self.agent.choose(state, payload, PD_DEADLINE_MS)
             self.latencies.append(ms)
             self.statuses[status] += 1
@@ -247,10 +200,8 @@ class PdDirector:
                 await self._end_locked(old, "expired")
             new = PdCard(card_id=rt.new_id("pd_"), kind=chosen.kind, say=chosen.say, detail=chosen.detail,
                          ref_id=chosen.ref_id, created_at=st.now, hold_until=st.now + pdl.HOLD_MS,
-                         source=source, reason=reason[:120], segment_id=st.segment_id, askers=chosen.askers)
-            if chosen.kind in pdl.QUESTION_KINDS:
-                self.last_question_card_at, self._pull = st.now, False
-            elif chosen.kind == "shout_out":
+                         source=source, reason=reason[:120], segment_id=st.segment_id)
+            if chosen.kind == "shout_out":
                 self.last_shout_at = st.now
                 self.used_shouts.add(chosen.ref_id)
             s = await rt.load_session()
@@ -265,17 +216,6 @@ class PdDirector:
         s.pd_card = None
         await rt.save_session(s)
         await rt.emit("pd.card", ended)
-
-    def pull(self) -> None:
-        """The host takes the top waiting question now: no gap, no pause needed (D-113)."""
-        self._pull = True
-        self._last_cands = ()
-        self.trigger()
-
-    def mention(self, group_id: str) -> None:
-        """The context judge linked a host sentence to this question (answer, read-out or "which product")."""
-        self.mentioned.add(group_id)
-        self.trigger()
 
     async def dismiss(self, card_id: str) -> PdCard | None:
         rt = self.rt
