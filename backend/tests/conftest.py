@@ -25,7 +25,7 @@ ALL_FIXES = "F1,F5,Q6"
 # deploy/cloudrun.sh; test_d434.py guards that they agree). No live-path setting comes from the environment: the ones a
 # developer's shell sets are removed here, and get_settings() never reads the developer's .env in a test.
 LIVE_PATH_KEYS = (
-    "JUDGE_MODE", "JUDGE_SEED", "JUDGE_PRODUCTS", "JUDGE_TIMEOUT_MS", "VERIFY_TIMEOUT_MS",
+    "JUDGE_MODE", "JUDGE_SEED", "JUDGE_TIMEOUT_MS", "VERIFY_TIMEOUT_MS",
     "SINGLE_MODEL", "SINGLE_THINKING", "SINGLE_FACTS_THINKING", "FACT_RELATION", "FACT_PROMPT", "FACT_MODE",
     "FACT_FIXES", "FACT_TIMEOUT_MS", "FACT_LATE_MS", "QUESTION_HOLD_MS",
     "VERBAL_CHECK", "UTTERANCE_MERGE_WINDOW_MS", "STT_ENDPOINTING", "STT_PHRASE_HINTS_ENABLED", "DESIGN_ARM", "LLM_RETRY_ON_429_MS", "LLM_RETRY_ON_5XX", "JUDGE_HEDGE_MS",
@@ -41,7 +41,7 @@ os.environ.setdefault("STT_PROVIDER", "mock")
 # D-434: the old live-path pins, applied (with the rules-JSON compliance path) only to a file or test marked
 # `legacy_live` until it is migrated. Temporary: test_d434 fails when a file outside LEGACY_LIVE_FILES uses it.
 LEGACY_LIVE = {
-    "FACT_RELATION": "false", "VERBAL_CHECK": "code", "JUDGE_PRODUCTS": "named",
+    "FACT_RELATION": "false", "VERBAL_CHECK": "code",
     "UTTERANCE_MERGE_WINDOW_MS": "3500", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash",
     "SINGLE_THINKING": "LOW", "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT",
     "FACT_MODE": "docs", "QUESTION_HOLD_MS": "0",  # D-435: no question hold (was QUESTION_HOLD=false)

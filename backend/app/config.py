@@ -57,7 +57,6 @@ class Settings(BaseSettings):
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
     # D-353 addendum (user, 10/8): back to "code": spoken-answer posting belongs to the comments team (out of scope)
     VERBAL_CHECK: Literal["code", "judge"] = "code"  # judge: numbers said and hedges from the context judge (arm B's)
-    JUDGE_PRODUCTS: Literal["named", "all"] = "all"  # D-353; named: a code alias match picks the products in scope
     COMMENT_PRODUCT: Literal["code", "triage"] = "code"  # D-308: back;  # triage: the comment's product from triage, no alias rules
     DRAFT_GATE: Literal["full", "provenance"] = "full"  # D-308: back;  # provenance: citations, products and numbers only
     GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins
