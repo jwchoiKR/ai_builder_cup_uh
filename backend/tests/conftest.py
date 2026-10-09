@@ -37,6 +37,7 @@ for _key in LIVE_PATH_KEYS:
 Settings.model_config["env_file"] = None  # get_settings() in a test: code defaults, never the developer's .env
 os.environ.setdefault("LLM_PROVIDER", "mock")  # as make_settings: no Google provider in a test
 os.environ.setdefault("STT_PROVIDER", "mock")
+os.environ.setdefault("ANSWER_RETRIEVER", "local")  # the code default searches Vertex AI Search
 
 # D-434: the old live-path pins, applied (with the rules-JSON compliance path) only to a file or test marked
 # `legacy_live` until it is migrated. Temporary: test_d434 fails when a file outside LEGACY_LIVE_FILES uses it.
@@ -80,7 +81,8 @@ def test_data_dir() -> Path:
 def make_settings(**overrides) -> Settings:
     """Test settings: never read the developer's .env; mock providers by default; the test data dir (with the demo
     pack) unless a test names its own."""
-    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "DATA_DIR": str(test_data_dir()), **overrides}
+    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "ANSWER_RETRIEVER": "local",
+              "DATA_DIR": str(test_data_dir()), **overrides}
     return Settings(_env_file=None, **values)
 
 
