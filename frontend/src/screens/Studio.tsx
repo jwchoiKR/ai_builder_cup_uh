@@ -1,5 +1,5 @@
 // Studio (§12.6): Host, Operator and Viewer side by side for screen recording at 1920x1080,
-// with layout presets, recording mode (R) and the Demo Console drawer (D, demo tools only).
+// with a toggle per screen, recording mode (R) and the Demo Console drawer (D, demo tools only).
 import { useEffect, useState, type ComponentType } from "react";
 
 import type { ScreenProps } from "../app/nav";
@@ -13,34 +13,26 @@ import { DemoConsole } from "./DemoConsole";
 import { Viewer } from "./Viewer";
 
 type PaneScreen = Extract<ScreenKey, "host" | "operator" | "viewer">;
-export type PresetKey = "host_operator" | "host_viewer" | "all";
-
-export const PRESETS: Record<PresetKey, { label: string; panes: { screen: PaneScreen; width: number }[] }> = {
-  host_operator: { label: "Host + Operator", panes: [{ screen: "host", width: 68 }, { screen: "operator", width: 32 }] },
-  host_viewer: { label: "Host + Viewer", panes: [{ screen: "host", width: 70 }, { screen: "viewer", width: 30 }] },
-  all: {
-    label: "All three",
-    panes: [
-      { screen: "host", width: 50 },
-      { screen: "operator", width: 32 },
-      { screen: "viewer", width: 18 },
-    ],
-  },
-};
-
-const PANE_LABEL: Record<PaneScreen, string> = { host: "Host screen", operator: "Operator", viewer: "Viewer" };
+// Each shown screen takes width in proportion to its weight.
+const SCREENS: PaneScreen[] = ["host", "operator", "viewer"];
+const WEIGHT: Record<PaneScreen, number> = { host: 50, operator: 32, viewer: 18 };
+const PANE_LABEL: Record<PaneScreen, string> = { host: "Host", operator: "Operator", viewer: "Viewer" };
 const PANE_COMPONENT: Record<PaneScreen, ComponentType<ScreenProps>> = { host: Host, operator: Operator, viewer: Viewer };
-const PRESET_KEY = "ls.studio.preset";
+const PANES_KEY = "ls.studio.panes";
+const DEFAULT_PANES: PaneScreen[] = ["host", "operator"];
 
-function readPreset(): PresetKey {
+/** ?layout=host_operator|host_viewer|all (recording links), else the last choice, else Host + Operator. */
+function readPanes(): PaneScreen[] {
   const fromUrl = new URLSearchParams(window.location.search).get("layout");
-  const alias: Record<string, PresetKey> = { all: "all", host_viewer: "host_viewer", host_operator: "host_operator" };
-  if (fromUrl && alias[fromUrl]) return alias[fromUrl];
+  if (fromUrl === "all") return SCREENS;
+  if (fromUrl === "host_viewer") return ["host", "viewer"];
+  if (fromUrl === "host_operator") return DEFAULT_PANES;
   try {
-    const v = window.localStorage.getItem(PRESET_KEY);
-    return v && v in PRESETS ? (v as PresetKey) : "host_operator";
+    const v = JSON.parse(window.localStorage.getItem(PANES_KEY) ?? "null");
+    const panes = Array.isArray(v) ? SCREENS.filter((s) => v.includes(s)) : [];
+    return panes.length ? panes : DEFAULT_PANES;
   } catch {
-    return "host_operator";
+    return DEFAULT_PANES;
   }
 }
 
@@ -65,7 +57,7 @@ function Pane({
   const [theme] = useTheme(); // D-180: one theme; the Settings gear in the Studio header sets it
   const Screen = PANE_COMPONENT[screen];
   return (
-    <section className={styles.pane} style={{ flexBasis: `${width}%`, flexGrow: 0, flexShrink: 0 }} aria-label={PANE_LABEL[screen]}>
+    <section className={styles.pane} style={{ flex: `${width} 1 0` }} aria-label={PANE_LABEL[screen]}>
       {!recording && (
         <div className={styles.paneLabel}>
           <Eyebrow>{PANE_LABEL[screen]}</Eyebrow>
@@ -82,18 +74,21 @@ function Pane({
 
 export function Studio({ sessionId, onSessionChange }: ScreenProps) {
   const [chrome, , setTheme, themePref] = useTheme();
-  const [preset, setPreset] = useState<PresetKey>(readPreset);
+  const [shown, setShown] = useState<PaneScreen[]>(readPanes);
   const demoTools = useHealth()?.demo_tools_enabled ?? false;
   const [consoleOpen, setConsoleOpen] = useState(false);
   const [recording, setRecording] = useState(() => new URLSearchParams(window.location.search).get("recording") === "1");
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(PRESET_KEY, preset);
+      window.localStorage.setItem(PANES_KEY, JSON.stringify(shown));
     } catch {
-      /* storage unavailable: keep the preset in memory */
+      /* storage unavailable: keep the choice in memory */
     }
-  }, [preset]);
+  }, [shown]);
+  // the last shown screen cannot be turned off
+  const toggle = (s: PaneScreen) =>
+    setShown((cur) => (cur.includes(s) ? (cur.length > 1 ? cur.filter((x) => x !== s) : cur) : SCREENS.filter((x) => x === s || cur.includes(x))));
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
@@ -116,17 +111,16 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
             <span className="tabular">{sessionId ?? "…"}</span>
             <span className={styles.hint}>R recording mode{demoTools ? " · D demo console" : ""}</span>
           </div>
-          <div className={styles.segmented} role="radiogroup" aria-label="Layout">
-            {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
+          <div className={styles.segmented} role="group" aria-label="Screens">
+            {SCREENS.map((s) => (
               <button
-                key={k}
+                key={s}
                 type="button"
-                role="radio"
-                aria-checked={preset === k}
-                className={[styles.segment, preset === k && styles.segmentActive].filter(Boolean).join(" ")}
-                onClick={() => setPreset(k)}
+                aria-pressed={shown.includes(s)}
+                className={[styles.segment, shown.includes(s) && styles.segmentActive].filter(Boolean).join(" ")}
+                onClick={() => toggle(s)}
               >
-                {PRESETS[k].label}
+                {PANE_LABEL[s]}
               </button>
             ))}
           </div>
@@ -134,11 +128,11 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
         </div>
       )}
       <div className={styles.panes}>
-        {PRESETS[preset].panes.map((p) => (
+        {shown.map((s) => (
           <Pane
-            key={p.screen}
-            screen={p.screen}
-            width={p.width}
+            key={s}
+            screen={s}
+            width={WEIGHT[s]}
             sessionId={sessionId}
             recording={recording}
             onSessionChange={onSessionChange}
