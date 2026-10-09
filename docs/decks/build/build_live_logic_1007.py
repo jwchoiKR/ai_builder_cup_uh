@@ -2,10 +2,11 @@
 Run: python docs/decks/build/build_live_logic_1007.py
 Numbers from sealed_sets/results/all_arms_1007{b,c}.json (docs_arms.py, scorer v3 --semantic --restore). Examples are made up."""
 import json
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)

@@ -52,3 +52,18 @@ async def test_tick_stops_after_end(tmp_path):
     n = await non_summary()
     await ctx.scheduler.advance(30_000)
     assert await non_summary() == n
+
+
+async def test_a_question_waiting_for_the_operator_outlives_the_answered_ones(tmp_path):
+    ctx = make_ctx(tmp_path, GROUP_TTL_SEC=600, GROUP_TTL_WAITING_SEC=3600)
+    rt = await live_runtime(ctx, "team")
+    await say(rt, "Kumar", "Do you ship to Malaysia?")  # waits for the operator
+    await say(rt, "Lee", "How much is the cream?")  # answered by itself
+    await ctx.scheduler.advance(601_000)
+    by_intent = {g.intent: g for g in await rt.groups()}
+    assert by_intent["shipping"].status == "needs_review"
+    assert (by_intent["price"].status, by_intent["price"].closed_reason) == ("closed", "ttl")
+    await ctx.scheduler.advance(3_000_000)
+    by_intent = {g.intent: g for g in await rt.groups()}
+    assert (by_intent["shipping"].status, by_intent["shipping"].closed_reason) == ("closed", "ttl")
+    ctx.runtimes.shutdown()

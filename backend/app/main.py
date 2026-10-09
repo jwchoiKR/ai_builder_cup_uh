@@ -38,6 +38,8 @@ async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
             "stt": s.STT_PROVIDER,
             "store": ctx.store.name,
             "retriever": s.RETRIEVER,
+            # a store that writes to Firestore: queue depth, last commit, lost writes
+            **({"store_status": ctx.store.status()} if hasattr(ctx.store, "status") else {}),
         },
         "models": {
             "location": s.LLM_LOCATION,
@@ -117,11 +119,13 @@ def create_app(
     clock: Clock | None = None,
     llm_backend: LLMBackend | None = None,
     scheduler=None,
+    firestore_client=None,
 ) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=settings.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     # Built eagerly: a broken data pack or prompt file stops the app at startup.
-    ctx = build_context(settings, clock=clock, llm_backend=llm_backend, scheduler=scheduler)
+    ctx = build_context(settings, clock=clock, llm_backend=llm_backend, scheduler=scheduler,
+                        firestore_client=firestore_client)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):

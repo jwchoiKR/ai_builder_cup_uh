@@ -1,25 +1,76 @@
 // Right rail (§12.4.9): live transcript, host cue, banners & notices, quick replies, alert log, agent calls.
 import { ChevronDown, ChevronRight, Copy } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { api } from "../../app/api";
 import { useT } from "../../app/i18n";
 import { alertLog, formatMmSs, onAirProduct, recentTranscripts, runsheetOf } from "../../app/selectors";
 import { Button, Chip } from "../../components";
+import { debugOn, useStoredOpen } from "./attention";
 import { useAction, useOperator } from "./context";
+import { impactChips, latencyShown, metricChips } from "./Header";
 import { alertLatencyMs, alertOutcome, fieldLabel, fillProductName, seconds1, sentenceCase, transcriptChips } from "./model";
 import styles from "./operator.module.css";
 
+// The second job first (what the host says, what was flagged), then what is used during the show, then what is
+// occasional: host cue and quick replies stay closed until opened, statistics are one click away, and the agent
+// calls are developer information (?debug=1).
 export function RightRail() {
   return (
     <>
       <LiveTranscript />
-      <HostCuePanel />
-      <BannersPanel />
-      <QuickReplies />
       <AlertLogPanel />
-      <AgentCalls />
+      <BannersPanel />
+      <HostCuePanel />
+      <QuickReplies />
+      <StatsPanel />
+      {debugOn() && <AgentCalls />}
     </>
+  );
+}
+
+/** A section header that opens and closes its body; the choice is remembered per browser. */
+function Disclosure({ storageKey, title, testId, children }: { storageKey: string; title: string; testId?: string; children: ReactNode }) {
+  const [open, toggle] = useStoredOpen(storageKey);
+  return (
+    <section className={styles.block} data-testid={testId} aria-label={title}>
+      <button type="button" className={styles.collapse} aria-expanded={open} onClick={toggle}>
+        {open ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
+        <h2 className={styles.blockTitle}>{title}</h2>
+      </button>
+      {open && children}
+    </section>
+  );
+}
+
+/** Statistics of the show so far: closed by default, off the header. */
+function StatsPanel() {
+  const t = useT();
+  const { state } = useOperator();
+  const [open, setOpen] = useState(false);
+  const chips = metricChips(state.metrics, t);
+  const shown = latencyShown(state.metrics);
+  return (
+    <section className={styles.block} data-testid="op-stats" aria-label={t("Stats")}>
+      <button type="button" className={styles.collapse} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        {open ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />}
+        <span className={styles.blockTitle}>{open ? t("Hide stats") : t("Show stats")}</span>
+      </button>
+      {open && (
+        <>
+          <div className={styles.metricChips} data-testid="op-metrics">
+            {shown.alert && <Chip className="tabular">{chips.alert}</Chip>}
+            {shown.judge && <Chip className="tabular">{chips.judge}</Chip>}
+            <Chip className="tabular">{chips.instant}</Chip>
+          </div>
+          <div className={styles.metricChips} data-testid="op-impact">
+            {impactChips(state.metrics as Parameters<typeof impactChips>[0], t).map((x) => (
+              <Chip key={x} className="tabular">{x}</Chip>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -61,8 +112,7 @@ function HostCuePanel() {
   const cue = state.session?.cue;
   const presets = catalog?.notices?.host_cue_presets ?? [];
   return (
-    <section className={styles.block} data-testid="op-cue" aria-label={t("Host cue")}>
-      <h2 className={styles.blockTitle}>{t("Host cue")}</h2>
+    <Disclosure storageKey="ls.op.cue.open" title={t("Host cue")} testId="op-cue">
       <div className={styles.presetRow}>
         {presets.map((p) => (
           <Button key={p.cue_id} size="sm" disabled={act.busy} onClick={() => act.run(() => api.sendCue(sid, { preset_id: p.cue_id }))}>
@@ -92,7 +142,7 @@ function HostCuePanel() {
         </div>
       )}
       {act.error && <p className={styles.error}>{act.error}</p>}
-    </section>
+    </Disclosure>
   );
 }
 
@@ -166,8 +216,7 @@ function QuickReplies() {
   const product = onAirProduct(state, catalog);
   const replies = catalog?.notices?.operator_quick_replies ?? [];
   return (
-    <section className={styles.block} aria-label={t("Quick replies")}>
-      <h2 className={styles.blockTitle}>{t("Quick replies")}</h2>
+    <Disclosure storageKey="ls.op.quick.open" title={t("Quick replies")} testId="op-quick">
       <ul className={styles.quickList}>
         {replies.map((r) => {
           const text = fillProductName(r.text, product?.name ?? null);
@@ -193,7 +242,7 @@ function QuickReplies() {
           );
         })}
       </ul>
-    </section>
+    </Disclosure>
   );
 }
 

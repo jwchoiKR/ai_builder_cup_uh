@@ -1,6 +1,7 @@
 export { Button, Card, Chip, ConnectionLabel, Eyebrow, Panel, StatusDot } from "./ui";
 export type { ButtonVariant, ChipTone } from "./ui";
 export { Countdown, Elapsed, RelativeTime } from "./time";
+export { BroadcastControl } from "./BroadcastControl";
 export { HubLink } from "./HubLink";
 export { PanelBoundary } from "./PanelBoundary";
 export { SettingsButton } from "./SettingsButton";

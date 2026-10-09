@@ -29,7 +29,7 @@ import { COLS_MAX, HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReading
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { HostBox } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
-import { Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
+import { BroadcastControl, Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
 import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchedBar, UncheckedStrip } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
@@ -71,6 +71,7 @@ function TopBar({
   catalog,
   now,
   mic,
+  onToggleMic,
   settings,
   embedded = false,
 }: {
@@ -78,6 +79,8 @@ function TopBar({
   catalog: Catalog | null;
   now: number;
   mic: Pick<MicSnapshot, "state" | "level" | "message">;
+  /** the mic chip is a button: a click turns the microphone on or off, like the M key */
+  onToggleMic?: () => void;
   settings?: ReactNode;
   /** Studio pane: no link back to the Hub (Studio has its own) */
   embedded?: boolean;
@@ -149,14 +152,18 @@ function TopBar({
           <Countdown until={p.endsAt} serverOffsetMs={state.serverOffsetMs} />
         </span>
       ))}
-      <span
-        className={styles.mic}
+      <button
+        type="button"
+        className={cx(styles.mic, live && mic.state === "off" && styles.micPrompt)}
         aria-label={t(MIC_LABEL[mic.state])}
-        title={mic.message ?? t(MIC_LABEL[mic.state])}
+        aria-pressed={mic.state === "listening" || mic.state === "connecting"}
+        title={mic.message ?? t(mic.state === "off" ? "Turn the microphone on (M)" : MIC_LABEL[mic.state])}
         data-testid="host-mic"
         data-state={mic.state}
+        onClick={onToggleMic}
+        disabled={!onToggleMic}
       >
-        {t("mic")}
+        {mic.state === "off" ? (live ? t("Mic off · click or press M") : t("mic off")) : t("mic")}
         {mic.state === "listening" && (
           <span className={styles.micLevel} aria-hidden>
             <span style={{ transform: `scaleX(${Math.max(0.04, mic.level)})` }} />
@@ -170,7 +177,10 @@ function TopBar({
             mic.state === "connecting" && styles.micConnecting,
           )}
         />
-      </span>
+      </button>
+      {/* the same Start / End control as the operator's: one session, so it acts for every screen. Not in a Studio
+          pane, where the operator pane beside it already has it. */}
+      {!embedded && <BroadcastControl sessionId={s?.session_id ?? null} status={s?.status} size="sm" />}
       {settings}
     </header>
   );
@@ -273,6 +283,7 @@ export function HostView({
         catalog={catalog}
         now={now}
         mic={mic}
+        onToggleMic={sessionId ? () => mic.toggle(sessionId) : undefined}
         settings={embedded ? null : <SettingsButton themePref={themePref} onTheme={onSetTheme} host />}
         embedded={embedded}
       />

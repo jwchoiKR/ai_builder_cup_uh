@@ -29,8 +29,8 @@ def test_confirmed_points_and_glossary_apply_from_the_next_session():
         assert points[0]["point_id"] == "cr-p1" and points[0]["text"] == "Light gel-cream that absorbs fast."
         assert any(p["point_id"] == "cr-x1" and not p["required"] for p in points)
         c.post(f"/api/sessions/{after['session_id']}/start")
-        prompter = c.get(f"/api/sessions/{after['session_id']}/state").json()["prompter"]
+        prompter = c.get(f"/api/sessions/{after['session_id']}/state?role=host").json()["prompter"]
         assert prompter["points"][0]["text"] == "Light gel-cream that absorbs fast."
         assert prompter["required_total"] == 3  # required flags never change through Setup
-        old = c.get(f"/api/sessions/{before['session_id']}/state").json()["prompter"]
+        old = c.get(f"/api/sessions/{before['session_id']}/state?role=host").json()["prompter"]
         assert old["product_id"] is None  # the earlier session was never started; nothing leaks

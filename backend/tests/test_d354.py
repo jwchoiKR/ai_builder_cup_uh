@@ -10,7 +10,7 @@ import pytest
 from app.bus import EventBus
 from app.models.session import Comment, Event, Session
 from app.store.base import SESSIONS, sub
-from app.store.firestore import JSON_FIELD, FirestoreStore, mirrored
+from app.store.firestore import JSON_FIELD, FirestoreStore
 
 from . import test_store
 from .fake_firestore import FakeFirestore
@@ -33,10 +33,9 @@ async def test_d354_the_store_contract_holds(case):
     store, client = _store()
     await case(store)
     assert await store.flush(5)
-    # what Firestore holds equals what memory holds, except comment data (D-378: memory only)
+    # what Firestore holds equals what memory holds (D-428: comment data too)
     for path, docs in store._data.items():
-        want = {k: v for k, v in docs.items() if mirrored(path, v)}
-        assert {k: v for k, v in client.data.get(path, {}).items()} == want, path
+        assert {k: v for k, v in client.data.get(path, {}).items()} == docs, path
 
 
 async def test_d354_writes_do_not_wait_and_are_coalesced_and_batched():
@@ -127,7 +126,7 @@ async def test_d354_a_replayed_show_matches_memory_and_a_new_process_continues_i
         assert await ctx.store.flush(10)
         mem = ctx.store._data
         for path in [p for p in mem if p == SESSIONS or p.startswith(f"{SESSIONS}/{sid}/")]:
-            assert set(client.data.get(path, {})) == {k for k, v in mem[path].items() if mirrored(path, v)}, path
+            assert set(client.data.get(path, {})) == set(mem[path]), path
         last = (await ctx.bus.events_after(sid, 0))[-1].seq
     finally:
         ctx.runtimes.shutdown()
@@ -170,31 +169,27 @@ async def test_d354_the_store_contract_on_the_emulator(case):
             assert {c.comment_id for c in got} == set(docs), (sid, path)
 
 
-async def test_d378_comment_data_stays_in_memory_and_live_data_goes_to_firestore():
-    """D-378 (user): the comments session keeps comment data in its own Firestore storage."""
-    from app.models.session import AgentCall, QuestionGroup
+async def test_d428_comment_data_goes_to_firestore_and_is_read_back():
+    """D-428 (main merge; was D-378's memory-only comment data): one writer for the comment collections too."""
+    from app.models.session import AgentCall
 
     store, client = _store()
     await store.put(SESSIONS, "ses_1", _comment(0))
     for name in ("comments", "analyses", "groups", "answers", "messages"):
         await store.put(sub("ses_1", name), "x_1", _comment(1))
-    await store.put(sub("ses_1", "transcripts"), "t_1", _comment(2))
     for agent in ("comment_triage", "answer_composer", "fact_checker"):
         call = AgentCall.model_construct(call_id=f"call_{agent}", agent=agent)
         await store.put(sub("ses_1", "agent_calls"), f"call_{agent}", call)
     assert await store.flush(5)
-    assert not any(client.data.get(sub("ses_1", n)) for n in ("comments", "analyses", "groups", "answers",
-                                                              "messages"))
-    assert set(client.data[sub("ses_1", "transcripts")]) == {"t_1"}
-    assert set(client.data[sub("ses_1", "agent_calls")]) == {"call_fact_checker"}
-    # a comment row left in Firestore from before is never read back
-    client.data.setdefault(sub("ses_1", "groups"), {})["old"] = {"group_id": "old"}
+    for name in ("comments", "analyses", "groups", "answers", "messages"):
+        assert set(client.data[sub("ses_1", name)]) == {"x_1"}, name
+    assert len(client.data[sub("ses_1", "agent_calls")]) == 3
     fresh, _ = _store(client)
-    assert await fresh.query(sub("ses_1", "groups"), QuestionGroup) == []
+    assert [c.comment_id for c in await fresh.query(sub("ses_1", "comments"), Comment)] == ["cm_000001"]
 
 
-async def test_d379_comment_events_stay_out_of_firestore_and_the_seq_continues():
-    """D-379: comment events stay in memory and on the stream; a new process continues after the highest stored seq."""
+async def test_d428_comment_events_are_stored_and_the_seq_continues():
+    """D-428 (was D-379): comment events are stored too; a new process continues after the reserved ceiling."""
     store, client = _store()
     from app.clock import ManualClock
 
@@ -202,11 +197,10 @@ async def test_d379_comment_events_stay_out_of_firestore_and_the_seq_continues()
     await store.put(SESSIONS, "ses_1", _comment(0))
     for type_ in ("transcript.final", "comment.created", "group.updated", "alert.created", "message.published"):
         await bus.emit("ses_1", type_, {"x": 1})
-    assert [e.type for e in await bus.events_after("ses_1", 0)] == [
-        "transcript.final", "comment.created", "group.updated", "alert.created", "message.published"]
     assert await store.flush(5)
     stored = client.data[sub("ses_1", "events")]
-    assert sorted(v["type"] for v in stored.values()) == ["alert.created", "transcript.final"]
+    assert sorted(v["type"] for v in stored.values()) == ["alert.created", "comment.created", "group.updated",
+                                                          "message.published", "transcript.final"]
     fresh, _ = _store(client)
     bus2 = EventBus(fresh, bus._clock)
     # D-380/381: the reserved ceiling on the session document: the next seq is past every event a client saw
@@ -237,15 +231,10 @@ async def test_d381_the_mark_survives_a_json_session_and_costs_one_write_per_blo
     assert JSON_FIELD in client.data[SESSIONS]["ses_1"]
     fresh, _ = _store(client)
     assert await EventBus(fresh, ManualClock()).last_seq("ses_1") >= 50
-    # the comment agents' calls stay out through their agent.call events too
-    await bus.emit("ses_1", "agent.call", {"agent": "answer_composer"})
-    await bus.emit("ses_1", "agent.call", {"agent": "fact_checker"})
-    assert await store.flush(5)
-    types = [(v.get("type"), (v.get("payload") or {}).get("agent")) for v in client.data[sub("ses_1", "events")].values()]
-    assert ("agent.call", "fact_checker") in types and ("agent.call", "answer_composer") not in types
 
 
-async def test_d380_the_session_document_holds_no_comment_data():
+async def test_d428_the_session_document_holds_the_comment_fields_but_not_the_mark():
+    """D-428 (was D-380): the host's question slots and the pinned notice are stored; the seq mark is the store's."""
     from pydantic import BaseModel
 
     class _Session(BaseModel):  # the fields that matter here
@@ -258,5 +247,7 @@ async def test_d380_the_session_document_holds_no_comment_data():
     await store.put(SESSIONS, "ses_1", _Session())
     assert await store.flush(5)
     doc = client.data[SESSIONS]["ses_1"]
-    assert doc["status"] == "live" and "pinned_notice" not in doc and "host_slots" not in doc
-    assert store._data[SESSIONS]["ses_1"]["pinned_notice"] == "Free shipping today"  # memory keeps it
+    assert doc["pinned_notice"] == "Free shipping today" and doc["host_slots"] == [{"slot": 1, "group_id": "grp_1"}]
+    fresh, _ = _store(client)
+    got = await fresh.read_session("ses_1")
+    assert got[SESSIONS]["ses_1"]["status"] == "live"

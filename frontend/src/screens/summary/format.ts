@@ -48,6 +48,10 @@ const AGENT_LABELS: Record<string, string> = {
   fact_checker: "Fact checker",
   comment_triage: "Comment triage",
   answer_composer: "Answer composer",
+  draft_verifier: "Answer check",
+  reply_phraser: "Reply wording",
+  reply_translator: "Reply translation",
+  comment_insights: "Comment analysis",
   brief_agent: "Brief agent",
   broadcast_summary: "Broadcast summary",
 };

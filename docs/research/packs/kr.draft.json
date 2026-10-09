@@ -142,6 +142,6 @@
     "WRONG guideline id: 「화장품 표시·광고 관리 지침」 is 안내서-0086-07 (2025.8.14.); edition/chapter refs and examples UNVERIFIED.",
     "Rule refs to fix: absolute_safety -> 별표5 2사·아 and 법 제13조①4; test_qualifier -> 법 제14조 (실증) and 2사·아 (2차 is endangered species); comparative -> 2바 (비교), 2카 (비방) (2자 is obscene/hateful).",
     "Product sale price in Korea is unknown: remove 36,000원; S$36 is not a Korean price.",
-    "Checked by GPT with law.go.kr / mfds.go.kr on 10/5; a Korean reader on the team must still review ko.draft.json wording."
+    "Checked by an automated tool against law.go.kr / mfds.go.kr on 10/5 (no legal review); a Korean reader on the team must still review ko.draft.json wording."
   ]
 }

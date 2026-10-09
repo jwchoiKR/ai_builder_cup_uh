@@ -3,7 +3,7 @@
 Why: the user found that a new product needs a fixed-template PDF and a hand-written `products.json`. Their words: "각 회사마다 제품 틀이 다 다를텐데 맞아야 한다고 하는것 자체가 엄청 문제", "수동인 프로세스들은 다 자동화가 되어야지", "제발 수동화가 아니라 LLM을 잘 활용하는 자동화된 플랫폼을 만들어보자".
 Basic rule (user, 10/5): "문서 템플릿이 같아야 한다는 커스터머에게 기대는 행동은 하지말고, 우리가 다 달라도 맞출줄 알아야 한다. 그거는 기본이야." We never ask a customer to match a template, a section name, a marker or a file type. Every format difference is our job to absorb. We go back to the customer only when a fact is truly missing from all their documents, never because of how it is written.
 Goal: a brand uploads whatever documents it has. LLMs build everything else, code does only arithmetic, deadlines, state and the gate before a public post, and people only approve.
-Sources: the dev session's grep of the code (file:line), the Sonnet critic's review, and the codex/agy review (to be added).
+Sources: the dev session's grep of the code (file:line), the critic's review, and the peer reviews (to be added).
 
 ## 1. Hand-written data (manual today)
 
@@ -79,7 +79,7 @@ Sources: the dev session's grep of the code (file:line), the Sonnet critic's rev
 - Word counts use `.split()`, which assumes spaces between words, so Chinese and Japanese break it: `comments.py:146`, `utterances.py:598`, `utterance_judge.py:135`.
 - Arm A's word-overlap logic (corrections, publish relink, verify subject window) assumes English tokens.
 
-## 7. Critique of the automation plan (Sonnet)
+## 7. Critique of the automation plan (critic)
 
 - **Approval must be per item:** AI may draft claims, cautions, qualified results, prices and percentages, but a person approves each one against a crop of its source. These items drive public posts and the "say instead" text.
 - **Avoid correlated checks:** generated rule packs and test lines must not come from the same model family as the extractor, or the pass gate becomes circular. Test lines come from another model, labelled blind from the source sheet, plus a fixed generic corpus.
@@ -87,7 +87,7 @@ Sources: the dev session's grep of the code (file:line), the Sonnet critic's rev
 - **Arithmetic stays in code, keyed by item:** use currency minor units and state the rounding rule. Never reuse the by-value converter.
 - **Order of work:** (a) onboard a third product first, which finds the hard-coded spots cheaply; (b) fix the schema, prices and aliases; (c) compare extraction methods; (d) rule layers; (e) generated tests and the pass gate.
 
-## 8. Test: does arm A's lead survive a new product? (Sonnet, pre-registered)
+## 8. Test: does arm A's lead survive a new product? (critic, pre-registered)
 
 - **Products:**
   - Product C: a third-party sheet in another layout, with a "†" qualifier, a third-party lab and prose claims.
@@ -106,7 +106,7 @@ Sources: the dev session's grep of the code (file:line), the Sonnet critic's rev
   - A's drop from the old two products ≤ 2 pt
 - **Also log** which A patches fired on C. If few fired, A was in effect prompt-driven there.
 
-## 9. codex (gpt-6-astra, high) review: more flaws (file:line, checked by Claude)
+## 9. Peer review: more flaws (file:line, checked by the planning session)
 
 - **Fact-check failure permits a post:** a failed check becomes `facts=None`, and the post decision reads that as "no contradiction" (`pipelines/utterances.py:324`, `logic/publish.py:103`). Sent to dev as a safety fix.
 - **The number gate unions the numbers of every offered draft** (`logic/publish.py:30`). A swap of two products' prices can pass. Sent to dev.
@@ -138,7 +138,7 @@ Sources: the dev session's grep of the code (file:line), the Sonnet critic's rev
 - **Report per product, with uncertainty:** false, missed and duplicate posts, routing, detection, false alerts per hour, p95, cost and human work.
 - **Generalize carefully:** one product can disprove generalization. Proving it needs several brands, categories and languages.
 
-## 10. agy (gemini-3.8-flash-high) review
+## 10. Second peer review
 
 Several file names it cited do not exist (`logic/comment_intent.py`, `claim_checker.py`, `price_calculator.py`, `comment_routing.py`), and "9% GST" is not in our data, so its file references are not usable. Points kept:
 - Layout parsers detach footnotes ("*min spend $80", "first 50") from price tables.

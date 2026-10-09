@@ -11,16 +11,21 @@ Firestore refuses is logged as an error, never dropped silently.
 Documents are written as their JSON fields with set() (no dotted updates). A document holding an array inside an
 array (Firestore has no nested arrays) is written as one JSON string field instead.
 
-D-378 (user): comment data is the comments session's, which keeps it in its own Firestore storage. The collections
-only the comments pipeline writes (MEMORY_ONLY) and the comment agents' call rows stay in memory only: never mirrored,
-never read back.
+D-428 (main merge): this store is the one Firestore writer, for the comment collections too (comments, analyses,
+groups, answers, messages: their contract is docs/comments-firestore.md); D-378's memory-only comment data is gone. Ported
+from the comments team's session mirror: `read`/`read_session` (the post-show comment analysis reads the durable copy),
+`status()` in its shape, `evict` (an ended session leaves memory and is read back when it is opened, `on_loaded` is
+called then) and the queue cap with a lost counter.
 """
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Sequence
+import os
+import sys
+import time
+from collections.abc import AsyncIterator, Iterable, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -39,34 +44,14 @@ RETRY_FIRST_SEC = 0.5
 RETRY_MAX_SEC = 30.0
 READ_BACK_TRIES = 3  # D-361: a session is read back whole or not at all; after these tries the call fails
 _DELETE_SESSION = object()  # queue marker: delete the session document and every subcollection under it
-# D-378: comments, their analyses (triage), question groups, answers and posted messages
-MEMORY_ONLY = frozenset({"comments", "analyses", "groups", "answers", "messages"})
-COMMENT_AGENTS = frozenset({"comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier",
-                            "file_tools"})
-# D-379: the events the comments pipeline emits (they carry comment data); they stay in memory and on the SSE stream.
-# After a read-back the next seq is the highest stored seq + 1 (gaps are fine).
-COMMENT_EVENTS = frozenset({"comment.created", "comment.analyzed", "comment.hidden", "comment.unhidden",
-                            "group.updated", "hostqueue.updated", "message.pending", "message.published",
-                            "message.updated", "message.cancelled", "notice.updated"})
-# D-380: comment data on the session document (the host's question slots, the pinned notice) stays in memory
-SESSION_MEMORY_ONLY = ("host_slots", "pinned_notice")
-SEQ_HW = "_event_seq_hw"  # D-380: the highest event seq emitted, on the session document (memory-only events too)
+# D-428: the comment collections the post-show comment analysis reads (docs/comments-firestore.md)
+COMMENT_COLLECTIONS = ("comments", "analyses", "groups", "answers", "messages")
+MAX_QUEUE = 50_000  # D-428: writes waiting; beyond it the oldest are dropped and counted (Firestore unreachable long)
+READ_TIMEOUT_SEC = 20
+SEQ_HW = "_event_seq_hw"  # D-380: the highest event seq emitted, on the session document
 # D-381: the mark is a reserved ceiling, written once per block of events (not once per event); a new process
 # continues after it, so it never reuses a seq a client saw (gaps of up to a block are fine)
 HW_BLOCK = 1000
-
-
-def mirrored(path: str, data: Any) -> bool:
-    """D-378: whether a document goes to Firestore (live data) or stays in memory (comment data)."""
-    name = path.split("/")[-1]
-    if path.startswith(f"{SESSIONS}/") and name in MEMORY_ONLY:
-        return False
-    if not isinstance(data, dict):
-        return True
-    return not ((name == "agent_calls" and data.get("agent") in COMMENT_AGENTS)
-                or (name == "events" and data.get("type") in COMMENT_EVENTS)
-                or (name == "events" and data.get("type") == "agent.call"  # D-381: StoreAudit's event copy
-                    and (data.get("payload") or {}).get("agent") in COMMENT_AGENTS))
 
 
 def _nested_array(x: Any, in_array: bool = False) -> bool:
@@ -101,7 +86,13 @@ def _session_of(path: str, doc_id: str | None = None) -> str | None:
     return parts[1] if len(parts) >= 3 else doc_id
 
 
+def _under_pytest() -> bool:
+    return "PYTEST_CURRENT_TEST" in os.environ or "pytest" in sys.modules
+
+
 def _make_client(settings: Settings):
+    if _under_pytest():  # D-428 (from the session mirror): a test run never reaches the real database
+        raise RuntimeError("FirestoreStore: no real Firestore client under pytest; inject a fake client")
     from google.cloud import firestore
 
     return firestore.AsyncClient(project=settings.GCP_PROJECT or None, database=settings.FIRESTORE_DATABASE)
@@ -124,21 +115,36 @@ class FirestoreStore(MemoryStore):
         self._retry_now = asyncio.Event()  # D-361: a flush wakes a write retry that is waiting
         self._seq_hw: dict[str, int] = {}  # D-380: session -> the highest event seq emitted (or read back)
         self.failures = 0  # writes Firestore refused or that failed and were retried
+        self.database = settings.FIRESTORE_DATABASE if settings is not None else ""
+        self.on_loaded = None  # D-428: set by the app; called with a session id after it is read back from Firestore
+        # D-428: the session mirror's counters, for status()
+        self.commits = self.committed = self.retries = self.lost = self.oversize = self.failed_purges = 0
+        self.loaded = self.evicted = 0
+        self._written: set[str] = set()  # D-428: sessions this process wrote or read back; only these are deleted
+        self.last_commit_at: int | None = None
+        self.last_error: str | None = None
 
     # ---- writes: memory now, Firestore behind -------------------------------------------------------------
 
     def _enqueue(self, path: str, doc_id: str, value: Any) -> None:
         if "/" in doc_id:
             raise ValueError(f"a Firestore document id cannot hold '/': {path}/{doc_id}")
-        if not mirrored(path, value):
-            return  # D-378: comment data stays in memory
-        if path == SESSIONS and isinstance(value, dict):  # D-380: no comment data; the seq high-water mark
-            value = {k: v for k, v in value.items() if k not in SESSION_MEMORY_ONLY}
-            if doc_id in self._seq_hw:
-                value[SEQ_HW] = self._seq_hw[doc_id]
+        if path == SESSIONS and isinstance(value, dict) and doc_id in self._seq_hw:  # D-380: the seq high-water mark
+            value = {**value, SEQ_HW: self._seq_hw[doc_id]}
+        if value is not _DELETE_SESSION and (sid := _session_of(path, doc_id)) is not None:
+            self._written.add(sid)
         key = (path, doc_id)
         self._queue.pop(key, None)  # coalesce: the latest value, at the end of the order
         self._queue[key] = value
+        while len(self._queue) > MAX_QUEUE:  # D-428: memory must not grow without bound; the oldest go, counted
+            (lost_path, lost_id), lost_value = next(iter(self._queue.items()))
+            del self._queue[(lost_path, lost_id)]
+            if lost_value is _DELETE_SESSION:
+                self.failed_purges += 1
+                log.error("firestore: LOST delete of session %s (queue full)", lost_id)
+            else:
+                self.lost += 1
+                log.error("firestore: LOST write of %s/%s (queue full), lost so far %d", lost_path, lost_id, self.lost)
         self._idle.clear()
         self._wake.set()
         if self._flusher is None or self._flusher.done():
@@ -153,8 +159,8 @@ class FirestoreStore(MemoryStore):
         self._enqueue(path, doc_id, doc.model_dump(mode="json"))
         sid = _session_of(path, doc_id)
         if path.endswith("/events") and sid is not None and getattr(doc, "seq", 0) > self._seq_hw.get(sid, 0):
-            # D-380/381: an event past the reserved ceiling (mirrored or not) reserves the next block, one session
-            # write per HW_BLOCK events
+            # D-380/381: an event past the reserved ceiling reserves the next block, one session write per HW_BLOCK
+            # events
             self._seq_hw[sid] = doc.seq + HW_BLOCK
             session = self._data.get(SESSIONS, {}).get(sid)
             if session is not None:
@@ -183,7 +189,8 @@ class FirestoreStore(MemoryStore):
         self._seq_hw.pop(session_id, None)
         for key in [k for k in self._queue if _session_of(*k) == session_id]:
             del self._queue[key]  # nothing of it needs writing any more
-        self._enqueue(SESSIONS, session_id, _DELETE_SESSION)
+        if session_id in self._written:  # D-428: the database is shared; another process's session is left alone
+            self._enqueue(SESSIONS, session_id, _DELETE_SESSION)
         self._loaded.add(session_id)  # an empty session is known; do not read the deleted one back
 
     # ---- reads: memory, after one read-back per session -----------------------------------------------------
@@ -233,24 +240,26 @@ class FirestoreStore(MemoryStore):
         snap = await self._client.collection(SESSIONS).document(sid).get()
         if not snap.exists:
             return
+        self._written.add(sid)
         doc = decode(snap.to_dict())  # D-381: a session stored as one JSON field holds the mark inside it
         hw = doc.pop(SEQ_HW, None)  # D-380: the high-water mark is the store's, not a session field
         staged = [(SESSIONS, sid, doc)]
-        for name in (n for n in SUBCOLLECTIONS if n not in MEMORY_ONLY):  # D-378: no comment data read back
+        for name in SUBCOLLECTIONS:  # D-428: the comment collections too
             path = f"{SESSIONS}/{sid}/{name}"
             async for d in self._client.collection(path).stream():
-                if mirrored(path, decode(d.to_dict())):
-                    staged.append((path, d.id, d.to_dict()))
+                staged.append((path, d.id, d.to_dict()))
         for path, doc_id, data in staged:
             self._fill(path, doc_id, data)
         if hw is not None:
             self._seq_hw[sid] = max(self._seq_hw.get(sid, 0), int(hw))
+        self.loaded += 1
         log.info("firestore: session %s read back (%d events)", sid,
                  len(self._data.get(f"{SESSIONS}/{sid}/events", {})))
+        if self.on_loaded is not None:  # D-428: counter ids continue (Runtimes.session_loaded)
+            await self.on_loaded(sid)
 
     async def _load_collection(self, path: str) -> None:
-        staged = [(d.id, d.to_dict()) async for d in self._client.collection(path).stream()
-                  if mirrored(path, decode(d.to_dict()))]
+        staged = [(d.id, d.to_dict()) async for d in self._client.collection(path).stream()]
         for doc_id, data in staged:
             self._fill(path, doc_id, data)
 
@@ -267,8 +276,10 @@ class FirestoreStore(MemoryStore):
             try:
                 await self._write_some()
                 delay = RETRY_FIRST_SEC
-            except Exception:  # noqa: BLE001 - the queue keeps every write; retry with backoff
+            except Exception as e:  # noqa: BLE001 - the queue keeps every write; retry with backoff
                 self.failures += 1
+                self.retries += 1
+                self.last_error = f"{type(e).__name__}: {e}"
                 log.exception("firestore: write failed; %d writes queued, retry in %.1f s", len(self._queue), delay)
                 self._retry_now.clear()
                 try:  # D-361: a flush (show end, SIGTERM) cuts the wait short and tries again at once
@@ -285,6 +296,8 @@ class FirestoreStore(MemoryStore):
             if value is _DELETE_SESSION:
                 if not items:
                     await self._client.recursive_delete(self._client.collection(SESSIONS).document(key[1]))
+                    self.commits += 1
+                    self.last_commit_at = time.time_ns() // 1_000_000
                     if self._queue.get(key) is _DELETE_SESSION:
                         del self._queue[key]
                 break
@@ -304,6 +317,7 @@ class FirestoreStore(MemoryStore):
                 size = len(json.dumps(fields, ensure_ascii=False).encode())
                 if size > DOC_MAX_BYTES:
                     self.failures += 1
+                    self.oversize += 1
                     log.error("firestore: %s/%s is %d bytes, over the 1 MiB document limit; NOT written", path,
                               doc_id, size)
                     sent.append(((path, doc_id), value))
@@ -312,10 +326,14 @@ class FirestoreStore(MemoryStore):
             sent.append(((path, doc_id), value))
         try:
             await batch.commit()
+            self.commits += 1
+            self.committed += len(sent)
+            self.last_commit_at = time.time_ns() // 1_000_000
         except Exception as e:  # noqa: BLE001
             if not _refused(e):
                 raise  # transient: the whole batch stays queued and is retried
-            await self._write_one_by_one(sent)  # a document Firestore refuses must not block the others
+            self.last_error = f"{type(e).__name__}: {e}"
+            await self._write_one_by_one(sent)  # a document Firestore refused must not block the others
         for key, value in sent:
             if self._queue.get(key) is value:  # not rewritten while the batch was in flight
                 del self._queue[key]
@@ -327,12 +345,14 @@ class FirestoreStore(MemoryStore):
             for i, fields in enumerate(tries):
                 try:
                     await (ref.delete() if fields is None else ref.set(fields))
+                    self.committed += 1
                     break
                 except Exception as e:  # noqa: BLE001
                     if not _refused(e):
                         raise
                     if i == len(tries) - 1:
                         self.failures += 1
+                        self.lost += 1
                         log.error("firestore: %s/%s refused (%s); NOT written", path, doc_id, e)
 
     async def flush(self, timeout: float | None = None) -> bool:
@@ -351,6 +371,71 @@ class FirestoreStore(MemoryStore):
     @property
     def queued(self) -> int:
         return len(self._queue)
+
+    def pending(self, session_id: str) -> int:
+        """D-428: writes of this session still waiting in the queue."""
+        return sum(1 for key in self._queue if _session_of(*key) == session_id)
+
+    # ---- D-428: ported from the comments team's session mirror ---------------------------------------------
+
+    async def read(self, session_id: str, names: Iterable[str] = COMMENT_COLLECTIONS,
+                   timeout: float = READ_TIMEOUT_SEC) -> dict[str, list[dict]]:
+        """The stored documents of a session's comment collections (read only), for the analysis after the show."""
+
+        async def one(name: str) -> list[dict]:
+            return [decode(snap.to_dict()) async for snap in self._client.collection(sub(session_id, name)).stream()]
+
+        names = [n for n in names if n in SUBCOLLECTIONS]
+        docs = await asyncio.wait_for(asyncio.gather(*(one(n) for n in names)), timeout)
+        return dict(zip(names, docs))
+
+    async def read_session(self, session_id: str, timeout: float = 30) -> dict[str, dict[str, dict]] | None:
+        """A whole stored session as {collection path: {document id: document}}, the session document under
+        `sessions`; None when Firestore has no such session. Read only."""
+        snap = await asyncio.wait_for(self._client.collection(SESSIONS).document(session_id).get(), timeout)
+        if not snap.exists:
+            return None
+
+        async def one(name: str) -> tuple[str, dict[str, dict]]:
+            path = sub(session_id, name)
+            return path, {s.id: decode(s.to_dict()) async for s in self._client.collection(path).stream()}
+
+        session = decode(snap.to_dict())
+        session.pop(SEQ_HW, None)
+        out: dict[str, dict[str, dict]] = {SESSIONS: {session_id: session}}
+        for path, docs in await asyncio.wait_for(asyncio.gather(*(one(n) for n in SUBCOLLECTIONS)), timeout):
+            if docs:
+                out[path] = docs
+        return out
+
+    async def evict(self, session_id: str) -> bool:
+        """Drop a session from memory; Firestore keeps it and it is read back when it is opened again. Only when
+        nothing of it is still waiting to be written and no write was lost, so the copy that stays is complete.
+        False when it was kept in memory."""
+        await self.flush(8)
+        if self.pending(session_id) or self.lost:
+            log.warning("firestore: session %s stays in memory (writes pending or lost)", session_id)
+            return False
+        await MemoryStore.delete_session(self, session_id)  # memory's copy only: nothing is queued
+        self._loaded.discard(session_id)
+        self._seq_hw.pop(session_id, None)  # read back with the session document
+        self.evicted += 1
+        return True
+
+    def status(self) -> dict[str, Any]:
+        """The session mirror's shape: "comments" is the key the health page already reads."""
+        return {"comments": {
+            "database": self.database,
+            "queue_depth": len(self._queue),
+            "last_commit_at": self.last_commit_at,  # epoch ms; None until the first commit
+            "commits": self.commits,
+            "writes_committed": self.committed,
+            "retries": self.retries,
+            "lost_writes": self.lost,
+            "oversize_skipped": self.oversize,
+            "failed_session_deletes": self.failed_purges,
+            "last_error": self.last_error,
+        }, "sessions_loaded": self.loaded, "sessions_evicted": self.evicted}
 
     async def aclose(self, timeout: float = 8.0) -> None:
         await self.flush(timeout)

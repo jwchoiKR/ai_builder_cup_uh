@@ -28,6 +28,8 @@ SECTION_INTENTS: dict[str, tuple[str, ...]] = {
     # not-approved list but not the approved "Helps reduce the look of fine dryness lines"): an efficacy question is
     # answered from the approved claims
     "efficacy_claim": ("Approved on-air claims",),
+    # a specification or a certificate is a key fact when the sheet states it; test results have their own section
+    "specification": ("Key facts",), "certification": ("Key facts",), "clinical_results": ("In-house test results",),
 }
 
 
@@ -43,6 +45,7 @@ class ComposeInput:
     scenario: str = "default"
     sensitive: bool = False
     rules: bool = True  # D-192 arm F1: RULES only when the tool step fetched them
+    revise: dict | None = None  # {previous_reply, problems}: the code gate rejected the first draft; write it again
 
 
 def compose_primary_text(product_id: str | None, canonical_question: str, promo: Promo | None) -> str:
@@ -115,7 +118,9 @@ class AnswerComposer:
         })
         if arms.agents_decide(self.llm.design_arm) and inp.rules:  # D-191 arms D to F2: the advertising rules, whole
             user += inputs.data_block("RULES", inputs.rules_compact_json(self.catalog))
-        primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo)
+        if inp.revise:
+            user += inputs.data_block("REVISE", inp.revise)
+        primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo) + ("|revise" if inp.revise else "")
         return await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.composer.model, thinking_level=self.llm.composer.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,

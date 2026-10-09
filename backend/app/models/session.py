@@ -165,6 +165,11 @@ class Comment(BaseModel):  # [sessions/{sid}/comments/{comment_id}]
     analysis_id: str | None = None
     group_id: str | None = None
     armor: Literal["blocked", "unscreened"] | None = None  # D-125: never triaged, answered or carded
+    language: str | None = None  # the comment's language as triage read it (ISO 639-1), when it is not the show's
+    translation_en: str | None = None  # triage's English reading of a comment in another language (operator view)
+    signal: Literal["stream_issue", "injection"] | None = None  # triage: a stream problem report, or orders to the system
+    # what the asker is told while the question waits (logic/reply_status); kept in step with its group by the runtime
+    reply_status: Literal["checking", "host", "team", "answered"] | None = None
 
 
 class CommentAnalysis(BaseModel):  # [sessions/{sid}/analyses/{analysis_id}]
@@ -192,6 +197,8 @@ class QuestionGroup(BaseModel):  # [sessions/{sid}/groups/{group_id}]
     last_at: int
     route: Literal["AUTO", "HOST", "OPERATOR"]
     route_reason: str
+    needs_approval: bool | None = None  # triage's call on its first question; None: not said
+    approval_reason: str | None = None
     status: Literal["new", "composing", "ready", "auto_answered", "needs_review", "answered", "rejected", "closed"]
     answer_id: str | None = None  # verified suggested/posted answer
     host_slot: Literal["none", "on_host"] = "none"
@@ -217,6 +224,7 @@ class Answer(BaseModel):  # [sessions/{sid}/answers/{answer_id}]
     cache_key: str | None = None
     needs_human: bool
     created_at: int
+    record: bool = False  # a record answer: the value by code from the product record (logic/record_answers)
 
 
 class Message(BaseModel):  # [sessions/{sid}/messages/{message_id}] viewer-visible
@@ -232,6 +240,7 @@ class Message(BaseModel):  # [sessions/{sid}/messages/{message_id}] viewer-visib
     publish_at: int | None = None
     published_at: int | None = None
     idempotency_key: str
+    translations: dict[str, str] = {}  # language -> this reply in it, for viewers who asked in that language
 
 
 class AgentCall(BaseModel):  # [sessions/{sid}/agent_calls/{id}] audit

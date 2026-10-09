@@ -1,8 +1,9 @@
 """Onboarding (product parsing) explainer (google-slide-deck design). Run: python docs/decks/build/build_onboarding.py"""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\User.DESKTOP-G5S2APU\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -121,7 +122,7 @@ slide("measured", "결과", "처음 보는 브랜드 6곳에서 가격은 하나
         ["성분 함량", f"<span style='color:{RED}'>숫자 1개 틀림</span> (\"5,000\" → \"5\") → D-225로 수정, 재측정 중"],
         ["주의사항", f"<span style='color:#B06000'>2개 누락</span> → 주의사항 재확인 단계 추가(D-226), 재측정 중"],
         ["걸린 시간", "제품당 1~4.5분"]], [56, 44], 25),
-    t("형식: 표 PDF, 브로슈어, 한국어 워드, 웹페이지, 엑셀 가격표, 글자가 그림 안에 있는 PNG. 정답은 GPT 작성 + Sonnet 블라인드 확인.", 23, SUB),
+    t("형식: 표 PDF, 브로슈어, 한국어 워드, 웹페이지, 엑셀 가격표, 글자가 그림 안에 있는 PNG. 정답은 작성본 + 독립 블라인드 확인.", 23, SUB),
     gap=20), notes="sealed_sets/onboarding (개발 쪽 비공개). 의류 3개 추가 시험 대기 중.")
 
 # ---- 5 google

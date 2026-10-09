@@ -3,10 +3,11 @@ Run: python docs/decks/build/build_test_log.py
 Numbers: sealed_sets/results/all_arms_*.json (docs_arms.py <arms>, scorer v3 --semantic --restore, label patches as of the build).
 Only numbers and made-up examples; sealed text never shown."""
 import json
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -156,6 +157,6 @@ slide("old", "그 이전 · 10/5~6", "STT 없이 원문으로 잰 1~4차 세트�
      ["4차 (S1~6)", "2153761", "91.0%", "3.1%", "1", "놓친 사실 115건 중 81건이 코드가 지운 정답"],
      ["5차 (T1~6)", "bc9c186", "92.6%", "", "", "채점기 v3 기준, 이후 진단용"]],
     ["16%", "16%", "12%", "12%", "14%", "30%"]),
-    notes="숫자는 CLAUDE.md 인수인계 기록과 docs/eval/proof-plan.md. 빈칸은 그때 기록하지 않음.")
+    notes="숫자는 HANDOVER.md 인수인계 기록과 docs/eval/proof-plan.md. 빈칸은 그때 기록하지 않음.")
 
 write(str(OUT), "테스트 기록")

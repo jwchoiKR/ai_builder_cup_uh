@@ -22,7 +22,7 @@ PROMPT_NAMES = (
     "fact_relation",
     "fact_relation_v2", "fact_relation_v3", "fact_relation_v4", "fact_relation_v5", "fact_relation_v6", "fact_relation_v7", "fact_relation_v8",
     "comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier", "brief_agent",
-    "broadcast_summary",
+    "broadcast_summary", "reply_translator", "reply_phraser", "comment_insights",
 )
 
 # Rendered as plain text; every other placeholder must contain `_json` and is rendered as JSON.
