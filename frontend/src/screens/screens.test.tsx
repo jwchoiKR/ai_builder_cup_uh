@@ -79,6 +79,17 @@ describe("screens", () => {
     expect(screen.queryByRole("region", { name: "Operator" })).not.toBeInTheDocument();
   });
 
+  it("Studio: the splitter between two screens moves their edge (arrow keys, 5%)", async () => {
+    render(<Studio sessionId="ses_000001" />);
+    const split = await screen.findByTestId("studio-split-0");
+    const host = () => screen.getByRole("region", { name: "Host" }).style.flexGrow;
+    const before = Number(host());
+    fireEvent.keyDown(split, { key: "ArrowRight" });
+    expect(Number(host())).toBeGreaterThan(before);
+    fireEvent.doubleClick(split);
+    expect(Number(host())).toBe(50);
+  });
+
   it("Studio has one link back to the hub, in its header; the panes have none", async () => {
     render(<Studio sessionId="ses_000001" />);
     const links = await screen.findAllByTestId("hub-link");
