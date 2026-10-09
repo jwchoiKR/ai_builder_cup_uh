@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>레포 코드 재비교 10/10</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Roboto:wght@400;500&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#E8EAED;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0;box-shadow:0 2px 12px rgba(60,64,67,.25)}
+section{position:absolute;inset:0;box-sizing:border-box;display:none !important}
+section.on{display:flex !important}
+section *{margin:0;box-sizing:border-box;word-break:keep-all;overflow-wrap:anywhere}
+section p,section td,section span{text-wrap:pretty}
+section h1,section h2{text-wrap:balance}
+table{border-collapse:collapse;width:100%;color:#202124}
+th{text-align:left;font-weight:500;color:#5F6368;border-bottom:2px solid #BDC1C6;padding:14px 16px}
+td{border-bottom:1px solid #BDC1C6;padding:18px 16px;vertical-align:top}
+.pg{position:absolute;right:128px;bottom:56px;font-size:24px;color:#9AA0A6}
+aside{display:none}
+.bd>*{flex:0 0 auto !important}
+.fx>div{flex:1}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:30vh;overflow:auto;background:#fff;color:#202124;font:16px/1.5 'Noto Sans KR',sans-serif;padding:12px 20px;display:none;border-top:3px solid #1A73E8}
+#hint{position:fixed;right:12px;bottom:8px;color:#80868b;font:13px Roboto,sans-serif}
+.lane-wide .nd { align-items:center; text-align:center; }
+
+@keyframes an-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes an-pop { 0% { opacity: 0; transform: scale(.96); } 100% { opacity: 1; transform: none; } }
+@keyframes an-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } 40% { box-shadow: 0 0 0 10px var(--an-glow); } }
+.an-item { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both; }
+.an-img { animation: an-pop .6s cubic-bezier(.2,.7,.2,1) both; }
+.an-pulse { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both, an-pulse 1.2s ease-out both; }
+/* always-on motion while a slide is shown: arrows flow, a dot runs along them, AI badges breathe, flow steps light up in turn */
+@keyframes an-dash { to { stroke-dashoffset: -28; } }
+@keyframes an-breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); } 50% { box-shadow: 0 0 0 8px rgba(26,115,232,.16); } }
+@keyframes an-step { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); border-color: inherit; } 12%, 30% { box-shadow: 0 0 0 5px rgba(26,115,232,.22); } }
+@keyframes an-run { from { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
+.an-arrow { position: relative; display: inline-flex; align-items: center; justify-content: center; line-height: 0; flex: none; align-self: center; }
+@keyframes an-march { to { stroke-dashoffset: -11; } }
+section.on .an-shaft { animation: an-march .55s linear infinite; }
+</style></head><body>
+<div id="stage">
+<section id="cover" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:36px">
+<div style="display:inline-flex; align-items:center; gap:8px; background:#E8F0FE; color:#1A73E8; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>AI Builder Cup 2026 · 코드까지 본 재비교 · 10/10</span></div>
+<h1 style="font-size:88px; font-weight:500; line-height:1.15">코드까지 보면 24팀 중 3위,<br>상위 5팀은 한 묶음</h1>
+<p style="font-size:38px; color:#5F6368; line-height:1.45">공개 레포 95개를 내려받아 읽고, GPT·Gemini·Sonnet이 따로 채점</p></div></div><p class="pg"></p><aside>README만 본 순위(90팀 중 3위)는 repo_compare_1010.html. 이번에는 코드가 README 내용을 실제로 뒷받침하는지 봤다.</aside></section>
+<section id="method" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">어떻게 매겼나</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">README가 아니라 코드를 기준으로 다시 매겼다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; align-items:stretch; gap:22px"><table style="font-size:25px"><tr><th style="width:18%">단계</th><th style="width:82%">한 일</th></tr><tr><td>1. 전체 훑기</td><td>참가작 레포 95개를 내려받아 코드 줄 수, 테스트 수, Google AI 호출을 셌다 (실행은 안 함)</td></tr><tr><td>2. 대상 고르기</td><td>README 순위 상위 15팀 + README는 약하지만 코드가 큰 9팀 = 24팀</td></tr><tr><td>3. 코드 읽기</td><td>팀마다 AI가 실제로 하는 일, 끝까지 도는지, 결과 파일, 테스트, 배포를 사실로만 정리</td></tr><tr><td>4. 채점</td><td>README 요약 + 코드 요약을 보고 세 모델이 따로 채점. README와 코드가 다르면 코드를 믿음</td></tr></table><div style="display:flex; flex-direction:column; gap:14px"><div style="height:2px; background:#BDC1C6"></div><div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px 14px"><p style="font-size:26px; font-weight:700; color:#5F6368; margin-right:6px">배점 (대회 공식)</p><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>기술 40</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>문제 25</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>혁신 25</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>UX 10</span></div></div></div></div></div><p class="pg"></p><aside>우리 레포의 ADK 사용(ai_pd.py)은 코드 요약에서 빠져 있어 코드 위치를 근거로 덧붙였다. 다른 팀의 누락은 확인하지 못했다.</aside></section>
+<section id="top" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">코드 기준 순위</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">상위 5팀은 세 모델 모두 1~5위 안에 넣었다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; align-items:stretch; gap:14px"><table style="font-size:23px"><tr><th style="width:7%">순위</th><th style="width:18%">팀</th><th style="width:13%">분야</th><th style="width:8%">GPT</th><th style="width:9%">Gemini</th><th style="width:9%">Sonnet</th><th style="width:36%">한 줄</th></tr><tr><td>1</td><td>Gapline</td><td>화면 해설</td><td>1위</td><td>1위</td><td>2위</td><td>STT·Gemini·TTS가 끝까지 연결, 결과 CSV, 테스트 약 450개</td></tr><tr><td>2</td><td>Taal</td><td>식품 할인</td><td>2위</td><td>4위</td><td>1위</td><td>평가 원본 결과를 레포에 공개, 나쁜 결과도 그대로</td></tr><tr><td>3</td><td><b>Live Studio (우리)</b></td><td>라이브 커머스</td><td>4위</td><td>2위</td><td>5위</td><td>실시간 STT + 판정 3개 병렬, 숫자는 글로만 있음</td></tr><tr><td>4</td><td>Green Corridor</td><td>응급차 경로</td><td>5위</td><td>3위</td><td>3위</td><td>ADK 에이전트, 12클립 평가 결과, 테스트 326개</td></tr><tr><td>5</td><td>Groundtruth</td><td>도시 열환경</td><td>3위</td><td>5위</td><td>4위</td><td>'Gemini 단독 0/18 vs 시스템 16/18' 결과 파일</td></tr><tr><td>6</td><td>ReadiCheck</td><td>사기 예방</td><td>7위</td><td>8위</td><td>7위</td><td>Gemini Live, 평가 숫자는 결과 파일 없음</td></tr><tr><td>11</td><td>Project-NoX</td><td>업무 자동화</td><td>11위</td><td>9위</td><td>12위</td><td>코드 최대 규모(약 5만 줄), README 순위는 25위</td></tr></table><p style="font-size:24px; line-height:1.45; color:#5F6368; font-weight:400">순위는 세 모델 순위의 평균. 우리와 Green Corridor는 평균 순위가 같다(3.67).</p></div></div><p class="pg"></p><aside>README만 봤을 때 1위였던 Groundtruth는 5위, 10위였던 Taal은 2위가 됐다.</aside></section>
+<section id="gap" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">README와 코드가 다른 팀이 많다</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">숫자를 결과 파일로 확인할 수 있는 팀이 위로 올라갔다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:25px"><tr><th style="width:30%">팀</th><th style="width:70%">코드에서 본 것</th></tr><tr><td>Taal, Gapline, Groundtruth</td><td><span style='color:#1E8E3E'>README 숫자가 레포의 결과 파일과 일치</span></td></tr><tr><td>ARTHA</td><td><span style='color:#D93025'>기본 설정에서 Gemini를 안 씀, '회피 18 → 0' 결과 없음</span></td></tr><tr><td>ReadiCheck</td><td><span style='color:#D93025'>평가 숫자가 문서 글에만 있음, 가리킨 폴더도 없음</span></td></tr><tr><td>CatSight, Snowflake RuntimeOS</td><td><span style='color:#D93025'>실제로 도는 서버가 AI를 부르지 않음</span></td></tr><tr><td>우리</td><td><span style='color:#D93025'>정확도·오경고·지연 숫자가 덱과 인수인계 문서에만 있음 (봉인 세트라 비공개)</span></td></tr></table></div><p class="pg"></p><aside>코드 요약은 Sonnet 6개가 나눠 썼고, 모두 같은 지시문으로 읽기만 했다.</aside></section>
+<section id="next" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">점수를 올릴 일</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">기능보다 '확인할 수 있는 증거'가 순위를 가른다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:25px"><tr><th style="width:30%">할 일</th><th style="width:52%">효과</th><th style="width:18%">비용</th></tr><tr><td>1. 결과 파일 공개</td><td>봉인 문장은 빼고 제품별 집계표(탐지, 오경고, 지연)를 레포에 올림</td><td>없음</td></tr><tr><td>2. README에 ADK 명시</td><td>AI PD가 ADK LlmAgent인데 README에 없음</td><td>없음</td></tr><tr><td>3. 로직 확정 후 재측정</td><td>10/9 이후 변경을 측정한 숫자로 교체</td><td>Gemini 조금</td></tr><tr><td>4. README의 '서버 1대' 설명 고치기</td><td>Cloud Run 자동 확장을 꺼 둔 이유와 재시작 복구(확인함)를 설명, 가능하면 동시 방송 수 측정</td><td>없음 (측정은 조금)</td></tr></table></div><p class="pg"></p><aside>세 모델 공통 감점: 결과 파일 없음, 최근 변경 미측정, README에 적은 'One Cloud Run instance'(max-instances 1). Cloud Run 사용 자체가 아니라 확장을 꺼 둔 설정이 지적됐다.</aside></section>
+</div>
+<div id="notes"></div><div id="hint">← → 이동 · N 노트 · F 전체 화면</div>
+<script>
+const s=[...document.querySelectorAll('#stage > section')];let i=0;
+s.forEach((x,j)=>{const p=x.querySelector('.pg'); if(p) p.textContent=j? (j+1)+' / '+s.length : '';});
+const notes=document.getElementById('notes');
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);document.getElementById('stage').style.transform='scale('+k+') translate(-50%,-50%)';}
+function show(n){i=Math.max(0,Math.min(s.length-1,n));s.forEach((x,j)=>x.classList.toggle('on',j===i));const a=s[i].querySelector('aside');notes.textContent=(i+1)+'/'+s.length+'  '+(a&&a.textContent.trim()?a.textContent.trim():'(노트 없음)');history.replaceState(null,'','#'+(i+1));}
+function over(b){const R=b.getBoundingClientRect();return [...b.querySelectorAll('*')].some(c=>{const r=c.getBoundingClientRect();return r.bottom>R.bottom+1||r.top<R.top-1||r.right>R.right+1||r.left<R.left-1;});}
+function autofit(){const out=[];s.forEach((x,j)=>{s.forEach(y=>y.classList.toggle('on',y===x));const b=x.querySelector('.bd');if(!b)return;
+const z0=parseFloat(b.style.zoom)||1;let z=z0;while(over(b)&&z>0.7){z=Math.round((z-0.03)*100)/100;b.style.zoom=z;}
+if(z<z0)out.push({slide:j+1,type:'shrunk',text:'zoom '+z0+' -> '+z});});return out;}
+function lint(out){s.forEach((x,j)=>{let small=null;s.forEach(y=>y.classList.toggle('on',y===x));const R=x.getBoundingClientRect(),b=x.querySelector('.bd');
+if(b&&over(b))out.push({slide:j+1,type:'overflow',text:'content taller than slide body'});
+const w=document.createTreeWalker(x,NodeFilter.SHOW_TEXT);let n;
+while(n=w.nextNode()){if(!n.textContent.trim()||n.parentElement.closest('aside,.pg'))continue;
+const r=document.createRange();r.selectNodeContents(n);const rs=[...r.getClientRects()].filter(q=>q.width>0);
+if(rs.length>1){const L=rs[rs.length-1],c=n.textContent.replace(/ /g,'').length;if(L.width<1.8*L.height)out.push({slide:j+1,type:'orphan',text:n.textContent.trim().slice(-20)});else if(c<=16&&new Set(rs.map(q=>Math.round(q.top))).size>1)out.push({slide:j+1,type:'wrap',text:n.textContent.trim()});}
+if(rs.length&&!small){let z=1;for(let e=n.parentElement;e;e=e.parentElement)z*=parseFloat(e.style.zoom)||1;const fs=parseFloat(getComputedStyle(n.parentElement).fontSize)*z;if(fs<21)small=n.textContent.trim().slice(0,20)+' ('+fs.toFixed(1)+'px)';}
+for(const q of rs)if(q.bottom>R.bottom+1||q.right>R.right+1||q.left<R.left-1){out.push({slide:j+1,type:'overflow',text:n.textContent.trim().slice(0,20)});break;}}
+if(small)out.push({slide:j+1,type:'small',text:small});if(x.textContent.includes('\u2014'))out.push({slide:j+1,type:'style',text:'em dash found'});});
+const pre=document.createElement('pre');pre.id='lint';pre.textContent=JSON.stringify(out);document.body.appendChild(pre);}
+addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key))show(i+1);else if(['ArrowLeft','PageUp'].includes(e.key))show(i-1);else if(e.key==='n'||e.key==='N')notes.style.display=notes.style.display==='block'?'none':'block';else if(e.key==='f'||e.key==='F')document.documentElement.requestFullscreen?.();});
+addEventListener('click',e=>show(e.clientX>innerWidth/2?i+1:i-1));
+addEventListener('resize',fit);fit();
+document.fonts.ready.then(()=>{const out=autofit();if(location.search.includes('lint'))lint(out);show((parseInt(location.hash.slice(1))||1)-1);});
+
+(function(){
+  const reduce = navigator.webdriver || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return;
+  const BOX = el => { const cs = getComputedStyle(el);
+    const bg = cs.backgroundColor, bd = parseFloat(cs.borderTopWidth) || 0;
+    return (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && bg !== 'rgb(255, 255, 255)') || bd > 0; };
+  const GLOW = { 'rgb(252, 232, 230)': 'rgba(217,48,37,.25)', 'rgb(230, 244, 234)': 'rgba(30,142,62,.25)',
+                 'rgb(254, 247, 224)': 'rgba(249,171,0,.3)' };
+  function animate(sec){
+    const bd = sec.querySelector('.bd'); if (!bd) return;
+    sec.querySelectorAll('.an-item,.an-img,.an-pulse').forEach(e => { e.classList.remove('an-item','an-img','an-pulse'); e.style.animationDelay=''; });
+    const picks = [];
+    bd.querySelectorAll('div, tr, img, svg').forEach(el => {
+      if (el.tagName === 'IMG') { picks.push([el, 'an-img']); return; }
+      if (el.tagName === 'TR') { picks.push([el, 'an-item']); return; }
+      if (el.tagName !== 'svg' && !BOX(el)) return;
+      let p = el.parentElement, inner = false;
+      while (p && p !== bd) { if (BOX(p) && p.tagName === 'DIV') { inner = true; break; } p = p.parentElement; }
+      if (inner) return;
+      if (el.tagName === 'svg') { picks.push([el, 'an-item']); return; }
+      const bg = getComputedStyle(el).backgroundColor;
+      if (GLOW[bg]) { el.style.setProperty('--an-glow', GLOW[bg]); picks.push([el, 'an-pulse']); }
+      else picks.push([el, 'an-item']);
+    });
+    picks.forEach(([el]) => { el.dataset.anTop = Math.round(el.getBoundingClientRect().top / 40); el.dataset.anLeft = el.getBoundingClientRect().left; });
+    picks.sort((a, b) => (a[0].dataset.anTop - b[0].dataset.anTop) || (a[0].dataset.anLeft - b[0].dataset.anLeft));
+    picks.forEach(([el, cls], k) => { el.style.animationDelay = (0.08 * k).toFixed(2) + 's' + (cls === 'an-pulse' ? ', ' + (0.08 * k + 0.4).toFixed(2) + 's' : '');
+                                      el.classList.add(cls); });
+  }
+  function live(sec){
+    const bd = sec.querySelector('.bd'); if (!bd) return;
+    bd.querySelectorAll('svg').forEach(sv => { const p = sv.querySelector('path'); if (!p) return;
+      const st = p.getAttribute('stroke') || ''; if (st.toUpperCase() === '#9AA0A6') {
+        if (!sv.parentElement.classList.contains('an-arrow')) {
+          const wrap = document.createElement('span'); wrap.className = 'an-arrow';
+          const holder = sv.parentElement;
+          if (holder && holder.style && holder.style.paddingTop) { holder.style.paddingTop = '0'; holder.style.alignSelf = 'center'; holder.style.display = 'flex'; holder.style.alignItems = 'center'; }
+          holder.insertBefore(wrap, sv); wrap.appendChild(sv);
+          const d = p.getAttribute('d'); const segs = d.match(/M[^M]*/g) || [d];
+          if (segs.length >= 2) {
+            const NS = 'http://www.w3.org/2000/svg';
+            p.setAttribute('d', segs[0]); p.classList.add('an-shaft');
+            p.setAttribute('stroke-dasharray', '0.01 11'); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-width', '4.5');
+            const head = document.createElementNS(NS, 'path'); head.setAttribute('d', segs.slice(1).join(' '));
+            head.setAttribute('stroke', p.getAttribute('stroke')); head.setAttribute('stroke-width', '3'); head.setAttribute('fill', 'none');
+            head.setAttribute('stroke-linecap', 'round'); head.setAttribute('stroke-linejoin', 'round'); sv.appendChild(head);
+          }
+        } } });
+    // scene rows: every box in a row gets the same height (rows too, when the grid has no label rows), so arrows meet box centres
+    bd.querySelectorAll('div').forEach(g => { if (getComputedStyle(g).display !== 'grid' || !g.querySelector('.an-arrow')) return;
+      const cells = [...g.children];
+      const labelRows = cells.some(c => (c.style.gridColumn || '').replace(/\s/g, '') === '1/-1');
+      g.style.alignItems = 'stretch';
+      cells.forEach(cell => {
+        if ((cell.style.gridColumn || '').replace(/\s/g, '') === '1/-1') return;
+        if (cell.querySelector('.an-arrow')) { Object.assign(cell.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '0' }); return; }
+        Object.assign(cell.style, { display: 'flex', alignItems: 'stretch' });
+        const comp = cell.firstElementChild; if (!comp) return;
+        comp.style.flex = '1'; comp.style.alignSelf = 'stretch';
+        const isBox = BOX(comp);
+        const boxes = isBox ? [comp] : [...comp.children].filter(k => k.tagName === 'DIV' && BOX(k));
+        if (!isBox) { comp.style.display = 'flex'; comp.style.alignItems = 'stretch';
+          [...comp.children].forEach(k => { if (!boxes.includes(k)) k.style.alignSelf = 'center'; }); }
+        boxes.forEach(bx => { bx.style.alignSelf = 'stretch';
+          if (getComputedStyle(bx).display === 'flex' && getComputedStyle(bx).flexDirection === 'row') bx.style.alignItems = 'center';
+          else Object.assign(bx.style, { display: 'flex', flexDirection: 'column', justifyContent: 'center' }); });
+      });
+    });
+    bd.querySelectorAll('div').forEach(el => { const cs = getComputedStyle(el);
+      if (cs.backgroundColor === 'rgb(232, 240, 254)' && cs.borderRadius && parseFloat(cs.width) <= 90 && parseFloat(cs.width) >= 40 && Math.abs(parseFloat(cs.width) - parseFloat(cs.height)) < 4) el.classList.add('an-ai'); });
+    bd.querySelectorAll('div').forEach(row => { const kids = [...row.children];
+      const arrows = kids.filter(k => k.tagName === 'svg' && (k.querySelector('path')?.getAttribute('stroke') || '').toUpperCase() === '#9AA0A6');
+      const boxes = kids.filter(k => k.tagName === 'DIV' && BOX(k));
+      if (arrows.length >= 1 && boxes.length >= 2) boxes.forEach((b, k) => { b.classList.add('an-seq'); b.style.setProperty('--an-at', (k * 0.9).toFixed(1) + 's'); b.style.setProperty('--an-cycle', (boxes.length * 0.9 + 1.2).toFixed(1) + 's'); }); });
+  }
+  const base = show;
+  show = function(n){ base(n); const cur = document.querySelector('section.on'); if (cur) requestAnimationFrame(() => { animate(cur); live(cur); }); };
+  window.addEventListener('load', () => { const cur = document.querySelector('section.on'); if (cur) setTimeout(() => { animate(cur); live(cur); }, 300); });
+})();
+</script></body></html>
