@@ -3,6 +3,7 @@ import { BadgeCheck, Gift, Mic, Pin, Send, Sparkles } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { ApiError } from "../../app/api";
+import { useT } from "../../app/i18n";
 import {
   activePricePromo,
   activePromos,
@@ -16,7 +17,7 @@ import { useServerNow } from "../../app/store";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
 import { Countdown, HubLink, RelativeTime, SettingsButton, windowRange } from "../../components";
-import { chatSignature, isPinnedCorrection, sourceLabels, viewerChat, type ViewerChatRow } from "./chat";
+import { chatSignature, isPinnedCorrection, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
 import { useCamera } from "./useCamera";
 import styles from "./viewer.module.css";
@@ -39,6 +40,9 @@ export interface ViewerViewProps {
   themePref?: ThemePref;
   onSetTheme?: (t: ThemePref) => void;
   onSend?: (identity: ViewerIdentity, text: string) => Promise<unknown>;
+  /** the "Source: product sheet" line under an AI answer. Off for viewers: a reply reads like any reply from the
+   * brand; the source stays on the operator's desk. */
+  showSources?: boolean;
 }
 
 export function ViewerView({
@@ -52,6 +56,7 @@ export function ViewerView({
   themePref,
   onSetTheme,
   onSend,
+  showSources = false,
 }: ViewerViewProps) {
   const now = useServerNow(state, 1000);
   const offset = state.serverOffsetMs;
@@ -67,7 +72,10 @@ export function ViewerView({
     () => Object.values(state.messages).filter((m) => isPinnedCorrection(m, now)).sort((a, b) => (a.published_at ?? 0) - (b.published_at ?? 0)),
     [state.messages, now],
   );
-  const rows = useMemo(() => viewerChat(state, now), [state, now]);
+  // who "I" am in the chat: read once, and set when the viewer joins with a name
+  const [identity, setIdentity] = useState<ViewerIdentity | null>(() => readIdentity());
+  const me = identity?.authorId ?? null;
+  const rows = useMemo(() => viewerChat(state, now, me), [state, now, me]);
   const camera = useCamera(cameraEnabled && !embedded);
   const popup = useTimeSalePopup(state);
 
@@ -189,9 +197,9 @@ export function ViewerView({
           </div>
         )}
 
-        <ChatList rows={rows} brand={brand} serverOffsetMs={offset} catalog={catalog} />
+        <ChatList rows={rows} brand={brand} serverOffsetMs={offset} catalog={catalog} showSources={showSources} />
 
-        <Composer enabled={inputEnabled && Boolean(onSend)} onSend={onSend} />
+        <Composer enabled={inputEnabled && Boolean(onSend)} identity={identity} onIdentity={setIdentity} onSend={onSend} />
 
 
       </div>
@@ -264,12 +272,15 @@ function ChatList({
   brand,
   serverOffsetMs,
   catalog,
+  showSources,
 }: {
   rows: ViewerChatRow[];
   brand: string;
   serverOffsetMs: number;
+  showSources: boolean;
   catalog: Catalog | null;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const pinned = useRef(true); // following the newest message until the viewer scrolls up
   const [view, setView] = useState({ top: 0, height: 600 });
@@ -308,8 +319,18 @@ function ChatList({
               </div>
               <p className={styles.text}>{row.comment.text}</p>
               {row.replies.map((r) => (
-                <Reply key={r.message.message_id} message={r.message} brand={brand} catalog={catalog} />
+                <Reply key={r.message.message_id} message={r.message} translation={r.translation} brand={brand} catalog={catalog} showSources={showSources} />
               ))}
+              {row.waiting && (
+                // inside the chat's aria-live region, so a change of status is announced
+                <p
+                  className={styles.replyStatus}
+                  data-testid={`viewer-reply-status-${row.comment.comment_id}`}
+                  data-status={row.waiting}
+                >
+                  {t(WAITING_LABEL[row.waiting])}
+                </p>
+              )}
               {row.alsoAnswered && row.replies.length === 0 && (
                 <p className={styles.answeredAbove} data-testid={`viewer-also-answered-${row.comment.comment_id}`}>
                   ↳ Also answered: @{row.comment.author_name}
@@ -319,7 +340,7 @@ function ChatList({
           </div>
         ) : (
           <div key={row.key} className={styles.systemRow}>
-            <Reply message={row.message} brand={brand} catalog={catalog} />
+            <Reply message={row.message} brand={brand} catalog={catalog} showSources={showSources} />
           </div>
         ),
       )}
@@ -330,12 +351,16 @@ function ChatList({
 
 function Reply({
   message,
+  translation = null,
   brand,
   catalog,
+  showSources,
 }: {
   message: Message;
+  translation?: ReplyView["translation"];
   brand: string;
   catalog: Catalog | null;
+  showSources: boolean;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -345,8 +370,20 @@ function Reply({
       </span>
       <div className={styles.replyBody}>
         <Badge kind={message.kind} brand={brand} />
-        <p className={styles.text}>{message.text}</p>
-        {message.kind === "ai_answer" &&
+        {translation ? (
+          <>
+            <p className={styles.text} lang={translation.language} data-testid={`viewer-reply-translation-${message.message_id}`}>
+              {translation.text}
+            </p>
+            {/* the verified reply as it was posted stays visible under its translation */}
+            <p className={styles.replyOriginal} data-testid={`viewer-reply-original-${message.message_id}`}>
+              {message.text}
+            </p>
+          </>
+        ) : (
+          <p className={styles.text}>{message.text}</p>
+        )}
+        {showSources && message.kind === "ai_answer" &&
           sourceLabels(message).map((label) => (
             <button
               key={label}
@@ -388,19 +425,23 @@ function SourceDetails({ message, catalog }: { message: Message; catalog: Catalo
 
 function Composer({
   enabled,
+  identity,
+  onIdentity: setIdentity,
   onSend,
 }: {
   enabled: boolean;
+  identity: ViewerIdentity | null;
+  onIdentity: (identity: ViewerIdentity | null) => void;
   onSend?: (identity: ViewerIdentity, text: string) => Promise<unknown>;
 }) {
-  const [identity, setIdentity] = useState<ViewerIdentity | null>(() => (enabled ? readIdentity() : null));
+  const t = useT();
   const [value, setValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (enabled && !identity) setIdentity(readIdentity());
-  }, [enabled, identity]);
+  }, [enabled, identity, setIdentity]);
 
   if (!enabled) {
     return (
@@ -452,7 +493,7 @@ function Composer({
           className={styles.input}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder={identity ? `Chat as ${identity.name}` : "Your display name"}
+          placeholder={identity ? t("Chat as {name}", { name: identity.name }) : t("Enter a name to join the chat")}
           aria-label={identity ? "Message" : "Your display name"}
           maxLength={identity ? 300 : 40}
           disabled={busy}

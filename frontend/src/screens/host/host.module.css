@@ -143,8 +143,29 @@
   display: inline-flex;
   align-items: center;
   gap: calc(8px * var(--hs));
+  font: inherit;
   font-size: calc(14px * var(--hs));
   color: var(--text-2);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: calc(4px * var(--hs)) calc(10px * var(--hs));
+  cursor: pointer;
+}
+.mic:hover:not(:disabled) {
+  color: var(--text);
+}
+.mic:disabled {
+  cursor: default;
+}
+/* live and the microphone is off: visible, not alarming */
+.micPrompt {
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+.mic.micPrompt:hover:not(:disabled) {
+  color: var(--accent);
 }
 .micDot {
   width: calc(12px * var(--hs));
@@ -1294,13 +1315,6 @@
   gap: calc(12px * var(--hs));
   font-size: calc(18px * var(--hs));
 }
-/* D-384: the suggested answer under its question, always shown */
-.wAnswer {
-  margin: 2px 0 0 calc(var(--space-6) + 4px);
-  color: var(--text-2);
-  line-height: 1.35;
-}
-
 .wText {
   flex: 1;
   min-width: 0;
@@ -1317,6 +1331,16 @@
 }
 .wStateOn {
   color: var(--accent);
+}
+/* the first line of the suggested reply, under the question, so the host can prepare */
+.wPreview {
+  margin: 0;
+  padding-left: calc(30px * var(--hs));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(14px * var(--hs));
+  color: var(--text-3);
 }
 .pdSay {
   font-size: calc(26px * var(--hs));

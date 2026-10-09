@@ -1,9 +1,10 @@
 """Week deck 10/6-10/8: the live judging logic we use now, As-is vs To-be, why each decision, and this week's tests.
 Run: python docs/decks/build/build_week_1008.py   (numbers: sealed_sets/results/*.json; examples made up; sealed text never shown)"""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -78,7 +79,7 @@ slide("tests", "시험 방법도 바꿨다", "현실적인 문장, 규정 팩 �
          chip("동시 발화(마이크 하나)는 따로 보고", "grey"), chip("라벨 변경은 판정 전·후 숫자를 함께", "grey")),
     tags("이번 주 세트", chip("6차: 새 제품 6개, 진행자 2명 포함", "blue", "ai"), chip("7차: 새 제품 6개, 현실적 문장만", "blue", "ai"),
          chip("시험 문장 짝 168줄: 전하는 말·동의·부정·확인 질문", "blue", "ai")),
-    tags("정답 확인", chip("GPT가 쓰고 Sonnet이 줄을 섞어 따로 매김: 286~288/288 일치", "green", "check")),
+    tags("정답 확인", chip("작성자가 쓰고 독립 검토자가 줄을 섞어 따로 매김: 286~288/288 일치", "green", "check")),
     gap=26),
     notes="원칙은 LABEL_CHANGES.md에 기록. 규정 팩 밖 라벨: 5차 6줄, 6차 3줄, 7차 4줄(기타 카테고리).")
 

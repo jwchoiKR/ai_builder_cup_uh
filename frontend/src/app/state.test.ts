@@ -75,6 +75,7 @@ describe("every event type", () => {
       "comment.hidden": comment({ comment_id: "cm_h", visibility: "hidden" }),
       "comment.unhidden": comment({ comment_id: "cm_h" }),
       "comment.analyzed": { comment: comment(), analysis: { analysis_id: "an_1", comment_id: "cm_000001", output: {}, product_id: CREAM, product_basis: "context", context_product_id: CREAM, route: "HOST", route_reason: "intent", source: "llm", latency_ms: 900 } },
+      "comment.status": comment({ reply_status: "host" }),
       "group.updated": group(),
       "hostqueue.updated": { slots: [{ group_id: "grp_000001", pinned: false, on_host_since: T0 }] },
       "message.pending": message({ message_id: "msg_p", state: "pending", kind: "host_answer" }),
@@ -116,6 +117,7 @@ describe("every event type", () => {
     expect(s.messages.msg_p.state).toBe("cancelled");
     expect(s.messages.msg_000001.reply_to_author_names).toEqual(["Raj", "Mei"]);
     expect(s.comments.cm_h.visibility).toBe("visible");
+    expect(s.comments.cm_000001.reply_status).toBe("host");
     expect(s.analyses.cm_000001.route).toBe("HOST");
     expect(s.transcripts.tr_1.text).toBe("hello");
     expect(s.interim).toBeNull();
@@ -148,6 +150,17 @@ describe("event semantics", () => {
     expect(s.comments.cm_x).toBeUndefined();
     s = reduceEvent(s, ev(13, "comment.analyzed", { comment: { comment_id: "cm_y", visibility: "hidden" } }));
     expect(s.comments.cm_y).toBeUndefined();
+  });
+
+  it("the viewer's snapshot has no groups, answers or metrics; a status event updates the comment", () => {
+    const { groups: _g, answers: _a, host_slots: _h, metrics: _m, ...publicOnly } = snapshot({ comments: [comment({ reply_status: "checking" })] });
+    let s = reduceSnapshot(publicOnly, "viewer");
+    expect([s.groups, s.answers, s.hostSlots, s.metrics]).toEqual([{}, {}, [], {}]);
+    expect(s.comments.cm_000001.reply_status).toBe("checking");
+    s = reduceEvent(s, ev(11, "comment.status", { comment_id: "cm_000001", visibility: "visible", reply_status: "team" }));
+    expect(s.comments.cm_000001).toMatchObject({ reply_status: "team", text: "Is it OK for oily skin?" });
+    s = reduceEvent(s, ev(12, "message.updated", message({ translations: { ko: "S$36.00입니다." } })));
+    expect(s.messages.msg_000001.translations).toEqual({ ko: "S$36.00입니다." });
   });
 
   it("group.updated with an unknown answer asks for a resync; a bundled answer is stored", () => {

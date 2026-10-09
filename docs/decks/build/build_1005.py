@@ -1,8 +1,9 @@
 """10/5 team update deck (google-slide-deck design). Run: python build_1005.py"""
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\User.DESKTOP-G5S2APU\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\User.DESKTOP-G5S2APU\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 
 OUT = Path(__file__).parent.parent / "old" / "team_update_1005.html"
@@ -110,7 +111,7 @@ slide("holdout", "결과 1", "처음 보는 문장에서도 위반을 모두 잡
          stat("42/42", "틀린 정보 잡기", "모델 출력 기준 · 검증기 버그 1건 수정 중", GRN, GRNBG), gap=28),
     tags("남은 문제", chip("따끔거림 답변을 빨간 경고로 판단 (3회 중 1회)", "red", "x"),
          chip("세트 타임세일가를 검증기가 지움", "yellow", "warn")), gap=36),
-    notes="docs/eval/holdout-split3-relabeled.md. 라벨 2개는 codex의 독립 판정으로 고쳤다.")
+    notes="docs/eval/holdout-split3-relabeled.md. 라벨 2개는 독립 검토자의 판정으로 고쳤다.")
 
 # ---- 7 sequences
 slide("seq", "결과 2", "이어지는 대화에서는 정정 인식이 흔들린다", col(

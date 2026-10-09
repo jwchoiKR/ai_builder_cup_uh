@@ -6,6 +6,7 @@ the agent fails, the page shows the statistics without a recap (§7.2).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -14,6 +15,7 @@ from pydantic import BaseModel
 from ..agents.broadcast_summary import BroadcastSummary, SummaryInput
 from ..logic.summary_stats import compute_summary_stats
 from ..models.session import AgentCall, Comment, CommentAnalysis, Message, Transcript
+from .comment_insights import run_comment_insights
 
 if TYPE_CHECKING:
     from .runtime import SessionRuntime
@@ -27,6 +29,8 @@ class SummaryDoc(BaseModel):  # [sessions/{sid}/summary/current]
     status: Literal["computing", "ready", "failed"]
     stats: dict[str, Any]
     recap: dict[str, Any] | None = None
+    # what viewers asked: topics, outcomes and notes from the stored comment documents (pipelines/comment_insights)
+    comment_insights: dict[str, Any] | None = None
     error: str | None = None
     created_at: int
     updated_at: int
@@ -69,8 +73,11 @@ async def run_summary(rt: "SessionRuntime", *, scenario: str = "S14") -> None:
         doc = SummaryDoc(status="computing", stats=stats, created_at=now, updated_at=now)
         await _save(rt, doc)
         agent = BroadcastSummary(rt.ctx.llm, rt.ctx.prompts["broadcast_summary"])
-        res = await agent.run(SummaryInput(stats=stats, session_id=rt.sid, scenario=scenario),
-                              deadline_ms=rt.settings.SUMMARY_TIMEOUT_MS)
+        # the recap and the comment analysis are independent: both at once
+        res, doc.comment_insights = await asyncio.gather(
+            agent.run(SummaryInput(stats=stats, session_id=rt.sid, scenario=scenario),
+                      deadline_ms=rt.settings.SUMMARY_TIMEOUT_MS),
+            run_comment_insights(rt, scenario=scenario))
         doc.updated_at = rt.now()
         if res.status == "ok" and res.output is not None:
             doc.status, doc.recap = "ready", res.output.model_dump(mode="json")
@@ -78,6 +85,11 @@ async def run_summary(rt: "SessionRuntime", *, scenario: str = "S14") -> None:
             doc.status, doc.error = "failed", f"recap unavailable ({res.status}): {res.error or ''}".strip()
         await _save(rt, doc)
         await rt.emit("summary.ready", {"status": doc.status})
+        after = rt.settings.SESSION_EVICT_AFTER_SEC
+        if after > 0 and hasattr(rt.ctx.store, "evict"):
+            # the show is over and written down: it leaves memory later and is read back from Firestore when opened
+            sid, ctx = rt.sid, rt.ctx
+            ctx.scheduler.call_later(f"evict:{sid}", after * 1000, lambda: ctx.runtimes.evict(sid))
     except Exception:  # noqa: BLE001 - the summary must never break the session end
         log.exception("summary failed for %s", rt.sid)
         try:
@@ -90,7 +102,8 @@ async def get_summary(rt: "SessionRuntime") -> dict[str, Any]:
     """GET /summary: the stored summary; while live, current statistics without recap."""
     doc = await _load(rt)
     if doc is not None:
-        return {"status": doc.status, "stats": doc.stats, "recap": doc.recap, "error": doc.error}
+        return {"status": doc.status, "stats": doc.stats, "recap": doc.recap, "error": doc.error,
+                "comment_insights": doc.comment_insights}
     session = await rt.load_session()
     stats = await compute_stats(rt)
     if session.status == "ended":
@@ -98,5 +111,5 @@ async def get_summary(rt: "SessionRuntime") -> dict[str, Any]:
         now = rt.now()
         await _save(rt, SummaryDoc(status="computing", stats=stats, created_at=now, updated_at=now))
         rt.spawn(run_summary(rt), name=f"summary:{rt.sid}")
-        return {"status": "computing", "stats": stats, "recap": None, "error": None}
-    return {"status": "not_ended", "stats": stats, "recap": None, "error": None}
+        return {"status": "computing", "stats": stats, "recap": None, "error": None, "comment_insights": None}
+    return {"status": "not_ended", "stats": stats, "recap": None, "error": None, "comment_insights": None}

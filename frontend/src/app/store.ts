@@ -76,6 +76,9 @@ export class SessionStore {
         this.connection = st;
         this.emit();
       },
+      // a session that is gone (the server restarted) answers 404 for ever: /state reports it (D-315) and the app
+      // shows "session ended", which closes this stream instead of holding one of the browser's six connections
+      onHttpError: () => void this.resync(),
     });
   }
 

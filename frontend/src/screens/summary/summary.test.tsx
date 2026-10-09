@@ -182,6 +182,49 @@ describe("SummaryView", () => {
 });
 
 describe("exportSummaryJson", () => {
+  it("shows what viewers asked: topics, outcomes, waits, buying questions and gaps in the product information", () => {
+    const d = data();
+    d.comment_insights = {
+      source: "firestore", topic_source: "analysis", comments: 30, viewers: 14, askers: 11, questions: 20, reactions: 8, hidden: 2,
+      stream_reports: 1,
+      timeline: { bin_sec: 60, bins: [{ start_sec: 0, comments: 4, questions: 2, product: "Hydra Barrier Cream" }, { start_sec: 60, comments: 9, questions: 7, product: "Hydra Barrier Cream" }], peak: { start_sec: 60, comments: 9, questions: 7, product: "Hydra Barrier Cream" } },
+      reply_time_sec: { auto: { n: 12, p50: 4.2, p95: 9.8 }, person: { n: 5, p50: 31, p95: 70.5 } },
+      buying: { questions: 13, topics: ["Price and offers", "Shipping and delivery"], unanswered: 2 },
+      not_in_product_information: { questions: 3, examples: ["Do you ship to Malaysia?"] },
+      outcomes: { auto_answered: 12, answered_by_person: 5, unanswered: 3 },
+      waited_for_a_person_by_reason: { health: 4, outside: 3 },
+      question_languages: { en: 17, ko: 3 },
+      topics: [
+        { label: "Price and offers", buying: true, questions: 10, askers: 8, auto_answered: 10, answered_by_person: 0, unanswered: 0, examples: ["how much ah"], products: [] },
+        { label: "Use during pregnancy", buying: false, questions: 4, askers: 4, auto_answered: 0, answered_by_person: 4, unanswered: 0, examples: ["im pregnant, ok?"], products: [] },
+      ],
+      notes: ["Viewers asked about use during pregnancy, which the team answered by hand."],
+    };
+    renderView(d);
+    const card = screen.getByTestId("summary-insights");
+    expect(within(card).getByTestId("summary-insights-outcomes")).toHaveTextContent(
+      "20 questions: 12 answered automatically (60%), 5 answered by the host or the team (25%), 3 left unanswered (15%).");
+    const facts = within(card).getByTestId("summary-insights-facts");
+    expect(facts).toHaveTextContent("14 wrote, 11 asked a question");
+    expect(facts).toHaveTextContent("4.2 s (95%: 9.8 s, 12 replies)");
+    expect(facts).toHaveTextContent("13 asked, 2 left unanswered");
+    const rows = within(card).getAllByTestId("summary-insights-topic");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("Price and offers · buying");
+    expect(rows[1]).not.toHaveTextContent("buying");
+    expect(within(card).getByTestId("summary-insights-peak")).toHaveTextContent("Most questions: 1:00 to 2:00 (7 questions), while Hydra Barrier Cream was on air.");
+    expect(within(card).getByTestId("summary-insights-timeline").querySelectorAll('[title^="0:00"], [title^="1:00"]')).toHaveLength(2);
+    expect(within(card).getByTestId("summary-insights-gaps")).toHaveTextContent("Do you ship to Malaysia?");
+    expect(within(card).getByTestId("summary-insights-reasons")).toHaveTextContent("Health or safety 4 · Order, delivery or shop 3");
+    expect(within(card).getByTestId("summary-insights-notes")).toHaveTextContent("answered by hand");
+    expect(within(card).getByTestId("summary-insights-source")).toHaveTextContent("Topics: sorted by AI after the broadcast.");
+  });
+
+  it("shows no such card for a summary without the analysis", () => {
+    renderView(data());
+    expect(screen.queryByTestId("summary-insights")).not.toBeInTheDocument();
+  });
+
   it("downloads the stats and recap as JSON", async () => {
     let blob: Blob | null = null;
     vi.spyOn(URL, "createObjectURL").mockImplementation((b) => {

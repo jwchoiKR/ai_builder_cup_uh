@@ -110,6 +110,12 @@ class Settings(BaseSettings):
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
     FIRESTORE_DATABASE: str = "live-studio"  # D-354: the Firestore database of STORE=firestore
+    # D-428: an ended session leaves memory this long after its summary is written; STORE=firestore keeps it and reads
+    # it back when it is opened. 0 keeps every session in memory.
+    SESSION_EVICT_AFTER_SEC: int = 900
+    # D-428: the comments team's second Firestore writer was merged into STORE=firestore; set, it stops the app so two
+    # writers never run
+    SESSIONS_FIRESTORE: bool = False
     RETRIEVER: Literal["local", "vertex_search"] = "local"
     LLM_PROVIDER: Literal["vertex", "mock"] = "vertex"
     STT_PROVIDER: Literal["google_v2", "mock"] = "google_v2"
@@ -169,16 +175,29 @@ class Settings(BaseSettings):
     FACT_TIMEOUT_MS: int = 5000
     FACT_LATE_MS: int = 5000  # D-144: a fact call may still answer until here; a late wrong-fact note beats none
     FACT_SEARCH_TIMEOUT_MS: int = 600
-    TRIAGE_TIMEOUT_MS: int = 2500
+    # Triage decides whether a reply needs a person's approval, so it runs on the quality model: a comment may wait
+    # a few seconds, a wrong decision may not. Empty TRIAGE_MODEL = LLM_FAST_MODEL. When the call fails or runs past
+    # its deadline, the same comment is triaged at once on the fast model (TRIAGE_FALLBACK_*), so a slow quality
+    # model costs time, not an answer.
+    TRIAGE_MODEL: str = "gemini-3.8-flash"
+    TRIAGE_TIMEOUT_MS: int = 10000
+    TRIAGE_FALLBACK_THINKING: ThinkingLevel = "MEDIUM"
+    TRIAGE_FALLBACK_TIMEOUT_MS: int = 8000
     MODEL_ARMOR_ENABLED: bool = False  # D-125: screen comments before triage (needs a template)
     MODEL_ARMOR_LOCATION: str = "us-central1"
     MODEL_ARMOR_TEMPLATE: str = "live-studio-comments"
     MODEL_ARMOR_TIMEOUT_MS: int = 500  # slower or failing: the comment stays unscreened
+    # a comment whose triage failed (timeout, 429) is triaged again this many times, this long apart, before it
+    # goes to the operator as "AI unavailable"
+    TRIAGE_RETRIES: int = 2
+    TRIAGE_RETRY_AFTER_MS: int = 5000
     TRIAGE_CONCURRENCY: int = 8  # triage calls in flight; comments arriving beyond this are batched
     TRIAGE_MAX_BATCH: int = 10  # start value, tune with burst tests (PLANNING 5.1.2)
     TRIAGE_BATCH_TIMEOUT_MS: int = 5000  # one call for up to TRIAGE_MAX_BATCH comments; start value
     COMPOSER_TIMEOUT_MS: int = 12000
-    DRAFT_VERIFY_TIMEOUT_MS: int = 2500  # D-126: LLM check after verify_answer; slower or failing: unverified
+    DRAFT_VERIFY_TIMEOUT_MS: int = 8000  # D-126: LLM check after verify_answer; slower or failing: unverified
+    # the draft verifier is the last look before a reply is posted by itself: it thinks (empty = LLM_FAST_THINKING)
+    DRAFT_VERIFY_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "MEDIUM"
     BRIEF_TIMEOUT_MS: int = 60000
     BRIEF_MODEL: str = ""  # D-265: the BriefAgent's model; empty = LLM_QUALITY_MODEL
     BRIEF_THINKING: ThinkingLevel = "MEDIUM"  # D-265: MEDIUM (today) vs HIGH, measured on the sealed releases
@@ -221,14 +240,40 @@ class Settings(BaseSettings):
     HOST_REPEAT_THRESHOLD: int = 3  # D-113: an AI-answered question with this many askers is read out on air
     REPLY_COALESCE_SEC: int = 10
     STALE_COMMENT_SEC: int = 300
+    # the show a new session is when nobody says: team = one host on air and an operator at the desk (the product's
+    # normal case); solo = the host alone, with no operator screen in use
+    DEFAULT_SHOW_MODE: Literal["team", "solo"] = "team"
     GROUP_TTL_SEC: int = 600
-    TRIAGE_MAX_OPEN_GROUPS: int = 30
+    GROUP_TTL_WAITING_SEC: int = 3600  # a question still waiting for the operator or the host
     JUDGE_MAX_OPEN_QUESTIONS: int = 5
     COMPOSER_TOP_K: int = 6
     COMMENT_RATE_LIMIT_PER_MIN: int = 120
     COMMENT_RATE_LIMIT_PER_AUTHOR_PER_MIN: int = 10
     MAX_COMMENT_CHARS: int = 300
     AUTO_ANSWER_ENABLED: bool = True
+    # a price or size question the record settles is answered by code, with no LLM draft (logic/record_answers)
+    # Routing has two outcomes: triage says whether a person must approve the reply; a question that needs none and
+    # gets a verified draft is posted, everything else waits for the host or the operator. The intent is a label
+    # (record answers, retrieval), and decides the route only when triage did not say (intents.json).
+    # Questions are not grouped by meaning: only a comment that repeats a member's own words joins a group, and every
+    # other question gets its own reply and its own row (hold-out runs: grouping by meaning merged different questions).
+    RECORD_ANSWERS: bool = True
+    # the wording of a record answer by the ReplyPhraser (the value stays the record's; code checks its numbers);
+    # off, or on any failure, the plain sentence code wrote is posted
+    RECORD_PHRASING: bool = True
+    # a grounded draft the code gate rejects is written once more with the gate's reasons
+    COMPOSER_REVISE: bool = True
+    # a group whose draft failed because the composer's model call failed is drafted again this many times
+    COMPOSE_RETRIES: int = 1
+    COMPOSE_RETRY_AFTER_MS: int = 5000
+    RECORD_PHRASING_TIMEOUT_MS: int = 3000
+    # who settles a sensitive question (pregnancy, a condition, an allergy, an age limit, an efficacy claim), always
+    # with a suggested reply. both: the host's card and the operator's review list at once; the host saying the
+    # reply or the operator approving it posts it, whichever comes first. host: the host's card only (D-113).
+    # operator: the operator's list only, and the host saying it posts nothing. A solo show has no operator.
+    SENSITIVE_APPROVAL: Literal["both", "host", "operator"] = "both"
+    # a posted reply is also shown in the language of viewers who asked in another language (pipelines/translation)
+    REPLY_TRANSLATION_TIMEOUT_MS: int = 4000
     VIEWER_INPUT_ENABLED: bool = False
     DEMO_TOOLS_ENABLED: bool = True
     LOG_LEVEL: str = "INFO"
@@ -246,6 +291,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
+        if self.SESSIONS_FIRESTORE:
+            raise ValueError("SESSIONS_FIRESTORE was merged into STORE=firestore (D-428): set STORE=firestore instead")
         # §5: DEMO_TOOLS_ENABLED MUST be false in `cloud` unless explicitly set.
         if self.APP_ENV == "cloud" and "DEMO_TOOLS_ENABLED" not in self.model_fields_set:
             self.DEMO_TOOLS_ENABLED = False

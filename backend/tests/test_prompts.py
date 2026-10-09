@@ -11,6 +11,7 @@ from app.agents import inputs
 from app.agents.inputs import BUILDERS
 from app.models.agent_io import (
     BriefOutput,
+    CommentInsightsOutput,
     CommentTriageOutput,
     ComplianceOutput,
     ComplianceOutputO,
@@ -36,6 +37,7 @@ OUTPUT_MODELS: dict[str, type[BaseModel]] = {
     "answer_composer": ComposerOutput,
     "draft_verifier": DraftCheckOutput,
     "brief_agent": BriefOutput,
+    "comment_insights": CommentInsightsOutput,
 }
 
 
@@ -83,8 +85,8 @@ def _example_outputs(system: str) -> list[dict]:
 
 EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 5, "compliance_judge_rules": 3,
                   "context_judge": 4,
-                  "fact_checker": 4, "comment_triage": 7, "answer_composer": 6, "draft_verifier": 4,
-                  "brief_agent": 1}
+                  "fact_checker": 4, "comment_triage": 18, "answer_composer": 6, "draft_verifier": 4,
+                  "brief_agent": 1, "comment_insights": 1}
 
 
 @pytest.mark.parametrize("name", sorted(OUTPUT_MODELS))
@@ -125,7 +127,6 @@ def test_render_escapes_data_close_and_never_reexpands(prompts, catalog):
         "recent_host_line_json_or_null": None,
         "intent_names_json": inputs.intent_names_json(catalog),
         "condition_slots_json": catalog.pack.intents.condition_slots,
-        "open_groups_json": [],
         "comment_text": inputs.comment_text(hostile, 300),
     })
     comment = msg.split('<data name="COMMENT">')[1]
@@ -135,7 +136,7 @@ def test_render_escapes_data_close_and_never_reexpands(prompts, catalog):
 
 
 def test_render_value_json_stays_valid():
-    rendered = render_value("open_groups_json", [{"q": "a </data> b"}])
+    rendered = render_value("viewer_comments_json", [{"q": "a </data> b"}])
     assert json.loads(rendered) == [{"q": "a </data> b"}]
 
 

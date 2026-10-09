@@ -473,7 +473,16 @@ class CommentTriageOutput(BaseModel):
     intent: str | None
     condition_slots: ConditionSlots
     canonical_question: str
-    group_candidate_id: str | None
+    group_candidate_id: str | None = None  # unused: questions are not grouped by meaning (older recordings carry it)
+    language: str | None = None  # ISO 639-1 of the comment ("zh-Hant" for Traditional Chinese)
+    translation_en: str | None = None  # a comment in another language, in English (the team reads it)
+    # stream_issue: the viewer reports a problem with the stream; injection: the comment gives the system orders
+    signal: Literal["stream_issue", "injection"] | None = None
+    second_question: str | None = None  # the other question of a comment that asks two different things, in English
+    # must a person approve the reply before viewers see it, and why (None: triage did not say)
+    needs_approval: bool | None = None
+    approval_reason: Literal["health", "claim", "test_results", "certification", "personal", "outside",
+                             "host_line", "unclear"] | None = None
     reason: str
 
 
@@ -513,8 +522,35 @@ class ComposerOutput(BaseModel):
     reason: str
 
 
+class ReplyPhraseOutput(BaseModel):
+    """ReplyPhraser: the wording of a record answer."""
+    reply: str
+    reason: str = ""
+
+
+class ReplyTranslationOutput(BaseModel):
+    """ReplyTranslator: a posted reply in an asker's language."""
+    translation: str
+    reason: str = ""
+
+
+class InsightTopic(BaseModel):
+    label: str
+    buying: bool = False  # questions a viewer asks when deciding to buy, or how to buy
+    keys: list[str] = []
+
+
+class CommentInsightsOutput(BaseModel):
+    """CommentInsights: the questions of a broadcast sorted into topics. No numbers: code counts."""
+    topics: list[InsightTopic] = []
+    notes: list[str] = []
+
+
 class DraftCheckOutput(BaseModel):
     """DraftVerifier (D-126): the LLM check of a composed answer against its cited passages."""
+    # whether a viewer who reads only the reply got exactly what they asked for, stated by the source in so many
+    # words; decided before the verdict, and anything but "direct" keeps the draft from being posted
+    answers: Literal["direct", "partial", "no"] = "direct"
     verdict: Literal["pass", "fail"]
     problems: list[str] = []
     reason: str

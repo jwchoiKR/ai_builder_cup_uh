@@ -639,7 +639,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.133,<0.142" },
     { name = "google-adk", specifier = ">=2.11,<2.12" },
-    { name = "google-cloud-firestore", specifier = ">=2.19" },
+    { name = "google-cloud-firestore", specifier = ">=2.34.0" },
     { name = "google-cloud-speech", specifier = ">=2.37" },
     { name = "google-cloud-storage", specifier = ">=2.19" },
     { name = "google-cloud-texttospeech", specifier = ">=2.38.0" },

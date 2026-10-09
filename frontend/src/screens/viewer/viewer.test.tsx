@@ -1,11 +1,13 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { setLang } from "../../app/i18n";
 import { reduceEvent, reduceSnapshot, type ClientState } from "../../app/state";
 import type { SessionEvent } from "../../app/types";
 import { CREAM, T0, catalog, comment, message, segment, session, snapshot } from "../../test/fixtures";
 import { Viewer } from "../Viewer";
-import { viewerChat } from "./chat";
+import { chatSignature, viewerChat } from "./chat";
+import { ID_KEY, NAME_KEY } from "./identity";
 import { POPUP_MS, ViewerView } from "./ViewerView";
 
 const NOW = T0 + 10_000;
@@ -19,8 +21,28 @@ function apply(state: ClientState, ...events: SessionEvent[]): ClientState {
 }
 
 function view(state: ClientState, extra: Partial<Parameters<typeof ViewerView>[0]> = {}) {
-  return <ViewerView state={state} catalog={catalog} connection="connected" theme="light" inputEnabled={false} {...extra} />;
+  // the source line is off for viewers by default; these tests cover it where it is switched on
+  return <ViewerView state={state} catalog={catalog} connection="connected" theme="light" inputEnabled={false} showSources {...extra} />;
 }
+
+describe("sources are not shown to viewers by default", () => {
+  it("an AI answer shows its text and label only", () => {
+    const state = stateWith({
+      comments: [comment({ comment_id: "cm_9", author_name: "Lee", text: "price?", received_at: T0 })],
+      messages: [
+        message({ message_id: "msg_9", kind: "ai_answer", text: "It is S$36.00.", reply_to_comment_ids: ["cm_9"],
+                  reply_to_author_names: ["Lee"], published_at: T0 + 2000,
+                  citations: [{ passage_id: "DL-CR-01#key-facts#live-broadcast-price", quote: "Live broadcast price: S$36.00", section: "Key facts" }] }),
+      ],
+    });
+    render(view(state, { showSources: false }));
+    const reply = screen.getByTestId("viewer-reply-msg_9");
+    expect(reply).toHaveTextContent("It is S$36.00.");
+    expect(within(reply).getByText("AI answer")).toBeInTheDocument();
+    expect(within(reply).queryByTestId("viewer-source")).toBeNull();
+    expect(within(reply).queryByText(/Source:/)).toBeNull();
+  });
+});
 
 describe("page chrome", () => {
   it("the standalone viewer has the hub link and the Settings gear outside the phone; embedded it has neither", () => {
@@ -47,7 +69,15 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
+  setLang("en");
 });
+
+/** This browser's viewer joined the chat earlier as `authorId`. */
+function joinedAs(authorId: string, name = "Me") {
+  window.localStorage.setItem(ID_KEY, authorId);
+  window.localStorage.setItem(NAME_KEY, name);
+}
 
 describe("Viewer chat", () => {
   it("renders a coalesced reply once under the first asker; later askers show 'Also answered: @Name'", () => {
@@ -156,6 +186,153 @@ describe("Viewer chat", () => {
   });
 });
 
+describe("Viewer: where my own question stands", () => {
+  const mine = comment({ comment_id: "cm_me", author_id: "v_me", author_name: "Mina", text: "Can I use it while pregnant?", received_at: T0 + 3000 });
+  const statusEvent = (seq: number, c: typeof mine, reply_status: string | null): SessionEvent => ({
+    seq, type: "comment.status", payload: { ...c, reply_status },
+  });
+
+  it("shows a calm status line under my own waiting question, by status, inside the chat's live region", () => {
+    joinedAs("v_me");
+    let state = stateWith({ comments: [raj, { ...mine, reply_status: "checking" }] });
+    const { rerender } = render(view(state));
+    const line = screen.getByTestId("viewer-reply-status-cm_me");
+    expect(line).toHaveTextContent("Checking…");
+    expect(line).toHaveAttribute("data-status", "checking");
+    expect(screen.getByTestId("viewer-chat")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByTestId("viewer-chat").contains(line)).toBe(true);
+    expect(within(screen.getByTestId("viewer-comment-cm_me")).getByTestId("viewer-reply-status-cm_me")).toBeInTheDocument();
+
+    state = apply(state, statusEvent(11, mine, "host"));
+    rerender(view(state));
+    expect(screen.getByTestId("viewer-reply-status-cm_me")).toHaveTextContent("The host will answer this on air");
+    state = apply(state, statusEvent(12, mine, "team"));
+    rerender(view(state));
+    expect(screen.getByTestId("viewer-reply-status-cm_me")).toHaveTextContent("Sent to the team");
+    state = apply(state, statusEvent(13, mine, null)); // the question was closed: the line goes away
+    rerender(view(state));
+    expect(screen.queryByTestId("viewer-reply-status-cm_me")).toBeNull();
+  });
+
+  it("shows nothing extra under other viewers' questions, or before I have joined", () => {
+    const others = [{ ...raj, reply_status: "host" as const }, { ...priya, reply_status: "team" as const }];
+    const { unmount } = render(view(stateWith({ comments: [...others, { ...mine, reply_status: "checking" }] })));
+    expect(screen.queryAllByTestId(/^viewer-reply-status-/)).toHaveLength(0); // no identity in this browser
+    unmount();
+    joinedAs("v_me");
+    render(view(stateWith({ comments: [...others, { ...mine, reply_status: "checking" }] })));
+    expect(screen.getAllByTestId(/^viewer-reply-status-/).map((e) => e.getAttribute("data-testid"))).toEqual(["viewer-reply-status-cm_me"]);
+  });
+
+  it("the reply takes over once it is posted: no status line and no 'answered' label", () => {
+    joinedAs("v_me");
+    let state = stateWith({ comments: [{ ...mine, reply_status: "team" }] });
+    const { rerender } = render(view(state));
+    expect(screen.getByTestId("viewer-reply-status-cm_me")).toBeInTheDocument();
+    // the reply arrives before the status event: the line is already gone
+    state = apply(state, { seq: 11, type: "message.published", payload: message({ message_id: "msg_me", kind: "brand_answer", text: "Please ask your doctor first.", reply_to_comment_ids: ["cm_me"], reply_to_author_names: ["Mina"] }) });
+    rerender(view(state));
+    expect(screen.queryByTestId("viewer-reply-status-cm_me")).toBeNull();
+    expect(within(screen.getByTestId("viewer-comment-cm_me")).getByTestId("viewer-reply-msg_me")).toBeInTheDocument();
+    state = apply(state, statusEvent(12, mine, "answered"));
+    rerender(view(state));
+    expect(screen.queryByTestId("viewer-reply-status-cm_me")).toBeNull();
+    expect(screen.getByTestId("viewer-comment-cm_me")).not.toHaveTextContent(/answered/i);
+  });
+
+  it("an 'answered' status without a reply in view renders nothing: publish state is never made up", () => {
+    joinedAs("v_me");
+    render(view(stateWith({ comments: [{ ...mine, reply_status: "answered" }] })));
+    expect(screen.queryByTestId("viewer-reply-status-cm_me")).toBeNull();
+    expect(within(screen.getByTestId("viewer-comment-cm_me")).queryByTestId(/^viewer-reply-/)).toBeNull();
+  });
+
+  it("a later asker of a coalesced reply keeps 'Also answered' and gets no status line", () => {
+    joinedAs("u_priya");
+    render(view(stateWith({
+      comments: [raj, { ...priya, reply_status: "checking" }],
+      messages: [message({ message_id: "msg_1", kind: "host_answer", reply_to_comment_ids: ["cm_1", "cm_2"], reply_to_author_names: ["Raj", "Priya"] })],
+    })));
+    expect(screen.getByTestId("viewer-also-answered-cm_2")).toBeInTheDocument();
+    expect(screen.queryByTestId("viewer-reply-status-cm_2")).toBeNull();
+  });
+
+  it("joining the chat in this page makes my next question mine", async () => {
+    vi.useRealTimers();
+    const onSend = vi.fn(async () => ({}));
+    const { rerender } = render(view(stateWith(), { inputEnabled: true, onSend }));
+    fireEvent.change(screen.getByTestId("viewer-input"), { target: { value: "Mina" } });
+    fireEvent.submit(screen.getByTestId("viewer-input").closest("form")!);
+    await waitFor(() => expect(screen.getByTestId("viewer-input")).toHaveAttribute("placeholder", "Chat as Mina"));
+    const id = window.localStorage.getItem(ID_KEY)!;
+    rerender(view(stateWith({ comments: [{ ...mine, author_id: id, reply_status: "checking" }] }), { inputEnabled: true, onSend }));
+    expect(screen.getByTestId("viewer-reply-status-cm_me")).toHaveTextContent("Checking…");
+  });
+
+  it("the status line follows the screen language, and the chat stays pinned when it appears", () => {
+    joinedAs("v_me");
+    setLang("ko");
+    const state = stateWith({ comments: [{ ...mine, reply_status: "host" }] });
+    render(view(state));
+    expect(screen.getByTestId("viewer-reply-status-cm_me")).toHaveTextContent("진행자가 방송에서 답변할 예정입니다");
+    const plain = stateWith({ comments: [mine] });
+    expect(chatSignature(viewerChat(state, NOW, "v_me"))).not.toBe(chatSignature(viewerChat(plain, NOW, "v_me")));
+  });
+});
+
+describe("Viewer: a reply in the language I asked in", () => {
+  const mine = comment({ comment_id: "cm_ko", author_id: "v_me", author_name: "민아", text: "크림 얼마예요?", received_at: T0 + 3000, language: "ko" });
+  const reply = message({ message_id: "msg_t", kind: "ai_answer", text: "It is S$36.00 during this live.", reply_to_comment_ids: ["cm_ko"], reply_to_author_names: ["민아"], published_at: T0 + 5000 });
+  const translated: SessionEvent = { seq: 21, type: "message.updated", payload: { ...reply, translations: { ko: "이번 라이브에서는 S$36.00입니다." } } };
+
+  it("shows the translation with the original reply beneath it, once the translation arrives", () => {
+    joinedAs("v_me");
+    let state = stateWith({ comments: [mine], messages: [reply] });
+    const { rerender } = render(view(state));
+    const card = screen.getByTestId("viewer-reply-msg_t");
+    expect(card).toHaveTextContent("It is S$36.00 during this live.");
+    expect(screen.queryByTestId("viewer-reply-translation-msg_t")).toBeNull();
+
+    state = apply(state, translated);
+    rerender(view(state));
+    const translation = screen.getByTestId("viewer-reply-translation-msg_t");
+    const original = screen.getByTestId("viewer-reply-original-msg_t");
+    expect(translation).toHaveTextContent("이번 라이브에서는 S$36.00입니다.");
+    expect(translation).toHaveAttribute("lang", "ko");
+    expect(original).toHaveTextContent("It is S$36.00 during this live.");
+    expect(translation.compareDocumentPosition(original) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(screen.getByTestId("viewer-reply-msg_t")).getByText("AI answer")).toBeInTheDocument();
+  });
+
+  it("shows the original only when I asked in the show's language or the reply has no translation in mine", () => {
+    joinedAs("v_me");
+    const english = { ...mine, language: null };
+    const { unmount } = render(view(apply(stateWith({ comments: [english], messages: [reply] }), translated)));
+    expect(screen.queryByTestId("viewer-reply-translation-msg_t")).toBeNull();
+    expect(screen.getByTestId("viewer-reply-msg_t")).toHaveTextContent("It is S$36.00 during this live.");
+    unmount();
+    const japanese = { ...mine, language: "ja" };
+    render(view(apply(stateWith({ comments: [japanese], messages: [reply] }), translated)));
+    expect(screen.queryByTestId("viewer-reply-translation-msg_t")).toBeNull();
+  });
+
+  it("shows the original only for a reply addressed to others", () => {
+    joinedAs("v_someone_else");
+    render(view(apply(stateWith({ comments: [mine], messages: [reply] }), translated)));
+    expect(screen.queryByTestId("viewer-reply-translation-msg_t")).toBeNull();
+    expect(screen.getByTestId("viewer-reply-msg_t")).toHaveTextContent("It is S$36.00 during this live.");
+    expect(screen.getByTestId("viewer-reply-msg_t")).not.toHaveTextContent("이번 라이브에서는");
+  });
+
+  it("a coalesced reply shown under the first asker is translated for me when I am a later asker", () => {
+    joinedAs("v_me");
+    const both = { ...reply, reply_to_comment_ids: ["cm_1", "cm_ko"], reply_to_author_names: ["Raj", "민아"], translations: { ko: "이번 라이브에서는 S$36.00입니다." } };
+    render(view(stateWith({ comments: [raj, mine], messages: [both] })));
+    expect(within(screen.getByTestId("viewer-comment-cm_1")).getByTestId("viewer-reply-translation-msg_t")).toBeInTheDocument();
+    expect(screen.getByTestId("viewer-also-answered-cm_ko")).toBeInTheDocument();
+  });
+});
+
 describe("Viewer product strip and time sale", () => {
   const promoStarted: SessionEvent = {
     seq: 20,
@@ -227,7 +404,8 @@ describe("Viewer input", () => {
     const onSend = vi.fn(async () => ({}));
     render(view(stateWith(), { inputEnabled: true, onSend }));
     const input = screen.getByTestId("viewer-input");
-    expect(input).toHaveAttribute("placeholder", "Your display name");
+    expect(input).toHaveAttribute("placeholder", "Enter a name to join the chat");
+    expect(input).toHaveAccessibleName("Your display name");
     fireEvent.change(input, { target: { value: "Mina" } });
     fireEvent.submit(input.closest("form")!);
     await waitFor(() => expect(screen.getByTestId("viewer-input")).toHaveAttribute("placeholder", "Chat as Mina"));

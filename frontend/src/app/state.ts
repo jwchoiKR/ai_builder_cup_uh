@@ -334,6 +334,7 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
     case "comment.created":
     case "comment.hidden":
     case "comment.unhidden":
+    case "comment.status":
       return upsertComment(state, (p.comment ?? p) as Partial<Comment>);
 
     case "comment.analyzed": {

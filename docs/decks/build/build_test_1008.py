@@ -2,10 +2,11 @@
 (new products, two hosts). Run: python docs/decks/build/build_test_1008.py
 Numbers: sealed_sets/results/all_arms_1008.json (docs_arms.py), stt/stt5_*_STD_*.json. Examples are made up."""
 import json
+import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\jaewoo\.claude\skills\google-slide-deck")
+sys.path.insert(0, os.environ.get("SLIDE_DECK_LIB", r"C:\Users\jaewoo\google-slide-deck"))  # the folder that holds deck.py
 from deck import *  # noqa: E402,F403
 sys.path.insert(0, str(Path(__file__).parent))
 import anim  # noqa: E402,F401  (slide motion)
@@ -66,7 +67,7 @@ slide("p6", "6차 세트 · 처음 보는 제품 6개", "새 제품과 진행자
     table(HEAD, [row("v3 · seed 7 · 예전 힌트", "pool6", "onboarding6_sttzs", "onboarding6_sttds"),
                  row("v3 · seed 7 · 실제 힌트", "p6hbase", "onboarding6_hbase_z", "onboarding6_hbase_d")], W),
     tags("6차 세트", chip("제품당 48줄: 진행자 1명 36줄 + 진행자 2명 12줄", "grey"),
-         chip("6개 언어 문서 · 정답 GPT·Sonnet 286/288 일치", "grey")),
+         chip("6개 언어 문서 · 정답 두 독립 라벨 286/288 일치", "grey")),
     tags("주의", chip("한 번만 돌리는 세트인데 STT 조건을 맞추느라 두 번 돌림 (로직 같음)", "yellow", "warn")),
     gap=24),
     notes="6차 세트: sealed_sets/onboarding6/README.md. 판정 로직은 5차와 같다(0ebdc1a).")

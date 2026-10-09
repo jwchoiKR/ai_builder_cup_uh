@@ -281,9 +281,9 @@
     }
   ],
   "verification_notes_10_5": [
-    "Gemini confirmed NPRA Annex I Part 8 (claims) and Part 10 (advertising), Aug 2022, and the 2011 halal order sections.",
-    "Gemini suggests adding: notification number (NOT...) presented as KKM/NPRA approval (Part 10 s3); before/after claims without elapsed time (Part 10 s5.2).",
-    "Gemini suggests deprioritizing GMP, religious and testimonial rules for live speech (rarely said; testimonial checks may spam). GPT kept them at MEDIUM. Decide after a Malaysian sealed set.",
+    "Automated cross-check (no legal review) confirmed NPRA Annex I Part 8 (claims) and Part 10 (advertising), Aug 2022, and the 2011 halal order sections.",
+    "The automated cross-check suggests adding: notification number (NOT...) presented as KKM/NPRA approval (Part 10 s3); before/after claims without elapsed time (Part 10 s5.2).",
+    "The automated cross-check suggests deprioritizing GMP, religious and testimonial rules for live speech (rarely said; testimonial checks may spam). The draft keeps them at MEDIUM. Decide after a Malaysian sealed set.",
     "New MY-only categories need wording in data/lang/en.json before the pack can load."
   ]
 }

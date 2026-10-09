@@ -64,18 +64,6 @@ export function alsoAnsweredNames(items: ChatItem[]): Map<string, string[]> {
   return out;
 }
 
-/** D-239: the source behind an AI reply, in the host chat too: the section (or document) and a short quote. */
-function Cite({ message }: { message: Message }) {
-  const c = message.citations?.[0] as { section?: string | null; doc?: string | null; quote?: string } | undefined;
-  if (!c?.quote) return null;
-  const quote = c.quote.length > 80 ? `${c.quote.slice(0, 77)}…` : c.quote;
-  return (
-    <span className={styles.cite} data-testid="host-citation">
-      {[c.section, c.doc].filter(Boolean)[0] ?? "Source"} · “{quote}”
-    </span>
-  );
-}
-
 function Row({ item, offset, alsoNames }: { item: ChatItem; offset: number; alsoNames: string[] | undefined }) {
   const t = useT();
   if (item.kind === "message") {
@@ -114,7 +102,6 @@ function Row({ item, offset, alsoNames }: { item: ChatItem; offset: number; also
           <CornerDownRight className={styles.replyArrow} aria-hidden size="1em" />
           <ReplyBadge kind={m.kind} />
           <span>{m.text}</span>
-          <Cite message={m} />
         </div>
       ))}
       {alsoNames && (

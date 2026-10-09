@@ -20,7 +20,7 @@ Role = Literal["operator", "host", "viewer"]
 
 class CreateSessionBody(BaseModel):
     runsheet_id: str = DEFAULT_RUNSHEET_ID
-    show_mode: Literal["solo", "team"] = "solo"  # D-111
+    show_mode: Literal["solo", "team"] | None = None  # D-111; None: DEFAULT_SHOW_MODE
     market: str | None = None  # D-142: default MARKET; the market must offer the language
     lang: str | None = None  # D-142: default BROADCAST_LANGUAGE
     release_id: str | None = None  # D-218: an onboarded product's release instead of the run sheet
@@ -30,7 +30,8 @@ class CreateSessionBody(BaseModel):
 @router.post("/sessions", status_code=201)
 async def create_session(body: CreateSessionBody | None = None, ctx: AppContext = Depends(get_ctx)) -> Session:
     body = body or CreateSessionBody()
-    return await _create(ctx, body.runsheet_id, body.show_mode, market=body.market, lang=body.lang,
+    return await _create(ctx, body.runsheet_id, body.show_mode or ctx.settings.DEFAULT_SHOW_MODE, market=body.market,
+                         lang=body.lang,
                          release_id=body.release_id, release_ids=body.release_ids)
 
 

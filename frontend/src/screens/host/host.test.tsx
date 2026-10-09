@@ -473,14 +473,33 @@ describe("audience questions", () => {
     ]);
     expect(items[0]).toHaveTextContent("01");
     expect(items[0]).toHaveTextContent("From your PD");
-    expect(items[0]).toHaveTextContent("Ready");
-    // D-384 (user): each question shows its suggested answer at once, no Q needed
-    expect(within(items[0]).getByTestId("host-question-answer")).toHaveTextContent(
-      "Yes. Apply sunscreen after the cream, then makeup.");
-    expect(within(items[2]).getByTestId("host-question-answer")).toHaveTextContent("The set is S$62.00.");
+    expect(within(items[0]).getByTestId("host-question-state")).toHaveTextContent("Ready to answer");
+    // the first line of the suggested reply, in quiet text under the question, so the host can prepare
+    expect(within(items[0]).getByTestId("host-question-preview")).toHaveTextContent("Yes. Apply sunscreen after the cream, then makeup.");
+    expect(within(items[2]).queryByTestId("host-question-preview")).toBeNull(); // already read out
     expect(items[1]).toHaveTextContent("3");
     expect(items[1]).not.toHaveTextContent("For you");
     expect(items[2]).toHaveTextContent("Read out");
+  });
+
+  it("the waiting list previews only the first line of a verified reply, and nothing for an unverified draft", () => {
+    const long = group({ group_id: "grp_000007", canonical_question: "Is it vegan?", answer_id: "ans_long" });
+    const unverified = group({ group_id: "grp_000008", canonical_question: "Is it halal?", answer_id: "ans_unv" });
+    render(
+      view({
+        groups: [long, unverified],
+        answers: {
+          ans_long: answer({ answer_id: "ans_long", group_id: "grp_000007", text: "First line to say.\nSecond line stays off the list." }),
+          ans_unv: answer({ answer_id: "ans_unv", group_id: "grp_000008", verified: false, text: "Unchecked draft text." }),
+        },
+        host_slots: [long, unverified].map((g) => ({ group_id: g.group_id, pinned: false, on_host_since: now() })),
+      }),
+    );
+    const previews = screen.getAllByTestId("host-question-preview");
+    expect(previews).toHaveLength(1);
+    expect(previews[0]).toHaveTextContent(/^First line to say\.$/);
+    expect(screen.queryByText(/Unchecked draft text/)).toBeNull();
+    expect(screen.getByTestId("host-question-grp_000008")).toHaveTextContent("No answer yet");
   });
 
   it("D-113: drafting, which product and on-your-card states", () => {
@@ -631,6 +650,23 @@ describe("AI PD card", () => {
     expect(screen.getByText("AI PD")).toBeInTheDocument();
   });
 
+  it("a read-out card says '1 viewer asked' for one viewer and '{n} viewers asked' for more", () => {
+    const read = (n: number) => pdCard({ card_id: `card_r${n}`, kind: "read_question", say: "S$36.", detail: `${n} people asked: How much?`, source: "ai", status: "active", askers: n });
+    const { rerender } = render(view({ session: session({ pd_card: read(1) }) }));
+    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("1 viewer asked: How much?");
+    expect(screen.getByTestId("host-pd-question")).not.toHaveTextContent(/people/);
+    rerender(view({ session: session({ pd_card: read(4) }) }));
+    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("4 viewers asked: How much?");
+    // the count is in the sentence: no second "4 asking" beside it
+    expect(screen.getByTestId("host-pd-question")).not.toHaveTextContent("asking");
+  });
+
+  it("the other question cards keep the question and the asker count", () => {
+    const card = pdCard({ card_id: "card_c", kind: "clarify_product", say: "Which product do you mean?", detail: "Is it vegan?", source: "ai", status: "active", askers: 1 });
+    render(view({ session: session({ pd_card: card }) }));
+    expect(screen.getByTestId("host-pd-question")).toHaveTextContent("Is it vegan?1 asking");
+  });
+
   it("pressing N or clicking dismiss calls dismissPd with card_id", () => {
     const acts = actions();
     const card = pdCard({ card_id: "card_ai_2", status: "active" });
@@ -720,6 +756,30 @@ describe("AI PD card", () => {
     expect(screen.queryByTestId("host-pd-dismiss")).toBeNull();
     const slot = screen.getByTestId("host-pd-slot");
     expect(screen.getByTestId("host-question-grp_a").compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("host chat: AI answers", () => {
+  it("shows the reply and its AI answer label, never the source behind it", () => {
+    render(
+      view({
+        comments: [comment({ comment_id: "cm_1", group_id: null, text: "how much is it?", author_name: "Lee" })],
+        messages: [
+          message({
+            message_id: "m_ai",
+            reply_to_comment_ids: ["cm_1"],
+            text: "It is S$36.00 during the live.",
+            citations: [{ passage_id: "DL-CR-01#key-facts#live-broadcast-price", quote: "Live broadcast price: S$36.00", section: "Key facts" }],
+          }),
+        ],
+      }),
+    );
+    const chat = screen.getByTestId("host-chat");
+    expect(within(chat).getByText("It is S$36.00 during the live.")).toBeInTheDocument();
+    expect(within(chat).getByText("AI answer")).toBeInTheDocument();
+    expect(within(chat).queryByTestId("host-citation")).toBeNull();
+    expect(chat).not.toHaveTextContent("Key facts");
+    expect(chat).not.toHaveTextContent("Live broadcast price");
   });
 });
 

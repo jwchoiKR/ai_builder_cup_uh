@@ -1,6 +1,6 @@
 """D-375 (user): the DAON demo show (its onboarded releases) has the demo feed, and the Demo Console's "Send sample
-questions" burst posts viewer questions through the normal comment pipeline: three common questions asked several
-ways group for the host's Top 3. Mock LLM (the keyword triage fallback, so only the price group forms here)."""
+questions" burst posts viewer questions through the normal comment pipeline. Mock LLM (the keyword triage
+fallback)."""
 from __future__ import annotations
 
 import shutil
@@ -32,9 +32,8 @@ async def test_d375_the_demo_show_has_the_feed_and_the_sample_questions_group(tm
         assert len(comments) == 13
         groups = await rt.groups()
         assert sum(len(g.member_comment_ids) for g in groups) == 13  # every question reached a group
-        # the mock's keyword triage groups the four price questions; the live triage model groups the other two
-        # common questions by meaning (sensitive skin, use with the ampoule)
-        assert max(len(g.member_comment_ids) for g in groups) == 4
+        # D-428: the comments team's path no longer groups questions by meaning (main 142c1dd): one group each
+        assert max(len(g.member_comment_ids) for g in groups) == 1
         [ship] = [g for g in groups if g.intent == "shipping"]
         assert ship.route == "OPERATOR"  # the product info does not answer it
     finally:

@@ -1,4 +1,4 @@
-// Operator header (§12.4.1): title, metric chips, LIVE timer, Start/End broadcast, settings gear (D-109).
+// Operator header (§12.4.1): title, live alerts (stream problem, collecting context), LIVE timer, Start/End broadcast, settings gear (D-109).
 import { useState } from "react";
 
 import { api } from "../../app/api";
@@ -9,6 +9,7 @@ import type { ThemePref } from "../../app/theme";
 import { Button, Chip, ConnectionLabel, Eyebrow, HubLink, SettingsButton, StatusDot } from "../../components";
 import { useAction, useOperator } from "./context";
 import { ConfirmDialog } from "./Dialogs";
+import { streamIssues } from "./model";
 import styles from "./operator.module.css";
 
 const NO_VALUE = "–";
@@ -79,6 +80,7 @@ export function OperatorHeader({
 }) {
   const t = useT();
   const { sid, state, catalog, now } = useOperator();
+  const issues = streamIssues(state.comments, now);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const start = useAction();
   const s = state.session;
@@ -86,8 +88,6 @@ export function OperatorHeader({
   const brand = catalog?.brand ?? rs?.brand ?? "";
   const title = rs?.title ?? s?.title ?? "";
   const subtitle = brand && !title.startsWith(brand) ? `${brand} · ${title}` : title;
-  const chips = metricChips(state.metrics, t);
-  const shown = latencyShown(state.metrics);
 
   return (
     <header className={styles.header} data-testid="op-header">
@@ -115,21 +115,19 @@ export function OperatorHeader({
             {t("No law checks for this category")} · {state.market.category}
           </Chip>
         )}
-        <div className={styles.metricChips} data-testid="op-metrics">
-          {shown.alert && <Chip className="tabular">{chips.alert}</Chip>}
-          {shown.judge && <Chip className="tabular">{chips.judge}</Chip>}
-          <Chip className="tabular">{chips.instant}</Chip>
-        </div>
-        <div className={styles.metricChips} data-testid="op-impact">
-          {impactChips(state.metrics as { impact?: Impact }, t).map((x) => (
-            <Chip key={x} className="tabular">{x}</Chip>
-          ))}
-          {Object.keys(state.holds).length > 0 && (  // D-335: a question waits for its answer; operator only
-            <Chip tone="accent" data-testid="op-hold">
-              {t("Collecting context · up to {s} s", { s: Math.max(...Object.values(state.holds)) / 1000 })}
-            </Chip>
-          )}
-        </div>
+        {issues.viewers > 0 && (  // viewers report a stream problem: the team acts, nobody replies in chat
+          <Chip tone="risk" data-testid="op-stream-issue"
+            title={issues.latest ? `${issues.latest.author_name}: ${issues.latest.translation_en ?? issues.latest.text}` : undefined}>
+            {issues.viewers === 1
+              ? t("1 viewer reports a stream problem")
+              : t("{n} viewers report a stream problem", { n: issues.viewers })}
+          </Chip>
+        )}
+        {Object.keys(state.holds).length > 0 && (  // D-335: a question waits for its answer; operator only
+          <Chip tone="accent" data-testid="op-hold">
+            {t("Collecting context · up to {s} s", { s: Math.max(...Object.values(state.holds)) / 1000 })}
+          </Chip>
+        )}
         {s?.status === "live" && s.started_at !== null ? (
           <span className={styles.live}>
             <StatusDot tone="live" pulse />

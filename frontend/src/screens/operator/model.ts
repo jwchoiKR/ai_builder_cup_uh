@@ -2,7 +2,7 @@
 import { translate, type Translate } from "../../app/i18n";
 import { formatMmSs, onAirSegment, ownDocFirst, productById } from "../../app/selectors";
 import type { ClientState, JudgeFailure } from "../../app/state";
-import type { Alert, Answer, Catalog, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
+import type { Alert, Answer, Catalog, Comment, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
 
 /** Default for the optional `t` of the label helpers below: English, as the tests expect. */
 const EN: Translate = (en, vars) => translate("en", en, vars);
@@ -24,6 +24,17 @@ export function setting(state: ClientState, key: keyof typeof SETTING_DEFAULTS):
 
 export function sentenceCase(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+export const STREAM_ISSUE_WINDOW_MS = 120_000;
+
+/** Viewers who reported a problem with the stream (no sound, frozen picture, lag) in the last two minutes, newest
+ * comment first. The count is of viewers, so one viewer repeating it is one report. */
+export function streamIssues(comments: Record<string, Comment>, now: number): { viewers: number; latest: Comment | null } {
+  const recent = Object.values(comments)
+    .filter((c) => c.signal === "stream_issue" && now - c.received_at <= STREAM_ISSUE_WINDOW_MS)
+    .sort((a, b) => b.received_at - a.received_at);
+  return { viewers: new Set(recent.map((c) => c.author_id)).size, latest: recent[0] ?? null };
 }
 
 export function intentLabel(intent: string): string {
@@ -95,13 +106,13 @@ export type ChipToneName = "neutral" | "accent" | "fact" | "risk" | "ok" | "live
 
 export function statusTone(label: string): ChipToneName {
   switch (label) {
-    case "Needs review":
+    case "Needs your reply":
+    case "Needs a reply · host can answer on air":
     case "Assign a product":
     case "Host answered on air · not posted":
       return "fact";
-    case "On host":
-      return "accent";
-    case "AI answered":
+    case "Answered by AI":
+    case "Answered by the host":
     case "Answered":
       return "ok";
     default:
@@ -145,8 +156,8 @@ export function groupActions(g: QuestionGroup, answer: Answer | null, pending: M
   const verified = Boolean(answer?.verified && answer.text);
   const verbal = Boolean(g.host_verbal_answer_transcript_id) && !done;
   if (done) return actions;
-  if (onHost) actions.push({ key: "recall", label: "Recall", enabled: true });
-  else actions.push({ key: "push", label: "Push to host", enabled: true });
+  if (onHost) actions.push({ key: "recall", label: "Take back", enabled: true });
+  else actions.push({ key: "push", label: "Send to host", enabled: true });
   if (verbal) {
     actions.push({
       key: "post_suggested",
@@ -158,7 +169,7 @@ export function groupActions(g: QuestionGroup, answer: Answer | null, pending: M
   if (g.status !== "auto_answered") {
     actions.push({
       key: "approve",
-      label: "Post to chat",
+      label: "Post",
       enabled: verified && !pending,
       reason: verified ? (pending ? "A host answer is being posted" : undefined) : "Only a verified draft can be approved",
     });

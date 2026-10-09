@@ -35,6 +35,9 @@ LEGACY = {
     "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",  # D-343
     "CORRECTION_HANDLES": "false",  # D-358: on by default with the originals path; the rules-path tests script ids
     "FACT_MODE": "docs",  # D-360: the default is the prompter snapshot; older tests cite the release's sheet passages
+    # record answers became the default; the older tests keep the composer path for price and size questions,
+    # and the host route of sensitive questions in a team show
+    "RECORD_ANSWERS": "false", "SENSITIVE_APPROVAL": "host", "COMPOSER_REVISE": "false", "TRIAGE_RETRIES": "0", "COMPOSE_RETRIES": "0", "TRIAGE_MODEL": "", "DRAFT_VERIFY_THINKING": "", "GROUP_TTL_WAITING_SEC": "600", "DEFAULT_SHOW_MODE": "solo",
 }
 for _key, _value in LEGACY.items():
     os.environ.setdefault(_key, _value)

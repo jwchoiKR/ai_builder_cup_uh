@@ -84,9 +84,8 @@ async def eval_comments(record: bool, runs: int = 1) -> tuple[str, bool]:
 
     async def one(case: dict) -> tuple[dict, object]:
         ctx = case.get("context") or {}
-        groups = [_group(g, now) for g in ctx.get("open_groups", [])]
         res = await triage.run(TriageInput(text=case["comment"], context_product_id=case["current_product_id"],
-                                           open_groups=groups, scenario=case["case_id"]),
+                                           scenario=case["case_id"]),
                                deadline_ms=settings.TRIAGE_TIMEOUT_MS)
         return case, res
 

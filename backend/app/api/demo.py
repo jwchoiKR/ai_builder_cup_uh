@@ -110,7 +110,7 @@ class ResetBody(BaseModel):
 async def demo_reset(body: ResetBody | None = None, ctx: AppContext = Depends(demo_tools)) -> Session:
     body = body or ResetBody()
     s = await latest_session(ctx)
-    show_mode = "solo"
+    show_mode = ctx.settings.DEFAULT_SHOW_MODE
     if s is not None:
         show_mode = s.show_mode  # a reset keeps the show mode and the show
         await ctx.runtimes.drop(s.session_id)
@@ -124,7 +124,7 @@ async def demo_session(body: ResetBody | None = None, ctx: AppContext = Depends(
     """D-139: a new session for a driver (voice rehearsal, show replay) that deletes nothing, so several
     drivers and the studio can share one service. Drivers end their session when they finish."""
     body = body or ResetBody()
-    return await _demo_show(ctx, body.show_mode or "solo", body.assistant)
+    return await _demo_show(ctx, body.show_mode or ctx.settings.DEFAULT_SHOW_MODE, body.assistant)
 
 
 class ScriptCommentBody(BaseModel):

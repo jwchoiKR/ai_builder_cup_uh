@@ -56,7 +56,7 @@ class DraftVerifier:
         if arms.agents_decide(self.llm.design_arm):  # D-191 arms D and E: the advertising rules, whole
             user += inputs.data_block("RULES", inputs.rules_compact_json(self.catalog))
         return await self.llm.call(LLMRequest(
-            agent=self.name, model=self.llm.fast.model, thinking_level=self.llm.fast.thinking_level,
+            agent=self.name, model=self.llm.draft_verify.model, thinking_level=self.llm.draft_verify.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user, output_model=DraftCheckOutput, deadline_ms=deadline_ms,
             session_id=inp.session_id, mock_primary_text=f"{inp.product_id or '*'}|{inp.answer}",
