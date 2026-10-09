@@ -41,8 +41,9 @@ Return what the show's screens and the host's prompter need, as JSON:
 - `list_price` (regular price) and `live_price` (the price in this broadcast) as plain numbers in that currency,
   digits and a decimal point only ("46.00", "29000"). When the document gives one price only, use it for both.
   null when the document gives no price.
-- `points`: the things the host should say about the product, each one short sentence in the document's language,
-  taken from what the document allows to be said (approved claims, key benefits, test results with their
+- `points`: the things the host should say about the product, each one short sentence in the host's language
+  (the message names it; translate when the document is in another language, keeping names, numbers and units
+  as stated), taken from what the document allows to be said (approved claims, key benefits, test results with their
   qualifier as written). `required` is true for a point the host must not leave out (a point the document marks as
   mandatory, or a test result's qualifier), else false.
 - `stt_terms`: hints for the speech recognizer that transcribes the host. Terms the host is likely to say aloud that
@@ -93,7 +94,7 @@ HOST_LANGUAGES = {"en": "English", "ko": "Korean"}
 
 
 class ReadBody(BaseModel):
-    host_language: Literal["en", "ko"] = "en"  # the language the host speaks on air; the STT terms follow it
+    host_language: Literal["en", "ko"] = "en"  # the language the host speaks on air; the points and STT terms follow it
 
 
 @router.post("/{product_id}/read")
@@ -107,7 +108,7 @@ async def read_product(product_id: str, body: ReadBody | None = None, ctx: AppCo
     s = ctx.settings
     res = await ctx.llm.call(LLMRequest(
         agent="product_read", model=s.ONBOARDING_MODEL, thinking_level=READ_THINKING,
-        prompt_version="product_read-5", system_instruction=READ_PROMPT,
+        prompt_version="product_read-6", system_instruction=READ_PROMPT,
         user_message=f"The host speaks {host}. Return the product JSON.", output_model=ProductInfo, deadline_ms=READ_DEADLINE_MS,
         parts=((f"FILE {name}".encode(), "text/plain"), (data, "application/pdf")),
         mock_primary_text=name, preview=name,

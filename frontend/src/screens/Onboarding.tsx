@@ -191,7 +191,7 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
   const [approved, setApproved] = useState<Approved | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy | null>(null);
-  const [hostLanguage, setHostLanguage] = useState<HostLanguage>("en");  // the STT terms are read for this language
+  const [hostLanguage, setHostLanguage] = useState<HostLanguage>("en");  // the points and STT terms are read for this language
   const step = async <T,>(label: string, fn: () => Promise<T>): Promise<T> => {
     setBusy({ label, since: Date.now() });
     try {
