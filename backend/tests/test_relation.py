@@ -9,7 +9,7 @@ import re
 import pytest
 
 from app.agents.fact_checker import DROPS, from_relation, sentence_index
-from app.models.agent_io import FactRelationOutput, FactRelationOutputV5
+from app.models.agent_io import FactRelationOutputV5
 from app.models.data import Passage
 
 from .judge_fakes import CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
@@ -19,10 +19,10 @@ def _p(pid: str, text: str, product: str = CREAM, section: str = "Key facts") ->
     return Passage(passage_id=pid, product_id=product, doc="sheet", section=section, text=text, score=0.0)
 
 
-def _rel(*claims) -> FactRelationOutput:
-    return FactRelationOutput.model_validate({"claims": [
-        {"span": c[0], "product_id": c[1], "field": c[2], "stated_value": c[3], "evidence": c[4], "relation": c[5],
-         "correct_value": c[6]} for c in claims]})
+def _rel(*claims) -> FactRelationOutputV5:
+    return FactRelationOutputV5.model_validate({"claims": [
+        {"span": c[0], "stance": "HOST_ASSERTS", "product_id": c[1], "field": c[2], "stated_value": c[3],
+         "evidence": c[4], "source_value": c[6], "relation": c[5], "correct_value": c[6]} for c in claims]})
 
 
 def test_d296_sentences_are_numbered_once_and_keep_decimals():
