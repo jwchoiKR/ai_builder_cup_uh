@@ -93,7 +93,7 @@ class AppContext:
                 pack = release_pack(base, record, release_id, self.settings.onboarding_path, translations,
                                     # D-360: the pack's passages stay at record level for every reader; the fact
                                     # checker's prompter snapshot is built from the pack at check time
-                                    "record" if self.settings.FACT_MODE == "prompter" else self.settings.FACT_MODE,
+                                    "record",
                                     brief=load_brief(self.settings.onboarding_path, release_id))
                 if pack.rules is not base.rules:  # D-227: no law pack for its category, so no reflex phrases either
                     reflex = Reflex(pack.rules, pack.lexicon)

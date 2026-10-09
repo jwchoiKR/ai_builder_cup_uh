@@ -177,17 +177,11 @@ class FactChecker:
         self.prompt_version = prompt.version
         self.model = llm.facts.model
         self.catalog = catalog
-        # D-242 arm FR: how to read a release's record facts; D-247 arm FD: the release's files on top
         from . import arms
         settings = getattr(llm, "settings", None)
-        mode = getattr(settings, "FACT_MODE", "sheet")
-        self.mode = mode
         # D-331: v5 adds a stance per claim (D-432: v2-v4 and v6-v8 are deleted)
         self.relation_model = FactRelationOutputV5  # D-435: the v1 relation prompt is gone
-        # D-296: the relation verdict cites file sentences by id (RD); D-435: the only fact checker (FD is gone)
-        layers = {"record": ["FR"], "docs": ["FR", "RD"]}.get(mode, [])
-        addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
-        extras = [addenda.get((layer, self.name)) for layer in layers]
+        extras: list = []  # D-435: the record (FR) and release-file (RD) addenda are gone
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
         fix_addenda = arms._addenda(str(llm.prompts_path)) if self.fixes else {}
         extras += [fix_addenda.get((f, self.name)) for f in sorted(self.fixes)]
@@ -199,67 +193,39 @@ class FactChecker:
         if lang:  # D-259: the host reads the correction aloud in the show's language
             self.system_instruction += (f"\n\nThe show's language is {lang}. Write `correct_value` in it (translate a "
                                         "value SOURCE writes in another language); keep `quote` verbatim.")
-        # D-279: each product's release files (one release, or each release of a multi-release show)
-        self.files: dict[str, tuple[tuple, tuple]] = {}
-        releases = dict(getattr(getattr(catalog, "pack", None), "releases", None) or {})
-        release_id = getattr(getattr(catalog, "runsheet", None), "runsheet_id", "")
-        if not releases and release_id.startswith("rel_"):
-            releases = {p.product_id: release_id for p in catalog.products}
-        if mode == "docs":
-            from ..onboarding.sources import release_sources
 
-            self.files = {pid: release_sources(str(settings.onboarding_path), rid) for pid, rid in releases.items()}
-        first = next(iter(self.files.values()), ((), ()))
-        self.file_parts, self.file_passages = first  # the first product's (one-release shows, the eval)
-        log.info("fact checker FACT_MODE=%s, release files sent: %d", mode,  # D-366
-                 sum(len(parts) for parts, _ in self.files.values()))
-
-    def _parts(self, on_air: str) -> tuple:
-        return self.files.get(on_air, (self.file_parts,))[0]
-
-    def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None, parts: tuple = (),
+    def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None,
                  output_model=None, **mock) -> LLMRequest:
-        # D-247: with files, the cache holds the system instruction, the files and the product and full-sheet blocks
-        # (the same on every line of a one-product release)
         return LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user,
             output_model=output_model or self.relation_model,
             deadline_ms=deadline_ms, session_id=session_id,
-            cache_prefix=prefix, cache_parts=parts,
+            cache_prefix=prefix,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
 
-    async def warm_cache(self, inp: FactInput) -> None:
-        """D-247: the files' context cache is made at session start (with the first line's static blocks), not on
-        the first line."""
-        if parts := self._parts(inp.on_air):
-            _, prefix = self._render(inp)
-            await self.llm.warm_cache(self._request(prefix, prefix, 60_000, inp.session_id, parts))
-
-    def _source(self, inp: FactInput) -> list[Passage]:
-        """D-296: what the relation arm numbers: the line's passages and the on-air product's file text. D-349: and
-        the previous product's file text while it is in scope after a switch."""
-        prev = inp.switch.previous_product_id
-        return [*inp.passages, *self.files.get(inp.on_air, ((), self.file_passages))[1],
-                *(self.files.get(prev, ((), ()))[1] if prev and prev != inp.on_air else ())]
+    @staticmethod
+    def _source(inp: FactInput) -> list[Passage]:
+        """D-296: what the relation verdict numbers: the line's passages (D-360: the prompter snapshot; D-349: the
+        previous product's too while it is in scope after a switch)."""
+        return list(inp.passages)
 
     def _render(self, inp: FactInput) -> tuple[str, str]:
         return self._render_template(inp)
 
     def _render_template(self, inp: FactInput) -> tuple[str, str]:
-        # D-361 FACT_MODE=prompter: nothing but the prompter snapshot (the passages) carries facts: the product block
-        # names the product only, and the promo, offer and set blocks are empty (their prices are in the snapshot);
-        # D-409: the v5 template has no such blocks any more (the older versions still take the empty values)
-        shown = self.mode == "prompter"
+        # D-361: nothing but the prompter snapshot (the passages) carries facts: the product block names the product
+        # only, and the promo, offer and set blocks are empty (their prices are in the snapshot); D-409: the v5
+        # template has no such blocks any more (fact_checker.md, which eval_agents.py passes, still takes them)
         product = inputs.current_product_compact_json(self.catalog, inp.on_air)
         return self.prompt.render_cached({
             "current_product_compact_json": ({"product_id": product["product_id"], "name": product["name"]}
-                                             if shown and product else product),
+                                             if product else product),
             "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
-            "active_promo_json_or_null": None if shown else inputs.active_promo_json_or_null(self.catalog, inp.promo),
-            "active_offers_json": [] if shown else inputs.active_offers_json(self.catalog, inp.offers),
-            "set_offers_json": [] if shown else inputs.set_offers_json(self.catalog, inp.promo),
+            "active_promo_json_or_null": None,
+            "active_offers_json": [],
+            "set_offers_json": [],
             "passages_json": sentence_index(self._source(inp))[0],
             "last_two_final_transcripts_json": inp.previous[-2:],
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
@@ -288,7 +254,7 @@ class FactChecker:
         block, handles = self._notes(inp)
         base = self.relation_model
         res = await self.llm.call(self._request(
-            user + block, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), **opts,
+            user + block, prefix, deadline_ms, inp.session_id, **opts,
             output_model=(with_note_checks(with_same_as(base, "claims") if len(inp.parts) > 1
                                            else base) if handles else base), mock_primary_text=inp.utterance,
             mock_scenario=inp.scenario, mock_fallback=lambda _: {"claims": []}, preview=inp.utterance,

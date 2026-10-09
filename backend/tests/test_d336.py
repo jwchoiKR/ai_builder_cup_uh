@@ -6,8 +6,7 @@ from pathlib import Path
 from app.config import Settings
 
 MEASURED = {"SINGLE_MODEL": "gemini-3.5-flash-lite", "SINGLE_THINKING": "LOW",  # D-360
-            "SINGLE_FACTS_THINKING": "LOW", "FACT_PROMPT": "v5", "JUDGE_SEED": "7", "STT_ENDPOINTING": "STANDARD",
-            "FACT_MODE": "prompter"}  # D-360; D-415: SWITCH_MODE is gone (the immediate switch is the only one)
+            "SINGLE_FACTS_THINKING": "LOW", "FACT_PROMPT": "v5", "JUDGE_SEED": "7", "STT_ENDPOINTING": "STANDARD"}  # D-415: SWITCH_MODE is gone (the immediate switch is the only one)
 
 
 def test_d336_the_defaults_are_the_measured_config():

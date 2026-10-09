@@ -18,8 +18,8 @@ TESTS = Path(__file__).resolve().parent
 
 # The files that still use `legacy_live`; a batch removes its files here when it migrates them. Never add to it.
 LEGACY_LIVE_FILES = {
-    "test_alerts.py", "test_d338.py", "test_prompter_segments.py", "test_split_judges.py",
-    "test_utterance_concurrency.py", "test_utterance_merge.py", "test_utterance_pipeline.py",
+    "test_alerts.py", "test_prompter_segments.py", "test_split_judges.py", "test_utterance_concurrency.py",
+    "test_utterance_pipeline.py",
 }
 
 
@@ -37,7 +37,7 @@ def test_d434_the_tests_default_live_path_is_production_s():
     differ = {k: (getattr(prod, k), getattr(tests, k)) for k in LIVE_PATH_KEYS if getattr(prod, k) != getattr(tests, k)}
     assert differ == {}, differ
     # the deployed values the live path depends on (was test_d305's "shipped defaults")
-    assert (prod.JUDGE_MODE, prod.FACT_PROMPT, prod.FACT_MODE) == ("split3", "v5", "prompter")
+    assert (prod.JUDGE_MODE, prod.FACT_PROMPT) == ("split3", "v5")
     assert (prod.STT_ENDPOINTING, prod.DESIGN_ARM) == ("STANDARD", "A")
 
 

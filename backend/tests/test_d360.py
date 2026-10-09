@@ -1,4 +1,4 @@
-"""D-360: the fact checker flags only facts the host prompter shows (FACT_MODE=prompter, the default): its passages are
+"""D-360: the fact checker flags only facts the host prompter shows (D-435: the only mode): its passages are
 the prompter's display snapshot. A fact that is in the record but not on the prompter, said wrongly, gives no alert.
 Also: the regulation originals lookup never caches a miss, and logs where it looked. Demo products; scripted model."""
 from __future__ import annotations
@@ -54,7 +54,7 @@ async def _facts_alerts(line: str, **settings):
     from .helpers import live_runtime, make_ctx
 
     llm = _Facts()
-    rt = await live_runtime(make_ctx(backend=llm, FACT_MODE="prompter", FACT_PROMPT="v5",
+    rt = await live_runtime(make_ctx(backend=llm, FACT_PROMPT="v5",
                                      **settings))
     try:
         await speak(rt, line)
@@ -79,7 +79,7 @@ async def test_d360_the_previous_product_s_snapshot_is_there_in_the_dual_scope()
     from .helpers import live_runtime, make_ctx
 
     llm = _Facts()
-    rt = await live_runtime(make_ctx(backend=llm, FACT_MODE="prompter", FACT_PROMPT="v5"))
+    rt = await live_runtime(make_ctx(backend=llm, FACT_PROMPT="v5"))
     try:
         move = "Okay, moving on, let me show you the ampoule."
         llm.judge(move, utterance_type="transition", transition=True, target=AMPOULE, confidence="high", named=True)

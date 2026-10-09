@@ -2,8 +2,6 @@
 no code drop of a verdict: the fact checker's contradiction stands next to the compliance alert."""
 from __future__ import annotations
 
-import pytest
-
 import json
 import re
 
@@ -18,7 +16,8 @@ class _Backend(ScriptedBackend):
             return await super().generate(req, timeout_ms)
         from app.providers.llm import RawReply
 
-        m = re.search(r'\["(S\d+)",\s*"Treats eczema', req.user_message)
+        # D-435: production's SOURCE is the prompter snapshot: cite its first approved-claims sentence
+        m = re.search(r'"section":"Approved on-air claims","sentences":\[\["(S\d+)"', req.user_message)
         claims = [] if m is None else [{
             "span": "treats eczema", "stance": "HOST_ASSERTS", "product_id": CREAM, "field": "other",
             "stated_value": "treats eczema", "evidence": [m.group(1)],
@@ -27,7 +26,6 @@ class _Backend(ScriptedBackend):
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
 
 
-@pytest.mark.legacy_live  # D-434: cites a document passage; production's evidence is the prompter snapshot (N10)
 async def test_d374_a_not_approved_phrase_keeps_both_verdicts():
     from app.agents.fact_checker import DROPS
 
@@ -35,7 +33,7 @@ async def test_d374_a_not_approved_phrase_keeps_both_verdicts():
 
     llm = _Backend()
     llm.judge(LINE, violations=[violation("ASEAN-2D-DISEASE", "treats eczema")])
-    rt = await live_runtime(make_ctx(backend=llm, FACT_PROMPT="v5"))
+    rt = await live_runtime(make_ctx(backend=llm))
     sink: list = []
     token = DROPS.set(sink)
     try:

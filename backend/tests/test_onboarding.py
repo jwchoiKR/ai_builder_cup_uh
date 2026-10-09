@@ -576,16 +576,6 @@ def test_d244_l2_l3_offer_totals_and_written_terms_reach_the_fact_checker():
     assert "Live unit price S$36.00; 2 units S$72.00; 3 units S$108.00" in facts
 
 
-def test_d244_l4_to_l6_and_presence_rules_reach_the_fact_checker():
-    from app.agents import arms
-    from app.config import get_settings
-
-    fr = arms._addenda(str(get_settings().prompts_path))[("FR", "fact_checker")]
-    for rule in ("never with\n  the unit price", "Every number with a unit", "Price terms", "describing an old value",
-                 "Free from", "Only contradict with a value SOURCE states"):
-        assert rule in fr
-
-
 async def test_d245_r1_a_marked_claim_and_its_footnote_become_one_qualified_result():
     backend = ScriptedBackend()
     claim_ev = [{"file": "spec.txt", "locator": "p1", "quote": "UV shield SPF40 †"}]
@@ -848,13 +838,13 @@ def test_d427_fd_sends_no_qualified_results_to_the_compliance_judge():
 
     from app.logic.catalog import Catalog
 
-    ctx = make_ctx(FACT_MODE="docs")
+    ctx = make_ctx()
     try:
         judge = ComplianceJudge(ctx.llm, ctx.prompts, Catalog(ctx.pack), ctx.reflex)
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-    assert judge.fact_record and "QUALIFIED_RESULTS" not in judge.system_instruction + judge.extra_data()
+    assert "QUALIFIED_RESULTS" not in judge.system_instruction + judge.extra_data()
 
 
 def test_d254_lean_checks_at_most_ten_and_folds_or_accepts_the_rest():

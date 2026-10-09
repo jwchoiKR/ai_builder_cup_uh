@@ -64,12 +64,6 @@ class _SplitJudge:
             self.name == "context_judge" and getattr(getattr(llm, "settings", None), "VERBAL_CHECK", "code") == "judge")
         self.system_instruction = arms.system_instruction(self.prompt.system_instruction, self.name, self.arm,
                                                           llm.prompts_path, extra_b=self.b)
-        # D-242 arm FR: the record's test results and the qualifier each needs
-        self.fact_record = getattr(getattr(llm, "settings", None), "FACT_MODE", "sheet") in ("record", "docs",
-                                                                                              "prompter")
-        fr = arms._addenda(str(llm.prompts_path)).get(("FR", self.name)) if self.fact_record else None
-        if fr:
-            self.system_instruction = f"{self.system_instruction}\n\n{fr}"
         # D-290: a switched-on fix's prompt line for this judge (FACT_FIXES Q6)
         from .fact_checker import fixes_of
 

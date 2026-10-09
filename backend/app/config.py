@@ -73,7 +73,6 @@ class Settings(BaseSettings):
     # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
     # no record facts the prompter does not show. Was "docs" (D-247/D-255). The release pack itself is still built at
     # record level for its other readers (answers to viewers).
-    FACT_MODE: Literal["sheet", "record", "docs", "prompter"] = "prompter"  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
     FIRESTORE_DATABASE: str = "live-studio"  # D-354: the Firestore database of STORE=firestore
