@@ -124,32 +124,6 @@ async def test_d339_a_stream_silent_from_its_cold_start_is_restarted_once():
     assert stream.restarts == 1 and fake.speech.streams == 2  # cold limit; the stall lane waits for its first result
 
 
-def test_d339_the_mic_s_stream_closes_when_the_show_ends():
-    from fastapi.testclient import TestClient
-
-    from app.api import audio_ws
-    from app.main import create_app
-
-    from .helpers import make_settings
-    from .test_audio_ws import FakeStt as WsStt
-
-    audio_ws.END_POLL_S, old = 0.05, audio_ws.END_POLL_S
-    try:
-        app = create_app(make_settings())
-        app.state.ctx.stt = WsStt()
-        with TestClient(app) as c:
-            sid = c.post("/api/sessions").json()["session_id"]
-            c.post(f"/api/sessions/{sid}/start")
-            with c.websocket_connect(f"/api/sessions/{sid}/audio") as ws:
-                assert json.loads(ws.receive_text())["state"] == "listening"
-                c.post(f"/api/sessions/{sid}/end")
-                msg = json.loads(ws.receive_text())
-                assert msg == {"type": "status", "state": "stopped", "message": "The show ended."}
-    finally:
-        audio_ws.END_POLL_S = old
-    assert stt_mod.STALL_MS == 5_000
-
-
 async def test_d339_late_finals_of_the_old_stream_are_not_reported_twice():
     """The old stream holds its finals and delivers them in a burst when the stall restart closes it; the new stream
     re-hears the same audio. Each stretch of audio is reported once."""

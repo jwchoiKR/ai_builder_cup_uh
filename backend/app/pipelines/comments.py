@@ -720,7 +720,8 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     g = await rt.get_group(group_id)
     if g is None:
         return None
-    if rt.settings.RECORD_ANSWERS:
+    vertex = rt.ctx.answer_retriever is not None  # every product question answers from Vertex AI Search
+    if rt.settings.RECORD_ANSWERS and not vertex:
         answer = await _record_answer(rt, g, key, scenario)
         if answer is not None:
             return answer
@@ -729,7 +730,8 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     product_id = g.product_id if intent.product_scope == "single" else None
     rt.sync_doc_version()
     passages = await gather_passages(
-        rt.ctx.retriever, rt.catalog, rt.prefetched, product_id=product_id, intent=g.intent,
+        rt.ctx.answer_retriever or rt.ctx.retriever, rt.catalog, {} if vertex else rt.prefetched,
+        product_id=product_id, intent=g.intent,
         canonical_question=g.canonical_question, promo=promo, top_k=rt.settings.COMPOSER_TOP_K,
         offers=await rt.active_offers(), search=not arms.files(rt.settings.DESIGN_ARM),  # D-192: F arms do not search
     )

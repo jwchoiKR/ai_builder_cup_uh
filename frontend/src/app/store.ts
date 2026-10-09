@@ -5,7 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { api, type Api } from "./api";
 import { openEventStream, type ConnectionStatus, type EventStreamOptions } from "./sse";
 import { emptyState, reduceEvent, reduceSnapshot, type ClientState } from "./state";
-import type { Catalog, DemoStep, Health, Role, SessionEvent } from "./types";
+import type { Catalog, Health, Role, SessionEvent } from "./types";
 
 export interface StoreDeps {
   api: Pick<Api, "state">;
@@ -236,12 +236,6 @@ export function useCatalog(sessionId?: string | null): Catalog | null {
   return hook();
 }
 export const useHealth = cachedResource<Health>(() => api.health());
-export const useDemoScript = cachedResource<DemoStep[]>(() =>
-  api.demoScript().then(
-    (r) => r.steps,
-    () => [],
-  ),
-);
 
 /** Re-render every `intervalMs` (timers, countdowns, relative times). */
 export function useNow(intervalMs = 1000): number {

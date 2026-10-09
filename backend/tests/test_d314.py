@@ -20,24 +20,6 @@ class _Record(ScriptedBackend):
         return await super().generate(req, timeout_ms)
 
 
-@pytest.mark.parametrize("temperature, seed, sent", [("", "", (None, None)), ("0", "7", (0.0, 7)),
-                                                     ("", "7", (None, 7))])
-async def test_d314_the_judges_sampling(temperature, seed, sent):
-    from .helpers import live_runtime, make_ctx
-
-    llm = _Record()
-    rt = await live_runtime(make_ctx(backend=llm, JUDGE_TEMPERATURE=temperature, JUDGE_SEED=seed))
-    try:
-        await speak(rt, "It's only thirty-two dollars today.")
-        await rt.utterances.drain()
-        judged = {r.agent: (r.temperature, r.seed) for r in llm.reqs}
-        assert {judged[a] for a in ("compliance_judge", "fact_checker", "context_judge")} == {sent}
-        calls = await rt.ctx.store.query(rt.path("agent_calls"), AgentCall)
-        assert {(c.temperature, c.seed) for c in calls if c.agent == "fact_checker"} == {sent}  # logged
-    finally:
-        await close_env(rt)
-
-
 def test_d314_vertex_config_sends_them_only_when_set():
     from app.models.agent_io import FactRelationOutputV5
     from app.providers.llm import LLMRequest

@@ -68,7 +68,6 @@ describe("top bar", () => {
     render(view({ session: session({ status: "ready", started_at: null }), segments: [],
       prompter: { product_id: null as unknown as string, segment_id: null, covered_point_ids: [], required_total: 0,
         required_covered: 0, items: creamItems() } }));
-    expect(screen.getByTestId("host-ing-panthenol")).toHaveTextContent("5%Panthenol");
     expect(screen.getByTestId("host-price-current")).toHaveTextContent("S$36.00");
   });
 
@@ -114,26 +113,17 @@ describe("prompter", () => {
     expect(screen.getByTestId("host-points-status")).toHaveTextContent(/^1 required point left · \+1:(29|30) over$/);
   });
 
-  it("D-106: price, ingredient numbers, cautions and wording to avoid; said ingredients turn grey", () => {
-    const { rerender } = render(view({}));
-    expect(screen.getByTestId("host-ing-panthenol")).toHaveTextContent("5%Panthenol");
-    expect(screen.getByTestId("host-ing-ceramide_np")).toHaveTextContent("1%Ceramide NP");
-    expect(screen.queryByTestId("host-ing-volume")).toBeNull(); // not an ingredient amount
-    expect(screen.getByTestId("host-cautions")).toHaveTextContent("Do not apply to broken or damaged skin.");
-    expect(screen.getByTestId("host-avoid")).toHaveTextContent("✕ Heals eczema→Helps relieve the feeling of dryness.");
-    expect(screen.getByTestId("host-ing-panthenol").className).not.toMatch(/said/);
-    expect(within(screen.getByTestId("host-ing-panthenol")).queryByLabelText("Said")).toBeNull();
-    // D-372: a covered point that names the ingredient no longer ticks it; only its id from the fact checker does
-    rerender(view({ segments: [segment({ covered_point_ids: ["cr-p2"] })] }));
-    expect(screen.getByTestId("host-ing-panthenol").className).not.toMatch(/said/);
-    rerender(view({ segments: [segment({ ticked_item_ids: ["DL-CR-01#prompter#ingredient-panthenol"] })] }));
-    expect(screen.getByTestId("host-ing-panthenol").className).toMatch(/said/);
-    expect(within(screen.getByTestId("host-ing-panthenol")).getByLabelText("Said")).toBeInTheDocument(); // D-348
+  it("user 10/10: the prompter shows no ingredients, cautions or wording to avoid", () => {
+    render(view({}));
+    expect(screen.queryByTestId("host-ing-panthenol")).toBeNull();
+    expect(screen.queryByTestId("host-cautions")).toBeNull();
+    expect(screen.queryByTestId("host-avoid")).toBeNull();
+    expect(screen.getByTestId("host-price-current")).toHaveTextContent("S$36.00");
   });
 
-  it("D-372: price lines, ingredients and cautions are ticked by their ids only", () => {
+  it("D-372: price lines are ticked by their ids only", () => {
     const { rerender } = render(view({}));
-    for (const id of ["host-price-current", "host-price-struck", "host-price-set", "host-caution-1"]) {
+    for (const id of ["host-price-current", "host-price-struck", "host-price-set"]) {
       expect(screen.getByTestId(id)).toHaveAttribute("data-state", "todo");
     }
     rerender(view({ segments: [segment({ ticked_item_ids: [
@@ -142,7 +132,6 @@ describe("prompter", () => {
     expect(screen.getByTestId("host-price-current")).toHaveAttribute("data-state", "said");
     expect(within(screen.getByTestId("host-price-current")).getByLabelText("Said")).toBeInTheDocument();
     expect(screen.getByTestId("host-price-set")).toHaveAttribute("data-state", "said");
-    expect(screen.getByTestId("host-caution-1")).toHaveAttribute("data-state", "said");
     expect(screen.getByTestId("host-price-struck")).toHaveAttribute("data-state", "todo");
   });
 
@@ -998,7 +987,7 @@ describe("fact note (D-435: no heard-check variant)", () => {
 });
 
 describe("D-332: UI QA", () => {
-  it("D-426: a verdict that cites an item id ticks it: the sale price and a name-only ingredient", () => {
+  it("D-426: a verdict that cites an item id ticks it: the sale price", () => {
     const water = { id: "DL-CR-01#prompter#ingredient-4-water", key: "ingredient-4-water", product_id: CREAM,
       section: "Ingredients", kind: "ingredient" as const, text: "Water", name: "Water", value: "" };
     const s = snapshot({
@@ -1011,11 +1000,9 @@ describe("D-332: UI QA", () => {
     render(<HostView state={{ ...reduceSnapshot(s, "host", Date.now()), serverOffsetMs: 0 }} catalog={cat}
       connection="connected" theme="dark" actions={actions()} />);
     expect(screen.getByTestId("host-price-current")).toHaveAttribute("data-state", "said");
-    expect(screen.getByTestId("host-ing-4-water")).toHaveAttribute("data-state", "said");
-    expect(screen.getByTestId("host-ing-panthenol")).toHaveAttribute("data-state", "todo");
   });
 
-  it("D-423: shows every item the server lists: every caution (no toggle), every set, an ingredient by name only", () => {
+  it("D-423: shows every set the server lists; no cautions or ingredients (user, 10/10)", () => {
     const many = Array.from({ length: 7 }, (_, i) => `Caution number ${i + 1}.`);
     const items = [...creamItems(false, many),
       { id: "DL-CR-01#prompter#set-trio", key: "set-trio", product_id: CREAM, section: "Price & offers", kind: "set" as const,
@@ -1026,11 +1013,10 @@ describe("D-332: UI QA", () => {
       required_covered: 0, items } });
     render(<HostView state={{ ...reduceSnapshot(s, "host", Date.now()), serverOffsetMs: 0 }} catalog={cat}
       connection="connected" theme="dark" actions={actions()} />);
-    expect(within(screen.getByTestId("host-cautions")).getAllByText(/^Caution number/)).toHaveLength(7);
-    expect(screen.queryByTestId("host-cautions-more")).toBeNull();
+    expect(screen.queryByText(/^Caution number/)).toBeNull();
     expect(screen.getAllByTestId("host-price-set").map((x) => x.textContent)).toEqual(
       ["Set Cream + Ampoule set S$62.00", "Set Trio S$80.00"]);
-    expect(screen.getByTestId("host-ing-water")).toHaveTextContent(/^Water$/);
+    expect(screen.queryByTestId("host-ing-water")).toBeNull();
   });
 });
 

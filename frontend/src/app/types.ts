@@ -506,7 +506,6 @@ export interface Catalog {
     product_scope: "single" | "multi" | "none";
   }[];
   /** link to the Appendix III PDF */
-  policy_pdf_url?: string;
 }
 
 export interface Health {
@@ -518,15 +517,5 @@ export interface Health {
   prompts: Record<string, string>;
   demo_tools_enabled: boolean;
   viewer_input_enabled: boolean;
-}
-
-export interface DemoStep {
-  index: number;
-  scene: string;
-  who: string;
-  action: string;
-  text: string;
-  arg: string | null;
-  expected: string;
 }
 

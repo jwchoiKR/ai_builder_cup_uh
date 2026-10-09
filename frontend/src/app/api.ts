@@ -1,7 +1,6 @@
 // Typed REST helpers (DEV_SPEC §11.1, §8.13). Errors arrive as {error: {code, message}}.
 import type {
   Catalog,
-  DemoStep,
   FeedState,
   Health,
   Metrics,
@@ -16,7 +15,6 @@ export const API_BASE = "/api";
 const USER_MESSAGES: Record<string, string> = {
   network_error: "Can't reach the server. Check the connection and try again.",
   session_not_found: "This show is no longer available. Start a new one to continue.",
-  testdrive_busy: "The test drive is busy. Try again in a few minutes.",
   demo_tools_disabled: "Demo tools are off in this environment.",
 };
 
@@ -91,11 +89,6 @@ export const api = {
   catalog: (sid?: string | null) => get<Catalog>(sid ? `/catalog?session=${encodeURIComponent(sid)}` : "/catalog"),
 
   // demo tools
-  demoCurrent: () => get<Session>("/demo/current"),
-  demoScript: () => get<{ steps: DemoStep[] }>("/demo/script"),
-  demoReset: () => post<Session>("/demo/reset"),
-  // D-337: a new demo show (its own releases), as the demo console and the Hub's "New demo session" mean it
-  demoSession: (showMode?: "solo" | "team") => post<Session>("/demo/sessions", showMode ? { show_mode: showMode } : {}),
   simulateOvertime: (sid: string) => post(`${s(sid)}/demo/simulate-overtime`),
   feedStart: (sid: string, opts: { pool?: boolean; bursts?: boolean } = { pool: true, bursts: false }) =>
     post<FeedState>(`${s(sid)}/feed/start`, opts),

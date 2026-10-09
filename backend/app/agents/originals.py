@@ -1,21 +1,16 @@
 """D-358: the regulation ORIGINALS the live compliance judge reads, as they are (no rule JSON).
 
-For the show's products, the sources of their rules point at the original documents: a market source's local file
-(SG cosmetics: the ASEAN Appendix III PDF), or a law or brand pack's own uploaded files (the pack's onboarding job's
-files.json). The model gets the files as parts of its cached prefix; code keeps each file's text only to check that a
-cited quote is really in that original (provenance). The rule pack is read only to find which documents apply."""
+A show's regulation PDFs are the ones uploaded with its products (rebuilt onboarding: each release pairs a product
+with a regulation file). The model gets the files as parts of its cached prefix; code keeps each file's text only to
+check that a cited quote is really in that original (provenance)."""
 from __future__ import annotations
 
-import json
-import logging
 import re
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..config import REPO_DIR
 
-log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -54,98 +49,38 @@ def cited_title(d: "Original | None", doc: str, section: str) -> str:
 
 
 def _text(name: str, data: bytes) -> str:
-    from ..onboarding.files import model_part
-    from ..onboarding.sources import _code_text
+    """What code can read of a PDF, for the quote check."""
+    import io
 
-    return _code_text(model_part(name, data))
+    from pypdf import PdfReader
 
-
-def _local(source_id: str, title: str, file: str | None) -> list[Original]:
-    path = REPO_DIR / file if file else None
-    if path is None or not path.is_file():
-        return []
-    data = path.read_bytes()
-    from ..onboarding.files import model_part
-
-    part = model_part(path.name, data)
-    return [Original(path.name, title, source_id, part.data, part.mime, _text(path.name, data))]
+    try:
+        return "\n".join(f"[page {i + 1}] {p.extract_text() or ''}" for i, p in enumerate(PdfReader(io.BytesIO(data)).pages))
+    except Exception:  # noqa: BLE001 - an unreadable PDF leaves no text to check quotes against
+        return ""
 
 
-def _pack_files(source_id: str, root: Path) -> list[Original]:
-    """A law or brand pack's originals: the files of the onboarding job that made it (`<root>/<job_id>/files.json`,
-    read back from the bucket when needed). D-360: each way the lookup fails is logged with the path it tried."""
-    from ..onboarding.files import model_part
-    from ..onboarding.storage import ensure
-
-    for folder in ("lawpacks", "brandpacks"):
-        pack = root / folder / f"{source_id}.json"
-        if not ensure(pack):
-            continue
-        job = json.loads(pack.read_text(encoding="utf-8")).get("job_id")
-        if not job:
-            log.warning("compliance originals: pack %s names no job_id (%s)", source_id, pack)
-            return []
-        index = root / job / "files.json"
-        if not ensure(index):
-            log.warning("compliance originals: pack %s: no %s (local or in the bucket)", source_id, index)
-            return []
-        out = []
-        for e in json.loads(index.read_text(encoding="utf-8")):
-            path = root / job / e["file"]
-            if not ensure(path):
-                log.warning("compliance originals: pack %s: file %s (%s) is missing", source_id, e["name"], path)
-                out.append(None)  # D-362: marks the pack incomplete
-                continue
-            data = path.read_bytes()
-            part = model_part(e["name"], data)
-            out.append(Original(e["name"], e["name"], source_id, part.data, part.mime, _text(e["name"], data)))
-        return out
-    log.warning("compliance originals: no law or brand pack %s under %s", source_id, root)
-    return []
+# a show's uploaded regulation PDFs by regulation id (onboarding/product_show.py registers them at show start)
+_REGULATIONS: dict[str, list[Original]] = {}  # ponytail: one entry per regulation for the process's life
 
 
-_FOUND: dict[tuple, tuple[Original, ...]] = {}  # (source, root) -> its originals; a miss is never kept (D-360)
+def register_regulation(regulation_id: str, pdfs: list[tuple[str, bytes]]) -> None:
+    _REGULATIONS[regulation_id] = [Original(name, name, regulation_id, data, "application/pdf", _text(name, data))
+                                   for name, data in pdfs]
 
 
-def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, ...]]:
-    """Each source's originals, looked up once when found; a source with none is looked up again next time (a file
-    read back from the bucket later, or a pack approved after the first show). D-361: two packs may each upload a file
-    of the same name; both are kept, the later one named "<source id>:<name>"."""
-    found, missing = [], []
-    for sid, title, file in sources:
-        key = (sid, title, file, root)
-        docs = _FOUND.get(key)
-        if docs is None:
-            got = _local(sid, title, file) or _pack_files(sid, Path(root))
-            # D-367 (user): regulation originals are PDF only; any other file is never sent and marks the source missing
-            other = [d.name for d in got if d is not None and d.mime != "application/pdf"]
-            if other:
-                log.warning("compliance originals: %s: not a PDF, not given to the judge: %s", sid, other)
-            docs = tuple(d for d in got if d is not None and d.mime == "application/pdf")
-            if not docs or len(docs) < len(got):  # none, or only some of its files: never kept for a later show
-                missing.append(f"{sid} (not a PDF: {', '.join(other)})" if other else sid)
-            else:
-                _FOUND[key] = docs
-        names = {x.name for x in found}
-        for d in docs:
-            found.append(d if d.name not in names else Original(f"{sid}:{d.name}", d.title, d.source_id, d.data,
-                                                                 d.mime, d.text))
-    return tuple(found), tuple(missing)
-
-
-def originals_of_rules(rules, sources, onboarding_root: Path,
-                       pack_ids=()) -> tuple[tuple[Original, ...], tuple[str, ...]]:
-    """The originals behind these rules (by their source ids) and these law or brand packs (D-427: a pack's uploaded
-    files), and the source ids that have no original."""
-    wanted = {r.source_id for r in rules} | set(pack_ids)
-    by_id = {s.source_id: (s.source_id, s.title, s.file) for s in sources}
-    return _load(tuple(sorted(by_id.get(sid, (sid, "", None)) for sid in wanted)), str(onboarding_root))
-
-
-def originals_for(catalog, onboarding_root: Path, product_ids) -> tuple[tuple[Original, ...], tuple[str, ...]]:
-    """The originals behind the rules and packs of these products, and the source ids that have no original
-    (logged). D-427: in a multi-release show a pack belongs to the products whose release has it."""
+def originals_for(catalog, product_ids) -> tuple[tuple[Original, ...], tuple[str, ...]]:
+    """The regulation PDFs of these products, and the regulation ids that have none. In a multi-product show a
+    regulation belongs to the products whose release has it. D-361: two regulations may each have a file of the same
+    name; both are kept, the later one named "<regulation id>:<name>"."""
     owners, ids = catalog.pack.rule_products, set(product_ids)
-    rules = catalog.rules_for(ids) if owners is not None else catalog.pack.rules.rules
-    packs = [k for k in catalog.pack.rules.pack_ids if owners is None or owners.get(k, frozenset()) & ids]
-    return originals_of_rules(rules, catalog.pack.rules.sources, onboarding_root, packs)
+    found, missing = [], []
+    for sid in sorted(k for k in catalog.pack.rules.pack_ids if owners is None or owners.get(k, frozenset()) & ids):
+        docs = _REGULATIONS.get(sid)
+        if not docs:
+            missing.append(sid)
+            continue
+        names = {x.name for x in found}
+        found += [d if d.name not in names else Original(f"{sid}:{d.name}", d.title, d.source_id, d.data, d.mime, d.text)
+                  for d in docs]
+    return tuple(found), tuple(missing)

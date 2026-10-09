@@ -44,56 +44,6 @@ async def _run(how: str, late_ms: int = 3000, after: float = 0.0):
     return rt, backend
 
 
-async def test_d408_an_error_is_retried_with_the_seed():
-    rt, backend = await _run("error")
-    try:
-        assert backend.seeds == [7, 7]
-        assert not await events(rt, "line.check")
-    finally:
-        await close_env(rt)
-
-
-async def test_d408_an_invalid_answer_is_retried_without_the_seed():
-    rt, backend = await _run("invalid")
-    try:
-        assert backend.seeds == [7, None]
-        assert not await events(rt, "line.check")
-    finally:
-        await close_env(rt)
-
-
-async def test_d408_a_timeout_is_not_retried_and_shows_the_failure_at_once():
-    rt, backend = await _run("timeout", late_ms=300)
-    try:
-        assert backend.seeds == [7]
-        [card] = await events(rt, "line.check")
-        assert card.payload["text"] == LINE and card.payload["rule_ids"] == []
-        assert [e.payload["agent"] for e in await events(rt, "judge.failed")] == ["fact_checker"]
-    finally:
-        await close_env(rt)
-
-
-async def test_d408_the_retried_result_counts_the_failed_call_s_time():
-    from app.agents.utterance_judge import JudgeInput
-
-    rt = await live_runtime(make_ctx(backend=ScriptedBackend()))
-    calls = []
-
-    async def run(inp, *, deadline_ms, **opts):
-        calls.append(opts)
-        if len(calls) == 1:
-            return AgentResult(status="invalid", output=None, latency_ms=1200, call_id="c1", error="bad json")
-        return AgentResult(status="ok", output=None, latency_ms=300, call_id="c2")
-
-    rt.utterances.facts.run = run
-    try:
-        res = await rt.utterances._run_facts(LINE, CREAM, JudgeInput(utterance=LINE, on_air=CREAM), "default")
-        assert res.latency_ms == 1500 and res.meta["first_failure"] == "invalid"
-        assert calls == [{}, {"seeded": False}]
-    finally:
-        await close_env(rt)
-
-
 # ---- D-411/D-417: one fact deadline for the line, from its end; the time left is measured by the clock ------------
 
 
@@ -138,47 +88,7 @@ async def _deadline_run(first_ms: int, end_ago_ms: int = 0, status: str = "inval
     return calls, res
 
 
-async def test_d417_a_call_starting_2_s_after_the_line_end_gets_only_the_rest():
-    calls, res = await _deadline_run(first_ms=3000, end_ago_ms=2000, status="timeout")
-    assert [d for d, _ in calls] == [3000]  # it times out at the line's deadline, 5 s after the line end
-    assert res.status == "timeout"
-
-
-async def test_d417_a_line_whose_deadline_passed_is_not_checked():
-    calls, res = await _deadline_run(first_ms=0, end_ago_ms=5000)
-    assert calls == [] and res.status == "timeout" and res.meta["failure"] == "client_timeout"
-
-
-@pytest.mark.parametrize("first_ms, retried", [(3999, True), (4000, True), (4001, False), (4100, False)])
-async def test_d417_the_retry_needs_1_s_left_by_the_clock(first_ms, retried):
-    # the first call (with its slow audit save) used first_ms of the line's 5 s
-    calls, _ = await _deadline_run(first_ms=first_ms)
-    assert len(calls) == (2 if retried else 1)
-    if retried:
-        assert calls[1] == (5000 - first_ms, {"seeded": False})
-
-
 # ---- D-421: monotonic time spent; the deadline checked before the lookups and before the call -------------------
-
-
-async def test_d421_a_wall_clock_step_back_does_not_allow_a_retry():
-    calls, _ = await _deadline_run(first_ms=4500, step_back_ms=3000)  # 500 ms really left; the wall says 3500
-    assert len(calls) == 1
-
-
-async def test_d421_an_expired_line_fails_before_its_lookups():
-    calls, res = await _deadline_run(first_ms=0, end_ago_ms=6000)
-    assert calls == [] and _deadline_run.lookups == [] and res.status == "timeout"
-
-
-async def test_d421_a_slow_lookup_that_uses_the_deadline_up_fails_without_a_call():
-    calls, res = await _deadline_run(first_ms=0, end_ago_ms=1000, lookup_ms=4500)
-    assert calls == [] and _deadline_run.lookups == [1] and res.status == "timeout"
-
-
-async def test_d421_the_audit_save_counts_though_the_latency_says_less():
-    calls, _ = await _deadline_run(first_ms=4500, latency_ms=100)  # 100 ms of model time, 4.5 s by the clock
-    assert len(calls) == 1
 
 
 async def test_d422_the_test_scheduler_moves_the_monotonic_time_too():

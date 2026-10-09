@@ -19,6 +19,7 @@ dependencies = [
     "google-cloud-storage>=2.19",
     "google-cloud-texttospeech>=2.38.0",
     "google-cloud-firestore>=2.34.0",
+    "google-cloud-discoveryengine>=0.20.5",
 ]
 
 [dependency-groups]
