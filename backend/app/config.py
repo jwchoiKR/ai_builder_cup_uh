@@ -68,9 +68,6 @@ class Settings(BaseSettings):
     # (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked. D-432: v2-v4 and v6-v8 are deleted
     # (none was chosen); v1 stays for the tests that pin it
     FACT_PROMPT: Literal["v1", "v5"] = "v5"  # D-336: the measured config
-    # D-356: ACTIVE_ALERTS by per-call handle; the compliance judge answers {handle, fixed_by_this_line} first.
-    # D-358: on by default (the originals path always uses handles; this setting only matters for the legacy path)
-    CORRECTION_HANDLES: bool = True
     # D-334 (the user's design): a final ending with "?" waits for the next final (QUESTION_HOLD_MS), and the two are
     # judged as one utterance by all three judges; with none, the question is judged alone
     QUESTION_HOLD: bool = True  # D-343: measured (pool 7 + pairs: two-host lines 82.8% -> 96.6%, no one-host loss)

@@ -125,23 +125,6 @@ line "FILE <name>". Their text is also in SOURCE as numbered sentences (passages
 files are the authority: when a file and another passage disagree, the file is right. Cite the ids of the sentences
 that settle a fact. A fact you can see only in a file's picture or layout, in no sentence, is `uncertain`.
 
-## REL: compliance_judge
-
-D-297: for a violation of a HIGH rule, set `claim_kind` to what the line itself asserts:
-- `safety_promise`: safe, harmless, gentle, no side effects, suits or is fine for someone;
-- `disease_treatment`: cures, treats, heals or prevents a disease or a medical condition;
-- `medical_or_physiological_effect`: changes the body (regenerates cells, removes wrinkles, burns fat, numbs);
-- `permanence`: results last forever or never come back;
-- `comparative_or_superlative`: the best, better than others;
-- `usage_instruction`: how to use it, even a wrong or unsafe direction ("let the child brush alone");
-- `composition_fact`: what it contains or how much;
-- `other`.
-Set `group` to the group or condition the line names for the claim ("babies", "people with eczema", "everyone"), or
-null. Name only what the line says. A cosmetic state (chapped lips, dry skin, dull hair) is no disease. A line that
-tells viewers to ignore or reverse a caution ("Irritated skin? Go ahead and use it.") is `usage_instruction`, unless
-it promises safety to a group such as babies or pregnant women. For a MEDIUM rule, `claim_kind` and `group` are
-null.
-
 ## QHOLD: context_judge
 
 D-335: set `expects_resolution` first. `true` when UTTERANCE asks something, or relays a claim, that the next line is
@@ -169,27 +152,6 @@ D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each prod
 - `false` for: a move that names no product ("okay, next one"); naming a product whose status is not `next` (say
   which product in `target_product_id`); a plan ("the serum is coming later", "later I'll show you the serum"); a
   comparison ("this feels lighter than the serum"); a viewer's question or a quote ("someone asked about the toner").
-
-## HANDLES: compliance_judge
-
-D-356 (Job 2, correction): each ACTIVE_ALERTS entry has a `handle` (A1, A2 ...), its `span`, `rule_id` and `status`
-(`provisional` or `active`). Your answer starts with `alert_checks`: exactly one entry per ACTIVE_ALERTS
-entry, `{"handle": ..., "fixed_by_this_line": true or false}`. `fixed_by_this_line` is true when this line, read in
-context, fixes the problem that alert names (a retraction or a compliant restatement). There is no `corrects_alert_ids` field in this answer; decide every alert
-before you write `violations` and `reason`. With no ACTIVE_ALERTS, `alert_checks` is [].
-
-Example H1
-ACTIVE_ALERTS: [{"handle":"A1","span":"it heals scars in a week","rule_id":"LAW-DISEASE","status":"active"}]
-UTTERANCE: "Sorry, I take that back about the scars; it helps skin look smoother."
-```json
-{"alert_checks":[{"handle":"A1","fixed_by_this_line":true}],"compliance":{"violations":[]},"reason":"Retracts the scar claim."}
-```
-
-## PAIR: compliance_judge
-
-D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what
-[this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
-a report by someone, not a claim of [this line].
 
 ## NOTES: fact_checker
 

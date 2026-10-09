@@ -89,7 +89,7 @@ class _ArmB(BaseModel):
 
 
 class AlertCheck(_ArmB):
-    """D-356 CORRECTION_HANDLES: the verdict on one ACTIVE_ALERTS entry, named by its per-call handle (A1, A2 ...)."""
+    """D-356: the verdict on one ACTIVE_ALERTS entry, named by its per-call handle (A1, A2 ...)."""
     handle: str
     fixed_by_this_line: bool
 
@@ -204,24 +204,6 @@ class ComplianceB(Compliance, _ArmB):
 class ComplianceOutputB(ComplianceOutput, _ArmB):
     compliance: ComplianceB
     correction: CorrectionB
-
-
-ClaimKind = Literal["safety_promise", "disease_treatment", "medical_or_physiological_effect", "permanence",
-                    "comparative_or_superlative", "usage_instruction", "composition_fact", "other"]
-
-
-class ViolationR(Violation, _ArmB):
-    # D-297: for a HIGH rule only, what kind of claim the line makes and the group it names (code checks the fit)
-    claim_kind: ClaimKind | None = None
-    group: str | None = None
-
-
-class ComplianceR(Compliance, _ArmB):
-    violations: list[ViolationR]
-
-
-class ComplianceOutputR(ComplianceOutput, _ArmB):
-    compliance: ComplianceR
 
 
 def _cited_schema(s: dict) -> None:

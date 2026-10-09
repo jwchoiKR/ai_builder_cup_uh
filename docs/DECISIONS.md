@@ -2981,3 +2981,4 @@ D-435 (user go 10/10; the D-434 plan): the N-code, now that its tests run the pr
   - The helpers other scripts share (load_cases, pct, latency_line, make_client, _group, _same_value) moved to scripts/eval_common.py. eval_holdout_sequences, eval_routing, experiments/gemini_router and their tests import them from there.
   - run_eval.py is now only a re-export of those helpers for eval_agents.py, which the comments team owns and which is left as it is.
   - eval_adversarial.py and eval_show.py stay.
+- N4: the rules-JSON compliance path's HANDLES, PAIR and REL addenda (and their design_arms.md sections), ComplianceOutputR/ViolationR/ClaimKind and the CORRECTION_HANDLES setting are deleted. The originals path always uses handles, and the rules path answers by alert id. Tests: test_d356's id-list case, test_relation's REL case and its unused _validate_r/_high helpers are gone.

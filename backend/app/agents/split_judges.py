@@ -15,7 +15,7 @@ import logging
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
-from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO, ComplianceOutputR,
+from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO,
                                ContextOutput,
                                ContextOutputB, ContextOutputQ, with_alert_checks, with_product,
                                with_same_as, with_switch_naming)
@@ -149,19 +149,7 @@ class ComplianceJudge(_SplitJudge):
             self.with_docs = self.handles = True
             self._docs = None
             return
-        if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
-            if extra := arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        # D-356: ACTIVE_ALERTS by per-call handle, and a yes or no per listed alert first in the answer
-        self.handles = bool(getattr(getattr(llm, "settings", None), "CORRECTION_HANDLES", False))
-        if self.handles:
-            if extra := arms._addenda(str(llm.prompts_path)).get(("HANDLES", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "FACT_RELATION", False):
-            # D-296: a HIGH verdict names the claim the line makes; the rule-fit checks (Q6, G7) read it
-            self.output_model = ComplianceOutputR
-            if extra := arms._addenda(str(llm.prompts_path)).get(("REL", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        self.handles = False  # D-435: the rules-JSON path answers by alert id (handles are the originals path's)
 
     def regulation(self):
         """D-358: the originals behind the show's products' rules. D-363 (user): loaded ONCE, at show start (the cache
