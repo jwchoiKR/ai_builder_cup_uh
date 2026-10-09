@@ -40,7 +40,6 @@ export interface ComplianceRow {
   speech_end_to_shown_ms: number | null;
   shown_to_corrected_ms: number | "dismissed" | "uncorrected";
   corrected_text: string | null;
-  unverified: boolean;
 }
 
 export interface FactRow {

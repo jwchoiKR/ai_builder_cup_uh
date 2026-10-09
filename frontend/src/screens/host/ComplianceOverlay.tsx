@@ -1,7 +1,6 @@
 // HIGH-risk compliance alert (§12.3.7). D-106: shown at the top of the prompter card, where the host
 // is already looking, until the correction is confirmed; the prompter points stay visible below.
 // On mount it acknowledges the render once per alert (metrics, §8.16).
-import { ShieldQuestionMark } from "lucide-react";
 import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
@@ -47,12 +46,6 @@ export function ComplianceOverlay({
       aria-live="assertive" aria-label={t("High-risk claim")}>
       <div className={styles.alertTop}>
         <KindLabel law />
-        {alert.unverified && (
-          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
-            <ShieldQuestionMark aria-hidden />
-            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
-          </span>
-        )}
         <span className={styles.alertSaid}>
           {t("Heard:")} "{alert.span}"
         </span>

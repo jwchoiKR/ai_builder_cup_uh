@@ -418,7 +418,6 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                 <th>Alert latency</th>
                 <th>Corrected in</th>
                 <th>Correction</th>
-                <th>Unverified</th>
               </tr>
             </thead>
             <tbody>
@@ -437,7 +436,6 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                   <td className="tabular">{formatMsAsSeconds(a.speech_end_to_shown_ms)}</td>
                   <td className="tabular">{correctedIn(a.shown_to_corrected_ms)}</td>
                   <td>{a.corrected_text ?? "–"}</td>
-                  <td>{a.unverified ? "Yes" : "–"}</td>
                 </tr>
               ))}
             </tbody>
@@ -457,7 +455,6 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                 <th>Alert latency</th>
                 <th>Corrected in</th>
                 <th>Correction</th>
-                <th>Unverified</th>
               </tr>
             </thead>
             <tbody>
@@ -481,7 +478,6 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                         : "Not corrected"}
                   </td>
                   <td>{f.corrected_text ?? "–"}</td>
-                  <td>–</td>
                 </tr>
               ))}
             </tbody>

@@ -75,7 +75,6 @@ function data(over: Partial<SummaryData> = {}): SummaryData {
           speech_end_to_shown_ms: 1640,
           shown_to_corrected_ms: 8000,
           corrected_text: "Let me correct that.",
-          unverified: false,
         },
       ],
       fact_alerts: [

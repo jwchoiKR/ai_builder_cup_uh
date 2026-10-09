@@ -124,11 +124,6 @@ export interface Alert {
   severity: "HIGH" | "MEDIUM" | null;
   span: string | null;
   say_instead: string | null;
-  unverified: boolean;
-  /** D-303: a fact note shown as "check what was said" (one misheard number), not a correction */
-  heard_check?: boolean;
-  /** D-306: why the alert is unverified (the verifier's failure: http_504, client_timeout, http_429, other_error) */
-  unverified_reason?: string | null;
   field: string | null;
   stated_value: string | null;
   correct_value: string | null;

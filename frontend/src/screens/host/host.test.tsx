@@ -353,7 +353,6 @@ describe("compliance", () => {
     expect(overlay).toHaveTextContent("Prevents, reduces or reverses physiological changes of ageing · Appendix III §3");
     expect(overlay).toHaveTextContent("Waiting for your correction");
     expect(screen.getAllByTestId("host-overlay-count").map((c) => c.textContent)).toEqual(["1 of 2", "2 of 2"]);
-    expect(screen.queryByTestId("host-unverified")).toBeNull();
     expect(acts.rendered).toHaveBeenCalledWith("al_000002");
   });
 
@@ -366,11 +365,6 @@ describe("compliance", () => {
     rerender(view({ market, alerts: [alert({ say_instead: "" })] }));  // no say_instead: the phrase alone
     expect(screen.getByTestId("host-compliance-overlay")).toHaveTextContent(
       "Take it back, then say:“Sorry, I take that back.”");
-  });
-
-  it("unverified alert shows the AI check unavailable badge", () => {
-    render(view({ alerts: [alert({ unverified: true })] }));
-    expect(screen.getByTestId("host-unverified")).toHaveTextContent("AI check unavailable");
   });
 
   it("correction: a compact green Corrected line, with the product info at once below (D-115)", () => {
@@ -993,29 +987,13 @@ describe("unchecked lines (D-412)", () => {
   });
 });
 
-describe("check what was said (D-303)", () => {
-  it("shows a possibly misheard number as heard, without the wrong mark", () => {
+describe("fact note (D-435: no heard-check variant)", () => {
+  it("marks the wrong value it heard", () => {
     const base = { alert_id: "fx_000009", kind: "fact" as const, rule_id: null, severity: null, field: "price",
       stated_value: "S$15", correct_value: "S$50.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price",
       quote: "Live broadcast price: S$50.00" };
-    render(view({ alerts: [alert({ ...base, heard_check: true })] }));
-    const note = screen.getByTestId("host-fact-note");
-    expect(note).toHaveTextContent("CHECK WHAT WAS SAID");
-    expect(screen.getByTestId("host-fact-wrong")).toHaveTextContent("Heard: S$15");
-    expect(screen.getByTestId("host-fact-wrong")).not.toHaveTextContent("✕");
-    cleanup();
     render(view({ alerts: [alert(base)] }));
     expect(screen.getByTestId("host-fact-wrong")).toHaveTextContent("✕ S$15");
-  });
-});
-
-describe("verifier wait (D-306)", () => {
-  it("labels an alert the verifier never answered", () => {
-    const base = { alert_id: "fx_000010", kind: "fact" as const, rule_id: null, severity: null, field: "price",
-      stated_value: "S$32", correct_value: "S$36.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price",
-      quote: "Live broadcast price: S$36.00", unverified: true, unverified_reason: "http_504" };
-    render(view({ alerts: [alert(base)] }));
-    expect(screen.getByTestId("host-unverified")).toHaveTextContent("Unverified (AI response delayed)");
   });
 });
 

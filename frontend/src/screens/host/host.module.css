@@ -1069,10 +1069,6 @@
   width: calc(18px * var(--hs));
   height: calc(18px * var(--hs));
 }
-.unverifiedBadge {
-  border-style: dashed;
-  color: var(--text-2);
-}
 .ofN {
   margin-left: auto;
   font-size: calc(16px * var(--hs));

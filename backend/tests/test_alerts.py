@@ -38,7 +38,7 @@ async def test_a_judge_violation_is_an_active_alert(env):
     assert (a.kind, a.status, a.rule_id) == ("compliance", "active", rid("ASEAN-3-SKIN-AGEING"))
     assert a.severity == "HIGH"  # D-400: a regulation citation is red; D-391: the model's wording as given
     assert a.span == "your wrinkles will disappear overnight" and a.say_instead == "With regular use, it helps keep skin hydrated."
-    assert a.shown_at is not None and a.transcript_id == t.transcript_id and not a.unverified
+    assert a.shown_at is not None and a.transcript_id == t.transcript_id
     # D-410: no provisional alert first; the judge's verdict is the only alert event
     assert [e.type for e in await events(rt) if e.type.startswith("alert.")] == ["alert.created"]
 

@@ -148,7 +148,6 @@ export function alert(over: Partial<Alert> = {}): Alert {
     severity: "HIGH",
     span: "your wrinkles will disappear overnight",
     say_instead: "Helps keep skin hydrated for up to 24 hours in our in-house test.",
-    unverified: false,
     field: null,
     stated_value: null,
     correct_value: null,

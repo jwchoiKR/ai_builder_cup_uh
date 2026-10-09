@@ -118,7 +118,7 @@ def compute_summary_stats(
             "alert_id": a.alert_id, "rule_id": a.rule_id, "rule_title": rule.title if rule else None,
             "severity": a.severity, "span": a.span, "shown_at": a.shown_at,
             "speech_end_to_shown_ms": (a.shown_at - t.speech_end_at) if t else None,
-            "shown_to_corrected_ms": outcome, "corrected_text": a.corrected_text, "unverified": a.unverified,
+            "shown_to_corrected_ms": outcome, "corrected_text": a.corrected_text,
         })
     facts = []
     for a in sorted((a for a in alerts if a.kind == "fact" and a.status != "cleared"), key=lambda a: a.created_at):

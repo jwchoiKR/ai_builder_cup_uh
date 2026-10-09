@@ -65,18 +65,12 @@ export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
         <KindLabel />
         <span className={styles.warnBadge}>
           <CircleAlert aria-hidden />
-          {alert.heard_check ? t("CHECK WHAT WAS SAID") : `${t(label).toUpperCase()} ${t("CORRECTION")}`}
+          {`${t(label).toUpperCase()} ${t("CORRECTION")}`}
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         <AlertMore n={more} />
-        {alert.unverified && (
-          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
-            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
-          </span>
-        )}
         <span className={styles.alertSaid} data-testid="host-fact-wrong">
-          {/* D-303: a possibly misheard number is shown as heard, without the wrong mark */}
-          {t("Heard:")} {alert.heard_check ? "" : "✕ "}{alert.stated_value}
+          {t("Heard:")} ✕ {alert.stated_value}
         </span>
       </div>
       {/* D-136: one line the host can read out, with the product and the promo condition */}
@@ -127,11 +121,6 @@ export function MediumBanner({
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         <AlertMore n={more} />
-        {alert.unverified && (
-          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
-            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
-          </span>
-        )}
         <span className={styles.alertSaid}>
           {t("Heard:")} "{alert.span}"
         </span>

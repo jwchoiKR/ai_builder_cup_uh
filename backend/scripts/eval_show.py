@@ -155,7 +155,7 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                "rule_id": a.rule_id, "field": a.field, "severity": a.severity,
                "checked_against": release_of.get(a.product_id), "status": a.status, "span": a.span,
                "say_instead": a.say_instead, "stated_value": a.stated_value, "correct_value": a.correct_value,
-               "unverified": a.unverified, "resolved_by_line": resolved_by,
+               "resolved_by_line": resolved_by,
                "ms_to_shown": ms(line, a.shown_at),
                "ms_to_escalated": ms(line, a.escalated_at), "ms_to_resolved": ms(line, a.resolved_at)}
         alerts.append(row)
