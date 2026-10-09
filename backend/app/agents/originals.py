@@ -43,6 +43,16 @@ def citation_rule_id(doc: str, section: str) -> str:
     return f"{_slug(Path(doc).stem)}#{_slug(section)}"
 
 
+def cited_title(d: "Original | None", doc: str, section: str) -> str:
+    """D-433: the host's words for a citation: the document's title (a market source's), else its file name without
+    the extension, then the section as the model wrote it ("kelmar_code 2.1"); never the rule-id slug."""
+    if d is not None and d.title and d.title not in (d.name, d.name.split(":", 1)[-1]):
+        name = d.title
+    else:
+        name = Path((d.name.split(":", 1)[-1] if d is not None else doc).strip()).stem
+    return f"{name} {section.strip()}".strip()
+
+
 def _text(name: str, data: bytes) -> str:
     from ..onboarding.files import model_part
     from ..onboarding.sources import _code_text

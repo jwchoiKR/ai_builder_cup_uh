@@ -41,6 +41,7 @@ def apply_judge_compliance(
             if same.status == "active":
                 same.span, same.say_instead = v.span, v.say_instead or same.say_instead
                 same.quote, same.citation = getattr(v, "quote", None) or same.quote, getattr(v, "citation", None) or same.citation
+                same.cited_title = getattr(v, "cited_title", None) or same.cited_title  # D-433
                 changed.append(same)
             else:
                 closed.append(same.alert_id)
@@ -49,7 +50,8 @@ def apply_judge_compliance(
                              product_id=getattr(v, "product_id", None) or product_id,  # D-349
                              rule_id=v.rule_id, severity=v.severity, span=v.span,
                              say_instead=v.say_instead or None, created_at=now, shown_at=now,
-                             quote=getattr(v, "quote", None), citation=getattr(v, "citation", None)))
+                             quote=getattr(v, "quote", None), citation=getattr(v, "citation", None),
+                             cited_title=getattr(v, "cited_title", None) or None))
     return changed, created, closed
 
 

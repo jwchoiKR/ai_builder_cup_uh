@@ -230,6 +230,7 @@ def _cited_schema(s: dict) -> None:
     props = dict(s.get("properties", {}))
     props.pop("rule_id", None)
     props.pop("severity", None)
+    props.pop("cited_title", None)  # D-433: code's, not asked
     first = ["citation", "quote", "span", "is_negated", "is_quoted"]
     s["properties"] = {**{k: props.pop(k) for k in first if k in props}, **props}
     s["required"] = list(s["properties"])
@@ -244,6 +245,7 @@ class ViolationO(Violation, _ArmB):
     quote: str
     rule_id: str = ""
     severity: Literal["HIGH", "MEDIUM"] = "HIGH"  # D-400: set by code from the citation type, never asked
+    cited_title: str = ""  # D-433: set by code: the cited document's readable name and the section
 
 
 class ComplianceO(Compliance, _ArmB):

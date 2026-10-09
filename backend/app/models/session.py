@@ -140,6 +140,7 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     passage_id: str | None = None
     quote: str | None = None  # D-374: on a compliance alert, the model's summary of the cited section (not verbatim)
     citation: str | None = None  # D-374: compliance, the model's citation ("<document>#<section>") as it wrote it
+    cited_title: str | None = None  # D-433: compliance, the cited document's readable name and section (host red box)
     say: str | None = None  # D-396: fact note, the model's line the host says to fix it
     # timing
     created_at: int

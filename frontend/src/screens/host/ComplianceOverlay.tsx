@@ -9,7 +9,7 @@ import { type HighAlertView } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
 import { Elapsed } from "../../components";
 import { AlertMore, KindLabel } from "./Banners";
-import { ruleInfo } from "./hostSelectors";
+import { citedTitle, ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
 
 export function ComplianceOverlay({
@@ -31,7 +31,8 @@ export function ComplianceOverlay({
 }) {
   const t = useT();
   const { alert, position, total } = view;
-  const rule = ruleInfo(catalog, alert.rule_id, alert.product_id);
+  const cited = citedTitle(alert);  // D-433: the cited document and section (the rule id is a slug since D-358)
+  const rule = cited ? { title: cited, ref: "" } : ruleInfo(catalog, alert.rule_id, alert.product_id);
 
   useEffect(() => {
     onRendered(alert.alert_id);
