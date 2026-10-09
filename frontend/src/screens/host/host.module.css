@@ -691,7 +691,7 @@
   flex-direction: column;
 }
 .question {
-  padding: calc(10px * var(--hs)) calc(24px * var(--hs));
+  padding: calc(6px * var(--hs)) calc(24px * var(--hs));  /* D-438: 3 rows with 2-line replies fit */
   border-bottom: 1px solid var(--border);
 }
 .question:last-child {
@@ -705,7 +705,7 @@
   color: var(--text-2);
 }
 .qIndex {
-  font-size: calc(15px * var(--hs));
+  font-size: calc(20px * var(--hs));  /* D-438: read from a distance */
   font-weight: var(--fw-semibold);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
@@ -714,6 +714,7 @@
   display: inline-flex;
   align-items: center;
   gap: calc(6px * var(--hs));
+  font-size: calc(20px * var(--hs));
 }
 .qAsking svg,
 .qTag svg {
@@ -725,6 +726,7 @@
   display: inline-flex;
   align-items: center;
   gap: calc(6px * var(--hs));
+  font-size: calc(20px * var(--hs));
   font-weight: var(--fw-semibold);
   color: var(--accent);
 }
@@ -1256,12 +1258,12 @@
   background: var(--fact-border);
   box-shadow: 0 0 0 calc(2px * var(--hs)) var(--fact-bg);
 }
-/* D-113: compact waiting list rows */
+/* D-113: compact waiting list rows; D-438: sized to be read from a distance, like the alert boxes */
 .wRow {
   display: flex;
   align-items: center;
   gap: calc(12px * var(--hs));
-  font-size: calc(18px * var(--hs));
+  font-size: calc(26px * var(--hs));
 }
 .wText {
   flex: 1;
@@ -1273,18 +1275,22 @@
 }
 .wState {
   flex: none;
-  font-size: calc(14px * var(--hs));
+  font-size: calc(20px * var(--hs));
   font-weight: var(--fw-semibold);
   color: var(--text-2);
 }
-/* the first line of the suggested reply, under the question, so the host can prepare */
+/* the first line of the suggested reply, under the question, so the host can prepare; D-438: read aloud, so as
+   large as the alert's say line allows here, wrapped to at most 2 lines */
 .wPreview {
   margin: 0;
   padding-left: calc(30px * var(--hs));
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: calc(14px * var(--hs));
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  line-height: 1.15;
+  font-size: calc(32px * var(--hs));
   color: var(--text-3);
 }
 .pdSay {
