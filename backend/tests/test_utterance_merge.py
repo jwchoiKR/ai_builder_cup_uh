@@ -225,25 +225,6 @@ async def test_the_fact_checker_sees_where_a_merged_utterance_was_split(env):
     assert "The base is aloe water, about half, no plain water" in seen[0] and " / " not in seen[0]
 
 
-@pytest.mark.legacy_live  # D-434: other products' sheets come only with FACT_MODE=docs (N10); production checks
-async def test_a_bare_continuation_can_be_checked_against_the_product_just_named(env):  # the prompter snapshot
-    """D-172 (local SEED3 replay): "list price 42" after the ampoule's price, with the cream on air, was checked
-    against the cream: the ampoule's sheet was not even among the fact passages."""
-    rt, llm = env
-    seen: list[str] = []
-    generate = llm.generate
-
-    async def record(req, timeout_ms):
-        if req.agent == "fact_checker":
-            seen.append(req.user_message)
-        return await generate(req, timeout_ms)
-    llm.generate = record
-    await speak(rt, "If you want the ampoule on its own, it is 32 dollars.")
-    await rt.ctx.scheduler.advance(5000)  # past the merge window: judged alone
-    await speak(rt, "regular price 42")
-    assert "DL-AM-01" in seen[-1] and "DL-CR-01" in seen[-1]  # the ampoule just named, and the cream on air
-
-
 # ---- D-397: a merged line's verdict replaces its chain's alerts --------------------------------------
 
 

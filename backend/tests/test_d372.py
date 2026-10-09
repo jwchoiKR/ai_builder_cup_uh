@@ -13,7 +13,7 @@ LIVE = "DL-CR-01#prompter#live-price"
 
 
 async def _env(**settings):
-    return await make_env(FACT_MODE="prompter", FACT_PROMPT="v5", **settings)
+    return await make_env(FACT_PROMPT="v5", **settings)
 
 
 def _sid(rt, passage_id: str, products=(CREAM,)) -> str:

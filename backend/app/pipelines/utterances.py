@@ -27,7 +27,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from ..agents import arms
-from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
+from ..agents.fact_checker import FactChecker, FactInput
 from ..agents.split_judges import ComplianceJudge, ContextJudge
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values
 from ..logic import alerts as alert_logic
@@ -541,17 +541,13 @@ class UtterancePipeline:
 
     async def _fact_passages(self, text: str, on_air: str, switch: SwitchState, promo=None):
         rt = self.rt
-        if rt.settings.FACT_MODE == "prompter":  # D-360: only what the host prompter shows, the previous product's
-            # snapshot too inside the dual scope after a switch (D-349)
-            from ..logic.prompter import prompter_passages
+        # D-360: only what the host prompter shows, the previous product's snapshot too inside the dual scope after a
+        # switch (D-349)
+        from ..logic.prompter import prompter_passages
 
-            pids = [on_air, *([switch.previous_product_id] if switch.previous_product_id
-                              and switch.previous_product_id != on_air else [])]
-            return [x for pid in pids for x in prompter_passages(rt.catalog, pid, rt.points, promo)]
-        rt.sync_doc_version()
-        return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
-                                          switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS,
-                                          all_products=True)  # D-304: every show product's sheet
+        pids = [on_air, *([switch.previous_product_id] if switch.previous_product_id
+                          and switch.previous_product_id != on_air else [])]
+        return [x for pid in pids for x in prompter_passages(rt.catalog, pid, rt.points, promo)]
 
     def _by_judge(self) -> bool:
         """D-187 arm B, or D-304 VERBAL_CHECK=judge: a spoken answer's numbers and hedges come from the context judge."""
@@ -583,14 +579,10 @@ class UtterancePipeline:
         return res
 
     async def warm_facts_cache(self, on_air: str) -> None:
-        """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
-        if self.compliance.with_docs:  # D-310: and the compliance judge's rules-and-documents cache
+        """D-310: the compliance judge's rules-and-documents cache, made at session start (D-435: the fact checker
+        sends no files, so it has no cache to warm)."""
+        if self.compliance.with_docs:
             self.rt.spawn(self.compliance.warm(on_air, self.rt.sid), name=f"compliance-cache:{on_air}")
-        if self.facts._parts(on_air):
-            switch = SwitchState()
-            await self.facts.warm_cache(FactInput(utterance="", on_air=on_air, switch=switch, promo=None,
-                                                  passages=await self._fact_passages("", on_air, switch),
-                                                  session_id=self.rt.sid))
 
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
                          parts: list[str] | None = None, transcript_id: str | None = None) -> AgentResult:
@@ -1029,7 +1021,7 @@ class UtterancePipeline:
         when the line's segment is gone (an undone switch), the product's open segment, else its pre_covered."""
         rt = self.rt
         inp = self._fact_inputs.get(t.transcript_id)
-        if rt.settings.FACT_MODE != "prompter" or inp is None:
+        if inp is None:
             return
         shown = {p.passage_id: p.product_id for p in inp.passages}  # the snapshot this check read
         cited: dict[str, list[str]] = {}
