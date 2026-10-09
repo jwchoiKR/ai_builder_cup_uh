@@ -17,7 +17,7 @@ from .models.session import AgentCall
 from .providers.armor import make_armor
 from .providers.llm import LLMBackend, LLMClient, make_backend
 from .providers.prompts import PromptTemplate, load_prompts
-from .providers.retriever import LocalRetriever, Retriever
+from .providers.retriever import LocalRetriever, Retriever, VertexSearchRetriever
 from .providers.stt import make_stt
 from .scheduler import AsyncScheduler, ManualScheduler
 from .store import make_store
@@ -56,6 +56,7 @@ class AppContext:
     retriever: Retriever
     reflex: Reflex
     runtimes: "Runtimes" = field(init=False)
+    answer_retriever: Retriever | None = None  # ANSWER_RETRIEVER=vertex_search; None = `retriever`
     stt: object | None = None  # GoogleV2Stt, or None when STT_PROVIDER=mock
     armor: object | None = None  # D-125: Model Armor screening of comments (NoArmor when off)
     sse_heartbeat_sec: float = HEARTBEAT_SEC
@@ -79,6 +80,16 @@ class AppContext:
                 from .onboarding.show import show_pack
 
                 pack = show_pack([self.pack_for(market, lang, r)[0] for r in release_id], release_id)
+                self._packs[rkey] = (pack, Reflex(pack.rules, pack.lexicon))
+            return self._packs[rkey]
+        if isinstance(release_id, str) and release_id.startswith("prd_"):
+            # rebuilt onboarding: an approved product and its regulation PDF ("<product_id>:<regulation_id>")
+            rkey = (market.upper(), lang, release_id)
+            if rkey not in self._packs:
+                from .onboarding.product_show import build
+
+                pack = build(self.settings, self.pack_for(market, lang)[0], release_id)
+                self.retriever.replace_product(pack.products.products[0].product_id, pack.passages)
                 self._packs[rkey] = (pack, Reflex(pack.rules, pack.lexicon))
             return self._packs[rkey]
         if release_id is not None:
@@ -150,6 +161,9 @@ def build_context(
         reflex=Reflex(pack.rules, pack.lexicon),
         stt=make_stt(settings, clock),
         armor=make_armor(settings),
+        answer_retriever=VertexSearchRetriever(settings.GCP_PROJECT, settings.VERTEX_SEARCH_LOCATION,
+                                               settings.VERTEX_SEARCH_ENGINE_ID)
+        if settings.ANSWER_RETRIEVER == "vertex_search" else None,
     )
     ctx.runtimes = Runtimes(ctx)
     if hasattr(store, "on_loaded"):  # STORE=firestore: a session came back from Firestore (D-428)

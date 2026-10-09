@@ -173,6 +173,11 @@ class Settings(BaseSettings):
     STT_PHRASE_HINTS_ENABLED: bool = True
     VERTEX_SEARCH_LOCATION: str = "global"
     VERTEX_SEARCH_DATA_STORE_ID: str = ""
+    # evidence of viewer-question answers: "vertex_search" searches the Vertex AI Search app below for every product
+    # question (record answers off too); the live fact checker keeps RETRIEVER
+    ANSWER_RETRIEVER: Literal["local", "vertex_search"] = "local"
+    VERTEX_SEARCH_ENGINE_ID: str = ""
+    VERTEX_SEARCH_GCS_BUCKET: str = ""  # an approved product's original files are copied here (the data store's source)
     GCS_BUCKET: str = ""
     COMPLIANCE_ESCALATE_SEC: int = 5
     CORRECTED_TOAST_MS: int = 1500
@@ -255,6 +260,8 @@ class Settings(BaseSettings):
             )
         if self.RETRIEVER == "vertex_search" and not self.VERTEX_SEARCH_DATA_STORE_ID:
             raise ValueError("VERTEX_SEARCH_DATA_STORE_ID is required when RETRIEVER=vertex_search")
+        if self.ANSWER_RETRIEVER == "vertex_search" and not self.VERTEX_SEARCH_ENGINE_ID:
+            raise ValueError("VERTEX_SEARCH_ENGINE_ID is required when ANSWER_RETRIEVER=vertex_search")
         return self
 
     def uses_google(self) -> bool:
@@ -263,6 +270,7 @@ class Settings(BaseSettings):
             or self.STT_PROVIDER == "google_v2"
             or self.STORE == "firestore"
             or self.RETRIEVER == "vertex_search"
+            or self.ANSWER_RETRIEVER == "vertex_search"
         )
 
     @property
