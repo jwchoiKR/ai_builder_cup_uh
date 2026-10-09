@@ -383,12 +383,6 @@ class ComposerOutput(BaseModel):
     reason: str
 
 
-class ReplyPhraseOutput(BaseModel):
-    """ReplyPhraser: the wording of a record answer."""
-    reply: str
-    reason: str = ""
-
-
 class ReplyTranslationOutput(BaseModel):
     """ReplyTranslator: a posted reply in an asker's language."""
     translation: str
@@ -405,16 +399,6 @@ class CommentInsightsOutput(BaseModel):
     """CommentInsights: the questions of a broadcast sorted into topics. No numbers: code counts."""
     topics: list[InsightTopic] = []
     notes: list[str] = []
-
-
-class DraftCheckOutput(BaseModel):
-    """DraftVerifier (D-126): the LLM check of a composed answer against its cited passages."""
-    # whether a viewer who reads only the reply got exactly what they asked for, stated by the source in so many
-    # words; decided before the verdict, and anything but "direct" keeps the draft from being posted
-    answers: Literal["direct", "partial", "no"] = "direct"
-    verdict: Literal["pass", "fail"]
-    problems: list[str] = []
-    reason: str
 
 
 # ---- BroadcastSummary (§7.8) -----------------------------------------------------------------

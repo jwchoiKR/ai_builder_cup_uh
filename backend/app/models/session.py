@@ -197,7 +197,7 @@ class QuestionGroup(BaseModel):  # [sessions/{sid}/groups/{group_id}]
     approval_reason: str | None = None
     status: Literal["new", "composing", "ready", "auto_answered", "needs_review", "answered", "rejected", "closed"]
     answer_id: str | None = None  # verified suggested/posted answer
-    compose_step: Literal["evidence", "writing", "checking"] | None = None  # shown only while status is composing
+    compose_step: Literal["evidence", "writing"] | None = None  # shown only while status is composing
     host_slot: Literal["none", "on_host"] = "none"
     on_host_since: int | None = None
     pinned_by_operator_at: int | None = None
@@ -221,7 +221,6 @@ class Answer(BaseModel):  # [sessions/{sid}/answers/{answer_id}]
     cache_key: str | None = None
     needs_human: bool
     created_at: int
-    record: bool = False  # a record answer: the value by code from the product record (logic/record_answers)
 
 
 class Message(BaseModel):  # [sessions/{sid}/messages/{message_id}] viewer-visible

@@ -136,7 +136,6 @@ export const KO_HOST: Record<string, string> = {
   "Drafting…": "답변 작성 중…",
   "Finding evidence…": "근거 문서를 가져오는 중…",
   "Writing the reply…": "답변을 만드는 중…",
-  "Checking the reply…": "답변을 확인하는 중…",
   "Which product?": "어느 제품인지 확인",
   "Read out": "읽어 주기",
   "Ready to answer": "답변 준비됨",

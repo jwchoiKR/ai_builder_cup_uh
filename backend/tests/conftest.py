@@ -49,10 +49,9 @@ LEGACY_LIVE = {
 }
 # The comments path keeps its own test pins (the comments team's tests were written for them)
 COMMENT_PINS = {
-    "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
-    # record answers became the default; the older tests keep the composer path for price and size questions,
-    # and the host route of sensitive questions in a team show
-    "RECORD_ANSWERS": "false", "SENSITIVE_APPROVAL": "host", "COMPOSER_REVISE": "false", "TRIAGE_RETRIES": "0", "COMPOSE_RETRIES": "0", "TRIAGE_MODEL": "", "DRAFT_VERIFY_THINKING": "", "GROUP_TTL_WAITING_SEC": "600", "DEFAULT_SHOW_MODE": "solo",
+    "COMMENT_PRODUCT": "code", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
+    # the host route of sensitive questions in a team show
+    "SENSITIVE_APPROVAL": "host", "TRIAGE_RETRIES": "0", "COMPOSE_RETRIES": "0", "TRIAGE_MODEL": "", "GROUP_TTL_WAITING_SEC": "600", "DEFAULT_SHOW_MODE": "solo",
 }
 for _key, _value in COMMENT_PINS.items():
     os.environ.setdefault(_key, _value)
