@@ -1,12 +1,15 @@
 """Product onboarding, rebuilt (step 1): one PDF straight into the bucket, nothing on local disk."""
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.onboarding import storage
 
 from .helpers import make_settings
+from .judge_fakes import ScriptedBackend
 
 
 def test_upload_puts_one_pdf_in_the_bucket_only(tmp_path, monkeypatch):
@@ -22,5 +25,29 @@ def test_upload_puts_one_pdf_in_the_bucket_only(tmp_path, monkeypatch):
             assert not any(tmp_path.rglob("*.pdf"))  # nothing on local disk
             bad = c.post("/api/products", files={"file": ("a.pdf", b"not a pdf", "application/pdf")})
             assert bad.status_code == 400 and bad.json()["error"]["code"] == "not_pdf"
+    finally:
+        storage.configure(tmp_path, None)
+
+
+INFO = {"brand": "Lumen", "product_name": "Night Serum", "currency": "SGD", "list_price": "46.00",
+        "live_price": "36.00", "points": [{"text": "Hydrates for 24 hours (in-house test)", "required": True}]}
+
+
+def test_read_makes_one_model_call_and_stores_the_info(tmp_path, monkeypatch):
+    bucket = storage.MemoryBucket()
+    monkeypatch.setattr(storage, "bucket_for", lambda name, project=None: bucket)
+    backend = ScriptedBackend()
+    backend.outputs[("product_read", "Sheet A.pdf")] = INFO
+    try:
+        with TestClient(create_app(make_settings(ONBOARDING_DIR=str(tmp_path), ONBOARDING_GCS_BUCKET="fake"),
+                                   llm_backend=backend)) as c:
+            pid = c.post("/api/products", files={"file": ("Sheet A.pdf", b"%PDF-1.7 x", "application/pdf")}
+                         ).json()["product_id"]
+            r = c.post(f"/api/products/{pid}/read")
+            assert r.status_code == 200, r.text
+            assert r.json()["info"] == INFO
+            assert [a for a, _ in backend.calls] == ["product_read"]
+            assert json.loads(bucket.download(f"products/{pid}/info.json")) == INFO
+            assert c.post("/api/products/prd_000000000000/read").status_code == 404
     finally:
         storage.configure(tmp_path, None)
