@@ -2963,3 +2963,7 @@ D-434 (user go 10/10; GPT, Gemini and the Sonnet critic: approve with changes): 
   - test_relation's end-to-end case now uses raw v5 JSON.
   - Eval run_case rows carry the cited rule id.
   - Per-test `legacy_live` stays on test_d338's document-passage case (FACT_MODE docs, N10) and on test_relation's REL schema case (N4).
+- B3 (merge/hold):
+  - Migrated: test_utterance_merge, test_prompter_segments and test_d349, with QUESTION_HOLD on.
+  - "Is it clear?" is no longer a not-merged case: production judges a question together with the next final, so test_d334_a_question_is_judged_together_with_the_next_final checks the marked pair.
+  - Per-test `legacy_live` stays on the JUDGE_MODE split/single switch cases (N2) and on the other-product sheet case of the FACT_MODE docs path (N10).

@@ -18,7 +18,7 @@ TESTS = Path(__file__).resolve().parent
 
 # The files that still use `legacy_live`; a batch removes its files here when it migrates them. Never add to it.
 LEGACY_LIVE_FILES = {
-    "test_alerts.py", "test_clean_base.py", "test_d304.py", "test_d338.py", "test_d349.py", "test_d356.py",
+    "test_alerts.py", "test_clean_base.py", "test_d304.py", "test_d338.py", "test_d356.py",
     "test_demo_script_api.py", "test_design_arms.py", "test_multi_release.py", "test_prompter_segments.py",
     "test_publish.py", "test_relation.py", "test_split_judges.py", "test_utterance_concurrency.py",
     "test_utterance_merge.py", "test_utterance_pipeline.py",

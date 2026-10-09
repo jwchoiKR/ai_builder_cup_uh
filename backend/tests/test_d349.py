@@ -163,6 +163,3 @@ async def test_d349_eval_show_replays_a_show_and_scores_its_switches(tmp_path):
 async def close_env_ctx(ctx) -> None:
     ctx.runtimes.shutdown()
     ctx.scheduler.shutdown()
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
