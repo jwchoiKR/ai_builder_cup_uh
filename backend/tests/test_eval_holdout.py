@@ -188,7 +188,7 @@ def test_a_signed_percent_and_a_price_field_alias_score_as_the_same():
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-    from run_eval import _same_value
+    from eval_common import _same_value
 
     assert _same_value("45%", "+45%") and not _same_value("40%", "+45%")
     facts = {"claims": [{"verdict": "contradicted", "field": "set_price", "correct_value": "S$55.80"}]}

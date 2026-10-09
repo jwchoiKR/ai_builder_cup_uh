@@ -67,7 +67,7 @@ def test_cases_optional_file_and_explicit_label_validation(tmp_path):
 async def test_router_subset_initializes_only_selected_clients(monkeypatch, settings, selected):
     monkeypatch.syspath_prepend(str(Path(__file__).resolve().parents[1] / "scripts"))
     from experiments import gemini_router, jev_router
-    import run_eval
+    import eval_common  # D-435: the helpers moved from run_eval
 
     created, closed = [], []
     case = {"case_id": "test", "utterance": "Hello everyone!", "current_product_id": "cream_hydra_barrier",
@@ -106,7 +106,7 @@ async def test_router_subset_initializes_only_selected_clients(monkeypatch, sett
 
     monkeypatch.setattr(jev_router, "JevRouter", lambda: FakeRouter("jev"))
     monkeypatch.setattr(gemini_router, "GeminiRouter", lambda: FakeRouter("gemini_purpose"))
-    monkeypatch.setattr(run_eval, "make_client", lambda record: (FakeClient(), None))
+    monkeypatch.setattr(eval_common, "make_client", lambda record: (FakeClient(), None))
 
     def threshold():
         assert selected == "jev", "excluded Jev configuration must not be read"
