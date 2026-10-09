@@ -27,6 +27,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Cloud Run runs max-instances 1. From D-369 the deploy script sets `STORE=firestore` (database `live-studio`, created 10/9 in ai-budiler-cup-uh-team-pjt, us-central1). Show data (sessions, transcripts, alerts, events, segments, agent calls) is written there; revision 00007 still ran `STORE=memory` because it was deployed before D-369.
 - Gemini 3 context caching needs a prefix of 4,096 tokens or more. Only the fact checker benefits today.
 - Korean output from Python on this Windows machine needs `PYTHONIOENCODING=utf-8`.
+- agy on this PC (10/10) cannot use tools: its `googlecloudtools.datacloud_telemetry` pre-tool hook fails (a quoted path), so any agy task that must read a file or an image fails. Text-only `agy -p` answers still work. For Gemini on files, call Vertex `gemini-3.8-flash` (thinking HIGH, `max_output_tokens` 65000: HIGH thinking alone used 29-39k tokens) through the backend's `google.genai` client. Do not edit the agy config.
 - Writing eval or corpus task text through bash `python -c "..."` or an unquoted heredoc expands `$80` to empty ("S$80" became "S0" in sealed pool 3). Use the Write tool or `<<'EOF'`.
 - PowerShell flattens `@(@("a","b"))` into one list, so a one-element list of arrays loops over strings. Write `@(,@("a","b"))`.
 - Eval scorers must treat zero-decimal currencies (KRW, JPY, VND, IDR) as whole units; the app already does (D-243).
