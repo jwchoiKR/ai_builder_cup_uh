@@ -208,6 +208,7 @@ export const KO_HUB: Record<string, string> = {
   "Show line-up": "방송 순서",
   "Remove {name}": "{name} 빼기",
   "No product picked yet.": "아직 고른 제품이 없습니다.",
+  "Pick the show's products here first.": "먼저 여기서 방송할 제품을 고르세요.",
   "Start a show with 1 product": "제품 1개로 방송 시작",
   "Start a show with {n} products": "제품 {n}개로 방송 시작",
   "The brief (speech-recognition names, prompter points) is still running, about 30 s. A show started now uses the approved claims as points; wait for the full prompter.":
