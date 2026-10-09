@@ -30,7 +30,7 @@ async def _case(monkeypatch, parts, **settings):
 
     monkeypatch.setattr(eval_adversarial, "PART_GAP_S", 0)
     llm = _Record()
-    ctx = make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT="v5", **settings)
+    ctx = make_ctx(backend=llm, FACT_PROMPT="v5", **settings)
     try:
         row = await eval_adversarial.run_case(ctx, {"case_id": "Q", "type": "t", "utterance": "",
                                                     "current_product_id": CREAM, "parts": parts,

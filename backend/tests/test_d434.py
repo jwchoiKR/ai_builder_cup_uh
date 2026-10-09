@@ -37,8 +37,7 @@ def test_d434_the_tests_default_live_path_is_production_s():
     differ = {k: (getattr(prod, k), getattr(tests, k)) for k in LIVE_PATH_KEYS if getattr(prod, k) != getattr(tests, k)}
     assert differ == {}, differ
     # the deployed values the live path depends on (was test_d305's "shipped defaults")
-    assert (prod.JUDGE_MODE, prod.FACT_RELATION, prod.FACT_PROMPT, prod.FACT_MODE) == (
-        "split3", True, "v5", "prompter")
+    assert (prod.JUDGE_MODE, prod.FACT_PROMPT, prod.FACT_MODE) == ("split3", "v5", "prompter")
     assert (prod.STT_ENDPOINTING, prod.DESIGN_ARM) == ("STANDARD", "A")
 
 

@@ -35,7 +35,7 @@ async def test_d374_a_not_approved_phrase_keeps_both_verdicts():
 
     llm = _Backend()
     llm.judge(LINE, violations=[violation("ASEAN-2D-DISEASE", "treats eczema")])
-    rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT="v5"))
+    rt = await live_runtime(make_ctx(backend=llm, FACT_PROMPT="v5"))
     sink: list = []
     token = DROPS.set(sink)
     try:

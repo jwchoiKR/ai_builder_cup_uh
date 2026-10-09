@@ -1,4 +1,4 @@
-"""D-296: the relation arm (FACT_RELATION). The fact checker names its evidence by SOURCE sentence id and states a
+"""D-296: the relation fact checker (D-435: the only one). The fact checker names its evidence by SOURCE sentence id and states a
 relation; code builds the quote.
 Made-up lines and passages across categories (skincare, a supplement, a children's product, a fragrance, a kettle)."""
 from __future__ import annotations

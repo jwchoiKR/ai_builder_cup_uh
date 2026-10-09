@@ -285,7 +285,7 @@ class FactCheckOutput(BaseModel):
     _corrects: list = PrivateAttr(default_factory=list)
 
 
-# ---- D-296 FACT_RELATION: the evidence by sentence id, then the relation; code builds the quote ------------------
+# ---- D-296: the evidence by sentence id, then the relation; code builds the quote ------------------
 
 FactRelation = Literal["contradicts", "consistent", "not_in_documents", "uncertain"]
 

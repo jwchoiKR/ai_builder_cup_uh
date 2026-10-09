@@ -61,7 +61,6 @@ class Settings(BaseSettings):
     DRAFT_GATE: Literal["full", "provenance"] = "full"  # D-308: back;  # provenance: citations, products and numbers only
     GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins
     SHOUTOUT: Literal["regex", "judge"] = "regex"  # D-308: back;  # judge: triage labels shout-outs (arm B's)
-    FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     # D-331 v5: the documents' value before the relation, endorsements of the previous line, and a stance per claim
     # (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked. D-432: v2-v4 and v6-v8 are deleted
     # (none was chosen); v1 stays for the tests that pin it

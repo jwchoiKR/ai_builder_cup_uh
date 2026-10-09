@@ -11,7 +11,7 @@ from app.onboarding.release import product_key, save_release
 from app.pipelines.runtime import create_session
 
 from .helpers import live_runtime, make_ctx
-from .judge_fakes import ScriptedBackend, close_env, speak, violation
+from .judge_fakes import ScriptedBackend, close_env, speak
 from .test_clean_base import EV, clean_data, kettle
 
 CREAM_EV = [{"file": "cream.md", "locator": "table", "quote": "Lumen Night Cream 50 mL, S$36.00"}]

@@ -106,18 +106,6 @@ Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from t
 - `correct_value` is the line the host says. Without a number it is a short statement of the right fact in the
   quote's words ("contains fragrance"), never a bare field word.
 
-## FD: fact_checker
-
-Fact mode "docs" (D-247): the product's original files come before this message, each after a line "FILE <name>".
-- The record facts in SOURCE are an index. The files are the authority: when a file and a passage disagree, the file
-  is right.
-- Check every fact the host states against the files too: numbers, conditions, offer terms, ingredients (present or
-  absent), cautions, test results and their footnotes.
-- A correction from a file sets `passage_id` to "file:<name>#<locator>" (the file's name as given, and where in it:
-  page, sheet and row, paragraph, "image"), and `quote` to the file's words copied character for character. Software
-  checks the quote in the file.
-- Only contradict with a value a file or SOURCE states. When neither gives the value, the claim is `not_in_sources`.
-
 ## RD: fact_checker
 
 Fact mode "docs" with the relation arm (D-296): the product's original files come before this message, each after a
