@@ -2,8 +2,7 @@
 branch out (compliance alert, correction, fact note, prompter, host answer, product switch).
 
 The agents are scripted (ScriptedBackend), so these tests check the orchestrator's branching, not the
-models. Tricky sentences with the real agents on Vertex AI: `scripts/eval_orchestrator.py`
-(docs/eval/orchestrator-cases.md).
+models. (The real-agent run, scripts/eval_orchestrator.py, ran the legacy judges and was retired in D-435.)
 """
 from __future__ import annotations
 

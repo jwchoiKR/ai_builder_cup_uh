@@ -2976,3 +2976,8 @@ D-435 (user go 10/10; the D-434 plan): the N-code, now that its tests run the pr
   - Deleted: STT_RISK_HINTS (risk_phrases, with_risk_phrases), STT_HINTS=record (record_terms and its name regexes) and STT_HINT_BOOST.
   - The stream's hints are the base glossary under chirp_3's 500 cap, which was the cap with_risk_phrases also applied. phrases_for_release keeps its `mode` argument for the eval's --mode base.
   - Tests: the risk-hint and record/boost tests are gone; test_d327 keeps the production eval-hook case.
+- Eval scripts:
+  - Retired: run_eval.py's legacy-judge eval, eval_orchestrator.py and probe_banned_lists.py. They ran the legacy judges, not production, and no current runner uses them.
+  - The helpers other scripts share (load_cases, pct, latency_line, make_client, _group, _same_value) moved to scripts/eval_common.py. eval_holdout_sequences, eval_routing, experiments/gemini_router and their tests import them from there.
+  - run_eval.py is now only a re-export of those helpers for eval_agents.py, which the comments team owns and which is left as it is.
+  - eval_adversarial.py and eval_show.py stay.

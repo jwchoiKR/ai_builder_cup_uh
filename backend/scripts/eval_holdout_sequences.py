@@ -29,7 +29,7 @@ from app.pipelines.runtime import create_session
 from app.pipelines.utterances import operator_switch
 from app.scheduler import AsyncScheduler
 from eval_expectations import expectation_checks
-from run_eval import _group, _same_value, load_cases, latency_line
+from eval_common import _group, _same_value, latency_line, load_cases
 
 
 class ReplayClock(ManualClock):
