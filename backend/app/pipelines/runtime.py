@@ -743,7 +743,8 @@ class SessionRuntime:
             "market": {"market": self.pack.market.market, "name": self.pack.market.name, "lang": self.pack.lang,
                        "tier": self.tier,  # D-150
                        # D-228: no law pack covers this release's category: no compliance checks run
-                       "law_checks": _has_law(self.pack.rules), "category": self.pack.rules.category},
+                       "law_checks": _has_law(self.pack.rules), "category": self.pack.rules.category,
+                       "retraction_phrase": self.pack.lang_pack.retraction_phrase},  # D-436
         }
         if role == "operator":
             ids = {c.comment_id for c in shown}

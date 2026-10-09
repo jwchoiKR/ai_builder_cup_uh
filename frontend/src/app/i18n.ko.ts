@@ -67,6 +67,7 @@ export const KO_HOST: Record<string, string> = {
   "Heard:": "들린 말:",
   "{a} of {b}": "{b}개 중 {a}",
   "Say this instead.": "이렇게 말하세요.",
+  "Take it back, then say:": "먼저 철회하고, 이렇게 말하세요:",
   "Waiting for your correction": "정정을 기다리는 중",
   "CHECK WORDING": "표현 확인",
   // D-412: the host's strip for lines no judge could check

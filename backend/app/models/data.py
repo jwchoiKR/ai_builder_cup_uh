@@ -303,6 +303,8 @@ class LangPack(BaseModel):
     negation_cues: list[str]
     quote_cues: list[str]
     lexicon: LexiconData
+    # D-436: what the host says first to take a red claim back; the red box and the cue put it before say_instead
+    retraction_phrase: str = ""
 
 
 class ClaimRulesFile(BaseModel):

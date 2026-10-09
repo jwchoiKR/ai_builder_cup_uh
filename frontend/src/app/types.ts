@@ -155,6 +155,7 @@ export interface SessionMarket {
   tier: "live" | "preview";
   law_checks?: boolean; // D-228: false when no law pack covers the product's category
   category?: string;
+  retraction_phrase?: string; // D-436: the language pack's words for taking a red claim back
 }
 
 /** What the asker is told while their question has no posted reply; set by the server from the question's state. */
