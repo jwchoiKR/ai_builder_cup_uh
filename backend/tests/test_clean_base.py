@@ -3,6 +3,8 @@ data/promos and data/demo absent, the app starts, a made-up non-skincare release
 the demo brand."""
 from __future__ import annotations
 
+import pytest
+
 import json
 import shutil
 import sys
@@ -135,3 +137,6 @@ def test_d278_the_demo_is_a_show_of_its_onboarded_releases(tmp_path):
         assert [p["name"] for p in cat["products"]] == ["Hydra Barrier Cream", "Deep Hydration Ampoule"]
         again = c.post("/api/demo/reset", json={}).json()  # a reset keeps the show
         assert again["release_ids"] == show and again["session_id"] != s["session_id"]
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

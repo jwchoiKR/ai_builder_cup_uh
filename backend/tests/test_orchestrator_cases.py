@@ -165,3 +165,6 @@ async def test_orchestrator_case(env, case):
     rt, llm = env
     assert (await rt.current_segment()).product_id == CREAM
     await case(rt, llm)
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

@@ -116,3 +116,6 @@ async def test_d304_shout_outs_by_triage(mode, label, kinds):
         assert [s.kind for s in rt.shoutouts] == kinds
     finally:
         await close_env(rt)
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

@@ -18,28 +18,45 @@ from app.providers.prompts import load_prompts
 from app.store.memory import MemoryStore
 
 
-# D-305: the model-only settings are the shipped defaults. The older tests check the code paths as they were written,
-# so the test session pins those paths (environment, so get_settings() sees them too); a test turns any setting on
-# itself, and test_d305.py runs the shipped defaults (SHIPPED)
 # D-353: every FACT_FIXES letter that still has a prompt line (D-432: the code-check letters are deleted)
 ALL_FIXES = "F1,F5,Q6"
 
-LEGACY = {
-    "FACT_RELATION": "false", "JUDGE_ARM": "guards",
-    "VERBAL_CHECK": "code", "JUDGE_PRODUCTS": "named",
+# D-434 (test migration, user go 10/10): the live path runs as production does (code defaults plus
+# deploy/cloudrun.sh; test_d434.py guards that they agree). No live-path setting comes from the environment: the ones a
+# developer's shell sets are removed here, and get_settings() never reads the developer's .env in a test.
+LIVE_PATH_KEYS = (
+    "JUDGE_MODE", "JUDGE_ARM", "JUDGE_SEED", "JUDGE_PRODUCTS", "JUDGE_TIMEOUT_MS", "VERIFY_TIMEOUT_MS",
+    "SINGLE_MODEL", "SINGLE_THINKING", "SINGLE_FACTS_THINKING", "FACT_RELATION", "FACT_PROMPT", "FACT_MODE",
+    "FACT_FIXES", "FACT_TIMEOUT_MS", "FACT_LATE_MS", "QUESTION_HOLD", "QUESTION_HOLD_MS", "CORRECTION_HANDLES",
+    "VERBAL_CHECK", "UTTERANCE_MERGE_WINDOW_MS", "STT_ENDPOINTING", "STT_HINTS", "STT_RISK_HINTS",
+    "STT_PHRASE_HINTS_ENABLED", "DESIGN_ARM", "LLM_RETRY_ON_429_MS", "LLM_RETRY_ON_5XX", "JUDGE_HEDGE_MS",
+    "HEDGED_AGENTS", "HEDGE_DELAYS", "COMPLIANCE_ESCALATE_SEC", "SWITCH_DUAL_SCOPE_SEC", "CONTEXT_RETRY_TOTAL_MS",
+    "UNDO_SWITCH_WINDOW_SEC",
+)
+for _key in LIVE_PATH_KEYS:
+    os.environ.pop(_key, None)
+Settings.model_config["env_file"] = None  # get_settings() in a test: code defaults, never the developer's .env
+os.environ.setdefault("LLM_PROVIDER", "mock")  # as make_settings: no Google provider in a test
+os.environ.setdefault("STT_PROVIDER", "mock")
+
+# D-434: the old live-path pins, applied (with the rules-JSON compliance path) only to a file or test marked
+# `legacy_live` until it is migrated. Temporary: test_d434 fails when a file outside LEGACY_LIVE_FILES uses it.
+LEGACY_LIVE = {
+    "FACT_RELATION": "false", "JUDGE_ARM": "guards", "VERBAL_CHECK": "code", "JUDGE_PRODUCTS": "named",
+    "UTTERANCE_MERGE_WINDOW_MS": "3500", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash",
+    "SINGLE_THINKING": "LOW", "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",
+    "CORRECTION_HANDLES": "false", "FACT_MODE": "docs",
+}
+# The comments path keeps its own test pins (the comments team's tests were written for them)
+COMMENT_PINS = {
     "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
-    "UTTERANCE_MERGE_WINDOW_MS": "3500",
-    # D-336: the measured config became the default; the older tests keep the paths they were written for
-    "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash", "SINGLE_THINKING": "LOW",
-    "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",  # D-343
-    "CORRECTION_HANDLES": "false",  # D-358: on by default with the originals path; the rules-path tests script ids
-    "FACT_MODE": "docs",  # D-360: the default is the prompter snapshot; older tests cite the release's sheet passages
     # record answers became the default; the older tests keep the composer path for price and size questions,
     # and the host route of sensitive questions in a team show
     "RECORD_ANSWERS": "false", "SENSITIVE_APPROVAL": "host", "COMPOSER_REVISE": "false", "TRIAGE_RETRIES": "0", "COMPOSE_RETRIES": "0", "TRIAGE_MODEL": "", "DRAFT_VERIFY_THINKING": "", "GROUP_TTL_WAITING_SEC": "600", "DEFAULT_SHOW_MODE": "solo",
 }
-for _key, _value in LEGACY.items():
+for _key, _value in COMMENT_PINS.items():
     os.environ.setdefault(_key, _value)
+LEGACY = LEGACY_LIVE | COMMENT_PINS
 SHIPPED = {k: Settings.model_fields[k].default for k in LEGACY}
 # D-336: the verifier arm as it shipped from D-305 to D-335 (the default is now the single arm)
 # D-392: the verify arm is gone; these shipped-default tests run the single arm
@@ -113,8 +130,16 @@ def bus(store, clock) -> EventBus:
 
 
 @pytest.fixture(autouse=True)
-def _compliance_path(request, monkeypatch):
-    """D-358: production reads the regulation originals; tests written for the rule-JSON verdicts keep that path
-    (pinned here, never in a setting). A test marked `originals` runs the production path."""
-    originals = request.node.get_closest_marker("originals") is not None
-    monkeypatch.setattr("app.agents.split_judges.LEGACY_RULES", not originals)
+def _live_path(request, monkeypatch):
+    """D-434: every test runs the production live path (the regulation originals, D-358). A test marked
+    `legacy_live` (not migrated yet) gets the old pins and the rules-JSON compliance path."""
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    legacy = request.node.get_closest_marker("legacy_live") is not None
+    if legacy:
+        for key, value in LEGACY_LIVE.items():
+            monkeypatch.setenv(key, value)
+    monkeypatch.setattr("app.agents.split_judges.LEGACY_RULES", legacy)
+    yield
+    get_settings.cache_clear()

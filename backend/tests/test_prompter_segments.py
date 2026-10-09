@@ -212,3 +212,6 @@ async def test_d422_a_transition_that_does_not_name_the_next_product_does_not_sw
         assert (await rt.current_segment()).product_id == CREAM
     finally:
         await close_env(rt)
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

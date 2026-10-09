@@ -173,3 +173,6 @@ async def test_snapshot_blocks(env):
     assert [t["text"] for t in op["transcripts"]] == [BACTERIA] and "transcripts" not in host
     assert {"compliance_judge", "context_judge"} <= {c["agent"] for c in op["agent_calls"]} and "agent_calls" not in host
     assert op["metrics"]["alert"]["count"] == 1
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

@@ -307,3 +307,6 @@ async def test_a_fact_call_slower_than_the_on_time_line_counts_for_the_health_do
     await advance(rt, 1000)
     await rt.utterances._note_health("fact_checker", "timeout")
     assert rt.utterances.degraded == ["fact_checker"]
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

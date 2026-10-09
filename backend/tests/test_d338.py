@@ -2,6 +2,8 @@
 no code drop of a verdict: the fact checker's contradiction stands next to the compliance alert."""
 from __future__ import annotations
 
+import pytest
+
 import json
 import re
 
@@ -44,3 +46,6 @@ async def test_d374_a_not_approved_phrase_keeps_both_verdicts():
     finally:
         DROPS.reset(token)
         await close_env(rt)
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

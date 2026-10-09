@@ -255,3 +255,6 @@ def test_d201_the_draft_code_gate_per_arm(pack, catalog, arm, ok):
     refused = out.model_copy(update={"grounded": False, "answer": ""})
     assert draft_code_gate(refused, pack.passages, CREAM, arm=arm, reflex=Reflex(pack.rules, pack.lexicon),
                            not_approved=[])[0] is False
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

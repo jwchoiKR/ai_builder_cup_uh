@@ -93,3 +93,6 @@ async def test_d174_a_short_span_inside_sheet_wording_is_not_an_alert(env, text,
     llm.judge(text, violations=[violation("ASEAN-2D-VULNERABLE" if alerts == 0 else "ASEAN-3-SKIN-ACNE", span)])
     await speak(rt, text)
     assert len(await compliance_alerts(rt)) == alerts
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

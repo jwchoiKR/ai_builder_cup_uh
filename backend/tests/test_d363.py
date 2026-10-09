@@ -4,6 +4,8 @@ only when the model marks it fixed. A note that appears after a later line was a
 D-357). Demo products; the fact checker's answers are scripted."""
 from __future__ import annotations
 
+import pytest
+
 import asyncio
 import logging
 
@@ -90,3 +92,6 @@ async def test_d363_a_note_that_came_after_its_fix_was_checked_is_asked_again(ca
         assert note.product_id == CREAM
     finally:
         await close_env(rt)
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

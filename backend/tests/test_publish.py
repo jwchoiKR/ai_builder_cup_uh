@@ -551,3 +551,6 @@ async def test_d204_a_red_alert_in_the_cancel_window_stops_the_post(env):
     await rt.ctx.scheduler.advance(2000)
     [m] = await messages(rt, "host_answer")
     assert m.state == "cancelled"
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
