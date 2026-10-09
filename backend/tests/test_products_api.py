@@ -125,3 +125,40 @@ def test_a_release_needs_the_approved_product_and_a_regulation_file(tmp_path, mo
             assert reflex.first_hit("This cures acne") is None
     finally:
         storage.configure(tmp_path, None)
+
+
+def test_two_releases_make_one_show_each_product_with_its_own_regulation(tmp_path, monkeypatch):
+    from app.agents.originals import originals_for
+    from app.logic.catalog import Catalog
+
+    bucket = storage.MemoryBucket()
+    monkeypatch.setattr(storage, "bucket_for", lambda name, project=None: bucket)
+    backend = ScriptedBackend()
+    backend.outputs[("product_read", "A.pdf")] = INFO
+    backend.outputs[("product_read", "B.pdf")] = INFO | {"product_name": "Day Cream", "live_price": "20.00",
+                                                        "list_price": "25.00"}
+    try:
+        app = create_app(make_settings(ONBOARDING_DIR=str(tmp_path), ONBOARDING_GCS_BUCKET="fake"), llm_backend=backend)
+        with TestClient(app) as c:
+            keys = []
+            for name, law in (("A.pdf", "LawA.pdf"), ("B.pdf", "LawB.pdf")):
+                pid = c.post("/api/products", files={"file": (name, b"%PDF-1.7 " + name.encode(), "application/pdf")}
+                             ).json()["product_id"]
+                c.post(f"/api/products/{pid}/read")
+                c.post(f"/api/products/{pid}/approve")
+                rid = c.post("/api/regulations", files={"file": (law, b"%PDF-1.7 " + law.encode(), "application/pdf")}
+                             ).json()["regulation_id"]
+                keys.append(c.post(f"/api/products/{pid}/release", json={"regulation_id": rid}).json()["release_id"])
+            r = c.post("/api/sessions", json={"release_ids": keys})
+            assert r.status_code == 201, r.text
+            cat = c.get(f"/api/catalog?session={r.json()['session_id']}").json()
+            assert [p["name"] for p in cat["products"]] == ["Night Serum", "Day Cream"]
+            pack, _ = app.state.ctx.pack_for("SG", "en", tuple(keys))
+            pids = [k.split(":")[0] for k in keys]
+            for pid, law in zip(pids, ("LawA.pdf", "LawB.pdf")):
+                docs, missing = originals_for(Catalog(pack, r.json()["runsheet_id"]), tmp_path, [pid])
+                assert [d.name for d in docs] == [law] and missing == ()
+            bad = c.post("/api/sessions", json={"release_ids": [keys[0], "prd_000000000000:reg_000000000000"]})
+            assert bad.status_code == 400  # the second is not approved
+    finally:
+        storage.configure(tmp_path, None)

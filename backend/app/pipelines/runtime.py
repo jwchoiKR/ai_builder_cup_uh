@@ -775,7 +775,9 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
 
         if len(release_ids) > MAX_RELEASES or len(set(release_ids)) != len(release_ids):
             raise ActionError(400, "bad_release_ids", f"2 to {MAX_RELEASES} different releases")
-        missing = [r for r in release_ids if not (ctx.settings.onboarding_path / "releases" / f"{r}.json").is_file()]
+        # a rebuilt-onboarding release ("prd_...:reg_...") lives in the bucket; pack_for checks it
+        missing = [r for r in release_ids if not r.startswith("prd_")
+                   and not (ctx.settings.onboarding_path / "releases" / f"{r}.json").is_file()]
         if missing:
             raise ActionError(404, "unknown_release", f"no release {missing}")
         try:
