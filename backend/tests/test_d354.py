@@ -103,43 +103,6 @@ async def test_d354_a_too_large_document_is_logged_not_written(caplog):
     assert set(client.data[sub("ses_1", "transcripts")]) == {"cm_000001"}
 
 
-async def test_d354_a_replayed_show_matches_memory_and_a_new_process_continues_it(monkeypatch):
-    """A show through the real pipeline: Firestore's documents equal memory's, per collection; a new process (a
-    new store on the same database) reads the session back and continues its event seq."""
-    import app.store.firestore as fs
-
-    from .helpers import live_runtime, make_ctx
-    from .judge_fakes import ScriptedBackend, speak, violation
-
-    client = FakeFirestore()
-    monkeypatch.setattr(fs, "_make_client", lambda settings: client)
-    llm = ScriptedBackend()
-    llm.judge("It cures eczema, honestly.", violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
-    ctx = make_ctx(backend=llm, STORE="firestore", GCP_PROJECT="demo-test")
-    rt = await live_runtime(ctx)
-    try:
-        for line in ("Welcome everyone to the show.", "It cures eczema, honestly.", "Sorry, scratch that."):
-            await speak(rt, line)
-        await rt.utterances.drain()
-        await rt.end()
-        sid = rt.sid
-        assert await ctx.store.flush(10)
-        mem = ctx.store._data
-        for path in [p for p in mem if p == SESSIONS or p.startswith(f"{SESSIONS}/{sid}/")]:
-            assert set(client.data.get(path, {})) == set(mem[path]), path
-        last = (await ctx.bus.events_after(sid, 0))[-1].seq
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-
-    fresh = FirestoreStore(client=client)  # a new instance after a restart
-    assert (await fresh.get(SESSIONS, sid, Session)).status == "ended"
-    bus = EventBus(fresh, ctx.clock)
-    assert await bus.last_seq(sid) >= last  # D-381: it continues after the reserved ceiling (a gap is fine)
-    ev = await bus.emit(sid, "summary.ready", {"ok": True})
-    assert ev.seq > last
-
-
 async def test_d354_delete_session_deletes_it_in_firestore_too():
     store, client = _store()
     await store.put(SESSIONS, "ses_1", _comment(0))

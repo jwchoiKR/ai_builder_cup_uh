@@ -67,15 +67,11 @@ _TEST_DATA: Path | None = None
 
 
 def test_data_dir() -> Path:
-    """D-278: the runtime data has no products and no market law (user, 10/10: regulation comes only from the PDF
-    uploaded with a product). Tests run on a copy of it plus the demo pack that only tests load (tests/fixtures/
-    demo_pack: products and their PDFs, run-sheets, promos, demo comments, the markets with their law rules), built
-    once."""
+    """A copy of the runtime data (no products, no market law), built once."""
     global _TEST_DATA
     if _TEST_DATA is None:
         out = Path(tempfile.mkdtemp(prefix="live_studio_test_data_")) / "data"
         shutil.copytree(_REPO / "data", out)
-        shutil.copytree(Path(__file__).parent / "fixtures" / "demo_pack", out, dirs_exist_ok=True)
         atexit.register(shutil.rmtree, out.parent, True)
         _TEST_DATA = out
     return _TEST_DATA

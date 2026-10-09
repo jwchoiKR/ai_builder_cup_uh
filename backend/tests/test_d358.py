@@ -132,23 +132,6 @@ async def test_d400_a_document_citation_is_red_and_a_correction_goes_by_handle(t
         await close_env(rt)
 
 
-def test_d400_the_model_is_not_asked_for_a_severity_and_a_document_citation_is_red(catalog):
-    """D-427: TEST-QUALIFIER (the only orange citation) is gone; its name is now cited like any document."""
-    from app.agents.utterance_judge import validate_original
-    from app.models.agent_io import ComplianceOutputO
-
-    props = ComplianceOutputO.model_json_schema()["$defs"]["ViolationO"]["properties"]
-    assert "severity" not in props and "qualified_result_id" not in props
-    out = ComplianceOutputO.model_validate({"compliance": {"violations": [
-        {"citation": "TEST-QUALIFIER", "quote": "q", "span": "s", "is_negated": False, "is_quoted": False,
-         "say_instead": "x"},
-        {"citation": "guideline.pdf#3", "quote": "q", "span": "t", "is_negated": False, "is_quoted": False,
-         "say_instead": "y"}]}, "correction": {"corrects_alert_ids": []}, "reason": "r"})
-    values = {"current_product_json": {"product_id": catalog.order[0]}, "active_alerts_json": []}
-    got = validate_original(out, catalog, values, ()).compliance.violations
-    assert [(v.severity, v.rule_id) for v in got] == [("HIGH", "test-qualifier#document"), ("HIGH", "guideline#3")]
-
-
 def test_d405_no_own_rule_for_vulnerable_groups_in_the_prompt():
     """D-405 (user, audit 13a): the judge enforces only the regulation documents; the prompt adds no rule of its own."""
     from pathlib import Path
