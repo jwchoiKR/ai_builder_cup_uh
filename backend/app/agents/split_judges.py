@@ -170,9 +170,6 @@ class ComplianceJudge(_SplitJudge):
         if self.handles:
             if extra := arms._addenda(str(llm.prompts_path)).get(("HANDLES", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "COMPLIANCE_RESAY", False):  # D-355: a qualified re-say corrects
-            if extra := arms._addenda(str(llm.prompts_path)).get(("RESAY", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "COMPLIANCE_ENDORSE", False):  # D-333: endorsed claims
             if extra := arms._addenda(str(llm.prompts_path)).get(("ENDORSE", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
@@ -271,18 +268,15 @@ class ComplianceJudge(_SplitJudge):
     def _with_handles(self, inp: JudgeInput, values: dict) -> dict:
         """D-356: ACTIVE_ALERTS as handles (A1, A2 ...) with span, rule and status; the handle -> id map stays in
         the values (never sent) and restores the ids before the id check."""
-        from ..logic.qualifier import RULE_ID as QUALIFIER
-
         by_id = {a.alert_id: a for a in inp.active_alerts}
         shown, handles = [], {}
         for i, row in enumerate(values["active_alerts_json"], 1):
             a = by_id.get(row["alert_id"])
-            status = "banner" if row["rule_id"] == QUALIFIER else "active"
             handles[f"A{i}"] = row["alert_id"]
             # D-403: and how many seconds ago it was raised, so the model can tell a repeat from a new claim
             age = max(0, (inp.now - a.created_at) // 1000) if inp.now is not None and a is not None else None
             shown.append({"handle": f"A{i}", "product_id": row.get("product_id"), "span": row["span"],
-                          "rule_id": row["rule_id"], "status": status, "say_instead": row.get("say_instead"),
+                          "rule_id": row["rule_id"], "status": "active", "say_instead": row.get("say_instead"),
                           "raised_s_ago": age})
         return {**values, "active_alerts_json": shown, "alert_handles": handles}
 
@@ -310,20 +304,6 @@ class ComplianceJudge(_SplitJudge):
                      [c.model_dump() for c in res.output.alert_checks] if res.output is not None else res.status,
                      res.output.correction.corrects_alert_ids if res.output is not None else None)
         return res
-
-    def extra_data(self) -> str:
-        if not arms.meaning_to_llm(self.arm):
-            if not self.fact_record:
-                return ""
-            rel = issubclass(self.output_model, ComplianceOutputR)  # D-299: by id (D-414: not the originals path)
-            results = [{"product_id": p.product_id, "say": r.say} | ({"result_id": r.result_id} if rel else {})
-                       for p in self.catalog.products
-                       for r in p.qualified_results]
-            return super().extra_data() + (inputs.data_block("QUALIFIED_RESULTS", results) if results else "")
-        # D-187 arm B: the in-house test results the judge picks a qualifier replacement from, by id
-        results = [{"result_id": r.result_id, "product_id": p.product_id, "say": r.say}
-                   for p in self.catalog.products for r in p.qualified_results]
-        return super().extra_data() + inputs.data_block("QUALIFIED_RESULTS", results)
 
     def validate(self, out: ComplianceOutput, values: dict) -> ComplianceOutput:
         handles = values.get("alert_handles")

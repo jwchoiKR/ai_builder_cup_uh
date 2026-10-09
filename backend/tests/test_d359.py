@@ -1,18 +1,12 @@
-"""D-359: GET /onboarding/regulations (read-only): approved regulation packs with their source files and sections, the
-pack active per market and category, and per release the originals its live judge reads (D-358), with a warning when
-no regulation matches. A mock-LLM flow on a fictional law pack: upload, approve, a matching release lists the
-original, a release of another category shows the warning."""
+"""D-359: GET /onboarding/regulations (read-only): approved regulation packs with their market, categories and source
+files (D-427: no model reads them), the pack active per market and category, and per release the originals its live
+judge reads (D-358), with a warning when no regulation matches. A mock-LLM flow on a fictional law pack: upload,
+approve, a matching release lists the original, a release of another category shows the warning."""
 from __future__ import annotations
 
 import time
 
 from .test_onboarding import EV, _record
-
-LAW = {"name": "Kelmar supplement code", "regulator": "Kelmar authority", "covers": ["food_supplement"],
-       "language": "en", "rules": [
-           {"rule_id": "K-DISEASE", "title": "No disease claims", "description": "No cure claims.", "severity": "HIGH",
-            "rule_category": "Disease", "unacceptable_examples": [], "say_instead_hint": "",
-            "evidence": [{"file": "kelmar_code.pdf", "locator": "section 2.1", "quote": "must not be presented"}]}]}
 
 
 def _wait(c, job: str) -> dict:
@@ -33,7 +27,6 @@ def test_d359_upload_approve_and_the_originals_each_release_reads(tmp_path):
     from .judge_fakes import ScriptedBackend
 
     backend = ScriptedBackend()
-    backend.outputs[("lawpack_read", "kelmar_code.pdf")] = LAW
     backend.outputs[("onboarding_read", "supp.txt")] = _record(category="food_supplement", product_name="Joint Caps")
     backend.outputs[("onboarding_read", "kettle.txt")] = _record(category="kitchen_appliance",
                                                                  product_name="Quick Kettle",
@@ -53,7 +46,8 @@ def test_d359_upload_approve_and_the_originals_each_release_reads(tmp_path):
         reg = c.get("/api/onboarding/regulations").json()
     [pack] = reg["packs"]
     assert pack["pack_id"] == pack_id and pack["files"] == ["kelmar_code.pdf"]
-    assert pack["active_for"] == ["food_supplement"] and pack["sections"] == ["kelmar_code.pdf · section 2.1"]
+    assert pack["active_for"] == ["food_supplement"] and pack["covers"] == ["food_supplement"]
+    assert pack["market"] == "SG" and not {"name", "regulator", "sections"} & set(pack)
     assert "SG" in reg["markets"] and {"food_supplement", "kitchen_appliance"} <= set(reg["categories"])
     rows = {r["product_name"]: r for r in reg["releases"]}
     assert [o["name"] for o in rows["Joint Caps"]["originals"]] == ["kelmar_code.pdf"]

@@ -100,9 +100,8 @@ def test_d278_the_app_starts_and_serves_a_release_without_the_demo_data(tmp_path
         assert "{brand}" in notice["text"] and "skin" not in notice["text"].lower()
 
 
-def test_d278_a_release_gets_no_demo_brand_rules_and_its_qualifier_rule_from_its_results(tmp_path):
-    from app.logic.qualifier import RULE_ID
-
+def test_d278_a_release_gets_no_demo_brand_rules_and_no_rule_from_its_results(tmp_path):
+    """D-427: a release's test results add no rule (TEST-QUALIFIER is gone)."""
     data, onb = clean_data(tmp_path), tmp_path / "onb"
     ctx = make_ctx(DATA_DIR=str(data), ONBOARDING_DIR=str(onb))
     try:
@@ -112,8 +111,7 @@ def test_d278_a_release_gets_no_demo_brand_rules_and_its_qualifier_rule_from_its
             "statement": "Boils 1 litre in 3 minutes", "provenance": "third_party_lab", "qualifier": "tested by Fenmore Labs",
             "conditions": None, "evidence": EV}]})
         tested = release_pack(ctx.pack, rec, "rel_k_v2", onb)
-        assert RULE_ID not in {r.rule_id for r in plain.rules.rules}
-        assert RULE_ID in {r.rule_id for r in tested.rules.rules}
+        assert tested.rules.rules == plain.rules.rules
         assert not any(r.rule_id.startswith("BRAND-") for r in tested.rules.rules)
     finally:
         ctx.runtimes.shutdown()

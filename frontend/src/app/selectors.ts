@@ -288,9 +288,6 @@ export function factNotesForHost(state: ClientState): Alert[] {
     .sort((a, b) => alertTime(b) - alertTime(a));
 }
 
-/** D-105: a test number said without "in our in-house test". */
-export const TEST_QUALIFIER_RULE = "TEST-QUALIFIER";
-
 /** D-399: the newest of each group (the list is newest first) and how many there are; a null key is never grouped. */
 function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; count: number; members: T[] }[] {
   const out: { item: T; count: number; members: T[] }[] = [];
@@ -309,38 +306,23 @@ function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; co
   return out;
 }
 
-/** Host banners. D-105: a test-qualifier banner and a fact note on the same sentence show as one
- *  card (the note joins the banner when the fact checker finishes); alerts and logs keep both. D-342 (review H20):
+/** Host banners. D-342 (review H20):
  *  a sentence with an active HIGH alert shows only that alert: its MEDIUM banners and fact notes wait in the log.
  *  D-399 (user): on the host screen only, MEDIUM alerts are grouped by the rule the model cited and fact notes by the
  *  passage id they cite (ids, never text; a note with no passage is not grouped): one card, the newest, with its count.
  *  Every alert stays its own record and handle; the operator screen lists each one. */
 export function hostBanners(state: ClientState): {
-  mediums: { alert: Alert; fact: Alert | null; factFixed: Alert | null; count: number; factCount: number; ids: string[] }[];
+  mediums: { alert: Alert; count: number; ids: string[] }[];
   facts: { alert: Alert; count: number; ids: string[] }[];
 } {
   const high = new Set(activeComplianceAlerts(state).filter((a) => a.severity === "HIGH").map((a) => a.transcript_id));
-  // D-403: fact notes are grouped first; a qualifier card on a note's sentence takes that note's whole group
-  const groups = groupNewest(factNotesForHost(state).filter((f) => !high.has(f.transcript_id)), (f) => f.passage_id);
-  const merged = new Set<number>();
+  const box = ({ item: alert, count, members }: { item: Alert; count: number; members: Alert[] }) =>
+    ({ alert, count, ids: members.map((a) => a.alert_id) });
   const mediums = groupNewest(activeMediumAlerts(state).filter((a) => !high.has(a.transcript_id)), (a) => a.rule_id)
-    .map(({ item: alert, count, members }) => {
-      const i = alert.rule_id === TEST_QUALIFIER_RULE
-        ? groups.findIndex((g, j) => !merged.has(j) && g.members.some((f) => f.transcript_id === alert.transcript_id))
-        : -1;
-      if (i >= 0) merged.add(i);
-      const ids = [...members, ...(i >= 0 ? groups[i].members : [])].map((a) => a.alert_id);
-      // D-418: once the line's fact note is corrected, the card keeps saying its right line (never the old number)
-      const factFixed = alert.rule_id === TEST_QUALIFIER_RULE && i < 0
-        ? (Object.values(state.alerts)
-          .filter((f) => f.kind === "fact" && f.status === "corrected" && f.transcript_id === alert.transcript_id)
-          .sort((a, b) => alertTime(b) - alertTime(a))[0] ?? null)
-        : null;
-      return { alert, fact: i >= 0 ? groups[i].item : null, factFixed, count, factCount: i >= 0 ? groups[i].count : 0, ids };
-    });
-  const notes = groups.filter((_, j) => !merged.has(j))
-    .map(({ item: alert, count, members }) => ({ alert, count, ids: members.map((a) => a.alert_id) }));
-  return { mediums, facts: notes };
+    .map(box);
+  const facts = groupNewest(factNotesForHost(state).filter((f) => !high.has(f.transcript_id)), (f) => f.passage_id)
+    .map(box);
+  return { mediums, facts };
 }
 
 /** D-420: the host's strip: how many lines are unchecked and the latest failure's cause among them, by the server's
@@ -356,8 +338,7 @@ export const MAX_ALERT_BOXES = 2;
 export type HostBox =
   | { kind: "high"; view: HighAlertView; ids: string[]; units: number }
   | { kind: "fact"; alert: Alert; count: number; ids: string[]; units: number }
-  | { kind: "medium"; alert: Alert; fact: Alert | null; factFixed: Alert | null; count: number; factCount: number;
-      ids: string[]; units: number };
+  | { kind: "medium"; alert: Alert; count: number; ids: string[]; units: number };
 
 /** Where an active alert is for the host: in a box shown now, held behind a red on its line (D-342), or beyond the
  *  box limit (counted in "+N"). */
@@ -366,9 +347,8 @@ export type HostVisibility = "shown" | "held" | "more";
 /** D-402, D-404: the host's alert stack in order (red first, then fact notes, then MEDIUM; D-342 and the grouping
  *  apply): the boxes shown, "+N" and each active alert's visibility. D-407 (user): every active red is its own box,
  *  newest first, so two reds fill the two boxes and the rest is in "+N". "+N" counts, by alert id, every active alert not
- *  visible in the boxes shown: the other reds, the alerts held by D-342 and the members of the boxes not shown; a
- *  qualifier card merged with a fact note counts as one (its other fact notes on top). The host and operator screens
- *  both read this. */
+ *  visible in the boxes shown: the other reds, the alerts held by D-342 and the members of the boxes not shown. The
+ *  host and operator screens both read this. */
 export function hostAlertStack(state: ClientState): {
   shown: HostBox[];
   more: number;
@@ -380,7 +360,7 @@ export function hostAlertStack(state: ClientState): {
     ...reds.map((alert, i) => ({ kind: "high" as const, view: { alert, position: i + 1, total: reds.length },
       ids: [alert.alert_id], units: 1 })),
     ...facts.map((f) => ({ kind: "fact" as const, ...f, units: f.count })),
-    ...mediums.map((m) => ({ kind: "medium" as const, ...m, units: m.count + Math.max(0, m.factCount - 1) })),
+    ...mediums.map((m) => ({ kind: "medium" as const, ...m, units: m.count })),
   ];
   const shown = boxes.slice(0, MAX_ALERT_BOXES);
   const visibility: Record<string, HostVisibility> = {};

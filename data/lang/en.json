@@ -251,17 +251,6 @@
         "fairer skin"
       ]
     },
-    "test_qualifier": {
-      "required_terms": ["test", "study", "studies", "trial", "panel", "clinical", "lab", "dermatolog", "prove", "proof", "evidence", "certif", "scien", "research", "measur", "data"],
-      "terms_fix": "G4",
-      "unacceptable_examples": [
-        "Softness goes up thirty percent after one week.",
-        "Zero out of thirty-two people reacted in the patch test.",
-        "It keeps skin soft for twelve hours."
-      ],
-      "say_instead_hint": "Say the same result with 'in our in-house test'.",
-      "reflex_phrases": []
-    },
     "halal_uncertified": {
       "unacceptable_examples": [
         "It's halal, so everyone can use it.",

@@ -49,7 +49,7 @@ async def test_d312_the_switch_picks_the_prompt_and_schema(prompt):
         [comp] = [r for r in llm.requests if r.agent == "compliance_judge"]
         assert (fact.output_model is FactRelationOutputV2) is v2 and (fact.output_model is FactRelationOutput) is not v2
         assert ("Only what the host asserts" in fact.system_instruction) is v2
-        assert ("Marro Bey labs" in comp.system_instruction) is v2
+        assert "Marro Bey labs" not in comp.system_instruction  # D-427: V2's qualifier addendum is gone
         assert ('"Correct."' in fact.system_instruction) is (prompt in ("v3", "v4"))  # D-313: endorsements
         assert ("with a condition attached" in fact.system_instruction) is (prompt == "v4")  # D-325
         [a] = [a for a in await rt.alerts() if a.kind == "fact"]  # the same alert either way

@@ -149,7 +149,7 @@ Q6 = [  # (category, line, span, rule, kept with Q6)
 
 
 def _with_law_rules(catalog, *rules):
-    """The demo catalog plus made-up law-pack rules (as onboarding's to_rules makes them)."""
+    """The demo catalog plus made-up rules."""
     import dataclasses
 
     from app.logic.catalog import Catalog
@@ -157,27 +157,6 @@ def _with_law_rules(catalog, *rules):
     pack = catalog.pack
     pack = dataclasses.replace(pack, rules=pack.rules.model_copy(update={"rules": [*pack.rules.rules, *rules]}))
     return Catalog(pack)
-
-
-def _law_rule(rule_id: str, category: str):
-    from app.onboarding.lawpack import LawPackRecord
-
-    rec = LawPackRecord.model_validate({"rules": [{
-        "rule_id": rule_id, "title": rule_id, "description": "made up", "severity": "HIGH", "rule_category": category,
-        "unacceptable_examples": [], "say_instead_hint": "", "evidence": []}], "covers": ["food_supplement"],
-        "name": "made up", "regulator": "made up", "language": "en"})
-    return rule_id, rec
-
-
-def test_d291_law_pack_rules_get_their_category_s_required_terms(pack):
-    from app.onboarding.lawpack import required_terms_for, to_rules
-
-    wording = pack.lang_pack.categories
-    assert "pregnan" in required_terms_for("vulnerable_groups", wording)
-    assert "forever" in required_terms_for("permanent_results", wording)
-    assert required_terms_for("safety", wording) == [] and required_terms_for("disease", wording) == []
-    rid, rec = _law_rule("HS-VULNERABLE", "vulnerable_groups")
-    assert "baby" in to_rules("law_x_v1", rec, wording)[0].required_terms
 
 
 LAW = [  # (line, rule id, rule category, span, fixes, negated or dropped)

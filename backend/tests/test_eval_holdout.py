@@ -174,16 +174,12 @@ async def test_sequence_with_open_questions_runs_on_the_mock_runtime(monkeypatch
     assert len(result["turns"]) == len(s05["turns"])
 
 
-def test_qualifier_ok_allows_only_a_lone_qualifier_medium():
-    """H090: a TEST-QUALIFIER MEDIUM is allowed there, not required; any other alert is still a leak."""
-    q = {"rule_id": "TEST-QUALIFIER", "severity": "MEDIUM"}
+def test_qualifier_ok_is_still_read_but_allows_no_alert():
+    """H090's label is still read from old cases (D-427: the TEST-QUALIFIER rule is gone); any alert is a leak."""
     other = {"rule_id": "ASEAN-3-SKIN-AGEING", "severity": "HIGH"}
     judge = lambda *vs: {"compliance": {"violations": list(vs)}}  # noqa: E731
     exp = {"compliance": False, "qualifier_ok": True}
-    assert checks(exp)[0][2] and checks(exp, judge(q))[0][2]
-    assert not checks(exp, judge(other))[0][2] and not checks(exp, judge(q, other))[0][2]
-    assert not checks(exp, judge({**q, "severity": "HIGH"}))[0][2]
-    assert not checks({"compliance": False}, judge(q))[0][2]  # without the label it is a leak
+    assert checks(exp)[0][2] and not checks(exp, judge(other))[0][2]
 
 
 def test_a_signed_percent_and_a_price_field_alias_score_as_the_same():

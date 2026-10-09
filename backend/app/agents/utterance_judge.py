@@ -10,7 +10,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
-from ..logic import qualifier
 from ..logic.grouping import normalise_question
 from ..logic.reflex import Reflex
 from ..models.agent_io import JudgeSingleOutput, UtteranceJudgeOutput, with_switch_naming
@@ -76,12 +75,6 @@ def _cdrop(v, why: str) -> None:
                      "passage_id": None, "quote": None})
 
 
-def _named_result(v, catalog: Catalog):
-    """D-299: the recorded result a TEST-QUALIFIER verdict names by id (relation arm), or None."""
-    rid = getattr(v, "qualified_result_id", None)
-    return next((x for p in catalog.products for x in p.qualified_results if x.result_id == rid), None) if rid else None
-
-
 def negated_caution(text: str, product, lex) -> str | None:
     """D-259 (sealed: "no need to stop using it when irritation occurs" got an unrelated approved claim to say): the
     product caution a line negates (most of the caution's words heard, and a negation in the line)."""
@@ -106,7 +99,6 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
     """In place, on any output with `compliance` and `correction`. D-391 (user): the model's verdict is applied as
     given: its severity, its say_instead, its negation and quote flags. The only skips, logged, are verdicts that
     cannot be applied: a rule the line was not given (D-279: another category's), a product that is not in the show.
-    A TEST-QUALIFIER verdict that names a recorded result by id takes that result's wording (an id mapping).
     `arm`, `verify` and `model_severity` are kept for callers; they no longer change anything."""
     rules = catalog.pack.rules_by_id
     if "rules_compact_json" in values:  # D-279: a rule the line was not given (another category's) is no verdict
@@ -127,8 +119,6 @@ def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verif
                 log.info("compliance verdict skipped (cannot apply): product %r is not in the show | span=%r",
                          getattr(v, "product_id", None), v.span)
                 continue
-        if v.rule_id == qualifier.RULE_ID and (r := _named_result(v, catalog)) is not None:
-            v.say_instead = r.say
         kept.append(v)
     o.compliance.violations = kept
     return _check_correction_ids(o, values)
@@ -150,10 +140,9 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
     """D-358: a verdict cited from the regulation originals (no rule JSON). D-374 (user, 10/9): the model's verdict is
     applied as given: no check of the quote's wording or of the cited document (both are shown as the model wrote
     them, as its citation and summary); the alert's rule id is the document and the section, normalised, for
-    duplicate suppression only. D-400: the severity comes from the citation type (a regulation document HIGH,
-    TEST-QUALIFIER MEDIUM), never from the model. D-414 (user): TEST-QUALIFIER keeps the model's own say_instead too
-    (the prompt asks for the host's sentence with the source added). Only a verdict that cannot be applied is skipped
-    and logged: a product id that is not in the show."""
+    duplicate suppression only. D-400: the severity comes from the citation type (a regulation document is HIGH),
+    never from the model (D-427: TEST-QUALIFIER, the only MEDIUM, is gone). Only a verdict that cannot be applied is
+    skipped and logged: a product id that is not in the show."""
     from .originals import citation_rule_id
 
     by_name = {d.name.casefold(): d for d in originals}
@@ -169,19 +158,15 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
                          getattr(v, "product_id", None), v.span)
                 continue
         cite = (v.citation or "").strip()
-        # D-400 (user): the colour comes from what is cited: a regulation document is red (HIGH); the product's own
-        # test result said without its source is orange (MEDIUM); the model does not grade
-        v.severity = "MEDIUM" if cite.upper() == qualifier.RULE_ID else "HIGH"
-        if cite.upper() == qualifier.RULE_ID:
-            v.rule_id = qualifier.RULE_ID  # D-414: the model's say_instead as given
-        else:
-            doc, _, section = cite.partition("#")
-            d = by_name.get(doc.strip().casefold())
-            if d is None:
-                log.info("compliance verdict cites a document the judge was not given (%r): applied as given", cite)
-            v.rule_id = citation_rule_id(d.name if d is not None else doc.strip() or "regulation",
-                                         section or "document")
-            # D-361: the model's own say_instead (the prompt builds it from APPROVED_CLAIMS); no code word matching
+        # D-400 (user): the colour comes from what is cited: a regulation document is red (HIGH); the model does not
+        # grade
+        v.severity = "HIGH"
+        doc, _, section = cite.partition("#")
+        d = by_name.get(doc.strip().casefold())
+        if d is None:
+            log.info("compliance verdict cites a document the judge was not given (%r): applied as given", cite)
+        v.rule_id = citation_rule_id(d.name if d is not None else doc.strip() or "regulation", section or "document")
+        # D-361: the model's own say_instead (the prompt builds it from APPROVED_CLAIMS); no code word matching
         kept.append(v)
     o.compliance.violations = kept
     return _check_correction_ids(o, values)

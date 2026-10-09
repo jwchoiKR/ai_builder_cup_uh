@@ -77,10 +77,9 @@ export const onboardingApi = {
 // D-359: regulation packs (read-only list), and the existing law-pack upload, job and approval endpoints
 export type LawJob = { job_id: string; status: "queued" | "reading" | "done" | "failed"; files: string[];
   error: string | null; market?: string; category?: string;
-  result: { record: { name: string; regulator: string; covers: string[];
-    rules: { evidence: Evidence[] }[] } } | null };
-export type RegPack = { pack_id: string; market: string; name: string; regulator: string; covers: string[];
-  approved_at: number; job_id: string; files: string[]; sections: string[]; active_for: string[] };
+  result: { record: { covers: string[] } } | null };
+export type RegPack = { pack_id: string; market: string; covers: string[];
+  approved_at: number; job_id: string; files: string[]; active_for: string[] };
 export type RegRelease = { release_id: string; product_name: string; category: string;
   originals: { name: string; source_id: string; kind: "law" | "brand" }[]; missing: string[]; warning: boolean;
   error?: string };

@@ -18,7 +18,7 @@ final, and each `ms_*` is from it. Per show:
   latency, usage).
 - `switch_events`: decided (with the judge's reason and confidence), committed, undone.
 - `alerts`: kind, rule or field, severity, release it was checked against, shown, escalated,
-  resolved (corrected or cleared, and by which line), and for the qualifier rule the 10 s re-say prompt.
+  resolved (corrected or cleared, and by which line).
 - `prompter`: every coverage update with the required points left, attributed to the line said just before.
 - `chips`: question holds (hold.started/ended) and "checking" (verify.started/done).
 - `judge`: failures and health changes; `calls`: every model call with usage.
@@ -41,7 +41,6 @@ from eval_holdout_sequences import ReplayClock  # noqa: E402
 
 from app.config import Settings  # noqa: E402
 from app.context import build_context  # noqa: E402
-from app.logic.qualifier import RULE_ID as QUALIFIER  # noqa: E402
 from app.models.session import AgentCall, Event, Segment, Transcript  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
@@ -51,10 +50,9 @@ LIVE_EVENTS = {*SWITCH_EVENTS, "transcript.final", "alert.created", "alert.updat
                "prompter.updated", "cue.updated", "segment.missing_points", "segment.overtime", "hold.started",
                "hold.ended", "verify.started", "verify.done", "verify.health", "judge.failed", "judge.health",
                "line.check"}
-QUALIFIER_RESAY_MS = 10_000  # the host screen's QUALIFIER_ADDON_MS (D-341): after it, the host must say the result again
 JUDGES = ("compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "verifier")
 SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_DUAL_SCOPE_SEC",
-                   "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT", "COMPLIANCE_RESAY",
+                   "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT",
                    "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC", "FACT_MODE")
 
 
@@ -160,12 +158,6 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                "unverified": a.unverified, "resolved_by_line": resolved_by,
                "ms_to_shown": ms(line, a.shown_at),
                "ms_to_escalated": ms(line, a.escalated_at), "ms_to_resolved": ms(line, a.resolved_at)}
-        if a.rule_id == QUALIFIER and a.shown_at is not None:
-            # the host's banner asks to say the result again once the late add-on window is over (D-341)
-            resay = a.created_at + QUALIFIER_RESAY_MS
-            row["qualifier"] = {"shown": True, "ms_to_resay_prompt": (ms(line, resay) if a.resolved_at is None
-                                                                      or a.resolved_at > resay else None),
-                                "cleared": a.status in ("corrected", "cleared")}
         alerts.append(row)
 
     calls = sorted(await store.query(rt.path("agent_calls"), AgentCall), key=lambda c: c.started_at)

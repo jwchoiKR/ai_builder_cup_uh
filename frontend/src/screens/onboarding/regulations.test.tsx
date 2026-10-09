@@ -1,4 +1,5 @@
 // D-359: the Regulations panel: each job status, approval (write-once), the active pack, and the no-match warning.
+// D-427: a pack shows its market, category and files (no model reads them).
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,12 +9,10 @@ const regs = (): Regulations => ({
   market: "SG", markets: ["MY", "SG"], categories: ["food_supplement", "kitchen_appliance"],
   market_law: { name: "Cosmetics", covers: ["cosmetic", "skincare"], files: ["guideline.pdf"] },
   packs: [
-    { pack_id: "law_sg_a_v2", market: "SG", name: "Kelmar supplement code", regulator: "Kelmar authority",
-      covers: ["food_supplement"], approved_at: Date.UTC(2026, 9, 8), job_id: "law_2", files: ["kelmar_code.pdf"],
-      sections: ["kelmar_code.pdf · section 2.1"], active_for: ["food_supplement"] },
-    { pack_id: "law_sg_a_v1", market: "SG", name: "Kelmar supplement code", regulator: "Kelmar authority",
-      covers: ["food_supplement"], approved_at: Date.UTC(2026, 9, 1), job_id: "law_1", files: ["old_code.pdf"],
-      sections: [], active_for: [] },
+    { pack_id: "law_sg_a_v2", market: "SG", covers: ["food_supplement"], approved_at: Date.UTC(2026, 9, 8),
+      job_id: "law_2", files: ["kelmar_code.pdf"], active_for: ["food_supplement"] },
+    { pack_id: "law_sg_a_v1", market: "SG", covers: ["food_supplement"], approved_at: Date.UTC(2026, 9, 1),
+      job_id: "law_1", files: ["old_code.pdf"], active_for: [] },
   ],
   releases: [
     { release_id: "rel_caps_v1", product_name: "Joint Caps", category: "food_supplement",
@@ -24,8 +23,8 @@ const regs = (): Regulations => ({
 });
 const job = (status: LawJob["status"], extra: Partial<LawJob> = {}): LawJob => ({
   job_id: "law_9", status, files: ["kelmar_code.pdf"], error: null, result: null, ...extra });
-const done = job("done", { result: { record: { name: "Kelmar supplement code", regulator: "Kelmar authority",
-  covers: ["food_supplement"], rules: [{ evidence: [{ file: "kelmar_code.pdf", locator: "section 2.1", quote: "q" }] }] } } });
+const done = job("done", { market: "SG", category: "food_supplement",
+  result: { record: { covers: ["food_supplement"] } } });
 
 const api = vi.hoisted(() => ({ list: vi.fn(), upload: vi.fn(), job: vi.fn(), approve: vi.fn() }));
 vi.mock("./onboardingApi", () => ({ regulationsApi: api }));
@@ -69,11 +68,12 @@ describe("RegulationsPanel (D-359)", () => {
     expect(screen.getByTestId("reg-status")).toHaveTextContent(text);
   });
 
-  it("a finished read shows its source files and sections, and approves once with the write-once note", async () => {
+  it("a finished upload shows its market, category and source files, and approves once with the write-once note", async () => {
     api.job.mockResolvedValue(done);
-    await startRead();
+    const box = await startRead();
     await waitFor(() => expect(screen.getByTestId("reg-job")).toHaveAttribute("data-status", "done"), { timeout: 3000 });
-    expect(screen.getByTestId("reg-job-sections")).toHaveTextContent("kelmar_code.pdf · section 2.1");
+    expect(box).toHaveTextContent("SG · food_supplement");
+    expect(box).toHaveTextContent("Source files: kelmar_code.pdf");
     expect(screen.getByText(/write-once/)).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("reg-approve"));
     expect(await screen.findByTestId("reg-approved")).toHaveTextContent("law_sg_a_v3");
@@ -99,6 +99,8 @@ describe("RegulationsPanel (D-359)", () => {
     render(<RegulationsPanel />);
     await screen.findByTestId("reg-packs");
     expect(screen.getByTestId("reg-pack-law_sg_a_v2")).toHaveTextContent("Active for food_supplement");
+    expect(screen.getByTestId("reg-pack-law_sg_a_v2")).toHaveTextContent("SG · food_supplement");
+    expect(screen.getByTestId("reg-pack-law_sg_a_v2")).toHaveTextContent("Source files: kelmar_code.pdf");
     expect(screen.getByTestId("reg-pack-law_sg_a_v1")).toHaveTextContent("Replaced by a newer pack");
     expect(screen.getByTestId("reg-release-rel_caps_v1")).toHaveTextContent("kelmar_code.pdf");
     expect(screen.queryByTestId("reg-warning-rel_caps_v1")).toBeNull();

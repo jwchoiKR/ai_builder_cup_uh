@@ -1,8 +1,8 @@
 // D-359: regulations on the onboarding screen. Upload a regulator's documents for a market and a product category,
-// watch the read, approve (write-once), see every approved pack with its source files and the sections its rules
-// cite, which pack is active, and for each approved product the regulation originals its live judge reads (D-358).
-// The source documents are the authority; the extracted rules are not shown as such. D-371: also the Setup screen's
-// "Regulation documents" area (title given there; Korean labels).
+// approve (write-once), see every approved pack with its market, category and source files, which pack is active, and
+// for each approved product the regulation originals its live judge reads (D-358). D-427: no model reads the
+// documents at upload; the source documents are the authority. D-371: also the Setup screen's "Regulation documents"
+// area (title given there; Korean labels).
 import { useCallback, useEffect, useState } from "react";
 
 import { useT } from "../../app/i18n";
@@ -14,7 +14,7 @@ import styles from "./onboarding.module.css";
 const STATUS: Record<LawJob["status"], string> = {
   queued: "Queued",
   reading: "Reading the documents… about 1–3 minutes.",
-  done: "Read. Review the source files and sections, then approve.",
+  done: "Uploaded. Review the source files, then approve.",
   failed: "Failed",
 };
 
@@ -60,10 +60,6 @@ export function RegulationsPanel({ title = "Regulations" }: { title?: string | n
       setBusy(false);
     }
   };
-
-  const sections = job?.result
-    ? [...new Set(job.result.record.rules.flatMap((r) => r.evidence.map((e) => `${e.file} · ${e.locator}`)))].sort()
-    : [];
 
   return (
     <section className={styles.block} data-testid="reg-panel">
@@ -120,12 +116,9 @@ export function RegulationsPanel({ title = "Regulations" }: { title?: string | n
           {job.status === "done" && job.result && (
             <>
               <p className={styles.value}>
-                {job.result.record.name} · {job.result.record.regulator}
+                {job.market} · {job.result.record.covers.join(", ")}
               </p>
               <p className={styles.muted}>{t("Source files:")} {job.files.join(", ")}</p>
-              <ul className={styles.rows} data-testid="reg-job-sections">
-                {sections.map((s) => <li key={s} className={styles.value}>{s}</li>)}
-              </ul>
               <p className={styles.muted}>
                 {t("Approval is write-once: an approved pack is never edited. A newer approved pack for the same market and category replaces it in live shows.")}
               </p>
@@ -163,13 +156,12 @@ export function RegulationsPanel({ title = "Regulations" }: { title?: string | n
             {reg.packs.map((p) => (
               <li key={p.pack_id} className={styles.row} data-testid={`reg-pack-${p.pack_id}`}>
                 <span className={styles.value}>
-                  {p.name} · {p.market} · {p.covers.join(", ")} · {t("approved {day}", { day: day(p.approved_at) })}{" "}
+                  {p.market} · {p.covers.join(", ")} · {t("approved {day}", { day: day(p.approved_at) })}{" "}
                   {p.active_for.length
                     ? <Chip tone="ok">{t("Active for {list}", { list: p.active_for.join(", ") })}</Chip>
                     : <Chip>{t("Replaced by a newer pack")}</Chip>}
                 </span>
                 <span className={styles.muted}>{t("Source files:")} {p.files.join(", ") || t("none")}</span>
-                <span className={styles.evidence}>{p.sections.map((s) => <span key={s}>{s}</span>)}</span>
               </li>
             ))}
           </ul>

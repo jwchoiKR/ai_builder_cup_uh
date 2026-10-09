@@ -141,15 +141,3 @@ async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():
             assert j.output_model is model and (("`claim_kind`" in j.system_instruction) is on)
         finally:
             await close_env(rt)
-
-
-def test_d297_law_pack_rules_get_claim_kinds(pack):
-    from app.onboarding.lawpack import to_rules
-
-    from .test_q_fixes import _law_rule
-
-    for category, kinds in (("vulnerable_groups", ["safety_promise", "disease_treatment"]),
-                            ("disease", ["disease_treatment"]), ("safety", [])):
-        _, rec = _law_rule("HS-X", category)
-        r = to_rules("law_x_v1", rec, pack.lang_pack.categories)[0]
-        assert r.claim_kinds == kinds and r.needs_group is (category == "vulnerable_groups")

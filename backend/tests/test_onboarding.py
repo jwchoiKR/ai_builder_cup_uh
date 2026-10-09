@@ -282,27 +282,23 @@ async def test_d227_a_category_without_a_law_pack_gets_no_law_rules(tmp_path):
 
 
 async def test_d229_an_approved_law_pack_covers_a_category_the_market_pack_does_not(tmp_path):
-    from app.onboarding.lawpack import LawPackRecord, normalise_pack, save_lawpack
-    from app.onboarding.release import save_release
+    """D-427: the release carries the pack's id (its PDFs are what the judge reads); no rules are made from it. A pack
+    approved before D-427 still holds the model-read name, regulator and rules: they are ignored."""
+    from app.onboarding.lawpack import LawPackRecord, save_lawpack
+    from app.onboarding.release import has_law, save_release
     from app.pipelines.runtime import create_session
 
-    law, notes = normalise_pack(LawPackRecord.model_validate({
+    law = LawPackRecord.model_validate({
         "name": "Supplement advertising", "regulator": "Example authority", "covers": ["Food Supplement"],
-        "language": "en", "rules": [
-            {"rule_id": "supp disease", "title": "No disease claims", "description": "No cure or treatment claims.",
-             "severity": "HIGH", "rule_category": "Disease", "unacceptable_examples": ["It cures arthritis."],
-             "say_instead_hint": "Describe the nutrient's normal function.", "evidence": EV},
-            {"rule_id": "X", "title": "t", "description": "d", "severity": "MEDIUM", "rule_category": "c",
-             "unacceptable_examples": [], "say_instead_hint": "", "evidence": []}]}))
-    assert [r.rule_id for r in law.rules] == ["SUPP-DISEASE"] and law.covers == ["food_supplement"] and notes
-    save_lawpack(tmp_path, "SG", law, "j")
+        "language": "en", "rules": [{"rule_id": "SUPP-DISEASE", "title": "No disease claims"}]})
+    assert law.model_dump() == {"covers": ["Food Supplement"]}
+    pid = save_lawpack(tmp_path, "SG", law, "j")
     rec, _ = normalise(ProductRecord.model_validate(_record(category="food_supplement")))
     rid = save_release(tmp_path, rec, "j")
     ctx = make_ctx(ONBOARDING_DIR=str(tmp_path))
     try:
         rt = await ctx.runtimes.get((await create_session(ctx, "x", release_id=rid)).session_id)
-        assert [r.rule_id for r in rt.pack.rules.rules] == ["SUPP-DISEASE"]
-        assert rt.pack.rules_by_id["SUPP-DISEASE"].severity == "HIGH"
+        assert rt.pack.rules.rules == [] and rt.pack.rules.pack_ids == [pid] and has_law(rt.pack.rules)
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
@@ -452,23 +448,19 @@ async def test_d240_impact_counts_come_with_their_denominators():
 
 
 async def test_d241_brand_rules_only_add_restrictions(tmp_path):
-    from app.onboarding.lawpack import LawPackRecord, normalise_pack, save_brandpack
+    """D-427: the brand pack's id is added (its PDFs are read by the judge); the market's law rules are kept."""
+    from app.onboarding.lawpack import LawPackRecord, save_brandpack
     from app.onboarding.release import release_pack
 
-    brand, _ = normalise_pack(LawPackRecord.model_validate({
-        "name": "B guidelines", "regulator": "B", "covers": ["cosmetic"], "language": "en", "rules": [
-            {"rule_id": "NO-CELEB", "title": "No celebrity comparisons", "description": "Never compare to a celebrity.",
-             "severity": "MEDIUM", "rule_category": "comparison", "unacceptable_examples": ["Skin like a movie star."],
-             "say_instead_hint": "Describe the product itself.", "evidence": EV}]}))
-    save_brandpack(tmp_path, "B", brand, "j")
+    pid = save_brandpack(tmp_path, "B", LawPackRecord(covers=["brand:B"]), "j")
     rec, _ = normalise(ProductRecord.model_validate(_record()))  # brand "B", a cosmetic
     ctx = make_ctx()
     try:
-        law = release_pack(ctx.pack, rec, "rel_x_v1", None).rules.rules
-        both = release_pack(ctx.pack, rec, "rel_x_v1", tmp_path).rules.rules
-        assert [r.rule_id for r in both] == [r.rule_id for r in law] + ["BR-NO-CELEB"]  # law kept, brand added
+        law = release_pack(ctx.pack, rec, "rel_x_v1", None).rules
+        both = release_pack(ctx.pack, rec, "rel_x_v1", tmp_path).rules
+        assert both.rules == law.rules and law.pack_ids == [] and both.pack_ids == [pid]  # law kept, brand added
         other = rec.model_copy(update={"brand": "Other"})
-        assert len(release_pack(ctx.pack, other, "rel_y_v1", tmp_path).rules.rules) == len(law)
+        assert release_pack(ctx.pack, other, "rel_y_v1", tmp_path).rules.pack_ids == []
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
@@ -767,20 +759,6 @@ async def test_d248_ingredient_presence_both_ways_reaches_the_host(tmp_path, mon
     assert b["field"] == "fragrance"
 
 
-def test_d248_the_qualifier_rule_comes_with_the_records_results():
-    from app.logic.qualifier import RULE_ID
-    from app.onboarding.release import has_law, release_pack
-
-    result = [{"statement": "Hydration up 18% after 8 hours", "numbers": ["18", "8"], "provenance": "in_house",
-               "qualifier": "in our in-house test", "marker": None, "evidence": EV}]
-    rec, _ = normalise(ProductRecord.model_validate(_record(category="garden_tools", qualified_results=result)))
-    ctx = make_ctx()
-    try:
-        rules = release_pack(ctx.pack, rec, "rel_x_v1", None).rules
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert [r.rule_id for r in rules.rules] == [RULE_ID] and not has_law(rules)
 
 
 async def test_d249_the_coverage_audit_lists_what_the_record_lacks_and_checks_its_quote():
@@ -864,7 +842,7 @@ def test_d253_a_file_quote_survives_pdf_table_text():
     assert not quote_in_file("Clinically proven to cure acne", pdf)
 
 
-def test_d253_fd_sends_the_qualified_results_to_the_compliance_judge():
+def test_d427_fd_sends_no_qualified_results_to_the_compliance_judge():
     from app.agents.split_judges import ComplianceJudge
 
     from app.logic.catalog import Catalog
@@ -875,7 +853,7 @@ def test_d253_fd_sends_the_qualified_results_to_the_compliance_judge():
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-    assert judge.fact_record and "QUALIFIED_RESULTS" in judge.system_instruction + judge.extra_data()
+    assert judge.fact_record and "QUALIFIED_RESULTS" not in judge.system_instruction + judge.extra_data()
 
 
 def test_d254_lean_checks_at_most_ten_and_folds_or_accepts_the_rest():
@@ -1006,37 +984,6 @@ def test_d259_a_negated_caution_is_corrected_by_that_caution(pack):
                                     "reason": "t"})
 
 
-async def test_d260_a_result_said_in_number_words_keeps_its_qualifier_alert(tmp_path, monkeypatch):
-    import sys
-
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-    import eval_adversarial
-
-    from app.onboarding.release import product_key, save_release
-
-    from .judge_fakes import violation
-
-    real_sleep = __import__("asyncio").sleep
-    monkeypatch.setattr(__import__("asyncio"), "sleep", lambda _s: real_sleep(0))
-    line = "This tint stays non-transferring for eight hours."
-    result = [{"statement": "Non-transferring for 8 hours", "numbers": ["8"], "provenance": "third_party_lab",
-               "qualifier": "tested by Larkspur Labs, report LL-77", "marker": None, "conditions": None,
-               "evidence": EV}]
-    rec, _ = normalise(ProductRecord.model_validate(_record(qualified_results=result)))
-    rid = save_release(tmp_path, rec, "job")
-    monkeypatch.setattr(eval_adversarial, "RELEASE", rid)
-    backend = ScriptedBackend()
-    backend.judge(line, violations=[violation("TEST-QUALIFIER", "stays non-transferring for eight hours",
-                                              severity="MEDIUM")])
-    ctx = make_ctx(backend=backend, ONBOARDING_DIR=str(tmp_path))
-    case = {"case_id": "Q", "type": "t", "current_product_id": product_key(rec), "utterance": line,
-            "expected": {"risky": True, "kind": "compliance"}}
-    try:
-        row = await eval_adversarial.run_case(ctx, case, 0)
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert [a["rule_id"] for a in row["alerts"]] == ["TEST-QUALIFIER"] and row["dropped"] == []
 
 
 async def test_d260_opposite_polarity_is_no_restatement_and_availability_is_a_field(tmp_path, monkeypatch):
@@ -1070,15 +1017,6 @@ async def test_d260_a_failed_compliance_call_is_made_once_more():
     assert res.status == "ok" and len(calls) == 2
 
 
-@pytest.mark.parametrize("numbers", [["8"], [], ["8.0"]])
-def test_d261_a_result_matches_by_its_statement_numbers_too(pack, numbers):
-    from app.logic import qualifier
-    from app.models.data import QualifiedResult
-
-    r = QualifiedResult(result_id="x", numbers=numbers,
-                        say="Non-transferring for 8 hours, indoors (tested by Larkspur Labs, report LL-77)")
-    p = pack.products.products[0].model_copy(update={"qualified_results": [r]})
-    assert qualifier.approved_replacement("this tint stays non-transferring for eight hours", p, [], pack.lexicon) == r
 
 
 async def test_d262_twice_is_a_number_in_every_guard(tmp_path, monkeypatch):
