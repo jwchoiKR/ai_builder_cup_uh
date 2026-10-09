@@ -41,23 +41,17 @@ class _Backend(ScriptedBackend):
 
 
 async def _show(tmp_path, llm):
-    from app.onboarding.files import store
-    from app.onboarding.lawpack import LawPackRecord, save_lawpack
-    from app.onboarding.read import normalise
-    from app.onboarding.record import ProductRecord
-    from app.onboarding.release import save_release
+    """A made-up food supplement whose regulation file is the Kelmar code (rebuilt onboarding: product + regulation)."""
     from app.pipelines.runtime import create_session
 
-    from .helpers import make_ctx
-    from .test_onboarding import EV, _record
+    from .helpers import make_ctx, product_show
 
-    save_lawpack(tmp_path, "SG", LawPackRecord(covers=["food_supplement"]), "jlaw")  # D-427: the PDF only
-    store(tmp_path, "jlaw", "kelmar_code.pdf", CODE)
-    rec, _ = normalise(ProductRecord.model_validate(_record(category="food_supplement", approved_claims=[
-        {"text": "Supports normal joint comfort.", "evidence": EV}])))
-    rid = save_release(tmp_path, rec, "j")
     ctx = make_ctx(backend=llm, ONBOARDING_DIR=str(tmp_path), CORRECTION_CHECK="judge")
-    s = await create_session(ctx, "", release_id=rid)
+    key = product_show(ctx, {"brand": "Kelmar", "product_name": "Joint Ease", "currency": "SGD", "list_price": "30.00",
+                             "live_price": "25.00",
+                             "points": [{"text": "Supports normal joint comfort.", "required": True}]},
+                       [("kelmar_code.pdf", CODE)])
+    s = await create_session(ctx, "", release_id=key)
     rt = await ctx.runtimes.get(s.session_id)
     await rt.start()
     await ctx.scheduler.advance(5000)
@@ -134,29 +128,6 @@ async def test_d400_a_document_citation_is_red_and_a_correction_goes_by_handle(t
         await rt.utterances.drain()
         [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
         assert a.status == "corrected"
-    finally:
-        await close_env(rt)
-
-
-async def test_d358_a_rule_source_with_no_original_is_reported(caplog):
-    """The shipped demo's product-sheet rules have no original file: it is logged and marked on the judge's calls;
-    the judge still reads the originals that exist (the SG cosmetics guideline)."""
-    from .helpers import live_runtime, make_ctx
-
-    llm = _Backend()
-    ctx = make_ctx(backend=llm)
-    rt = await live_runtime(ctx)
-    try:
-        found, missing = originals_for(rt.catalog, ctx.settings.onboarding_path, rt.catalog.order)
-        assert [d.name for d in found] == ["asean_cosmetic_claims_guideline_appendix_iii_2007.pdf"]
-        rt.utterances.compliance._docs = None
-        with caplog.at_level(logging.WARNING):  # D-363: logged once, when the show loads its originals
-            rt.utterances.compliance.regulation()
-        assert missing == ("PRODUCT_SHEET",) and "compliance originals missing for this show" in caplog.text
-        res = await rt.utterances.compliance.run(
-            JudgeInput(utterance="It feels light.", on_air=rt.catalog.order[0], session_id=rt.sid), deadline_ms=2000)
-        assert res.meta["originals_missing"] == ["PRODUCT_SHEET"]
-        assert isinstance(found[0], Original) and found[0].mime == "application/pdf"
     finally:
         await close_env(rt)
 

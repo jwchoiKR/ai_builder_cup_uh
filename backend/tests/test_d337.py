@@ -20,9 +20,3 @@ async def test_d337_a_show_without_demo_chatter_does_not_start_it():
         assert FeedEngine(rt, demo=True).state()["pool_available"] is True
     finally:
         await close_env(rt)
-
-
-def test_d337_a_new_demo_session():
-    with TestClient(create_app(make_settings())) as c:
-        r = c.post("/api/demo/sessions", json={"show_mode": "solo"})
-        assert r.status_code == 201 and r.json()["status"] == "ready"

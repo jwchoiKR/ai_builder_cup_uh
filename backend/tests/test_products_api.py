@@ -120,7 +120,7 @@ def test_a_release_needs_the_approved_product_and_a_regulation_file(tmp_path, mo
                 ("Hydrates for 24 hours (in-house test)", True)]
             # the compliance judge reads the uploaded regulation PDF only, and no rule JSON
             pack, reflex = app.state.ctx.pack_for("SG", "en", f"{pid}:{rid}")
-            docs, missing = originals_for(Catalog(pack, f"{pid}:{rid}"), tmp_path, [pid])
+            docs, missing = originals_for(Catalog(pack, f"{pid}:{rid}"), [pid])
             assert [d.name for d in docs] == ["Law.pdf"] and missing == () and pack.rules.rules == []
             assert reflex.first_hit("This cures acne") is None
     finally:
@@ -156,7 +156,7 @@ def test_two_releases_make_one_show_each_product_with_its_own_regulation(tmp_pat
             pack, _ = app.state.ctx.pack_for("SG", "en", tuple(keys))
             pids = [k.split(":")[0] for k in keys]
             for pid, law in zip(pids, ("LawA.pdf", "LawB.pdf")):
-                docs, missing = originals_for(Catalog(pack, r.json()["runsheet_id"]), tmp_path, [pid])
+                docs, missing = originals_for(Catalog(pack, r.json()["runsheet_id"]), [pid])
                 assert [d.name for d in docs] == [law] and missing == ()
             bad = c.post("/api/sessions", json={"release_ids": [keys[0], "prd_000000000000:reg_000000000000"]})
             assert bad.status_code == 400  # the second is not approved

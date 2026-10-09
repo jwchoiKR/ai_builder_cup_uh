@@ -1,18 +1,12 @@
-"""Demo tools (DEV_SPEC §11.1, §12.6, §13.2). Only when DEMO_TOOLS_ENABLED."""
+"""Demo tools (DEV_SPEC §11.1, §12.6, §13.2): drive a show's live path (lines, comments, the feed, overtime) for
+tests, evals and replays. Only when DEMO_TOOLS_ENABLED. The demo show itself is gone (user, 10/10)."""
 from __future__ import annotations
-
-from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
-from ..logic.catalog import DEFAULT_RUNSHEET_ID
-from ..models.session import Session
 from ..pipelines.comments import submit_comment
-from ..pipelines.demo_script import load_host_script
-from ..pipelines.runtime import SESSIONS, create_session, latest_session
-from ..onboarding.demo import demo_release_ids
 from .errors import ApiError
 
 router = APIRouter()
@@ -68,63 +62,6 @@ async def inject_transcript(session_id: str, body: TranscriptBody, ctx: AppConte
 async def simulate_overtime(session_id: str, ctx: AppContext = Depends(demo_tools)) -> dict:
     rt = await ctx.runtimes.get(session_id)
     return (await rt.simulate_overtime()).model_dump()
-
-
-@router.get("/demo/script")
-async def demo_script(ctx: AppContext = Depends(get_ctx)) -> dict:
-    return {"steps": [s.as_dict() for s in load_host_script(str(ctx.settings.data_path))]}
-
-
-def _is_demo(ctx: AppContext, s: Session) -> bool:
-    """D-332: a demo show: the shipped run-sheet's, or the demo releases' (not a test drive or a release show)."""
-    return s.runsheet_id == DEFAULT_RUNSHEET_ID or (bool(s.release_ids) and s.release_ids == demo_release_ids(ctx))
-
-
-@router.get("/demo/current")
-async def demo_current(ctx: AppContext = Depends(get_ctx)) -> Session:
-    """The demo show every screen opened without ?session joins (the Studio's too). D-332: the newest demo show that
-    has not ended; a new one when there is none (an ended show or a test drive is never picked)."""
-    found = await ctx.store.query(SESSIONS, Session, order_by="created_at", descending=True, limit=20)
-    s = next((x for x in found if x.status != "ended" and _is_demo(ctx, x)), None)
-    return s if s is not None else await _demo_show(ctx)
-
-
-async def _demo_show(ctx: AppContext, show_mode: str = "solo", assistant: bool = True,
-                     previous: Session | None = None) -> Session:
-    """D-278: the demo is a show of its onboarded releases (D-279); the old run-sheet only where a demo pack still
-    has it (the tests)."""
-    if previous is not None and previous.release_ids:
-        return await create_session(ctx, "", show_mode, assistant=assistant, release_ids=previous.release_ids)
-    if DEFAULT_RUNSHEET_ID in ctx.pack.runsheets or previous is not None:
-        return await create_session(ctx, previous.runsheet_id if previous else DEFAULT_RUNSHEET_ID, show_mode,
-                                    assistant=assistant)
-    return await create_session(ctx, "", show_mode, assistant=assistant, release_ids=demo_release_ids(ctx))
-
-
-class ResetBody(BaseModel):
-    assistant: bool = True  # D-139: False for the proof-plan §1 baseline replay
-    show_mode: Literal["solo", "team"] | None = None  # None keeps the previous session's mode
-
-
-@router.post("/demo/reset")
-async def demo_reset(body: ResetBody | None = None, ctx: AppContext = Depends(demo_tools)) -> Session:
-    body = body or ResetBody()
-    s = await latest_session(ctx)
-    show_mode = ctx.settings.DEFAULT_SHOW_MODE
-    if s is not None:
-        show_mode = s.show_mode  # a reset keeps the show mode and the show
-        await ctx.runtimes.drop(s.session_id)
-        await ctx.store.delete_session(s.session_id)
-        ctx.bus.forget_session(s.session_id)
-    return await _demo_show(ctx, body.show_mode or show_mode, body.assistant, s)
-
-
-@router.post("/demo/sessions", status_code=201)
-async def demo_session(body: ResetBody | None = None, ctx: AppContext = Depends(demo_tools)) -> Session:
-    """D-139: a new session for a driver (voice rehearsal, show replay) that deletes nothing, so several
-    drivers and the studio can share one service. Drivers end their session when they finish."""
-    body = body or ResetBody()
-    return await _demo_show(ctx, body.show_mode or ctx.settings.DEFAULT_SHOW_MODE, body.assistant)
 
 
 class ScriptCommentBody(BaseModel):

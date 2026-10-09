@@ -85,25 +85,3 @@ async def test_d198_runtime_replay_reads_the_committed_post():
         ctx.scheduler.shutdown()
     assert row["posts"] == [{"group": case["expected"]["matched_group"], "state": "published"}]
     assert score([row], [case])["passed"]
-
-
-async def test_d307_the_runtime_replay_on_the_demo_releases(tmp_path):
-    from eval_verbal_post import run_runtime_case
-
-    from .helpers import make_ctx
-    from .judge_fakes import ScriptedBackend
-    from .test_clean_base import clean_data
-
-    case = next(c for c in load_cases() if c["case_id"] == "V01")
-    llm = ScriptedBackend()
-    llm.judge(case["utterance"], utterance_type="answer", matched=case["expected"]["matched_group"], is_answer=True,
-              consistent=True)
-    llm.facts(case["utterance"])
-    ctx = make_ctx(backend=llm, DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(tmp_path / "onb"))
-    try:
-        assert not ctx.pack.runsheets
-        row = await run_runtime_case(ctx, case, 0)
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert row["posts"] == [{"group": case["expected"]["matched_group"], "state": "published"}]

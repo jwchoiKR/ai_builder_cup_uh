@@ -42,13 +42,8 @@ def default_glossary(ctx, cat=None) -> dict:
 
 
 def release_phrases(ctx, cat, release_id: str) -> list[str]:
-    """D-265: a release's show hints its brief's glossary (names, original spellings, sound-alikes) first, then its
-    brand, product and ingredient names (D-435: the record-names mode, STT_HINTS=record, is gone)."""
-    from ..onboarding.brief import load_brief
-
-    brief = load_brief(ctx.settings.onboarding_path, release_id)
-    terms = [t.model_dump() for t in brief.glossary] if brief is not None else []
-    return phrases_from_glossary({"terms": terms + default_glossary(ctx, cat)["terms"]})
+    """A release's show hints its brand and product names."""
+    return phrases_from_glossary(default_glossary(ctx, cat))
 
 
 def phrases_for_release(ctx, release_id: str, mode: str | None = None, market: str | None = None,
@@ -62,13 +57,7 @@ def phrases_for_release(ctx, release_id: str, mode: str | None = None, market: s
 
 
 async def glossary_phrases(ctx) -> list[str]:
-    try:
-        from ..pipelines.setup import current_glossary
-
-        glossary = await current_glossary(ctx)
-    except (ImportError, AttributeError):
-        glossary = default_glossary(ctx)
-    return phrases_from_glossary(glossary)
+    return phrases_from_glossary(default_glossary(ctx))
 
 
 async def _send(ws: WebSocket, payload: dict) -> None:
@@ -122,13 +111,6 @@ async def audio(ws: WebSocket, session_id: str) -> None:
     except ActionError as e:
         await _send(ws, {"type": "status", "state": "error", "message": e.message})
         await ws.close(code=4404)
-        return
-    from ..pipelines.testdrive import voice_sessions
-
-    if session_id in voice_sessions:  # D-322: one speech-to-text stream per show; the voice would be heard twice
-        await _send(ws, {"type": "status", "state": "error",
-                         "message": "The test drive's AI voice is using speech recognition for this show."})
-        await ws.close(code=4409)
         return
     previous = _active.get(session_id)
     if previous is not None:  # one microphone per session: the newest wins
