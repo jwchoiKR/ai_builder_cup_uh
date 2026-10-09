@@ -1029,6 +1029,14 @@
   font-size: calc(15px * var(--hs));
   font-weight: var(--fw-semibold);
 }
+/* D-440a: in the one-row bottom row only the rule title shrinks; the status, its timer and the timing never wrap */
+.alertMeta > * {
+  flex: none;
+  white-space: nowrap;
+}
+.alertMeta > .alertRule {
+  flex: 0 1 auto;
+}
 .alertRule {
   margin-left: auto;
   min-width: 0;

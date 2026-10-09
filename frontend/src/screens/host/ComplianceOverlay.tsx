@@ -63,7 +63,7 @@ export function ComplianceOverlay({
       <span className={styles.alertSay}>“{[retraction, alert.say_instead].filter(Boolean).join(" ")}”</span>
       <div className={styles.alertMeta}>
         <span className={styles.statusDot} aria-hidden />
-        {t("Waiting for your correction")}
+        <span>{t("Waiting for your correction")}</span>
         {alert.shown_at && (
           <Elapsed since={alert.shown_at} serverOffsetMs={serverOffsetMs} format="mmss" className={styles.statusTimer} />
         )}
