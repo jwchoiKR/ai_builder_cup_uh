@@ -64,6 +64,9 @@ class Product(BaseModel):
     avoid_saying: list[AvoidSaying] = []
     variants: list[ProductVariant] = []  # D-281: every priced variant, the first is the main one (volume, live_price)
     ingredients: list[Ingredient] = []  # D-423: every ingredient (onboarded products); the shipped demo uses key_facts
+    # D-448: the approved product's brand and category ("face cream"), for the judges' product context
+    brand: str = ""
+    category: str = ""
 
 
 class SetOffer(BaseModel):
