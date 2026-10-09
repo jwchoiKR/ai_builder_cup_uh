@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { api } from "../../app/api";
 import { useT } from "../../app/i18n";
-import { hostAlertStack, type HostVisibility } from "../../app/selectors";
+import { clearedTiming, hostAlertStack, shownTiming, timingLabel, type HostVisibility } from "../../app/selectors";
 import type { Alert } from "../../app/types";
 import { Button, Chip } from "../../components";
 import { useAction, useOperator } from "./context";
@@ -46,6 +46,18 @@ export function AlertStack() {
   );
 }
 
+/** D-439: line end -> shown, and the correcting line's end -> cleared, as on the host screen. */
+function AlertTimings({ alert: a }: { alert: Alert }) {
+  const t = useT();
+  const { state } = useOperator();
+  const shown = timingLabel("shown", shownTiming(a, state.transcripts), t);
+  const cleared = timingLabel("cleared", clearedTiming(a, state.transcripts), t);
+  if (!shown && !cleared) return null;
+  return (
+    <p className={styles.alertMeta} data-testid="op-alert-timing">{[shown, cleared].filter(Boolean).join(" · ")}</p>
+  );
+}
+
 /** D-404: where this alert is on the host screen now. */
 function HostSees({ seen }: { seen?: HostVisibility }) {
   const t = useT();
@@ -75,7 +87,10 @@ function ComplianceCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibilit
         <Chip tone="risk">{t(a.severity ?? "HIGH")}</Chip>
       </header>
       {corrected ? (
-        <p className={styles.alertText}>{corrected}</p>
+        <>
+          <p className={styles.alertText}>{corrected}</p>
+          <AlertTimings alert={a} />
+        </>
       ) : (
         <>
           <blockquote className={styles.span}>“{a.span}”</blockquote>
@@ -103,6 +118,7 @@ function ComplianceCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibilit
           {a.say_instead && (
             <p className={styles.alertMeta}>{t("Say:")} “{a.say_instead}”</p>
           )}
+          <AlertTimings alert={a} />
           <HostSees seen={seen} />
           <div className={styles.actions}>
             <Button size="sm" variant="danger" disabled={act.busy} onClick={() => act.run(() => api.alertCue(sid, a.alert_id))}>
@@ -141,11 +157,15 @@ function FactCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibility }) {
         </span>
       </header>
       {corrected ? (
-        <p className={styles.alertText}>{corrected}</p>
+        <>
+          <p className={styles.alertText}>{corrected}</p>
+          <AlertTimings alert={a} />
+        </>
       ) : (
         <>
           <p className={styles.alertMeta}>{t("The {field} differs from the host's statement.", { field: label })}</p>
           <p className={styles.alertMeta}>{t("Source:")} {sourceLabel(catalog, a.passage_id, t)}</p>
+          <AlertTimings alert={a} />
           <HostSees seen={seen} />
           <div className={styles.actions}>
             <Button size="sm" disabled={act.busy} onClick={() => act.run(() => api.resendFactNote(sid, a.alert_id))}>

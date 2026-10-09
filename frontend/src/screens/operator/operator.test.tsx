@@ -72,7 +72,7 @@ describe("alert cards", () => {
     expect(alertCardState(esc)).toBe("escalated");
     expect(complianceTitle(esc, T0 + 5000 + 65_000)).toBe("Not corrected · 01:05");
     const done = alert({ status: "corrected", resolved_at: T0 + 8200, corrected_text: "Let me correct that." });
-    expect(correctedLine(done)).toBe("Corrected in 3.2 s · 'Let me correct that.'");
+    expect(correctedLine(done)).toBe("Host fixed in 3.2 s · 'Let me correct that.'");
   });
   it("corrected alerts stay in the stack for 10 s", () => {
     const st = reduceSnapshot(

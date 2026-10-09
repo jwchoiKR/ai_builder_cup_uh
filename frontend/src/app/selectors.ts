@@ -1,4 +1,5 @@
 // Pure selectors over ClientState (+ catalog, + server now). Screens read these, never raw events.
+import type { Translate } from "./i18n";
 import type { ClientState } from "./state";
 import type {
   Alert,
@@ -372,6 +373,52 @@ export function hostAlertStack(state: ClientState): {
     more += 1;
   }
   return { shown, more, visibility };
+}
+
+// ---- D-439: how fast an alert was shown and cleared, on server times only --------------------------------
+
+/** From the end of a line (its transcript's speech_end_at) to a server time; `typed`: the line was typed or injected,
+ *  so its "speech end" is only when it was submitted. */
+export interface LineTiming {
+  ms: number;
+  typed: boolean;
+}
+
+function fromLine(t: Transcript | undefined, at: number | null): LineTiming | null {
+  return t && at !== null ? { ms: at - t.speech_end_at, typed: t.source !== "mic" } : null;
+}
+
+/** The alert's line (a merged line's last final) -> the alert shown; null when either is unknown. */
+export function shownTiming(a: Alert, transcripts: Record<string, Transcript>): LineTiming | null {
+  return fromLine(transcripts[a.transcript_id], a.shown_at);
+}
+
+/** The correcting line -> the alert cleared (corrected); null when either is unknown. */
+export function clearedTiming(a: Alert, transcripts: Record<string, Transcript>): LineTiming | null {
+  if (a.status !== "corrected" || !a.corrected_by_transcript_id) return null;
+  return fromLine(transcripts[a.corrected_by_transcript_id], a.resolved_at);
+}
+
+function seconds(ms: number): string {
+  return (Math.max(0, ms) / 1000).toFixed(1);
+}
+
+/** "Shown in 4.2 s" / "Cleared in 3.1 s", "(typed)" after a typed line's number; null without the data. */
+export function timingLabel(kind: "shown" | "cleared", x: LineTiming | null, t: Translate): string | null {
+  if (!x) return null;
+  const text = t(kind === "shown" ? "Shown in {s} s" : "Cleared in {s} s", { s: seconds(x.ms) });
+  return x.typed ? `${text} ${t("(typed)")}` : text;
+}
+
+/** The operator header's line: the show's alerts with a spoken line (typed lines are not counted). */
+export function alertTimingStats(state: ClientState): { count: number; within5: number; slowestMs: number } | null {
+  const spoken = Object.values(state.alerts)
+    .filter((a) => a.status !== "cleared")
+    .map((a) => shownTiming(a, state.transcripts))
+    .filter((x): x is LineTiming => x !== null && !x.typed);
+  if (!spoken.length) return null;
+  return { count: spoken.length, within5: spoken.filter((x) => x.ms <= 5000).length,
+           slowestMs: Math.max(...spoken.map((x) => x.ms)) };
 }
 
 export function alertLog(state: ClientState): Alert[] {

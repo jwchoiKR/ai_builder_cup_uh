@@ -19,6 +19,7 @@ export function ComplianceOverlay({
   onRendered,
   more = 0,
   retraction = "",
+  timing = null,
 }: {
   view: HighAlertView;
   /** D-177: within RED_BLOCK_MS of the alert: highlighted (a repeat is a new alert, so it highlights again) */
@@ -30,6 +31,8 @@ export function ComplianceOverlay({
   more?: number;
   /** D-436: the language pack's retraction phrase, said before say_instead */
   retraction?: string;
+  /** D-439: "Shown in 4.2 s" (null: not known) */
+  timing?: string | null;
 }) {
   const t = useT();
   const { alert, position, total } = view;
@@ -68,6 +71,7 @@ export function ComplianceOverlay({
           {rule.title}
           {rule.ref ? ` · ${rule.ref}` : ""}
         </span>
+        {timing && <span className={styles.alertTiming} data-testid="host-alert-timing">{timing}</span>}
       </div>
     </div>
   );

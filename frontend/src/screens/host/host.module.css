@@ -1034,6 +1034,15 @@
   font-weight: var(--fw-regular);
   color: var(--text-2);
 }
+/* D-439: line end -> shown (or cleared), grey at any value, the row's own size */
+.alertTiming {
+  font-weight: var(--fw-regular);
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.corrected .alertTiming {
+  font-size: calc(15px * var(--hs));
+}
 .riskBadge,
 /* D-399: how many alerts of one rule (MEDIUM) or one passage (fact note) the card stands for */
 .alertCount {

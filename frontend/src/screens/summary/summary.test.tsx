@@ -75,6 +75,7 @@ function data(over: Partial<SummaryData> = {}): SummaryData {
           speech_end_to_shown_ms: 1640,
           shown_to_corrected_ms: 8000,
           corrected_text: "Let me correct that.",
+          typed: true, // D-439: a typed demo line
         },
       ],
       fact_alerts: [
@@ -113,7 +114,7 @@ describe("SummaryView", () => {
     const ampoule = screen.getByTestId("summary-product-ampoule_deep_hydration");
     expect(within(ampoule).getByText(/Instant hydration/)).toBeInTheDocument();
     const log = screen.getByTestId("summary-compliance");
-    expect(within(log).getByText("1.6 s")).toBeInTheDocument(); // alert latency
+    expect(within(log).getByText("1.6 s (typed)")).toBeInTheDocument(); // alert latency; D-439: a typed line is marked
     expect(within(log).getByText("8.0 s")).toBeInTheDocument(); // corrected in
     expect(within(log).getByText("1:10")).toBeInTheDocument(); // time from start
     expect(screen.getByTestId("summary-facts")).toHaveTextContent("S$36.00");

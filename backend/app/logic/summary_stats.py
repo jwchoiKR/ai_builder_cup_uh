@@ -118,6 +118,7 @@ def compute_summary_stats(
             "alert_id": a.alert_id, "rule_id": a.rule_id, "rule_title": rule.title if rule else None,
             "severity": a.severity, "span": a.span, "shown_at": a.shown_at,
             "speech_end_to_shown_ms": (a.shown_at - t.speech_end_at) if t else None,
+            "typed": (t.source != "mic") if t else None,  # D-439: a typed line has no real speech end
             "shown_to_corrected_ms": outcome, "corrected_text": a.corrected_text,
         })
     facts = []
@@ -134,6 +135,7 @@ def compute_summary_stats(
             "time_to_correction_ms": (a.resolved_at - a.shown_at) if corrected and a.resolved_at and a.shown_at else None,
             "span": a.span, "shown_at": shown,
             "speech_end_to_shown_ms": (shown - t.speech_end_at) if t else None,
+            "typed": (t.source != "mic") if t else None,  # D-439
             "shown_to_corrected_ms": outcome, "corrected_text": a.corrected_text,
         })
 

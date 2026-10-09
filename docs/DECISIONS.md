@@ -3014,3 +3014,10 @@ D-437 (user ask 10/10, data only): the Demo Console's "Send sample questions" bu
 
 D-438 (user 10/10, display only): the host's waiting-question rows are sized to be read from a distance. The suggested reply under a question is 32px (as large as the alert's say line allows here; it is read aloud) and wraps to at most 2 lines instead of being cut at one; the question is 26px; the index, asker count, state and tag are 20px; all keep the --hs scaling. Row padding 10 -> 6px and the reply's line height 1.15 keep 3 questions with 2-line replies inside the list at 1920x1080 and 1366x768 (checked by screenshot with an injected state: no list scroll, no page scroll, no overlap with the alert boxes). Which questions show and their text are unchanged.
 - D-438a: the suggested reply under a waiting question is in the main text colour (--text, as the alert's say line), not the dim --text-3.
+
+D-439 (user 10/10, display only): each alert says how fast it was shown and cleared, from server times only.
+- Shown = the alert line's speech_end_at (a merged line's last final, the alert's transcript_id) -> shown_at. Cleared = the correcting line's speech_end_at (corrected_by_transcript_id) -> resolved_at. One decimal. A typed or injected line (source != "mic") adds "(typed)"; a missing line or time hides the label.
+- Host: grey "Shown in 4.2 s" at the right end of the red box's and the orange note's bottom row; "Cleared in 3.1 s" in the green Corrected bar. KO "{s}초 만에 표시", "{s}초 만에 해제", "(입력)".
+- Operator: the same labels on each alert card and in the alert log; "Corrected in {s} s" (shown -> resolved, the host's reaction) is renamed "Host fixed in {s} s" (KO "진행자 정정까지 {s}초"); the header adds "Alerts this show: N · M shown within 5 s · slowest X s" over alerts with a spoken line.
+- Summary: the alert latency column marks a typed line "(typed)" (summary rows carry `typed`).
+- The state snapshot now carries the transcripts the alerts were raised and cleared on, for the host too (it had none) and for the operator besides the last 20, so the labels survive a reload or a restart.

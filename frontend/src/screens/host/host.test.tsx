@@ -1033,3 +1033,37 @@ describe("D-332: UI QA", () => {
     expect(screen.getByTestId("host-ing-water")).toHaveTextContent(/^Water$/);
   });
 });
+
+describe("D-439: shown and cleared times on the host's boxes", () => {
+  const tr = (id: string, end: number, source: "mic" | "injected" = "mic") => ({
+    transcript_id: id, text: "x", is_final: true, speech_start_at: null, speech_end_at: end, received_at: end,
+    source, segment_id: "seg_000001" });
+  const red = alert({ transcript_id: "tr_1", shown_at: T0 + 4200 });
+  const fact = alert({ alert_id: "fx_1", kind: "fact", rule_id: null, severity: null, field: "price", stated_value: "S$32",
+    correct_value: "S$36.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price", quote: "Live broadcast price: S$36.00",
+    transcript_id: "tr_2", shown_at: T0 + 2500 });
+
+  it("the red box and the orange note say how fast they were shown, grey, at the end of the bottom row", () => {
+    render(view({ alerts: [red, fact], transcripts: [tr("tr_1", T0), tr("tr_2", T0)] }));
+    const red_ = screen.getByTestId("host-compliance-overlay");
+    expect(within(red_).getByTestId("host-alert-timing")).toHaveTextContent(/^Shown in 4\.2 s$/);
+    expect(within(screen.getByTestId("host-fact-note")).getByTestId("host-alert-timing")).toHaveTextContent(/^Shown in 2\.5 s$/);
+  });
+
+  it("a typed line is marked, and nothing shows without the line", () => {
+    render(view({ alerts: [red], transcripts: [tr("tr_1", T0, "injected")] }));
+    expect(screen.getByTestId("host-alert-timing")).toHaveTextContent(/^Shown in 4\.2 s \(typed\)$/);
+    cleanup();
+    render(view({ alerts: [red] }));
+    expect(screen.queryByTestId("host-alert-timing")).toBeNull();
+  });
+
+  it("the green cleared bar says how fast the correcting line cleared it", () => {
+    const ts = [tr("tr_1", T0), tr("tr_3", T0 + 10_000)];
+    const { rerender } = render(view({ alerts: [red], transcripts: ts }));
+    rerender(view({ alerts: [{ ...red, status: "corrected", corrected_by_transcript_id: "tr_3", resolved_at: T0 + 13_100 }],
+      transcripts: ts }));
+    expect(screen.getByTestId("host-corrected")).toHaveTextContent("Corrected");
+    expect(within(screen.getByTestId("host-corrected")).getByTestId("host-alert-timing")).toHaveTextContent(/^Cleared in 3\.1 s$/);
+  });
+});
