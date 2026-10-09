@@ -241,13 +241,6 @@ export interface SystemCard {
   missingTexts?: string[];
 }
 
-const VERIFY_CAUSES: Record<string, string> = {
-  http_504: "AI service busy",  // D-337: no infra name on screen
-  http_429: "AI service busy",
-  client_timeout: "AI response delayed",
-  other_error: "AI error",
-};
-
 /** D-412: the operator's words for a failed check, with the code where there is one */
 export const FAILURE_CAUSES: Record<string, string> = {
   busy: "AI busy (429)",
@@ -299,16 +292,6 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
     const parts = [...by].map(([c, n]) => `${t(FAILURE_CAUSES[c] ?? "AI error")} ${n}`);
     cards.push({ key: `failures:${recent.length}:${recent[recent.length - 1].transcript_id}`, kind: "ai_delay",
       text: t("Last 5 min: {counts}", { counts: parts.join(" · ") }) });
-  }
-  const vh = state.verifyHealth;
-  if (vh && vh.no_answer > 0) {
-    // D-306: verifier calls with no answer, with their most common cause; a new failure shows the card again
-    const top = Object.entries(vh.by).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "other_error";
-    cards.push({
-      key: `verify:${vh.no_answer}`,
-      kind: "ai_delay",
-      text: t("No AI answer: {n} · {cause}", { n: vh.no_answer, cause: t(VERIFY_CAUSES[top] ?? "AI error") }),
-    });
   }
   const onAir = onAirSegment(state);
   for (const o of Object.values(state.overtime)) {

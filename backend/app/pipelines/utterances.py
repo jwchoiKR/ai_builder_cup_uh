@@ -611,10 +611,6 @@ class UtterancePipeline:
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS,
                                           all_products=rt.settings.JUDGE_PRODUCTS == "all")
 
-    def verify_health(self) -> dict:
-        """D-306: the snapshot's verifier block; D-392: the verifier arm is gone, so it is always empty."""
-        return {"no_answer": 0, "by": {}}
-
     def _by_judge(self) -> bool:
         """D-187 arm B, or D-304 VERBAL_CHECK=judge: a spoken answer's numbers and hedges come from the context judge."""
         return arms.meaning_to_llm(self.rt.settings.DESIGN_ARM) or self.rt.settings.VERBAL_CHECK == "judge"
@@ -1056,7 +1052,6 @@ class UtterancePipeline:
         tid, seq = t.transcript_id, self._sequence.get(t.transcript_id, 0)
         self._reported[tid] = [list(claims), t, protected, rt.now()]
         log.info("fact alert held %s t=%s: %d claim(s) in someone else's words", rt.sid, tid, len(claims))
-        await rt.emit("verify.started", {"transcript_id": tid, "kind": "reported"})
         rt.ctx.scheduler.call_later(rt.key(f"reported:{tid}"), rt.settings.REPORTED_HOLD_MS,
                                     lambda: self._reported_timeout(tid))
         if (stances := self._checked.get(seq + 1)) is not None:  # the next line's check came back first
@@ -1101,7 +1096,6 @@ class UtterancePipeline:
         if not self._reported[tid][0]:
             del self._reported[tid]
             rt.ctx.scheduler.cancel(rt.key(f"reported:{tid}"))
-            await rt.emit("verify.done", {"transcript_id": tid, "kind": "reported"})
         return shown
 
     async def _endorsed_alerts_locked(self, t: Transcript, claims: list, protected: set[str], next_seq: int) -> None:
@@ -1139,7 +1133,6 @@ class UtterancePipeline:
         claims = [c for c in claims if all(c is not r for r in retired)]
         log.info("held alert shown (%s) %s t=%s after %d ms: %d claim(s)", why, rt.sid, tid, rt.now() - began,
                  len(claims))
-        await rt.emit("verify.done", {"transcript_id": tid, "kind": "reported"})
         if claims:
             await self._fact_alerts_locked(t, claims, protected)
 

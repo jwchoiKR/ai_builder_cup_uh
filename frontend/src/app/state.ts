@@ -23,7 +23,6 @@ import type {
   StateSnapshot,
   SwitchState,
   Transcript,
-  VerifyHealth,
 } from "./types";
 
 export interface OvertimeInfo {
@@ -88,10 +87,6 @@ export interface ClientState {
   unchecked: JudgeFailure[];
   /** D-137: judges that failed on the last finals in a row (empty: healthy) */
   judgeDegraded: string[];
-  /** D-306: lines whose candidates the verifier is checking ("transcript id|kind" -> kind): the host's grey chip */
-  verifying: Record<string, string>;
-  /** D-306: verifier calls with no answer, by cause (operator only) */
-  verifyHealth: VerifyHealth | null;
   /** D-335: questions waiting for their answer (transcript id -> the longest wait, ms): the operator's chip */
   holds: Record<string, number>;
   /** D-150: market and language of the session (null before the snapshot) */
@@ -129,9 +124,7 @@ export function emptyState(role: Role): ClientState {
     metrics: {},
     feed: null,
     judgeDegraded: [],
-    verifying: {},
-    verifyHealth: null,
-    holds: {},
+      holds: {},
     market: null,
     agentCalls: [],
     actions: [],
@@ -186,7 +179,6 @@ export function reduceSnapshot(snap: StateSnapshot, role: Role, clientNow: numbe
     // D-412/D-420: kept on refresh: the last 5 minutes' failure events and every unchecked line's events
     judgeFailures: (snap.check_failures?.recent ?? []).map((f) => ({ ...f, seq: 0 })),
     unchecked: (snap.check_failures?.unchecked ?? []).map((f) => ({ ...f, seq: 0 })),
-    verifyHealth: snap.verify_health ?? null,
     market: snap.market ?? null,
     agentCalls: [...(snap.agent_calls ?? [])].reverse().slice(0, MAX_LOG),
   };
@@ -442,18 +434,6 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       return { ...state, judgeDegraded: (p.degraded as string[]) ?? [] };
 
     // D-322: keyed by line and kind, so a fact check finishing first does not clear the compliance check's chip
-    case "verify.started":
-      return { ...state, verifying: { ...state.verifying, [`${p.transcript_id}|${p.kind}`]: String(p.kind) } };
-
-    case "verify.done": {
-      const verifying = { ...state.verifying };
-      delete verifying[`${p.transcript_id}|${p.kind}`];
-      return { ...state, verifying };
-    }
-
-    case "verify.health":
-      return { ...state, verifyHealth: p as unknown as VerifyHealth };
-
     case "hold.started":
       return { ...state, holds: { ...state.holds, [String(p.transcript_id)]: Number(p.max_ms) } };
 

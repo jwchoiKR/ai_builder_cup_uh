@@ -449,13 +449,3 @@ describe("operator desk rows and header (D-120)", () => {
   });
 });
 
-describe("verifier no-answers (D-306)", () => {
-  it("shows the count and the most common cause, off the host's screen", () => {
-    const st = { ...reduceSnapshot(snapshot(), "operator", T0), verifyHealth: { no_answer: 3, by: { http_504: 2, client_timeout: 1 } } };
-    const card = systemCards(st, catalog, T0).find((c) => c.kind === "ai_delay");
-    expect(card?.text).toBe("No AI answer: 3 · AI service busy");
-    expect(card?.key).toBe("verify:3"); // a new failure shows the card again after a dismiss
-    const none = { ...st, verifyHealth: { no_answer: 0, by: {} } };
-    expect(systemCards(none, catalog, T0).some((c) => c.kind === "ai_delay")).toBe(false);
-  });
-});

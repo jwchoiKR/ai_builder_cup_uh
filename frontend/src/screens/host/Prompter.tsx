@@ -2,7 +2,7 @@
 // One fixed box with three columns (price and offers | ingredients | points to say) and two guard
 // blocks (caution | avoid saying), as in the earlier prototype. Facts already said turn grey; the price
 // never does. Compliance alerts take this same box while they are active, so nothing else moves.
-import { Ban, Check, CircleDot, ListChecks, TriangleAlert } from "lucide-react";
+import { Ban, Check, ListChecks, TriangleAlert } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import { useT, type Translate } from "../../app/i18n";
@@ -78,7 +78,6 @@ function useFit(box: RefObject<HTMLDivElement>, fit: RefObject<HTMLDivElement>) 
 export function Prompter({
   view,
   product,
-  checking,
   degraded = [],
   alerts,
   notice,
@@ -87,7 +86,6 @@ export function Prompter({
 }: {
   view: PrompterViewModel;
   product: Product | null;
-  checking: boolean;
   /** D-137: judges that failed on the last finals: the health dot turns amber */
   degraded?: string[];
   /** Compliance alerts or the green Corrected bar: they take the product box while present. */
@@ -104,12 +102,6 @@ export function Prompter({
   useFit(box, fit);
   return (
     <section className={styles.card} data-testid="host-prompter" aria-label={t("Your prompter")}>
-      {checking && (
-        <span className={styles.checking} data-testid="host-checking-chip" role="status">
-          <CircleDot aria-hidden />
-          {t("Checking a phrase…")}
-        </span>
-      )}
       <header className={styles.cardHeader}>
         <span className={styles.cardTitle}>
           <ListChecks aria-hidden />

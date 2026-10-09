@@ -11,7 +11,7 @@ import pytest
 
 from app.models.agent_io import FactRelationOutputH, FactRelationOutputV2
 
-from .judge_fakes import CREAM, ScriptedBackend, close_env, events, speak
+from .judge_fakes import CREAM, ScriptedBackend, close_env, speak
 
 REPORTED = "A viewer says the live price is thirty-two dollars."
 HOST = "The live price is thirty-two dollars."
@@ -113,7 +113,7 @@ async def test_d328_the_switch_picks_the_schema_and_the_lines():
             await close_env(rt)
 
 
-async def test_d328_the_host_sees_the_checking_chip_while_it_waits():
+async def test_d328_the_note_is_held_while_it_waits():  # D-425: the checking chip is gone
     from .helpers import live_runtime, make_ctx
 
     rt = await live_runtime(make_ctx(backend=_HoldBackend(), FACT_RELATION=True, FACT_PROMPT="v3", JUDGE_ARM="single",
@@ -121,12 +121,9 @@ async def test_d328_the_host_sees_the_checking_chip_while_it_waits():
     try:
         await speak(rt, REPORTED)
         await rt.ctx.scheduler.idle()
-        started = [e.payload for e in await events(rt, "verify.started")]
-        assert {"transcript_id": started[0]["transcript_id"], "kind": "reported"} in started
         assert [a for a in await rt.alerts() if a.kind == "fact"] == []  # nothing shown yet
         await rt.ctx.scheduler.advance(2500)
         assert len([a for a in await rt.alerts() if a.kind == "fact"]) == 1  # the hold ended: shown
-        assert [e.payload["kind"] for e in await events(rt, "verify.done")] == ["reported"]
     finally:
         await close_env(rt)
 
@@ -249,7 +246,6 @@ async def test_d329_the_show_ending_shows_what_is_still_held():
         await _line(rt, 1, [_claim("price")])
         await rt.end()
         assert [a.field for a in await rt.alerts() if a.kind == "fact"] == ["price"]
-        assert [e.payload["kind"] for e in await events(rt, "verify.done")] == ["reported"]
     finally:
         await close_env(rt)
 

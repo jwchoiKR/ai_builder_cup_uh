@@ -239,7 +239,6 @@ export function HostView({
   const onAir = runOfShow(state, catalog, now).find((i) => i.status === "on_air");
   const timing = onAir ? { elapsedMs: onAir.elapsedMs, plannedMs: onAir.plannedMs } : null;
   // D-306: also while the verifier checks a line's candidates (an alert shows only once it answers)
-  const checking = Object.keys(state.verifying).length > 0;  // D-410: no provisional alert any more
   const toast = useCorrectedToast(state.alerts, correctedToastMs(state));
   // D-106, D-107: compliance alerts, fact notes and the green Corrected bar take the prompter's
   // product box, in this order: HIGH, fact notes, MEDIUM. D-402 (user): red and orange at the same level: one stack
@@ -286,7 +285,6 @@ export function HostView({
             <Prompter
               view={prompter}
               product={prompter.product ?? product}
-              checking={checking}
               degraded={state.judgeDegraded}
               alerts={prompterAlerts}
               notice={!high && toast ? <CorrectedBar /> : null}

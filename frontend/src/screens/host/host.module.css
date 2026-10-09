@@ -434,31 +434,6 @@
   height: calc(16px * var(--hs));
 }
 
-/* 12.3.9 provisional chip */
-.checking {
-  position: absolute;
-  top: calc(12px * var(--hs));
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: calc(8px * var(--hs));
-  height: calc(32px * var(--hs));
-  padding: 0 calc(14px * var(--hs));
-  border-radius: var(--radius-chip);
-  border: 1px solid var(--fact-border);
-  background: var(--fact-bg);
-  color: var(--fact-text);
-  font-size: calc(15px * var(--hs));
-  font-weight: var(--fw-semibold);
-  animation: fadeIn var(--motion-fast) var(--ease);
-}
-.checking svg {
-  width: calc(16px * var(--hs));
-  height: calc(16px * var(--hs));
-}
-
 /* ---- 12.3.3 prompter: one fixed product box (D-106) ---------------------------------------------- */
 
 .prompterKicker {
