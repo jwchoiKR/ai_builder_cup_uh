@@ -299,7 +299,7 @@ function RegulationUpload({ onUploaded }: { onUploaded: (regulationId: string | 
     }
   };
   return (
-    <Box title="2 · Regulations" note="One PDF of the regulations that apply. Required for the show."
+    <Box title="Regulations" note="One PDF of the regulations that apply. Required for the show."
          testId="onb-regulation" done={uploaded !== null}>
       <DropZone testId="onb-regulation" file={file} disabled={since !== null}
                 onFile={(f) => {
@@ -318,18 +318,16 @@ function RegulationUpload({ onUploaded }: { onUploaded: (regulationId: string | 
   );
 }
 
-/** The four steps of a release, done or not, at the top of the page. */
-function Steps({ items }: { items: [string, boolean][] }) {
-  const next = items.findIndex(([, done]) => !done);
+/** One stage of the page on the left rail (products, regulations, release, done): its mark, then the line down to the next stage. */
+function Stage({ mark, done, next, last, children }: {
+  mark: string; done: boolean; next: boolean; last?: boolean; children?: ReactNode;
+}) {
   return (
-    <ol className={styles.steps} data-testid="onb-steps">
-      {items.map(([label, done], i) => (
-        <li key={label} className={[styles.step, done && styles.stepDone, i === next && styles.stepNext].filter(Boolean).join(" ")}
-            aria-current={i === next ? "step" : undefined}>
-          <span className={styles.stepMark}>{done ? "✓" : i + 1}</span> {label}
-        </li>
-      ))}
-    </ol>
+    <div className={[styles.stage, done && styles.stageDone, last && styles.stageLast].filter(Boolean).join(" ")}
+         aria-current={next ? "step" : undefined}>
+      <span className={[styles.stageMark, next && styles.stageNext].filter(Boolean).join(" ")}>{done ? "✓" : mark}</span>
+      <div className={styles.stageBody}>{children}</div>
+    </div>
   );
 }
 
@@ -352,56 +350,54 @@ export function Onboarding() {
         <Eyebrow>
           <HubLink sessionId={null} /> · PRODUCT ONBOARDING
         </Eyebrow>
-        <Steps items={[
-          ["Products read", slots.every((s) => s.read)],
-          ["Products approved", allApproved],
-          ["Regulations uploaded", regulationId !== null],
-          ["Release created", false],
-        ]} />
       </header>
-      {/* before the first read, Regulations matches the product box's height */}
-      <div className={[styles.grid, slots.length === 1 && !slots[0].read && styles.gridEven].filter(Boolean).join(" ")}>
-        <div className={styles.column}>
-          {slots.map((s, i) => (
-            <ProductUpload key={s.key} title={`1 · Product ${slots.length > 1 ? i + 1 : "information"}`}
-                           onRead={(read) => setSlot(s.key, { read })}
-                           onApproved={(productId) => setSlot(s.key, { productId })}
-                           onRemove={slots.length > 1 ? () => setSlots((ss) => ss.filter((x) => x.key !== s.key)) : undefined} />
-          ))}
-        </div>
-        <RegulationUpload onUploaded={setRegulationId} />
+      <Stage mark="1" done={allApproved} next={!allApproved}>
+        {slots.map((s, i) => (
+          <ProductUpload key={s.key} title={`Product ${slots.length > 1 ? i + 1 : "information"}`}
+                         onRead={(read) => setSlot(s.key, { read })}
+                         onApproved={(productId) => setSlot(s.key, { productId })}
+                         onRemove={slots.length > 1 ? () => setSlots((ss) => ss.filter((x) => x.key !== s.key)) : undefined} />
+        ))}
         <button type="button" className={styles.addLink} data-testid="onb-product-add"
                 onClick={() => setSlots((ss) => [...ss, { key: Math.max(...ss.map((x) => x.key)) + 1, read: false, productId: null }])}>
           <Plus size={14} aria-hidden /> Add product
         </button>
-      </div>
-      {/* a release needs both (the server checks the same); the show starts from the hub's Pick products */}
-      <section className={styles.block} data-testid="onb-ready">
-        <h2 className={styles.blockTitle}>3 · Release</h2>
-        <p className={styles.muted}>
-          {missing.length ? `To create the release, ${missing.join(" and ")}.` : `Ready. ${productIds.length > 1 ? `${productIds.length} releases appear` : "The release appears"} in the hub's Pick products.`}
-        </p>
-        <div className={styles.actions}>
-          <Button variant="primary" disabled={starting || !allApproved || !regulationId} data-testid="onb-release"
-                  onClick={async () => {
-                    setStarting(true);
-                    setError(null);
-                    try {
-                      for (const id of productIds)  // one release per product, all on the same regulation
-                        await request("POST", `/products/${encodeURIComponent(id)}/release`,
-                          { regulation_id: regulationId });
-                      navigate("/");  // the hub's Pick products lists the release
-                    } catch (e) {
-                      setError(errorText("Release", e));
-                    } finally {
-                      setStarting(false);
-                    }
-                  }}>
-            {starting ? "Creating…" : productIds.length > 1 ? `Create ${productIds.length} releases` : "Create release"}
-          </Button>
-        </div>
-        {error && <p className={styles.error}>{error}</p>}
-      </section>
+      </Stage>
+      <Stage mark="2" done={regulationId !== null} next={allApproved && regulationId === null}>
+        <RegulationUpload onUploaded={setRegulationId} />
+      </Stage>
+      <Stage mark="3" done={false} next={!missing.length}>
+        {/* a release needs both (the server checks the same); the show starts from the hub's Pick products */}
+        <section className={styles.block} data-testid="onb-ready">
+          <h2 className={styles.blockTitle}>Release</h2>
+          <p className={styles.muted}>
+            {missing.length ? `To create the release, ${missing.join(" and ")}.` : `Ready. ${productIds.length > 1 ? `${productIds.length} releases appear` : "The release appears"} in the hub's Pick products.`}
+          </p>
+          <div className={styles.actions}>
+            <Button variant="primary" disabled={starting || !allApproved || !regulationId} data-testid="onb-release"
+                    onClick={async () => {
+                      setStarting(true);
+                      setError(null);
+                      try {
+                        for (const id of productIds)  // one release per product, all on the same regulation
+                          await request("POST", `/products/${encodeURIComponent(id)}/release`,
+                            { regulation_id: regulationId });
+                        navigate("/");  // the hub's Pick products lists the release
+                      } catch (e) {
+                        setError(errorText("Release", e));
+                      } finally {
+                        setStarting(false);
+                      }
+                    }}>
+              {starting ? "Creating…" : productIds.length > 1 ? `Create ${productIds.length} releases` : "Create release"}
+            </Button>
+          </div>
+          {error && <p className={styles.error}>{error}</p>}
+        </section>
+      </Stage>
+      <Stage mark="" done={false} next={false} last>
+        <span className={styles.stageEnd}>Done</span>
+      </Stage>
     </div>
   );
 }

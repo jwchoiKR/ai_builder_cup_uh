@@ -34,13 +34,6 @@
 .error { color: var(--risk-text); margin: 0; }
 .actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 
-/* product and regulation side by side; stacked on narrow screens */
-.grid { display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-4); align-items: start; }
-.gridEven { align-items: stretch; }
-.gridEven .drop { flex: 1; }
-/* one column: Add product stays under the products, above Regulations */
-@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } .grid > [data-testid="onb-regulation"] { order: 1; } }
-.column { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 
 .drop {
   display: flex;
@@ -61,16 +54,22 @@
 .dropDisabled { cursor: default; opacity: 0.6; }
 .dropDisabled:hover { border-color: var(--border); }
 
-.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.step {
-  display: flex; align-items: center; gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--border); border-radius: 999px;
-  color: var(--text-3); font-size: var(--fs-14);
+/* the page's stages on a left rail: 1 products, 2 regulations, 3 release, Done */
+.stage { display: grid; grid-template-columns: 28px 1fr; gap: var(--space-3); position: relative; }
+.stage:not(.stageLast)::before {
+  content: ""; position: absolute; left: 13px; top: 32px; bottom: calc(4px - var(--space-4));  /* through the page gap to the next mark */
+  border-left: 2px solid var(--border);
 }
-.stepNext { color: var(--text); border-color: var(--accent); }
-.stepDone { color: var(--ok-text); border-color: var(--ok-border); background: var(--ok-bg); }
-.stepMark { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
+.stageDone::before { border-color: var(--ok-border); }
+.stageMark {
+  width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center;
+  border: 2px solid var(--border); background: var(--surface); color: var(--text-3);
+  font-size: var(--fs-14); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums;
+}
+.stageNext { color: var(--text); border-color: var(--accent); }
+.stageDone .stageMark { color: var(--ok-text); border-color: var(--ok-border); background: var(--ok-bg); }
+.stageBody { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.stageEnd { color: var(--text-3); font-size: var(--fs-14); font-weight: var(--fw-semibold); line-height: 28px; }
 
 /* the product as read, edited in place before approval */
 .sheet { display: flex; flex-direction: column; gap: var(--space-3); border-top: 1px solid var(--border); padding-top: var(--space-3); }
