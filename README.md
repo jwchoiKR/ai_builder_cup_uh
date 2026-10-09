@@ -26,7 +26,6 @@ Measured on a sealed set of 6 products the app had never seen (set 7, 10/8), hos
 |---|---|
 | "Use it every night and your wrinkles will disappear overnight." | Red **Regulation** box: the claim, the clause of the regulation PDF it breaks, and a compliant line built only from the product's approved claims. It clears when the host corrects it, in any words. |
 | "The live price is S$32 today." (the product sheet says S$36) | Orange **Product info** box: "Cream: The live price is S$36.00". It clears when the host says the right value. |
-| "9 out of 10 users felt softer skin." (said without its source) | Orange box: the host's own sentence with the tester named in the product's test record. |
 | "Now let me show you the toner." | The prompter moves to the next product in the run sheet at once. The operator can undo it. |
 | A prompter point, said in any words | The point is ticked on the prompter. |
 
@@ -48,7 +47,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 
 - **The models judge meaning; code does not.** Whether a line breaks a regulation, whether a value is wrong, whether a later line corrected an alert, whether two alerts are the same claim and whether the host is moving on are model verdicts. On 10/9 we removed the code that used to drop, rewrite or downgrade verdicts.
 - **One violation, one alert.** Each alert has a handle (A1, F1 ...). For every new line the judges say, per handle, whether this line corrected it.
-- **Colour comes from the source:** a clause of a regulation document gives red; a check against the product's own documents (a fact, a test result without its source) gives orange. Both are the same size and stay until corrected.
+- **Colour comes from the source:** a clause of a regulation document gives red; a fact checked against what the host prompter shows gives orange. The compliance judge flags only what a regulation document says; there is no rule written in code. Both are the same size and stay until corrected.
 - **No product-specific prompts or rules.** A product enters only through its documents: onboarding reads the uploaded PDFs with Gemini 3.8 Flash into a release, a Brief agent writes the prompter points and speech hints, and people only approve. Regulations are uploaded separately, as PDF.
 - **Viewer comments** are answered from the product record when it answers them and sent to a person when it does not ([docs/comments.md](docs/comments.md)).
 
@@ -87,7 +86,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 
 - False alerts are above the 1% line, and three products miss the detection line.
 - Tested with TTS voices, not yet with a real human host.
-- One Cloud Run instance. Show state survives a restart through Firestore; comment state is kept in memory during a show.
+- One Cloud Run instance. Show state, comments included, survives a restart through Firestore.
 - No per-show cost figure yet.
 
 ## Layout
