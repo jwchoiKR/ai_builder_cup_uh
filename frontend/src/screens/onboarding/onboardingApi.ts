@@ -69,7 +69,12 @@ export const onboardingApi = {
   startShow: (releaseIds: string[]) => request<Session>("POST", "/sessions",
     releaseIds.length === 1 ? { release_id: releaseIds[0] } : { release_ids: releaseIds }),
   // D-264: approved products a show can start from, newest first (also after a cold start)
-  releases: () => request<ReleaseRow[]>("GET", "/onboarding/releases"),
+  // rebuilt onboarding: its releases (an approved product with a regulation file) first, then the old ones
+  releases: async () => {
+    const [fresh, old] = await Promise.all([request<ReleaseRow[]>("GET", "/products/releases").catch(() => []),
+      request<ReleaseRow[]>("GET", "/onboarding/releases")]);
+    return [...fresh, ...old];
+  },
   // D-266: the release's brief (STT names, prompter points) runs after approval: done, running, failed (...), none
   briefStatus: (releaseId: string) =>
     request<{ status: string }>("GET", `/onboarding/releases/${encodeURIComponent(releaseId)}/brief`),

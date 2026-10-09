@@ -86,3 +86,42 @@ def test_regulation_upload_puts_one_pdf_in_the_bucket(tmp_path, monkeypatch):
             assert c.post("/api/regulations", files={"file": ("a.txt", b"x", "text/plain")}).status_code == 400
     finally:
         storage.configure(tmp_path, None)
+
+
+def test_a_release_needs_the_approved_product_and_a_regulation_file(tmp_path, monkeypatch):
+    from app.agents.originals import originals_for
+    from app.logic.catalog import Catalog
+
+    bucket = storage.MemoryBucket()
+    monkeypatch.setattr(storage, "bucket_for", lambda name, project=None: bucket)
+    backend = ScriptedBackend()
+    backend.outputs[("product_read", "Sheet A.pdf")] = INFO
+    try:
+        app = create_app(make_settings(ONBOARDING_DIR=str(tmp_path), ONBOARDING_GCS_BUCKET="fake"), llm_backend=backend)
+        with TestClient(app) as c:
+            pid = c.post("/api/products", files={"file": ("Sheet A.pdf", b"%PDF-1.7 x", "application/pdf")}
+                         ).json()["product_id"]
+            c.post(f"/api/products/{pid}/read")
+            rid = c.post("/api/regulations", files={"file": ("Law.pdf", b"%PDF-1.7 law", "application/pdf")}
+                         ).json()["regulation_id"]
+            assert c.post(f"/api/products/{pid}/release", json={"regulation_id": rid}).status_code == 409  # unapproved
+            assert c.post(f"/api/products/{pid}/release", json={"regulation_id": "reg_000000000000"}
+                          ).status_code == 409  # no regulation file
+            c.post(f"/api/products/{pid}/approve")
+            rel = c.post(f"/api/products/{pid}/release", json={"regulation_id": rid}).json()
+            assert rel["release_id"] == f"{pid}:{rid}" and rel["product_name"] == "Night Serum"
+            assert [x["release_id"] for x in c.get("/api/products/releases").json()] == [rel["release_id"]]
+            r = c.post("/api/sessions", json={"release_id": rel["release_id"]})  # the hub's pick
+            assert r.status_code == 201, r.text
+            sid = r.json()["session_id"]
+            cat = c.get(f"/api/catalog?session={sid}").json()
+            assert [(p["name"], p["live_price"], p["list_price"]) for p in cat["products"]] == [("Night Serum", 36.0, 46.0)]
+            assert [(p["text"], p["required"]) for p in cat["products"][0]["prompter_points"]] == [
+                ("Hydrates for 24 hours (in-house test)", True)]
+            # the compliance judge reads the uploaded regulation PDF only, and no rule JSON
+            pack, reflex = app.state.ctx.pack_for("SG", "en", f"{pid}:{rid}")
+            docs, missing = originals_for(Catalog(pack, f"{pid}:{rid}"), tmp_path, [pid])
+            assert [d.name for d in docs] == ["Law.pdf"] and missing == () and pack.rules.rules == []
+            assert reflex.first_hit("This cures acne") is None
+    finally:
+        storage.configure(tmp_path, None)

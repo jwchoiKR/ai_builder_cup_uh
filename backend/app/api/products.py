@@ -4,6 +4,8 @@ Step 1: the PDF lands at gs://<ONBOARDING_GCS_BUCKET>/products/<product_id>/<fil
 Step 2: one model call reads it into what the screens and the prompter show (ProductInfo), stored next to it as
 info.json. Step 4: approval copies info.json to approved.json (what a show uses; a later read does not change it) and
 the PDF to the Vertex AI Search bucket (VERTEX_SEARCH_GCS_BUCKET), the evidence of viewer answers.
+Release: an approved product and an uploaded regulation file become a release (releases/<product_id>/<regulation_id>.json)
+that the hub lists and a show starts from (release id "<product_id>:<regulation_id>", onboarding/product_show.py).
 """
 from __future__ import annotations
 
@@ -19,8 +21,9 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
+from ..logic.catalog import DataPackError
+from ..onboarding import product_show, storage
 from ..onboarding.files import MAX_BYTES
-from ..onboarding import storage
 from ..pipelines.runtime import ActionError
 from ..providers.llm import LLMRequest
 
@@ -143,3 +146,39 @@ async def approve_product(product_id: str, ctx: AppContext = Depends(get_ctx)) -
             log.warning("PDF of %s not sent to the search bucket: %s", product_id, e)
             warnings.append(f"PDF not sent to Vertex AI Search: {str(e)[:200]}")
     return approved | {"warnings": warnings}
+
+
+class ReleaseBody(BaseModel):
+    regulation_id: str
+
+
+@router.post("/{product_id}/release")
+async def release_product(product_id: str, body: ReleaseBody, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """The approved product with one uploaded regulation file, checked as a show would build it."""
+    bucket = _bucket(ctx)
+    key = product_show.show_key(product_id, body.regulation_id)
+    if product_show.SHOW_KEY.fullmatch(key) is None:
+        raise ActionError(400, "bad_ids", "a release needs a product id and a regulation id")
+    try:
+        info, _ = await asyncio.to_thread(product_show.load, bucket, key)
+        product_show.product_pack(ctx.pack, info, key)
+    except DataPackError as e:  # not approved, no regulation file, no price, another currency
+        raise ActionError(409, "not_releasable", str(e)) from None
+    row = {"release_id": key, "product_name": info["product_name"], "brand": info["brand"], "category": "",
+           "markets": [ctx.pack.market.market], "approved_at": int(time.time() * 1000), "version": 1, "brief": "done"}
+    await asyncio.to_thread(bucket.upload, f"releases/{product_id}/{body.regulation_id}.json",
+                            json.dumps(row, ensure_ascii=False).encode(), create_only=False)
+    return row
+
+
+@router.get("/releases")
+async def list_releases(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
+    """Every release of the rebuilt onboarding, newest first (the hub's picker, in the old releases' row shape)."""
+    if not ctx.settings.ONBOARDING_GCS_BUCKET:
+        return []
+    bucket = _bucket(ctx)
+
+    def rows() -> list[dict]:
+        return [json.loads(bucket.download(k)) for k in bucket.keys("releases/") if k.endswith(".json")]
+
+    return sorted(await asyncio.to_thread(rows), key=lambda r: r["approved_at"], reverse=True)

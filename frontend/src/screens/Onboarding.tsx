@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import { Button, Chip, Eyebrow, HubLink } from "../components";
 import { PDF_ACCEPT, pdfOnly } from "../app/pdfOnly";
 import { API_BASE, ApiError, request } from "../app/api";
+import { navigate } from "../app/nav";
 import styles from "./onboarding/onboarding.module.css";
 
 function UploadBox({ title, note, testId, onFile, children }: {
@@ -177,6 +178,8 @@ function RegulationUpload({ onUploaded }: { onUploaded: (regulationId: string | 
 export function Onboarding() {
   const [productId, setProductId] = useState<string | null>(null);
   const [regulationId, setRegulationId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -186,13 +189,32 @@ export function Onboarding() {
       </header>
       <ProductUpload onApproved={setProductId} />
       <RegulationUpload onUploaded={setRegulationId} />
-      {/* the show needs both; starting it is the next step */}
+      {/* a release needs both (the server checks the same); the show starts from the hub's Pick products */}
       <section className={styles.block} data-testid="onb-ready">
         <h2 className={styles.blockTitle}>Before the show</h2>
         <ul className={styles.rows}>
           <li className={styles.value}>{productId ? "✓" : "○"} Product approved</li>
           <li className={styles.value}>{regulationId ? "✓" : "○"} Regulation file uploaded</li>
         </ul>
+        <div className={styles.actions}>
+          <Button variant="primary" disabled={starting || !productId || !regulationId} data-testid="onb-release"
+                  onClick={async () => {
+                    setStarting(true);
+                    setError(null);
+                    try {
+                      await request("POST", `/products/${encodeURIComponent(productId!)}/release`,
+                        { regulation_id: regulationId });
+                      navigate("/");  // the hub's Pick products lists the release
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : String(e));
+                    } finally {
+                      setStarting(false);
+                    }
+                  }}>
+            {starting ? "Creating…" : "Create release"}
+          </Button>
+        </div>
+        {error && <p className={styles.error}>{error}</p>}
       </section>
     </div>
   );
