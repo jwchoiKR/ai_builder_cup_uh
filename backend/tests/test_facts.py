@@ -14,6 +14,8 @@ from .judge_fakes import (
     CREAM,
     PRICE_PASSAGE,
     PRICE_QUOTE,
+    PROMPTER_PRICE,
+    PROMPTER_PRICE_TEXT,
     advance,
     claim,
     close_env,
@@ -47,20 +49,21 @@ async def test_contradiction_creates_active_note(env):
     [a] = await fact_alerts(rt)
     assert a.alert_id.startswith("fx_") and a.status == "active" and a.transcript_id == t.transcript_id
     assert (a.field, a.stated_value, a.correct_value) == ("price", "S$32", "S$36.00")
-    assert (a.passage_id, a.quote, a.product_id) == (PRICE_PASSAGE, PRICE_QUOTE, CREAM)
+    assert (a.passage_id, a.quote, a.product_id) == (PROMPTER_PRICE, PROMPTER_PRICE_TEXT, CREAM)  # D-360
     assert a.shown_at is not None
     [created] = [e for e in await events(rt, "alert.created") if e.payload["kind"] == "fact"]
     assert created.payload["alert_id"] == a.alert_id
 
 
-async def test_promo_price_contradiction_without_passage(env):
+async def test_promo_price_contradiction_cites_the_prompter_s_sale_price(env):
     rt, llm = env
     await rt.start_promo("promo_time_sale_10")
     text = "With the time sale it's thirty dollars now."
     llm.facts(text, claim("promo", "contradicted", stated="S$30", correct="S$32.40"))
     await speak(rt, text)
     [a] = await fact_alerts(rt)
-    assert a.correct_value == "S$32.40" and a.passage_id is None
+    # D-361/D-423: the running time sale's price is a prompter item, so the note cites it
+    assert a.correct_value == "S$32.40" and a.passage_id == "DL-CR-01#prompter#sale-price-promo_time_sale_10"
 
 
 async def test_d398_each_wrong_claim_is_its_own_note(env):
@@ -232,6 +235,3 @@ def _full_list():
 
     return Passage(passage_id="DL-CR-01#ingredients#all", product_id=CREAM, doc="sheet", section="Ingredients",
                    text="Water, glycerin, panthenol, ceramide NP, squalane.", score=0.0)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

@@ -13,7 +13,7 @@ sys.path.insert(0, str(SCRIPTS))
 from eval_adversarial import _field, load_cases, run_case, score  # noqa: E402
 
 from .helpers import make_ctx  # noqa: E402
-from .judge_fakes import ScriptedBackend, violation  # noqa: E402
+from .judge_fakes import ScriptedBackend, rid, violation  # noqa: E402
 
 
 def alert(kind="compliance", rule_id=None, severity=None, field=None, say=None, correct=None):
@@ -69,7 +69,8 @@ async def test_a_split_case_runs_through_the_real_pipeline(monkeypatch):
     monkeypatch.setattr(asyncio, "sleep", lambda _s: real_sleep(0))
     case = {"case_id": "T1", "type": "split", "current_product_id": "ampoule_deep_hydration",
             "parts": ["If you have severe atopic dermatitis,", "this cures it completely."],
-            "expected": {"risky": True, "kind": "compliance", "rule_id": "ASEAN-2D-DISEASE"}}
+            # D-434: on the production path an alert's rule id is the cited section's (the scorer matches it)
+            "expected": {"risky": True, "kind": "compliance", "rule_id": rid("ASEAN-2D-DISEASE")}}
     llm = ScriptedBackend()
     llm.judge("If you have severe atopic dermatitis, this cures it completely.",
               violations=[violation("ASEAN-2D-DISEASE", "this cures it completely")])
@@ -80,7 +81,7 @@ async def test_a_split_case_runs_through_the_real_pipeline(monkeypatch):
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-    assert [(a["rule_id"], a["severity"]) for a in row["alerts"]] == [("ASEAN-2D-DISEASE", "HIGH")]
+    assert [(a["rule_id"], a["severity"]) for a in row["alerts"]] == [(rid("ASEAN-2D-DISEASE"), "HIGH")]  # D-434
     assert score([row], [case])["detection"] == 1.0
     # D-246: per-call latency; the fact checker's retry and final status, and its per-line summary
     assert all("latency_ms" in c for c in row["calls"])
@@ -98,6 +99,3 @@ def test_d235_an_unverifiable_safe_line_allows_a_soft_fact_note_only():
     assert note["false_rate"] == 0 and note["unverifiable_soft"] == 1
     high = score([{"id": "U1", "run": 0, "alerts": [alert(rule_id="ASEAN-2D-DISEASE", severity="HIGH")]}], [case])
     assert high["false_rate"] == 1 and high["wrong_high"] == 1
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

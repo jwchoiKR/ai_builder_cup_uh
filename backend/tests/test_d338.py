@@ -27,6 +27,7 @@ class _Backend(ScriptedBackend):
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
 
 
+@pytest.mark.legacy_live  # D-434: cites a document passage; production's evidence is the prompter snapshot (N10)
 async def test_d374_a_not_approved_phrase_keeps_both_verdicts():
     from app.agents.fact_checker import DROPS
 
@@ -46,6 +47,3 @@ async def test_d374_a_not_approved_phrase_keeps_both_verdicts():
     finally:
         DROPS.reset(token)
         await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

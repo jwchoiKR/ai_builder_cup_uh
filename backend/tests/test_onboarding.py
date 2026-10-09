@@ -13,6 +13,7 @@ from app.onboarding.record import ProductRecord
 
 from .helpers import make_ctx
 from .judge_fakes import ScriptedBackend
+from .judge_fakes import rid as rule_rid
 
 EV = [{"file": "spec.docx", "locator": "paragraph 1", "quote": "P 30 ml, S$36.00; Zinc 0.5 mg"}]
 
@@ -191,7 +192,7 @@ async def test_d222_the_eval_scripts_run_cases_on_a_release(tmp_path, monkeypatc
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-    assert [a["rule_id"] for a in row["alerts"]] == ["ASEAN-2D-DISEASE"]
+    assert [a["rule_id"] for a in row["alerts"]] == [rule_rid("ASEAN-2D-DISEASE")]  # D-434: the cited section
 
 
 def test_d223_promo_prices_are_computed_in_code_from_the_stated_terms():
@@ -1342,6 +1343,3 @@ def test_d276_every_record_caution_gets_a_required_point_worded_only_if_its_mean
         ("Do not use on broken skin.", True),  # the record's text
         ("Contains milk.", True),  # never lost, even when the model leaves it out
         ("Store it below 30 degrees.", True)]
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
