@@ -132,9 +132,8 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 "alerts": [{"kind": a.kind, "product_id": a.product_id, "rule_id": a.rule_id, "severity": a.severity,
                             "field": a.field,
                             "span": a.span, "say_instead": a.say_instead, "stated_value": a.stated_value,
-                            "correct_value": a.correct_value, "status": a.status, "unverified": a.unverified,
-                            "votes": a.votes, "evidence_ids": a.evidence_ids, "heard_check": a.heard_check,
-                            "unverified_reason": a.unverified_reason,
+                            "correct_value": a.correct_value, "status": a.status,
+                            "evidence_ids": a.evidence_ids,
                             # D-309: from the final received to the alert created and to it shown (active)
                             "ms_to_created": a.created_at - heard[a.transcript_id] if a.transcript_id in heard else None,
                             "ms_to_shown": a.shown_at - heard[a.transcript_id] if a.transcript_id in heard else None,

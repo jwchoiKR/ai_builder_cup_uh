@@ -82,7 +82,6 @@ export const KO_OPERATOR: Record<string, string> = {
   "Corrected in {s} s": "{s}초 만에 정정",
   HIGH: "높음",
   MEDIUM: "중간",
-  "AI check unavailable": "AI 확인 불가",
   "Rule:": "규정:",
   "Say:": "대체 멘트:",
   "AI citation:": "AI 인용 위치:",

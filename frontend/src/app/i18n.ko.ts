@@ -62,8 +62,6 @@ export const KO_HOST: Record<string, string> = {
   // D-402: the large label on every alert box (colour alone never carries the meaning)
   "Regulation": "법규",
   "Product info": "제품 정보",
-  "AI check unavailable": "AI 확인 불가",
-  "Unverified (AI response delayed)": "미확인 (AI 응답 지연)",
   "Heard:": "들린 말:",
   "{a} of {b}": "{b}개 중 {a}",
   "Say this instead.": "이렇게 말하세요.",
@@ -78,7 +76,6 @@ export const KO_HOST: Record<string, string> = {
   "{cause}: {n} lines unchecked": "{cause}: 확인 못 한 문장 {n}개",
   CORRECTION: "정정",
   "Source:": "출처:",
-  "CHECK WHAT WAS SAID": "말한 내용 확인",
   Corrected: "정정 완료",
   Fact: "사실",
   Price: "가격",
