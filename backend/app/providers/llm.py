@@ -334,7 +334,7 @@ class VertexBackend:
 
     async def generate(self, req: LLMRequest, timeout_ms: int) -> RawReply:
         import httpx
-        from google.genai import errors, types
+        from google.genai import errors
 
         config = vertex_config(req, timeout_ms, self._schema(req.output_model))
         entry = self._cache_entry(req)
@@ -457,10 +457,7 @@ def write_usage_report(path: str) -> None:
     for row in USAGE.values():
         for k in total:
             total[k] += row[k]
-    from . import rule_search  # D-194 arm E: retrieval latency and the rule ids per line, for recall
-
-    report = {"agents": USAGE, "total": total} | ({"rule_search": rule_search.summary()}
-                                                  if rule_search.STATS["calls"] else {})
+    report = {"agents": USAGE, "total": total}
     Path(path).write_text(json.dumps(report, indent=1), encoding="utf-8")
 
 

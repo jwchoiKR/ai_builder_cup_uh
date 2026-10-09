@@ -14,7 +14,7 @@ import {
   type PrompterViewModel,
 } from "../../app/selectors";
 import type { ClientState } from "../../app/state";
-import type { Alert, Answer, Catalog, Product } from "../../app/types";
+import type { Alert, Catalog, Product } from "../../app/types";
 
 /** NOW / NEXT. Before the broadcast starts the first run-sheet product is shown as NOW, so the host
  * can read the first prompter page while the show is READY. */
@@ -126,15 +126,6 @@ export function ruleInfo(catalog: Catalog | null, ruleId: string | null, pid?: s
   const rule = catalog?.rules?.find((r) => r.rule_id === ruleId);
   if (!rule) return { title: ruleId ?? "Restricted claim", ref: "" };
   return { title: rule.title, ref: shortRef(ownDocFirst(catalog, rule.source_ref, pid)) };
-}
-
-/** Source chip under the suggested answer: "Product sheet · FAQ" style (§12.3.4). */
-export function answerSource(catalog: Catalog | null, answer: Answer | null): string | null {
-  const c = answer?.citations?.[0];
-  if (!c) return null;
-  if (c.passage_id.startsWith("PROMO#")) return "Active promotion";
-  const section = c.section ?? catalog?.passages?.[c.passage_id]?.section;
-  return section ? `Product sheet · ${section}` : "Product sheet";
 }
 
 export function initialOf(name: string): string {

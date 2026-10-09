@@ -16,10 +16,9 @@ import logging
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO, ComplianceOutputR,
-                               ComplianceOutputRC, ContextOutput,
+                               ContextOutput,
                                ContextOutputB, ContextOutputQ, with_alert_checks, with_product,
                                with_same_as, with_switch_naming)
-from ..providers import rule_search
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
@@ -58,7 +57,6 @@ class _SplitJudge:
         self.model = llm.fast.model
         self.catalog = catalog
         self.reflex = reflex
-        self.docs: dict[str, tuple[tuple, tuple]] = {}  # D-310: product -> (file parts, file passages), as facts has
         self.with_docs = False
         self.arm = llm.design_arm  # D-187
         # D-304 VERBAL_CHECK=judge: the context judge alone answers with arm B's fields (numbers said, hedged)
@@ -77,9 +75,6 @@ class _SplitJudge:
 
         for f in sorted(fixes_of(getattr(getattr(llm, "settings", None), "FACT_FIXES", "") or "")):
             if extra := arms._addenda(str(llm.prompts_path)).get((f, self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "STT_AWARE", False):  # D-303
-            if extra := arms._addenda(str(llm.prompts_path)).get(("STT", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
@@ -135,11 +130,6 @@ class _SplitJudge:
         return res
 
 
-def _documents_block(passages) -> str:
-    text = json.dumps(inputs.passages_json(passages), ensure_ascii=False).replace("</", "<\\/")
-    return f'<data name="PRODUCT_DOCUMENTS">{text}</data>\n'
-
-
 class ComplianceJudge(_SplitJudge):
     name = "compliance_judge"
     spec = "compliance"
@@ -159,9 +149,6 @@ class ComplianceJudge(_SplitJudge):
             self.with_docs = self.handles = True
             self._docs = None
             return
-        self.with_docs = bool(getattr(getattr(llm, "settings", None), "COMPLIANCE_DOCS", False))  # D-310
-        if self.with_docs and (extra := arms._addenda(str(llm.prompts_path)).get(("DOCS", self.name))):
-            self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
             if extra := arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
@@ -170,27 +157,11 @@ class ComplianceJudge(_SplitJudge):
         if self.handles:
             if extra := arms._addenda(str(llm.prompts_path)).get(("HANDLES", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "COMPLIANCE_ENDORSE", False):  # D-333: endorsed claims
-            if extra := arms._addenda(str(llm.prompts_path)).get(("ENDORSE", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "COMPLIANCE_NEG", False):  # D-328: warnings are not the claim
-            if extra := arms._addenda(str(llm.prompts_path)).get(("NEG", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "FACT_PROMPT", "v1") in ("v2", "v3", "v4", "v5", "v6", "v7", "v8"):  # D-312
-            if extra := arms._addenda(str(llm.prompts_path)).get(("V2", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         if getattr(getattr(llm, "settings", None), "FACT_RELATION", False):
             # D-296: a HIGH verdict names the claim the line makes; the rule-fit checks (Q6, G7) read it
             self.output_model = ComplianceOutputR
             if extra := arms._addenda(str(llm.prompts_path)).get(("REL", self.name)):
                 self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-            if getattr(llm.settings, "JUDGE_ARM", "") == "single":  # D-309: the judge may lower a HIGH
-                if extra := arms._addenda(str(llm.prompts_path)).get(("SINGLE", self.name)):
-                    self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-            if getattr(llm.settings, "VOTE_CONFIDENCE", "off") == "self":  # D-302: a log field
-                self.output_model = ComplianceOutputRC
-                if extra := arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)):
-                    self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def regulation(self):
         """D-358: the originals behind the show's products' rules. D-363 (user): loaded ONCE, at show start (the cache
@@ -207,17 +178,12 @@ class ComplianceJudge(_SplitJudge):
         return self._docs
 
     def documents(self, pid: str) -> tuple[str, tuple]:
-        """D-310: the product's documents as a data block (its passages and its files' text) and its file parts.
-        D-358: in the originals path, the regulation originals: each file after a "FILE <name>" line, and a
-        REGULATION_DOCUMENTS block naming them."""
-        if self.originals:
-            docs, _ = self.regulation()
-            parts = tuple(x for d in docs for x in ((f"FILE {d.name}".encode(), "text/plain"), (d.data, d.mime)))
-            index = [{"document": d.name, "title": d.title} for d in docs]
-            return inputs.data_block("REGULATION_DOCUMENTS", index) + "\n", parts
-        parts, file_passages = self.docs.get(pid, ((), ()))
-        passages = [p for p in self.catalog.pack.passages if p.product_id == pid] + list(file_passages)
-        return _documents_block(passages), parts
+        """D-358: the regulation originals: each file after a "FILE <name>" line, and a REGULATION_DOCUMENTS block
+        naming them (only the originals path sets with_docs; D-432: the D-310 product-documents branch is gone)."""
+        docs, _ = self.regulation()
+        parts = tuple(x for d in docs for x in ((f"FILE {d.name}".encode(), "text/plain"), (d.data, d.mime)))
+        index = [{"document": d.name, "title": d.title} for d in docs]
+        return inputs.data_block("REGULATION_DOCUMENTS", index) + "\n", parts
 
     async def warm(self, pid: str, session_id: str | None) -> None:
         """D-310: this product's rules-and-documents cache, made at session start."""
@@ -286,14 +252,6 @@ class ComplianceJudge(_SplitJudge):
                       "scope_product_ids": [inp.on_air, prev]}
         if self.handles:
             values = self._with_handles(inp, values if values is not None else build_judge_values(self.catalog, inp))
-        search = rule_search.for_settings(self.llm.settings) if self.arm == "E" and not self.originals else None
-        if search is not None:  # D-194 arm E: only the rules the search picks for this line (every rule on failure)
-            values = dict(values if values is not None else build_judge_values(self.catalog, inp))
-            m = self.catalog.pack.market
-            ids = await search.search(inp.utterance, m.market if m is not None else "SG")
-            if ids is not None:
-                by_id = {r["rule_id"]: r for r in values["rules_compact_json"]}
-                values["rules_compact_json"] = [by_id[i] for i in dict.fromkeys(ids) if i in by_id]
         res = await super().run(inp, deadline_ms=deadline_ms, values=values, **opts)
         if self.originals and (missing := self.regulation()[1]):
             res.meta["originals_missing"] = list(missing)  # D-358: judged without these sources' documents
@@ -324,9 +282,7 @@ class ComplianceJudge(_SplitJudge):
             values = {**values, "active_alerts_json": [{"alert_id": i} for i in handles.values()]}
         if self.originals:
             return validate_original(out, self.catalog, values, self.regulation()[0])  # the show's snapshot
-        judge_arm = getattr(self.llm.settings, "JUDGE_ARM", "guards")
-        return validate_compliance(out, self.catalog, values, arm=self.arm, verify=judge_arm in ("verify", "vote", "single"),
-                                   model_severity=judge_arm == "single")  # D-309
+        return validate_compliance(out, self.catalog, values)
 
 
 class ContextJudge(_SplitJudge):

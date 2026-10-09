@@ -23,7 +23,6 @@ import asyncio
 import contextlib
 import dataclasses
 import logging
-import re
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
@@ -35,7 +34,7 @@ from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
 from ..logic import publish as publish_logic
 from ..logic.prompter import apply_coverage, missing_required, points_of, tick_item
-from ..models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, UtteranceJudgeOutput
+from ..models.agent_io import ContextOutput, FactCheckOutput, UtteranceJudgeOutput
 from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
 from .comments import answer_key, move_previous_product_questions_locked
@@ -45,31 +44,6 @@ if TYPE_CHECKING:
     from .runtime import SessionRuntime
 
 log = logging.getLogger(__name__)
-
-
-def _same_words(a: str | None, b: str | None) -> bool:
-    """D-330: the model named the same words (one inside the other, case and punctuation aside)."""
-    x, y = (" ".join(re.findall(r"[a-z0-9]+", (s or "").lower())) for s in (a, b))
-    return bool(x and y) and (x in y or y in x)
-
-
-def _same_subject(c, other) -> bool:
-    """D-330: two fact outputs about one subject: the same product and field, and a shared evidence sentence (or,
-    without evidence ids, the same passage)."""
-    if (c.product_id, c.field) != (other.product_id, other.field):
-        return False
-    a = set(getattr(c, "_evidence", None) or getattr(c, "evidence_ids", None) or [])
-    b = set(getattr(other, "_evidence", None) or getattr(other, "evidence_ids", None) or [])
-    return bool(a & b) if a and b else c.passage_id == other.passage_id
-
-
-def _stance_of(c, stances: list, pool: list) -> str | None:
-    """D-330: what the next line's check says of claim `c` (one of `pool`): the stance item of its product and field
-    whose words are the claim's, or the only item of that product and field when `c` is the only such claim."""
-    same = [x for x in pool if (x.product_id, x.field) == (c.product_id, c.field)]
-    return next((s["stance"] for s in stances if (s["product_id"], s["field"]) == (c.product_id, c.field)
-                 and (len(same) == 1 or _same_words(c.span, s["span"]) or _same_words(c.stated_value, s["span"]))),
-                None)
 
 
 def _result(task: asyncio.Task) -> AgentResult:
@@ -158,13 +132,9 @@ class UtterancePipeline:
         self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex, single=self.single)
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
-        relation = {"v2": "fact_relation_v2", "v3": "fact_relation_v3", "v4": "fact_relation_v4",
-                    "v5": "fact_relation_v5", "v6": "fact_relation_v6",
-                    "v7": "fact_relation_v7", "v8": "fact_relation_v8"}.get(rt.settings.FACT_PROMPT,
-                                                                            "fact_relation")  # D-312 ... D-333
+        relation = "fact_relation_v5" if rt.settings.FACT_PROMPT == "v5" else "fact_relation"  # D-331
         self.facts = FactChecker(ctx.llm, ctx.prompts[relation if rt.settings.FACT_RELATION else "fact_checker"],
                                  rt.catalog)  # D-296
-        self.compliance.docs = self.facts.files  # D-310: the same documents for COMPLIANCE_DOCS
         self.type_words = self._type_words()  # D-351
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
@@ -178,11 +148,6 @@ class UtterancePipeline:
         self._questions: dict[str, int] = {}  # D-334: held question finals -> when the hold began
         self._ready: dict[str, asyncio.Future] = {}  # D-335: each final's context verdict, as it comes
         self._question_finals = 0  # D-334: finals that end with "?" (a log of STT punctuation)
-        # D-328 REPORTED_HOLD: transcript id -> (its contradicted claims in someone else's words, the transcript, the
-        # protected ids, when the hold began), waiting for the next line's fact check
-        self._reported: dict[str, list] = {}  # [claims still held, transcript, protected ids, when it began]
-        self._checked: dict[int, list] = {}  # line number -> its check's word on the previous line's claims
-        self._consistent: dict[int, list] = {}  # D-330: line number -> its consistent claims (retire a held alert)
         self._prepared: dict[str, tuple[Transcript, str, Merge | None]] = {}
         self._applied: set[tuple[str, str]] = set()
         # D-401: (line, kind) whose verdict succeeded and was applied; only these supersede their merge chain
@@ -241,11 +206,6 @@ class UtterancePipeline:
             self.rt.ctx.scheduler.cancel(self.rt.key(f"hold:{tid}"))
             await self._release(tid)
         await asyncio.gather(*tuple(self._pending), return_exceptions=True)
-        while self._reported:  # D-328: no next line is coming either: each hold ends on its own time (eval, tests)
-            tid, (_, _, _, began) = next(iter(self._reported.items()))
-            await asyncio.sleep(max(0, began + self.rt.settings.REPORTED_HOLD_MS - self.rt.now()) / 1000)
-            async with self.rt.lock:
-                await self._show_reported_locked(tid, "hold ended")
 
     # ---- steps 1-4 -----------------------------------------------------------------------------
 
@@ -297,11 +257,6 @@ class UtterancePipeline:
                     and (best is None or t.received_at > best[0].received_at)):
                 best = (t, text)
         return best[1] if best else None
-
-    def _previous_final(self, t: Transcript) -> Transcript | None:
-        """The final just before `t` in transcript order (still kept for merging)."""
-        seq = self._sequence.get(t.transcript_id, 0) - 1
-        return next((p for p, _, _ in self._prepared.values() if self._sequence.get(p.transcript_id) == seq), None)
 
     def _remember(self, t: Transcript, merge: Merge | None, text: str) -> None:
         self._last = t
@@ -358,8 +313,6 @@ class UtterancePipeline:
             if began is not None:  # D-334
                 log.info("question %s judged alone: no answer within %d ms", tid, self.rt.now() - began)
                 await self.rt.emit("hold.ended", {"transcript_id": tid})
-            else:
-                log.info("held fragment %s judged alone after the merge window", tid)
             await self._judge(*held)
 
     async def _judge(self, t: Transcript, text: str, merge: Merge | None, scenario: str) -> None:
@@ -425,9 +378,7 @@ class UtterancePipeline:
                                                                   if rt.settings.JUDGE_ARM == "single"  # model's 5 s
                                                                   else rt.settings.JUDGE_TIMEOUT_MS), values=values)),
                     name=f"compliance:{t.transcript_id}")
-                ctx_task = rt.spawn(self._context_once_more(inp, values) if self.type_words is not None
-                                    else self.context.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS, values=values),
-                                    name=f"context:{t.transcript_id}")
+                ctx_task = rt.spawn(self._context_once_more(inp, values), name=f"context:{t.transcript_id}")
             else:
                 comp_task = rt.spawn(self.judge.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS),
                                      name=f"judge:{t.transcript_id}")
@@ -537,18 +488,15 @@ class UtterancePipeline:
         alerts = [a for a in await rt.alerts() if a.transcript_id != t.transcript_id]
         inside = {t.transcript_id, *(merge.chain if merge else [])}  # already in the utterance text
         # D-117 B9: a bounded tail, not every transcript of the session
-        window = rt.settings.CONTEXT_WINDOW_MS  # D-303: the finals of the last N ms, in place of the last two
         tail = await rt.ctx.store.query(rt.path("transcripts"), Transcript, order_by="received_at", descending=True,
-                                        limit=len(inside) + (30 if window else 4))
+                                        limit=len(inside) + 4)
         previous = [x.text for x in reversed(tail) if x.transcript_id not in inside][-2:]
-        recent = ([x.text for x in reversed(tail) if x.transcript_id not in inside and x.is_final
-                   and x.received_at >= t.received_at - window] if window else None)
         questions = await self._open_questions_locked(s, on_air)
         promo = rt.promo(s.active_promo_id)
         # D-112: the first question slot (D-429: no answer card on screen any more)
         on_screen = s.host_slots[0].group_id if s.host_slots else None
         inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
-                         cue=s.cue, previous=previous, recent=recent, points_by_product=rt.points or None,
+                         cue=s.cue, previous=previous, points_by_product=rt.points or None,
                          all_products=rt.settings.JUDGE_PRODUCTS == "all",
                          session_id=rt.sid, scenario=scenario,
                          switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen,
@@ -681,7 +629,7 @@ class UtterancePipeline:
         if transcript_id is not None:
             self._fact_shown[transcript_id] = {a.alert_id for a in notes}
         inp = FactInput(utterance=text, on_air=on_air, switch=judge_input.switch, promo=judge_input.promo,
-                        passages=passages, previous=judge_input.previous, recent=judge_input.recent,
+                        passages=passages, previous=judge_input.previous,
                         session_id=self.rt.sid, scenario=scenario,
                         offers=offers, parts=parts or [], notes=notes, now=self.rt.now(), chain=judge_input.chain)
         if transcript_id is not None:
@@ -749,7 +697,7 @@ class UtterancePipeline:
                              "a new alert", rt.sid, t.transcript_id, same)
                     v.same_as = None
             changed, created, closed = alert_logic.apply_judge_compliance(
-                judge, t, on_air, rt.pack.rules_by_id, rt.new_id, now, listed=listed)
+                judge, t, on_air, rt.new_id, now, listed=listed)
             kept = {a.alert_id for a in changed if a.transcript_id != t.transcript_id}
             if kept or closed:
                 log.info("compliance %s t=%s: same_as kept %s; not raised again (closed): %s", rt.sid, t.transcript_id,
@@ -775,9 +723,7 @@ class UtterancePipeline:
                 if a.alert_id not in kept:  # D-403: a kept active one stays as is
                     await self._on_active_locked(a)
             # D-089: an apology alone does not correct a compliance alert
-            await self._apply_corrections_locked(t, text, judge.correction.corrects_alert_ids, protected, now,
-                                                 quotes=getattr(judge.correction, "quotes", None))
-        # §8.4.7 a new HIGH alert resets switch counting and cancels a pending switch
+            await self._apply_corrections_locked(t, judge.correction.corrects_alert_ids, now)
 
     async def _apply_context_locked(self, t: Transcript, judge: ContextOutput | UtteranceJudgeOutput,
                                     merge: Merge | None = None) -> None:
@@ -849,8 +795,7 @@ class UtterancePipeline:
         return {"recent": recent, "unchecked": sorted((v for line in self.unchecked.values() for v in line.values()),
                                                       key=order)}
 
-    async def _apply_corrections_locked(self, t: Transcript, text: str, listed: list[str], protected: set[str],
-                                        now: int, quotes=None) -> None:
+    async def _apply_corrections_locked(self, t: Transcript, listed: list[str], now: int) -> None:
         """D-304/D-390: the alerts the compliance judge says this line fixes (by handle), applied as given; no word
         check, no replacement match, no merge protection (a line may fix an alert of its own merged fragments)."""
         rt = self.rt
@@ -1015,130 +960,9 @@ class UtterancePipeline:
         self._verdict_ok.add((t.transcript_id, "facts"))  # D-401: only a verdict that came back is applied here
         # D-374 (user, 10/9): every claim of the verdict is applied as given (no D-117 per-subject ordering drop)
         claims = list(facts.claims)
-        if rt.settings.REPORTED_HOLD:
-            seq = self._sequence.get(t.transcript_id, 0)
-            stances = list(getattr(facts, "_previous_line", []))
-            self._checked[seq] = stances
-            self._consistent[seq] = [c for c in claims if c.verdict == "supported"]
-            endorsed = await self._settle_reported_locked(seq - 1, stances)
-            # D-329/330: an endorsed held alert keeps its own line (and timing): this line's claim on the same subject
-            # joins it; its other claims stand
-            claims = [c for c in claims
-                      if not (c.verdict == "contradicted" and any(_same_subject(c, e) for e in endorsed))]
-            prev = next((x for x, s in self._sequence.items() if s == seq - 1), None)
-            if prev is not None and (seq - 1) not in self._checked:
-                # D-330: this line endorses what the previous line reported, and that line's check is not back: the
-                # endorsed claim's alert is the previous line's (so its delay counts from there)
-                joined = [c for c in claims if c.verdict == "contradicted"
-                          and _stance_of(c, stances, claims) == "endorses"]
-                if joined:
-                    claims = [c for c in claims if all(c is not j for j in joined)]
-                    await self._fact_alerts_locked(t.model_copy(update={"transcript_id": prev}), joined, protected)
-            held = [c for c in claims if c.verdict == "contradicted" and getattr(c, "_attributed", "host") == "other"]
-            if held:
-                claims = [c for c in claims if all(c is not h for h in held)]
-                await self._hold_reported_locked(t, held, protected)
         fresh = await self._fact_alerts_locked(t, claims, protected, getattr(facts, "_corrects", []))
         await self._correct_fact_notes_locked(t, getattr(facts, "_corrects", []), fresh)
         await self._tick_prompter_locked(t, facts.claims)  # D-373: every supported claim of the line
-
-    async def _hold_reported_locked(self, t: Transcript, claims: list, protected: set[str]) -> None:
-        """D-328: a contradiction in someone else's words (a viewer quoted, a co-host's question) is not shown yet:
-        the host sees the grey "checking" chip until the next line's fact check says whether the host endorses or
-        rejects it, or REPORTED_HOLD_MS passes. The model decides whose words and which claims the next line endorses
-        or rejects; code only waits and matches the model's own outputs."""
-        rt = self.rt
-        tid, seq = t.transcript_id, self._sequence.get(t.transcript_id, 0)
-        self._reported[tid] = [list(claims), t, protected, rt.now()]
-        log.info("fact alert held %s t=%s: %d claim(s) in someone else's words", rt.sid, tid, len(claims))
-        rt.ctx.scheduler.call_later(rt.key(f"reported:{tid}"), rt.settings.REPORTED_HOLD_MS,
-                                    lambda: self._reported_timeout(tid))
-        if (stances := self._checked.get(seq + 1)) is not None:  # the next line's check came back first
-            await self._settle_reported_locked(seq, stances)
-
-    async def _reported_timeout(self, tid: str) -> None:
-        """The hold's time is up. The next line heard but not yet checked keeps it waiting for that check (at most
-        two fact timeouts more); otherwise, or then, what is still held shows: a missed risk is worse than a late
-        one."""
-        rt = self.rt
-        async with rt.lock:
-            entry = self._reported.get(tid)
-            if entry is None:
-                return
-            seq, began = self._sequence.get(tid, 0), entry[3]
-            waiting = (seq + 1) in self._sequence.values() and (seq + 1) not in self._checked
-            if waiting and rt.now() - began < rt.settings.REPORTED_HOLD_MS + 2 * rt.settings.FACT_TIMEOUT_MS:
-                rt.ctx.scheduler.call_later(rt.key(f"reported:{tid}"), 250, lambda: self._reported_timeout(tid))
-                return
-            await self._show_reported_locked(tid, "hold ended")
-
-    async def _settle_reported_locked(self, seq: int, stances: list) -> list:
-        """The check of the line right after line `seq` is back. Only that line settles line `seq`'s hold, and only
-        the claims it names (D-330: by the words of that claim, or the only held claim of that product and field): a
-        rejected claim is dropped, an endorsed one shows on its own line; the others stay held until the timeout.
-        Returns the endorsed claims."""
-        rt = self.rt
-        tid = next((x for x in self._reported if self._sequence.get(x, 0) == seq), None)
-        if tid is None or not stances:
-            return []
-        claims, t, protected, began = self._reported[tid]
-        verdict = {id(c): _stance_of(c, stances, claims) for c in claims}
-        dropped = [c for c in claims if verdict[id(c)] == "rejects"]
-        shown = [c for c in claims if verdict[id(c)] == "endorses"]
-        self._reported[tid][0] = [c for c in claims if verdict[id(c)] is None]
-        if dropped:
-            log.info("held alert dropped: rejected by next line %s t=%s after %d ms (%s)", rt.sid, tid,
-                     rt.now() - began, ", ".join(f"{c.product_id}.{c.field} {c.stated_value!r}" for c in dropped))
-        if shown:
-            log.info("held alert shown (endorsed) %s t=%s after %d ms", rt.sid, tid, rt.now() - began)
-            await self._endorsed_alerts_locked(t, shown, protected, seq + 1)
-        if not self._reported[tid][0]:
-            del self._reported[tid]
-            rt.ctx.scheduler.cancel(rt.key(f"reported:{tid}"))
-        return shown
-
-    async def _endorsed_alerts_locked(self, t: Transcript, claims: list, protected: set[str], next_seq: int) -> None:
-        """D-330: an endorsed claim's alert belongs to the line it came from. When the endorsing line's check came
-        back first and already shows that subject, the alert moves to the original line (its shown time kept);
-        otherwise it is made on the original line now."""
-        rt = self.rt
-        nxt = next((x for x, s in self._sequence.items() if s == next_seq), None)
-        rest = []
-        for c in claims:
-            a = next((a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"
-                      and a.transcript_id == nxt and _same_subject(c, a)), None)
-            if a is None:
-                rest.append(c)
-                continue
-            a.transcript_id = t.transcript_id
-            await rt.save_alert(a)
-            await rt.emit("alert.updated", a)
-        if rest:
-            await self._fact_alerts_locked(t, rest, protected)
-
-    async def _show_reported_locked(self, tid: str, why: str) -> None:
-        entry = self._reported.pop(tid, None)
-        if entry is None:
-            return
-        claims, t, protected, began = entry
-        rt = self.rt
-        rt.ctx.scheduler.cancel(rt.key(f"reported:{tid}"))
-        seq = self._sequence.get(tid, 0)
-        later = [x for s, ok in self._consistent.items() if s > seq for x in ok]
-        retired = [c for c in claims if any(_same_subject(c, x) for x in later)]
-        if retired:  # D-330: a later line stated this subject consistently (the model's own outputs)
-            log.info("held alert retired: corrected later %s t=%s (%s)", rt.sid, tid,
-                     ", ".join(f"{c.product_id}.{c.field} {c.stated_value!r}" for c in retired))
-        claims = [c for c in claims if all(c is not r for r in retired)]
-        log.info("held alert shown (%s) %s t=%s after %d ms: %d claim(s)", why, rt.sid, tid, rt.now() - began,
-                 len(claims))
-        if claims:
-            await self._fact_alerts_locked(t, claims, protected)
-
-    async def end_reported_locked(self) -> None:
-        """D-329: the show ends with holds open: what is still held shows (a missed risk is worse than a late one)."""
-        for tid in list(self._reported):
-            await self._show_reported_locked(tid, "show ended")
 
     async def _fact_alerts_locked(self, t: Transcript, claims: list, protected: set[str], corrects=()) -> set[str]:
         """D-398: one note per contradicted claim. D-403 (user, option A): a contradiction the model marks as repeating
@@ -1637,7 +1461,6 @@ async def commit_switch_locked(rt: "SessionRuntime", target: str, reason: str) -
     s = await rt.load_session()
     old = await rt.current_segment()
     now = rt.now()
-    rt.ctx.scheduler.cancel(rt.key("switch-commit"))
     if old is not None:
         old.ended_at = now
         await rt.save_segment(old)
@@ -1817,7 +1640,7 @@ async def resend_fact(rt: "SessionRuntime", pipeline: UtterancePipeline, aid: st
 
 async def post_notice(rt: "SessionRuntime", aid: str, text: str) -> Message:
     async with rt.lock:
-        a = await _alert_or_404(rt, aid)
+        await _alert_or_404(rt, aid)
         if not text.strip():
             raise ActionError(400, "empty_notice", "notice text is empty")
         msg = await rt.publish_message_locked(kind="correction_notice", text=text.strip(), group=None, comment_ids=[],

@@ -8,11 +8,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
-from ..logic.verify import number_set
-from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputC,
-                               FactRelationOutputH, FactRelationOutputV2, FactRelationOutputV5,
-                               FactRelationOutputV7, with_note_checks, with_same_as)
-from ..onboarding.numwords import numbers_in_text, plain as plain_number
+from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputV5, with_note_checks,
+                               with_same_as)
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -35,17 +32,6 @@ CLAIMS_SECTION = "Approved on-air claims"
 DROPS: contextvars.ContextVar[list | None] = contextvars.ContextVar("fact_drops", default=None)
 
 
-def _drop(c, why: str) -> None:
-    """D-248 (sealed FR run: 3 of 4 right model corrections dropped in silence): code may overrule the model, but
-    never silently; the reason is logged with the claim."""
-    log.info("fact claim dropped by code: %s | field=%s stated=%r correct=%r passage=%s", why, c.field,
-             c.stated_value, c.correct_value, c.passage_id)
-    if (sink := DROPS.get()) is not None:
-        sink.append({"reason": why, "field": c.field, "stated": c.stated_value, "correct": c.correct_value,
-                     "passage_id": c.passage_id, "quote": c.quote})
-    c.verdict = "not_in_sources"
-
-
 
 PRICE_FIELDS = ("price", "set_price", "promo")
 
@@ -60,7 +46,6 @@ class FactInput:
     previous: list[str] = field(default_factory=list)
     offers: list[Promo] = field(default_factory=list)  # D-149: running offers that change no price
     parts: list[str] = field(default_factory=list)  # D-167: the finals a merged utterance joins, oldest first
-    recent: list[str] | None = None  # D-303 CONTEXT_WINDOW_MS: the finals of the window, in place of the last two
     session_id: str | None = None
     scenario: str = "default"
     notes: list = field(default_factory=list)  # D-363: the active fact notes, shown to the model by handle
@@ -152,7 +137,6 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                       passage_id=p.passage_id if p else None,
                       quote=" ".join(t for q, t in ev if q.passage_id == p.passage_id) if p else None)
         c._evidence = [i for i in r.evidence if i in index or i in terms]  # D-302: carried to the alert
-        c._attributed = getattr(r, "attributed", "host")  # D-328
         c._cited = list(dict.fromkeys(q.passage_id for q, _ in ev))  # D-372: prompter items it ticks
         if verdict == "contradicted" and not ev and not set(r.evidence) & terms:
             # D-374: applied as given (no evidence passage, so no quote); logged only
@@ -166,29 +150,7 @@ def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]]
                              "correct": r.correct_value, "passage_id": c.passage_id, "quote": c.quote}
                             | ({"source": r.source_value} if hasattr(r, "source_value") else {}))  # D-312
         claims.append(c)
-    result = FactCheckOutput(claims=claims, reason="relation")
-    result._previous_line = [x.model_dump() for x in getattr(out, "previous_line", [])]  # D-329/330
-    return result
-
-
-def _numbers(lex, t: str | None) -> set[str]:
-    return (number_set(t or "") | lex.spoken_numbers(t or "") | {plain_number(v) for v in numbers_in_text(t or "")}
-            | lex.times_numbers(t or ""))
-
-
-def _product_numbers(lex, catalog: Catalog, pid: str, passages: Sequence[Passage]) -> set[str]:
-    """D-299: every number the product's documents and record give: all its passages (not only the cited one: "the
-    60-tablet tub" when the quote was the 30 pack), its sizes, variants, prices and key facts."""
-    nums: set[str] = set()
-    for p in (*passages, *catalog.pack.passages):
-        if p.product_id == pid:
-            nums |= _numbers(lex, p.text)
-    if catalog.is_product(pid):
-        prod = catalog.get_product(pid)
-        for text in (prod.volume, f"{prod.live_price}", f"{prod.list_price}", *map(str, prod.key_facts.values()),
-                     *(f"{v.label} {v.live_price} {v.list_price}" for v in prod.variants)):
-            nums |= _numbers(lex, text)
-    return nums
+    return FactCheckOutput(claims=claims, reason="relation")
 
 
 def as_given(out: FactCheckOutput, catalog: Catalog) -> FactCheckOutput:
@@ -222,34 +184,17 @@ class FactChecker:
         self.mode = mode
         # D-296: the relation arm cites file sentences by id (RD), not by "file:<name>" and a copied quote (FD)
         self.relation = bool(getattr(settings, "FACT_RELATION", False))
-        # D-302: VOTE_CONFIDENCE=self asks for a confidence per claim (a log field)
-        self.confidence = getattr(settings, "VOTE_CONFIDENCE", "off") == "self"
-        self.relation_model = FactRelationOutputC if self.confidence else FactRelationOutput
-        if getattr(settings, "FACT_PROMPT", "v1") in ("v2", "v3", "v4"):  # D-312, D-313, D-325: source_value before relation (no confidence field)
-            self.relation_model = FactRelationOutputV2
-            if getattr(settings, "REPORTED_HOLD", False):  # D-328: whose words, and the previous line's fate
-                self.relation_model = FactRelationOutputH
-        if getattr(settings, "FACT_PROMPT", "v1") in ("v5", "v6", "v8"):  # D-331, D-333, D-347: a stance per claim
-            self.relation_model = FactRelationOutputV5
-        if getattr(settings, "FACT_PROMPT", "v1") == "v7":  # D-345: v5 plus stated_as_heard
-            self.relation_model = FactRelationOutputV7
+        # D-331: v5 adds a stance per claim (D-432: v2-v4 and v6-v8 are deleted)
+        self.relation_model = FactRelationOutputV5 if getattr(settings, "FACT_PROMPT", "v1") == "v5" \
+            else FactRelationOutput
         layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
         fix_addenda = arms._addenda(str(llm.prompts_path)) if self.fixes else {}
         extras += [fix_addenda.get((f, self.name)) for f in sorted(self.fixes)]
-        if self.confidence:  # D-302
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("CONF", self.name)))
-        if self.relation_model is FactRelationOutputH:  # D-328
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("HOLD", self.name)))
         if getattr(settings, "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
             extras.append(arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)))
-        self.conversation = bool(getattr(settings, "CONTEXT_JUDGE", False))  # D-334
-        if self.conversation:
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("CTX", self.name)))
-        if getattr(settings, "STT_AWARE", False):  # D-303
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("STT", self.name)))
         if getattr(llm, "prompts_path", None) is not None:  # D-363: fact notes by handle
             extras.append(arms._addenda(str(llm.prompts_path)).get(("NOTES", self.name)))
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
@@ -269,7 +214,6 @@ class FactChecker:
             self.files = {pid: release_sources(str(settings.onboarding_path), rid) for pid, rid in releases.items()}
         first = next(iter(self.files.values()), ((), ()))
         self.file_parts, self.file_passages = first  # the first product's (one-release shows, the eval)
-        self.all_file_passages = tuple(x for _, ps in self.files.values() for x in ps)
         log.info("fact checker FACT_MODE=%s, release files sent: %d", mode,  # D-366
                  sum(len(parts) for parts, _ in self.files.values()))
 
@@ -304,18 +248,7 @@ class FactChecker:
                 *(self.files.get(prev, ((), ()))[1] if prev and prev != inp.on_air else ())]
 
     def _render(self, inp: FactInput) -> tuple[str, str]:
-        user, prefix = self._render_template(inp)
-        if self.conversation:  # D-334: the last 3 finals in one block, the last one checked
-            from ..providers.prompts import render_value
-
-            line = " / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance
-            earlier = (inp.recent if inp.recent is not None else inp.previous)[-2:]
-            block = f'<data name="CONVERSATION">{render_value("conversation_json", [*earlier, line])}</data>'
-            user = re.sub(r'<data name="RECENT_TRANSCRIPT">.*?</data>\n?', "", user, flags=re.S)
-            user = re.sub(r'<data name="UTTERANCE">.*?</data>', lambda _: block, user, flags=re.S)
-            user = user.replace("Return the JSON fact check for UTTERANCE.",
-                                "Return the JSON fact check for the last line of CONVERSATION.")
-        return user, prefix
+        return self._render_template(inp)
 
     def _render_template(self, inp: FactInput) -> tuple[str, str]:
         # D-361 FACT_MODE=prompter: nothing but the prompter snapshot (the passages) carries facts: the product block
@@ -332,7 +265,7 @@ class FactChecker:
             "set_offers_json": [] if shown else inputs.set_offers_json(self.catalog, inp.promo),
             "passages_json": (sentence_index(self._source(inp))[0] if self.relation
                               else inputs.passages_json(inp.passages)),
-            "last_two_final_transcripts_json": inp.recent if inp.recent is not None else inp.previous[-2:],
+            "last_two_final_transcripts_json": inp.previous[-2:],
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
         }, {"current_product_compact_json", "passages_json"})

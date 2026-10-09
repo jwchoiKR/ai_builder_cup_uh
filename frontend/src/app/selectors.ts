@@ -18,10 +18,6 @@ import type {
 
 // ---- time ------------------------------------------------------------------------------------------
 
-export function serverNow(state: ClientState, clientNow: number = Date.now()): number {
-  return clientNow + state.serverOffsetMs;
-}
-
 export function formatClock(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -378,12 +374,6 @@ export function hostAlertStack(state: ClientState): {
   return { shown, more, visibility };
 }
 
-export function activeFactAlerts(state: ClientState): Alert[] {
-  return Object.values(state.alerts)
-    .filter((a) => a.kind === "fact" && a.status === "active")
-    .sort((a, b) => alertTime(b) - alertTime(a));
-}
-
 export function alertLog(state: ClientState): Alert[] {
   return Object.values(state.alerts)
     .filter((a) => a.status !== "provisional" && a.status !== "cleared")
@@ -589,12 +579,6 @@ export function chatItems(state: ClientState): ChatItem[] {
 }
 
 /** Correction notices stay pinned in viewer chat for 60 s (§8.13). */
-export function pinnedCorrectionNotices(state: ClientState, now: number, windowMs = 60_000): Message[] {
-  return Object.values(state.messages).filter(
-    (m) => m.kind === "correction_notice" && m.state === "published" && now - messageTime(m) < windowMs,
-  );
-}
-
 export function hiddenComments(state: ClientState): Comment[] {
   return Object.values(state.comments)
     .filter((c) => c.visibility === "hidden")

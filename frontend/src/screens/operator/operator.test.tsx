@@ -92,7 +92,8 @@ describe("alert cards", () => {
     let st = reduceSnapshot(snapshot(), "operator", T0 + 10_000);
     st = {
       ...st,
-      missingPoints: [{ seq: 1, segment_id: "seg_000001", product_id: "cream_hydra_barrier", missing_point_ids: ["cr-p3"] }],
+      missingPoints: [{ seq: 1, segment_id: "seg_000001", product_id: "cream_hydra_barrier", missing_point_ids: ["cr-p3"],
+        missing_texts: ["Helps keep skin hydrated for up to 24 hours (in-house test)."] }],  // D-432: as the server sends
       unchecked: [{ seq: 2, transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0 }],
       overtime: { seg_000001: { segment_id: "seg_000001", product_id: "cream_hydra_barrier", overtime_sec: 5 } },
     };

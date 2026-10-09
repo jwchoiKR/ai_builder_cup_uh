@@ -9,14 +9,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from ..models.agent_io import UtteranceJudgeOutput
-from ..models.data import Rule
 from ..models.session import Alert, Transcript
 
 NewId = Callable[[str], str]
-
-
-def is_live(a: Alert) -> bool:
-    return a.status == "active"
 
 
 def high_alert_active(alerts: Sequence[Alert]) -> bool:
@@ -25,7 +20,7 @@ def high_alert_active(alerts: Sequence[Alert]) -> bool:
 
 def apply_judge_compliance(
     judge: UtteranceJudgeOutput, t: Transcript, product_id: str,
-    rules: dict[str, Rule], new_id: NewId, now: int, listed: dict[str, Alert] | None = None,
+    new_id: NewId, now: int, listed: dict[str, Alert] | None = None,
 ) -> tuple[list[Alert], list[Alert], list[str]]:
     """§8.4.1. Returns (changed, created, closed).
 
@@ -50,14 +45,10 @@ def apply_judge_compliance(
             else:
                 closed.append(same.alert_id)
             continue
-        # D-300: the verifier's; D-358: else the verdict's own (the legacy rules path set it from the rule)
-        severity = getattr(v, "_severity", None) or v.severity
         created.append(Alert(alert_id=new_id("al_"), kind="compliance", status="active", transcript_id=t.transcript_id,
                              product_id=getattr(v, "product_id", None) or product_id,  # D-349
-                             rule_id=v.rule_id, severity=severity, span=v.span,
+                             rule_id=v.rule_id, severity=v.severity, span=v.span,
                              say_instead=v.say_instead or None, created_at=now, shown_at=now,
-                             unverified=getattr(v, "_unverified", False), votes=getattr(v, "_votes", None),
-                             unverified_reason=getattr(v, "_unverified_reason", None),
                              quote=getattr(v, "quote", None), citation=getattr(v, "citation", None)))
     return changed, created, closed
 

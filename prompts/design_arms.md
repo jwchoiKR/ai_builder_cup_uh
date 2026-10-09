@@ -142,40 +142,6 @@ tells viewers to ignore or reverse a caution ("Irritated skin? Go ahead and use 
 it promises safety to a group such as babies or pregnant women. For a MEDIUM rule, `claim_kind` and `group` are
 null.
 
-## STT: compliance_judge
-
-D-303: UTTERANCE and RECENT_TRANSCRIPT come from speech-to-text. Quote marks are often missing: words such as
-"someone asks", "a viewer says", "they asked if" start a quote even without marks, and a quoted claim the host then
-rejects is not the host's claim. A name may come out as a sound-alike ("Marlo Fenn" for "Marlow Fen"): a name that
-sounds like one in the product's data is that name. A sentence may arrive in pieces across finals ("This balm is
-not." / "A replacement for sunscreen."): read RECENT_TRANSCRIPT and judge the whole sentence.
-
-## STT: fact_checker
-
-D-303: UTTERANCE and RECENT_TRANSCRIPT come from speech-to-text. Quote marks are often missing: words such as
-"someone asks" or "a viewer says" start a quote. Names may be sound-alikes of the documents' names. A number may be
-misheard ("fifteen" for "fifty"). A sentence may arrive in pieces across finals: read RECENT_TRANSCRIPT and check the
-whole sentence.
-
-## STT: verifier
-
-D-303: the line and RECENT_TRANSCRIPT come from speech-to-text. Quote marks are often missing: words such as
-"someone asks" or "a viewer says" start a quote. A name may be a sound-alike of the product's or tester's name
-("Marlo Fenn" for "Marlow Fen"), and then it names them. A number may be misheard. A sentence may arrive in pieces
-across finals ("This balm is not." / "A replacement for sunscreen." is one denial): judge the whole sentence.
-
-## CHECK: verifier
-
-D-303: for a fact candidate whose only mismatch is one number that speech-to-text may have misheard (a sound-alike
-such as "fifteen" for "fifty", a dropped or added digit), decide `check`: the host is asked to check what was said
-instead of being corrected. A wrong number that is clearly said ("thirty-two dollars" for S$36) is still `keep`.
-
-## DOCS: compliance_judge
-
-D-310: PRODUCT_DOCUMENTS (and any files before this message) are the on-air product's own documents. They are not
-rules. Use them to recognise what the line refers to: a tester, laboratory, brand or ingredient said as a sound-alike
-by speech-to-text ("Marlo Fenn" for "Marlow Fen") is that name.
-
 ## QHOLD: context_judge
 
 D-335: set `expects_resolution` first. `true` when UTTERANCE asks something, or relays a claim, that the next line is
@@ -246,88 +212,11 @@ D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this lin
 [this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
 a report by someone, not a claim of [this line]. `span` is taken from [this line], or from [previous line] only for a fact [this line] endorses.
 
-## CTX: fact_checker
-
-D-334: this message has no UTTERANCE or RECENT_TRANSCRIPT. CONVERSATION holds the last finals in order, oldest first;
-its last line is the line to check (where these instructions say UTTERANCE), and the lines before it are the recent
-transcript. Check only the facts asserted, or endorsed, in the LAST line; use the earlier lines to understand what the
-last line refers to (a question it answers, a claim it rejects or endorses). Facts that appear only in earlier lines
-were already checked: do not report them again. `span` is taken from the last line, or from an earlier line only for a
-fact the last line endorses.
-Example: CONVERSATION ["For 30 mL of concentrate, how much water goes in?", "90 mL."] with SOURCE [["S4","Mix 30 mL of
-concentrate with 120 mL of water."],["S9","Caffeine: 90 mg per serving."]] gives one claim: the water for 30 mL is
-90 mL (field usage, evidence ["S4"], source_value "120 mL of water"), which contradicts; the 90 mg of caffeine is
-another fact.
-
-## ENDORSE: compliance_judge
-
-D-333: when this line endorses what the last line of RECENT_TRANSCRIPT reported or asked ("A viewer says it treats
-eczema." then "Yes, that's what it does."; "Someone asked if it's safe for babies." then "Absolutely."), the endorsed
-claim is this line's own claim. Judge it with the RULES as if the host had said it, and report it with `span` from this
-line (`is_quoted = false`). A rejection ("No, it doesn't treat eczema.") is not a violation. Use only the RULES given:
-never invent or widen a rule.
-
-## NEG: compliance_judge
-
-D-328: a line that warns against a risky use, or negates a claim, is not that claim. "Don't skip meals and rely on
-this bar instead", "Please don't stop your medicine because of this tea" and "It is not a replacement for sunscreen"
-tell viewers what not to do: list such a violation only with `is_negated = true`. A line breaks a rule only when it
-asserts or recommends the claim ("You can skip lunch, this bar has it all", "Stop the tablets, this tea does the
-job").
-
-## HOLD: fact_checker
-
-D-328: for each claim, set `attributed` before anything else. `host`: the host states or endorses it. `other`: the
-words are reported from a viewer or another person ("a viewer says ...", "someone wrote ..."), or the line is a
-question put to someone (a co-host asking "Does one bottle qualify for the gift?"). Fill the rest as usual.
-Fill `previous_line` first: for each fact the last line of RECENT_TRANSCRIPT reported or asked that this line
-endorses ("Correct.", "Yes, you can.") or rejects ("No, it's 18 mg.", "Not true.", "No, you need two bottles."), one
-item with its `product_id`, `field`, `span` (the last line's words that state that fact) and `stance`. Name only the facts this line speaks to: when the last line reported
-a price and an amount and this line corrects only the price, list only the price. An empty list when this line does
-neither, or there is no such last line.
-
-Example: RECENT_TRANSCRIPT: []. UTTERANCE: "A viewer says each tablet has 80 mg." with SOURCE [["S3","Each tablet
-contains 18 mg of iron."]] gives
-{"previous_line":[],"claims":[{"span":"each tablet has 80 mg","attributed":"other","product_id":"product_h","field":"ingredient_amount","stated_value":"80 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"contradicts","correct_value":"18 mg per tablet"}]}
-Example: RECENT_TRANSCRIPT: ["A viewer says each tablet has 80 mg."]. UTTERANCE: "No, it's 18 mg." gives
-{"previous_line":[{"product_id":"product_h","field":"ingredient_amount","span":"each tablet has 80 mg","stance":"rejects"}],"claims":[{"span":"it's 18 mg","attributed":"host","product_id":"product_h","field":"ingredient_amount","stated_value":"18 mg per tablet","evidence":["S3"],"source_value":"18 mg per tablet","relation":"consistent","correct_value":null}]}
-Example: a co-host asks "Does one bottle qualify for the gift?" with ACTIVE_OFFERS [{"promo_id":"gift_set","terms":"Buy two bottles, get a pouch."}] gives
-{"previous_line":[],"claims":[{"span":"one bottle qualify for the gift","attributed":"other","product_id":"product_a","field":"promo","stated_value":"one bottle qualifies","evidence":["gift_set"],"source_value":"two bottles","relation":"contradicts","correct_value":"Buy two bottles, get a pouch."}]}
-
-## SINGLE: compliance_judge
-
-D-309 (one strong judge, no verifier): `severity` is the rule's severity, or MEDIUM when the line makes only a lesser
-form of a HIGH rule's claim (a hedged or partial wording, not the claim itself). Never raise a MEDIUM rule to HIGH.
-
-## CONF: compliance_judge
-
-D-302: for each violation, set `confidence` (0 to 1): how sure you are that the line breaks this rule as you say.
-
-## CONF: fact_checker
-
-D-302: for each claim, set `confidence` (0 to 1): how sure you are of its relation.
-
-## VS: target_group
-
-- CURRENT_PRODUCT `target_group`, when given, names who the product is made for (from its documents). Saying who it is
-  for or which ages may use it ("for children 4 to 12", "kids from 3 can use it") is fine, and so is a usage
-  direction. A promise of safety or harmlessness to a group with or at risk of a condition ("safe for kids", "gentle
-  enough for babies, no side effects"), a claim that it helps or suits their condition, or a claim that no medical
-  check is needed falls under the vulnerable-group rules in RULES. Whether an age or direction matches the documents
-  is not decided here.
-
 ## F1: fact_checker
 
 D-280 F1: an offer's terms (what it covers, who qualifies, whether it combines, where it applies) are field `promo`;
 where the product is sold, in which markets or channels, and whether it is in stock are field `availability`. Use
 `other` only for a statement no field fits.
-
-## Q6: compliance_judge
-
-D-290 Q6: a rule applies only when the sentence holds that rule's own element. The vulnerable-group rule needs a named
-group or condition (pregnancy, breastfeeding, babies, children, a skin or health condition) or an audience promise to
-everyone ("safe for everyone"); "zero side effects" alone names no group. A permanent-results rule needs permanence
-wording (forever, permanent, for good, never comes back); "the best on the market" is no permanence claim.
 
 ## F5: fact_checker
 

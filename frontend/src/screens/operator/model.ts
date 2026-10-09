@@ -230,8 +230,6 @@ export function alertOutcome(a: Alert, t: Translate = EN): string {
       return t("Dismissed");
     case "active":
       return a.escalated_at !== null ? t("Not corrected") : t("Active");
-    case "cleared":
-      return t("Cleared");
     default:
       return t("Checking");
   }
@@ -263,7 +261,6 @@ export const FAILURE_WINDOW_MS = 300_000; // D-412: the same 5 minutes as the se
 /** D-420: which judge failed, in plain words */
 const FAILURE_JUDGES: Record<string, string> = {
   compliance_judge: "Compliance check",
-  utterance_judge: "Compliance check",
   fact_checker: "Fact check",
   context_judge: "Context check",
 };
@@ -271,11 +268,7 @@ const FAILURE_JUDGES: Record<string, string> = {
 export function systemCards(state: ClientState, catalog: Catalog | null, now: number, t: Translate = EN): SystemCard[] {
   const cards: SystemCard[] = [];
   for (const m of state.missingPoints) {
-    const product = productById(catalog, m.product_id);
-    const texts =
-      m.missing_texts && m.missing_texts.length
-        ? m.missing_texts
-        : m.missing_point_ids.map((id) => product?.prompter_points.find((p) => p.point_id === id)?.text ?? id);
+    const texts = m.missing_texts ?? [];  // D-432: the server always sends the texts
     cards.push({
       key: `missing:${m.segment_id}`,
       kind: "missing_points",

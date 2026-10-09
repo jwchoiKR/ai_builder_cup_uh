@@ -969,23 +969,6 @@ def test_d257_lean_never_folds_what_the_qualifier_needs():
     assert any("tear-free" in x["label"] for x in shown) and len(shown) == LEAN_MAX and len(folded) == 4
 
 
-def test_d259_a_negated_caution_is_corrected_by_that_caution(pack):
-    from app.agents.utterance_judge import negated_caution
-    from app.models.agent_io import FactCheckOutput
-
-    p = next(x for x in pack.products.products if x.cautions)
-    lex = pack.lexicon
-    caution = p.cautions[0]
-    assert negated_caution(f"No need to worry, {caution.lower()} is not something you must follow", p, lex) == caution
-    assert negated_caution("It feels light and fresh on the skin.", p, lex) is None
-    FactCheckOutput.model_validate({"claims": [{"span": "x", "field": "caution", "product_id": p.product_id,
-                                                "stated_value": "no need to stop", "verdict": "contradicted",
-                                                "correct_value": caution, "passage_id": None, "quote": None}],
-                                    "reason": "t"})
-
-
-
-
 async def test_d260_opposite_polarity_is_no_restatement_and_availability_is_a_field(tmp_path, monkeypatch):
     from app.models.agent_io import FactCheckOutput
 
@@ -1232,22 +1215,6 @@ def test_d269_brief_offers_terms_arm_gives_every_offer_term_and_room_for_it():
     reflex = SimpleNamespace(scan=lambda text: [])  # no restricted wording here
     assert [p.source_section for p in post_validate(out, "r", "", reflex, 10, 140).prompter_points] == []
     assert [p.source_section for p in post_validate(out, "r", "", reflex, 10, 140, 240).prompter_points] == ["Offer o1"]
-
-
-@pytest.mark.parametrize("wording", ["d256", "split"])
-def test_d270_vulnerable_wording_arm_swaps_only_the_target_group_bullet(wording):
-    ctx = make_ctx(VULNERABLE_WORDING=wording)
-    try:
-        for name in ("compliance_judge_rules", "utterance_judge", "judge_single"):  # D-358: the rules prompt
-            p = ctx.prompts[name]
-            assert ("suitability promise" in p.system_instruction) is (wording == "d256"), name
-            assert ("which ages may use it" in p.system_instruction) is (wording == "split"), name
-            assert p.version.endswith("+vs") is (wording == "split")
-            assert "- `is_quoted = true`" in p.system_instruction  # the next bullet is kept
-            assert "skin types" in p.system_instruction  # D-256's skin-type bullet is kept
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
 
 
 def test_d271_comparison_kind_takes_the_longest_phrase(pack):

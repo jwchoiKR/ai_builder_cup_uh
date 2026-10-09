@@ -43,12 +43,10 @@ class Lexicon:
     currency: re.Pattern  # D-179: the market's currency symbol before a number ("s$", "rm"), from the market
     scales: dict[str, int] = field(default_factory=dict)  # D-208
     and_word: str | None = None
-    affirmation: re.Pattern | None = None  # D-252
     negation_words: tuple[str, ...] = ()
     comparison_kinds: dict[str, re.Pattern] = field(default_factory=dict)  # D-259
     contrast_cues: tuple[str, ...] = ()  # D-294 G2
     homophones: dict[str, int] = field(default_factory=dict)  # D-294 G6
-    multiplicatives: dict[str, int] = field(default_factory=dict)  # D-262  # D-252: the language's negation cues, to read "I don't agree"
 
     @classmethod
     def from_packs(cls, lang: LangPack, market: MarketPack) -> "Lexicon":
@@ -69,10 +67,7 @@ class Lexicon:
                                   re.I),
             duration_hours=dict(lx.duration_hours),
             exclusion=re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.exclusion_cues) + r")\s+(?:the\s+)?$"),
-            affirmation=(re.compile(r"\b(?:" + "|".join(re.escape(c) for c in lx.affirmation_cues) + r")\b", re.I)
-                         if lx.affirmation_cues else None),
             negation_words=tuple(c.lower() for c in lang.negation_cues),
-            multiplicatives={k.lower(): v for k, v in lx.multiplicatives.items()},
             contrast_cues=tuple(c.lower() for c in lx.contrast_cues),
             homophones={k.lower(): v for k, v in lx.homophones.items()},
             comparison_kinds={k: re.compile("|".join(r"\b" + re.escape(w) + r"\b" for w in ws), re.I)
@@ -210,11 +205,6 @@ class Lexicon:
         parts.append(text[start:].strip())
         return [p for p in parts if p]
 
-    def times_numbers(self, text: str) -> set[str]:
-        """D-262: multiplicative words as numbers ("twice daily" -> {"2"})."""
-        words = set(re.findall(r"\w+", text.lower()))
-        return {str(v) for k, v in self.multiplicatives.items() if k in words}
-
     def comparison_kind(self, text: str) -> str | None:
         """D-259: the kind of threshold a text words ("gt" for "above 40" or "> 40", "ge" for "at least 40").
         D-271: the longest phrase wins, so "40 and above" is "ge", not the "gt" of "above"."""
@@ -223,17 +213,6 @@ class Lexicon:
                 return kind
         found = [(len(m.group()), kind) for kind, rx in self.comparison_kinds.items() for m in rx.finditer(text)]
         return max(found)[1] if found else None
-
-    def affirms(self, text: str) -> bool:
-        """D-252: the line endorses something ("and yes, that's what it does", "I fully agree"); "I don't agree" is
-        no endorsement."""
-        if self.affirmation is None:
-            return False
-        for m in self.affirmation.finditer(text):
-            before = " ".join(text[:m.start()].lower().split()[-3:])
-            if not any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", before) for n in self.negation_words):
-                return True
-        return False
 
     def is_qualified(self, text: str) -> bool:
         """The sentence names our own test ("in our in-house test", "our 48-hour patch test")."""

@@ -28,10 +28,8 @@ def apply_fact_check(claims: Sequence[FactClaim], t: Transcript, new_id: Callabl
         created.append(Alert(alert_id=new_id("fx_"), kind="fact", status="active", transcript_id=t.transcript_id,
                              product_id=c.product_id, field=c.field, stated_value=c.stated_value,
                              correct_value=c.correct_value, passage_id=c.passage_id, quote=c.quote, say=c.say,
-                             span=c.span, created_at=now, shown_at=now, unverified=getattr(c, "_unverified", False),
-                             votes=getattr(c, "_votes", None), evidence_ids=list(getattr(c, "_evidence", [])),
-                             heard_check=getattr(c, "_check", False),
-                             unverified_reason=getattr(c, "_unverified_reason", None)))
+                             span=c.span, created_at=now, shown_at=now,
+                             evidence_ids=list(getattr(c, "_evidence", []))))
     return created
 
 

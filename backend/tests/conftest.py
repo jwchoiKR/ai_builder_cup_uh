@@ -21,12 +21,11 @@ from app.store.memory import MemoryStore
 # D-305: the model-only settings are the shipped defaults. The older tests check the code paths as they were written,
 # so the test session pins those paths (environment, so get_settings() sees them too); a test turns any setting on
 # itself, and test_d305.py runs the shipped defaults (SHIPPED)
-# D-353: every FACT_FIXES letter, for tests of the opt-in code checks (the default keeps only prompt lines)
-ALL_FIXES = "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK"
+# D-353: every FACT_FIXES letter that still has a prompt line (D-432: the code-check letters are deleted)
+ALL_FIXES = "F1,F5,Q6"
 
 LEGACY = {
-    "FACT_RELATION": "false", "JUDGE_ARM": "guards", "STT_AWARE": "false",
-    "CONTEXT_WINDOW_MS": "0",
+    "FACT_RELATION": "false", "JUDGE_ARM": "guards",
     "VERBAL_CHECK": "code", "JUDGE_PRODUCTS": "named",
     "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
     "UTTERANCE_MERGE_WINDOW_MS": "3500",

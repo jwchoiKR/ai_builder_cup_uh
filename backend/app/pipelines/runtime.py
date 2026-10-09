@@ -27,7 +27,6 @@ from ..logic.reply_status import REPLY_KINDS, waiting_status
 from ..logic.segments import open_segment
 from ..onboarding.release import has_law as _has_law
 from ..models.data import Intent, Passage, Promo, PrompterPoint
-from ..providers import rule_search
 from ..logic.prompter import prompter_view
 from ..models.session import (
     ActivePromo,
@@ -302,8 +301,6 @@ class SessionRuntime:
             s.settings_snapshot = self.settings.snapshot()
             await self.save_session(s)
             await self.emit("session.started", s)
-            if self.settings.DESIGN_ARM == "E" and (search := rule_search.for_settings(self.settings)) is not None:
-                self.spawn(search.warm_up(), name="rule-search-warm-up")  # D-194: one warm client
             await self.emit("segment.started", seg)
             await self.after_segment_started_locked(seg)
         await self.prefetch(first)
@@ -335,7 +332,6 @@ class SessionRuntime:
                 seg.ended_at = now
                 await self.ctx.store.put(self.path("segments"), seg.segment_id, seg)
             self.feed.stop_all()
-            await self.utterances.end_reported_locked()  # D-329: alerts still held show before the show closes
             for m in await self.ctx.store.query(self.path("messages"), Message, where=[("state", "==", "pending")]):
                 m.state = "cancelled"
                 await self.save_message(m)

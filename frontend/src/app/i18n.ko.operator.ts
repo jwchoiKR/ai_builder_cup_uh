@@ -256,7 +256,6 @@ export const KO_OPERATOR: Record<string, string> = {
   "Alert log": "경고 기록",
   "No alerts yet.": "아직 경고가 없습니다.",
   Dismissed: "무시함",
-  Cleared: "해제됨",
   "shown {s} s after speech": "발언 {s}초 뒤 표시",
   "Agent calls": "에이전트 호출",
 
