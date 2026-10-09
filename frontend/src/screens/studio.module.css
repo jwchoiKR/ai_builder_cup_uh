@@ -53,8 +53,12 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 1px;
   background: var(--border);
+}
+/* a 1px line on a 7px grab area; the accent line and grip show on hover, focus and drag */
+.panes > [role="separator"] {
+  flex: 0 0 7px;
+  background: linear-gradient(var(--border), var(--border)) center / 1px 100% no-repeat, var(--bg);
 }
 
 .pane {
