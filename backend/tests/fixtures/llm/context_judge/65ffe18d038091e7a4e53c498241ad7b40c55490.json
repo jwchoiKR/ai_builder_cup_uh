@@ -1,4 +1,5 @@
 {
+ "expects_resolution": false,
  "answer": {
   "utterance_type": "answer",
   "matched_group_id": "@group:is it suitable for oily skin",

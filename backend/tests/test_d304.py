@@ -27,10 +27,10 @@ async def test_d304_correction_by_the_judge_alone():
 
 async def test_d304_verbal_check_by_the_context_judge():
     from app.agents.split_judges import ContextJudge
-    from app.models.agent_io import ContextOutput, ContextOutputB
+    from app.models.agent_io import ContextOutputB, ContextOutputQ
 
-    for check, model in (("code", ContextOutput), ("judge", ContextOutputB)):
-        rt, _ = await make_env(VERBAL_CHECK=check, QUESTION_HOLD=False)  # the arm as measured (no hold model)
+    for check, model in (("code", ContextOutputQ), ("judge", ContextOutputB)):  # D-435: the hold model is the A model
+        rt, _ = await make_env(VERBAL_CHECK=check)
         try:
             j = ContextJudge(rt.ctx.llm, rt.ctx.prompts, rt.catalog, rt.reflex)
             assert issubclass(j.output_model_b if j.b else j.output_model, model)  # D-415: with the switch naming

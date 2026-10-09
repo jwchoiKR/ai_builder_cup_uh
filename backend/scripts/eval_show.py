@@ -53,7 +53,7 @@ LIVE_EVENTS = {*SWITCH_EVENTS, "transcript.final", "alert.created", "alert.updat
 JUDGES = ("compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "verifier")
 SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_DUAL_SCOPE_SEC",
                    "JUDGE_MODE", "FACT_PROMPT",
-                   "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC", "FACT_MODE")
+                   "JUDGE_PRODUCTS", "COMPLIANCE_ESCALATE_SEC", "FACT_MODE")
 
 
 def _target(show: dict, expect: str) -> str | None:

@@ -193,10 +193,9 @@ class FactChecker:
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
         fix_addenda = arms._addenda(str(llm.prompts_path)) if self.fixes else {}
         extras += [fix_addenda.get((f, self.name)) for f in sorted(self.fixes)]
-        if getattr(settings, "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)))
-        if getattr(llm, "prompts_path", None) is not None:  # D-363: fact notes by handle
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("NOTES", self.name)))
+        if getattr(llm, "prompts_path", None) is not None:
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)))  # D-335: question/answer pairs
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("NOTES", self.name)))  # D-363: fact notes by handle
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
         lang = getattr(getattr(catalog, "pack", None), "lang", None)
         if lang:  # D-259: the host reads the correction aloud in the show's language

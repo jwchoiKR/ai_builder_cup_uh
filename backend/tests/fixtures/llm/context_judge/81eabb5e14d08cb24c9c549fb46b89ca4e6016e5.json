@@ -1,4 +1,5 @@
 {
+ "expects_resolution": false,
  "answer": {
   "utterance_type": "product_talk",
   "matched_group_id": null,

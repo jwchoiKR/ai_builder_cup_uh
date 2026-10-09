@@ -281,10 +281,9 @@ class ContextJudge(_SplitJudge):
 
     def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
         super().__init__(llm, prompts, catalog, reflex)
-        if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: does the next line resolve it?
-            self.output_model = ContextOutputQ
-            if extra := arms._addenda(str(llm.prompts_path)).get(("QHOLD", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        self.output_model = ContextOutputQ  # D-335: does the next line resolve it?
+        if extra := arms._addenda(str(llm.prompts_path)).get(("QHOLD", self.name)):
+            self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         # D-351: the switch verdict names the next product (D-415: the only switch mode)
         self.output_model = with_switch_naming(self.output_model)
         self.output_model_b = with_switch_naming(self.output_model_b)
