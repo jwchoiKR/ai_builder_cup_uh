@@ -2938,3 +2938,11 @@ Tests:
 - test_d312 keeps the source_value drop on v5's schema and the "default stays v5" check.
 - conftest.ALL_FIXES is "F1,F5,Q6".
 - operator.test's missing-points card fixture now carries missing_texts, as the server sends them.
+
+D-433 (user go 10/10; display only): the host's red box shows the cited document's readable name and the section, not the rule-id slug. Since D-358 an alert's rule_id is citation_rule_id ("kelmar-code#2-1"), which matches no catalog rule, so ruleInfo fell back to showing the slug as the title.
+- Backend: validate_original sets ViolationO.cited_title with originals.cited_title. It is the document's title when we have one (a market source's PolicySource title); otherwise the file name without the extension (a law or brand pack original's title is its file name); then the section as the model wrote it in `citation`. A document the judge was not given uses the cited name. The field is code's: it is left out of the model's schema, as rule_id and severity are.
+- The alert carries it as Alert.cited_title. A same_as-kept alert takes the new verdict's.
+- Frontend: ComplianceOverlay uses citedTitle(alert): cited_title, else, for an alert stored before D-433, the citation's file name without the extension and the section. The catalog rule title is used only when there is no citation (the legacy rules path).
+- Unchanged: judging, rule ids, D-399 grouping, the operator card, what fires.
+- hostSelectors' ruleInfo found-branch, shortRef and ownDocFirst stay: MediumBanner (the legacy MEDIUM path) and the operator's AlertStack still use them.
+- Tests: test_d358 (an originals-path alert's cited_title is "kelmar_code 2.1"; a market source's title and an ungiven document's name); host.test (the red box shows the document and section, also from the citation alone, never the slug).

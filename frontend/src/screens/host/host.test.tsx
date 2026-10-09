@@ -281,6 +281,19 @@ describe("fact note", () => {
     expect(screen.getByTestId("host-alert-more")).toHaveTextContent("+2");
   });
 
+  it("D-433: a red box from a cited regulation shows the document and section, never the rule-id slug", () => {
+    const cited = alert({ alert_id: "al_cite", span: "cures arthritis", transcript_id: "tr_cite",
+      rule_id: "kelmar-code#2-1", citation: "kelmar_code.pdf#2.1", cited_title: "Kelmar Code 2.1" });
+    const { rerender } = render(view({ alerts: [cited] }));
+    const box = screen.getByTestId("host-compliance-overlay");
+    expect(box).toHaveTextContent("Kelmar Code 2.1");
+    expect(box).not.toHaveTextContent("kelmar-code#2-1");
+    // an alert stored before D-433 (no cited_title): the citation's file name without the extension and the section
+    rerender(view({ alerts: [{ ...cited, cited_title: null }] }));
+    expect(screen.getByTestId("host-compliance-overlay")).toHaveTextContent("kelmar_code 2.1");
+    expect(screen.getByTestId("host-compliance-overlay")).not.toHaveTextContent("kelmar-code#2-1");
+  });
+
   it("D-402: red says Regulation, orange says Product info, in the host's language", () => {
     const high = alert({ alert_id: "al_000010", span: "erases wrinkles", transcript_id: "tr_high" });
     const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",

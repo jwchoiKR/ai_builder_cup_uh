@@ -122,6 +122,16 @@ export function shortRef(sourceRef: string): string {
   return parts.slice(0, 2).join(", ");
 }
 
+/** D-433: the red box's title for a cited regulation: the server's readable name, else (an alert stored before it)
+ *  the citation's file name without the extension and the section; null without a citation. Never the rule-id slug. */
+export function citedTitle(a: Alert): string | null {
+  if (a.cited_title) return a.cited_title;
+  if (!a.citation) return null;
+  const [doc, ...rest] = a.citation.split("#");
+  const name = doc.trim().replace(/\.[A-Za-z0-9]+$/, "");
+  return [name, rest.join("#").trim()].filter(Boolean).join(" ") || null;
+}
+
 export function ruleInfo(catalog: Catalog | null, ruleId: string | null, pid?: string): RuleInfo {
   const rule = catalog?.rules?.find((r) => r.rule_id === ruleId);
   if (!rule) return { title: ruleId ?? "Restricted claim", ref: "" };

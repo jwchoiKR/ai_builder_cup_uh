@@ -185,3 +185,24 @@ def test_d405_no_own_rule_for_vulnerable_groups_in_the_prompt():
     text = (Path(__file__).resolve().parents[2] / "prompts" / "compliance_judge.md").read_text(encoding="utf-8")
     assert "PROMISE to a vulnerable group" not in text
     assert 'section 4.2: "No claim may promise safety to infants' in text  # Example A cites its document's text
+
+
+async def test_d433_the_alert_carries_the_cited_document_s_readable_name_and_section(tmp_path):
+    """D-433: the host's red box shows the document and the section the model cited, never the rule-id slug. A law
+    pack's original has no title of its own, so its file name without the extension; a market source has a title."""
+    from app.agents.originals import cited_title
+
+    llm = _Backend()
+    llm.outputs[("compliance_judge", CLAIM)] = _verdict("kelmar_code.pdf#2.1", "must not be presented")
+    rt = await _show(tmp_path, llm)
+    try:
+        await speak(rt, CLAIM)
+        [a] = [a for a in await rt.alerts() if a.kind == "compliance"]
+        assert a.rule_id == "kelmar-code#2-1" and a.cited_title == "kelmar_code 2.1"
+    finally:
+        await close_env(rt)
+    market = Original("asean_appendix_iii.pdf", "ASEAN Cosmetic Claims Guideline", "ASEAN_APPENDIX_III", b"",
+                      "application/pdf", "")
+    assert cited_title(market, "asean_appendix_iii.pdf", "2.d") == "ASEAN Cosmetic Claims Guideline 2.d"
+    assert cited_title(None, "other_code.pdf", "3") == "other_code 3"  # a document the judge was not given
+    assert cited_title(None, "other_code.pdf", "") == "other_code"

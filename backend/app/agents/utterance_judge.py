@@ -119,7 +119,7 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
     duplicate suppression only. D-400: the severity comes from the citation type (a regulation document is HIGH),
     never from the model (D-427: TEST-QUALIFIER, the only MEDIUM, is gone). Only a verdict that cannot be applied is
     skipped and logged: a product id that is not in the show."""
-    from .originals import citation_rule_id
+    from .originals import cited_title, citation_rule_id
 
     by_name = {d.name.casefold(): d for d in originals}
     scope = values.get("scope_product_ids")  # D-349: two products in scope right after a switch
@@ -142,6 +142,7 @@ def validate_original(o, catalog: Catalog, values: dict, originals):
         if d is None:
             log.info("compliance verdict cites a document the judge was not given (%r): applied as given", cite)
         v.rule_id = citation_rule_id(d.name if d is not None else doc.strip() or "regulation", section or "document")
+        v.cited_title = cited_title(d, doc, section)  # D-433: what the host's red box says (never the slug)
         # D-361: the model's own say_instead (the prompt builds it from APPROVED_CLAIMS); no code word matching
         kept.append(v)
     o.compliance.violations = kept
