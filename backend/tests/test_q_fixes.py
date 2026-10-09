@@ -50,25 +50,6 @@ Q1E = [  # (category, result say, line, exempt with Q1E)
 ]
 
 
-def _release_catalog(tmp_path, result: str, qualifier: str, category: str):
-    """A made-up release with one qualified result, on the clean base."""
-    from app.logic.catalog import Catalog
-    from app.onboarding.record import ProductRecord
-    from app.onboarding.release import release_pack
-
-    from .helpers import make_ctx
-    from .test_clean_base import EV, clean_data, kettle
-
-    rec = ProductRecord.model_validate(kettle().model_dump() | {"category": category, "qualified_results": [
-        {"statement": result, "provenance": "third_party_lab", "qualifier": qualifier, "conditions": None,
-         "evidence": EV}]})
-    ctx = make_ctx(DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(tmp_path / "onb"))
-    pack = release_pack(ctx.pack, rec, "rel_t_v1", tmp_path / "onb")
-    ctx.runtimes.shutdown()
-    ctx.scheduler.shutdown()
-    return Catalog(pack, "rel_t_v1")
-
-
 def _validate(catalog, line, violations, fixes):
     from app.agents.utterance_judge import JudgeInput, build_judge_values, validate_compliance
     from app.models.agent_io import ComplianceOutput

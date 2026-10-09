@@ -11,7 +11,7 @@ from .bus import HEARTBEAT_SEC, EventBus
 from .clock import Clock, SystemClock
 from .config import Settings
 from .ids import Ids
-from .logic.catalog import DataPack
+from .logic.catalog import DataPack, DataPackError
 from .logic.reflex import Reflex
 from .models.session import AgentCall
 from .providers.armor import make_armor
@@ -93,25 +93,7 @@ class AppContext:
                 self._packs[rkey] = (pack, Reflex(pack.rules, pack.lexicon))
             return self._packs[rkey]
         if release_id is not None:
-            rkey = (market.upper(), lang, release_id)
-            if rkey not in self._packs:
-                from .onboarding.release import load_release_full, release_pack
-
-                base, reflex = self.pack_for(market, lang)
-                from .onboarding.brief import load_brief
-
-                record, translations = load_release_full(self.settings.onboarding_path, release_id)
-                pack = release_pack(base, record, release_id, self.settings.onboarding_path, translations,
-                                    # D-360: the pack's passages stay at record level for every reader; the fact
-                                    # checker's prompter snapshot is built from the pack at check time
-                                    "record",
-                                    brief=load_brief(self.settings.onboarding_path, release_id))
-                if pack.rules is not base.rules:  # D-227: no law pack for its category, so no reflex phrases either
-                    reflex = Reflex(pack.rules, pack.lexicon)
-                pid = pack.products.products[0].product_id
-                self.retriever.replace_product(pid, pack.passages)
-                self._packs[rkey] = (pack, reflex)
-            return self._packs[rkey]
+            raise DataPackError(f"unknown release {release_id!r}")
         key = (market.upper(), lang)
         if key not in self._packs:
             if key == (self.pack.market.market, self.pack.lang):

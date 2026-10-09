@@ -4,7 +4,7 @@ false alerts and keep every true one."""
 from __future__ import annotations
 
 
-from .test_q_fixes import _release_catalog, _validate, _with_law_rules  # noqa: F401
+from .test_q_fixes import _validate, _with_law_rules  # noqa: F401
 
 FACT = [  # (fix, category, line, stated, correct, quote, field, false alert today)
     ("G1", "children", "Someone said 'you can share the brush'. Please don't, never share it.",

@@ -61,22 +61,3 @@ async def test_d305_a_viewer_question_is_grouped():
         assert len(await rt.groups()) == 1
     finally:
         await close_env(rt)
-
-
-def test_d305_the_demo_show_starts(tmp_path):
-    import json
-
-    from fastapi.testclient import TestClient
-
-    from app.main import create_app
-
-    from .helpers import make_settings
-    from .judge_fakes import ScriptedBackend
-    from .test_clean_base import clean_data
-
-    data, onb = clean_data(tmp_path), tmp_path / "onb"
-    show = json.loads((data / "demo_release" / "show.json").read_text(encoding="utf-8"))["release_ids"]
-    with TestClient(create_app(make_settings(DATA_DIR=str(data), ONBOARDING_DIR=str(onb), DEMO_TOOLS_ENABLED=True),
-                               llm_backend=ScriptedBackend())) as c:
-        s = c.post("/api/demo/reset", json={}).json()
-        assert s["release_ids"] == show

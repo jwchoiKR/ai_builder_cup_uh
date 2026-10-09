@@ -112,54 +112,6 @@ async def test_d349_an_undo_opens_the_window_for_the_undone_product():
         await close_env(rt)
 
 
-async def test_d349_eval_show_replays_a_show_and_scores_its_switches(tmp_path):
-    """scripts/eval_show.py on a made-up two-release show: one caught switch, its events tied to the lines."""
-    import sys
-    from pathlib import Path
-
-    from app.onboarding.release import product_key, save_release
-
-    from .helpers import make_ctx
-    from .test_clean_base import clean_data, kettle
-    from .test_multi_release import cream
-
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-    import eval_show
-
-    onb = tmp_path / "onb"
-    ids = [save_release(onb, cream(), "job_c"), save_release(onb, kettle(), "job_k")]
-    llm = _Recording()
-    ctx = make_ctx(backend=llm, DATA_DIR=str(clean_data(tmp_path)), ONBOARDING_DIR=str(onb))
-    risky = "Honestly, it heals eczema overnight."
-    llm.judge(risky, violations=[violation("ASEAN-2D-DISEASE", "heals eczema overnight")])
-    move = "Alright, that's it for the cream, let's look at something else."
-    llm.judge(move, utterance_type="transition", transition=True, target=product_key(kettle()), confidence="high")
-    show = {"show_id": "S1", "release_ids": ids, "lines": [
-        {"id": "L1", "text": "This cream feels so soft at night.", "gap_ms": 0, "expect": "stay"},
-        {"id": "L1b", "text": risky, "gap_ms": 0, "labels": {"risky": True}},
-        {"id": "L2", "text": move, "gap_ms": 0, "expect": "switch_to:2"},
-        {"id": "L3", "text": "It boils water really fast.", "gap_ms": 0, "expect": "stay"}]}
-    try:
-        raw = await eval_show.run_show(ctx, show, settle_ms=0)
-    finally:
-        await close_env_ctx(ctx)
-    decided = [e for e in raw["switch_events"] if e["event"] == "decided"]
-    assert [(e["line"], e["switch"]) for e in decided] == [("L2", True)]
-    assert [e["release"] for e in raw["switch_events"] if e["event"] == "committed"] == [ids[1]]
-    s = raw["switch_score"]
-    assert [r["caught"] for r in s["expected"]] == [True] and s["false_switches"] == []
-    assert [x["context"]["switch"]["is_transition"] for x in raw["lines"]] == [False, False, True, False]
-    [a] = [a for a in raw["alerts"] if a["ms_to_shown"] is not None]
-    assert (a["line"], a["kind"], a["checked_against"]) == ("L1b", "compliance", ids[0])
-    assert raw["lines"][1]["labels"] == {"risky": True}
-    # the effective settings are written with each show
-    assert raw["settings"]["STORE"] == "memory" and raw["settings"]["SWITCH_DUAL_SCOPE_SEC"] == 10
-    assert {"FIRESTORE_DATABASE",
-            "FACT_PROMPT", "PREFIX_TOKENS"} <= set(raw["settings"])  # D-366
-    assert all(c["usage"] is None or isinstance(c["usage"], dict) for c in raw["calls"])
-    assert {"lines", "switch_events", "alerts", "prompter", "chips", "judge", "calls", "timeline"} <= set(raw)
-
-
 async def close_env_ctx(ctx) -> None:
     ctx.runtimes.shutdown()
     ctx.scheduler.shutdown()

@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from ..context import AppContext, get_ctx
 from ..logic.catalog import DataPackError
 from ..onboarding import product_show, storage
-from ..onboarding.files import MAX_BYTES
+MAX_BYTES = 20 * 1024 * 1024  # per file
 from ..pipelines.runtime import ActionError
 from ..providers.llm import LLMRequest
 
