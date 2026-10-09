@@ -70,6 +70,10 @@ export const KO_HOST: Record<string, string> = {
   "Shown in {s} s": "{s}초 만에 표시",
   "Cleared in {s} s": "{s}초 만에 해제",
   "(typed)": "(입력)",
+  // D-442: one box per line
+  "{n} issues: {kinds}": "{n}개 문제: {kinds}",
+  "{n} left": "{n}개 남음",
+  "Then:": "그리고:",
   "Waiting for your correction": "정정을 기다리는 중",
   "CHECK WORDING": "표현 확인",
   // D-412: the host's strip for lines no judge could check

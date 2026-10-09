@@ -303,6 +303,33 @@ function groupNewest<T>(items: T[], key: (x: T) => string | null): { item: T; co
   return out;
 }
 
+/** D-442: the line an alert was raised on. A merged STT-split line's fragments are one line: follow
+ *  merged_from_transcript_id back to the first fragment. Never a time window. */
+export function lineKey(state: ClientState, transcriptId: string): string {
+  let id = transcriptId;
+  const seen = new Set<string>();
+  while (!seen.has(id)) {
+    seen.add(id);
+    const prev = state.transcripts[id]?.merged_from_transcript_id;
+    if (!prev) break;
+    id = prev;
+  }
+  return id;
+}
+
+/** D-442: the lines that have an active red alert (their fact notes go inside that red's box). */
+function redLines(state: ClientState): Set<string> {
+  return new Set(activeComplianceAlerts(state).filter((a) => a.severity === "HIGH")
+    .map((a) => lineKey(state, a.transcript_id)));
+}
+
+/** D-442: another active red or fact note on the same line as `a` (the green "Corrected" waits for it). */
+export function lineStillActive(state: ClientState, a: Alert): boolean {
+  const key = lineKey(state, a.transcript_id);
+  return Object.values(state.alerts).some((x) => x.alert_id !== a.alert_id && x.status === "active"
+    && (x.kind === "fact" || (x.kind === "compliance" && x.severity === "HIGH")) && lineKey(state, x.transcript_id) === key);
+}
+
 /** Host banners. D-342 (review H20):
  *  a sentence with an active HIGH alert shows only that alert: its MEDIUM banners and fact notes wait in the log.
  *  D-399 (user): on the host screen only, MEDIUM alerts are grouped by the rule the model cited and fact notes by the
@@ -317,8 +344,10 @@ export function hostBanners(state: ClientState): {
     ({ alert, count, ids: members.map((a) => a.alert_id) });
   const mediums = groupNewest(activeMediumAlerts(state).filter((a) => !high.has(a.transcript_id)), (a) => a.rule_id)
     .map(box);
-  const facts = groupNewest(factNotesForHost(state).filter((f) => !high.has(f.transcript_id)), (f) => f.passage_id)
-    .map(box);
+  // D-442: a fact note on a red's line is shown inside that red's box (no longer held back)
+  const reds = redLines(state);
+  const facts = groupNewest(factNotesForHost(state).filter((f) => !reds.has(lineKey(state, f.transcript_id))),
+    (f) => f.passage_id).map(box);
   return { mediums, facts };
 }
 
@@ -333,7 +362,9 @@ export function uncheckedStrip(state: ClientState): { count: number; cause: stri
 export const MAX_ALERT_BOXES = 2;
 
 export type HostBox =
-  | { kind: "high"; view: HighAlertView; ids: string[]; units: number }
+  // D-442: `then`: the line's other active alerts (reds, then fact notes), shown below the red's line; `cleared`: how many
+  // of the line's alerts are no longer active (corrected or dismissed)
+  | { kind: "high"; view: HighAlertView; ids: string[]; units: number; then: Alert[]; cleared: number }
   | { kind: "fact"; alert: Alert; count: number; ids: string[]; units: number }
   | { kind: "medium"; alert: Alert; count: number; ids: string[]; units: number };
 
@@ -353,9 +384,23 @@ export function hostAlertStack(state: ClientState): {
 } {
   const reds = activeComplianceAlerts(state).filter((a) => a.severity === "HIGH");
   const { mediums, facts } = hostBanners(state);
+  // D-442: one box per line with an active red: its newest red, then the line's other reds and fact notes
+  const lines = new Map<string, { alert: Alert; then: Alert[] }>();
+  for (const a of reds) {
+    const key = lineKey(state, a.transcript_id);
+    const g = lines.get(key);
+    if (g) g.then.push(a);
+    else lines.set(key, { alert: a, then: [] });
+  }
+  for (const f of factNotesForHost(state)) lines.get(lineKey(state, f.transcript_id))?.then.push(f);
+  const cleared = (key: string) => Object.values(state.alerts).filter((x) => x.status !== "active"
+    && x.status !== "cleared" && (x.kind === "fact" || (x.kind === "compliance" && x.severity === "HIGH"))
+    && lineKey(state, x.transcript_id) === key).length;
+  const groups = [...lines.entries()];
   const boxes: HostBox[] = [
-    ...reds.map((alert, i) => ({ kind: "high" as const, view: { alert, position: i + 1, total: reds.length },
-      ids: [alert.alert_id], units: 1 })),
+    ...groups.map(([key, { alert, then }], i) => ({ kind: "high" as const,
+      view: { alert, position: i + 1, total: groups.length }, ids: [alert.alert_id, ...then.map((x) => x.alert_id)],
+      units: 1 + then.length, then, cleared: cleared(key) })),
     ...facts.map((f) => ({ kind: "fact" as const, ...f, units: f.count })),
     ...mediums.map((m) => ({ kind: "medium" as const, ...m, units: m.count })),
   ];

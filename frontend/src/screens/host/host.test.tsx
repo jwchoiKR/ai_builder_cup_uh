@@ -329,7 +329,7 @@ describe("fact note", () => {
 describe("compliance", () => {
   it("HIGH: the newest alert takes the prompter box, 1 of N, render ack (D-106)", () => {
     const acts = actions();
-    const older = alert({ alert_id: "al_000001", span: "older claim", shown_at: now() - 5000 });
+    const older = alert({ alert_id: "al_000001", span: "older claim", shown_at: now() - 5000, transcript_id: "tr_older" });
     const newer = alert({ alert_id: "al_000002", span: "your wrinkles will disappear overnight", shown_at: now() - 1000 });
     render(view({ alerts: [older, newer] }, acts));
     // D-407: both reds have a box, the newest first
@@ -656,7 +656,8 @@ describe("AI PD card", () => {
     expect(screen.queryByTestId("host-questions-hint")).toBeNull();  // D-429: no Q key hint
     cleanup();
     // the same claim said again is a new alert: highlighted, and cards wait 20 s again
-    const again = alert({ alert_id: "al_again", span: "erases wrinkles", created_at: T0 - 1000, shown_at: T0 - 1000 });
+    const again = alert({ alert_id: "al_again", span: "erases wrinkles", created_at: T0 - 1000, shown_at: T0 - 1000,
+      transcript_id: "tr_again" });  // said again: another line (D-442 groups only one line's alerts)
     render(view({ session: session({ pd_card: card }), alerts: [old, again] }));
     // D-407: the ring only on the newest red
     expect(screen.getAllByTestId("host-compliance-overlay").map((o) => o.getAttribute("data-fresh"))).toEqual(["true", "false"]);
@@ -1051,5 +1052,55 @@ describe("D-439: shown and cleared times on the host's boxes", () => {
       transcripts: ts }));
     expect(screen.getByTestId("host-corrected")).toHaveTextContent("Corrected");
     expect(within(screen.getByTestId("host-corrected")).getByTestId("host-alert-timing")).toHaveTextContent(/^Cleared in 3\.1 s$/);
+  });
+});
+
+describe("D-442: a line's red and orange in one box", () => {
+  const tr = (id: string, end: number) => ({ transcript_id: id, text: "x", is_final: true, speech_start_at: null,
+    speech_end_at: end, received_at: end, source: "mic" as const, segment_id: "seg_000001" });
+  const red = alert({ alert_id: "al_g", transcript_id: "tr_g", shown_at: T0 + 4200, say_instead: "Helps relieve the feeling of dryness." });
+  const note = alert({ alert_id: "fx_g", kind: "fact", transcript_id: "tr_g", rule_id: null, severity: null, field: "price",
+    stated_value: "S$32", correct_value: "S$36.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price",
+    quote: "Live broadcast price: S$36.00", say: "The live price is S$36.00.", shown_at: T0 + 4500 });
+  const ts = [tr("tr_g", T0), tr("tr_fix", T0 + 10_000)];
+  const done = (a: typeof red) => ({ ...a, status: "corrected" as const, corrected_by_transcript_id: "tr_fix",
+    resolved_at: T0 + 12_000 });
+
+  it("one box: the count and kinds, the red's line big, the orange's line below as 'Then:', each with its timing", () => {
+    render(view({ alerts: [red, note], transcripts: ts }));
+    const box = screen.getByTestId("host-compliance-overlay");
+    expect(screen.queryByTestId("host-fact-note")).toBeNull();
+    expect(within(box).getByTestId("host-alert-group")).toHaveTextContent("2 issues: Regulation + Product info");
+    const then = within(box).getByTestId("host-alert-then");
+    expect(then).toHaveTextContent("Then:");
+    expect(then).toHaveTextContent("The live price is S$36.00.");
+    expect(within(box).getAllByTestId("host-alert-timing").map((x) => x.textContent)).toEqual(["Shown in 4.5 s", "Shown in 4.2 s"]);
+    expect(translate("ko", "{n} issues: {kinds}", { n: 2, kinds: "법규 + 제품 정보" })).toBe("2개 문제: 법규 + 제품 정보");
+    expect(translate("ko", "Then:")).toBe("그리고:");
+  });
+
+  it("the orange cleared first: '1 left' and only the red's line; no green 'Corrected' yet", () => {
+    const { rerender } = render(view({ alerts: [red, note], transcripts: ts }));
+    rerender(view({ alerts: [red, done(note)], transcripts: ts }));
+    const box = screen.getByTestId("host-compliance-overlay");
+    expect(within(box).getByTestId("host-alert-group")).toHaveTextContent("1 left");
+    expect(within(box).queryByTestId("host-alert-then")).toBeNull();
+    expect(screen.queryByTestId("host-corrected")).toBeNull();
+  });
+
+  it("the red cleared first: a normal orange note, and no 'Corrected' while the orange is active", () => {
+    const { rerender } = render(view({ alerts: [red, note], transcripts: ts }));
+    rerender(view({ alerts: [done(red), note], transcripts: ts }));
+    expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
+    expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
+    expect(screen.queryByTestId("host-corrected")).toBeNull();
+  });
+
+  it("all cleared: the box goes and the green 'Corrected' shows", () => {
+    const { rerender } = render(view({ alerts: [red, note], transcripts: ts }));
+    rerender(view({ alerts: [done(red), done(note)], transcripts: ts }));
+    expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
+    expect(screen.queryByTestId("host-fact-note")).toBeNull();
+    expect(screen.getByTestId("host-corrected")).toHaveTextContent("Corrected");
   });
 });
