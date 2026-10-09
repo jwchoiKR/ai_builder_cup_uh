@@ -1,9 +1,10 @@
 """Retriever interface and the local BM25 implementation (DEV_SPEC §9).
 
-The Vertex AI Search adapter arrives in phase P6 behind the same interface.
+VertexSearchRetriever: the evidence of viewer-question answers (ANSWER_RETRIEVER=vertex_search).
 """
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Sequence
 from typing import Protocol
@@ -11,6 +12,8 @@ from typing import Protocol
 from rank_bm25 import BM25Okapi
 
 from ..models.data import Passage
+
+log = logging.getLogger(__name__)
 
 PREFETCH_SECTIONS = ("Key facts", "Key ingredients", "How to use", "Cautions", "In-house test results")
 _TOKEN = re.compile(r"[a-z0-9]+(?:\.[0-9]+)?%?")
@@ -83,3 +86,52 @@ class LocalRetriever:
 
     def sections(self, product_id: str, sections: Sequence[str]) -> list[Passage]:
         return [p for p in self._passages if p.product_id == product_id and p.section in sections]
+
+
+class VertexSearchRetriever:
+    """Chunks from a Vertex AI Search app (its data store reads the product documents from GCS). No metadata
+    filter: the caller puts the product name in the query, and the chunk is tagged with the asked product."""
+    name = "vertex_search"
+
+    def __init__(self, project: str, location: str, engine_id: str) -> None:
+        from google.cloud import discoveryengine_v1 as de
+
+        self._de = de
+        endpoint = None if location == "global" else f"{location}-discoveryengine.googleapis.com"
+        self._options = {"api_endpoint": endpoint} if endpoint else None
+        self._client = None  # made on the first search: a grpc aio client belongs to the loop it was made in
+        self._serving = (f"projects/{project}/locations/{location}/collections/default_collection"
+                         f"/engines/{engine_id}/servingConfigs/default_serving_config")
+        self._seen: dict[str, Passage] = {}  # ponytail: grows per process; an LRU if shows run for days
+
+    async def search(self, query: str, *, product_filter: str | None, top_k: int, timeout_ms: int) -> list[Passage]:
+        R = self._de.SearchRequest
+        req = R(serving_config=self._serving, query=query, page_size=top_k,
+                content_search_spec=R.ContentSearchSpec(search_result_mode=R.ContentSearchSpec.SearchResultMode.CHUNKS))
+        try:
+            if self._client is None:
+                self._client = self._de.SearchServiceAsyncClient(client_options=self._options)
+            pager = await self._client.search(req, timeout=timeout_ms / 1000)
+        except Exception as e:  # noqa: BLE001 - no evidence: the composer finds nothing and a person answers
+            log.warning("vertex search failed for %r: %s", query[:80], e)
+            return []
+        out = []
+        for r in list(pager.results)[:top_k]:
+            ch = r.chunk
+            if not ch.content:
+                continue
+            p = Passage(passage_id="vx:" + ch.name.split("/documents/")[-1], product_id=product_filter or "",
+                        doc=ch.document_metadata.title or ch.document_metadata.uri, section="Vertex AI Search",
+                        text=ch.content, score=ch.relevance_score or 0)
+            self._seen[p.passage_id] = p
+            out.append(p)
+        return out
+
+    async def prefetch(self, product_id: str) -> list[Passage]:
+        return []
+
+    def doc_version(self) -> int:
+        return 0  # ponytail: streaming updates of the data store do not clear cached answers; a version if they must
+
+    def get(self, passage_id: str) -> Passage | None:
+        return self._seen.get(passage_id)
