@@ -26,9 +26,8 @@ def test_upload_puts_one_pdf_in_the_bucket_only(tmp_path, monkeypatch):
         assert bad.status_code == 400 and bad.json()["error"]["code"] == "not_pdf"
 
 
-INFO = {"brand": "Lumen", "product_name": "Night Serum", "currency": "SGD", "list_price": "46.00",
-        "live_price": "36.00", "points": [{"text": "Hydrates for 24 hours (in-house test)", "required": True}],
-        "extra": [{"name": "Volume", "value": "30 ml"}]}
+INFO = {"brand": "Lumen", "product_name": "Night Serum", "category": "face serum", "currency": "SGD", "list_price": "46.00",
+        "live_price": "36.00", "points": [{"text": "Hydrates for 24 hours (in-house test)", "required": True}]}
 
 
 def test_read_makes_one_model_call_and_stores_the_info(tmp_path, monkeypatch):
@@ -40,7 +39,7 @@ def test_read_makes_one_model_call_and_stores_the_info(tmp_path, monkeypatch):
                                llm_backend=backend)) as c:
         pid = c.post("/api/products", files={"file": ("Sheet A.pdf", b"%PDF-1.7 x", "application/pdf")}
                      ).json()["product_id"]
-        r = c.post(f"/api/products/{pid}/read", json={"fields": ["Volume"]})
+        r = c.post(f"/api/products/{pid}/read")
         assert r.status_code == 200, r.text
         assert r.json()["info"] == INFO
         assert [a for a, _ in backend.calls] == ["product_read"]
@@ -102,7 +101,7 @@ def test_a_release_needs_the_approved_product_and_a_regulation_file(tmp_path, mo
                       ).status_code == 409  # no regulation file
         c.post(f"/api/products/{pid}/approve")
         rel = c.post(f"/api/products/{pid}/release", json={"regulation_id": rid}).json()
-        assert rel["release_id"] == f"{pid}:{rid}" and rel["product_name"] == "Night Serum"
+        assert rel["release_id"] == f"{pid}:{rid}" and rel["product_name"] == "Night Serum" and rel["category"] == "face serum"
         assert [x["release_id"] for x in c.get("/api/products/releases").json()] == [rel["release_id"]]
         r = c.post("/api/sessions", json={"release_id": rel["release_id"]})  # the hub's pick
         assert r.status_code == 201, r.text
