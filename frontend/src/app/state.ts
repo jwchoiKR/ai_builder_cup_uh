@@ -42,8 +42,6 @@ export interface MissingPoints {
 export interface JudgeFailure {
   seq: number;
   transcript_id: string;
-  status?: string;
-  alert_ids?: string[];
   /** D-412: "busy" (429), "timeout", "invalid" or "error", and when (server time); D-416: which judge; D-420: the
    *  server's order number, which breaks `at` ties */
   cause?: string;
@@ -421,9 +419,6 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       const f = { ...p, seq: ev.seq } as JudgeFailure;
       return { ...state, judgeFailures: [...state.judgeFailures, f], unchecked: [...state.unchecked.filter((j) => !same(j)), f] };
     }
-
-    case "line.check":
-      return state;  // D-416: judge.failed carries the same line and cause
 
     case "checks.recovered": {
       // D-416: only the lines the server cleared (said at or before the line that was answered normally)

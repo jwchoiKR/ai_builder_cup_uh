@@ -39,10 +39,8 @@ class Settings(BaseSettings):
     ONBOARDING_CAUTION_LANG: Literal["as_written", "show"] = "as_written"
     VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
     PREFILTER: Literal["full", "pii_only"] = "full"  # D-308: back until measured
-    # D-280: switchable fixes of fact-claim code drops ("F1,F2,..."); empty = today's checks
-    # D-353 (user order): only the fixes that are prompt lines (F1, F5, Q6 in prompts/design_arms.md); every code text
-    # check is off: Q5 fragment hold, Q1T code-added qualifier alert, G4/G5, Q2/G1 and the guards-arm checks.
-    # Was "F1,F2,F3,F4,F5,R1,Q1E,Q1T,Q2,Q3,Q4,Q5,Q6,G1,G2,G3,G4,G5,G6,G7,CK" (D-293, D-294, D-297)
+    # D-280: the fixes that are prompt lines in prompts/design_arms.md (F1, F5 for the fact checker). D-432: the code
+    # text checks of the other letters are deleted; Q6's compliance line went with the legacy compliance addenda
     FACT_FIXES: str = "F1,F5,Q6"
     # D-296: the fact checker returns evidence sentence ids and a relation (contradicts, consistent, not in the
     # documents, uncertain); code builds the quote
@@ -55,14 +53,7 @@ class Settings(BaseSettings):
     # model's default, D-008). JUDGE_TEMPERATURE is a number ("0"), JUDGE_SEED an integer ("7")
     JUDGE_TEMPERATURE: str = ""
     JUDGE_SEED: str = "7"  # D-336: the measured config (a seed removes most run-to-run flips)
-    # D-302: "self" adds a confidence (0-1) to each violation and claim, a log field only
-    VOTE_CONFIDENCE: Literal["off", "self"] = "off"
     VERIFY_TIMEOUT_MS: int = 5000  # D-306/D-309: the compliance judge's deadline in the single arm
-    # D-303 (STT set): the judges and the verifier are told the line is speech-to-text (missing quote marks,
-    # sound-alike names, misheard numbers, sentences in pieces)
-    STT_AWARE: bool = False  # D-308: back (STT set: 96.3/11.1/5 with the STT bundle)
-    # D-303: the judges read the finals of the last N ms (0 = the last two)
-    CONTEXT_WINDOW_MS: int = 0  # D-308: back
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
     # D-353 addendum (user, 10/8): back to "code": spoken-answer posting belongs to the comments team (out of scope)
@@ -73,25 +64,10 @@ class Settings(BaseSettings):
     GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins
     SHOUTOUT: Literal["regex", "judge"] = "regex"  # D-308: back;  # judge: triage labels shout-outs (arm B's)
     FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
-    # D-312 v2: fact_relation_v2.md (only the host's own assertions, sound-alike values uncertain, the documents' value
-    # before the relation) and the compliance judge's sound-alike tester-name line; D-313 v3: v2 plus endorsements
-    # ("Correct.") of the previous line's facts
-    # D-325 v4: v3 plus "a documents' value with a condition, said without it, contradicts"
-    # D-331 v5: v3 plus a stance per claim (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked
-    # D-333 v6: v5 plus answers take the question's subject, a rejection with a new value is a claim, questions stay
-    # REPORTS_OR_ASKS
-    # D-345 v7: v5 plus stated_as_heard (number-word homophones read as digits) before the relation
-    # D-347 v8: v5 plus "lists of rejected claim wordings are never a fact source"
-    FACT_PROMPT: Literal["v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"] = "v5"  # D-336: the measured config
-    # D-328: the fact checker marks each claim host or other (reported words, a question to someone); a contradiction
-    # in someone else's words waits for the next line's check (it endorses, rejects or neither), at most
-    # REPORTED_HOLD_MS when no next line comes. Needs FACT_PROMPT v2-v4.
-    REPORTED_HOLD: bool = False
-    REPORTED_HOLD_MS: int = 2500
-    # D-328: the compliance judge's rule for lines that warn against a risky use or negate a claim
-    COMPLIANCE_NEG: bool = False
-    # D-333: the compliance judge judges what this line endorses from the previous line as this line's own claim
-    COMPLIANCE_ENDORSE: bool = False
+    # D-331 v5: the documents' value before the relation, endorsements of the previous line, and a stance per claim
+    # (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked. D-432: v2-v4 and v6-v8 are deleted
+    # (none was chosen); v1 stays for the tests that pin it
+    FACT_PROMPT: Literal["v1", "v5"] = "v5"  # D-336: the measured config
     # D-356: ACTIVE_ALERTS by per-call handle; the compliance judge answers {handle, fixed_by_this_line} first.
     # D-358: on by default (the originals path always uses handles; this setting only matters for the legacy path)
     CORRECTION_HANDLES: bool = True
@@ -99,9 +75,6 @@ class Settings(BaseSettings):
     # judged as one utterance by all three judges; with none, the question is judged alone
     QUESTION_HOLD: bool = True  # D-343: measured (pool 7 + pairs: two-host lines 82.8% -> 96.6%, no one-host loss)
     QUESTION_HOLD_MS: int = 2500
-    # D-334 alternative: the fact checker reads a CONVERSATION block (the last 3 finals, oldest first) and checks only
-    # the last line, using the earlier ones to understand it
-    CONTEXT_JUDGE: bool = False
     # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
     # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
     # no record facts the prompter does not show. Was "docs" (D-247/D-255). The release pack itself is still built at
@@ -136,9 +109,6 @@ class Settings(BaseSettings):
     SINGLE_THINKING: ThinkingLevel = "LOW"  # D-360 (user): the compliance judge thinks LOW (was MEDIUM, D-336)
     SINGLE_FACTS_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "LOW"  # D-311: the fact checker's; empty = SINGLE_THINKING
     COMPLIANCE_MODEL: str = ""
-    # D-310: the compliance judge's cached prefix also holds the on-air product's documents (the fact checker's FD
-    # files and passages): names said as sound-alikes can be matched, and the prefix passes the cache minimum
-    COMPLIANCE_DOCS: bool = False  # D-309: the compliance judge's model; empty = LLM_FAST_MODEL (VERIFY_MODEL in single)
     FACTS_MODEL: str = ""  # D-246: the fact checker's model (base and FR); empty = LLM_FAST_MODEL
     TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1
@@ -153,14 +123,8 @@ class Settings(BaseSettings):
     # checks it; C = B without the reflex pre-scan; D = agents decide everything, code keeps deadlines, state, routing
     # and idempotency; E = D with the rules retrieved per utterance. The default stays A until a comparison picks one.
     DESIGN_ARM: Literal["A", "B", "C", "D", "E", "F1", "F2"] = "A"
-    # D-270 arm: the judges' target_group bullet; "split" = an age band or usage direction is not a vulnerable claim
-    VULNERABLE_WORDING: Literal["d256", "split"] = "d256"
     # D-187: write the calls and tokens per agent of this process as JSON to this path at exit ("" = off)
     LLM_USAGE_REPORT: str = ""
-    # D-194 arm E: the Vertex AI Search serving config that picks the compliance rules for each spoken line
-    RULE_SEARCH_SERVING_CONFIG: str = ""  # D-289: not recreated in the new project (arm E only)
-    RULE_SEARCH_PAGE_SIZE: int = 8
-    RULE_SEARCH_TIMEOUT_MS: int = 1000
     # D-184: a judge or fact call still unanswered after this sends one identical second request; the first answer
     # wins and the other is cancelled (cloud 00008: two single timeouts were silent misses). 0 = off
     JUDGE_HEDGE_MS: int = 1500

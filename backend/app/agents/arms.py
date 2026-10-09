@@ -5,7 +5,6 @@ The prompt additions of an arm family live in `prompts/design_arms.md`, one `## 
 """
 from __future__ import annotations
 
-import dataclasses
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -67,21 +66,3 @@ def system_instruction(base: str, agent: str, arm: str, prompts_dir: Path | str,
     extras = [x for layer in layers if (x := _addenda(str(prompts_dir)).get((layer, agent)))]
     return "\n\n".join([base, *extras])
 
-
-_TARGET_GROUP = re.compile(r"^- CURRENT_PRODUCT `target_group`.*?(?=^- )", re.M | re.S)
-TARGET_GROUP_PROMPTS = ("utterance_judge", "compliance_judge_rules", "judge_single")  # D-358: the rules prompt
-
-
-def split_target_group(prompts: dict, prompts_dir: Path | str) -> dict:
-    """D-270 arm "split" (critic's ruling 10/6): the D-256 target_group bullet, which put "suitability" under the
-    vulnerable-group rules, is replaced by `design_arms.md` "VS: target_group": an age band or a usage direction is
-    fine; a safety promise, a condition claim or "no medical check needed" is not. The judges' versions get "+vs"."""
-    bullet = _addenda(str(prompts_dir))[("VS", "target_group")] + "\n"
-    out = dict(prompts)
-    for name in TARGET_GROUP_PROMPTS:
-        p = prompts[name]
-        system, n = _TARGET_GROUP.subn(lambda _: bullet, p.system_instruction, count=1)
-        if n != 1:
-            raise ValueError(f"{name}: no target_group bullet to replace (D-270)")
-        out[name] = dataclasses.replace(p, version=f"{p.version}+vs", system_instruction=system)
-    return out

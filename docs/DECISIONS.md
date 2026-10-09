@@ -2900,3 +2900,41 @@ D-431 (codex review of D-427..D-430, user asked for it; each finding checked aga
 2. FirestoreStore.evict: a write over DOC_MAX_BYTES is skipped (Firestore keeps an older copy) but did not count as lost, so an ended session could leave memory. evict now also refuses after a skipped oversized write. The status counters are unchanged (oversize_skipped stays apart from lost_writes). Test: test_d431 in test_d428.py.
 3. PdDirector.is_done: a question card (answer_question, read_question, clarify_product) restored from a session stored before D-429 had nothing to end it. It now counts as done at the next decision. Test: test_d431 in test_pd.py.
 4. frontend/e2e/demo.spec.ts S04: it asserted the removed question card; it now checks the question row and its answer preview (the Playwright suite is not run by npm test).
+
+D-432 (user go 10/10): the "safe to delete" group of the unused live-path list (items 1-34; production = code defaults plus deploy/cloudrun.sh). Deleted:
+- Settings with no reader left: VOTE_CONFIDENCE, STT_AWARE, CONTEXT_WINDOW_MS, REPORTED_HOLD(_MS), COMPLIANCE_NEG, COMPLIANCE_ENDORSE, CONTEXT_JUDGE, COMPLIANCE_DOCS, VULNERABLE_WORDING, RULE_SEARCH_* (config.py, .env.example, the conftest pins). FACT_PROMPT is now "v1" | "v5".
+- Compliance:
+  - The V2, SINGLE, CONF, ENDORSE, NEG, DOCS and STT lookups in ComplianceJudge/_SplitJudge, and the legacy product-documents branch of documents() (_documents_block, self.docs, utterances' compliance.docs).
+  - ComplianceOutputRC.
+  - Arm E rule search (providers/rule_search.py, its runtime warm-up and usage report).
+  - VULNERABLE_WORDING=split (arms.split_target_group).
+  - utterance_judge._cdrop and negated_caution.
+  - The no-op parameters of validate_compliance, alerts.apply_judge_compliance(rules) and _apply_corrections_locked(text, protected, quotes).
+- Fact:
+  - fact_checker._drop, _numbers and _product_numbers, all_file_passages.
+  - The VOTE_CONFIDENCE, CONTEXT_JUDGE (CONVERSATION re-render), STT_AWARE and REPORTED_HOLD branches.
+  - FACT_PROMPT v2/v3/v4/v6/v7/v8 (the prompt files, the PROMPT_NAMES entries, the FactRelation C/V2/V7/H models, PreviousLineStance).
+  - FactInput.recent and JudgeInput.recent.
+- REPORTED_HOLD, the whole arm: _same_words, _same_subject, _stance_of, the held-claim state, the drain loop, the block in _apply_facts_locked, the hold/timeout/settle/endorse/show methods, runtime's end_reported_locked call, and FactClaim._attributed / FactCheckOutput._previous_line.
+- Verifier leftovers: inputs.candidate_json, VerifyOutput(C), and the private _severity/_unverified/_votes/_unverified_reason/_check attributes with their getattr reads in alerts.py and facts.py. The Alert fields themselves stay (N14).
+- Pipeline:
+  - The unreachable context.run fallback and _release's "held fragment" branch.
+  - _previous_final.
+  - The "switch-commit" cancel and its stale comment.
+  - alerts.is_live.
+  - The unused ComplianceOutput import and `a` (post_notice), and llm.py's unused genai `types` import.
+- Prompts: design_arms.md sections STT (compliance, fact, verifier), CHECK: verifier, DOCS, CTX, ENDORSE, NEG, HOLD, SINGLE, CONF (both), VS and Q6. No text a production prompt loads was changed.
+- Display:
+  - selectors serverNow, activeFactAlerts and pinnedCorrectionNotices; hostSelectors answerSource.
+  - The state.ts "line.check" case and JudgeFailure.status/alert_ids.
+  - CSS .factValues/.factWrong/.factRight.
+  - Operator model: the missing_point_ids text fallback, "utterance_judge" in FAILURE_JUDGES, and alertOutcome's "cleared" case. The default case stays because TypeScript needs every path to return.
+  - pd.py is_done's cover_point branch.
+  - i18n REQUIRED, "(not {value})", "{n} seconds" and Cleared.
+- Code text matching on host speech deleted with these: negated_caution (negation-word regex + word coverage), fact_checker._numbers/_product_numbers with lexicon.times_numbers (number extraction), lexicon.affirms (a word regex), and REPORTED_HOLD's _same_words (regex word compare).
+- Kept on purpose: the language pack's `multiplicatives` and `affirmation_cues` fields (data). Lexicon no longer reads them.
+Tests:
+- Deleted the tests of that code: test_d303, test_d328, test_d345, test_d347; the docs half of test_d310; the context-judge test of test_d334; the v6/ENDORSE tests of test_d331; the rule-search test of test_design_arms; and test_onboarding's d270 split and negated_caution tests.
+- test_d312 keeps the source_value drop on v5's schema and the "default stays v5" check.
+- conftest.ALL_FIXES is "F1,F5,Q6".
+- operator.test's missing-points card fixture now carries missing_texts, as the server sends them.

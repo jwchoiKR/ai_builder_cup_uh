@@ -37,7 +37,6 @@ class JudgeInput:
     cue: HostCue | None = None
     previous: list[str] = field(default_factory=list)
     points_by_product: dict[str, list[PrompterPoint]] | None = None
-    recent: list[str] | None = None  # D-303 CONTEXT_WINDOW_MS: the finals of the window, in place of the last two
     all_products: bool = False  # D-304 JUDGE_PRODUCTS=all: the rules of every show product
     session_id: str | None = None
     scenario: str = "default"
@@ -65,27 +64,6 @@ def spoken_claim(text: str) -> str:
     return claim + " in our in-house test."
 
 
-def _cdrop(v, why: str) -> None:
-    """D-260: a judge's violation code drops is logged with its reason, and collected for the eval like fact drops."""
-    from .fact_checker import DROPS
-
-    log.info("compliance violation dropped by code: %s | rule=%s span=%r", why, v.rule_id, v.span)
-    if (sink := DROPS.get()) is not None:
-        sink.append({"reason": f"compliance: {why}", "field": v.rule_id, "stated": v.span, "correct": None,
-                     "passage_id": None, "quote": None})
-
-
-def negated_caution(text: str, product, lex) -> str | None:
-    """D-259 (sealed: "no need to stop using it when irritation occurs" got an unrelated approved claim to say): the
-    product caution a line negates (most of the caution's words heard, and a negation in the line)."""
-    if product is None or not product.cautions or not any(
-            re.search(rf"(?<!\w){re.escape(n)}(?!\w)", text.lower()) for n in lex.negation_words):
-        return None
-    heard = lex.content_words(text)
-    best = max(product.cautions, key=lambda c: lex.coverage(lex.claim_words(c), heard))
-    return best if lex.coverage(lex.claim_words(best), heard) >= 0.5 else None
-
-
 def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
     """§8.4.3: the on-air product's first approved claim, with the in-house-test qualifier. D-273 (sealed pool 4: a
     release with no approved claim raised IndexError here, so a failed judge call lost the line's alert): the D-232
@@ -94,12 +72,10 @@ def say_instead_fallback(catalog: Catalog, product_id: str) -> str:
     return spoken_claim(claims[0]) if claims else f"(no approved wording in {catalog.pack.lang})"
 
 
-def validate_compliance(o, catalog: Catalog, values: dict, arm: str = "A", verify: bool | None = None,
-                        model_severity: bool = False):
+def validate_compliance(o, catalog: Catalog, values: dict):
     """In place, on any output with `compliance` and `correction`. D-391 (user): the model's verdict is applied as
     given: its severity, its say_instead, its negation and quote flags. The only skips, logged, are verdicts that
-    cannot be applied: a rule the line was not given (D-279: another category's), a product that is not in the show.
-    `arm`, `verify` and `model_severity` are kept for callers; they no longer change anything."""
+    cannot be applied: a rule the line was not given (D-279: another category's), a product that is not in the show."""
     rules = catalog.pack.rules_by_id
     if "rules_compact_json" in values:  # D-279: a rule the line was not given (another category's) is no verdict
         offered = {r["rule_id"] for r in values["rules_compact_json"]}
@@ -225,7 +201,7 @@ def build_judge_values(catalog: Catalog, inp: JudgeInput, single: bool = False) 
                                                           inp.on_screen_group_id),
         "prompter_points_json": inputs.prompter_points_json(catalog, inp.on_air, inp.points_by_product),
         "host_cues_json": inputs.host_cues_json(inp.cue),
-        "last_two_final_transcripts_json": inp.recent if inp.recent is not None else inp.previous[-2:],
+        "last_two_final_transcripts_json": inp.previous[-2:],
         "utterance_text": inputs.utterance_text(inp.utterance),
     }
     if single:

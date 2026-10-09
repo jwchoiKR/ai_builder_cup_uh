@@ -297,23 +297,6 @@
   gap: calc(4px * var(--hs));
 }
 
-.factValues {
-  display: inline-flex;
-  align-items: baseline;
-  gap: calc(14px * var(--hs));
-  font-size: calc(30px * var(--hs));
-}
-.factWrong {
-  /* the wrong value is muted, never struck through (§12.3.5) */
-  opacity: 0.7;
-  font-weight: var(--fw-regular);
-  text-decoration: none;
-}
-.factRight {
-  font-weight: var(--fw-semibold);
-  color: var(--text);
-}
-
 /* 12.3.9 switch banner (green) */
 .switch {
   background: var(--ok-bg);

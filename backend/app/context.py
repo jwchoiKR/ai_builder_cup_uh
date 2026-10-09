@@ -139,10 +139,6 @@ def build_context(
                                                                        settings.GCP_PROJECT))
     pack = DataPack.load(settings.data_path, settings.MARKET, settings.BROADCAST_LANGUAGE)
     prompts = load_prompts(settings.prompts_path, BUILDERS)
-    if settings.VULNERABLE_WORDING == "split":  # D-270 arm
-        from .agents.arms import split_target_group
-
-        prompts = split_target_group(prompts, settings.prompts_path)
     store = make_store(settings, firestore_client=firestore_client)
     bus = EventBus(store, clock)
     llm = LLMClient(llm_backend or make_backend(settings), settings, clock, ids, StoreAudit(store, bus))

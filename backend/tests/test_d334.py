@@ -69,19 +69,3 @@ async def test_d334_a_question_with_no_answer_is_judged_alone(monkeypatch, caplo
     _, reqs = await _case(monkeypatch, [QUESTION], QUESTION_HOLD=True)
     assert _texts(reqs, "fact_checker") == [QUESTION]
     assert any("judged alone: no answer" in r.getMessage() for r in caplog.records)
-
-
-async def test_d334_context_judge_sends_the_conversation(monkeypatch):
-    _, reqs = await _case(monkeypatch, ["Hello everyone.", QUESTION, ANSWER], CONTEXT_JUDGE=True)
-    last = [r for r in reqs if r.agent == "fact_checker"][-1]
-    import json
-    import re
-
-    convo = json.loads(re.search(r'<data name="CONVERSATION">(.*?)</data>', last.user_message).group(1))
-    # the last line is the one checked; the earlier ones come in received order (the test clock does not move, so
-    # their order here is not fixed)
-    assert convo[-1] == ANSWER and sorted(convo[:-1]) == sorted(["Hello everyone.", QUESTION])
-    assert '<data name="UTTERANCE">' not in last.user_message
-    assert '<data name="RECENT_TRANSCRIPT">' not in last.user_message
-    assert last.user_message.rstrip().endswith("Return the JSON fact check for the last line of CONVERSATION.")
-    assert "Check only the facts asserted, or endorsed, in the LAST line" in last.system_instruction

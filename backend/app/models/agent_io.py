@@ -17,11 +17,6 @@ class Violation(BaseModel):
     is_negated: bool
     is_quoted: bool
     say_instead: str
-    # D-300: set by the verifier (never in the schema): its severity, and "kept without a verdict" (timeout)
-    _severity: str | None = PrivateAttr(default=None)
-    _unverified: bool = PrivateAttr(default=False)
-    _votes: int | None = PrivateAttr(default=None)  # D-302: the runs (of 3) that agree
-    _unverified_reason: str | None = PrivateAttr(default=None)  # D-306: the verifier's failure type
 
 
 class Compliance(BaseModel):
@@ -259,18 +254,6 @@ class ComplianceOutputO(ComplianceOutput, _ArmB):
     compliance: ComplianceO
 
 
-class ViolationRC(ViolationR):
-    confidence: float | None = None  # D-302 VOTE_CONFIDENCE=self: a log field only
-
-
-class ComplianceRC(ComplianceR):
-    violations: list[ViolationRC]
-
-
-class ComplianceOutputRC(ComplianceOutputR):
-    compliance: ComplianceRC
-
-
 class AnswerLinkB(AnswerLink, _ArmB):
     numbers_said: list[str] = []  # every number the host said, as digits, in the suggested answer's unit
     hedged: bool = False  # the host sounded unsure or took it back
@@ -307,20 +290,13 @@ class FactClaim(BaseModel):
     quote: str | None
     say: str | None = None  # D-396: the model's say line for a contradiction (relation arm v5)
     same_as: str | None = None  # D-403/D-406: a merged line's: the note this claim repeats (an id once mapped)
-    _unverified: bool = PrivateAttr(default=False)  # D-300: kept without the verifier's verdict (timeout)
-    _votes: int | None = PrivateAttr(default=None)  # D-302
     _evidence: list[str] = PrivateAttr(default_factory=list)  # D-302: the relation arm's evidence sentence ids
-    _check: bool = PrivateAttr(default=False)  # D-303: "check what was said" (one misheard number), not a correction
-    _unverified_reason: str | None = PrivateAttr(default=None)  # D-306: the verifier's failure type
-    _attributed: str = PrivateAttr(default="host")  # D-328: "other" = someone else's words or a question to someone
     _cited: list = PrivateAttr(default_factory=list)  # D-372: every passage the relation verdict cites
 
 
 class FactCheckOutput(BaseModel):
     claims: list[FactClaim]
     reason: str
-    # D-328-330: this line on the previous one's reported claims: [{product_id, field, span, stance}]
-    _previous_line: list = PrivateAttr(default_factory=list)
     # D-363: the ids of the active fact notes this line fixes, by the model's handles (code maps handle -> id)
     _corrects: list = PrivateAttr(default_factory=list)
 
@@ -344,30 +320,6 @@ class FactRelationOutput(BaseModel):
     claims: list[FactRelationClaim]
 
 
-class FactRelationClaimC(FactRelationClaim):
-    confidence: float  # D-302 VOTE_CONFIDENCE=self: how sure the model is (0-1); a log field only
-
-
-class FactRelationOutputC(FactRelationOutput):
-    claims: list[FactRelationClaimC]
-
-
-class FactRelationClaimV2(BaseModel):
-    """D-312 FACT_PROMPT=v2: the documents' value is written before the relation is decided."""
-    span: str
-    product_id: str
-    field: FactField
-    stated_value: str
-    evidence: list[str]
-    source_value: str | None  # the value the evidence gives, in its words
-    relation: FactRelation
-    correct_value: str | None
-
-
-class FactRelationOutputV2(BaseModel):
-    claims: list[FactRelationClaimV2]
-
-
 class FactRelationClaimV5(BaseModel):
     """D-331 FACT_PROMPT=v5: whose fact it is, decided right after the span; only the host's own (asserted or
     endorsed) facts are compared with the documents."""
@@ -385,64 +337,6 @@ class FactRelationClaimV5(BaseModel):
 
 class FactRelationOutputV5(BaseModel):
     claims: list[FactRelationClaimV5]
-
-
-class FactRelationClaimV7(BaseModel):
-    """D-345 FACT_PROMPT=v7: v5 plus the stated value re-read with number-word homophones as digits, before the
-    relation."""
-    span: str
-    stance: Literal["HOST_ASSERTS", "HOST_ENDORSES", "REPORTS_OR_ASKS"]
-    product_id: str
-    field: FactField
-    stated_value: str
-    evidence: list[str]
-    source_value: str | None
-    stated_as_heard: str
-    relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
-    correct_value: str | None
-
-
-class FactRelationOutputV7(BaseModel):
-    claims: list[FactRelationClaimV7]
-
-
-class FactRelationClaimH(BaseModel):
-    """D-328 REPORTED_HOLD: v2's claim, and whose words it is, decided before the rest."""
-    span: str
-    attributed: Literal["host", "other"]
-    product_id: str
-    field: FactField
-    stated_value: str
-    evidence: list[str]
-    source_value: str | None
-    relation: FactRelation
-    correct_value: str | None
-
-
-class PreviousLineStance(BaseModel):
-    """D-329: one fact the last line reported or asked, and what this line does with it."""
-    product_id: str
-    field: FactField
-    span: str  # D-330: the last line's words that state that fact
-    stance: Literal["endorses", "rejects"]
-
-
-class FactRelationOutputH(BaseModel):
-    previous_line: list[PreviousLineStance]  # empty: this line neither endorses nor rejects any of them
-    claims: list[FactRelationClaimH]
-
-
-class VerifyOutput(BaseModel):
-    """D-300: the verifier's verdict on one candidate alert."""
-    evidence: str | None  # the SOURCE sentence id that settles it
-    reason: str
-    decision: Literal["keep", "reject"]
-    severity: Literal["HIGH", "MEDIUM"] | None  # compliance: the final severity; a fact: null
-
-
-class VerifyOutputC(VerifyOutput):
-    """D-303 NUMBER_CHECK: "check" when the only mismatch is one number speech-to-text may have misheard."""
-    decision: Literal["keep", "reject", "check"]
 
 
 class JudgeSingleOutput(UtteranceJudgeOutput):
