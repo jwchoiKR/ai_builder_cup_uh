@@ -95,7 +95,6 @@ describe("every event type", () => {
       "feed.updated": { pool_running: true, armed: [], fired: [], bursts: [] },
       "line.check": { transcript_id: "tr_1", heard: "fifteen", source_value: "fifty" },
       "checks.recovered": { transcript_id: "tr_2", at: 1 },
-      "testdrive.audio": { url: "/api/testdrive/audio/0123456789abcdef.wav", text: "Hi", duration_ms: 900 },
       "hold.started": { transcript_id: "tr_q", max_ms: 2500 },
       "hold.ended": { transcript_id: "tr_q" },
     };
@@ -237,19 +236,6 @@ describe("segment.extended (D-138)", () => {
     s = reduceEvent(s, ev(51, "segment.extended", { segment: { ...seg, planned_duration_sec: seg.planned_duration_sec + 120 }, added_sec: 120 }));
     expect(s.segments[seg.segment_id].planned_duration_sec).toBe(seg.planned_duration_sec + 120);
     expect(s.overtime[seg.segment_id]).toBeUndefined();
-  });
-});
-
-describe("D-320: the test drive's host voice", () => {
-  it("keeps the latest line's audio, and the browser listens for it", () => {
-    const s0 = reduceSnapshot(snapshot(), "host");
-    expect(s0.voiceLine).toBeNull();
-    const ev: SessionEvent = { seq: 900, type: "testdrive.audio",
-      payload: { url: "/api/testdrive/audio/0123456789abcdef.wav", text: "Hi everyone", duration_ms: 1800 } };
-    expect(reduceEvent(s0, ev).voiceLine).toEqual({ url: "/api/testdrive/audio/0123456789abcdef.wav", text: "Hi everyone", seq: 900 });
-    for (const t of ["testdrive.audio", "line.check", "feed.updated"]) {
-      expect(EVENT_TYPES).toContain(t);
-    }
   });
 });
 
