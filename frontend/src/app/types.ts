@@ -389,7 +389,6 @@ export interface StateSnapshot {
     recent: { transcript_id: string; agent?: string; cause: string; at: number; n?: number }[];
     unchecked: { transcript_id: string; agent?: string; cause: string; at: number; n?: number }[];
   };
-  verify_health?: VerifyHealth; // D-306
   market?: SessionMarket; // D-150
   // P2 (planned): missing keys are treated as empty
   alerts?: Alert[];
@@ -527,8 +526,3 @@ export interface DemoStep {
   expected: string;
 }
 
-/** D-306: verifier calls with no answer this show, in total and by failure type. */
-export interface VerifyHealth {
-  no_answer: number;
-  by: Record<string, number>;
-}

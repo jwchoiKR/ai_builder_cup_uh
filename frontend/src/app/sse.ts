@@ -46,9 +46,6 @@ export const EVENT_TYPES = [
   "feed.updated",
   "line.check",
   "checks.recovered",  // D-412: the judges answered a line normally again
-  "verify.started",
-  "verify.done",
-  "verify.health",
   "testdrive.audio",
   "hold.started",  // D-335: a question waits for its answer (the operator's "collecting context")
   "hold.ended",

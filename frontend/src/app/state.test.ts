@@ -94,9 +94,6 @@ describe("every event type", () => {
       "feed.updated": { pool_running: true, armed: [], fired: [], bursts: [] },
       "line.check": { transcript_id: "tr_1", heard: "fifteen", source_value: "fifty" },
       "checks.recovered": { transcript_id: "tr_2", at: 1 },
-      "verify.started": { transcript_id: "tr_1", kind: "compliance" },
-      "verify.done": { transcript_id: "tr_1", kind: "compliance" },
-      "verify.health": { no_answer: 1, by: { http_504: 1 } },
       "testdrive.audio": { url: "/api/testdrive/audio/0123456789abcdef.wav", text: "Hi", duration_ms: 900 },
       "hold.started": { transcript_id: "tr_q", max_ms: 2500 },
       "hold.ended": { transcript_id: "tr_q" },
@@ -238,21 +235,9 @@ describe("D-320: the test drive's host voice", () => {
     const ev: SessionEvent = { seq: 900, type: "testdrive.audio",
       payload: { url: "/api/testdrive/audio/0123456789abcdef.wav", text: "Hi everyone", duration_ms: 1800 } };
     expect(reduceEvent(s0, ev).voiceLine).toEqual({ url: "/api/testdrive/audio/0123456789abcdef.wav", text: "Hi everyone", seq: 900 });
-    for (const t of ["testdrive.audio", "line.check", "verify.started", "verify.done", "verify.health", "feed.updated"]) {
+    for (const t of ["testdrive.audio", "line.check", "feed.updated"]) {
       expect(EVENT_TYPES).toContain(t);
     }
   });
 });
 
-describe("D-322: the checking chip per line and kind", () => {
-  it("stays while the other check of the same line still runs", () => {
-    let s = reduceSnapshot(snapshot(), "host");
-    const v = (seq: number, type: string, kind: string): SessionEvent => ({ seq, type, payload: { transcript_id: "tr_1", kind } });
-    s = reduceEvent(s, v(901, "verify.started", "compliance"));
-    s = reduceEvent(s, v(902, "verify.started", "fact"));
-    s = reduceEvent(s, v(903, "verify.done", "fact"));
-    expect(Object.keys(s.verifying)).toEqual(["tr_1|compliance"]);
-    s = reduceEvent(s, v(904, "verify.done", "compliance"));
-    expect(s.verifying).toEqual({});
-  });
-});

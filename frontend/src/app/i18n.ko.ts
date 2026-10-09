@@ -37,7 +37,6 @@ export const KO_HOST: Record<string, string> = {
   // prompter
   "Your prompter": "프롬프터",
   "YOUR PROMPTER": "프롬프터",
-  "Checking a phrase…": "표현 확인 중…",
   "{a} / {b} required points": "필수 포인트 {a} / {b}",
   "No product on air.": "방송 중인 제품이 없습니다.",
   "Price & offers": "가격·혜택",

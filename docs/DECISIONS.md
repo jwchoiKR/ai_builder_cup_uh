@@ -2825,3 +2825,5 @@ D-424 (Sonnet review of D-422; night rule): when a fact note's `say` and correct
 - The merged qualifier card shows neither empty quotes nor the "Say this instead" label.
 - factSayLine returns "" in that case.
 Tests: factSayLine with a blank say (falls back to the value) and with both blank (returns ""); the merged card with both blank.
+
+D-425 (user: "ㅇㅇ 안쓰면 지우자"): the dead verifier UI is deleted. That covers state.verifying, the verify.started / verify.done / verify.health handlers and event subscriptions, the always-empty verify_health snapshot block with its method and VerifyHealth type, the operator's "No AI answer" card, and the host's "Checking a phrase…" chip with its CSS and KO strings. Provisional alerts are gone since D-410, so nothing lit the chip any more. The non-default REPORTED_HOLD arm no longer emits verify.started/done. Its held note still shows when the hold ends. Tests: the chip, verifying and no-answer tests are deleted, and the D-328/329 hold tests keep their alert assertions.

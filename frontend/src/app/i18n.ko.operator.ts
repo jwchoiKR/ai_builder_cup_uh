@@ -67,9 +67,6 @@ export const KO_OPERATOR: Record<string, string> = {
   "Send cue": "신호 보내기",
   "Switched with missing required points: {points}": "필수 포인트를 빠뜨린 채 전환됨: {points}",
   "AI check unavailable for the last sentence": "마지막 문장은 AI 확인을 못 했습니다",
-  "No AI answer: {n} · {cause}": "AI 응답 없음 {n}건 · {cause}",
-  "AI service busy": "AI 서버 혼잡",
-  "AI response delayed": "AI 응답 지연",
   "AI error": "AI 오류",
   // D-412: a failed check's cause, with the code where there is one, and the last 5 minutes' counts
   "AI busy (429)": "AI 혼잡 (429)",

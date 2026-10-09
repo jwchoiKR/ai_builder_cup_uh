@@ -1022,19 +1022,6 @@ describe("check what was said (D-303)", () => {
 });
 
 describe("verifier wait (D-306)", () => {
-  it("shows the grey checking chip while the verifier works, and no alert yet", () => {
-    const at = Date.now();
-    let s = reduceSnapshot(snapshot(), "host", at);
-    s = reduceEvent(s, { seq: 11, type: "verify.started", payload: { transcript_id: "tr_000009", kind: "compliance" } }, at);
-    render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
-    expect(screen.getByTestId("host-checking-chip")).toBeInTheDocument();
-    expect(screen.queryByTestId("host-compliance-overlay")).toBeNull();
-    cleanup();
-    s = reduceEvent(s, { seq: 12, type: "verify.done", payload: { transcript_id: "tr_000009", kind: "compliance" } }, at);
-    render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
-    expect(screen.queryByTestId("host-checking-chip")).toBeNull();
-  });
-
   it("labels an alert the verifier never answered", () => {
     const base = { alert_id: "fx_000010", kind: "fact" as const, rule_id: null, severity: null, field: "price",
       stated_value: "S$32", correct_value: "S$36.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price",
