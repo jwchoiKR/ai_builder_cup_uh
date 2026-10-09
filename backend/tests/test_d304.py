@@ -30,7 +30,7 @@ async def test_d304_verbal_check_by_the_context_judge():
     from app.models.agent_io import ContextOutput, ContextOutputB
 
     for check, model in (("code", ContextOutput), ("judge", ContextOutputB)):
-        rt, _ = await make_env(VERBAL_CHECK=check)
+        rt, _ = await make_env(VERBAL_CHECK=check, QUESTION_HOLD=False)  # the arm as measured (no hold model)
         try:
             j = ContextJudge(rt.ctx.llm, rt.ctx.prompts, rt.catalog, rt.reflex)
             assert issubclass(j.output_model_b if j.b else j.output_model, model)  # D-415: with the switch naming
@@ -116,6 +116,3 @@ async def test_d304_shout_outs_by_triage(mode, label, kinds):
         assert [s.kind for s in rt.shoutouts] == kinds
     finally:
         await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

@@ -291,7 +291,7 @@ async def test_blocked_by_active_high_alert(env):
 async def test_blocked_by_violation_in_the_answer(env):
     rt, llm = env
     g = await oily_on_host(rt)
-    answer_script(llm, g.group_id, violations=[violation("BRAND-SUPERLATIVE", severity="MEDIUM")])
+    answer_script(llm, g.group_id, violations=[violation("ASEAN-3-SKIN-AGEING")])  # D-434: a cited section
     await speak(rt, ANSWER)
     await advance(rt, 3000)
     assert await messages(rt, "host_answer") == []
@@ -551,6 +551,3 @@ async def test_d204_a_red_alert_in_the_cancel_window_stops_the_post(env):
     await rt.ctx.scheduler.advance(2000)
     [m] = await messages(rt, "host_answer")
     assert m.state == "cancelled"
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

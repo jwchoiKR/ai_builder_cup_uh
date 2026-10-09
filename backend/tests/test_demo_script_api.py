@@ -66,6 +66,7 @@ async def demo():
     scheduler.shutdown()
 
 
+@pytest.mark.legacy_live  # D-434: runs on tests/fixtures/llm, recorded in the rules shape; re-recorded with N3
 async def test_demo_script_end_to_end(demo: Demo):
     steps = load_host_script(str(make_settings().data_path))
     lines = {s.text: s for s in steps if s.action == "host_line"}
@@ -208,6 +209,3 @@ async def test_demo_script_end_to_end(demo: Demo):
     await demo.refresh()
     assert demo.state["session"]["status"] == "ended"
     assert len(lines) == 15
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
