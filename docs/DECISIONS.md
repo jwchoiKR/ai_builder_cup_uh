@@ -2881,3 +2881,16 @@ D-429 (user, approved 10/10; the host is hands-free and questions reach the host
   - The dismiss button and the "Undo" button keep working for anyone who clicks them, without key hints. The operator's +2 min button and /segments/extend stay.
   - api.pullQuestion and its KO strings and CSS are removed.
 - Tests: test_pd (question card tests deleted; promo, switch and shout-out tests without questions; the D-161 and D-402 alert blocks shown with a switch card), test_comment_pipeline (questions_waiting in place of the PD question list), host.test (the keys do nothing; dismiss and undo by click; no question-card tests), the fixture card is a promo, i18n.test uses another variable label.
+
+D-430 (user go 10/10): two follow-ups to D-428.
+1. SESSIONS_FIRESTORE=true no longer stops the server. It logs one warning ("SESSIONS_FIRESTORE is merged into STORE=firestore (D-428); using STORE=firestore") and runs as STORE=firestore, so there is still one writer. false changes nothing.
+2. Compatibility of sessions the comments team's mirror wrote (origin/main 6dc6698, store/session_mirror.py) with our FirestoreStore. Compared:
+   - Paths: sessions/{sid} and sessions/{sid}/<the SUBCOLLECTIONS>, the same on both sides; the mirror wrote nothing outside a session.
+   - Document ids: the callers' ids on both sides.
+   - Values and field names: model_dump(mode="json") on both sides, for put and for a transaction's writes.
+   - Encoding: an array inside an array as one "_json" string, the same code on both sides; decode is the same.
+   - The five comment collections, the session document (host_slots, pinned_notice), comment events and agent calls: written as they are on both sides.
+   Differences:
+   - The mirror left out transcript.interim events: nothing to read, no change.
+   - The mirror wrote no seq high-water mark on the session document; it jumped the seq 10,000 ahead on read-back instead, because its last events may not have reached Firestore. Our reader then continued at the highest stored seq + 1, which could reuse a seq a browser had seen. Fixed in the reader only: a session read back without the mark reserves the highest stored event seq + HW_BLOCK (1,000); one with no stored events gets no jump. What we write is unchanged.
+Tests: tests/test_d428.py: the warning and STORE=firestore for true, nothing for false; a show written in the mirror's format (no interim events, a "_json" event, no mark) loads back document for document, and the next seq is the highest stored seq + 1,000.
