@@ -288,11 +288,6 @@ function RegulationUpload({ onUploaded }: { onUploaded: (regulationId: string | 
                   if (f) void upload(f);
                 }} />
       {since !== null && <Working label="Uploading…" since={since} />}
-      {uploaded && (
-        <p className={styles.value} data-testid="onb-regulation-uploaded">
-          Uploaded <b>{uploaded.file}</b> ({sizeLabel(uploaded.bytes)})
-        </p>
-      )}
       {error && (
         <div className={styles.actions}>
           <p className={styles.error}>{error}</p>
