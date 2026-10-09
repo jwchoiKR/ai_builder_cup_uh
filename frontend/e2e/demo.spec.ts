@@ -187,11 +187,9 @@ test("demo script S02-S14 on /studio", async ({ page, request }) => {
   for (const g of [s4.oily, s4.makeup]) {
     await expect(host.getByTestId(`host-question-${g.group_id}`)).toBeVisible();
   }
-  // D-113: the top question is released on the AI PD card (question above, verified answer below)
-  // D-127: the top row opens in place into the card (the question shows once)
-  await expect(host.getByTestId(`host-question-${s4.oily.group_id}`).getByTestId("host-pd-card")).toBeVisible();
-  await expect(host.getByTestId("host-pd-card")).toHaveAttribute("data-kind", "answer_question");
-  await expect(host.getByTestId("host-pd-question")).toContainText("oily skin");
+  // D-429/D-431: no AI PD question card; the top question's row shows its verified answer preview
+  await expect(host.getByTestId(`host-question-${s4.oily.group_id}`)).toContainText("oily skin");
+  await expect(host.getByTestId(`host-question-${s4.oily.group_id}`).getByTestId("host-question-preview")).toBeVisible();
   await expect(opGroup(s4.oily)).toContainText("7");
   await expect(opGroup(s4.makeup)).toContainText("4");
   await expect(opGroup(s4.dry)).toBeVisible();
