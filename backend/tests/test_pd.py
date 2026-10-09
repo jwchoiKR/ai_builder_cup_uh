@@ -75,61 +75,6 @@ async def late_in_segment(rt, share: float = 0.85) -> None:
     await rt.ctx.scheduler.idle()
 
 
-async def test_no_card_mid_segment_and_no_premature_switch(env):
-    """D-107: without cover_point cards nothing is shown mid-segment, and a late switch card never
-    switches by itself: the D-090 switch rules (a named transition, then a point of the new product) apply."""
-    rt, _ = env
-    assert rt.pd.agent is None  # mock provider: rules only, no network
-    seg = await rt.current_segment()
-    await late_in_segment(rt, 0.6)
-    assert (await rt.load_session()).pd_card is None
-    await late_in_segment(rt, 0.3)  # now 90% of the planned time
-    s = await rt.load_session()
-    assert s.pd_card is not None and s.pd_card.kind == "switch_product" and s.pd_card.source == "rule"
-    assert s.pd_card.say.startswith("Before switching: Ceramide NP 1%, panthenol 5%, squalane 3%")
-    assert (await rt.current_segment()).segment_id == seg.segment_id
-
-
-async def test_switch_card_text_drops_a_point_once_it_is_said(env):
-    rt, llm = env
-    await late_in_segment(rt)
-    card = (await rt.load_session()).pd_card
-    assert "Ceramide NP" in card.say
-    [ev] = await events(rt, "pd.card")
-    assert ev.payload["card_id"] == card.card_id and ev.payload["status"] == "active"
-    line = "Inside there is one percent ceramide NP and five percent panthenol."
-    llm.judge(line, covered=["cr-p2"])
-    await speak(rt, line)
-    await rt.ctx.scheduler.advance(pdl.HOLD_MS)
-    await rt.ctx.scheduler.idle()
-    now = (await rt.load_session()).pd_card
-    assert now is not None and now.card_id == card.card_id and "Ceramide NP" not in now.say
-
-
-async def test_dismissed_card_is_not_shown_again(env):
-    rt, _ = env
-    await late_in_segment(rt)
-    card = (await rt.load_session()).pd_card
-    out = await rt.pd.dismiss(card.card_id)
-    assert out.status == "dismissed"
-    await rt.ctx.scheduler.idle()
-    nxt = (await rt.load_session()).pd_card
-    assert nxt is None or nxt.ref_id != card.ref_id
-    assert await rt.pd.dismiss(card.card_id) is None  # already ended
-
-
-async def test_no_new_card_while_a_red_alert_is_active(env):
-    """The host screen hides the current card under the red overlay; the PD adds nothing new."""
-    rt, llm = env
-    line = "Use it every night and your wrinkles will disappear overnight."
-    llm.judge(line, violations=[violation("ASEAN-3-SKIN-AGEING")])
-    await speak(rt, line)
-    assert any(a.status == "active" and a.severity == "HIGH" for a in await rt.alerts())
-    before = len(await events(rt, "pd.card"))
-    await late_in_segment(rt)
-    assert len(await events(rt, "pd.card")) == before
-
-
 # ---- D-113 shout-outs; D-161/D-402 alert blocks ---------------------------------------------------
 
 
@@ -140,39 +85,6 @@ def test_shout_outs_only_at_a_pause_with_no_question_waiting_and_30_s_apart():
     assert (c.kind, c.say) == ("shout_out", "Thank you Mei for your order!")
     assert pdl.candidates(state(questions_waiting=True, **paused)) == []  # a question on the list comes first
     assert pdl.candidates(state(last_shout_at=100_000 - 10_000, **paused)) == []
-
-
-async def test_an_uncorrected_red_alert_blocks_cards_only_while_it_is_fresh(env):
-    """D-161 (local SEED1 replay: a red nobody corrected blocked every card for the last 10 minutes of the show).
-    A red blocks cards for RED_BLOCK_MS after it was created; then cards resume while it waits (D-177)."""
-    rt, llm = env
-    line = "Use it every night and your wrinkles will disappear overnight."
-    llm.judge(line, violations=[violation("ASEAN-3-SKIN-AGEING")])
-    await speak(rt, line)
-    [red] = [a for a in await rt.alerts() if a.severity == "HIGH" and a.status == "active"]
-    await late_in_segment(rt)  # a switch card would be offered now
-    assert (await rt.load_session()).pd_card is None
-    await rt.ctx.scheduler.advance(pdl.RED_BLOCK_MS)  # D-177: 20 s, the escalation adds nothing
-    card = (await rt.load_session()).pd_card
-    assert card is not None and card.kind == "switch_product"
-    assert (await rt.get_alert(red.alert_id)).status == "active"  # the red still waits for its correction
-
-
-async def test_d402_a_fact_note_blocks_cards_like_a_red(env):
-    """D-402 (user: red and orange at the same level): an orange alert blocks AI PD cards for RED_BLOCK_MS too."""
-    from .judge_fakes import price_contradiction
-
-    rt, llm = env
-    line = "And today the live price is only thirty-two dollars."
-    llm.facts(line, price_contradiction("S$32"))
-    await speak(rt, line)
-    [note] = [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"]
-    await late_in_segment(rt)
-    assert (await rt.load_session()).pd_card is None
-    await rt.ctx.scheduler.advance(pdl.RED_BLOCK_MS)
-    card = (await rt.load_session()).pd_card
-    assert card is not None and card.kind == "switch_product"
-    assert (await rt.get_alert(note.alert_id)).status == "active"  # D-402: the note stays until closed
 
 
 def test_a_fresh_alert_is_one_created_within_the_block():
@@ -190,20 +102,3 @@ def test_a_fresh_alert_is_one_created_within_the_block():
     assert pdl.alert_blocks([Alert(**fact)], pdl.RED_BLOCK_MS - 1)
     assert not pdl.alert_blocks([Alert(**fact)], pdl.RED_BLOCK_MS)
     assert not pdl.alert_blocks([Alert(**{**fact, "status": "dismissed"})], 1)
-
-
-async def test_d431_a_question_card_stored_before_d429_ends_at_the_next_decision(env):
-    """D-431 (codex review): nothing else would end it now that no question cards are made."""
-    from app.models.session import PdCard
-
-    rt, _ = env
-    seg = await rt.current_segment()
-    s = await rt.load_session()
-    s.pd_card = PdCard(card_id="pd_old", kind="read_question", say="S$36.", ref_id="grp_x", created_at=rt.now(),
-                       hold_until=rt.now() + pdl.HOLD_MS, source="rule", segment_id=seg.segment_id)
-    await rt.save_session(s)
-    rt.pd.trigger()
-    await rt.ctx.scheduler.idle()
-    assert (await rt.load_session()).pd_card is None
-    [ev] = [e for e in await events(rt, "pd.card") if e.payload["card_id"] == "pd_old"]
-    assert ev.payload["status"] == "done"

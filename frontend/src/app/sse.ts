@@ -47,7 +47,6 @@ export const EVENT_TYPES = [
   "feed.updated",
   "line.check",
   "checks.recovered",  // D-412: the judges answered a line normally again
-  "testdrive.audio",
   "hold.started",  // D-335: a question waits for its answer (the operator's "collecting context")
   "hold.ended",
   "segment.switch_decided", // D-349 SWITCH_MODE=immediate: each transition verdict (switch or not)

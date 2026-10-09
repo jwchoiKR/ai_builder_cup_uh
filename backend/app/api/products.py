@@ -23,14 +23,14 @@ from pydantic import BaseModel
 from ..context import AppContext, get_ctx
 from ..logic.catalog import DataPackError
 from ..onboarding import product_show, storage
-from ..onboarding.files import MAX_BYTES
+MAX_BYTES = 20 * 1024 * 1024  # per file
 from ..pipelines.runtime import ActionError
 from ..providers.llm import LLMRequest
 
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/products")
 READ_DEADLINE_MS = 300_000
-READ_THINKING = "MEDIUM"  # the read's own level (ONBOARDING_THINKING stays HIGH for the old onboarding)
+READ_THINKING = "MEDIUM"
 
 READ_PROMPT = """You read a seller's document about one product (any language, any layout) for a live shopping show.
 Return what the show's screens and the host's prompter need, as JSON:

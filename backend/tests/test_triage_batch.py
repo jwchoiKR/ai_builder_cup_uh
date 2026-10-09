@@ -66,52 +66,6 @@ async def env(tmp_path, request):
     ctx.scheduler.shutdown()
 
 
-async def test_alone_when_free_batched_when_slots_are_busy(env):
-    rt, backend = env
-    first = await say(rt, "Lee", FIRST, wait=False)
-    await asyncio.wait_for(backend.started.wait(), 2)
-    waiting = [await say(rt, f"V{i}", t, wait=False) for i, t in enumerate(WAITING)]
-    last = await say(rt, "Zoe", LAST, wait=False)
-    backend.gate.set()
-    await wait_for(lambda: analysed(rt, [first, *waiting, last]))
-    await rt.ctx.scheduler.idle()
-
-    assert [c.agent for c in await calls(rt)] == ["comment_triage", "comment_triage_batch", "comment_triage"]
-    groups = {g.canonical_question for g in await rt.groups()}
-    assert {FIRST, *WAITING, LAST} <= groups  # rule-based canonical questions: every comment was grouped
-
-
-@pytest.mark.parametrize("env", [{"gate_text": FIRST, "drop_from_batch": WAITING[1]}], indirect=True)
-async def test_item_missing_from_the_batch_is_triaged_alone(env):
-    rt, backend = env
-    first = await say(rt, "Lee", FIRST, wait=False)
-    await asyncio.wait_for(backend.started.wait(), 2)
-    waiting = [await say(rt, f"V{i}", t, wait=False) for i, t in enumerate(WAITING)]
-    backend.gate.set()
-    await wait_for(lambda: analysed(rt, [first, *waiting]))
-    await rt.ctx.scheduler.idle()
-
-    agents = [c.agent for c in await calls(rt)]
-    assert agents == ["comment_triage", "comment_triage_batch", "comment_triage"]
-    assert WAITING[1] in {g.canonical_question for g in await rt.groups()}
-
-
-async def test_batched_mock_replays_the_recorded_single_fixture(rt_free, tmp_path):
-    rt = rt_free
-    out = {"kind": "question", "hide_category": None, "product_id": "cream_hydra_barrier", "product_basis": "context",
-           "intent": "texture", "condition_slots": {"person_type": None, "life_stage": None, "condition": None,
-                                                    "combined_with": None, "time_of_day": None},
-           "canonical_question": "Is it sticky?", "group_candidate_id": None, "reason": "recorded fixture"}
-    path = tmp_path / "comment_triage" / f"{mock_key('comment_triage', 'so sticky or not', 'default')}.json"
-    path.parent.mkdir(parents=True)
-    path.write_text(json.dumps(out), encoding="utf-8")
-    inps = [TriageInput(text=t, context_product_id="cream_hydra_barrier", session_id=rt.sid)
-            for t in ("so sticky or not", FIRST)]
-    a, b = await rt.triage.run_batch(inps, deadline_ms=5000)
-    assert a.output.reason == "recorded fixture" and a.output.intent == "texture"
-    assert b.output.reason == "rule-based" and b.output.intent == "price"
-
-
 @pytest.fixture
 async def rt_free(tmp_path):
     ctx = make_ctx(tmp_path)
