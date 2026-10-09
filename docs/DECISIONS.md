@@ -3042,3 +3042,5 @@ D-444 (user go 10/10; GPT, Gemini and Sonnet agreed; prompt only): the context j
   - The three partial lines ("1,000 mg.", "a thousand milligrams of EPA and DHA", "Take two softgels a day."): the old line ticked them 5/5 each, the new one 0/5 each.
   - Ticked 5/5 with both lines: the full sentence, a paraphrase, the merged three-final text, and the last fragment with the two earlier fragments in RECENT_TRANSCRIPT.
   - The single-fact points (parabens, price, caution) stay 5/5.
+
+D-448a (user go 10/10): origin/main (c817d97, PR #5: the comments team's Vertex AI Search answers, the reply-draft steps, citation chips, release list speed-up) is merged into multi_agent_test. No file conflicted; test_prompts.py, i18n.ko.ts and selectors.ts merged on their own. Our live-path work stays: the one-box-per-line host display (D-442), context_judge_v4 and its test_prompts divergence note (D-444), the timing labels and the retraction phrase. Backend 506 passed, frontend 259 passed, tsc clean.

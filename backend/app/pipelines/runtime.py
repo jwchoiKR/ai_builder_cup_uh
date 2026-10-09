@@ -14,8 +14,6 @@ from typing import TYPE_CHECKING, Any
 from pydantic import BaseModel
 
 from ..agents.answer_composer import AnswerComposer
-from ..agents.draft_verifier import DraftVerifier
-from ..agents.reply_phraser import ReplyPhraser
 from ..agents.reply_translator import ReplyTranslator
 from ..agents.comment_triage import CommentTriage
 from ..logic import host_queue as hq
@@ -98,9 +96,7 @@ class SessionRuntime:
         self.triage = CommentTriage(ctx.llm, ctx.prompts["comment_triage"], self.catalog, ctx.settings,
                                     batch_prompt=ctx.prompts["comment_triage_batch"])
         self.composer = AnswerComposer(ctx.llm, ctx.prompts["answer_composer"], self.catalog)
-        self.draft_verifier = DraftVerifier(ctx.llm, ctx.prompts["draft_verifier"], self.catalog)
         self.reply_translator = ReplyTranslator(ctx.llm, ctx.prompts["reply_translator"])
-        self.reply_phraser = ReplyPhraser(ctx.llm, ctx.prompts["reply_phraser"])
         self.translating: set[tuple[str, str]] = set()  # (message, language) being translated
         self._reply_status: dict[str, str | None] = {}  # comment -> the status last written, so a repeat reads nothing
         # D-278: no demo comments in a release show (only the tests' shipped run sheet has them)
@@ -562,8 +558,6 @@ class SessionRuntime:
             if promo.changes_prices:
                 await self.emit("prompter.updated", await self.prompter_view_now(await self.current_segment()))  # D-423
                 await self.price_promo_changed_locked()
-            else:
-                await self.offer_changed_locked(promo)
             return s
 
     async def stop_promo(self, promo_id: str, *, reason: str = "operator") -> Session:
@@ -584,8 +578,6 @@ class SessionRuntime:
             if promo is not None and promo.changes_prices:
                 await self.emit("prompter.updated", await self.prompter_view_now(await self.current_segment()))  # D-423
                 await self.price_promo_changed_locked()
-            elif promo is not None:
-                await self.offer_changed_locked(promo)
             return s
 
     async def documents_changed_locked(self) -> None:
@@ -613,13 +605,6 @@ class SessionRuntime:
             await self.save_session(s)
             await self.emit("hostqueue.updated", {"slots": [sl.model_dump() for sl in s.host_slots]})
         await self.recompute_host_queue_locked()
-
-    async def offer_changed_locked(self, promo: Promo) -> None:
-        """A record price answer names a running offer (logic/record_answers), so when an offer starts or ends the
-        open price groups close like at a price promo: no reply that names an ended offer, or misses a new one, is
-        posted again. Set-price groups keep their answer; a notice is no offer."""
-        if self.settings.RECORD_ANSWERS and promo.kind != "notice":
-            await self.price_promo_changed_locked(intents=frozenset({"price"}))
 
     async def price_promo_changed_locked(self, intents: frozenset[str] = PRICE_INTENTS) -> None:
         """No old price is re-posted after a promo change: drop cached price answers and close open

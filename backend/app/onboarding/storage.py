@@ -2,6 +2,7 @@
 in-memory bucket for tests. Nothing is kept on the container's disk."""
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Protocol
 
 
@@ -61,6 +62,7 @@ class MemoryBucket:
         return sorted(k for k in self.objects if k.startswith(prefix))
 
 
+@lru_cache
 def bucket_for(name: str, project: str | None = None) -> Bucket:
-    """The bucket by name (tests replace this to get a MemoryBucket)."""
+    """The bucket by name, one client per process (tests replace this to get a MemoryBucket)."""
     return GcsBucket(name, project)

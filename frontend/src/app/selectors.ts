@@ -525,6 +525,16 @@ export function hostSlots(state: ClientState): HostSlotView[] {
     }));
 }
 
+const DRAFT_STEPS = {
+  evidence: "Finding evidence…",
+  writing: "Writing the reply…",
+} as const;
+
+/** Which step a draft is in while it is being written (the server's compose_step). */
+export function draftingLabel(g: QuestionGroup): string {
+  return (g.status === "composing" && g.compose_step && DRAFT_STEPS[g.compose_step]) || "Drafting…";
+}
+
 /** D-429: no question card any more, so no "On your card" state */
 function waitingState(group: QuestionGroup, answer: Answer | null): HostSlotView["waiting"] {
   if (group.status === "composing") return "Drafting…";
@@ -565,7 +575,7 @@ export function deskStatus(g: QuestionGroup, publishedKind?: string | null): Des
   if (done) return { label: "Closed", tab: "closed" };
   if (g.host_verbal_answer_transcript_id) return { label: "Host answered on air · not posted", tab: "todo" };
   if (g.status === "needs_review" && g.route_reason === "unresolved_product") return { label: "Assign a product", tab: "todo" };
-  if (g.status === "new" || g.status === "composing") return { label: "Drafting…", tab: "todo" };
+  if (g.status === "new" || g.status === "composing") return { label: draftingLabel(g), tab: "todo" };
   // waits for a person: the host may also say it on air (it is on the host's card, or routed to the host), or only
   // the operator can answer it
   return g.host_slot === "on_host" || g.route === "HOST"

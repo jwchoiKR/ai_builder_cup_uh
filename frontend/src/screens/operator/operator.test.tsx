@@ -302,28 +302,6 @@ describe("Operator screen", () => {
       "AI summary: Removes wrinkles or reverses skin ageing.");
   });
 
-  it("requires Post anyway for a restricted phrase", async () => {
-    const g = group({ group_id: "grp_ship", intent: "shipping", product_id: null, status: "needs_review", route: "OPERATOR", canonical_question: "Do you ship to Malaysia?", member_comment_ids: ["cm_9"] });
-    snap = snapshot({ groups: [g], comments: [comment({ comment_id: "cm_9", group_id: "grp_ship", text: "Do you ship to Malaysia?", author_name: "Kumar" })] });
-    answerReplies = [
-      { status: 409, body: { error: { code: "restricted_phrase", message: "This reply contains a restricted phrase: 'cures' (Presented as treating or preventing disease)." } } },
-      { status: 200, body: { ok: true } },
-    ];
-    render(<Operator sessionId="ses_op_restricted" />);
-    const desk = await screen.findByTestId("op-question-desk");
-    // the first row of To do is open: the reply box is there at once, no "Write reply" button to press first
-    await within(desk).findByTestId("op-reply-grp_ship");
-    expect(within(desk).queryByRole("button", { name: "Write reply" })).not.toBeInTheDocument();
-    fireEvent.change(within(desk).getByLabelText("Reply"), { target: { value: "Yes, and it cures eczema." } });
-    fireEvent.click(within(desk).getByRole("button", { name: "Post" }));
-    expect(await within(desk).findByText(/This reply contains a restricted phrase: 'cures'/)).toBeInTheDocument();
-    fireEvent.click(within(desk).getByRole("button", { name: "Post anyway" }));
-    await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/groups/grp_ship/answer"))).toHaveLength(2));
-    const posts = calls.filter((c) => c.path.endsWith("/groups/grp_ship/answer"));
-    expect(posts.map((c) => (c.body as { confirm: boolean }).confirm)).toEqual([false, true]);
-    expect((posts[1].body as { origin: string }).origin).toBe("operator_written");
-  });
-
   it("D-120: a collapsed row shows the proposed reply and the next action without opening", async () => {
     snap = snapshot({
       groups: [
@@ -603,7 +581,7 @@ describe("Operator screen", () => {
     expect(box.value).toBe("That isn't covered in our product information. Our team will check and get back to you.");
     expect(within(desk).getByText("Posts the standard reply: it states no product fact")).toBeInTheDocument();
     fireEvent.change(box, { target: { value: "We ship to Malaysia from next month." } });
-    expect(within(desk).getByText("Your own reply: checked when you post")).toBeInTheDocument();
+    expect(within(desk).getByText("Your own reply: posts as it is, not checked")).toBeInTheDocument();
     fireEvent.click(within(desk).getByRole("button", { name: "Back to the standard reply" }));
     expect(box.value).toBe("That isn't covered in our product information. Our team will check and get back to you.");
   });
@@ -619,7 +597,7 @@ describe("Operator screen", () => {
     expect(within(desk).getByText("Not confirmed by the product sheet. Check it before you post.")).toBeInTheDocument();
     const box = within(desk).getByLabelText("Reply") as HTMLTextAreaElement;
     expect(box.value).toBe(answer({ answer_id: "ans_x" }).text);
-    expect(within(desk).getByText("Not verified: checked again when you post")).toBeInTheDocument();
+    expect(within(desk).getByText("Not verified: posts as it is, not checked")).toBeInTheDocument();
     fireEvent.click(within(desk).getByRole("button", { name: "Post" }));
     await waitFor(() => expect(calls.some((c) => c.path.endsWith("/groups/g_x/answer"))).toBe(true));
     expect(calls.some((c) => c.path.endsWith("/groups/g_x/approve"))).toBe(false);
@@ -640,7 +618,7 @@ describe("Operator screen", () => {
     expect(within(desk).getByText("Posts the suggested reply as it is")).toBeInTheDocument();
     // edited: it becomes the operator's text, and the suggestion can be brought back
     fireEvent.change(box, { target: { value: `${suggestion} Thank you for asking.` } });
-    expect(within(desk).getByText("Edited: checked again when you post")).toBeInTheDocument();
+    expect(within(desk).getByText("Edited: posts as it is, not checked")).toBeInTheDocument();
     fireEvent.click(within(desk).getByRole("button", { name: "Back to the suggestion" }));
     expect(box.value).toBe(suggestion);
     // unchanged: one click approves the suggestion

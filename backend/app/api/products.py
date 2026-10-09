@@ -178,7 +178,6 @@ async def list_releases(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
         return []
     bucket = _bucket(ctx)
 
-    def rows() -> list[dict]:
-        return [json.loads(bucket.download(k)) for k in bucket.keys("releases/") if k.endswith(".json")]
-
-    return sorted(await asyncio.to_thread(rows), key=lambda r: r["approved_at"], reverse=True)
+    keys = [k for k in await asyncio.to_thread(bucket.keys, "releases/") if k.endswith(".json")]
+    blobs = await asyncio.gather(*(asyncio.to_thread(bucket.download, k) for k in keys))
+    return sorted((json.loads(b) for b in blobs), key=lambda r: r["approved_at"], reverse=True)
