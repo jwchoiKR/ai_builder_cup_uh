@@ -82,7 +82,7 @@ async def test_judge_failure_gives_the_check_card_and_no_alert(env, text):
     assert await rt.alerts() == []
     failed = await events(rt, "judge.failed")  # D-416: one per failed judge (both split judges fail here)
     assert {f.payload["agent"] for f in failed} == {"compliance_judge", "context_judge"}
-    assert all(f.payload["transcript_id"] == t.transcript_id and f.payload["alert_ids"] == [] for f in failed)
+    assert all(f.payload["transcript_id"] == t.transcript_id for f in failed)
     [card] = await events(rt, "line.check")  # the line is unchecked once
     assert card.payload["text"] == text and card.payload["rule_ids"] == []
 

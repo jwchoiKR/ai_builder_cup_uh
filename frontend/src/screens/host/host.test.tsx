@@ -933,7 +933,7 @@ describe("immediate switch (D-349)", () => {
 
 describe("unchecked lines (D-412)", () => {
   const ev = (seq: number, id: string, cause: string, agent = "compliance_judge", at = T0 + seq, n = seq) =>
-    ({ seq, type: "judge.failed", payload: { transcript_id: id, status: "error", alert_ids: [], agent, cause, at, n } });
+    ({ seq, type: "judge.failed", payload: { transcript_id: id, agent, cause, at, n } });
   const strip = (s: ReturnType<typeof reduceSnapshot>) => uncheckedStrip(s);
   const show = (s: ReturnType<typeof reduceSnapshot>) =>
     render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);

@@ -769,8 +769,8 @@ class UtterancePipeline:
         if first:  # D-416: the line is unchecked once, whichever judges failed on it
             await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
                                          "cause": cause, "at": now})
-        await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": [],
-                                       "agent": agent, "cause": cause, "at": now, "n": event["n"]})
+        await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now,
+                                       "n": event["n"]})
 
     def check_failures(self) -> dict:
         """D-412/D-416/D-420: the snapshot's block, by the live stream's rule: the last 5 minutes' failure events (for
