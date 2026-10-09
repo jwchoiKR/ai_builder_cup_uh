@@ -1,7 +1,7 @@
 import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, LayoutGrid, ListChecks, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 
-import { userMessage } from "../app/api";
+import { api, userMessage } from "../app/api";
 import { useLang, useT } from "../app/i18n";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useTheme } from "../app/theme";
@@ -195,6 +195,16 @@ export function Hub({ sessionId }: ScreenProps) {
   const [lineup, setLineup] = useState<string[]>([]);
   const [nudge, setNudge] = useState(false);  // a During-the-show card was pressed with no show and no product picked
   const pickCard = useRef<HTMLDivElement>(null);
+  const shown = useRef("");  // the open show's line-up: picking the same products reopens it instead of starting a new one
+  // back on the hub with a show open: its products stay picked
+  useEffect(() => {
+    if (!sessionId) return;
+    api.state(sessionId, "operator").then(({ session }) => {
+      const ids = session?.release_ids?.length ? session.release_ids : session?.release_id ? [session.release_id] : [];
+      shown.current = ids.join();
+      setLineup((cur) => (cur.length ? cur : ids));
+    }, () => {});
+  }, [sessionId]);
   useEffect(() => {
     if (lineup.length) setNudge(false);
   }, [lineup.length]);
@@ -209,7 +219,7 @@ export function Hub({ sessionId }: ScreenProps) {
       pickCard.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
       return;
     }
-    if (!lineup.length || e.metaKey || e.ctrlKey || e.shiftKey) return go(withSession(path, sessionId))(e);
+    if (!lineup.length || lineup.join() === shown.current || e.metaKey || e.ctrlKey || e.shiftKey) return go(withSession(path, sessionId))(e);
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -229,7 +239,7 @@ export function Hub({ sessionId }: ScreenProps) {
           <span className="eyebrow">LIVE / STUDIO</span>
           <div className={styles.hubBrandLine}>
             <h1 className={styles.hubTitle}>{t("Broadcast hub")}</h1>
-            <span className={`${styles.subtitle} tabular`}>{t("Session {id}", { id: sessionId ?? "…" })}</span>
+            {sessionId && <span className={`${styles.subtitle} tabular`}>{t("Session {id}", { id: sessionId })}</span>}
           </div>
         </div>
         <div className={styles.headerActions}>
