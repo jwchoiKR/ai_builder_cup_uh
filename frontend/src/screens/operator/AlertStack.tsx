@@ -7,6 +7,7 @@ import { useT } from "../../app/i18n";
 import { clearedTiming, hostAlertStack, shownTiming, timingLabel, type HostVisibility } from "../../app/selectors";
 import type { Alert } from "../../app/types";
 import { Button, Chip } from "../../components";
+import { citedTitle } from "../host/hostSelectors";
 import { useAction, useOperator } from "./context";
 import { NoticeDialog } from "./Dialogs";
 import {
@@ -75,6 +76,10 @@ function ComplianceCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibilit
   const act = useAction();
   const state = alertCardState(a);
   const rule = ruleInfo(catalog, a.rule_id, a.product_id);
+  // D-440: the cited document and section, as on the host's red box (D-433); the rule id is a slug since D-358
+  const cited = citedTitle(a);
+  const ruleTitle = cited ?? rule?.title ?? a.rule_id;
+  const ruleRef = !cited && rule?.source_ref ? ` · ${rule.source_ref}` : "";
   const corrected = correctedLine(a, t);
   const cls = [styles.alertCard, styles.riskCard, state === "escalated" && styles.escalated, state === "corrected" && styles.correctedCard]
     .filter(Boolean)
@@ -98,13 +103,13 @@ function ComplianceCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibilit
             {t("Rule:")}{" "}
             {catalog?.policy_pdf_url ? (
               <a href={catalog.policy_pdf_url} target="_blank" rel="noreferrer">
-                {rule?.title ?? a.rule_id}
-                {rule?.source_ref ? ` · ${rule.source_ref}` : ""}
+                {ruleTitle}
+                {ruleRef}
               </a>
             ) : (
               <>
-                {rule?.title ?? a.rule_id}
-                {rule?.source_ref ? ` · ${rule.source_ref}` : ""}
+                {ruleTitle}
+                {ruleRef}
               </>
             )}
           </p>

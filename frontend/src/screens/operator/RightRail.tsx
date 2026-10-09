@@ -6,6 +6,7 @@ import { api } from "../../app/api";
 import { useT } from "../../app/i18n";
 import { alertLog, clearedTiming, formatMmSs, onAirProduct, recentTranscripts, runsheetOf, shownTiming, timingLabel } from "../../app/selectors";
 import { Button, Chip } from "../../components";
+import { citedTitle } from "../host/hostSelectors";
 import { debugOn, useStoredOpen } from "./attention";
 import { useAction, useOperator } from "./context";
 import { impactChips, latencyShown, metricChips } from "./Header";
@@ -263,7 +264,7 @@ function AlertLogPanel() {
               <li key={a.alert_id}>
                 <span className={["tabular", styles.muted].join(" ")}>{formatMmSs((a.shown_at ?? a.created_at) - start)}</span>
                 <Chip tone={a.kind === "compliance" ? "risk" : "fact"}>
-                  {a.kind === "compliance" ? a.rule_id : `${sentenceCase(t(fieldLabel(catalog, a.field)))}`}
+                  {a.kind === "compliance" ? (citedTitle(a) ?? a.rule_id) : `${sentenceCase(t(fieldLabel(catalog, a.field)))}`}
                 </Chip>
                 <span className={styles.logText}>
                   {a.kind === "compliance" ? `“${a.span}”` : `${a.stated_value} → ${a.correct_value}`}
