@@ -193,9 +193,22 @@ export function Hub({ sessionId }: ScreenProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lineup, setLineup] = useState<string[]>([]);
+  const [nudge, setNudge] = useState(false);  // a During-the-show card was pressed with no show and no product picked
+  const pickCard = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (lineup.length) setNudge(false);
+  }, [lineup.length]);
 
   // a During-the-show card starts the show with the picked line-up, then opens that screen of it
   const openLive = (path: string) => async (e: MouseEvent) => {
+    if (!lineup.length && !sessionId && !(e.metaKey || e.ctrlKey || e.shiftKey)) {
+      // no show to open yet: point at Pick products instead
+      e.preventDefault();
+      setNudge(true);
+      pickCard.current?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+      pickCard.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
+      return;
+    }
     if (!lineup.length || e.metaKey || e.ctrlKey || e.shiftKey) return go(withSession(path, sessionId))(e);
     e.preventDefault();
     setBusy(true);
@@ -241,13 +254,19 @@ export function Hub({ sessionId }: ScreenProps) {
                       const Icon = s.icon;
                       // the picked line-up becomes this hub's show: the cards below then open that show
                       if (s.picker) return (
-                        <div key={s.path} className={`${styles.hubCard} ${styles.hubCardStatic}`} data-testid="hub-card-pick">
+                        <div key={s.path} ref={pickCard} data-testid="hub-card-pick"
+                          className={`${styles.hubCard} ${styles.hubCardStatic} ${nudge ? styles.hubCardNudge : ""}`}>
                           <span className={styles.hubIcon}>
                             <Icon aria-hidden />
                           </span>
                           <span className={styles.hubCardTitle}>{t(s.title)}</span>
                           <span className={styles.hubWho}>{t(s.who)}</span>
                           <span className={styles.hubText}>{t(s.text)}</span>
+                          {nudge && (
+                            <p className={styles.hubNudge} role="alert" data-testid="hub-pick-nudge">
+                              {t("Pick the show's products here first.")}
+                            </p>
+                          )}
                           <ReleasePicker lineup={lineup} setLineup={setLineup} />
                         </div>
                       );

@@ -36,7 +36,7 @@ from app.pipelines import comments as ops  # noqa: E402
 from app.pipelines.utterances import operator_switch  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
 
-ARM_KEYS = ("TRIAGE_MODEL", "RECORD_ANSWERS", "RECORD_PHRASING", "COMPOSER_REVISE", "TRIAGE_RETRIES",
+ARM_KEYS = ("TRIAGE_MODEL", "TRIAGE_RETRIES",
             "TRIAGE_TIMEOUT_MS", "SENSITIVE_APPROVAL", "PREFILTER", "COMMENT_PRODUCT", "GROUP_JOIN", "TRIAGE_THINKING",
             "LLM_FAST_MODEL", "LLM_QUALITY_MODEL", "COMPOSER_THINKING", "MODEL_ARMOR_ENABLED")
 

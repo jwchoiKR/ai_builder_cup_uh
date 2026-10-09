@@ -37,6 +37,7 @@ for _key in LIVE_PATH_KEYS:
 Settings.model_config["env_file"] = None  # get_settings() in a test: code defaults, never the developer's .env
 os.environ.setdefault("LLM_PROVIDER", "mock")  # as make_settings: no Google provider in a test
 os.environ.setdefault("STT_PROVIDER", "mock")
+os.environ.setdefault("ANSWER_RETRIEVER", "local")  # the code default searches Vertex AI Search
 
 # D-434: the old live-path pins, applied (with the rules-JSON compliance path) only to a file or test marked
 # `legacy_live` until it is migrated. Temporary: test_d434 fails when a file outside LEGACY_LIVE_FILES uses it.
@@ -48,10 +49,9 @@ LEGACY_LIVE = {
 }
 # The comments path keeps its own test pins (the comments team's tests were written for them)
 COMMENT_PINS = {
-    "COMMENT_PRODUCT": "code", "DRAFT_GATE": "full", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
-    # record answers became the default; the older tests keep the composer path for price and size questions,
-    # and the host route of sensitive questions in a team show
-    "RECORD_ANSWERS": "false", "SENSITIVE_APPROVAL": "host", "COMPOSER_REVISE": "false", "TRIAGE_RETRIES": "0", "COMPOSE_RETRIES": "0", "TRIAGE_MODEL": "", "DRAFT_VERIFY_THINKING": "", "GROUP_TTL_WAITING_SEC": "600", "DEFAULT_SHOW_MODE": "solo",
+    "COMMENT_PRODUCT": "code", "GROUP_JOIN": "code", "SHOUTOUT": "regex", "PREFILTER": "full",
+    # the host route of sensitive questions in a team show
+    "SENSITIVE_APPROVAL": "host", "TRIAGE_RETRIES": "0", "COMPOSE_RETRIES": "0", "TRIAGE_MODEL": "", "GROUP_TTL_WAITING_SEC": "600", "DEFAULT_SHOW_MODE": "solo",
 }
 for _key, _value in COMMENT_PINS.items():
     os.environ.setdefault(_key, _value)
@@ -80,7 +80,8 @@ def test_data_dir() -> Path:
 def make_settings(**overrides) -> Settings:
     """Test settings: never read the developer's .env; mock providers by default; the test data dir (with the demo
     pack) unless a test names its own."""
-    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "DATA_DIR": str(test_data_dir()), **overrides}
+    values = {"LLM_PROVIDER": "mock", "STT_PROVIDER": "mock", "ANSWER_RETRIEVER": "local",
+              "DATA_DIR": str(test_data_dir()), **overrides}
     return Settings(_env_file=None, **values)
 
 

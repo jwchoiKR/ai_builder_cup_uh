@@ -75,25 +75,6 @@ async def test_d206_an_unknown_armor_result_is_not_a_pass(monkeypatch):
     assert verdict == "unscreened"
 
 
-def _verifier_backend(timeouts: int):
-    """The draft check times out `timeouts` times, then answers pass (D-152)."""
-    from app.providers.llm import LLMTimeout
-
-    from .judge_fakes import ScriptedBackend
-
-    class Flaky(ScriptedBackend):
-        def __init__(self):
-            super().__init__()
-            self.left = timeouts
-
-        async def generate(self, req, timeout_ms):
-            if req.agent == "draft_verifier" and self.left:
-                self.left -= 1
-                raise LLMTimeout("deadline")
-            return await super().generate(req, timeout_ms)
-    return Flaky()
-
-
 def _triage_recorder():
     """The triage prompts the model received (D-157)."""
     from .judge_fakes import ScriptedBackend
