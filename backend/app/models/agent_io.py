@@ -244,7 +244,7 @@ class AnswerLinkB(AnswerLink, _ArmB):
 
 
 class ContextOutputQ(BaseModel):
-    """D-335 QUESTION_HOLD: the context verdict, first saying whether the next line is expected to resolve this one."""
+    """D-335: the context verdict, first saying whether the next line is expected to resolve this one."""
     expects_resolution: bool
     answer: AnswerLink
     prompter: PrompterJudgement

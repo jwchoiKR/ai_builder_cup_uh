@@ -40,8 +40,7 @@ def test_d434_the_tests_default_live_path_is_production_s():
     # the deployed values the live path depends on (was test_d305's "shipped defaults")
     assert (prod.JUDGE_MODE, prod.FACT_RELATION, prod.FACT_PROMPT, prod.FACT_MODE) == (
         "split3", True, "v5", "prompter")
-    assert (prod.QUESTION_HOLD, prod.JUDGE_PRODUCTS, prod.STT_ENDPOINTING, prod.DESIGN_ARM) == (
-        True, "all", "STANDARD", "A")
+    assert (prod.JUDGE_PRODUCTS, prod.STT_ENDPOINTING, prod.DESIGN_ARM) == ("all", "STANDARD", "A")
 
 
 def test_d434_no_live_path_setting_comes_from_the_environment_or_a_dotenv():
@@ -67,7 +66,7 @@ def test_d434_legacy_live_is_used_only_by_the_files_not_migrated_yet():
 async def test_d434_each_production_judge_gets_its_addenda():
     """D-434 (review): a design_arms.md section a production judge needs must exist; a missing one would be dropped in
     silence (the lookup returns None). Production: compliance = its prompt file alone (D-358); context = QHOLD and
-    SWITCH; the fact checker = F1 and F5 (FACT_FIXES), PAIR (QUESTION_HOLD) and NOTES, on fact_relation_v5."""
+    SWITCH; the fact checker = F1 and F5 (FACT_FIXES), PAIR and NOTES, on fact_relation_v5."""
     from app.agents import arms
 
     from .helpers import live_runtime, make_ctx

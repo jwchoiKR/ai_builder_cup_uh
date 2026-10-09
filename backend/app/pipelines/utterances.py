@@ -212,7 +212,7 @@ class UtterancePipeline:
     async def _expects_resolution(self, prev: Transcript | None) -> bool:
         """D-335: the context judge's verdict that the previous final (judged alone) asks or relays something the next
         line is expected to answer; waited for at most 300 ms."""
-        if not self.rt.settings.QUESTION_HOLD or prev is None or prev.transcript_id in self._held:
+        if prev is None or prev.transcript_id in self._held:
             return False
         fut = self._ready.get(prev.transcript_id)
         if fut is None:
@@ -293,7 +293,7 @@ class UtterancePipeline:
             self._question_finals += 1
             log.info("question final %s %s (%d of %d finals)", rt.sid, t.transcript_id, self._question_finals,
                      len(self._sequence))
-        if (rt.settings.QUESTION_HOLD and asks(t.text) and rt.settings.QUESTION_HOLD_MS > 0
+        if (asks(t.text) and rt.settings.QUESTION_HOLD_MS > 0
                 and len((merge.chain if merge else [])) + 1 < MAX_MERGED_FINALS):
             # D-334: a question is not judged alone: its answer, the next final, joins it into one utterance
             self._held[t.transcript_id] = (t, text, merge, scenario)
