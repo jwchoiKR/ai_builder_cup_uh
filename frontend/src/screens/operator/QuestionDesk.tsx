@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { api, type AnswerOrigin } from "../../app/api";
 import { useT } from "../../app/i18n";
-import { deskTabOf, draftAnswer, groupStatusLabel, pendingMessages, questionDesk, relativeTime, waitReason, type DeskTab } from "../../app/selectors";
+import { deskTabOf, draftAnswer, draftingLabel, groupStatusLabel, pendingMessages, questionDesk, relativeTime, waitReason, type DeskTab } from "../../app/selectors";
 import type { Answer, QuestionGroup } from "../../app/types";
 import { Button, Chip } from "../../components";
 import { useAction, useOperator } from "./context";
@@ -205,7 +205,7 @@ function GroupPreview({ group: g }: { group: QuestionGroup }) {
   const text = answer?.text
     ? answer.text
     : g.status === "composing" || g.status === "new"
-      ? t("Drafting a reply…")
+      ? t(draftingLabel(g))
       : t("No AI draft for this question.");
   const run = () =>
     next?.key === "approve"
@@ -316,7 +316,7 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
         ) : (
           <p className={styles.muted}>
             {g.status === "composing" || g.status === "new"
-              ? t("Composing…")
+              ? t(draftingLabel(g))
               : answer && !answer.verified
                 ? unverifiedNote(answer.verify_errors, false, t)
                 : t("No AI draft for this question.")}
@@ -428,7 +428,9 @@ export function ReplyBox({ group: g, answer, busy, composing }: {
         rows={3}
         value={text}
         aria-label={t("Reply")}
-        placeholder={composing ? t("A suggestion is being written. You can type your own reply now.") : t("Write a reply…")}
+        placeholder={composing
+          ? `${t(draftingLabel(g))} ${t("You can type your own reply now.")}`
+          : t("Write a reply…")}
         onChange={(e) => {
           setText(e.target.value);
           setTouched(true);

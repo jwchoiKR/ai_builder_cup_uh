@@ -716,6 +716,18 @@ async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scena
             rt.spawn(rt.utterances.recheck_early(group_id), name=f"early:{group_id}")
 
 
+async def _compose_step(rt: "SessionRuntime", group_id: str, step: str) -> None:
+    """The operator sees which step a draft is in: finding evidence, writing, checking."""
+    async with rt.lock:
+        g = await rt.get_group(group_id)
+        if g is None or g.status != "composing" or g.compose_step == step:
+            return
+        g.compose_step = step
+        g.version += 1
+        await rt.save_group(g)
+        await rt.emit("group.updated", g)
+
+
 async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario: str) -> Answer | None:
     g = await rt.get_group(group_id)
     if g is None:
@@ -729,6 +741,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     promo = await rt.active_price_promo()
     product_id = g.product_id if intent.product_scope == "single" else None
     rt.sync_doc_version()
+    await _compose_step(rt, group_id, "evidence")
     passages = await gather_passages(
         rt.ctx.answer_retriever or rt.ctx.retriever, rt.catalog, {} if vertex else rt.prefetched,
         product_id=product_id, intent=g.intent,
@@ -748,6 +761,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     inp = ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
                        canonical_question=g.canonical_question, promo=promo, passages=passages,
                        session_id=rt.sid, scenario=scenario, sensitive=intent.sensitive, rules=rules)
+    await _compose_step(rt, group_id, "writing")
     res = await rt.composer.run(inp, deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
     if res.status != "ok" or res.output is None:
         # D-157 (comment-flow CF01): every asker had joined while the only draft timed out; draft once more
@@ -755,6 +769,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     if res.status != "ok" or res.output is None:
         return None
     out = res.output
+    await _compose_step(rt, group_id, "checking")
     not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
         c for p in rt.catalog.products for c in p.not_approved_claims]
     ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
