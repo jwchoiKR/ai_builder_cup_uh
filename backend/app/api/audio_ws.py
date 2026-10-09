@@ -31,6 +31,8 @@ def default_glossary(ctx, cat=None) -> dict:
     from ..logic.catalog import Catalog
 
     cat = cat or Catalog(ctx.pack)
+    if any(p.stt_terms for p in cat.products):  # a product read's STT terms already hold the brand and names
+        return {"version": 0, "terms": [{"term": t, "spoken_forms": []} for p in cat.products for t in p.stt_terms]}
     terms = [{"term": cat.brand, "spoken_forms": []}]
     for p in cat.products:
         terms.append({"term": p.name, "spoken_forms": []})
@@ -42,7 +44,7 @@ def default_glossary(ctx, cat=None) -> dict:
 
 
 def release_phrases(ctx, cat, release_id: str) -> list[str]:
-    """A release's show hints its brand and product names."""
+    """A release's show hints the product read's STT terms (else its brand and product names)."""
     return phrases_from_glossary(default_glossary(ctx, cat))
 
 
