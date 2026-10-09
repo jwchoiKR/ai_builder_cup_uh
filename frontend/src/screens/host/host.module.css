@@ -1024,18 +1024,23 @@
 .alertMeta {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;  /* D-440: one row; the rule title gives way, the timing stays at the right end */
   gap: calc(10px * var(--hs));
   font-size: calc(15px * var(--hs));
   font-weight: var(--fw-semibold);
 }
 .alertRule {
   margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: var(--fw-regular);
   color: var(--text-2);
 }
 /* D-439: line end -> shown (or cleared), grey at any value, the row's own size */
 .alertTiming {
+  flex: none;
   font-weight: var(--fw-regular);
   color: var(--text-3);
   white-space: nowrap;

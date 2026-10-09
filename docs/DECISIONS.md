@@ -3021,3 +3021,8 @@ D-439 (user 10/10, display only): each alert says how fast it was shown and clea
 - Operator: the same labels on each alert card and in the alert log; "Corrected in {s} s" (shown -> resolved, the host's reaction) is renamed "Host fixed in {s} s" (KO "진행자 정정까지 {s}초"); the header adds "Alerts this show: N · M shown within 5 s · slowest X s" over alerts with a spoken line.
 - Summary: the alert latency column marks a typed line "(typed)" (summary rows carry `typed`).
 - The state snapshot now carries the transcripts the alerts were raised and cleared on, for the host too (it had none) and for the operator besides the last 20, so the labels survive a reload or a restart.
+
+D-440 (user go 10/10, cloud check of rev 00014):
+- Host: an alert box's bottom row stays one row. A long rule title (the ASEAN document's full title) gives way with an ellipsis, and the timing label stays at its right end. Checked by screenshot at 1920x1080 and 1366x768.
+- Demo B6: the breastfeeding group went to the operator on the cloud. The comments composer did not find the prompter's "consult their doctor" sentence as an answer, and its code is not ours to change. That group is now "Can I use it around my eyes?" (3 askers, the same words), which the cream's cautions answer in so many words: avoid contact with eyes, rinse with water if it gets in. The redness and broken-skin groups and the halal single stay.
+- Operator: the alert card's "Rule:", the live transcript chips and the alert log show the cited document's title and section (citedTitle, the host red box's helper, D-433) instead of the citation slug. The raw citation stays only on the card's "AI citation" line.

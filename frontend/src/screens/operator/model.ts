@@ -3,6 +3,7 @@ import { translate, type Translate } from "../../app/i18n";
 import { formatMmSs, onAirSegment, ownDocFirst, productById } from "../../app/selectors";
 import type { ClientState, JudgeFailure } from "../../app/state";
 import type { Alert, Answer, Catalog, Comment, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
+import { citedTitle } from "../host/hostSelectors";
 
 /** Default for the optional `t` of the label helpers below: English, as the tests expect. */
 const EN: Translate = (en, vars) => translate("en", en, vars);
@@ -350,7 +351,7 @@ export function transcriptChips(state: ClientState, catalog: Catalog | null, t: 
   for (const a of Object.values(state.alerts)) {
     if (a.transcript_id !== t.transcript_id) continue;
     if (a.kind === "compliance" && a.status !== "cleared") {
-      chips.push({ tone: "risk", text: a.rule_id ?? tr("compliance") });
+      chips.push({ tone: "risk", text: citedTitle(a) ?? a.rule_id ?? tr("compliance") });  // D-440: not the slug
     } else if (a.kind === "fact") {
       chips.push({ tone: "fact", text: `${tr(fieldLabel(catalog, a.field))}` });
     }
