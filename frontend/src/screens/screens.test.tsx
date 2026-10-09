@@ -231,6 +231,15 @@ describe("screens", () => {
     }
   });
 
+  it("Hub points at Pick products when a During-the-show card is pressed with no show and no product", () => {
+    window.history.pushState({}, "", "/");
+    render(<Hub sessionId={null} />);
+    expect(screen.queryByTestId("hub-pick-nudge")).toBeNull();
+    fireEvent.click(screen.getByTestId("hub-card-host"));
+    expect(window.location.pathname).toBe("/");
+    expect(screen.getByTestId("hub-pick-nudge")).toHaveTextContent("Pick the show's products here first.");
+  });
+
   it("Hub shows the screens in the order of a show, under their phase, each card one link", () => {
     render(<Hub sessionId="ses_000001" />);
     const phases = screen.getAllByRole("region");

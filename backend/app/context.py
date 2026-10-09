@@ -137,7 +137,7 @@ def build_context(
         stt=make_stt(settings, clock),
         armor=make_armor(settings),
         answer_retriever=VertexSearchRetriever(settings.GCP_PROJECT, settings.VERTEX_SEARCH_LOCATION,
-                                               settings.VERTEX_SEARCH_ENGINE_ID)
+                                               settings.VERTEX_SEARCH_ENGINE_ID, settings.VERTEX_ANSWER_TIMEOUT_MS)
         if settings.ANSWER_RETRIEVER == "vertex_search" else None,
     )
     ctx.runtimes = Runtimes(ctx)

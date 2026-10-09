@@ -16,7 +16,6 @@ from app.models.agent_io import (
     ComplianceOutputO,
     ComposerOutput,
     ContextOutput,
-    DraftCheckOutput,
     FactCheckOutput,
     JudgeSingleOutput,
     UtteranceJudgeOutput,
@@ -34,7 +33,6 @@ OUTPUT_MODELS: dict[str, type[BaseModel]] = {
     "fact_checker": FactCheckOutput,
     "comment_triage": CommentTriageOutput,
     "answer_composer": ComposerOutput,
-    "draft_verifier": DraftCheckOutput,
     "comment_insights": CommentInsightsOutput,
 }
 
@@ -97,7 +95,7 @@ def _example_outputs(system: str) -> list[dict]:
 
 EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 5, "compliance_judge_rules": 3,
                   "context_judge": 4,
-                  "fact_checker": 4, "comment_triage": 18, "answer_composer": 6, "draft_verifier": 4,
+                  "fact_checker": 4, "comment_triage": 18, "answer_composer": 6,
                   "brief_agent": 1, "comment_insights": 1}
 
 

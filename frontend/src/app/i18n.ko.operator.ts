@@ -3,7 +3,6 @@
 // promo text, rule titles and policy references never go through t().
 export const KO_OPERATOR: Record<string, string> = {
   // question desk: three lists, one status chip per row, the reason in plain words
-  "Drafting a reply…": "답변 작성 중…",
   "Viewer questions that need a person. Check the suggested reply, edit it if you want, and post.":
     "사람의 확인이 필요한 시청자 질문입니다. 추천 답변을 확인하고, 필요하면 고쳐서 게시하세요.",
   "To do": "처리할 질문",
@@ -151,13 +150,13 @@ export const KO_OPERATOR: Record<string, string> = {
   All: "전체",
   "Reply": "답글",
   "Write a reply…": "답글을 입력하세요…",
-  "A suggestion is being written. You can type your own reply now.": "추천 답변을 작성 중입니다. 직접 입력하셔도 됩니다.",
+  "You can type your own reply now.": "직접 입력하셔도 됩니다.",
   "Post (Ctrl+Enter)": "게시 (Ctrl+Enter)",
   "Back to the suggestion": "추천 답변으로 되돌리기",
   "Posts the suggested reply as it is": "추천 답변을 그대로 게시합니다",
-  "Edited: checked again when you post": "수정됨: 게시할 때 다시 확인합니다",
-  "Not verified: checked again when you post": "검증되지 않음: 게시할 때 다시 확인합니다",
-  "Your own reply: checked when you post": "직접 작성: 게시할 때 확인합니다",
+  "Edited: posts as it is, not checked": "수정됨: 확인 없이 그대로 게시합니다",
+  "Not verified: posts as it is, not checked": "검증되지 않음: 확인 없이 그대로 게시합니다",
+  "Your own reply: posts as it is, not checked": "직접 작성: 확인 없이 그대로 게시합니다",
   "1 viewer reports a stream problem": "시청자 1명이 방송 문제를 알림",
   "{n} viewers report a stream problem": "시청자 {n}명이 방송 문제를 알림",
   Answered: "답변 완료",
@@ -196,7 +195,6 @@ export const KO_OPERATOR: Record<string, string> = {
   "A host answer is being posted": "진행자 답변을 게시하는 중입니다",
   "Only a verified draft can be approved": "검증된 초안만 승인할 수 있습니다",
   "Choose…": "선택…",
-  "Post anyway": "그래도 게시",
   Post: "게시",
 
   // question intents (intentLabel)

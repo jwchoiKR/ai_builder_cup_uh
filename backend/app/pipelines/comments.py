@@ -6,7 +6,6 @@ answering and the host queue run under the session lock.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import replace
 import logging
 import re
 import time
@@ -19,15 +18,11 @@ from ..logic.cache import CachedAnswer, answer_cache_key, normalise_comment, tri
 from ..logic.grouping import is_open, join_group
 from ..logic.prefilter import PrefilterVerdict, mask_links, prefilter
 from ..logic.product_mapping import attribute_product, set_question
-from ..logic.promos import promo_passage, promo_state
-from ..logic.record_answers import record_answer
+from ..logic.promos import promo_state
 from ..logic.routing import is_composable, route_for
 from ..logic.pd import ShoutOut
 from ..logic.segments import segment_at
 from ..logic.shoutout import shout_kind
-from ..agents.draft_verifier import DraftCheckInput, cited_passages
-from ..agents.reply_phraser import PhraseInput, keeps_the_facts
-from ..logic.verify import number_set, verify_answer
 from ..providers.armor import screen as armor_screen
 from ..models.agent_io import CommentTriageOutput, ConditionSlots
 from ..models.session import Answer, Comment, CommentAnalysis, QuestionGroup
@@ -425,8 +420,8 @@ async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
         named = _ingredients_named(rt, g.product_id, g.canonical_question)
         question = "ingredient:" + ",".join(named) if named else question
     state = promo_state(promo)
-    # D-168: an offer's answer holds while that offer runs; so does a record price answer, which names one
-    if g.intent == "promo" or (g.intent == "price" and rt.settings.RECORD_ANSWERS):
+    # D-168: an offer's answer holds while that offer runs
+    if g.intent == "promo":
         state += "".join(f"+{o.promo_id}" for o in sorted(await rt.active_offers(), key=lambda o: o.promo_id))
     return answer_cache_key(g.product_id, g.intent, g.condition_slots, question, state, rt.ctx.retriever.doc_version())
 
@@ -438,10 +433,6 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
     if g.status in ("auto_answered", "answered") and g.published_message_id:
         await reply_again_locked(rt, g, new_comment_ids)
         return
-    if g.answer_id is not None and g.route_reason == "no_verified_answer" and new_comment_ids:
-        old = await rt.get_answer(g.answer_id)
-        if old is not None and old.verify_errors and all(e in UNCHECKED for e in old.verify_errors):
-            g.answer_id = None  # D-152: the draft was never judged (timeout, error): a new asker drafts again
     if g.status == "composing" or g.answer_id is not None:
         return  # members wait for the composer, the host or the operator
     intent = rt.intent(g.intent)
@@ -459,59 +450,6 @@ async def answer_group_locked(rt: "SessionRuntime", g: QuestionGroup, new_commen
             return
     g.status = "composing"
     rt.spawn(compose_for_group(rt, g.group_id, key, scenario), name=f"compose:{g.group_id}")
-
-
-async def _record_answer(rt: "SessionRuntime", g: QuestionGroup, key: str, scenario: str) -> Answer | None:
-    """A one-value question the product record settles (logic/record_answers): the value by code, with no composer
-    draft and no draft check. The ReplyPhraser words it as a reply to what the viewers asked; the wording is used
-    only when it keeps the value and adds no number and passes the same code gate, else the plain sentence is the
-    reply. A question the record does not settle, or an answer that fails the code gate, goes to the composer."""
-    if g.product_id is None:
-        return None
-    passages_of = getattr(rt.ctx.retriever, "passages_of", None)
-    sheet = passages_of(g.product_id) if callable(passages_of) else inputs.all_passages(rt.catalog, g.product_id)
-    found = record_answer(rt.catalog, sheet, product_id=g.product_id, intent=g.intent, slots=g.condition_slots,
-                          promo=await rt.active_price_promo(), offers=await rt.active_offers())
-    if found is None:
-        return None
-    out, cited, value = found
-
-    def gate(candidate) -> tuple[bool, list[str]]:
-        return draft_code_gate(candidate, cited, g.product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
-                               provenance=rt.settings.DRAFT_GATE == "provenance",
-                               not_approved=rt.catalog.not_approved_claims(g.product_id))
-
-    ok, errors = gate(out)
-    if not ok:
-        log.info("record answer for %s failed the code gate (%s); composing instead", g.group_id, "; ".join(errors))
-        return None
-    text = out.answer
-    if rt.settings.RECORD_PHRASING:
-        asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
-        res = await rt.reply_phraser.run(
-            PhraseInput(facts=out.answer, question=g.canonical_question, comments=asked, session_id=rt.sid,
-                        scenario=scenario), deadline_ms=rt.settings.RECORD_PHRASING_TIMEOUT_MS)
-        worded = res.output.reply.strip() if res.status == "ok" and res.output is not None else ""
-        if worded and keeps_the_facts(out.answer, worded, value) and gate(out.model_copy(update={"answer": worded}))[0]:
-            text = worded
-        elif worded:
-            log.info("wording of the record answer for %s dropped: %r", g.group_id, worded[:120])
-            rt.counters["record_wordings_dropped"] += 1
-    # the value is right by construction, but is it what the viewer asked? ("how many ml does each pump give?" is
-    # not the size of the tube.) The draft verifier reads the reply against the viewers' own words; a fail leaves
-    # the reply as a suggestion for a person
-    asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
-    verified, problems = await _llm_check(rt, g.canonical_question, out.model_copy(update={"answer": text}), cited,
-                                          g.product_id, await rt.active_price_promo(), scenario, comments=asked)
-    answer = Answer(answer_id=rt.new_id("ans_"), group_id=g.group_id, text=text,
-                    citations=[{"passage_id": p.passage_id, "quote": p.text, "section": p.section, "doc": p.doc}
-                               for p in cited],
-                    origin="ai", verified=verified, verify_errors=problems, cache_key=key, needs_human=False,
-                    created_at=rt.now(), record=True)
-    await rt.save_answer(answer)
-    if verified:
-        rt.answer_cache.put(key, CachedAnswer(answer_id=answer.answer_id, intent=g.intent))
-    return answer
 
 
 OPERATOR_ONLY_APPROVALS = frozenset({"test_results", "certification", "outside"})
@@ -614,7 +552,7 @@ async def apply_answer_locked(rt: "SessionRuntime", g: QuestionGroup, answer: An
             citations=answer.citations, idempotency_key=f"ai_answer:{g.group_id}",
         )
         g.status, g.published_message_id = "auto_answered", msg.message_id
-        kind = kind or ("instant" if instant else "composed")  # "record": answered by code from the record
+        kind = kind or ("instant" if instant else "composed")
         rt.counters[f"{kind}_answers"] += len(g.member_comment_ids)
         await _record_reply_latency(rt, kind, g.member_comment_ids)
     elif g.route == "HOST":
@@ -706,7 +644,7 @@ async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scena
         if answer is None:
             await no_draft_locked(rt, g)
         else:
-            await apply_answer_locked(rt, g, answer, instant=False, kind="record" if answer.record else None)
+            await apply_answer_locked(rt, g, answer, instant=False)
         g.version += 1
         await rt.save_group(g)
         await rt.emit("group.updated", g)
@@ -716,19 +654,28 @@ async def compose_for_group(rt: "SessionRuntime", group_id: str, key: str, scena
             rt.spawn(rt.utterances.recheck_early(group_id), name=f"early:{group_id}")
 
 
+async def _compose_step(rt: "SessionRuntime", group_id: str, step: str) -> None:
+    """The operator sees which step a draft is in: finding evidence, writing."""
+    async with rt.lock:
+        g = await rt.get_group(group_id)
+        if g is None or g.status != "composing" or g.compose_step == step:
+            return
+        g.compose_step = step
+        g.version += 1
+        await rt.save_group(g)
+        await rt.emit("group.updated", g)
+
+
 async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario: str) -> Answer | None:
     g = await rt.get_group(group_id)
     if g is None:
         return None
     vertex = rt.ctx.answer_retriever is not None  # every product question answers from Vertex AI Search
-    if rt.settings.RECORD_ANSWERS and not vertex:
-        answer = await _record_answer(rt, g, key, scenario)
-        if answer is not None:
-            return answer
     intent = rt.intent(g.intent)
     promo = await rt.active_price_promo()
     product_id = g.product_id if intent.product_scope == "single" else None
     rt.sync_doc_version()
+    await _compose_step(rt, group_id, "evidence")
     passages = await gather_passages(
         rt.ctx.answer_retriever or rt.ctx.retriever, rt.catalog, {} if vertex else rt.prefetched,
         product_id=product_id, intent=g.intent,
@@ -748,6 +695,7 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     inp = ComposeInput(product_id=product_id, intent=g.intent, slots=g.condition_slots,
                        canonical_question=g.canonical_question, promo=promo, passages=passages,
                        session_id=rt.sid, scenario=scenario, sensitive=intent.sensitive, rules=rules)
+    await _compose_step(rt, group_id, "writing")
     res = await rt.composer.run(inp, deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
     if res.status != "ok" or res.output is None:
         # D-157 (comment-flow CF01): every asker had joined while the only draft timed out; draft once more
@@ -755,31 +703,8 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     if res.status != "ok" or res.output is None:
         return None
     out = res.output
-    not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
-        c for p in rt.catalog.products for c in p.not_approved_claims]
-    ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
-                                 provenance=rt.settings.DRAFT_GATE == "provenance",
-                                 not_approved=not_approved)
-    if not ok and out.grounded and out.answer.strip() and rt.settings.COMPOSER_REVISE:
-        # a grounded draft the code gate rejects (too long, a number the gate cannot place) is written once more with
-        # the gate's reasons; the second draft passes the same gate or the question goes to the operator
-        again = await rt.composer.run(replace(inp, revise={"previous_reply": out.answer.strip(), "problems": errors}),
-                                      deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
-        if again.status == "ok" and again.output is not None:
-            ok2, errors2 = draft_code_gate(again.output, passages, product_id, arm=rt.settings.DESIGN_ARM,
-                                           reflex=rt.reflex, provenance=rt.settings.DRAFT_GATE == "provenance",
-                                           not_approved=not_approved)
-            rt.counters["composer_revised" if ok2 else "composer_revise_failed"] += 1
-            if ok2:
-                out, ok, errors = again.output, ok2, errors2
-    variant = g.condition_slots.get("variant")
-    if ok and variant and g.intent in ONE_ANSWER_INTENTS and not any(
-            number_set(variant) <= number_set(c.quote) for c in out.citations):
-        ok, errors = False, [f"the answer cites no source of the asked variant ({variant})"]  # D-281
-    if ok:
-        asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
-        ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario,
-                                      whole=decide, comments=asked)
+    # no code gate and no LLM draft check (user, 10/10): only the composer's own refusal
+    ok, errors = (True, []) if out.grounded and out.answer.strip() else (False, ["not grounded"])
     by_id = {p.passage_id: p for p in passages}
     citations = [{"passage_id": c.passage_id, "quote": c.quote,
                   "section": by_id[c.passage_id].section if c.passage_id in by_id else None,
@@ -791,40 +716,6 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
     if ok:
         rt.answer_cache.put(key, CachedAnswer(answer_id=answer.answer_id, intent=g.intent))
     return answer
-
-
-def draft_code_gate(out, passages, product_id, *, arm: str, reflex, not_approved,
-                    provenance: bool = False) -> tuple[bool, list[str]]:
-    """The code layer a draft passes before the LLM draft verifier, per design arm (D-200: also what
-    eval_draft_verifier scores). Arms D to F2 (D-191): none but the composer's own refusal."""
-    if arms.agents_decide(arm):
-        return (True, []) if out.grounded and out.answer.strip() else (False, ["not grounded"])
-    return verify_answer(out, passages, product_id, multi=product_id is None, reflex=reflex,
-                         not_approved_claims=not_approved, minimal=arms.meaning_to_llm(arm) or provenance,
-                         negated_ok=provenance)  # D-187 arm B; D-304 DRAFT_GATE=provenance
-
-
-UNCHECKED = frozenset({"draft_check_timeout", "draft_check_error", "draft_check_invalid"})
-
-
-async def _llm_check(rt, question, out, passages, product_id, promo, scenario, whole=False,
-                     comments=()) -> tuple[bool, list[str]]:
-    """D-126: the LLM draft verifier after the code checks. A fail, a timeout or an error keeps the draft
-    unverified, so it goes to the operator instead of being posted or cached."""
-    inp = DraftCheckInput(product_id=product_id, question=question, answer=out.answer.strip(), promo=promo,
-                          passages=passages if whole else cited_passages([c.passage_id for c in out.citations],
-                                                                         passages),
-                          session_id=rt.sid, scenario=scenario, comments=list(comments))
-    res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
-    if res.status != "ok" or res.output is None:  # D-152 (comment-flow CF09): a timeout or an error is not a block; once more
-        res = await rt.draft_verifier.run(inp, deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
-    if res.status != "ok" or res.output is None:
-        return False, [f"draft_check_{res.status}"]
-    if res.output.verdict == "fail":
-        return False, [f"draft_check: {p}" for p in res.output.problems] or [f"draft_check: {res.output.reason}"]
-    if res.output.answers != "direct":  # true to the sheet, but not what the viewer asked for: a person replies
-        return False, [f"draft_check: not a direct answer ({res.output.answers}): {res.output.reason}"]
-    return True, []
 
 
 # ---- operator question actions (§8.13) -------------------------------------------------------------
@@ -919,57 +810,23 @@ async def approve(rt: "SessionRuntime", gid: str) -> None:
         await operator_action(rt, "approve", group_id=gid)
 
 
-async def write_answer(rt: "SessionRuntime", gid: str, text: str, origin: str, confirm: bool) -> None:
+async def write_answer(rt: "SessionRuntime", gid: str, text: str, origin: str) -> None:
     text = text.strip()
     if not text:
         raise ActionError(400, "empty_answer", "reply text is empty")
     if origin not in ("operator_edit", "operator_written"):
         raise ActionError(400, "invalid_origin", "origin must be operator_edit or operator_written")
-    hit = rt.reflex.first_hit(text)
-    if hit is not None and not confirm:
-        rule = rt.pack.rules_by_id[hit.rule_id]
-        raise ActionError(409, "restricted_phrase",
-                          f"This reply contains a restricted phrase: '{hit.phrase}' ({rule.title}).")
-    problems = await _check_operator_reply(rt, gid, text, origin)
-    if problems and not confirm:
-        raise ActionError(409, "unverified_reply", "This reply could not be verified: " + "; ".join(problems))
     async with rt.lock:
         g = await _group_or_404(rt, gid)
         if g.status in ("answered", "rejected", "closed"):
             raise ActionError(409, "invalid_state", f"group is {g.status}")
+        # the operator's reply is posted as written: no phrase, number or LLM check (user, 10/10)
         answer = Answer(answer_id=rt.new_id("ans_"), group_id=gid, text=text, citations=[], origin=origin,
-                        verified=not problems, verify_errors=problems, needs_human=False, created_at=rt.now())
+                        verified=True, verify_errors=[], needs_human=False, created_at=rt.now())
         await rt.save_answer(answer)
         g.answer_id = answer.answer_id
         await _publish_answer_locked(rt, g, kind="brand_answer", text=text, citations=[], key=f"brand_answer:{gid}")
-        await operator_action(rt, "answer", group_id=gid, origin=origin, confirmed_restricted=hit is not None)
-
-
-async def _check_operator_reply(rt: "SessionRuntime", gid: str, text: str, origin: str) -> list[str]:
-    """D-205 (full review P2): an operator's reply is checked before it is posted. Every number must be in the
-    product's sheet, a running promo or the question's draft; an edited AI draft also passes the LLM draft verifier
-    on the product's whole sheet. Problems need the operator's explicit confirmation ("Post anyway")."""
-    g = await _group_or_404(rt, gid)
-    sheet = inputs.all_passages(rt.catalog, g.product_id)
-    promo = await rt.active_price_promo()
-    sources = [p.text for p in sheet] + [promo_passage(o, rt.catalog).text
-                                         for o in [*([promo] if promo else []), *await rt.active_offers()]]
-    draft = await rt.get_answer(g.answer_id) if g.answer_id else None
-    if draft is not None and draft.verified:
-        sources.append(draft.text)
-    allowed = set().union(*(number_set(x) for x in sources)) if sources else set()
-    problems = [f"number {n} is not in the product sheet" for n in sorted(number_set(text) - allowed)]
-    if origin == "operator_edit" and not problems:
-        res = await rt.draft_verifier.run(DraftCheckInput(
-            product_id=g.product_id, question=g.canonical_question, answer=text, promo=promo, passages=sheet,
-            session_id=rt.sid, comments=[c.text for cid in g.member_comment_ids[:5]
-                                         if (c := await rt.get_comment(cid)) is not None]),
-            deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
-        if res.status != "ok" or res.output is None:
-            problems.append(f"draft check {res.status}")
-        elif res.output.verdict == "fail":
-            problems += [f"draft check: {p}" for p in res.output.problems] or [f"draft check: {res.output.reason}"]
-    return problems
+        await operator_action(rt, "answer", group_id=gid, origin=origin)
 
 
 async def post_suggested(rt: "SessionRuntime", gid: str) -> None:
