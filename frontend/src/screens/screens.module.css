@@ -420,7 +420,7 @@
 /* Before | During | After, columns 1 : 3 : 1, a chevron in each gutter */
 .hubPhases {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 3fr) 28px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) 28px minmax(0, 3fr) 28px minmax(0, 1fr);
   align-items: stretch;
 }
 .hubPhaseSlot {
@@ -487,6 +487,32 @@
   box-shadow: var(--shadow);
   transform: translateY(-2px);
   outline: none;
+}
+/* the picker card: no lift, and no transform that would trap the phone-width bottom sheet */
+.hubCardStatic:hover,
+.hubCardStatic:focus-within {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+.hubCardStatic .hubPicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+.hubCardStatic .hubPickerButton {
+  width: 100%;
+  height: auto;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  justify-content: space-between;
+  text-align: left;
+}
+/* Combined view: one row across the During-the-show cards */
+.hubCardWide {
+  grid-column: 1 / -1;
+  min-height: 0;
 }
 @media (prefers-reduced-motion: reduce) {
   .hubCard {
