@@ -1,11 +1,15 @@
 {
+ "alert_checks": [
+  {
+   "handle": "A1",
+   "fixed_by_this_line": true
+  }
+ ],
  "compliance": {
   "violations": []
  },
  "correction": {
-  "corrects_alert_ids": [
-   "@alert:your wrinkles will disappear overnight"
-  ]
+  "corrects_alert_ids": []
  },
  "reason": "The host explicitly corrected the previous violation by providing an approved hydration claim."
 }

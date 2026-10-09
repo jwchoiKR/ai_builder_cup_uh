@@ -1,13 +1,14 @@
 {
+ "alert_checks": [],
  "compliance": {
   "violations": [
    {
     "span": "treat acne",
-    "rule_id": "ASEAN-3-SKIN-ACNE",
-    "severity": "HIGH",
     "is_negated": true,
     "is_quoted": false,
-    "say_instead": "Helps relieve the feeling of dryness."
+    "say_instead": "Helps relieve the feeling of dryness.",
+    "citation": "asean_cosmetic_claims_guideline_appendix_iii_2007.pdf#3 (acne)",
+    "quote": "scripted section text"
    }
   ]
  },

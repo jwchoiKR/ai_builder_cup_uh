@@ -2,34 +2,45 @@
  "claims": [
   {
    "span": "one percent ceramide NP",
-   "field": "ingredient_amount",
+   "stance": "HOST_ASSERTS",
    "product_id": "cream_hydra_barrier",
+   "field": "ingredient_amount",
    "stated_value": "1% ceramide NP",
-   "verdict": "supported",
+   "evidence": [
+    "S6"
+   ],
+   "source_value": "1% ceramide NP",
+   "relation": "consistent",
    "correct_value": "1% ceramide NP",
-   "passage_id": "DL-CR-01#key-ingredients#ceramide-np",
-   "quote": "Ceramide NP: 1%"
+   "say": null
   },
   {
    "span": "five percent panthenol",
-   "field": "ingredient_amount",
+   "stance": "HOST_ASSERTS",
    "product_id": "cream_hydra_barrier",
+   "field": "ingredient_amount",
    "stated_value": "5% panthenol",
-   "verdict": "supported",
+   "evidence": [
+    "S4"
+   ],
+   "source_value": "5% panthenol",
+   "relation": "consistent",
    "correct_value": "5% panthenol",
-   "passage_id": "DL-CR-01#key-ingredients#panthenol",
-   "quote": "Panthenol: 5%"
+   "say": null
   },
   {
    "span": "three percent squalane",
-   "field": "ingredient_amount",
+   "stance": "HOST_ASSERTS",
    "product_id": "cream_hydra_barrier",
+   "field": "ingredient_amount",
    "stated_value": "3% squalane",
-   "verdict": "supported",
+   "evidence": [
+    "S5"
+   ],
+   "source_value": "3% squalane",
+   "relation": "consistent",
    "correct_value": "3% squalane",
-   "passage_id": "DL-CR-01#key-ingredients#squalane",
-   "quote": "Squalane: 3%"
+   "say": null
   }
- ],
- "reason": "All stated ingredient amounts match the product fact sheets."
+ ]
 }
