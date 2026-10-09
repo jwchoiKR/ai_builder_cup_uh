@@ -6,7 +6,6 @@ answering and the host queue run under the session lock.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import replace
 import logging
 import re
 import time
@@ -27,7 +26,7 @@ from ..logic.segments import segment_at
 from ..logic.shoutout import shout_kind
 from ..agents.draft_verifier import DraftCheckInput, cited_passages
 from ..agents.reply_phraser import PhraseInput, keeps_the_facts
-from ..logic.verify import number_set, verify_answer
+from ..logic.verify import verify_answer
 from ..providers.armor import screen as armor_screen
 from ..models.agent_io import CommentTriageOutput, ConditionSlots
 from ..models.session import Answer, Comment, CommentAnalysis, QuestionGroup
@@ -770,27 +769,8 @@ async def _run_composer(rt: "SessionRuntime", group_id: str, key: str, scenario:
         return None
     out = res.output
     await _compose_step(rt, group_id, "checking")
-    not_approved = rt.catalog.not_approved_claims(product_id) if product_id else [
-        c for p in rt.catalog.products for c in p.not_approved_claims]
-    ok, errors = draft_code_gate(out, passages, product_id, arm=rt.settings.DESIGN_ARM, reflex=rt.reflex,
-                                 provenance=rt.settings.DRAFT_GATE == "provenance",
-                                 not_approved=not_approved)
-    if not ok and out.grounded and out.answer.strip() and rt.settings.COMPOSER_REVISE:
-        # a grounded draft the code gate rejects (too long, a number the gate cannot place) is written once more with
-        # the gate's reasons; the second draft passes the same gate or the question goes to the operator
-        again = await rt.composer.run(replace(inp, revise={"previous_reply": out.answer.strip(), "problems": errors}),
-                                      deadline_ms=rt.settings.COMPOSER_TIMEOUT_MS)
-        if again.status == "ok" and again.output is not None:
-            ok2, errors2 = draft_code_gate(again.output, passages, product_id, arm=rt.settings.DESIGN_ARM,
-                                           reflex=rt.reflex, provenance=rt.settings.DRAFT_GATE == "provenance",
-                                           not_approved=not_approved)
-            rt.counters["composer_revised" if ok2 else "composer_revise_failed"] += 1
-            if ok2:
-                out, ok, errors = again.output, ok2, errors2
-    variant = g.condition_slots.get("variant")
-    if ok and variant and g.intent in ONE_ANSWER_INTENTS and not any(
-            number_set(variant) <= number_set(c.quote) for c in out.citations):
-        ok, errors = False, [f"the answer cites no source of the asked variant ({variant})"]  # D-281
+    # no code gate on the draft (user, 10/10): only the composer's own refusal, then the LLM draft verifier
+    ok, errors = (True, []) if out.grounded and out.answer.strip() else (False, ["not grounded"])
     if ok:
         asked = [c.text for cid in g.member_comment_ids[:5] if (c := await rt.get_comment(cid)) is not None]
         ok, errors = await _llm_check(rt, g.canonical_question, out, passages, product_id, promo, scenario,

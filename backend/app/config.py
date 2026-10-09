@@ -151,8 +151,8 @@ class Settings(BaseSettings):
     VERTEX_SEARCH_LOCATION: str = "global"
     # evidence of viewer-question answers: "vertex_search" searches the Vertex AI Search app below for every product
     # question (record answers off too); the live fact checker reads the prompter snapshot
-    ANSWER_RETRIEVER: Literal["local", "vertex_search"] = "local"
-    VERTEX_SEARCH_ENGINE_ID: str = ""
+    ANSWER_RETRIEVER: Literal["local", "vertex_search"] = "vertex_search"
+    VERTEX_SEARCH_ENGINE_ID: str = "ai-budiler-cup-uh-search_1791461058419"
     VERTEX_ANSWER_TIMEOUT_MS: int = 8000  # answer_query writes an answer: 2-5 s measured 10/10
     VERTEX_SEARCH_GCS_BUCKET: str = ""  # an approved product's original files are copied here (the data store's source)
     COMPLIANCE_ESCALATE_SEC: int = 5

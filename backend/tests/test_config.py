@@ -40,7 +40,7 @@ def test_google_provider_requires_project():
 
 def test_vertex_answers_require_an_engine():
     with pytest.raises(ValidationError, match="VERTEX_SEARCH_ENGINE_ID"):
-        make_settings(ANSWER_RETRIEVER="vertex_search", GCP_PROJECT="p")
+        make_settings(ANSWER_RETRIEVER="vertex_search", VERTEX_SEARCH_ENGINE_ID="", GCP_PROJECT="p")
 
 
 def test_demo_tools_off_in_cloud_unless_explicit():
