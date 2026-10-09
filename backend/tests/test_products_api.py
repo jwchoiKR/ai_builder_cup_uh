@@ -27,7 +27,8 @@ def test_upload_puts_one_pdf_in_the_bucket_only(tmp_path, monkeypatch):
 
 
 INFO = {"brand": "Lumen", "product_name": "Night Serum", "currency": "SGD", "list_price": "46.00",
-        "live_price": "36.00", "points": [{"text": "Hydrates for 24 hours (in-house test)", "required": True}]}
+        "live_price": "36.00", "points": [{"text": "Hydrates for 24 hours (in-house test)", "required": True}],
+        "extra": [{"name": "Volume", "value": "30 ml"}]}
 
 
 def test_read_makes_one_model_call_and_stores_the_info(tmp_path, monkeypatch):
@@ -39,7 +40,7 @@ def test_read_makes_one_model_call_and_stores_the_info(tmp_path, monkeypatch):
                                llm_backend=backend)) as c:
         pid = c.post("/api/products", files={"file": ("Sheet A.pdf", b"%PDF-1.7 x", "application/pdf")}
                      ).json()["product_id"]
-        r = c.post(f"/api/products/{pid}/read")
+        r = c.post(f"/api/products/{pid}/read", json={"fields": ["Volume"]})
         assert r.status_code == 200, r.text
         assert r.json()["info"] == INFO
         assert [a for a, _ in backend.calls] == ["product_read"]
@@ -63,6 +64,11 @@ def test_approve_fixes_the_read_and_sends_the_pdf_to_the_search_bucket(tmp_path,
         assert r.json()["info"] == INFO and r.json()["warnings"] == []
         assert json.loads(buckets["fake"].download(f"products/{pid}/approved.json"))["info"] == INFO
         assert buckets["search"].download(f"{pid}/Sheet A.pdf") == b"%PDF-1.7 x"
+        # a person's edit is what the show uses; info.json keeps the model's read
+        edited = {**INFO, "product_name": "Night Serum EX", "points": [{"text": "Edited point", "required": False}]}
+        assert c.post(f"/api/products/{pid}/approve", json={"info": edited}).json()["info"] == edited
+        assert json.loads(buckets["fake"].download(f"products/{pid}/approved.json"))["info"] == edited
+        assert json.loads(buckets["fake"].download(f"products/{pid}/info.json")) == INFO
 
 
 def test_regulation_upload_puts_one_pdf_in_the_bucket(tmp_path, monkeypatch):
