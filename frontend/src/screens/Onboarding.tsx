@@ -359,7 +359,8 @@ export function Onboarding() {
           ["Release created", false],
         ]} />
       </header>
-      <div className={styles.grid}>
+      {/* before the first read, Regulations matches the product box's height */}
+      <div className={[styles.grid, slots.length === 1 && !slots[0].read && styles.gridEven].filter(Boolean).join(" ")}>
         <div className={styles.column}>
           {slots.map((s, i) => (
             <ProductUpload key={s.key} title={`1 · Product ${slots.length > 1 ? i + 1 : "information"}`}
@@ -367,12 +368,12 @@ export function Onboarding() {
                            onApproved={(productId) => setSlot(s.key, { productId })}
                            onRemove={slots.length > 1 ? () => setSlots((ss) => ss.filter((x) => x.key !== s.key)) : undefined} />
           ))}
-          <button type="button" className={styles.addLink} data-testid="onb-product-add"
-                  onClick={() => setSlots((ss) => [...ss, { key: Math.max(...ss.map((x) => x.key)) + 1, read: false, productId: null }])}>
-            <Plus size={14} aria-hidden /> Add product
-          </button>
         </div>
         <RegulationUpload onUploaded={setRegulationId} />
+        <button type="button" className={styles.addLink} data-testid="onb-product-add"
+                onClick={() => setSlots((ss) => [...ss, { key: Math.max(...ss.map((x) => x.key)) + 1, read: false, productId: null }])}>
+          <Plus size={14} aria-hidden /> Add product
+        </button>
       </div>
       {/* a release needs both (the server checks the same); the show starts from the hub's Pick products */}
       <section className={styles.block} data-testid="onb-ready">
