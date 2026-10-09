@@ -52,8 +52,8 @@ LIVE_EVENTS = {*SWITCH_EVENTS, "transcript.final", "alert.created", "alert.updat
                "line.check"}
 JUDGES = ("compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "verifier")
 SETTINGS_LOGGED = ("STORE", "FIRESTORE_DATABASE", "SWITCH_DUAL_SCOPE_SEC",
-                   "JUDGE_ARM", "JUDGE_MODE", "FACT_PROMPT",
-                   "JUDGE_PRODUCTS", "QUESTION_HOLD", "COMPLIANCE_ESCALATE_SEC", "FACT_MODE")
+                   "JUDGE_MODE", "FACT_PROMPT",
+                   "COMPLIANCE_ESCALATE_SEC")
 
 
 def _target(show: dict, expect: str) -> str | None:
@@ -155,7 +155,7 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                "rule_id": a.rule_id, "field": a.field, "severity": a.severity,
                "checked_against": release_of.get(a.product_id), "status": a.status, "span": a.span,
                "say_instead": a.say_instead, "stated_value": a.stated_value, "correct_value": a.correct_value,
-               "unverified": a.unverified, "resolved_by_line": resolved_by,
+               "resolved_by_line": resolved_by,
                "ms_to_shown": ms(line, a.shown_at),
                "ms_to_escalated": ms(line, a.escalated_at), "ms_to_resolved": ms(line, a.resolved_at)}
         alerts.append(row)

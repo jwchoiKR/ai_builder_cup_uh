@@ -1,0 +1,28 @@
+{
+ "claims": [
+  {
+   "span": "thirty-two people",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "test_result",
+   "stated_value": "32 participants",
+   "evidence": [],
+   "source_value": "32 participants",
+   "relation": "consistent",
+   "correct_value": "32 participants",
+   "say": null
+  },
+  {
+   "span": "nobody reported a reaction",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "test_result",
+   "stated_value": "0 irritation reactions",
+   "evidence": [],
+   "source_value": "0 irritation reactions",
+   "relation": "consistent",
+   "correct_value": "0 irritation reactions",
+   "say": null
+  }
+ ]
+}

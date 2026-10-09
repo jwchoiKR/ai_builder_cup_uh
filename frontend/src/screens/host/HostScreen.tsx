@@ -20,6 +20,9 @@ import {
   uncheckedStrip,
   hostSlots,
   runOfShow,
+  clearedTiming,
+  shownTiming,
+  timingLabel,
 } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
@@ -251,10 +254,12 @@ export function HostView({
       // D-407: the ring marks only the newest red, within RED_BLOCK_MS of its own creation
       <ComplianceOverlay key={b.view.alert.alert_id} view={b.view}
         fresh={b.view.position === 1 && now - b.view.alert.created_at < RED_BLOCK_MS}
-        catalog={catalog} serverOffsetMs={state.serverOffsetMs} onRendered={actions.rendered} more={more} />
+        catalog={catalog} serverOffsetMs={state.serverOffsetMs} onRendered={actions.rendered} more={more}
+        retraction={state.market?.retraction_phrase}
+        timing={timingLabel("shown", shownTiming(b.view.alert, state.transcripts), t)} />
     ) : b.kind === "fact" ? (
       <FactNote key={b.alert.alert_id} alert={b.alert} catalog={catalog} onRendered={actions.rendered} count={b.count}
-        more={more} />
+        more={more} timing={timingLabel("shown", shownTiming(b.alert, state.transcripts), t)} />
     ) : (
       <MediumBanner key={b.alert.alert_id} alert={b.alert} catalog={catalog} onRendered={actions.rendered}
         count={b.count} more={more} />
@@ -289,7 +294,7 @@ export function HostView({
               product={prompter.product ?? product}
               degraded={state.judgeDegraded}
               alerts={prompterAlerts}
-              notice={!high && toast ? <CorrectedBar /> : null}
+              notice={!high && toast ? <CorrectedBar timing={timingLabel("cleared", clearedTiming(toast, state.transcripts), t)} /> : null}
               status={
                 // D-115: one reserved line, so nothing below the prompter moves
                 switched ? (

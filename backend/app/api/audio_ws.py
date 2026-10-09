@@ -9,12 +9,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from ..pipelines.runtime import ActionError
-from ..providers.stt import SttStatus, phrases_from_glossary, risk_phrases, with_risk_phrases
+from ..providers.stt import MAX_PHRASES, SttStatus, phrases_from_glossary
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,74 +41,24 @@ def default_glossary(ctx, cat=None) -> dict:
     return {"version": 0, "terms": terms}
 
 
-def release_phrases(ctx, cat, release_id: str, mode: str | None = None) -> list[str]:
+def release_phrases(ctx, cat, release_id: str) -> list[str]:
     """D-265: a release's show hints its brief's glossary (names, original spellings, sound-alikes) first, then its
-    brand, product and ingredient names. D-327 mode "record" (STT_HINTS): then the record's own names and sizes."""
+    brand, product and ingredient names (D-435: the record-names mode, STT_HINTS=record, is gone)."""
     from ..onboarding.brief import load_brief
 
     brief = load_brief(ctx.settings.onboarding_path, release_id)
     terms = [t.model_dump() for t in brief.glossary] if brief is not None else []
-    if (mode or ctx.settings.STT_HINTS) == "record":
-        from ..onboarding.release import load_release_full
-
-        record, _ = load_release_full(ctx.settings.onboarding_path, release_id)
-        extra = [{"term": x, "spoken_forms": []} for x in record_terms(record)]
-    else:
-        extra = []
-    return phrases_from_glossary({"terms": terms + default_glossary(ctx, cat)["terms"] + extra})
-
-
-# D-327: proper names (two or more capitalised words, or one that does not start its sentence) and ids with digits
-_NAME = re.compile(r"(?<![\w-])[A-Z][\w&'-]*(?:\s+(?:of\s+|&\s+)?[A-Z][\w&'-]*){0,4}")
-_ID = re.compile(r"(?<![\w-])[A-Z]{1,6}[- ]?\d[\w./-]*")
-_SENTENCE_START = re.compile(r"(?:^|[.!?:;]\s+|[(\"']\s*)$")
-
-
-def _names(text: str) -> list[str]:
-    ids = [m.group(0).rstrip(".,;:") for m in _ID.finditer(text)]
-    out = list(ids)
-    for m in _NAME.finditer(text):
-        name = m.group(0).rstrip(".,;:")
-        if any(name in x for x in ids):  # "ISO" of "ISO 22716"
-            continue
-        if len(name) > 1 and (" " in name or not _SENTENCE_START.search(text[:m.start()])):
-            out.append(name)
-    return out
-
-
-def record_terms(record) -> list[str]:
-    """D-327: the hint terms a release record gives, in order: brand and product, short and variant names, the names
-    and ids in its test results (labs, testers, panels, certificates, reports), its sizes in figures ("50 mL"), and the
-    proper names in its key facts. No prices, bare numbers or sentences."""
-    terms = [record.brand, record.product_name, *record.short_names, *(v.name for v in record.variants)]
-    for q in record.qualified_results:
-        for text in (q.qualifier, q.statement, q.conditions or ""):
-            terms += _names(text)
-    for v in record.variants:
-        if v.size_value and v.size_unit:
-            terms.append(f"{v.size_value} {v.size_unit}")
-        if v.pack_count and v.pack_unit:
-            terms.append(f"{v.pack_count} {v.pack_unit}{'' if v.pack_count == 1 else 's'}")
-    for k in record.key_facts:
-        terms += _names(k.text)
-    seen: set[str] = set()
-    out = []
-    for t in (x.strip() for x in terms):
-        if t and len(t) <= 60 and len(t.split()) <= 5 and t.lower() not in seen:
-            seen.add(t.lower())
-            out.append(t)
-    return out
+    return phrases_from_glossary({"terms": terms + default_glossary(ctx, cat)["terms"]})
 
 
 def phrases_for_release(ctx, release_id: str, mode: str | None = None, market: str | None = None,
                         lang: str | None = None) -> list[str]:
     """D-327 eval hook: exactly the phrase hints a one-release show's speech stream sends (the mic and the test
-    drive), before the language check (an "auto" stream sends none)."""
+    drive), before the language check (an "auto" stream sends none). `mode` stays for the eval's --mode base."""
     from ..logic.catalog import Catalog
 
     pack, _ = ctx.pack_for(market or ctx.settings.MARKET, lang or ctx.settings.BROADCAST_LANGUAGE, release_id)
-    risk = risk_phrases(pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
-    return with_risk_phrases(release_phrases(ctx, Catalog(pack, release_id), release_id, mode), risk)
+    return release_phrases(ctx, Catalog(pack, release_id), release_id)[:MAX_PHRASES]
 
 
 async def glossary_phrases(ctx) -> list[str]:
@@ -147,12 +96,9 @@ async def stream_setup(ctx, rt, asked: str = "") -> tuple[list[str], str]:
         glossary = list(dict.fromkeys(x for r in ordered for x in release_phrases(ctx, rt.catalog, r)))
     else:
         glossary = (release_phrases(ctx, rt.catalog, s.release_id) if s.release_id else await glossary_phrases(ctx))
-    risk = risk_phrases(rt.pack.rules.rules) if ctx.settings.STT_RISK_HINTS else []
-    phrases = with_risk_phrases(glossary, risk)
+    phrases = glossary[:MAX_PHRASES]  # D-186: chirp_3's cap
     # D-186: which hints this run's streams use, visible in Cloud Logging
-    log.info("stt phrase hints for %s: glossary %d, risk %d (STT_RISK_HINTS=%s, STT_HINTS=%s, boost %s, hints %s)",
-             session_id, len(glossary), len(phrases) - len(glossary), ctx.settings.STT_RISK_HINTS,
-             ctx.settings.STT_HINTS, ctx.settings.STT_HINT_BOOST or "none",
+    log.info("stt phrase hints for %s: glossary %d (hints %s)", session_id, len(phrases),
              "on" if ctx.settings.STT_PHRASE_HINTS_ENABLED else "off")
     # D-142: the session's broadcast language (STT_LANGUAGE overrides); D-316: the mic's choice first
     language = asked if asked in STT_CHOICES else (ctx.settings.STT_LANGUAGE or rt.pack.stt_language)

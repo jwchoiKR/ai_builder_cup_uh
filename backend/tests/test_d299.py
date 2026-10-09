@@ -11,5 +11,5 @@ def _fixes() -> tuple:
 def test_d299_the_relation_prompt_has_the_bound_hint():
     from pathlib import Path
 
-    text = (Path(__file__).parents[2] / "prompts" / "fact_relation.md").read_text(encoding="utf-8")
+    text = (Path(__file__).parents[2] / "prompts" / "fact_relation_v5.md").read_text(encoding="utf-8")
     assert "excludes 25 itself" in text

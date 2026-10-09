@@ -33,7 +33,7 @@ async def _case(monkeypatch, llm, parts, **settings):
     from .helpers import make_ctx
 
     monkeypatch.setattr(eval_adversarial, "PART_GAP_S", 0.05)
-    ctx = make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT="v5", JUDGE_ARM="single", QUESTION_HOLD=True,
+    ctx = make_ctx(backend=llm, FACT_PROMPT="v5",
                    **settings)
     try:
         return await eval_adversarial.run_case(ctx, {"case_id": "M", "type": "t", "utterance": "",
@@ -72,7 +72,7 @@ async def test_d335_the_operator_sees_collecting_context_while_a_question_waits(
     from .helpers import live_runtime, make_ctx
     from .judge_fakes import close_env, speak
 
-    rt = await live_runtime(make_ctx(backend=ScriptedBackend(), QUESTION_HOLD=True, QUESTION_HOLD_MS=2500))
+    rt = await live_runtime(make_ctx(backend=ScriptedBackend(), QUESTION_HOLD_MS=2500))
     try:
         await speak(rt, "Is it waterproof?")
         [started] = await events(rt, "hold.started")

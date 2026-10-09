@@ -79,7 +79,7 @@ def recorded_broadcast():
         Transcript(transcript_id="tr_7", text="wrinkles", is_final=True, speech_end_at=T0 + 300_000,
                    received_at=T0 + 300_000, source="injected", segment_id="seg_1"),
         Transcript(transcript_id="tr_9", text="x", is_final=True, speech_end_at=T0 + 400_000,
-                   received_at=T0 + 400_000, source="injected", segment_id="seg_1"),
+                   received_at=T0 + 400_000, source="mic", segment_id="seg_1"),
     ]
     alerts = [
         Alert(alert_id="al_1", kind="compliance", status="corrected", transcript_id="tr_7", product_id=CREAM,
@@ -88,7 +88,7 @@ def recorded_broadcast():
               corrected_text="Let me correct that."),
         Alert(alert_id="al_2", kind="compliance", status="dismissed", transcript_id="tr_9", product_id=CREAM,
               rule_id="BRAND-SUPERLATIVE", severity="MEDIUM", span="the best", created_at=T0 + 400_100,
-              shown_at=T0 + 401_500, unverified=True),
+              shown_at=T0 + 401_500),
         Alert(alert_id="al_3", kind="compliance", status="cleared", transcript_id="tr_9", product_id=CREAM,
               rule_id="ASEAN-3-SKIN-ACNE", severity="HIGH", created_at=T0 + 400_000),  # never shown
         Alert(alert_id="fx_1", kind="fact", status="corrected", transcript_id="tr_9", product_id=CREAM, field="price",
@@ -139,8 +139,9 @@ def test_summary_numbers(catalog):
     assert al1["rule_id"] == "ASEAN-3-SKIN-AGEING" and al1["rule_title"].startswith("Prevents, reduces")
     assert al1["speech_end_to_shown_ms"] == 2300 and al1["shown_to_corrected_ms"] == 6800
     assert al1["corrected_text"] == "Let me correct that."
-    assert al2["shown_to_corrected_ms"] == "dismissed" and al2["unverified"] is True
+    assert al2["shown_to_corrected_ms"] == "dismissed" and "unverified" not in al2  # D-435: the field is gone
     assert len(s["compliance_alerts"]) == 2  # cleared provisional alert not listed
+    assert (al1["typed"], al2["typed"]) == (True, False)  # D-439: a typed line, a spoken line
 
     fx1, fx2 = s["fact_alerts"]
     assert (fx1["field"], fx1["stated_value"], fx1["correct_value"], fx1["corrected"], fx1["time_to_correction_ms"]) == (

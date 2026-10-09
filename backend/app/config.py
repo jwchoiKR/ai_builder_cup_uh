@@ -48,7 +48,6 @@ class Settings(BaseSettings):
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
     # D-309 "single": the compliance judge and the fact checker on one model (SINGLE_MODEL, SINGLE_THINKING; unless
     # COMPLIANCE_MODEL / FACTS_MODEL name another), no verifier, no code drops
-    JUDGE_ARM: Literal["guards", "single"] = "single"  # D-305; D-336: the measured config; D-392: no verify or vote
     # D-314 (eval): the live judges' sampling (compliance_judge, fact_checker, context_judge); empty = not sent (the
     # model's default, D-008). JUDGE_TEMPERATURE is a number ("0"), JUDGE_SEED an integer ("7")
     JUDGE_TEMPERATURE: str = ""
@@ -58,28 +57,22 @@ class Settings(BaseSettings):
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
     # D-353 addendum (user, 10/8): back to "code": spoken-answer posting belongs to the comments team (out of scope)
     VERBAL_CHECK: Literal["code", "judge"] = "code"  # judge: numbers said and hedges from the context judge (arm B's)
-    JUDGE_PRODUCTS: Literal["named", "all"] = "all"  # D-353; named: a code alias match picks the products in scope
     COMMENT_PRODUCT: Literal["code", "triage"] = "code"  # D-308: back;  # triage: the comment's product from triage, no alias rules
     DRAFT_GATE: Literal["full", "provenance"] = "full"  # D-308: back;  # provenance: citations, products and numbers only
     GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins
     SHOUTOUT: Literal["regex", "judge"] = "regex"  # D-308: back;  # judge: triage labels shout-outs (arm B's)
-    FACT_RELATION: bool = True  # D-297 hybrid: the relation arm with the fact guards off but Q2/G1
     # D-331 v5: the documents' value before the relation, endorsements of the previous line, and a stance per claim
     # (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked. D-432: v2-v4 and v6-v8 are deleted
     # (none was chosen); v1 stays for the tests that pin it
-    FACT_PROMPT: Literal["v1", "v5"] = "v5"  # D-336: the measured config
-    # D-356: ACTIVE_ALERTS by per-call handle; the compliance judge answers {handle, fixed_by_this_line} first.
-    # D-358: on by default (the originals path always uses handles; this setting only matters for the legacy path)
-    CORRECTION_HANDLES: bool = True
+    FACT_PROMPT: Literal["v5"] = "v5"  # D-336: the measured config; D-435: v1 (fact_relation.md) is gone
     # D-334 (the user's design): a final ending with "?" waits for the next final (QUESTION_HOLD_MS), and the two are
-    # judged as one utterance by all three judges; with none, the question is judged alone
-    QUESTION_HOLD: bool = True  # D-343: measured (pool 7 + pairs: two-host lines 82.8% -> 96.6%, no one-host loss)
+    # judged as one utterance by all three judges; with none, the question is judged alone. D-343: measured (pool 7 +
+    # pairs: two-host lines 82.8% -> 96.6%, no one-host loss); D-435: always on (the QUESTION_HOLD switch is gone)
     QUESTION_HOLD_MS: int = 2500
     # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
     # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
     # no record facts the prompter does not show. Was "docs" (D-247/D-255). The release pack itself is still built at
     # record level for its other readers (answers to viewers).
-    FACT_MODE: Literal["sheet", "record", "docs", "prompter"] = "prompter"  # D-237: pii_only leaves profanity and short reactions to triage
     PROMPTS_DIR: str = "../prompts"
     STORE: Literal["memory", "firestore"] = "memory"
     FIRESTORE_DATABASE: str = "live-studio"  # D-354: the Firestore database of STORE=firestore
@@ -101,10 +94,8 @@ class Settings(BaseSettings):
     COMPOSER_THINKING: ThinkingLevel = "LOW"  # per-agent override for AnswerComposer (D-067)
     PD_THINKING: ThinkingLevel = "LOW"  # D-166: the AI PD on LLM_QUALITY_MODEL (docs/eval/ai-pd-arms.md)
     # D-128: per-agent overrides of LLM_FAST_THINKING (thinking-level comparison, docs/eval/models/README.md)
-    COMPLIANCE_THINKING: ThinkingLevel = "LOW"
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
-    FACTS_THINKING: ThinkingLevel = "LOW"  # D-255: sealed unseen products, 5 s budget
-    # D-309 JUDGE_ARM=single: the one model and thinking level of the compliance judge and the fact checker
+    # D-309: the one model and thinking level of the compliance judge and the fact checker (D-435: the only arm)
     SINGLE_MODEL: str = "gemini-3.5-flash-lite"  # D-336: the measured config (Flash-Lite, compliance MEDIUM, facts LOW)
     SINGLE_THINKING: ThinkingLevel = "LOW"  # D-360 (user): the compliance judge thinks LOW (was MEDIUM, D-336)
     SINGLE_FACTS_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "LOW"  # D-311: the fact checker's; empty = SINGLE_THINKING
@@ -180,12 +171,6 @@ class Settings(BaseSettings):
     STT_ENDPOINTING: Literal["SHORT", "STANDARD", "SUPERSHORT"] = "STANDARD"  # D-336: the measured config
     STT_LANGUAGE: str = ""  # empty: the market pack's code for BROADCAST_LANGUAGE (D-129)
     STT_PHRASE_HINTS_ENABLED: bool = True
-    # D-186: also hint the market's claim words (the reflex phrases of its rules, in the broadcast language) after
-    # the glossary, so a risky word is not heard as a harmless sound-alike ("widens" for "whitens"). Off until measured
-    STT_RISK_HINTS: bool = False
-    # D-327: "record" adds each on-show release's names, sizes and test names from its approved record to the hints
-    STT_HINTS: Literal["base", "record"] = "base"
-    STT_HINT_BOOST: str = ""  # D-327: a boost (0-20) on the phrase set; empty = none (chirp_3 accepts it, probe 10/7)
     VERTEX_SEARCH_LOCATION: str = "global"
     VERTEX_SEARCH_DATA_STORE_ID: str = ""
     # evidence of viewer-question answers: "vertex_search" searches the Vertex AI Search app below for every product
@@ -247,15 +232,13 @@ class Settings(BaseSettings):
     DEMO_TOOLS_ENABLED: bool = True
     LOG_LEVEL: str = "INFO"
 
-    @field_validator("JUDGE_TEMPERATURE", "JUDGE_SEED", "STT_HINT_BOOST")
+    @field_validator("JUDGE_TEMPERATURE", "JUDGE_SEED")
     @classmethod
     def _sampling(cls, v: str, info) -> str:
-        """D-314: a bad sampling value fails at startup, not inside a judge call (D-327: and the hint boost)."""
+        """D-314: a bad sampling value fails at startup, not inside a judge call."""
         v = v.strip()
         if v:
-            n = (int if info.field_name == "JUDGE_SEED" else float)(v)
-            if info.field_name == "STT_HINT_BOOST" and not 0 <= n <= 20:
-                raise ValueError("STT_HINT_BOOST must be between 0 and 20")
+            (int if info.field_name == "JUDGE_SEED" else float)(v)
         return v
 
     @model_validator(mode="after")

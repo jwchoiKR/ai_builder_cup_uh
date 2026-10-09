@@ -138,7 +138,7 @@ def router_template():
 def prompt_values(case: dict, catalog) -> dict:
     from app.agents.utterance_judge import JudgeInput, build_judge_values
     from app.models.session import Alert, SwitchState
-    from run_eval import _group
+    from eval_common import _group
 
     ctx = case.get("context") or {}
     on_air = case["current_product_id"]
@@ -160,7 +160,7 @@ async def run(runs: int, concurrency: int, routers: list[str] | tuple[str, ...] 
     from app.logic.reflex import Reflex
     from app.providers.llm import LLMRequest
     from experiments.gemini_router import GeminiRouter, GEMINI_ROUTER_DEADLINE_MS
-    from run_eval import make_client
+    from eval_common import make_client
     from experiments.jev_router import JevRouter, apply_route, build_state, get_threshold, routing_overrides
 
     if not routers or len(set(routers)) != len(routers) or any(r not in ROUTERS for r in routers):

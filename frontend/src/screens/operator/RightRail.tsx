@@ -4,12 +4,13 @@ import { useState, type ReactNode } from "react";
 
 import { api } from "../../app/api";
 import { useT } from "../../app/i18n";
-import { alertLog, formatMmSs, onAirProduct, recentTranscripts, runsheetOf } from "../../app/selectors";
+import { alertLog, clearedTiming, formatMmSs, onAirProduct, recentTranscripts, runsheetOf, shownTiming, timingLabel } from "../../app/selectors";
 import { Button, Chip } from "../../components";
+import { citedTitle } from "../host/hostSelectors";
 import { debugOn, useStoredOpen } from "./attention";
 import { useAction, useOperator } from "./context";
 import { impactChips, latencyShown, metricChips } from "./Header";
-import { alertLatencyMs, alertOutcome, fieldLabel, fillProductName, seconds1, sentenceCase, transcriptChips } from "./model";
+import { alertOutcome, fieldLabel, fillProductName, sentenceCase, transcriptChips } from "./model";
 import styles from "./operator.module.css";
 
 // The second job first (what the host says, what was flagged), then what is used during the show, then what is
@@ -259,19 +260,20 @@ function AlertLogPanel() {
       ) : (
         <ul className={styles.logList}>
           {log.map((a) => {
-            const lat = alertLatencyMs(a, state.transcripts);
             return (
               <li key={a.alert_id}>
                 <span className={["tabular", styles.muted].join(" ")}>{formatMmSs((a.shown_at ?? a.created_at) - start)}</span>
                 <Chip tone={a.kind === "compliance" ? "risk" : "fact"}>
-                  {a.kind === "compliance" ? a.rule_id : `${sentenceCase(t(fieldLabel(catalog, a.field)))}`}
+                  {a.kind === "compliance" ? (citedTitle(a) ?? a.rule_id) : `${sentenceCase(t(fieldLabel(catalog, a.field)))}`}
                 </Chip>
                 <span className={styles.logText}>
                   {a.kind === "compliance" ? `“${a.span}”` : `${a.stated_value} → ${a.correct_value}`}
                 </span>
                 <span className={styles.muted}>
                   {alertOutcome(a, t)}
-                  {lat !== null ? ` · ${t("shown {s} s after speech", { s: seconds1(lat) })}` : ""}
+                  {[timingLabel("shown", shownTiming(a, state.transcripts), t),
+                    timingLabel("cleared", clearedTiming(a, state.transcripts), t)].filter(Boolean)
+                    .map((x) => ` · ${x}`).join("")}
                 </span>
               </li>
             );

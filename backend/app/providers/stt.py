@@ -89,22 +89,6 @@ class _StreamState:
         return [c for c in self.chunks if c.offset_ms + c.duration_ms > start]
 
 
-def risk_phrases(rules) -> list[str]:
-    """D-186: the reflex phrases of the session's rules (its market's categories, its language's words), in rule order."""
-    out: list[str] = []
-    for r in rules:
-        for p in r.reflex_phrases:
-            if p.lower() not in {x.lower() for x in out}:
-                out.append(p)
-    return out
-
-
-def with_risk_phrases(phrases: list[str], risk: list[str], limit: int = MAX_PHRASES) -> list[str]:
-    """D-186: the glossary first, then the claim words it does not already have, under the same cap; no boost."""
-    seen = {p.lower() for p in phrases}
-    return (phrases + [p for p in risk if p.lower() not in seen and len(p) <= 100])[:limit]
-
-
 def phrases_from_glossary(glossary: dict | None, limit: int = MAX_PHRASES) -> list[str]:
     """Terms and spoken forms of the confirmed glossary as phrase hints (§10.3)."""
     out: list[str] = []
@@ -406,9 +390,8 @@ class GoogleV2Stt:
         s = self.settings
         adaptation = None
         if phrases and s.STT_PHRASE_HINTS_ENABLED:
-            boost = {"boost": float(s.STT_HINT_BOOST)} if s.STT_HINT_BOOST else {}  # D-327
             adaptation = cs.SpeechAdaptation(phrase_sets=[cs.SpeechAdaptation.AdaptationPhraseSet(
-                inline_phrase_set=cs.PhraseSet(phrases=[{"value": p} for p in phrases], **boost))])
+                inline_phrase_set=cs.PhraseSet(phrases=[{"value": p} for p in phrases]))])
         config = cs.RecognitionConfig(
             explicit_decoding_config=cs.ExplicitDecodingConfig(
                 encoding=cs.ExplicitDecodingConfig.AudioEncoding.LINEAR16, sample_rate_hertz=SAMPLE_RATE,

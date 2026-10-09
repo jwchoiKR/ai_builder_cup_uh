@@ -1,6 +1,7 @@
 {
   "lang": "en",
   "name": "English",
+  "retraction_phrase": "Sorry, I take that back.",
   "categories": {
     "disease": {
       "claim_kinds": ["disease_treatment"],

@@ -1,7 +1,6 @@
 // HIGH-risk compliance alert (§12.3.7). D-106: shown at the top of the prompter card, where the host
 // is already looking, until the correction is confirmed; the prompter points stay visible below.
 // On mount it acknowledges the render once per alert (metrics, §8.16).
-import { ShieldQuestionMark } from "lucide-react";
 import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
@@ -19,6 +18,8 @@ export function ComplianceOverlay({
   serverOffsetMs,
   onRendered,
   more = 0,
+  retraction = "",
+  timing = null,
 }: {
   view: HighAlertView;
   /** D-177: within RED_BLOCK_MS of the alert: highlighted (a repeat is a new alert, so it highlights again) */
@@ -28,6 +29,10 @@ export function ComplianceOverlay({
   onRendered: (alertId: string) => void;
   /** D-402: active alerts the stack does not show (on the last box shown) */
   more?: number;
+  /** D-436: the language pack's retraction phrase, said before say_instead */
+  retraction?: string;
+  /** D-439: "Shown in 4.2 s" (null: not known) */
+  timing?: string | null;
 }) {
   const t = useT();
   const { alert, position, total } = view;
@@ -44,12 +49,6 @@ export function ComplianceOverlay({
       aria-live="assertive" aria-label={t("High-risk claim")}>
       <div className={styles.alertTop}>
         <KindLabel law />
-        {alert.unverified && (
-          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
-            <ShieldQuestionMark aria-hidden />
-            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
-          </span>
-        )}
         <span className={styles.alertSaid}>
           {t("Heard:")} "{alert.span}"
         </span>
@@ -60,11 +59,11 @@ export function ComplianceOverlay({
         )}
         <AlertMore n={more} />
       </div>
-      <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
-      <span className={styles.alertSay}>“{alert.say_instead}”</span>
+      <span className={styles.alertSayLabel}>{t("Take it back, then say:")}</span>
+      <span className={styles.alertSay}>“{[retraction, alert.say_instead].filter(Boolean).join(" ")}”</span>
       <div className={styles.alertMeta}>
         <span className={styles.statusDot} aria-hidden />
-        {t("Waiting for your correction")}
+        <span>{t("Waiting for your correction")}</span>
         {alert.shown_at && (
           <Elapsed since={alert.shown_at} serverOffsetMs={serverOffsetMs} format="mmss" className={styles.statusTimer} />
         )}
@@ -72,6 +71,7 @@ export function ComplianceOverlay({
           {rule.title}
           {rule.ref ? ` · ${rule.ref}` : ""}
         </span>
+        {timing && <span className={styles.alertTiming} data-testid="host-alert-timing">{timing}</span>}
       </div>
     </div>
   );

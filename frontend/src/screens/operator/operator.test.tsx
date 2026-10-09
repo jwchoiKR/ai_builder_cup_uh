@@ -72,7 +72,7 @@ describe("alert cards", () => {
     expect(alertCardState(esc)).toBe("escalated");
     expect(complianceTitle(esc, T0 + 5000 + 65_000)).toBe("Not corrected · 01:05");
     const done = alert({ status: "corrected", resolved_at: T0 + 8200, corrected_text: "Let me correct that." });
-    expect(correctedLine(done)).toBe("Corrected in 3.2 s · 'Let me correct that.'");
+    expect(correctedLine(done)).toBe("Host fixed in 3.2 s · 'Let me correct that.'");
   });
   it("corrected alerts stay in the stack for 10 s", () => {
     const st = reduceSnapshot(
@@ -176,6 +176,16 @@ describe("alert cards", () => {
       "answered: Is it suitable for oily skin?",
       "cr-p1",
     ]);
+  });
+  it("D-440: a cited alert's chip names the document and section, not the citation slug", () => {
+    const cited = alert({ transcript_id: "tr_1", rule_id: "asean-cosmetic-claims-guideline-appendix-iii-2007#2-d",
+      citation: "asean_cosmetic_claims_guideline_appendix_iii_2007.pdf#2.d", cited_title: "ASEAN Appendix III 2.d" });
+    const st = reduceSnapshot(snapshot({ alerts: [cited] }), "operator", T0);
+    const t = { transcript_id: "tr_1", text: "x", is_final: true, speech_start_at: null, speech_end_at: T0, received_at: T0,
+      source: "mic" as const, segment_id: "seg_000001" };
+    expect(transcriptChips(st, catalog, t).map((c) => c.text)).toEqual(["ASEAN Appendix III 2.d"]);
+    expect(transcriptChips(reduceSnapshot(snapshot({ alerts: [{ ...cited, cited_title: null }] }), "operator", T0), catalog, t)
+      .map((c) => c.text)).toEqual(["asean_cosmetic_claims_guideline_appendix_iii_2007 2.d"]);  // the host's own fallback
   });
   it("empty state renders nothing heavy", () => {
     expect(stackAlerts(emptyState("operator"), T0)).toEqual([]);

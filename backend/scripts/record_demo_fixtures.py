@@ -2,7 +2,7 @@
 
 Plays data/demo/host_script.md in real time against Vertex AI, in process: injected host lines
 (STT injection), scripted bursts (no background chatter), the time sale and B5. Every agent output
-is stored under tests/fixtures/llm/<agent>/ with the scene id as scenario tag.
+is stored under mock_fixtures/llm/<agent>/ with the scene id as scenario tag.
 
 The run is clean only if every agent call returned ok (no timeout, no invalid output) and the
 summary recap is ready; otherwise the exit code is 1 and the run must be repeated, because a
@@ -114,7 +114,7 @@ async def run(until: str | None, report: Path | None) -> int:
         lat = (a["shown_at"] - next((t["speech_end_at"] for t in state.get("transcripts", [])
                                      if t["transcript_id"] == a["transcript_id"]), a["shown_at"])) if a["shown_at"] else None
         print(f"  {a['kind']:10} {a['status']:10} {a.get('rule_id') or a.get('field')} span={a.get('span')!r} "
-              f"{a.get('stated_value') or ''}->{a.get('correct_value') or ''} unverified={a['unverified']} "
+              f"{a.get('stated_value') or ''}->{a.get('correct_value') or ''} "
               f"shown_after={lat} ms corrected_by={a.get('corrected_text')!r}")
     print("\nsegments:")
     for seg in state["segments"]:

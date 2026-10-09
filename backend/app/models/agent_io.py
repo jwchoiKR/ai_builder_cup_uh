@@ -89,7 +89,7 @@ class _ArmB(BaseModel):
 
 
 class AlertCheck(_ArmB):
-    """D-356 CORRECTION_HANDLES: the verdict on one ACTIVE_ALERTS entry, named by its per-call handle (A1, A2 ...)."""
+    """D-356: the verdict on one ACTIVE_ALERTS entry, named by its per-call handle (A1, A2 ...)."""
     handle: str
     fixed_by_this_line: bool
 
@@ -206,24 +206,6 @@ class ComplianceOutputB(ComplianceOutput, _ArmB):
     correction: CorrectionB
 
 
-ClaimKind = Literal["safety_promise", "disease_treatment", "medical_or_physiological_effect", "permanence",
-                    "comparative_or_superlative", "usage_instruction", "composition_fact", "other"]
-
-
-class ViolationR(Violation, _ArmB):
-    # D-297: for a HIGH rule only, what kind of claim the line makes and the group it names (code checks the fit)
-    claim_kind: ClaimKind | None = None
-    group: str | None = None
-
-
-class ComplianceR(Compliance, _ArmB):
-    violations: list[ViolationR]
-
-
-class ComplianceOutputR(ComplianceOutput, _ArmB):
-    compliance: ComplianceR
-
-
 def _cited_schema(s: dict) -> None:
     """D-358: the model writes the citation and its quote first; `rule_id` is code's (from the citation). D-400:
     `severity` is code's too (from the citation type), so it is not asked for."""
@@ -262,7 +244,7 @@ class AnswerLinkB(AnswerLink, _ArmB):
 
 
 class ContextOutputQ(BaseModel):
-    """D-335 QUESTION_HOLD: the context verdict, first saying whether the next line is expected to resolve this one."""
+    """D-335: the context verdict, first saying whether the next line is expected to resolve this one."""
     expects_resolution: bool
     answer: AnswerLink
     prompter: PrompterJudgement
@@ -303,24 +285,7 @@ class FactCheckOutput(BaseModel):
     _corrects: list = PrivateAttr(default_factory=list)
 
 
-# ---- D-296 FACT_RELATION: the evidence by sentence id, then the relation; code builds the quote ------------------
-
-FactRelation = Literal["contradicts", "consistent", "not_in_documents", "uncertain"]
-
-
-class FactRelationClaim(BaseModel):
-    span: str
-    product_id: str
-    field: FactField
-    stated_value: str
-    evidence: list[str]  # SOURCE sentence ids ("S12"), "promo", or an offer's promo_id
-    relation: FactRelation
-    correct_value: str | None
-
-
-class FactRelationOutput(BaseModel):
-    claims: list[FactRelationClaim]
-
+# ---- D-296: the evidence by sentence id, then the relation; code builds the quote ------------------
 
 class FactRelationClaimV5(BaseModel):
     """D-331 FACT_PROMPT=v5: whose fact it is, decided right after the span; only the host's own (asserted or
@@ -330,7 +295,7 @@ class FactRelationClaimV5(BaseModel):
     product_id: str
     field: FactField
     stated_value: str
-    evidence: list[str]
+    evidence: list[str]  # SOURCE sentence ids ("S12"), "promo", or an offer's promo_id
     source_value: str | None
     relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
     correct_value: str | None

@@ -1,6 +1,6 @@
-# Prompt: fact_relation_v5 (version fact_relation_v5_v1)
+# Prompt: fact_relation_v5 (version fact_relation_v5_v2)
 
-Used by: `FactChecker` when `FACT_RELATION` is on and `FACT_PROMPT=v5` (D-331). Same inputs as `fact_relation.md`.
+Used by: `FactChecker` (D-331; D-435: the only fact prompt).
 Output must validate against `FactRelationOutputV5`. `fact_relation_v3.md` (D-313) plus a `stance` per claim, decided
 right after `span`: only a fact the host asserts or endorses is checked; one the host only reports or asks is
 `not_checked`.
@@ -15,7 +15,7 @@ A contradiction is shown to the host as a correction note. A wrong correction is
 
 What to check
 - Concrete, verifiable product facts: prices, set price, promotion price, volume, ingredient names and amounts, test results, usage amounts and steps, cautions, texture, fragrance, packaging, origin, shelf life, pH, where it is sold.
-- Skip opinions, feelings, greetings and compliance wording (another system handles compliance).
+- Skip opinions, feelings, greetings and compliance wording (another system handles compliance). That includes a claim that the product cures, treats or heals a condition when no SOURCE sentence states it ("removes all scars"): return no claim for it, and never compare it with a sentence about another effect.
 
 Whose fact it is: `stance`, one per claim, not per line
 - `HOST_ASSERTS`: the host states the fact as true. A tag question the host clearly asserts ("It has 80 mg, right?", "You know it clears acne, right?") is the host's claim.

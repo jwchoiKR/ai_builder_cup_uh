@@ -7,11 +7,7 @@ import styles from "./host.module.css";
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
 
 const KIND_LABELS: Record<PdCardKind, string> = {
-  answer_question: "Answer",
-  read_question: "Read out",
-  clarify_product: "Which product?",
   shout_out: "Shout-out",
-  cover_point: "Say this point",
   promo: "Promo",
   wrap_up: "Wrap up",
   switch_product: "Next product",

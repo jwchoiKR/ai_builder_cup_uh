@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { AMPOULE, CREAM, T0, alert, answer, catalog, comment, group, message, segment, snapshot } from "../test/fixtures";
+import { translate } from "./i18n";
 import {
   activeHighAlert,
+  alertTimingStats,
+  clearedTiming,
+  shownTiming,
+  timingLabel,
   activeMediumAlerts,
   activePromos,
   chatItems,
@@ -87,7 +92,7 @@ describe("alerts", () => {
           alert({ alert_id: "al_2", shown_at: T0 + 2000 }),
           alert({ alert_id: "al_3", severity: "MEDIUM", rule_id: "BRAND-SUPERLATIVE" }),
           alert({ alert_id: "al_4", status: "corrected" }),
-          alert({ alert_id: "al_5", status: "provisional" }),
+          alert({ alert_id: "al_5", status: "cleared" }),
         ],
       }),
       "host",
@@ -330,5 +335,43 @@ describe("D-399: the host groups MEDIUM alerts by rule and fact notes by passage
     const { mediums, facts } = hostBanners(state);
     expect(mediums.map((m) => [m.alert.alert_id, m.count])).toEqual([["al_s", 1], ["al_q2", 2]]);
     expect(facts.map((f) => [f.alert.alert_id, f.count])).toEqual([["fx_4", 1], ["fx_3", 1], ["fx_2", 2]]);
+  });
+});
+
+describe("D-439: shown and cleared times, on server times only", () => {
+  const tr = (id: string, end: number, source: "mic" | "injected" = "mic") => ({
+    transcript_id: id, text: "x", is_final: true, speech_start_at: null, speech_end_at: end, received_at: end,
+    source, segment_id: "seg_000001" });
+  const t = (en: string, v?: Record<string, string | number>) => translate("en", en, v);
+
+  it("line end -> shown, typed lines marked, missing data hidden", () => {
+    const a = alert({ transcript_id: "tr_1", shown_at: T0 + 4200 });
+    expect(timingLabel("shown", shownTiming(a, { tr_1: tr("tr_1", T0) }), t)).toBe("Shown in 4.2 s");
+    expect(timingLabel("shown", shownTiming(a, { tr_1: tr("tr_1", T0, "injected") }), t)).toBe("Shown in 4.2 s (typed)");
+    expect(timingLabel("shown", shownTiming(a, {}), t)).toBeNull();  // the line is not loaded
+    expect(timingLabel("shown", shownTiming({ ...a, shown_at: null }, { tr_1: tr("tr_1", T0) }), t)).toBeNull();
+    expect(translate("ko", "Shown in {s} s", { s: "4.2" })).toBe("4.2초 만에 표시");
+    expect(translate("ko", "(typed)")).toBe("(입력)");
+  });
+
+  it("the correcting line's end -> cleared, only for a corrected alert", () => {
+    const a = alert({ transcript_id: "tr_1", status: "corrected", corrected_by_transcript_id: "tr_2", resolved_at: T0 + 13_100 });
+    const ts = { tr_1: tr("tr_1", T0), tr_2: tr("tr_2", T0 + 10_000) };
+    expect(timingLabel("cleared", clearedTiming(a, ts), t)).toBe("Cleared in 3.1 s");
+    expect(timingLabel("cleared", clearedTiming({ ...a, status: "active" }, ts), t)).toBeNull();
+    expect(timingLabel("cleared", clearedTiming(a, { tr_1: tr("tr_1", T0) }), t)).toBeNull();
+    expect(translate("ko", "Cleared in {s} s", { s: "3.1" })).toBe("3.1초 만에 해제");
+  });
+
+  it("the operator's show line counts spoken lines only", () => {
+    const st = reduceSnapshot(snapshot({
+      alerts: [alert({ alert_id: "a1", transcript_id: "tr_1", shown_at: T0 + 4200 }),
+        alert({ alert_id: "a2", transcript_id: "tr_2", shown_at: T0 + 6000 }),
+        alert({ alert_id: "a3", transcript_id: "tr_3", shown_at: T0 + 9000 }),  // typed: not counted
+        alert({ alert_id: "a4", transcript_id: "tr_9", shown_at: T0 + 1000 })],  // line not loaded: not counted
+      transcripts: [tr("tr_1", T0), tr("tr_2", T0), tr("tr_3", T0, "injected")],
+    }), "operator", T0);
+    expect(alertTimingStats(st)).toEqual({ count: 2, within5: 1, slowestMs: 6000 });
+    expect(alertTimingStats(reduceSnapshot(snapshot({ alerts: [] }), "operator", T0))).toBeNull();
   });
 });

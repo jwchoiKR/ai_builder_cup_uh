@@ -13,6 +13,10 @@ import {
 import type { CommentInsights, ProductStats, Recap, SummaryData, UnansweredGroup } from "./types";
 import styles from "./summary.module.css";
 
+/** D-439: a typed line has no real speech end, so its latency is marked */
+const typedMark = (row: { typed?: boolean | null; speech_end_to_shown_ms?: number | null }) =>
+  row.typed && row.speech_end_to_shown_ms != null ? " (typed)" : "";
+
 const ANSWER_KIND_LABEL: Record<string, string> = {
   ai_answer: "AI answer",
   host_answer: "Host answer",
@@ -418,7 +422,6 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                 <th>Alert latency</th>
                 <th>Corrected in</th>
                 <th>Correction</th>
-                <th>Unverified</th>
               </tr>
             </thead>
             <tbody>
@@ -434,10 +437,9 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                       </Chip>
                     )}
                   </td>
-                  <td className="tabular">{formatMsAsSeconds(a.speech_end_to_shown_ms)}</td>
+                  <td className="tabular">{formatMsAsSeconds(a.speech_end_to_shown_ms)}{typedMark(a)}</td>
                   <td className="tabular">{correctedIn(a.shown_to_corrected_ms)}</td>
                   <td>{a.corrected_text ?? "–"}</td>
-                  <td>{a.unverified ? "Yes" : "–"}</td>
                 </tr>
               ))}
             </tbody>
@@ -457,7 +459,6 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                 <th>Alert latency</th>
                 <th>Corrected in</th>
                 <th>Correction</th>
-                <th>Unverified</th>
               </tr>
             </thead>
             <tbody>
@@ -472,7 +473,7 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                       {f.stated_value ?? "–"} → {f.correct_value ?? "–"}
                     </span>
                   </td>
-                  <td className="tabular">{formatMsAsSeconds(f.speech_end_to_shown_ms ?? null)}</td>
+                  <td className="tabular">{formatMsAsSeconds(f.speech_end_to_shown_ms ?? null)}{typedMark(f)}</td>
                   <td className="tabular">
                     {f.shown_to_corrected_ms !== undefined
                       ? correctedIn(f.shown_to_corrected_ms)
@@ -481,7 +482,6 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
                         : "Not corrected"}
                   </td>
                   <td>{f.corrected_text ?? "–"}</td>
-                  <td>–</td>
                 </tr>
               ))}
             </tbody>

@@ -19,7 +19,6 @@ from typing import Any
 
 PROMPT_NAMES = (
     "utterance_judge", "judge_single", "compliance_judge", "compliance_judge_rules", "context_judge", "fact_checker",
-    "fact_relation",
     "fact_relation_v5",
     "comment_triage", "comment_triage_batch", "answer_composer", "draft_verifier", "brief_agent",
     "broadcast_summary", "reply_translator", "reply_phraser", "comment_insights",

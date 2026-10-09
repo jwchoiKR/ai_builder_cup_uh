@@ -26,7 +26,7 @@ class GeminiRouter:
     def __init__(self, client=None) -> None:
         self._owns_client = client is None
         if client is None:
-            from run_eval import make_client
+            from eval_common import make_client
 
             client, _ = make_client(False)
             client._settings = client._settings.model_copy(update={"LLM_RETRY_ON_5XX": 0})

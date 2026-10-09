@@ -1,0 +1,32 @@
+{
+ "claims": [
+  {
+   "span": "watery gel",
+   "stance": "HOST_ASSERTS",
+   "product_id": "ampoule_deep_hydration",
+   "field": "texture",
+   "stated_value": "watery gel",
+   "evidence": [
+    "S10"
+   ],
+   "source_value": null,
+   "relation": "consistent",
+   "correct_value": null,
+   "say": null
+  },
+  {
+   "span": "just two to three drops after toner",
+   "stance": "HOST_ASSERTS",
+   "product_id": "ampoule_deep_hydration",
+   "field": "usage",
+   "stated_value": "two to three drops after toner",
+   "evidence": [
+    "S11"
+   ],
+   "source_value": null,
+   "relation": "consistent",
+   "correct_value": null,
+   "say": null
+  }
+ ]
+}

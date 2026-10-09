@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
-from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputV5, with_note_checks,
+from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutputV5, with_note_checks,
                                with_same_as)
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -118,7 +118,7 @@ def sentence_index(passages: Sequence[Passage]) -> tuple[list[dict], dict[str, t
     return blocks, index
 
 
-def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]], terms: set[str]) -> FactCheckOutput:
+def from_relation(out: FactRelationOutputV5, index: dict[str, tuple[Passage, str]], terms: set[str]) -> FactCheckOutput:
     """D-296: a relation verdict as a fact claim. `contradicts` is contradicted and `consistent` supported; the quote is
     the evidence sentences of the first cited passage, joined. A contradiction with no valid evidence id (a sentence,
     "promo" or a running offer's id) cannot alert; `uncertain` never alerts and is counted."""
@@ -177,94 +177,56 @@ class FactChecker:
         self.prompt_version = prompt.version
         self.model = llm.facts.model
         self.catalog = catalog
-        # D-242 arm FR: how to read a release's record facts; D-247 arm FD: the release's files on top
         from . import arms
         settings = getattr(llm, "settings", None)
-        mode = getattr(settings, "FACT_MODE", "sheet")
-        self.mode = mode
-        # D-296: the relation arm cites file sentences by id (RD), not by "file:<name>" and a copied quote (FD)
-        self.relation = bool(getattr(settings, "FACT_RELATION", False))
         # D-331: v5 adds a stance per claim (D-432: v2-v4 and v6-v8 are deleted)
-        self.relation_model = FactRelationOutputV5 if getattr(settings, "FACT_PROMPT", "v1") == "v5" \
-            else FactRelationOutput
-        layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
-        addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
-        extras = [addenda.get((layer, self.name)) for layer in layers]
+        self.relation_model = FactRelationOutputV5  # D-435: the v1 relation prompt is gone
+        extras: list = []  # D-435: the record (FR) and release-file (RD) addenda are gone
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
         fix_addenda = arms._addenda(str(llm.prompts_path)) if self.fixes else {}
         extras += [fix_addenda.get((f, self.name)) for f in sorted(self.fixes)]
-        if getattr(settings, "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)))
-        if getattr(llm, "prompts_path", None) is not None:  # D-363: fact notes by handle
-            extras.append(arms._addenda(str(llm.prompts_path)).get(("NOTES", self.name)))
+        if getattr(llm, "prompts_path", None) is not None:
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)))  # D-335: question/answer pairs
+            extras.append(arms._addenda(str(llm.prompts_path)).get(("NOTES", self.name)))  # D-363: fact notes by handle
         self.system_instruction = "\n\n".join([prompt.system_instruction, *(x for x in extras if x)])
         lang = getattr(getattr(catalog, "pack", None), "lang", None)
         if lang:  # D-259: the host reads the correction aloud in the show's language
             self.system_instruction += (f"\n\nThe show's language is {lang}. Write `correct_value` in it (translate a "
                                         "value SOURCE writes in another language); keep `quote` verbatim.")
-        # D-279: each product's release files (one release, or each release of a multi-release show)
-        self.files: dict[str, tuple[tuple, tuple]] = {}
-        releases = dict(getattr(getattr(catalog, "pack", None), "releases", None) or {})
-        release_id = getattr(getattr(catalog, "runsheet", None), "runsheet_id", "")
-        if not releases and release_id.startswith("rel_"):
-            releases = {p.product_id: release_id for p in catalog.products}
-        if mode == "docs":
-            from ..onboarding.sources import release_sources
 
-            self.files = {pid: release_sources(str(settings.onboarding_path), rid) for pid, rid in releases.items()}
-        first = next(iter(self.files.values()), ((), ()))
-        self.file_parts, self.file_passages = first  # the first product's (one-release shows, the eval)
-        log.info("fact checker FACT_MODE=%s, release files sent: %d", mode,  # D-366
-                 sum(len(parts) for parts, _ in self.files.values()))
-
-    def _parts(self, on_air: str) -> tuple:
-        return self.files.get(on_air, (self.file_parts,))[0]
-
-    def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None, parts: tuple = (),
+    def _request(self, user: str, prefix: str, deadline_ms: int, session_id: str | None,
                  output_model=None, **mock) -> LLMRequest:
-        # D-247: with files, the cache holds the system instruction, the files and the product and full-sheet blocks
-        # (the same on every line of a one-product release)
         return LLMRequest(
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user,
-            output_model=output_model or (self.relation_model if self.relation else FactCheckOutput),
+            output_model=output_model or self.relation_model,
             deadline_ms=deadline_ms, session_id=session_id,
-            cache_prefix=prefix, cache_parts=parts,
+            cache_prefix=prefix,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
 
-    async def warm_cache(self, inp: FactInput) -> None:
-        """D-247: the files' context cache is made at session start (with the first line's static blocks), not on
-        the first line."""
-        if parts := self._parts(inp.on_air):
-            _, prefix = self._render(inp)
-            await self.llm.warm_cache(self._request(prefix, prefix, 60_000, inp.session_id, parts))
-
-    def _source(self, inp: FactInput) -> list[Passage]:
-        """D-296: what the relation arm numbers: the line's passages and the on-air product's file text. D-349: and
-        the previous product's file text while it is in scope after a switch."""
-        prev = inp.switch.previous_product_id
-        return [*inp.passages, *self.files.get(inp.on_air, ((), self.file_passages))[1],
-                *(self.files.get(prev, ((), ()))[1] if prev and prev != inp.on_air else ())]
+    @staticmethod
+    def _source(inp: FactInput) -> list[Passage]:
+        """D-296: what the relation verdict numbers: the line's passages (D-360: the prompter snapshot; D-349: the
+        previous product's too while it is in scope after a switch)."""
+        return list(inp.passages)
 
     def _render(self, inp: FactInput) -> tuple[str, str]:
         return self._render_template(inp)
 
     def _render_template(self, inp: FactInput) -> tuple[str, str]:
-        # D-361 FACT_MODE=prompter: nothing but the prompter snapshot (the passages) carries facts: the product block
-        # names the product only, and the promo, offer and set blocks are empty (their prices are in the snapshot);
-        # D-409: the v5 template has no such blocks any more (the older versions still take the empty values)
-        shown = self.mode == "prompter"
+        # D-361: nothing but the prompter snapshot (the passages) carries facts: the product block names the product
+        # only, and the promo, offer and set blocks are empty (their prices are in the snapshot); D-409: the v5
+        # template has no such blocks any more (fact_checker.md, which eval_agents.py passes, still takes them)
         product = inputs.current_product_compact_json(self.catalog, inp.on_air)
         return self.prompt.render_cached({
             "current_product_compact_json": ({"product_id": product["product_id"], "name": product["name"]}
-                                             if shown and product else product),
+                                             if product else product),
             "switch_context_json": inputs.switch_context_json(self.catalog, inp.switch, inp.on_air),
-            "active_promo_json_or_null": None if shown else inputs.active_promo_json_or_null(self.catalog, inp.promo),
-            "active_offers_json": [] if shown else inputs.active_offers_json(self.catalog, inp.offers),
-            "set_offers_json": [] if shown else inputs.set_offers_json(self.catalog, inp.promo),
-            "passages_json": (sentence_index(self._source(inp))[0] if self.relation
-                              else inputs.passages_json(inp.passages)),
+            "active_promo_json_or_null": None,
+            "active_offers_json": [],
+            "set_offers_json": [],
+            "passages_json": sentence_index(self._source(inp))[0],
             "last_two_final_transcripts_json": inp.previous[-2:],
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
@@ -290,14 +252,12 @@ class FactChecker:
     async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:
         user, prefix = self._render(inp)
         block, handles = self._notes(inp)
-        base = self.relation_model if self.relation else FactCheckOutput
+        base = self.relation_model
         res = await self.llm.call(self._request(
-            user + block, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), **opts,
-            output_model=(with_note_checks(with_same_as(base, "claims") if self.relation and len(inp.parts) > 1
+            user + block, prefix, deadline_ms, inp.session_id, **opts,
+            output_model=(with_note_checks(with_same_as(base, "claims") if len(inp.parts) > 1
                                            else base) if handles else base), mock_primary_text=inp.utterance,
-            mock_scenario=inp.scenario,
-            mock_fallback=lambda _: ({"claims": []} if self.relation
-                                     else {"claims": [], "reason": "rule-based: no fact check"}), preview=inp.utterance,
+            mock_scenario=inp.scenario, mock_fallback=lambda _: {"claims": []}, preview=inp.utterance,
         ))
         checks = list(getattr(res.output, "note_checks", []) or []) if res.output is not None else []
         res = self._validated(inp, res)
@@ -320,17 +280,12 @@ class FactChecker:
     def _validated(self, inp: FactInput, res: AgentResult[FactCheckOutput]) -> AgentResult[FactCheckOutput]:
         if res.output is None:
             return res
-        if self.relation:
-            # D-331: claims per call and their stances, to compare prompt versions (over-extraction)
-            stances = [getattr(c, "stance", None) for c in res.output.claims]
-            log.info("fact claims %d %s: %r", len(stances), self.prompt_version,
-                     {s: stances.count(s) for s in set(stances) if s})
-            _, index = sentence_index(self._source(inp))
-            terms = ({"promo"} if inp.promo is not None else set()) | {o.promo_id for o in inp.offers}
-            res.output = from_relation(res.output, index, terms)
-        else:
-            for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file
-                if c.passage_id and c.passage_id.startswith("file:"):
-                    c.passage_id = c.passage_id.split("#", 1)[0]
+        # D-331: claims per call and their stances, to compare prompt versions (over-extraction)
+        stances = [getattr(c, "stance", None) for c in res.output.claims]
+        log.info("fact claims %d %s: %r", len(stances), self.prompt_version,
+                 {s: stances.count(s) for s in set(stances) if s})
+        _, index = sentence_index(self._source(inp))
+        terms = ({"promo"} if inp.promo is not None else set()) | {o.promo_id for o in inp.offers}
+        res.output = from_relation(res.output, index, terms)
         res.output = as_given(res.output, self.catalog)  # D-389
         return res

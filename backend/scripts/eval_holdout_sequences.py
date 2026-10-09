@@ -29,7 +29,7 @@ from app.pipelines.runtime import create_session
 from app.pipelines.utterances import operator_switch
 from app.scheduler import AsyncScheduler
 from eval_expectations import expectation_checks
-from run_eval import _group, _same_value, load_cases, latency_line
+from eval_common import _group, _same_value, latency_line, load_cases
 
 
 class ReplayClock(ManualClock):
@@ -58,7 +58,7 @@ async def feed_turns(rt, turns: list[dict]) -> list:
 
 
 def alert_latencies(events: list[dict], transcript_id: str, speech_end_at: int) -> list[dict]:
-    """First active visibility per alert; provisional/dismissed chips are not red alerts.
+    """First active visibility per alert; a dismissed alert is not a red alert.
 
     Use event timestamps so a later correction cannot erase the original latency.
     None timestamps fall back to event time; zero is a valid timestamp.

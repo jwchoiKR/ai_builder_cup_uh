@@ -1,0 +1,16 @@
+{
+ "claims": [
+  {
+   "span": "it's a lightweight gel-cream, so just use a smaller amount on oily areas",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "usage",
+   "stated_value": "use a smaller amount on oily areas",
+   "evidence": [],
+   "source_value": "use a smaller amount on oily areas",
+   "relation": "consistent",
+   "correct_value": "use a smaller amount on oily areas",
+   "say": null
+  }
+ ]
+}

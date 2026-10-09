@@ -39,11 +39,11 @@ async def test_d314_the_judges_sampling(temperature, seed, sent):
 
 
 def test_d314_vertex_config_sends_them_only_when_set():
-    from app.models.agent_io import FactRelationOutput
+    from app.models.agent_io import FactRelationOutputV5
     from app.providers.llm import LLMRequest
 
     req = LLMRequest(agent="fact_checker", model="m", thinking_level="LOW", prompt_version="v", system_instruction="s",
-                     user_message="u", output_model=FactRelationOutput, deadline_ms=5000)
+                     user_message="u", output_model=FactRelationOutputV5, deadline_ms=5000)
     cfg = vertex_config(req, 5000, {})
     assert cfg.temperature is None and cfg.seed is None
     req.temperature, req.seed = 0.0, 7

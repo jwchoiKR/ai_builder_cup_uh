@@ -119,7 +119,7 @@ class Transcript(BaseModel):  # [sessions/{sid}/transcripts/{transcript_id}]
 class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     alert_id: str
     kind: Literal["compliance", "fact"]
-    status: Literal["provisional", "active", "corrected", "dismissed", "cleared"]
+    status: Literal["active", "corrected", "dismissed", "cleared"]  # D-410/D-435: no provisional state
     transcript_id: str
     product_id: str
     # compliance
@@ -127,12 +127,7 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     severity: Literal["HIGH", "MEDIUM"] | None = None
     span: str | None = None
     say_instead: str | None = None
-    unverified: bool = False
-    votes: int | None = None  # D-302 JUDGE_ARM=vote: the runs (of 3) that agreed
     evidence_ids: list[str] = []  # D-302: the relation arm's evidence sentence ids
-    heard_check: bool = False  # D-303: a fact note shown as "check what was said", not as a correction
-    # D-306: why an alert is unverified: the verifier's failure (http_504, client_timeout, http_429, other_error)
-    unverified_reason: str | None = None
     # fact
     field: str | None = None
     stated_value: str | None = None

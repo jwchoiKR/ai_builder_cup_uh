@@ -23,12 +23,9 @@ export interface HostCue {
   done_at?: number;
 }
 
+/** D-435: the kinds the host screen can get (the backend's question and point kinds never reach it) */
 export type PdCardKind =
-  | "answer_question"
-  | "read_question"
-  | "clarify_product"
   | "shout_out"
-  | "cover_point"
   | "promo"
   | "wrap_up"
   | "switch_product";
@@ -112,7 +109,7 @@ export interface Transcript {
   judged_text?: string | null;
 }
 
-export type AlertStatus = "provisional" | "active" | "corrected" | "dismissed" | "cleared";
+export type AlertStatus = "active" | "corrected" | "dismissed" | "cleared";  // D-410/D-435: no provisional state
 
 export interface Alert {
   alert_id: string;
@@ -124,11 +121,6 @@ export interface Alert {
   severity: "HIGH" | "MEDIUM" | null;
   span: string | null;
   say_instead: string | null;
-  unverified: boolean;
-  /** D-303: a fact note shown as "check what was said" (one misheard number), not a correction */
-  heard_check?: boolean;
-  /** D-306: why the alert is unverified (the verifier's failure: http_504, client_timeout, http_429, other_error) */
-  unverified_reason?: string | null;
   field: string | null;
   stated_value: string | null;
   correct_value: string | null;
@@ -155,6 +147,7 @@ export interface SessionMarket {
   tier: "live" | "preview";
   law_checks?: boolean; // D-228: false when no law pack covers the product's category
   category?: string;
+  retraction_phrase?: string; // D-436: the language pack's words for taking a red claim back
 }
 
 /** What the asker is told while their question has no posted reply; set by the server from the question's state. */
