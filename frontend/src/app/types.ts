@@ -23,12 +23,9 @@ export interface HostCue {
   done_at?: number;
 }
 
+/** D-435: the kinds the host screen can get (the backend's question and point kinds never reach it) */
 export type PdCardKind =
-  | "answer_question"
-  | "read_question"
-  | "clarify_product"
   | "shout_out"
-  | "cover_point"
   | "promo"
   | "wrap_up"
   | "switch_product";
