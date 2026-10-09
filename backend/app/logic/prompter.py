@@ -115,8 +115,12 @@ def prompter_items(catalog: Catalog, product_id: str, overrides: dict[str, list[
         value = catalog.money(promo.promo_prices[s.set_id] if promo_set else s.live_price)
         add(price, "set", f"set-{s.set_id}-{promo.promo_id}" if promo_set else f"set-{s.set_id}",
             f"Set {s.name}: {value}", label=s.short_name or s.name, value=value)
-    ingredients = p.ingredients or [Ingredient(key=k, name=_ingredient_name(k), amount=v.strip())
-                                    for k, v in p.key_facts.items() if AMOUNT.match(v.strip())]
+    # D-426: an onboarded product's ingredient keys can repeat (a name with no Latin letters slugs to "item"; two
+    # ingredients can share a name), so its item key carries the ingredient's position in the release, stable for the
+    # same release; the shipped demo's key_facts keys are unique already
+    ingredients = ([i.model_copy(update={"key": f"{n}-{i.key}"}) for n, i in enumerate(p.ingredients, 1)]
+                   or [Ingredient(key=k, name=_ingredient_name(k), amount=v.strip())
+                       for k, v in p.key_facts.items() if AMOUNT.match(v.strip())])
     for i in ingredients:
         add("Ingredients", "ingredient", f"ingredient-{i.key}", f"{i.name}: {i.amount}" if i.amount else i.name,
             name=i.name, value=i.amount)

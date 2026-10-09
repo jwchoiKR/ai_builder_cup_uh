@@ -64,6 +64,14 @@ describe("top bar", () => {
     expect(screen.getByTestId("host-point-cr-p1")).toHaveAttribute("data-state", "todo");
   });
 
+  it("D-426: before the start the host shows the first product's items from the server", () => {
+    render(view({ session: session({ status: "ready", started_at: null }), segments: [],
+      prompter: { product_id: null as unknown as string, segment_id: null, covered_point_ids: [], required_total: 0,
+        required_covered: 0, items: creamItems() } }));
+    expect(screen.getByTestId("host-ing-panthenol")).toHaveTextContent("5%Panthenol");
+    expect(screen.getByTestId("host-price-current")).toHaveTextContent("S$36.00");
+  });
+
   it("shows LIVE and End of run sheet on the last product", () => {
     render(view({ session: session({ started_at: now() - 5000 }), segments: [segment({ product_id: AMPOULE, started_at: now() - 1000 })] }));
     expect(within(screen.getByTestId("host-topbar")).getByText("LIVE")).toBeInTheDocument();
@@ -295,6 +303,12 @@ describe("fact note", () => {
     expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-alert-kind")).toHaveTextContent("Product info");
     expect(translate("ko", "Regulation")).toBe("법규");
     expect(translate("ko", "Product info")).toBe("제품 정보");
+  });
+
+  it("D-426: a note with a blank say and a blank value shows no say line", () => {
+    render(view({ alerts: [{ ...fx, say: " ", correct_value: "" }] }));
+    expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
+    expect(screen.queryByTestId("host-fact-right")).toBeNull();
   });
 
   it("stays until corrected (D-402: no hide timer)", () => {
@@ -1032,6 +1046,23 @@ describe("verifier wait (D-306)", () => {
 });
 
 describe("D-332: UI QA", () => {
+  it("D-426: a verdict that cites an item id ticks it: the sale price and a name-only ingredient", () => {
+    const water = { id: "DL-CR-01#prompter#ingredient-4-water", key: "ingredient-4-water", product_id: CREAM,
+      section: "Ingredients", kind: "ingredient" as const, text: "Water", name: "Water", value: "" };
+    const s = snapshot({
+      session: session({ active_promo_id: "promo_time_sale_10", promo_started_at: T0,
+        active_promos: [{ promo_id: "promo_time_sale_10", started_at: T0, ends_at: T0 + 600_000 }] }),
+      segments: [segment({ ticked_item_ids: ["DL-CR-01#prompter#sale-price-promo_time_sale_10",
+        "DL-CR-01#prompter#ingredient-4-water"] })],
+      prompter: { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: [], required_total: 2,
+        required_covered: 0, items: [...creamItems(true), water] } });
+    render(<HostView state={{ ...reduceSnapshot(s, "host", Date.now()), serverOffsetMs: 0 }} catalog={cat}
+      connection="connected" theme="dark" actions={actions()} />);
+    expect(screen.getByTestId("host-price-current")).toHaveAttribute("data-state", "said");
+    expect(screen.getByTestId("host-ing-4-water")).toHaveAttribute("data-state", "said");
+    expect(screen.getByTestId("host-ing-panthenol")).toHaveAttribute("data-state", "todo");
+  });
+
   it("D-423: shows every item the server lists: every caution (no toggle), every set, an ingredient by name only", () => {
     const many = Array.from({ length: 7 }, (_, i) => `Caution number ${i + 1}.`);
     const items = [...creamItems(false, many),
