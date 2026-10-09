@@ -56,7 +56,7 @@ def product_pack(base: DataPack, info: dict, key: str) -> DataPack:
     product = Product(product_id=product_id, code=product_id, name=name, short_name=name, eyebrow=brand, tagline="",
                       doc="", volume="", list_price=list_price, live_price=float(live), hero_badge="", aliases=[name],
                       key_facts={}, prompter_points=points, approved_claims=[p.text for p in points],
-                      not_approved_claims=[])
+                      not_approved_claims=[], stt_terms=info.get("stt_terms") or [])
     passages = [Passage(passage_id=f"{product_id}#key-facts#live-price", product_id=product_id, doc="", section="Key facts",
                         text=f"Live broadcast price: {sym}{float(live):.2f}"),
                 Passage(passage_id=f"{product_id}#key-facts#list-price", product_id=product_id, doc="", section="Key facts",
