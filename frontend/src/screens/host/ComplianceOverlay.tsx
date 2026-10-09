@@ -19,6 +19,7 @@ export function ComplianceOverlay({
   serverOffsetMs,
   onRendered,
   more = 0,
+  retraction = "",
 }: {
   view: HighAlertView;
   /** D-177: within RED_BLOCK_MS of the alert: highlighted (a repeat is a new alert, so it highlights again) */
@@ -28,6 +29,8 @@ export function ComplianceOverlay({
   onRendered: (alertId: string) => void;
   /** D-402: active alerts the stack does not show (on the last box shown) */
   more?: number;
+  /** D-436: the language pack's retraction phrase, said before say_instead */
+  retraction?: string;
 }) {
   const t = useT();
   const { alert, position, total } = view;
@@ -60,8 +63,8 @@ export function ComplianceOverlay({
         )}
         <AlertMore n={more} />
       </div>
-      <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
-      <span className={styles.alertSay}>“{alert.say_instead}”</span>
+      <span className={styles.alertSayLabel}>{t("Take it back, then say:")}</span>
+      <span className={styles.alertSay}>“{[retraction, alert.say_instead].filter(Boolean).join(" ")}”</span>
       <div className={styles.alertMeta}>
         <span className={styles.statusDot} aria-hidden />
         {t("Waiting for your correction")}

@@ -251,7 +251,8 @@ export function HostView({
       // D-407: the ring marks only the newest red, within RED_BLOCK_MS of its own creation
       <ComplianceOverlay key={b.view.alert.alert_id} view={b.view}
         fresh={b.view.position === 1 && now - b.view.alert.created_at < RED_BLOCK_MS}
-        catalog={catalog} serverOffsetMs={state.serverOffsetMs} onRendered={actions.rendered} more={more} />
+        catalog={catalog} serverOffsetMs={state.serverOffsetMs} onRendered={actions.rendered} more={more}
+        retraction={state.market?.retraction_phrase} />
     ) : b.kind === "fact" ? (
       <FactNote key={b.alert.alert_id} alert={b.alert} catalog={catalog} onRendered={actions.rendered} count={b.count}
         more={more} />

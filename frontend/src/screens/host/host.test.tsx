@@ -347,7 +347,7 @@ describe("compliance", () => {
     const overlay = within(screen.getByTestId("host-prompter")).getAllByTestId("host-compliance-overlay")[0];
     expect(screen.queryByTestId("host-point-cr-p1")).toBeNull(); // the product info gives way, nothing else moves
     expect(overlay).toHaveTextContent("Regulation");
-    expect(overlay).toHaveTextContent("Say this instead.");
+    expect(overlay).toHaveTextContent("Take it back, then say:");
     expect(overlay).toHaveTextContent("Helps keep skin hydrated for up to 24 hours in our in-house test.");
     expect(overlay).toHaveTextContent('Heard: "your wrinkles will disappear overnight"');
     expect(overlay).toHaveTextContent("Prevents, reduces or reverses physiological changes of ageing · Appendix III §3");
@@ -355,6 +355,17 @@ describe("compliance", () => {
     expect(screen.getAllByTestId("host-overlay-count").map((c) => c.textContent)).toEqual(["1 of 2", "2 of 2"]);
     expect(screen.queryByTestId("host-unverified")).toBeNull();
     expect(acts.rendered).toHaveBeenCalledWith("al_000002");
+  });
+
+  it("D-436: the red box puts the language pack's retraction phrase before say_instead", () => {
+    const market = { market: "SG", name: "Singapore", lang: "en", tier: "live" as const,
+      retraction_phrase: "Sorry, I take that back." };
+    const { rerender } = render(view({ market, alerts: [alert({ say_instead: "Helps relieve the feeling of dryness." })] }));
+    expect(screen.getByTestId("host-compliance-overlay")).toHaveTextContent(
+      "Take it back, then say:“Sorry, I take that back. Helps relieve the feeling of dryness.”");
+    rerender(view({ market, alerts: [alert({ say_instead: "" })] }));  // no say_instead: the phrase alone
+    expect(screen.getByTestId("host-compliance-overlay")).toHaveTextContent(
+      "Take it back, then say:“Sorry, I take that back.”");
   });
 
   it("unverified alert shows the AI check unavailable badge", () => {
@@ -752,7 +763,7 @@ describe("settings and screen language (D-109)", () => {
       render(view({ alerts: [alert()] }));
       expect(screen.getByText("프롬프터")).toBeInTheDocument();
       const overlay = screen.getByTestId("host-compliance-overlay");
-      expect(overlay).toHaveTextContent("이렇게 말하세요.");
+      expect(overlay).toHaveTextContent("먼저 철회하고, 이렇게 말하세요:");
       expect(overlay).toHaveTextContent("“Helps keep skin hydrated for up to 24 hours in our in-house test.”");
     } finally {
       act(() => setLang("en"));

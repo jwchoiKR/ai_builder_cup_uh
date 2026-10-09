@@ -1616,7 +1616,9 @@ async def dismiss_alert(rt: "SessionRuntime", aid: str) -> None:
 async def correction_cue(rt: "SessionRuntime", aid: str) -> HostCue:
     async with rt.lock:
         a = await _alert_or_404(rt, aid)
-        text = f"Correct now: say '{a.say_instead}'" if a.kind == "compliance" else f"Say: {a.correct_value}"
+        # D-436: a red claim is taken back first: the language pack's retraction phrase, then say_instead
+        say = " ".join(x for x in (rt.pack.lang_pack.retraction_phrase, a.say_instead or "") if x)
+        text = f"Take it back, then say: '{say}'" if a.kind == "compliance" else f"Say: {a.correct_value}"
         cue = await set_cue_locked(rt, text, None)
         await rt.emit("operator.action", {"actor": "operator", "action": "alert_cue", "alert_id": aid, "at": rt.now()})
         return cue
