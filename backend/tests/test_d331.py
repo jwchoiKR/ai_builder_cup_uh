@@ -51,7 +51,7 @@ async def test_d331_only_the_host_s_own_facts_alert(stance, relation, alerts, ca
         [fact] = [r for r in llm.requests if r.agent == "fact_checker"]
         assert issubclass(fact.output_model, FactRelationOutputV5)
         assert "adding `stance` must not add claims" in fact.system_instruction
-        assert any(f"fact claims 1 fact_relation_v5_v1: {{'{stance}': 1}}" in r.getMessage() for r in caplog.records)
+        assert any(f"fact claims 1 fact_relation_v5_v2: {{'{stance}': 1}}" in r.getMessage() for r in caplog.records)
     finally:
         await close_env(rt)
 
