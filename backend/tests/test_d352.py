@@ -88,6 +88,6 @@ async def test_d357_the_re_check_fires_although_the_line_s_own_verdict_has_not_c
     import logging
 
     with caplog.at_level(logging.INFO):
-        alerts, llm = await _run(_HandleBackend(), CORRECTION_HANDLES=True)
+        alerts, llm = await _run(_HandleBackend())
     assert [a.status for a in alerts] == ["corrected"] and llm.sorry_calls == 2
     assert "re-check trigger" in caplog.text and "-> fired" in caplog.text

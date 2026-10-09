@@ -3,7 +3,6 @@
 (originals) path always works this way. Made-up lines; the judge's answers are scripted as raw production JSON."""
 from __future__ import annotations
 
-import pytest
 
 import logging
 
@@ -43,9 +42,7 @@ async def _show(answer_checks, caplog, handles=True):
     else:
         out["correction"] = {"corrects_alert_ids": answer_checks}
     llm.outputs[("compliance_judge", FIX)] = out
-    # D-434: the production path always uses handles; the id-list answer is the legacy rules path's
-    settings = {} if handles else {"CORRECTION_HANDLES": False}
-    rt = await live_runtime(make_ctx(backend=llm, CORRECTION_CHECK="judge", **settings))
+    rt = await live_runtime(make_ctx(backend=llm, CORRECTION_CHECK="judge"))  # D-358: always by handle
     try:
         with caplog.at_level(logging.INFO):
             await speak(rt, CLAIM)
@@ -70,10 +67,3 @@ async def test_d356_not_fixed_or_an_unknown_handle_corrects_nothing(caplog):
                        caplog)
     assert a.status == "active"
     assert "unknown handles dropped: ['A9']" in caplog.text
-
-
-@pytest.mark.legacy_live  # D-434: an id-list answer exists only on the rules-JSON path (deleted with it, N4)
-async def test_d356_an_id_the_judge_was_not_shown_is_logged_when_dropped(caplog):
-    a, _ = await _show(["al_not_shown"], caplog, handles=False)
-    assert a.status == "active"
-    assert "correction ids dropped: not in ACTIVE_ALERTS: ['al_not_shown']" in caplog.text
