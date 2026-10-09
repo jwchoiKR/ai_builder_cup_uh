@@ -59,11 +59,11 @@ describe("screens", () => {
     );
   });
 
-  it("Studio renders the default preset and toggles recording mode; no demo console", async () => {
+  it("Studio renders the default preset, the demo console, and toggles recording mode", async () => {
     render(<Studio sessionId="ses_000001" />);
     expect(await screen.findByText("Host + Operator")).toBeInTheDocument();
     expect(screen.getAllByText("Host screen").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: /Demo console/ })).toBeNull();
+    expect(await screen.findByRole("button", { name: /Demo console/ })).toBeInTheDocument();
     act(() => {
       fireEvent.keyDown(window, { key: "r" });
     });
@@ -81,6 +81,46 @@ describe("screens", () => {
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute("href", "/?session=ses_000001");
     expect(screen.getAllByTestId("settings-button")).toHaveLength(1);
+  });
+
+  it("Demo console (D): a host line, a viewer comment and a pasted batch take the show's normal path", async () => {
+    for (const k of ["transcripts", "demo/comments"]) responses[`/api/sessions/ses_000001/${k}`] = { ok: true };
+    try {
+      render(<Studio sessionId="ses_000001" />);
+      fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
+      fireEvent.change(screen.getByTestId("console-line"), { target: { value: "It cures acne." } });
+      fireEvent.click(screen.getByTestId("console-inject"));
+      fireEvent.change(screen.getByTestId("console-comment"), { target: { value: "How much is it?" } });
+      fireEvent.click(await screen.findByTestId("console-post"));
+      fireEvent.change(screen.getByTestId("console-comments"), { target: { value: "Mina: Is it vegan?\nDoes it sting?" } });
+      fireEvent.click(await screen.findByTestId("console-burst"));
+      const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+      const body = (url: string) => calls.filter(([u]) => u === url).map(([, init]) => JSON.parse(String(init?.body)));
+      await waitFor(() => expect(body("/api/sessions/ses_000001/demo/comments")).toHaveLength(3));
+      expect(body("/api/sessions/ses_000001/transcripts")).toEqual([{ text: "It cures acne." }]);
+      expect(body("/api/sessions/ses_000001/demo/comments")).toEqual([{ author: "Viewer", text: "How much is it?" },
+        { author: "Mina", text: "Is it vegan?" }, { author: "Viewer", text: "Does it sting?" }]);
+    } finally {
+      for (const k of ["transcripts", "demo/comments"]) delete responses[`/api/sessions/ses_000001/${k}`];
+    }
+  });
+
+  it("Demo console: Write with AI fills the host script; nothing is injected until a line's Inject", async () => {
+    responses["/api/sessions/ses_000001/demo/generate"] = { lines: ["Welcome back, everyone.", "This cream is S$36 today."] };
+    try {
+      render(<Studio sessionId="ses_000001" />);
+      fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
+      fireEvent.change(screen.getByTestId("console-ai-instruction-host"), { target: { value: "one price line" } });
+      fireEvent.click(screen.getByTestId("console-ai-host"));
+      expect(await screen.findByTestId("console-line-2")).toBeInTheDocument();
+      expect(screen.getByTestId("console-script")).toHaveValue("Welcome back, everyone.\nThis cream is S$36 today.");
+      const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
+      const sent = calls.filter(([u]) => u === "/api/sessions/ses_000001/demo/generate").map(([, i]) => JSON.parse(String(i?.body)));
+      expect(sent).toEqual([{ kind: "host", count: 10, instruction: "one price line" }]);
+      expect(calls.some(([u]) => u === "/api/sessions/ses_000001/transcripts")).toBe(false);
+    } finally {
+      delete responses["/api/sessions/ses_000001/demo/generate"];
+    }
   });
 
   it("Hub links every screen", async () => {
