@@ -25,6 +25,8 @@
 .ok { border-color: var(--ok-border); }
 .warning { color: var(--risk-text); font-weight: var(--fw-semibold); margin: 0; }
 .blockTitle { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin: 0; display: flex; gap: var(--space-2); align-items: center; }
+.cardClose { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--radius-control); background: none; color: var(--text-3); cursor: pointer; }
+.cardClose:hover { color: var(--risk-text); background: var(--risk-bg); }
 .count { color: var(--text-3); font-weight: var(--fw-regular); }
 .value { font-size: var(--fs-14); white-space: pre-wrap; overflow-wrap: anywhere; }
 .summary { display: flex; flex-direction: column; gap: var(--space-2); }
