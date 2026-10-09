@@ -20,6 +20,8 @@ from ..models.session import Alert, HostCue, QuestionGroup, SwitchState, Transcr
 def current_product_json(catalog: Catalog, product_id: str) -> dict:
     p = catalog.get_product(product_id)
     out = {"product_id": p.product_id, "name": p.name, "short_name": p.short_name}
+    # D-448: the approved product's brand and category, when it has them
+    out |= {k: v for k, v in (("brand", p.brand), ("category", p.category)) if v}
     if p.target_group:  # D-256: who the product is for (a vulnerable group's rules apply to promises to them)
         out["target_group"] = p.target_group
     return out
@@ -51,7 +53,8 @@ def products_compact_json(catalog: Catalog) -> list[dict]:
 def run_sheet_compact_json(catalog: Catalog, on_air_product_id: str | None,
                            types: dict[str, str] | None = None) -> list[dict]:
     """The show's products in order with their status. D-351 (`types` given, SWITCH_MODE=immediate): also each
-    product's short name and type word, so the context judge can tell when the host names the next product."""
+    product's short name and type word, so the context judge can tell when the host names the next product. D-448:
+    the type word is the approved product's category ("serum ampoule") when `types` has none."""
     on_air = catalog.order.index(on_air_product_id) if on_air_product_id else -1
     out = []
     for i, pid in enumerate(catalog.order):
@@ -65,7 +68,8 @@ def run_sheet_compact_json(catalog: Catalog, on_air_product_id: str | None,
             status = "later"
         out.append({"order": catalog.runsheet_item(pid).order, "product_id": pid,
                     "name": catalog.get_product(pid).name, "status": status}
-                   | ({"short_name": catalog.get_product(pid).short_name, "type": types.get(pid) or None}
+                   | ({"short_name": catalog.get_product(pid).short_name,
+                       "type": types.get(pid) or catalog.get_product(pid).category or None}
                       if types is not None else {}))
     return out
 
