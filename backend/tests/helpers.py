@@ -54,3 +54,20 @@ def text_pdf(text: str) -> bytes:
     out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
     out += b"".join(b"%010d 00000 n \n" % x for x in offsets)
     return out + b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+
+
+def product_show(ctx: AppContext, info: dict, regulations: list[tuple[str, bytes]],
+                 product_id: str = "prd_000000000001", regulation_id: str = "reg_000000000001") -> str:
+    """A rebuilt-onboarding show without a bucket: the product's pack is built and cached on the context, and its
+    regulation PDFs registered for the compliance judge. Returns the release id to create the session with."""
+    from app.agents.originals import register_regulation
+    from app.logic.reflex import Reflex
+    from app.onboarding.product_show import product_pack, show_key
+
+    key = show_key(product_id, regulation_id)
+    market, lang = ctx.settings.MARKET, ctx.settings.BROADCAST_LANGUAGE
+    pack = product_pack(ctx.pack_for(market, lang)[0], info, key)
+    register_regulation(regulation_id, regulations)
+    ctx.retriever.replace_product(product_id, pack.passages)
+    ctx._packs[(market.upper(), lang, key)] = (pack, Reflex(pack.rules, pack.lexicon))
+    return key

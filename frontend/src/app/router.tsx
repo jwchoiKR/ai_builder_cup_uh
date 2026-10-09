@@ -1,18 +1,16 @@
-// Pathname routes (DEV_SPEC §12.1). Session from ?session=<sid>, else GET /api/demo/current.
+// Pathname routes (DEV_SPEC §12.1). The session is ?session=<sid>; the hub's Pick products starts one.
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 
 import { Host } from "../screens/Host";
 import { Hub } from "../screens/Hub";
 import { Onboarding } from "../screens/Onboarding";
-import { TestDrive } from "../screens/TestDrive";
 import { Operator } from "../screens/Operator";
-import { Setup } from "../screens/Setup";
 import { Studio } from "../screens/Studio";
 import { Summary } from "../screens/Summary";
 import { Viewer } from "../screens/Viewer";
 import { Button, PanelBoundary } from "../components";
 import styles from "../screens/screens.module.css";
-import { api, onStaleSession, userMessage } from "./api";
+import { onStaleSession } from "./api";
 import { useLang, useT } from "./i18n";
 import { navigate, useLocation, withSession, type ScreenProps } from "./nav";
 import { useTheme } from "./theme";
@@ -25,48 +23,18 @@ export const ROUTES: Record<string, ComponentType<ScreenProps>> = {
   "/host": Host,
   "/operator": Operator,
   "/viewer": Viewer,
-  "/setup": Setup,
   "/summary": Summary,
   "/onboarding": Onboarding,
-  "/testdrive": TestDrive,
 };
 
-export function useSessionId(): {
-  sessionId: string | null;
-  loading: boolean;
-  error: string | null;
-  setSessionId: (sid: string) => void;
-  refresh: () => void;
-} {
+export function useSessionId(): { sessionId: string | null; setSessionId: (sid: string) => void } {
   const { pathname, search } = useLocation();
-  const fromUrl = new URLSearchParams(search).get("session");
-  const [current, setCurrent] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [epoch, setEpoch] = useState(0);  // D-315: a bump fetches /demo/current again
-
-  useEffect(() => {
-    if (fromUrl) return;
-    let cancelled = false;
-    api.demoCurrent().then(
-      (s) => !cancelled && setCurrent(s.session_id),
-      (e) => !cancelled && setError(userMessage(e)),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [fromUrl, epoch]);
-
+  const sessionId = new URLSearchParams(search).get("session");
   const setSessionId = useCallback((sid: string) => navigate(withSession(pathname, sid)), [pathname]);
-  const refresh = useCallback(() => {
-    setCurrent(null);
-    setError(null);
-    setEpoch((e) => e + 1);
-  }, []);
-  const sessionId = fromUrl ?? current;
-  return { sessionId, loading: !sessionId && !error, error, setSessionId, refresh };
+  return { sessionId, setSessionId };
 }
 
-/** D-315: the show in the URL is gone (the server restarted). No raw error: say so, and start the current demo. */
+/** D-315: the show in the URL is gone (the server restarted). No raw error: say so, and send the user to the hub. */
 function SessionEnded({ onNew }: { onNew: () => void }) {
   const t = useT();
   const lang = useLang();
@@ -84,7 +52,7 @@ function SessionEnded({ onNew }: { onNew: () => void }) {
 
 export function App() {
   const { pathname } = useLocation();
-  const { sessionId, setSessionId, refresh } = useSessionId();
+  const { sessionId, setSessionId } = useSessionId();
   const [ended, setEnded] = useState(false);
   const current = useRef(sessionId);
   current.current = sessionId;
@@ -95,11 +63,10 @@ export function App() {
   }, []);
   const Screen = ROUTES[pathname.replace(/\/+$/, "") || "/"] ?? Hub;
   if (ended) {
-    // drop the stale id: without ?session the app takes /api/demo/current (the demo show, made if none is left)
+    // drop the stale id: the hub's Pick products starts a new show
     const onNew = () => {
       setEnded(false);
-      navigate(pathname, true);
-      refresh();
+      navigate("/", true);
     };
     return <SessionEnded onNew={onNew} />;
   }

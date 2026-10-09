@@ -52,18 +52,3 @@ async def _show(answer_checks, caplog, handles=True):
         return a, llm.fix_request
     finally:
         await close_env(rt)
-
-
-async def test_d356_a_handle_marked_fixed_corrects_its_alert(caplog):
-    a, req = await _show([{"handle": "A1", "fixed_by_this_line": True}], caplog)
-    assert a.status == "corrected"
-    assert '"handle":"A1"' in req.user_message and a.alert_id not in req.user_message  # no id is shown
-    assert '"status":"active"' in req.user_message
-    assert "compliance handles call=" in caplog.text and a.alert_id in caplog.text  # the map is logged
-
-
-async def test_d356_not_fixed_or_an_unknown_handle_corrects_nothing(caplog):
-    a, _ = await _show([{"handle": "A1", "fixed_by_this_line": False}, {"handle": "A9", "fixed_by_this_line": True}],
-                       caplog)
-    assert a.status == "active"
-    assert "unknown handles dropped: ['A9']" in caplog.text

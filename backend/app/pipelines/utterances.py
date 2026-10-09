@@ -133,7 +133,6 @@ class UtterancePipeline:
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_relation_v5"], rt.catalog)  # D-296; D-331
-        self.type_words = self._type_words()  # D-351
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
         self._amber: set[str] = set()
@@ -495,7 +494,7 @@ class UtterancePipeline:
                          cue=s.cue, previous=previous, points_by_product=rt.points or None,
                          session_id=rt.sid, scenario=scenario,
                          switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen,
-                         run_sheet_types=self.type_words, now=rt.now(),
+                         run_sheet_types={}, now=rt.now(),
                          chain=list(merge.chain) if merge and not merge.pair else [])
         # D-110: remember which verified answer was shown with each question, to bind a spoken-answer post
         offered: dict[str, Answer | None] = {}
@@ -519,18 +518,6 @@ class UtterancePipeline:
         for g in (chosen + rest)[:limit]:
             answer = await rt.get_answer(g.answer_id)
             out.append((g, answer.text if answer is not None and answer.verified else None))
-        return out
-
-    def _type_words(self) -> dict[str, str]:
-        """D-351: each release product's type word ("cream", "serum"), read from its approved release record."""
-        from ..onboarding.release import load_release
-
-        out = {}
-        for pid, rid in self.rt.pack.releases.items():
-            try:
-                out[pid] = load_release(self.rt.settings.onboarding_path, rid).generic_word or ""
-            except Exception:  # noqa: BLE001 - a missing word only leaves the run sheet without it
-                log.warning("no type word for %s (%s)", pid, rid)
         return out
 
     def _scoped(self, switch: SwitchState) -> SwitchState:

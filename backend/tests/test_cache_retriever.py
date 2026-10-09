@@ -38,33 +38,3 @@ def test_triage_normalisation():
 
 def test_tokenize_keeps_percent():
     assert tokenize("Niacinamide: 4%. S$36.00 price") == ["niacinamide", "4%", "s", "36.00", "price"]
-
-
-async def test_bm25_filters_by_product(pack):
-    r = LocalRetriever(pack.passages)
-    hits = await r.search("Hydra Barrier Cream Is it suitable for oily skin?", product_filter=CREAM, top_k=6, timeout_ms=500)
-    assert hits and all(h.product_id == CREAM for h in hits)
-    assert hits[0].passage_id == "DL-CR-01#frequently-asked-questions#is-it-suitable-for-oily-skin"
-    amp = await r.search("how much niacinamide", product_filter=AMPOULE, top_k=3, timeout_ms=500)
-    assert amp[0].passage_id.startswith("DL-AM-01#") and "niacinamide" in amp[0].passage_id
-    assert await r.search("anything", product_filter="nope", top_k=3, timeout_ms=500) == []
-
-
-async def test_prefetch_sections(pack):
-    r = LocalRetriever(pack.passages)
-    pre = await r.prefetch(CREAM)
-    assert {p.section for p in pre} == {"Key facts", "Key ingredients", "How to use", "Cautions", "In-house test results"}
-    assert all(p.product_id == CREAM for p in pre)
-
-
-async def test_a_how_to_use_question_always_gets_the_how_to_use_steps(pack):
-    """D-153 (00007 show replays): BM25 never ranked "Apply two to three drops ..." for "How many drops?", so
-    the composer answered nothing."""
-    from app.agents.answer_composer import gather_passages
-    from app.logic.catalog import Catalog
-
-    r = LocalRetriever(pack.passages)
-    for intent in ("how_to_use", "order_of_use"):
-        got = await gather_passages(r, Catalog(pack), {}, product_id=AMPOULE, intent=intent,
-                                    canonical_question="How many drops?", promo=None, top_k=6)
-        assert "DL-AM-01#how-to-use#steps" in {p.passage_id for p in got}

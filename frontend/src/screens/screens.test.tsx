@@ -59,107 +59,20 @@ describe("screens", () => {
     );
   });
 
-  it("Studio renders the default preset, toggles recording mode and the demo console", async () => {
+  it("Studio renders the default preset and toggles recording mode; no demo console", async () => {
     render(<Studio sessionId="ses_000001" />);
     expect(await screen.findByText("Host + Operator")).toBeInTheDocument();
     expect(screen.getAllByText("Host screen").length).toBeGreaterThan(0);
-    const handle = await screen.findByRole("button", { name: /Demo console/ });
-    fireEvent.click(handle);
-    expect(await screen.findByText("B1 Price questions")).toBeInTheDocument();
-    expect(await screen.findByText("Hi everyone, welcome to DAON LAB live!")).toBeInTheDocument();
-    expect(screen.getByText("Arm B5 Switch boundary")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Demo console/ })).toBeNull();
     act(() => {
       fireEvent.keyDown(window, { key: "r" });
     });
     expect(screen.queryByText("Host + Operator")).not.toBeInTheDocument(); // recording mode hides the chrome
-    expect(screen.queryByRole("button", { name: /Demo console/ })).not.toBeInTheDocument();
     act(() => {
       fireEvent.keyDown(window, { key: "R" });
     });
     fireEvent.click(screen.getByText("All three"));
     expect(screen.getAllByText("Viewer").length).toBeGreaterThan(0);
-  });
-
-  it("D-337: Hub's New demo session asks for a demo show, not the old run-sheet", async () => {
-    responses["/api/demo/sessions"] = { session_id: "ses_demo337" };
-    try {
-      render(<Hub sessionId="ses_000001" />);
-      fireEvent.click(screen.getByText("New demo session"));
-      const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
-      await waitFor(() => expect(calls.some(([u, init]) => u === "/api/demo/sessions" && init?.method === "POST")).toBe(true));
-      expect(calls.some(([u, init]) => u === "/api/sessions" && init?.method === "POST")).toBe(false);
-    } finally {
-      delete responses["/api/demo/sessions"];
-    }
-  });
-
-  it("D-337: a show with no demo feed shows no chatter or burst buttons", async () => {
-    const saved = demoFeed;
-    demoFeed = { pool_running: false, pool_available: false, armed: [], fired: [], bursts: [] };
-    try {
-      render(<Studio sessionId="ses_rel337" />);
-      fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
-      expect(await screen.findByText("No demo feed for this show.")).toBeInTheDocument();
-      expect(screen.queryByText("Start background chatter")).toBeNull();
-      expect(screen.queryByText("B1 Price questions")).toBeNull();
-    } finally {
-      demoFeed = saved;
-    }
-  });
-
-  it("D-375: Send sample questions fires the sample-questions burst", async () => {
-    const saved = demoFeed;
-    demoFeed = { pool_running: false, pool_available: true, armed: [], fired: [],
-      bursts: [{ burst_id: "B6_sample_questions", scene: "default", description: "", anchor: "trigger", count: 13 }] };
-    responses["/api/sessions/ses_d375/feed/burst/B6"] = { burst_id: "B6_sample_questions", status: "fired", feed: demoFeed };
-    try {
-      render(<Studio sessionId="ses_d375" />);
-      fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
-      fireEvent.click(await screen.findByText("Send sample questions"));
-      const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
-      await waitFor(() => expect(calls.some(([u, init]) => u === "/api/sessions/ses_d375/feed/burst/B6"
-        && init?.method === "POST")).toBe(true));
-    } finally {
-      demoFeed = saved;
-      delete responses["/api/sessions/ses_d375/feed/burst/B6"];
-    }
-  });
-
-  it("the open demo console resizes by keyboard, remembers its height, and survives a throwing storage", async () => {
-    window.localStorage.removeItem("ls.console.height");
-    const { unmount } = render(<Studio sessionId="ses_000001" />);
-    fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
-    const grip = await screen.findByTestId("console-grip");
-    fireEvent.keyDown(grip, { key: "ArrowUp" });
-    const saved = Number(window.localStorage.getItem("ls.console.height"));
-    expect(saved).toBeGreaterThanOrEqual(120);
-    expect(grip.parentElement).toHaveStyle({ height: `${saved}px` });
-    // collapsing leaves only the thin bar
-    fireEvent.click(screen.getByRole("button", { name: /Demo console/ }));
-    expect(screen.queryByTestId("console-grip")).toBeNull();
-    unmount();
-
-    // D-348: a console dragged tall earlier never squeezes the panes above below about half the window
-    window.localStorage.setItem("ls.console.height", "5000");
-    const tall = render(<Studio sessionId="ses_000001" />);
-    fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
-    const grip2 = await screen.findByTestId("console-grip");
-    expect(grip2.parentElement!.style.maxHeight).toBe(""); // the CSS cap (46vh) applies
-    fireEvent.keyDown(grip2, { key: "ArrowUp" });
-    expect(Number(window.localStorage.getItem("ls.console.height"))).toBe(Math.round(window.innerHeight * 0.46));
-    tall.unmount();
-
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error("blocked");
-    });
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("blocked");
-    });
-    render(<Studio sessionId="ses_000001" />);
-    fireEvent.click(await screen.findByRole("button", { name: /Demo console/ }));
-    fireEvent.keyDown(await screen.findByTestId("console-grip"), { key: "ArrowDown" });
-    expect(screen.getByTestId("console-grip")).toBeInTheDocument();
-    vi.restoreAllMocks();
   });
 
   it("Studio has one link back to the hub, in its header; the panes have none", async () => {
@@ -175,14 +88,14 @@ describe("screens", () => {
     for (const name of ["Onboard", "Pick products", "Host screen", "Operator", "Viewer", "Summary"]) {
       expect(screen.getByText(name)).toBeInTheDocument();
     }
-    expect(screen.getByText("New demo session")).toBeInTheDocument();
+    expect(screen.queryByText("New demo session")).toBeNull();
     expect(screen.getByText(/ses_000001/)).toBeInTheDocument();
   });
 
   it("D-332: Hub lists each product once, its latest version; older versions behind a toggle", async () => {
     const row = (v: number) => ({ release_id: `rel_lumen_serum_v${v}`, product_name: "Overnight Renewal Serum",
       brand: "Lumen", category: "skincare", markets: ["SG"], approved_at: 1790000000000 + v, version: v, brief: "done" });
-    responses["/api/onboarding/releases"] = [row(2), row(1)];
+    responses["/api/products/releases"] = [row(2), row(1)];
     try {
       render(<Hub sessionId="ses_000001" />);
       const open = await screen.findByTestId("hub-releases-open");
@@ -193,12 +106,12 @@ describe("screens", () => {
       fireEvent.click(screen.getByTestId("hub-releases-older"));
       expect(screen.getByTestId("hub-release-rel_lumen_serum_v1")).toHaveTextContent("older version");
     } finally {
-      delete responses["/api/onboarding/releases"];
+      delete responses["/api/products/releases"];
     }
   });
 
   it("D-264/D-315: Hub starts a show from a product card approved earlier", async () => {
-    responses["/api/onboarding/releases"] = [{ release_id: "rel_lumen_v2", product_name: "Night Serum", brand: "Lumen",
+    responses["/api/products/releases"] = [{ release_id: "rel_lumen_v2", product_name: "Night Serum", brand: "Lumen",
       category: "skincare", markets: ["SG"], approved_at: 1790000000000, version: 2, brief: "done" }];
     responses["/api/sessions"] = { session_id: "ses_rel" };
     try {
@@ -224,15 +137,15 @@ describe("screens", () => {
       await waitFor(() => expect(window.location.search).toContain("session=ses_rel"));
       expect(window.location.pathname).toBe("/host");
     } finally {
-      delete responses["/api/onboarding/releases"];
+      delete responses["/api/products/releases"];
       delete responses["/api/sessions"];
     }
   });
 
   it("D-279/D-315: Hub builds the line-up in the order picked, at most 3, and can remove or clear", async () => {
     const row = (id: string, name: string) => ({ release_id: id, product_name: name, brand: "Lumen", category: "skincare",
-      markets: ["SG"], approved_at: 1790000000000, version: 1, brief: id === "rel_b" ? "running" : "done" });
-    responses["/api/onboarding/releases"] = [row("rel_a", "Serum"), row("rel_b", "Ampoule"), row("rel_c", "Cream"),
+      markets: ["SG"], approved_at: 1790000000000, version: 1, brief: "done" });
+    responses["/api/products/releases"] = [row("rel_a", "Serum"), row("rel_b", "Ampoule"), row("rel_c", "Cream"),
       row("rel_d", "Toner")];
     responses["/api/sessions"] = { session_id: "ses_show" };
     try {
@@ -241,7 +154,6 @@ describe("screens", () => {
       for (const id of ["rel_c", "rel_a", "rel_b"]) fireEvent.click(await screen.findByTestId(`hub-release-${id}`));
       expect(screen.getByTestId("hub-lineup")).toHaveTextContent("1. Cream→ 2. Serum→ 3. Ampoule");
       expect(screen.getByTestId("hub-release-rel_d")).toBeDisabled();  // max 3
-      expect(screen.getByTestId("hub-brief-running")).toBeInTheDocument();  // a picked brief still runs
       fireEvent.click(screen.getByRole("button", { name: "Remove Serum" }));
       expect(screen.getByTestId("hub-lineup")).toHaveTextContent("1. Cream→ 2. Ampoule");
       fireEvent.click(screen.getByTestId("hub-card-operator"));  // a During-the-show card starts the show
@@ -252,13 +164,13 @@ describe("screens", () => {
       fireEvent.click(screen.getByTestId("hub-lineup-clear"));
       expect(screen.getByTestId("hub-lineup")).toHaveTextContent("No product picked yet.");
     } finally {
-      delete responses["/api/onboarding/releases"];
+      delete responses["/api/products/releases"];
       delete responses["/api/sessions"];
     }
   });
 
   it("D-319: the approved-products popover closes on Escape and on an outside click, focus back on its button", async () => {
-    responses["/api/onboarding/releases"] = [{ release_id: "rel_a", product_name: "Serum", brand: "Lumen",
+    responses["/api/products/releases"] = [{ release_id: "rel_a", product_name: "Serum", brand: "Lumen",
       category: "skincare", markets: ["SG"], approved_at: 1790000000000, version: 1, brief: "done" }];
     try {
       render(<Hub sessionId="ses_000001" />);
@@ -275,7 +187,7 @@ describe("screens", () => {
       fireEvent.pointerDown(document.body);
       expect(screen.queryByRole("dialog")).toBeNull();
     } finally {
-      delete responses["/api/onboarding/releases"];
+      delete responses["/api/products/releases"];
     }
   });
 

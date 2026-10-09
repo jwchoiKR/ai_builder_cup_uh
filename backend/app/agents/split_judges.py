@@ -153,7 +153,7 @@ class ComplianceJudge(_SplitJudge):
         if self._docs is None:
             from .originals import originals_for
 
-            self._docs = originals_for(self.catalog, self.llm.settings.onboarding_path, self.catalog.order)
+            self._docs = originals_for(self.catalog, self.catalog.order)
             if self._docs[1]:
                 log.warning("compliance originals missing for this show (not given to the judge): %s",
                             list(self._docs[1]))
