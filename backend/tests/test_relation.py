@@ -9,7 +9,7 @@ import re
 import pytest
 
 from app.agents.fact_checker import DROPS, from_relation, sentence_index
-from app.models.agent_io import FactRelationOutput
+from app.models.agent_io import FactRelationOutput, FactRelationOutputV5
 from app.models.data import Passage
 
 from .judge_fakes import CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
@@ -56,7 +56,8 @@ def test_d296_from_relation():
 
 
 class _RelationBackend(ScriptedBackend):
-    """The fact checker answers in the relation shape, citing the sentence that holds the live price."""
+    """The fact checker answers in raw production JSON (v5 relation shape, D-434), citing the prompter snapshot's
+    live price sentence."""
 
     def __init__(self, relation: str = "contradicts") -> None:
         super().__init__()
@@ -68,10 +69,10 @@ class _RelationBackend(ScriptedBackend):
         from app.providers.llm import RawReply
 
         self.requests.append(req)
-        m = re.search(r'\["(S\d+)",\s*"Live broadcast price', req.user_message)
+        m = re.search(r'\["(S\d+)",\s*"Live price: S\$36', req.user_message)
         claims = [] if m is None or "thirty-two" not in req.mock_primary_text else [{
-            "span": "thirty-two dollars", "product_id": CREAM, "field": "price", "stated_value": "S$32",
-            "evidence": [m.group(1)], "relation": self.relation,
+            "span": "thirty-two dollars", "stance": "HOST_ASSERTS", "product_id": CREAM, "field": "price",
+            "stated_value": "S$32", "evidence": [m.group(1)], "source_value": "S$36.00", "relation": self.relation,
             "correct_value": "S$36.00" if self.relation == "contradicts" else None}]
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
 
@@ -81,7 +82,7 @@ async def test_d296_the_relation_arm_end_to_end(relation, alerts):
     from .helpers import live_runtime, make_ctx
 
     llm = _RelationBackend(relation)
-    rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True))
+    rt = await live_runtime(make_ctx(backend=llm))  # D-434: the production fact checker (v5, prompter snapshot)
     try:
         await speak(rt, "It's only thirty-two dollars today.")
         await rt.utterances.drain()
@@ -90,7 +91,7 @@ async def test_d296_the_relation_arm_end_to_end(relation, alerts):
         if alerts:
             assert facts[0].correct_value == "S$36.00" and "S$36.00" in (facts[0].quote or "")
         req = llm.requests[0]
-        assert req.output_model is FactRelationOutput and "sentences" in req.user_message
+        assert issubclass(req.output_model, FactRelationOutputV5) and "sentences" in req.user_message
         assert "`evidence`" in req.system_instruction
     finally:
         await close_env(rt)
@@ -128,6 +129,7 @@ def _high(rule, span, kind=None, group=None):
             "say_instead": "x", "claim_kind": kind, "group": group}
 
 
+@pytest.mark.legacy_live  # D-434: the REL addendum and ComplianceOutputR are the rules-JSON path's (N4)
 async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():
     from app.agents.split_judges import ComplianceJudge
     from app.models.agent_io import ComplianceOutput, ComplianceOutputR
@@ -141,6 +143,3 @@ async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():
             assert j.output_model is model and (("`claim_kind`" in j.system_instruction) is on)
         finally:
             await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

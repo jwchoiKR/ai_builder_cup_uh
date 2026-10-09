@@ -18,6 +18,8 @@ SPLIT_PARTS = {"compliance_judge": (ComplianceOutput, ("compliance", "correction
                "context_judge": (ContextOutput, ("answer", "prompter"))}
 PRICE_PASSAGE = "DL-CR-01#key-facts#live-broadcast-price"
 PRICE_QUOTE = "Live broadcast price: S$36.00"
+# D-360/D-434: the production fact checker's evidence is the prompter snapshot
+PROMPTER_PRICE, PROMPTER_PRICE_TEXT = "DL-CR-01#prompter#live-price", "Live price: S$36.00"
 
 # D-434 (temporary, removed with the rules-JSON path): the demo market's original and the section an old rule id's
 # verdict cites on the production (originals) path. An id that is not here is refused, never guessed.

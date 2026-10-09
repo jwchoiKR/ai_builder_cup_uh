@@ -138,6 +138,3 @@ async def test_d398_a_merged_verdict_replaces_the_fragment_s_note():
         assert [a for a in await rt.alerts() if a.kind == "fact" and a.status == "active"] == []
     finally:
         await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

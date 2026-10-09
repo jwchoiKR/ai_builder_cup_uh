@@ -2958,3 +2958,8 @@ D-434 (user go 10/10; GPT, Gemini and the Sonnet critic: approve with changes): 
   - tests/judge_fakes.py gets a temporary adapter. On the production path, a scripted compliance verdict in the rules shape becomes a cited verdict: OLD_RULE_SECTIONS maps each old rule id to an Appendix III section, and an unmapped id is refused and fails the test (ADAPTER_ERRORS, checked in conftest). An old fact claim becomes a v5 claim, with evidence by the SOURCE sentence that holds its value. Both are validated by the request's own output model, and a part already in the production shape passes through.
   - rid()/cited() give the production rule id and citation.
   - Migrated: test_compliance_alerts, test_d309, test_d352 and test_d361 (raw production JSON by handle), test_d335, test_orchestrator_cases, test_pd, test_d305 (production defaults, raw v5 fact JSON), test_d306, and test_d356 (handles on the production path). Most of test_alerts, test_utterance_pipeline, test_utterance_concurrency, test_split_judges and test_multi_release migrated too; per-test `legacy_live` marks stay on the tests of N-code only: the MEDIUM and unknown-rule tests, JUDGE_MODE split/single, the id-list correction and the rules-path category scope.
+- B2 (facts):
+  - Migrated: test_facts, test_d364, test_d363, test_d331, test_d346, test_onboarding and test_eval_adversarial. Their evidence is now the prompter snapshot: "Live price: S$36.00" (DL-CR-01#prompter#live-price), and a running time sale's price item.
+  - test_relation's end-to-end case now uses raw v5 JSON.
+  - Eval run_case rows carry the cited rule id.
+  - Per-test `legacy_live` stays on test_d338's document-passage case (FACT_MODE docs, N10) and on test_relation's REL schema case (N4).

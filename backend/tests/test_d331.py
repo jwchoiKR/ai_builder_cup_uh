@@ -24,7 +24,7 @@ class _V5Backend(ScriptedBackend):
             return await super().generate(req, timeout_ms)
         from app.providers.llm import RawReply
 
-        sid = re.search(r'\["(S\d+)",\s*"Live broadcast price', req.user_message).group(1)
+        sid = re.search(r'\["(S\d+)",\s*"Live price: S\$36', req.user_message).group(1)  # the prompter snapshot
         claims = [] if "thirty-two" not in req.mock_primary_text else [{
             "span": "thirty-two dollars", "stance": self.stance, "product_id": CREAM, "field": "price",
             "stated_value": "S$32", "evidence": [sid], "source_value": "S$36.00", "relation": self.relation,
@@ -43,13 +43,13 @@ async def test_d331_only_the_host_s_own_facts_alert(stance, relation, alerts, ca
 
     caplog.set_level("INFO", logger="app.agents.fact_checker")
     llm = _V5Backend(stance, relation)
-    rt = await live_runtime(make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT="v5", JUDGE_ARM="single"))
+    rt = await live_runtime(make_ctx(backend=llm))  # D-434: the production defaults
     try:
         await speak(rt, "A viewer says it's thirty-two dollars.")
         await rt.utterances.drain()
         assert len([a for a in await rt.alerts() if a.kind == "fact"]) == alerts
         [fact] = [r for r in llm.requests if r.agent == "fact_checker"]
-        assert fact.output_model is FactRelationOutputV5
+        assert issubclass(fact.output_model, FactRelationOutputV5)
         assert "adding `stance` must not add claims" in fact.system_instruction
         assert any(f"fact claims 1 fact_relation_v5_v1: {{'{stance}': 1}}" in r.getMessage() for r in caplog.records)
     finally:
@@ -70,6 +70,3 @@ def test_d331_the_prompt_s_examples_carry_a_stance_on_every_claim():
     assert claims and all(claims)
     for stance in ("HOST_ASSERTS", "HOST_ENDORSES", "REPORTS_OR_ASKS"):
         assert f'"stance":"{stance}"' in examples
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
