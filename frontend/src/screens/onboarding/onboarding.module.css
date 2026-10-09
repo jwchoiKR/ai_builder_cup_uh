@@ -25,6 +25,8 @@
 .ok { border-color: var(--ok-border); }
 .warning { color: var(--risk-text); font-weight: var(--fw-semibold); margin: 0; }
 .blockTitle { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin: 0; display: flex; gap: var(--space-2); align-items: center; }
+.cardClose { margin-left: auto; width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--radius-control); background: none; color: var(--text-3); cursor: pointer; }
+.cardClose:hover { color: var(--risk-text); background: var(--risk-bg); }
 .count { color: var(--text-3); font-weight: var(--fw-regular); }
 .value { font-size: var(--fs-14); white-space: pre-wrap; overflow-wrap: anywhere; }
 .summary { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -34,7 +36,11 @@
 
 /* product and regulation side by side; stacked on narrow screens */
 .grid { display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-4); align-items: start; }
-@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+.gridEven { align-items: stretch; }
+.gridEven .drop { flex: 1; }
+/* one column: Add product stays under the products, above Regulations */
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } .grid > [data-testid="onb-regulation"] { order: 1; } }
+.column { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 
 .drop {
   display: flex;
@@ -107,7 +113,7 @@
 .point:hover .iconBtn, .iconBtn:focus-visible { opacity: 1; }
 .iconBtn:hover { color: var(--risk-text); background: var(--risk-bg); }
 .addLink {
-  align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-1);
+  align-self: flex-start; justify-self: start; display: inline-flex; align-items: center; gap: var(--space-1);
   border: 0; background: none; padding: 0; cursor: pointer; color: var(--accent); font: inherit; font-size: var(--fs-14);
 }
 .footer { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: var(--space-3); }
