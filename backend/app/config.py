@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # D-331 v5: the documents' value before the relation, endorsements of the previous line, and a stance per claim
     # (HOST_ASSERTS, HOST_ENDORSES, REPORTS_OR_ASKS): reported words not checked. D-432: v2-v4 and v6-v8 are deleted
     # (none was chosen); v1 stays for the tests that pin it
-    FACT_PROMPT: Literal["v1", "v5"] = "v5"  # D-336: the measured config
+    FACT_PROMPT: Literal["v5"] = "v5"  # D-336: the measured config; D-435: v1 (fact_relation.md) is gone
     # D-334 (the user's design): a final ending with "?" waits for the next final (QUESTION_HOLD_MS), and the two are
     # judged as one utterance by all three judges; with none, the question is judged alone. D-343: measured (pool 7 +
     # pairs: two-host lines 82.8% -> 96.6%, no one-host loss); D-435: always on (the QUESTION_HOLD switch is gone)

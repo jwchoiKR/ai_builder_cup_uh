@@ -1,6 +1,6 @@
 # Prompt: fact_relation_v5 (version fact_relation_v5_v2)
 
-Used by: `FactChecker` when `FACT_PROMPT=v5` (D-331). Same inputs as `fact_relation.md`.
+Used by: `FactChecker` (D-331; D-435: the only fact prompt).
 Output must validate against `FactRelationOutputV5`. `fact_relation_v3.md` (D-313) plus a `stance` per claim, decided
 right after `span`: only a fact the host asserts or endorses is checked; one the host only reports or asks is
 `not_checked`.

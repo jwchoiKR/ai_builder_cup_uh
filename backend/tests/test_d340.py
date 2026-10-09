@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.providers.llm import LLMError, LLMRequest
-from app.models.agent_io import FactRelationOutput
+from app.models.agent_io import FactRelationOutputV5
 
 from .judge_fakes import ScriptedBackend
 
@@ -37,7 +37,7 @@ async def test_d340_a_429_is_retried_once(settings, clock, ids, store, bus, back
     client = LLMClient(backend, settings.model_copy(update={"LLM_RETRY_ON_429_MS": backoff}), clock, ids,
                        StoreAudit(store, bus))
     req = LLMRequest(agent="fact_checker", model="m", thinking_level="LOW", prompt_version="v", system_instruction="s",
-                     user_message="u", output_model=FactRelationOutput, deadline_ms=deadline, hedge=False)
+                     user_message="u", output_model=FactRelationOutputV5, deadline_ms=deadline, hedge=False)
     res = await client.call(req)
     assert (res.status, backend.tries) == (status, tries)
 
@@ -50,6 +50,6 @@ async def test_d340_two_429s_are_not_retried_twice(settings, clock, ids, store, 
     client = LLMClient(backend, settings.model_copy(update={"LLM_RETRY_ON_429_MS": 20}), clock, ids,
                        StoreAudit(store, bus))
     req = LLMRequest(agent="fact_checker", model="m", thinking_level="LOW", prompt_version="v", system_instruction="s",
-                     user_message="u", output_model=FactRelationOutput, deadline_ms=5000, hedge=False)
+                     user_message="u", output_model=FactRelationOutputV5, deadline_ms=5000, hedge=False)
     res = await client.call(req)
     assert (res.status, res.meta.get("failure"), backend.tries) == ("error", "http_429", 2)

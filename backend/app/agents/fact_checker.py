@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
-from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutput, FactRelationOutputV5, with_note_checks,
+from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutputV5, with_note_checks,
                                with_same_as)
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
@@ -118,7 +118,7 @@ def sentence_index(passages: Sequence[Passage]) -> tuple[list[dict], dict[str, t
     return blocks, index
 
 
-def from_relation(out: FactRelationOutput, index: dict[str, tuple[Passage, str]], terms: set[str]) -> FactCheckOutput:
+def from_relation(out: FactRelationOutputV5, index: dict[str, tuple[Passage, str]], terms: set[str]) -> FactCheckOutput:
     """D-296: a relation verdict as a fact claim. `contradicts` is contradicted and `consistent` supported; the quote is
     the evidence sentences of the first cited passage, joined. A contradiction with no valid evidence id (a sentence,
     "promo" or a running offer's id) cannot alert; `uncertain` never alerts and is counted."""
@@ -183,8 +183,7 @@ class FactChecker:
         mode = getattr(settings, "FACT_MODE", "sheet")
         self.mode = mode
         # D-331: v5 adds a stance per claim (D-432: v2-v4 and v6-v8 are deleted)
-        self.relation_model = FactRelationOutputV5 if getattr(settings, "FACT_PROMPT", "v1") == "v5" \
-            else FactRelationOutput
+        self.relation_model = FactRelationOutputV5  # D-435: the v1 relation prompt is gone
         # D-296: the relation verdict cites file sentences by id (RD); D-435: the only fact checker (FD is gone)
         layers = {"record": ["FR"], "docs": ["FR", "RD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}

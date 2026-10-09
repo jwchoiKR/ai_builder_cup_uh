@@ -287,23 +287,6 @@ class FactCheckOutput(BaseModel):
 
 # ---- D-296: the evidence by sentence id, then the relation; code builds the quote ------------------
 
-FactRelation = Literal["contradicts", "consistent", "not_in_documents", "uncertain"]
-
-
-class FactRelationClaim(BaseModel):
-    span: str
-    product_id: str
-    field: FactField
-    stated_value: str
-    evidence: list[str]  # SOURCE sentence ids ("S12"), "promo", or an offer's promo_id
-    relation: FactRelation
-    correct_value: str | None
-
-
-class FactRelationOutput(BaseModel):
-    claims: list[FactRelationClaim]
-
-
 class FactRelationClaimV5(BaseModel):
     """D-331 FACT_PROMPT=v5: whose fact it is, decided right after the span; only the host's own (asserted or
     endorsed) facts are compared with the documents."""
@@ -312,7 +295,7 @@ class FactRelationClaimV5(BaseModel):
     product_id: str
     field: FactField
     stated_value: str
-    evidence: list[str]
+    evidence: list[str]  # SOURCE sentence ids ("S12"), "promo", or an offer's promo_id
     source_value: str | None
     relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
     correct_value: str | None

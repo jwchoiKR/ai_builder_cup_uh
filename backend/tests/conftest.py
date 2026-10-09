@@ -42,7 +42,7 @@ os.environ.setdefault("STT_PROVIDER", "mock")
 # `legacy_live` until it is migrated. Temporary: test_d434 fails when a file outside LEGACY_LIVE_FILES uses it.
 LEGACY_LIVE = {
     "VERBAL_CHECK": "code",
-    "UTTERANCE_MERGE_WINDOW_MS": "3500", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash",
+    "UTTERANCE_MERGE_WINDOW_MS": "3500", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash",
     "SINGLE_THINKING": "LOW", "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT",
     "FACT_MODE": "docs", "QUESTION_HOLD_MS": "0",  # D-435: no question hold (was QUESTION_HOLD=false)
 }
@@ -59,7 +59,7 @@ LEGACY = LEGACY_LIVE | COMMENT_PINS
 SHIPPED = {k: Settings.model_fields[k].default for k in LEGACY}
 # D-336: the verifier arm as it shipped from D-305 to D-335 (the default is now the single arm)
 # D-392: the verify arm is gone; these shipped-default tests run the single arm
-VERIFY_SHIPPED = SHIPPED | {"FACT_PROMPT": "v1", "JUDGE_SEED": "",
+VERIFY_SHIPPED = SHIPPED | {"JUDGE_SEED": "",
                             "FACT_MODE": "docs", "SINGLE_THINKING": "MEDIUM"}  # D-360: as it shipped
 
 _REPO = Path(__file__).resolve().parents[2]
