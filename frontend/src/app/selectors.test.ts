@@ -87,7 +87,7 @@ describe("alerts", () => {
           alert({ alert_id: "al_2", shown_at: T0 + 2000 }),
           alert({ alert_id: "al_3", severity: "MEDIUM", rule_id: "BRAND-SUPERLATIVE" }),
           alert({ alert_id: "al_4", status: "corrected" }),
-          alert({ alert_id: "al_5", status: "provisional" }),
+          alert({ alert_id: "al_5", status: "cleared" }),
         ],
       }),
       "host",

@@ -119,7 +119,7 @@ class Transcript(BaseModel):  # [sessions/{sid}/transcripts/{transcript_id}]
 class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     alert_id: str
     kind: Literal["compliance", "fact"]
-    status: Literal["provisional", "active", "corrected", "dismissed", "cleared"]
+    status: Literal["active", "corrected", "dismissed", "cleared"]  # D-410/D-435: no provisional state
     transcript_id: str
     product_id: str
     # compliance
