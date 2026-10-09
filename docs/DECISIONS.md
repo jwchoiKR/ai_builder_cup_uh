@@ -2970,3 +2970,9 @@ D-434 (user go 10/10; GPT, Gemini and the Sonnet critic: approve with changes): 
 - B4 (the rest):
   - Migrated: test_publish (a violation in a spoken answer blocks the post: now a cited section, not the brand rule), test_clean_base, test_d304 (VERBAL_CHECK, measured without the hold model) and test_design_arms (arm F2: the product file is in the compliance prefix after the regulation originals).
   - Every file now runs the production path. Per-test `legacy_live` stays only on tests of N-code: N1, N2, N4, N5 and N10, plus the demo script on tests/fixtures/llm, which is recorded in the rules shape and gets re-recorded with N3.
+
+D-435 (user go 10/10; the D-434 plan): the N-code, now that its tests run the production path, goes one commit per item. N11 (DESIGN_ARM) and N13 (MEDIUM display) stay out of this round. N1 and N2 (the rules-JSON compliance path, JUDGE_MODE split/single) wait until eval_verbal_post.py (the comments team's eval) stops using eval_agents.run.
+- N12 STT arms:
+  - Deleted: STT_RISK_HINTS (risk_phrases, with_risk_phrases), STT_HINTS=record (record_terms and its name regexes) and STT_HINT_BOOST.
+  - The stream's hints are the base glossary under chirp_3's 500 cap, which was the cap with_risk_phrases also applied. phrases_for_release keeps its `mode` argument for the eval's --mode base.
+  - Tests: the risk-hint and record/boost tests are gone; test_d327 keeps the production eval-hook case.
