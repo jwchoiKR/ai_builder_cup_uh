@@ -41,6 +41,13 @@ def test_d434_the_tests_default_live_path_is_production_s():
     assert (prod.STT_ENDPOINTING, prod.DESIGN_ARM) == ("STANDARD", "A")
 
 
+def test_d434_the_deploy_sets_only_settings_the_code_reads():
+    """D-435: a setting deleted from the code is deleted from the deploy script too."""
+    script = (REPO / "deploy" / "cloudrun.sh").read_text(encoding="utf-8")
+    [env] = re.findall(r'--set-env-vars="([^"]+)"', script)
+    assert [k for k in (i.split("=", 1)[0] for i in env.split(",")) if k not in Settings.model_fields] == []
+
+
 def test_d434_no_live_path_setting_comes_from_the_environment_or_a_dotenv():
     assert not {k for k in LIVE_PATH_KEYS if k in os.environ}
     assert Settings.model_config.get("env_file") is None
