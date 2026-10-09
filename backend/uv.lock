@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.12.*"
 
 [[package]]
@@ -330,6 +330,23 @@ wheels = [
 ]
 
 [[package]]
+name = "google-cloud-discoveryengine"
+version = "0.20.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpc-google-iam-v1" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/67/a6/b3fd926fc79b4e02d9bda3ff30b764abe17a100c3a39e934f0d519bbaf76/google_cloud_discoveryengine-0.20.5.tar.gz", hash = "sha256:cd78028180f32a43aa586ab97d0074949f6326ad46b41058a773b2baa9f525d8", size = 3991015, upload-time = "2026-10-01T18:16:16.9Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/12/002adb43105aee5c45907a23f09bdac9f4f77b26b43323abc8ac202f901a/google_cloud_discoveryengine-0.20.5-py3-none-any.whl", hash = "sha256:0d4072845f02100e0244ac0c69f6ac5d68f561793d7c3bd5dee2c93d3090a368", size = 3711486, upload-time = "2026-10-01T18:09:56.619Z" },
+]
+
+[[package]]
 name = "google-cloud-firestore"
 version = "2.34.0"
 source = { registry = "https://pypi.org/simple" }
@@ -453,6 +470,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/65/b9/6b29500a1c581ff4d77fd83c6568d068bee06f1b139fb6eb0a4f2d4bce8a/googleapis_common_protos-1.75.5-py3-none-any.whl", hash = "sha256:d7285525c23039db98f2463e6d5a4f9b958b94d497f03a844ece3259c4e72d5d", size = 307737, upload-time = "2026-09-29T19:25:48.735Z" },
 ]
 
+[package.optional-dependencies]
+grpc = [
+    { name = "grpcio" },
+]
+
 [[package]]
 name = "graphviz"
 version = "0.21"
@@ -460,6 +482,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f8/b3/3ac91e9be6b761a4b30d66ff165e54439dcd48b83f4e20d644867215f6ca/graphviz-0.21.tar.gz", hash = "sha256:20743e7183be82aaaa8ad6c93f8893c923bd6658a04c32ee115edb3c8a835f78", size = 200434, upload-time = "2025-06-15T09:35:05.824Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/91/4c/e0ce1ef95d4000ebc1c11801f9b944fa5910ecc15b5e351865763d8657f8/graphviz-0.21-py3-none-any.whl", hash = "sha256:54f33de9f4f911d7e84e4191749cac8cc5653f815b06738c54db9a15ab8b1e42", size = 47300, upload-time = "2025-06-15T09:35:04.433Z" },
+]
+
+[[package]]
+name = "grpc-google-iam-v1"
+version = "0.14.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "googleapis-common-protos", extra = ["grpc"] },
+    { name = "grpcio" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d2/d0/fa5bdd5f3f421bb68dc6dc162e9caaf942897ca41ce7255b524723c80f0b/grpc_google_iam_v1-0.14.5.tar.gz", hash = "sha256:07fd3a9fafb586588e771831fbfc8f6597050181d0c3b45e039d18b8fdc1aab5", size = 23736, upload-time = "2026-08-06T06:24:54.489Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/ab/be3ad0d46cffe35fd1e7cc3f9947edd6cb3c552229de3be2742f15f7ea47/grpc_google_iam_v1-0.14.5-py3-none-any.whl", hash = "sha256:0f5e680b20aa0a9441e68c769da04d94d70fca4e43751a82d8abb8aa6a7181ca", size = 32674, upload-time = "2026-08-06T06:23:49.467Z" },
 ]
 
 [[package]]
@@ -613,6 +649,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "google-adk" },
+    { name = "google-cloud-discoveryengine" },
     { name = "google-cloud-firestore" },
     { name = "google-cloud-speech" },
     { name = "google-cloud-storage" },
@@ -639,6 +676,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.133,<0.142" },
     { name = "google-adk", specifier = ">=2.11,<2.12" },
+    { name = "google-cloud-discoveryengine", specifier = ">=0.20.5" },
     { name = "google-cloud-firestore", specifier = ">=2.34.0" },
     { name = "google-cloud-speech", specifier = ">=2.37" },
     { name = "google-cloud-storage", specifier = ">=2.19" },

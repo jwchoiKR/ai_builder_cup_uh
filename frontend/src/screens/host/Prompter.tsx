@@ -1,8 +1,7 @@
 // Prompter card (§12.3.3, D-091, D-106): the on-air product's information for the host to refer to.
-// One fixed box with three columns (price and offers | ingredients | points to say) and two guard
-// blocks (caution | avoid saying), as in the earlier prototype. Facts already said turn grey; the price
-// never does. Compliance alerts take this same box while they are active, so nothing else moves.
-import { Ban, Check, ListChecks, TriangleAlert } from "lucide-react";
+// One fixed box with two columns (price and offers | points to say); ingredients, cautions and wording to avoid are
+// no longer shown (user, 10/10). Facts already said turn grey; the price never does. Compliance alerts take this same box while they are active, so nothing else moves.
+import { Check, ListChecks } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import { useT, type Translate } from "../../app/i18n";
@@ -138,7 +137,6 @@ export function Prompter({
             </div>
           ) : product ? (
             <ProductPanel
-              product={product}
               items={view.items}
               points={view.points}
               ticked={view.ticked}
@@ -157,13 +155,11 @@ export function Prompter({
 }
 
 function ProductPanel({
-  product,
   items,
   points,
   ticked,
   late,
 }: {
-  product: Product;
   /** D-423: the server's item list for this product, rendered as is: nothing chosen or cut here */
   items: PrompterItem[];
   points: PrompterPointRow[];
@@ -207,22 +203,6 @@ function ProductPanel({
           ))}
         </div>
         <div>
-          <h4 className={styles.factsLabel}>{t("Ingredients")}</h4>
-          <div className={styles.nums}>
-            {of("ingredient").map((i) => (
-              <div key={i.id} className={cx(styles.num, said(i) && styles.said)}
-                data-testid={`host-ing-${i.key.replace(/^ingredient-/, "")}`} data-state={state(i)}>
-                {/* an ingredient without an amount shows its name only */}
-                {i.value ? <b className="tabular">{i.value}</b> : null}
-                <span>
-                  {mark(said(i))}
-                  {i.name}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div>
           <h4 className={styles.factsLabel}>{t("Points to say")}</h4>
           <ul className={styles.points}>
             {rows.map((p) => (
@@ -242,37 +222,6 @@ function ProductPanel({
             ))}
           </ul>
         </div>
-      </div>
-      <div className={styles.guards}>
-        <div className={cx(styles.guard, styles.guardCare)} data-testid="host-cautions">
-          <h5>
-            <TriangleAlert aria-hidden />
-            {t("Caution")}
-          </h5>
-          {/* D-423 (user): every caution; the host never clicks */}
-          {of("caution").map((i) => (
-            <p key={i.id} className={cx(said(i) && styles.said)} data-testid={`host-${i.key}`} data-state={state(i)}>
-              {mark(said(i))}
-              {i.text}
-            </p>
-          ))}
-        </div>
-        {/* D-348: no heading over an empty list */}
-        {(product.avoid_saying ?? []).length > 0 && (
-          <div className={cx(styles.guard, styles.guardAvoid)} data-testid="host-avoid">
-            <h5>
-              <Ban aria-hidden />
-              {t("Avoid saying")}
-            </h5>
-            {product.avoid_saying!.map((a) => (
-              <p key={a.say_not}>
-                <span className={styles.avoidNo}>✕ {a.say_not}</span>
-                <span className={styles.avoidTo}>→</span>
-                <b>{a.say}</b>
-              </p>
-            ))}
-          </div>
-        )}
       </div>
     </>
   );

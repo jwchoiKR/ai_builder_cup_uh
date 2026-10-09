@@ -157,7 +157,7 @@ def _optional_routers() -> list[APIRouter]:
     import importlib
 
     out = []
-    for name in ("setup", "summary", "onboarding", "testdrive"):
+    for name in ("setup", "summary", "onboarding", "testdrive", "products", "regulations"):
         try:
             out.append(importlib.import_module(f"app.api.{name}").router)
         except ModuleNotFoundError as e:

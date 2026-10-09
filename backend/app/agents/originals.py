@@ -105,6 +105,13 @@ def _pack_files(source_id: str, root: Path) -> list[Original]:
 
 
 _FOUND: dict[tuple, tuple[Original, ...]] = {}  # (source, root) -> its originals; a miss is never kept (D-360)
+# rebuilt onboarding: a show's uploaded regulation PDFs by regulation id (onboarding/product_show.py)
+_REGULATIONS: dict[str, list[Original]] = {}  # ponytail: one entry per regulation for the process's life
+
+
+def register_regulation(regulation_id: str, pdfs: list[tuple[str, bytes]]) -> None:
+    _REGULATIONS[regulation_id] = [Original(name, name, regulation_id, data, "application/pdf", _text(name, data))
+                                   for name, data in pdfs]
 
 
 def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, ...]]:
@@ -116,7 +123,7 @@ def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, .
         key = (sid, title, file, root)
         docs = _FOUND.get(key)
         if docs is None:
-            got = _local(sid, title, file) or _pack_files(sid, Path(root))
+            got = _REGULATIONS.get(sid) or _local(sid, title, file) or _pack_files(sid, Path(root))
             # D-367 (user): regulation originals are PDF only; any other file is never sent and marks the source missing
             other = [d.name for d in got if d is not None and d.mime != "application/pdf"]
             if other:
