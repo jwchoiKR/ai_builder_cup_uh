@@ -41,7 +41,7 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
       { path: "/viewer", title: "Viewer", icon: Smartphone, who: "What viewers see",
         text: "Live video, product strip and chat with fact-checked AI answers." },
       { path: "/studio", title: "Combined view", icon: LayoutGrid, who: "Screens side by side", wide: true,
-        text: "Host + Operator, Host + Viewer or all three on one screen." },
+        text: "Host, Operator and Viewer side by side: turn each one on or off." },
     ],
   },
   {
