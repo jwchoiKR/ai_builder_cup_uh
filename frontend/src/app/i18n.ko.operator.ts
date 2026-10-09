@@ -3,7 +3,6 @@
 // promo text, rule titles and policy references never go through t().
 export const KO_OPERATOR: Record<string, string> = {
   // question desk: three lists, one status chip per row, the reason in plain words
-  "Drafting a reply…": "답변 작성 중…",
   "Viewer questions that need a person. Check the suggested reply, edit it if you want, and post.":
     "사람의 확인이 필요한 시청자 질문입니다. 추천 답변을 확인하고, 필요하면 고쳐서 게시하세요.",
   "To do": "처리할 질문",
@@ -151,7 +150,7 @@ export const KO_OPERATOR: Record<string, string> = {
   All: "전체",
   "Reply": "답글",
   "Write a reply…": "답글을 입력하세요…",
-  "A suggestion is being written. You can type your own reply now.": "추천 답변을 작성 중입니다. 직접 입력하셔도 됩니다.",
+  "You can type your own reply now.": "직접 입력하셔도 됩니다.",
   "Post (Ctrl+Enter)": "게시 (Ctrl+Enter)",
   "Back to the suggestion": "추천 답변으로 되돌리기",
   "Posts the suggested reply as it is": "추천 답변을 그대로 게시합니다",
