@@ -48,7 +48,6 @@ class Settings(BaseSettings):
     # D-353 addendum (user, 10/8): back to "code": spoken-answer posting belongs to the comments team (out of scope)
     VERBAL_CHECK: Literal["code", "judge"] = "code"  # judge: numbers said and hedges from the context judge (arm B's)
     COMMENT_PRODUCT: Literal["code", "triage"] = "code"  # D-308: back;  # triage: the comment's product from triage, no alias rules
-    DRAFT_GATE: Literal["full", "provenance"] = "full"  # D-308: back;  # provenance: citations, products and numbers only
     GROUP_JOIN: Literal["code", "model"] = "code"  # D-308: back;  # model: no only-open-group or stem joins
     SHOUTOUT: Literal["regex", "judge"] = "regex"  # D-308: back;  # judge: triage labels shout-outs (arm B's)
     # D-331 v5: the documents' value before the relation, endorsements of the previous line, and a stance per claim
@@ -136,9 +135,6 @@ class Settings(BaseSettings):
     TRIAGE_MAX_BATCH: int = 10  # start value, tune with burst tests (PLANNING 5.1.2)
     TRIAGE_BATCH_TIMEOUT_MS: int = 5000  # one call for up to TRIAGE_MAX_BATCH comments; start value
     COMPOSER_TIMEOUT_MS: int = 12000
-    DRAFT_VERIFY_TIMEOUT_MS: int = 8000  # D-126: LLM check after verify_answer; slower or failing: unverified
-    # the draft verifier is the last look before a reply is posted by itself: it thinks (empty = LLM_FAST_THINKING)
-    DRAFT_VERIFY_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "MEDIUM"
     SUMMARY_TIMEOUT_MS: int = 30000
     MARKET: str = "SG"  # D-129: data/markets/<code>.json (law)
     BROADCAST_LANGUAGE: str = "en"  # D-129: data/lang/<code>.json (wording); must be offered by MARKET
@@ -181,22 +177,14 @@ class Settings(BaseSettings):
     COMMENT_RATE_LIMIT_PER_AUTHOR_PER_MIN: int = 10
     MAX_COMMENT_CHARS: int = 300
     AUTO_ANSWER_ENABLED: bool = True
-    # a price or size question the record settles is answered by code, with no LLM draft (logic/record_answers)
     # Routing has two outcomes: triage says whether a person must approve the reply; a question that needs none and
     # gets a verified draft is posted, everything else waits for the host or the operator. The intent is a label
-    # (record answers, retrieval), and decides the route only when triage did not say (intents.json).
+    # (retrieval), and decides the route only when triage did not say (intents.json).
     # Questions are not grouped by meaning: only a comment that repeats a member's own words joins a group, and every
     # other question gets its own reply and its own row (hold-out runs: grouping by meaning merged different questions).
-    RECORD_ANSWERS: bool = True
-    # the wording of a record answer by the ReplyPhraser (the value stays the record's; code checks its numbers);
-    # off, or on any failure, the plain sentence code wrote is posted
-    RECORD_PHRASING: bool = True
-    # a grounded draft the code gate rejects is written once more with the gate's reasons
-    COMPOSER_REVISE: bool = True
     # a group whose draft failed because the composer's model call failed is drafted again this many times
     COMPOSE_RETRIES: int = 1
     COMPOSE_RETRY_AFTER_MS: int = 5000
-    RECORD_PHRASING_TIMEOUT_MS: int = 3000
     # who settles a sensitive question (pregnancy, a condition, an allergy, an age limit, an efficacy claim), always
     # with a suggested reply. both: the host's card and the operator's review list at once; the host saying the
     # reply or the operator approving it posts it, whichever comes first. host: the host's card only (D-113).

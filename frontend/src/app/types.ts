@@ -214,7 +214,7 @@ export interface QuestionGroup {
   approval_reason?: string | null;
   status: GroupStatus;
   answer_id: string | null;
-  compose_step?: "evidence" | "writing" | "checking" | null; // shown only while status is composing
+  compose_step?: "evidence" | "writing" | null; // shown only while status is composing
   host_slot: "none" | "on_host";
   on_host_since: number | null;
   pinned_by_operator_at: number | null;

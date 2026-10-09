@@ -118,7 +118,7 @@ class Sorter(MockBackend):
 
 async def ended_show(tmp_path, reply, **settings):
     backend = Sorter(tmp_path, reply)
-    ctx = make_ctx(backend=backend, RECORD_ANSWERS=True, **settings)
+    ctx = make_ctx(backend=backend, **settings)
     rt = await live_runtime(ctx)
     await say(rt, "Lee", "How much is the cream?")
     await say(rt, "Mei", "cream price?")

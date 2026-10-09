@@ -497,8 +497,6 @@ class LLMClient:
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
         facts_thinking = getattr(settings, "SINGLE_FACTS_THINKING", "") or strong_thinking  # D-311
         self.facts = ModelSpec(settings.FACTS_MODEL or strong, facts_thinking)  # D-246; D-309
-        self.draft_verify = ModelSpec(settings.LLM_FAST_MODEL,
-                                      getattr(settings, "DRAFT_VERIFY_THINKING", "") or settings.LLM_FAST_THINKING)
         self.triage = ModelSpec(getattr(settings, "TRIAGE_MODEL", "") or settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
         # the fast model at its own thinking level, when the triage model fails or is too slow
         self.triage_fallback = ModelSpec(settings.LLM_FAST_MODEL,

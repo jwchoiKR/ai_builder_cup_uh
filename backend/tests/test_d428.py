@@ -80,7 +80,7 @@ async def test_d428_deleting_a_session_leaves_other_sessions_in_the_shared_datab
 
 
 async def show(fake, **settings):
-    ctx = make_ctx(STORE="firestore", GCP_PROJECT="p", RECORD_ANSWERS=True, firestore_client=fake, **settings)
+    ctx = make_ctx(STORE="firestore", GCP_PROJECT="p", firestore_client=fake, **settings)
     return ctx, await live_runtime(ctx)
 
 

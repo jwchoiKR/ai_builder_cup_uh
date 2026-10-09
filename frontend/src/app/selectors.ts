@@ -483,7 +483,6 @@ export function hostSlots(state: ClientState): HostSlotView[] {
 const DRAFT_STEPS = {
   evidence: "Finding evidence…",
   writing: "Writing the reply…",
-  checking: "Checking the reply…",
 } as const;
 
 /** Which step a draft is in while it is being written (the server's compose_step). */
