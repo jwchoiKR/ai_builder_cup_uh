@@ -101,7 +101,6 @@ export const KO_HOST: Record<string, string> = {
   "Reload panel": "패널 다시 불러오기",
   "AI PD card": "AI PD 카드",
   Answer: "답변하기",
-  "Say this point": "이 포인트 말하기",
   Promo: "프로모션",
   "Wrap up": "마무리",
   "Next product": "다음 제품",

@@ -693,11 +693,11 @@ describe("AI PD card", () => {
 
   it("renders below CueStrip in team mode when both operator cue and AI PD card are active", () => {
     const cue = { cue_id: "cue_op_1", text: "Operator direction here", preset_id: null, created_at: now(), status: "active" as const, done_by_transcript_id: null };
-    const card = pdCard({ card_id: "card_ai_4", kind: "cover_point", say: "Ceramide NP 1%, panthenol 5%, squalane 3%." });
+    const card = pdCard({ card_id: "card_ai_4", kind: "shout_out", say: "Ceramide NP 1%, panthenol 5%, squalane 3%." });
     render(view({ session: session({ cue, pd_card: card }) }));
     expect(screen.getByTestId("host-cue")).toHaveTextContent("Operator direction here");
     expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
-    expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Say this point");
+    expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Shout-out");
     expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Ceramide NP 1%, panthenol 5%, squalane 3%.");
   });
 
