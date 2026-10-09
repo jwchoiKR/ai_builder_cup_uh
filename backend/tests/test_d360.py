@@ -55,7 +55,7 @@ async def _facts_alerts(line: str, **settings):
 
     llm = _Facts()
     rt = await live_runtime(make_ctx(backend=llm, FACT_MODE="prompter", FACT_RELATION=True, FACT_PROMPT="v5",
-                                     JUDGE_ARM="single", **settings))
+                                     **settings))
     try:
         await speak(rt, line)
         await rt.utterances.drain()
@@ -79,8 +79,7 @@ async def test_d360_the_previous_product_s_snapshot_is_there_in_the_dual_scope()
     from .helpers import live_runtime, make_ctx
 
     llm = _Facts()
-    rt = await live_runtime(make_ctx(backend=llm, FACT_MODE="prompter", FACT_RELATION=True, FACT_PROMPT="v5",
-                                     JUDGE_ARM="single"))
+    rt = await live_runtime(make_ctx(backend=llm, FACT_MODE="prompter", FACT_RELATION=True, FACT_PROMPT="v5"))
     try:
         move = "Okay, moving on, let me show you the ampoule."
         llm.judge(move, utterance_type="transition", transition=True, target=AMPOULE, confidence="high", named=True)

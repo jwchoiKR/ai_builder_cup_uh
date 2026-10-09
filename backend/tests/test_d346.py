@@ -58,7 +58,7 @@ async def _show(tmp_path, cite: str):
     llm = _Backend(cite)
     llm.judge(LINE, violations=[violation("ASEAN-2D-DISEASE", "cures eczema")])
     ctx = make_ctx(backend=llm, ONBOARDING_DIR=str(tmp_path), FACT_MODE="docs", FACT_RELATION=True,
-                   FACT_PROMPT="v5", JUDGE_ARM="single")
+                   FACT_PROMPT="v5")
     s = await create_session(ctx, "", release_id=rid)
     rt = await ctx.runtimes.get(s.session_id)
     await rt.start()

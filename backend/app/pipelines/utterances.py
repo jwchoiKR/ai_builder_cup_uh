@@ -373,10 +373,8 @@ class UtterancePipeline:
                 inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch, inp.promo)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
-                comp_task = rt.spawn(self._once_more(
-                    lambda: self.compliance.run(inp, deadline_ms=(rt.settings.VERIFY_TIMEOUT_MS  # D-309: the strong
-                                                                  if rt.settings.JUDGE_ARM == "single"  # model's 5 s
-                                                                  else rt.settings.JUDGE_TIMEOUT_MS), values=values)),
+                comp_task = rt.spawn(self._once_more(  # D-309: the compliance judge's 5 s
+                    lambda: self.compliance.run(inp, deadline_ms=rt.settings.VERIFY_TIMEOUT_MS, values=values)),
                     name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self._context_once_more(inp, values), name=f"context:{t.transcript_id}")
             else:
@@ -878,9 +876,7 @@ class UtterancePipeline:
             text = self._prepared[t.transcript_id][1] if t.transcript_id in self._prepared else t.text
             inp = JudgeInput(utterance=text, on_air=seg.product_id if seg else a.product_id, active_alerts=[a],
                              previous=[alert_line] if alert_line else [], session_id=rt.sid)
-        res = await self.compliance.run(inp, deadline_ms=(rt.settings.VERIFY_TIMEOUT_MS
-                                                          if rt.settings.JUDGE_ARM == "single"
-                                                          else rt.settings.JUDGE_TIMEOUT_MS))
+        res = await self.compliance.run(inp, deadline_ms=rt.settings.VERIFY_TIMEOUT_MS)
         listed = res.output.correction.corrects_alert_ids if res.status == "ok" and res.output is not None else []
         log.info("correction %s re-check: alert=%s t=%s status=%s listed=%s", rt.sid, alert_id, t.transcript_id,
                  res.status, alert_id in listed)
