@@ -125,18 +125,11 @@ def build_context(
         if not allowed:
             raise ValueError(f"JUDGE_MODE={settings.JUDGE_MODE} reads the rule JSON; production runs split3 only "
                              "(D-358)")
-    if settings.ONBOARDING_GCS_BUCKET:  # D-263: the bucket is the source of truth for onboarding state
-        from .onboarding import storage
-
-        storage.configure(settings.onboarding_path, storage.bucket_for(settings.ONBOARDING_GCS_BUCKET,
-                                                                       settings.GCP_PROJECT))
     pack = DataPack.load(settings.data_path, settings.MARKET, settings.BROADCAST_LANGUAGE)
     prompts = load_prompts(settings.prompts_path, BUILDERS)
     store = make_store(settings, firestore_client=firestore_client)
     bus = EventBus(store, clock)
     llm = LLMClient(llm_backend or make_backend(settings), settings, clock, ids, StoreAudit(store, bus))
-    if settings.RETRIEVER != "local":
-        raise NotImplementedError("RETRIEVER=vertex_search is implemented in phase P6; use RETRIEVER=local")
     ctx = AppContext(
         settings=settings, clock=clock, ids=ids, pack=pack, prompts=prompts, store=store, bus=bus, llm=llm,
         scheduler=scheduler or AsyncScheduler(clock), retriever=LocalRetriever(pack.passages),

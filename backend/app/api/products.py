@@ -30,7 +30,7 @@ from ..providers.llm import LLMRequest
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/products")
 READ_DEADLINE_MS = 300_000
-READ_THINKING = "MEDIUM"  # the read's own level (ONBOARDING_THINKING stays HIGH for the old onboarding)
+READ_THINKING = "MEDIUM"
 
 READ_PROMPT = """You read a seller's document about one product (any language, any layout) for a live shopping show.
 Return what the show's screens and the host's prompter need, as JSON:

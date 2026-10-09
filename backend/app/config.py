@@ -25,19 +25,9 @@ class Settings(BaseSettings):
 
     APP_ENV: Literal["local", "cloud"] = "local"
     DATA_DIR: str = "../data"
-    ONBOARDING_DIR: str = "../data/onboarding"  # D-217: uploaded product files, immutable, git-ignored
-    # D-263: the bucket that holds onboarding state in the cloud (uploads, releases, packs); empty = local disk only
+    # the rebuilt onboarding's bucket: product PDFs, their reads and approvals, regulation PDFs, releases
     ONBOARDING_GCS_BUCKET: str = ""
-    # D-267: the offline onboarding reads (product, law and brand packs); gemini-3.1-pro-preview is the Pro arm
-    ONBOARDING_MODEL: str = "gemini-3.8-flash"
-    ONBOARDING_THINKING: ThinkingLevel = "HIGH"
-    # D-267: the caution pass, routing, category pick and coverage audit; empty = ONBOARDING_MODEL, and their own
-    # thinking levels (MEDIUM; LOW for the category pick)
-    ONBOARDING_PASS_MODEL: str = ""
-    ONBOARDING_PASS_THINKING: str = ""
-    # D-274 arm: "show" puts every caution and direction into the show's language and merges repeats by meaning
-    ONBOARDING_CAUTION_LANG: Literal["as_written", "show"] = "as_written"
-    VERIFY_MODE: Literal["full", "risk", "lean"] = "lean"  # D-254 lean: risk, at most 10 items; D-263 default  # D-236: what a person checks before approving a product
+    ONBOARDING_MODEL: str = "gemini-3.8-flash"  # the product read (one call per PDF)
     PREFILTER: Literal["full", "pii_only"] = "full"  # D-308: back until measured
     # D-280: the fixes that are prompt lines in prompts/design_arms.md (F1, F5 for the fact checker). D-432: the code
     # text checks of the other letters are deleted; Q6's compliance line went with the legacy compliance addenda
@@ -79,10 +69,6 @@ class Settings(BaseSettings):
     # D-428: an ended session leaves memory this long after its summary is written; STORE=firestore keeps it and reads
     # it back when it is opened. 0 keeps every session in memory.
     SESSION_EVICT_AFTER_SEC: int = 900
-    # D-428: the comments team's second Firestore writer was merged into STORE=firestore. D-430: true runs as
-    # STORE=firestore (one warning), so there is still one writer; false changes nothing
-    SESSIONS_FIRESTORE: bool = False
-    RETRIEVER: Literal["local", "vertex_search"] = "local"
     LLM_PROVIDER: Literal["vertex", "mock"] = "vertex"
     STT_PROVIDER: Literal["google_v2", "mock"] = "google_v2"
     GCP_PROJECT: str = ""
@@ -153,15 +139,6 @@ class Settings(BaseSettings):
     DRAFT_VERIFY_TIMEOUT_MS: int = 8000  # D-126: LLM check after verify_answer; slower or failing: unverified
     # the draft verifier is the last look before a reply is posted by itself: it thinks (empty = LLM_FAST_THINKING)
     DRAFT_VERIFY_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "MEDIUM"
-    BRIEF_TIMEOUT_MS: int = 60000
-    BRIEF_MODEL: str = ""  # D-265: the BriefAgent's model; empty = LLM_QUALITY_MODEL
-    BRIEF_THINKING: ThinkingLevel = "MEDIUM"  # D-265: MEDIUM (today) vs HIGH, measured on the sealed releases
-    # D-269 arm: "terms" gives the brief every offer term with its id and one point per offer up to 240 characters;
-    # D-272: "code" (default after the blind grading) builds the offer points from the record, after the model's
-    BRIEF_OFFERS: Literal["sheet", "terms", "code"] = "code"
-    # D-276 arm: "code" gives every record caution (and every safety direction) a required point, worded by the model
-    # only when the meaning survives
-    BRIEF_CAUTIONS: Literal["model", "code"] = "model"
     SUMMARY_TIMEOUT_MS: int = 30000
     MARKET: str = "SG"  # D-129: data/markets/<code>.json (law)
     BROADCAST_LANGUAGE: str = "en"  # D-129: data/lang/<code>.json (wording); must be offered by MARKET
@@ -172,13 +149,11 @@ class Settings(BaseSettings):
     STT_LANGUAGE: str = ""  # empty: the market pack's code for BROADCAST_LANGUAGE (D-129)
     STT_PHRASE_HINTS_ENABLED: bool = True
     VERTEX_SEARCH_LOCATION: str = "global"
-    VERTEX_SEARCH_DATA_STORE_ID: str = ""
     # evidence of viewer-question answers: "vertex_search" searches the Vertex AI Search app below for every product
-    # question (record answers off too); the live fact checker keeps RETRIEVER
+    # question (record answers off too); the live fact checker reads the prompter snapshot
     ANSWER_RETRIEVER: Literal["local", "vertex_search"] = "local"
     VERTEX_SEARCH_ENGINE_ID: str = ""
     VERTEX_SEARCH_GCS_BUCKET: str = ""  # an approved product's original files are copied here (the data store's source)
-    GCS_BUCKET: str = ""
     COMPLIANCE_ESCALATE_SEC: int = 5
     CORRECTED_TOAST_MS: int = 1500
     PUBLISH_CANCEL_WINDOW_MS: int = 2000
@@ -243,12 +218,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _check(self) -> "Settings":
-        if self.SESSIONS_FIRESTORE:  # D-430: never stops the server
-            import logging
-
-            logging.getLogger(__name__).warning(
-                "SESSIONS_FIRESTORE is merged into STORE=firestore (D-428); using STORE=firestore")
-            self.STORE = "firestore"
         # §5: DEMO_TOOLS_ENABLED MUST be false in `cloud` unless explicitly set.
         if self.APP_ENV == "cloud" and "DEMO_TOOLS_ENABLED" not in self.model_fields_set:
             self.DEMO_TOOLS_ENABLED = False
@@ -256,10 +225,8 @@ class Settings(BaseSettings):
             raise ValueError(
                 "GCP_PROJECT is required when a Google provider is used "
                 f"(LLM_PROVIDER={self.LLM_PROVIDER}, STT_PROVIDER={self.STT_PROVIDER}, "
-                f"STORE={self.STORE}, RETRIEVER={self.RETRIEVER})"
+                f"STORE={self.STORE}, ANSWER_RETRIEVER={self.ANSWER_RETRIEVER})"
             )
-        if self.RETRIEVER == "vertex_search" and not self.VERTEX_SEARCH_DATA_STORE_ID:
-            raise ValueError("VERTEX_SEARCH_DATA_STORE_ID is required when RETRIEVER=vertex_search")
         if self.ANSWER_RETRIEVER == "vertex_search" and not self.VERTEX_SEARCH_ENGINE_ID:
             raise ValueError("VERTEX_SEARCH_ENGINE_ID is required when ANSWER_RETRIEVER=vertex_search")
         return self
@@ -269,17 +236,12 @@ class Settings(BaseSettings):
             self.LLM_PROVIDER == "vertex"
             or self.STT_PROVIDER == "google_v2"
             or self.STORE == "firestore"
-            or self.RETRIEVER == "vertex_search"
             or self.ANSWER_RETRIEVER == "vertex_search"
         )
 
     @property
     def data_path(self) -> Path:
         return _resolve(self.DATA_DIR)
-
-    @property
-    def onboarding_path(self) -> Path:
-        return _resolve(self.ONBOARDING_DIR)
 
     @property
     def prompts_path(self) -> Path:

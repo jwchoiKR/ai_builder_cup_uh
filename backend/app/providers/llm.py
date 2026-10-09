@@ -503,7 +503,6 @@ class LLMClient:
         # the fast model at its own thinking level, when the triage model fails or is too slow
         self.triage_fallback = ModelSpec(settings.LLM_FAST_MODEL,
                                          getattr(settings, "TRIAGE_FALLBACK_THINKING", settings.TRIAGE_THINKING))
-        self.brief = ModelSpec(settings.BRIEF_MODEL or settings.LLM_QUALITY_MODEL, settings.BRIEF_THINKING)  # D-265
         self.warmup_status: dict[str, str] = {}
         # D-184: per agent, calls that sent a second request, and how many of those the second one answered
         self.hedges: dict[str, dict[str, int]] = {}
