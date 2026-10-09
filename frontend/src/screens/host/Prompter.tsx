@@ -1,7 +1,7 @@
 // Prompter card (§12.3.3, D-091, D-106): the on-air product's information for the host to refer to.
 // One fixed box with two columns (price and offers | points to say); ingredients, cautions and wording to avoid are
 // no longer shown (user, 10/10). Facts already said turn grey; the price never does. Compliance alerts take this same box while they are active, so nothing else moves.
-import { Check, ListChecks } from "lucide-react";
+import { Check, ListChecks, Star } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import { useT, type Translate } from "../../app/i18n";
@@ -208,14 +208,14 @@ function ProductPanel({
             {rows.map((p) => (
               <li
                 key={p.point_id}
-                className={cx(styles.point, p === lead && styles.leadPoint, p === lead && late && styles.leadLate,
+                className={cx(styles.point, p.required && styles.requiredPoint, p === lead && styles.leadPoint, p === lead && late && styles.leadLate,
                   p.covered && styles.said)}
                 data-testid={`host-point-${p.point_id}`}
                 data-state={p.covered ? "said" : "todo"}
                 data-late={p === lead && late ? "true" : undefined}
               >
                 <span className={styles.pointIcon} aria-label={p.covered ? t("Said") : undefined}>
-                  {p.covered ? <Check /> : <span className={styles.bullet} />}
+                  {p.covered ? <Check /> : p.required ? <Star /> : <span className={styles.bullet} />}
                 </span>
                 <span>{p.text}</span>
               </li>
