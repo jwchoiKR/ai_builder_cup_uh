@@ -123,8 +123,8 @@ export const api = {
   assignProduct: (sid: string, gid: string, productId: string) =>
     post(`${s(sid)}/groups/${id(gid)}/assign-product`, { product_id: productId }),
   approve: (sid: string, gid: string) => post(`${s(sid)}/groups/${id(gid)}/approve`),
-  answer: (sid: string, gid: string, text: string, origin: AnswerOrigin, confirm = false) =>
-    post(`${s(sid)}/groups/${id(gid)}/answer`, { text, origin, confirm }),
+  answer: (sid: string, gid: string, text: string, origin: AnswerOrigin) =>
+    post(`${s(sid)}/groups/${id(gid)}/answer`, { text, origin }),
   postSuggested: (sid: string, gid: string) => post(`${s(sid)}/groups/${id(gid)}/post-suggested`),
   reject: (sid: string, gid: string) => post(`${s(sid)}/groups/${id(gid)}/reject`),
   cancelMessage: (sid: string, mid: string) => post(`${s(sid)}/messages/${id(mid)}/cancel`),

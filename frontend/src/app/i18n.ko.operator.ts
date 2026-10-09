@@ -155,9 +155,9 @@ export const KO_OPERATOR: Record<string, string> = {
   "Post (Ctrl+Enter)": "게시 (Ctrl+Enter)",
   "Back to the suggestion": "추천 답변으로 되돌리기",
   "Posts the suggested reply as it is": "추천 답변을 그대로 게시합니다",
-  "Edited: checked again when you post": "수정됨: 게시할 때 다시 확인합니다",
-  "Not verified: checked again when you post": "검증되지 않음: 게시할 때 다시 확인합니다",
-  "Your own reply: checked when you post": "직접 작성: 게시할 때 확인합니다",
+  "Edited: posts as it is, not checked": "수정됨: 확인 없이 그대로 게시합니다",
+  "Not verified: posts as it is, not checked": "검증되지 않음: 확인 없이 그대로 게시합니다",
+  "Your own reply: posts as it is, not checked": "직접 작성: 확인 없이 그대로 게시합니다",
   "1 viewer reports a stream problem": "시청자 1명이 방송 문제를 알림",
   "{n} viewers report a stream problem": "시청자 {n}명이 방송 문제를 알림",
   Answered: "답변 완료",
@@ -196,7 +196,6 @@ export const KO_OPERATOR: Record<string, string> = {
   "A host answer is being posted": "진행자 답변을 게시하는 중입니다",
   "Only a verified draft can be approved": "검증된 초안만 승인할 수 있습니다",
   "Choose…": "선택…",
-  "Post anyway": "그래도 게시",
   Post: "게시",
 
   // question intents (intentLabel)
