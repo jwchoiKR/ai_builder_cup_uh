@@ -96,6 +96,10 @@ export const api = {
   burst: (sid: string, burstId: string) => post<BurstResult>(`${s(sid)}/feed/burst/${id(burstId)}`),
   injectTranscript: (sid: string, text: string, scene?: string) =>
     post(`${s(sid)}/transcripts`, scene ? { text, scene } : { text }),
+  scriptComment: (sid: string, author: string, text: string) => post(`${s(sid)}/demo/comments`, { author, text }),
+  // the Demo Console's AI lines for the show's products; nothing is sent to the show
+  generateLines: (sid: string, kind: "host" | "comments", count: number, instruction: string) =>
+    post<{ lines: string[] }>(`${s(sid)}/demo/generate`, { kind, count, instruction }),
 
   // sessions
   createSession: (runsheetId?: string, showMode?: "solo" | "team") =>
