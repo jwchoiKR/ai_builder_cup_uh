@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 Status = Literal["ok", "timeout", "error", "invalid"]
 
-MOCK_FIXTURES_DIR = BACKEND_DIR / "tests" / "fixtures" / "llm"
+MOCK_FIXTURES_DIR = BACKEND_DIR / "mock_fixtures" / "llm"  # D-435: out of tests/ (app code reads it)
 WARMUP_TIMEOUT_MS = 10_000
 
 
@@ -121,7 +121,7 @@ def mock_key(agent: str, primary_text: str, scenario: str) -> str:
 
 
 class MockBackend:
-    """Canned outputs from tests/fixtures/llm/<agent>/<key>.json (§7.1, §14.2)."""
+    """Canned outputs from mock_fixtures/llm/<agent>/<key>.json (§7.1, §14.2)."""
 
     name = "mock"
 

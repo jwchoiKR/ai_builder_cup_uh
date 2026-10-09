@@ -24,7 +24,7 @@ from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
 from . import arms, inputs
 from .utterance_judge import (
-    STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
+    STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, symbolic_ids, validate_compliance,
     validate_context, validate_original,
 )
 
@@ -285,7 +285,14 @@ class ContextJudge(_SplitJudge):
             self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
-        return rule_based_context(inp, self.catalog)
+        """D-435: the mock provider's answer when no test scripted one: no verdict (no rule engine)."""
+        return {"expects_resolution": False,
+                "answer": {"utterance_type": "product_talk", "matched_group_id": None, "is_answer": False,
+                           "consistent_with_suggested": False},
+                "prompter": {"covered_point_ids": [], "covered_cue_ids": [],
+                             "switch": {"is_transition": False, "is_quote": False, "target_product_id": None,
+                                        "confidence": "low", "moving_to_next_named": False}},
+                "reason": "no verdict"}
 
     def validate(self, out: ContextOutput, values: dict) -> ContextOutput:
         return validate_context(out, self.catalog, values)

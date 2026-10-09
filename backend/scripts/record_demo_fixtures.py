@@ -2,7 +2,7 @@
 
 Plays data/demo/host_script.md in real time against Vertex AI, in process: injected host lines
 (STT injection), scripted bursts (no background chatter), the time sale and B5. Every agent output
-is stored under tests/fixtures/llm/<agent>/ with the scene id as scenario tag.
+is stored under mock_fixtures/llm/<agent>/ with the scene id as scenario tag.
 
 The run is clean only if every agent call returned ok (no timeout, no invalid output) and the
 summary recap is ready; otherwise the exit code is 1 and the run must be repeated, because a
