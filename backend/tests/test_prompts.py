@@ -62,8 +62,18 @@ def test_judge_single_is_built_from_both_files(prompts):
     assert [m for m in re.findall(r"^Example ([A-Z])$", js, re.M)] == list("ABCDEFGH")
 
 
+# D-444: the production context judge's covered-points line (a point with several facts needs all of them); the legacy
+# utterance_judge.md (N2, the comments team's eval) keeps its old line
+DIVERGED = {("context_judge", "Prompter tracking and product switch"): (
+    "- `covered_point_ids`: ids from PROMPTER_POINTS whose meaning the host has now stated. Paraphrase counts. A partial "
+    "mention counts only if the point's key fact is stated.",
+    "- `covered_point_ids`: ids from PROMPTER_POINTS whose full meaning the host has now stated, in this sentence or "
+    "together with the earlier lines of RECENT_TRANSCRIPT that it continues. Paraphrase counts. A point with several "
+    "facts (an amount and how it is taken) is covered only when all of them are stated; a part alone is not.")}
+
+
 def test_split_judges_keep_the_utterance_judge_wording(prompts):
-    """D-099: the split judges are cut from utterance_judge.md; the job texts must not drift apart."""
+    """D-099: the split judges are cut from utterance_judge.md; the job texts must not drift apart (except DIVERGED)."""
     uj = prompts["utterance_judge"].system_instruction
     jobs = {"compliance_judge_rules": ("Compliance", "Correction of active alerts"),  # D-358: the legacy prompt
             "context_judge": ("Answer linking", "Prompter tracking and product switch")}
@@ -71,6 +81,10 @@ def test_split_judges_keep_the_utterance_judge_wording(prompts):
         split = prompts[name].system_instruction
         for title in titles:
             body = re.search(rf"^### Job \d\. {title}\n(.*?)(?=^### |^## |\Z)", uj, re.S | re.M).group(1)
+            if (name, title) in DIVERGED:
+                old, new = DIVERGED[(name, title)]
+                assert body.count(old) == 1
+                body = body.replace(old, new)
             assert f". {title}\n{body}" in split, f"{name}: job '{title}' differs from utterance_judge.md"
 
 
