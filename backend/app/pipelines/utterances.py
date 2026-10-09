@@ -495,7 +495,6 @@ class UtterancePipeline:
         on_screen = s.host_slots[0].group_id if s.host_slots else None
         inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
                          cue=s.cue, previous=previous, points_by_product=rt.points or None,
-                         all_products=rt.settings.JUDGE_PRODUCTS == "all",
                          session_id=rt.sid, scenario=scenario,
                          switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen,
                          run_sheet_types=self.type_words, now=rt.now(),
@@ -554,7 +553,7 @@ class UtterancePipeline:
         rt.sync_doc_version()
         return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
                                           switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS,
-                                          all_products=rt.settings.JUDGE_PRODUCTS == "all")
+                                          all_products=True)  # D-304: every show product's sheet
 
     def _by_judge(self) -> bool:
         """D-187 arm B, or D-304 VERBAL_CHECK=judge: a spoken answer's numbers and hedges come from the context judge."""
