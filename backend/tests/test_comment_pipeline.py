@@ -471,11 +471,10 @@ async def test_a_sensitive_question_without_an_answer_goes_to_the_operator():
         await say(rt, "Mei", "Can I use the cream on my eczema?")
         [g] = await groups(rt)
         assert (g.route, g.status) == ("OPERATOR", "needs_review")
-        assert (await rt.load_session()).host_slots == [] and (await rt.pd._state()).questions == []
+        assert (await rt.load_session()).host_slots == [] and not (await rt.pd._state()).questions_waiting
         await ops.push_to_host(rt, g.group_id)
-        st = await rt.pd._state()
-        [q] = [q for q in st.questions if q.group_id == g.group_id]
-        assert q.answer == ctx.pack.notices.host_deferrals["sensitive_solo"]
+        # D-429: no AI PD question card (it carried the deferral line); the question waits on the host's list
+        assert (await rt.pd._state()).questions_waiting
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
@@ -546,7 +545,7 @@ async def test_shop_policy_questions_go_to_the_operator_in_both_modes(show_mode)
             await rt.ctx.scheduler.advance(3000)
         [g] = await groups(rt)
         assert (g.route, g.route_reason, g.status) == ("OPERATOR", "intent", "needs_review")
-        assert (await rt.load_session()).host_slots == [] and (await rt.pd._state()).questions == []
+        assert (await rt.load_session()).host_slots == [] and not (await rt.pd._state()).questions_waiting
         assert await messages(rt) == []
     finally:
         ctx.runtimes.shutdown()

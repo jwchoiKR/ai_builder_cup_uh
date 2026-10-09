@@ -9,8 +9,8 @@ afterEach(() => {
 
 describe("i18n (D-109)", () => {
   it("translates labels with variables and falls back to English", () => {
-    expect(translate("ko", "{n} asking", { n: 3 })).toBe("3명 질문");
-    expect(translate("en", "{n} asking", { n: 3 })).toBe("3 asking");
+    expect(translate("ko", "{n} unanswered questions", { n: 3 })).toBe("답변 못 한 질문 3개");
+    expect(translate("en", "{n} unanswered questions", { n: 3 })).toBe("3 unanswered questions");
     expect(translate("ko", "Not in the table")).toBe("Not in the table");
   });
 

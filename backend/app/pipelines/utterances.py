@@ -545,9 +545,8 @@ class UtterancePipeline:
                    and x.received_at >= t.received_at - window] if window else None)
         questions = await self._open_questions_locked(s, on_air)
         promo = rt.promo(s.active_promo_id)
-        card = s.pd_card  # D-112: the answer card on screen, else the first question slot
-        on_screen = (card.ref_id if card is not None and card.status == "active" and card.kind == "answer_question"
-                     else s.host_slots[0].group_id if s.host_slots else None)
+        # D-112: the first question slot (D-429: no answer card on screen any more)
+        on_screen = s.host_slots[0].group_id if s.host_slots else None
         inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
                          cue=s.cue, previous=previous, recent=recent, points_by_product=rt.points or None,
                          all_products=rt.settings.JUDGE_PRODUCTS == "all",
@@ -1330,8 +1329,6 @@ class UtterancePipeline:
                 or self._generations.get(t.transcript_id) != self._segment_generation):
             return
         gid = judge.answer.matched_group_id
-        if gid is not None and gid in offered:
-            rt.pd.mention(gid)  # D-113: a read-out or "which product" card ends when the host takes it up
         group = await rt.get_group(gid) if gid else None
         answer = await rt.get_answer(group.answer_id) if group is not None else None
         decision = publish_logic.decide(judge, offered, group, answer,
@@ -1404,7 +1401,6 @@ class UtterancePipeline:
             group = await rt.get_group(gid) if gid in offered else None
             if group is None:
                 continue
-            rt.pd.mention(gid)
             answer = await rt.get_answer(group.answer_id)
             link = a.model_copy(update={"matched_group_id": gid, "consistent_with_suggested": True,
                                         "also_answered_group_ids": [a.matched_group_id,

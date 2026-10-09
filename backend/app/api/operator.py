@@ -159,20 +159,13 @@ class PdDismissBody(BaseModel):
 
 @router.post("/segments/extend")
 async def extend(rt: SessionRuntime = Depends(runtime)) -> dict:
-    """+2 min on the on-air segment: operator button or host key E (D-138)."""
+    """+2 min on the on-air segment: operator button (D-138; D-429: the host key E is gone)."""
     return (await rt.extend_segment()).model_dump()
-
-
-@router.post("/pd/pull")
-async def pd_pull(rt: SessionRuntime = Depends(runtime)) -> dict:
-    """Host takes the top waiting question now (key Q): no time gap, no pause needed (D-113)."""
-    rt.pd.pull()
-    return {"ok": True}
 
 
 @router.post("/pd/dismiss")
 async def pd_dismiss(body: PdDismissBody, rt: SessionRuntime = Depends(runtime)) -> dict:
-    """Host skips the AI PD card (key N); its topic is not offered again on this product."""
+    """The AI PD card is skipped (D-429: the host key N is gone); its topic is not offered again on this product."""
     card = await rt.pd.dismiss(body.card_id)
     if card is None:
         raise ActionError(409, "invalid_state", "no active AI PD card with this id")

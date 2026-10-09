@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { useT } from "../../app/i18n";
 import type { HostSlotView } from "../../app/selectors";
 import type { PdCard as PdCardType } from "../../app/types";
-import { PdCard, QUESTION_KINDS } from "./PdCard";
+import { PdCard } from "./PdCard";
 import styles from "./host.module.css";
 
 const cx = (...n: (string | false | null | undefined)[]) => n.filter(Boolean).join(" ");
@@ -91,7 +91,7 @@ function Item({ view }: { view: HostSlotView }) {
           <Users aria-hidden />
           {group.unique_author_ids.length}
         </span>
-        <span className={cx(styles.wState, waiting === "On your card" && styles.wStateOn)} data-testid="host-question-state">
+        <span className={styles.wState} data-testid="host-question-state">
           {t(waiting)}
         </span>
         {view.slot.pinned && (
@@ -121,46 +121,27 @@ export function Questions({
   slots: HostSlotView[];
   card?: PdCardType | null;
   onDismiss?: (cardId: string) => void;
-  /** a HIGH alert is up: one instruction on screen, so the Q hint gives way */
+  /** an alert is up: AI PD cards wait (D-161) */
   correcting?: boolean;
   /** D-178: solo show: how many questions only the operator could answer (no card, nothing posted) */
   unanswered?: number;
 }) {
   const t = useT();
-  const isQuestion = !!card && QUESTION_KINDS.has(card.kind);
-  const inPlace = isQuestion ? slots.find((s) => s.group.group_id === card.ref_id) : undefined;
-  // A question card that is done often loses its row at the same moment (answered). It keeps the row's
-  // place for its short "done" fade, so the list moves once, when the card goes.
-  const lastAt = useRef<{ cardId: string; index: number } | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
   usePdFit(sectionRef, listRef, slotRef);
-  if (card && inPlace) lastAt.current = { cardId: card.card_id, index: slots.indexOf(inPlace) };
-  const keptAt = card && isQuestion && !inPlace && card.status === "done" && lastAt.current?.cardId === card.card_id
-    ? Math.min(lastAt.current.index, slots.length) : null;
-  // other cards (and a question card whose row is not on the list) go on top; a done question card
-  // with no known place is not shown again
-  const onTop = card && !inPlace && !(isQuestion && card.status === "done") ? card : null;
-  // the "Posting answer…" bar of the question goes inside the card's fixed box, so nothing grows
-  const cardBox = (c: PdCardType, posting?: HostSlotView["pending"]) => (
+  // D-429: the AI PD makes no question cards; its other cards (promo, switch, wrap-up, shout-out) go on top
+  const cardBox = (c: PdCardType) => (
     <div ref={slotRef} className={styles.pdSlot} data-testid="host-pd-slot">
       <PdCard card={c} onDismiss={onDismiss} />
-      {posting && <Posting windowMs={postingWindow(posting)} />}
     </div>
   );
-  const rows = slots.map((item) =>
-    item === inPlace && card ? (
-      <div key={item.group.group_id} data-testid={`host-question-${item.group.group_id}`}>
-        {cardBox(card, item.pending)}
-      </div>
-    ) : (
-      <article key={item.group.group_id} data-testid={`host-question-${item.group.group_id}`} className={styles.question}>
-        <Item view={item} />
-      </article>
-    ),
-  );
-  if (keptAt !== null && card) rows.splice(keptAt, 0, <div key={`done-${card.card_id}`}>{cardBox(card)}</div>);
+  const rows = slots.map((item) => (
+    <article key={item.group.group_id} data-testid={`host-question-${item.group.group_id}`} className={styles.question}>
+      <Item view={item} />
+    </article>
+  ));
 
   return (
     <section ref={sectionRef} className={styles.card} data-testid="host-questions" aria-label={t("Audience questions")}>
@@ -169,18 +150,14 @@ export function Questions({
           <MessagesSquare aria-hidden />
           {t("AI PD · QUESTIONS")}
         </span>
-        <span className={styles.cardMeta} data-testid="host-questions-hint">
-          {correcting ? (
-            t("Questions resume after the correction")
-          ) : (
-            <>
-              <kbd className={styles.pdKbd}>Q</kbd> {t("take the top one now")}
-            </>
-          )}
-        </span>
+        {correcting && (  // D-429: no Q key hint (the host is hands-free)
+          <span className={styles.cardMeta} data-testid="host-questions-hint">
+            {t("Questions resume after the correction")}
+          </span>
+        )}
       </header>
       <div ref={listRef} className={styles.questions}>
-        {onTop && cardBox(onTop)}
+        {card && cardBox(card)}
         {rows}
         {!card && !slots.length && <p className={styles.panelEmpty}>{t("No questions waiting.")}</p>}
       </div>

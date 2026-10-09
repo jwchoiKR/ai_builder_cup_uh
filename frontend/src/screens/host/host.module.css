@@ -1224,21 +1224,6 @@
   color: var(--text);
   border-color: var(--text-3);
 }
-.pdKbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: calc(18px * var(--hs));
-  height: calc(18px * var(--hs));
-  padding: 0 calc(4px * var(--hs));
-  border-radius: calc(4px * var(--hs));
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-family: inherit;
-  font-size: calc(11px * var(--hs));
-  font-weight: var(--fw-semibold);
-  color: var(--text-2);
-}
 /* D-127: the AI PD card inside the questions panel, in place of its question's row or on top.
    A fixed height, so a shown card never grows or shrinks; nothing animates in the panel. */
 .pdSlot {
@@ -1292,22 +1277,6 @@
   background: var(--fact-border);
   box-shadow: 0 0 0 calc(2px * var(--hs)) var(--fact-bg);
 }
-.pdQuestion {
-  display: flex;
-  align-items: baseline;
-  gap: calc(12px * var(--hs));
-  font-size: calc(22px * var(--hs));
-  line-height: 1.25;
-  color: var(--text-2);
-}
-.pdAskers {
-  flex: none;
-  font-size: calc(15px * var(--hs));
-  color: var(--text-3);
-}
-.pdSayAnswer {
-  font-size: calc(30px * var(--hs));
-}
 /* D-113: compact waiting list rows */
 .wRow {
   display: flex;
@@ -1328,9 +1297,6 @@
   font-size: calc(14px * var(--hs));
   font-weight: var(--fw-semibold);
   color: var(--text-2);
-}
-.wStateOn {
-  color: var(--accent);
 }
 /* the first line of the suggested reply, under the question, so the host can prepare */
 .wPreview {

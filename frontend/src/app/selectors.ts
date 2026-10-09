@@ -424,12 +424,11 @@ export interface HostSlotView {
   pending: Message | null; // "Posting answer…"
   tag: "From your PD" | "AI answered" | "For you";
   /** D-113: where the question stands in the host's waiting list */
-  waiting: "On your card" | "Drafting…" | "Which product?" | "Read out" | "Ready to answer" | "No answer yet";
+  waiting: "Drafting…" | "Which product?" | "Read out" | "Ready to answer" | "No answer yet";
 }
 
 export function hostSlots(state: ClientState): HostSlotView[] {
   const pending = pendingMessages(state);
-  const card = state.session?.pd_card;
   return state.hostSlots
     .map((slot) => state.groups[slot.group_id] ? { slot, group: state.groups[slot.group_id] } : null)
     .filter((x): x is { slot: HostSlot; group: QuestionGroup } => x !== null)
@@ -440,12 +439,12 @@ export function hostSlots(state: ClientState): HostSlotView[] {
       answer: verifiedAnswer(state, group),
       pending: pending.find((m) => m.group_id === group.group_id) ?? null,
       tag: slot.pinned ? "From your PD" : group.status === "auto_answered" ? "AI answered" : "For you",
-      waiting: waitingState(group, verifiedAnswer(state, group), card),
+      waiting: waitingState(group, verifiedAnswer(state, group)),
     }));
 }
 
-function waitingState(group: QuestionGroup, answer: Answer | null, card: PdCard | null | undefined): HostSlotView["waiting"] {
-  if (card?.status === "active" && card.ref_id === group.group_id) return "On your card";
+/** D-429: no question card any more, so no "On your card" state */
+function waitingState(group: QuestionGroup, answer: Answer | null): HostSlotView["waiting"] {
   if (group.status === "composing") return "Drafting…";
   if (group.status === "needs_review" && group.route_reason === "unresolved_product") return "Which product?";
   if (group.status === "auto_answered") return "Read out";

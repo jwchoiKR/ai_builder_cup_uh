@@ -45,8 +45,6 @@ export interface PdCard {
   hold_until: number;
   status: PdCardStatus;
   source: PdCardSource;
-  /** question cards: how many viewers asked (D-113) */
-  askers?: number | null;
   /** client-side: when the card became done (for short "done" fade) */
   done_at?: number;
 }

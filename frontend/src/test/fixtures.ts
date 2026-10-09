@@ -263,10 +263,10 @@ export const catalog: Catalog = {
 export function pdCard(over: Partial<PdCard> = {}): PdCard {
   return {
     card_id: "card_000001",
-    kind: "answer_question",
-    say: "Yes. Apply sunscreen after the cream, then makeup.",
-    detail: "Raj: Can I use it under makeup?",
-    ref_id: "grp_000001",
+    kind: "promo",  // D-429: no question cards
+    say: "Time sale now: the cream is S$29 for 10 minutes.",
+    detail: "Promo just started",
+    ref_id: "promo_time_sale_10",
     created_at: T0,
     hold_until: T0 + 15_000,
     status: "active",
