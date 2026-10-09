@@ -336,19 +336,24 @@ describe("compliance", () => {
     const overlay = within(screen.getByTestId("host-prompter")).getAllByTestId("host-compliance-overlay")[0];
     expect(screen.queryByTestId("host-point-cr-p1")).toBeNull(); // the product info gives way, nothing else moves
     expect(overlay).toHaveTextContent("Regulation");
-    expect(overlay).toHaveTextContent("Say this instead.");
+    expect(overlay).toHaveTextContent("Take it back, then say:");
     expect(overlay).toHaveTextContent("Helps keep skin hydrated for up to 24 hours in our in-house test.");
     expect(overlay).toHaveTextContent('Heard: "your wrinkles will disappear overnight"');
     expect(overlay).toHaveTextContent("Prevents, reduces or reverses physiological changes of ageing · Appendix III §3");
     expect(overlay).toHaveTextContent("Waiting for your correction");
     expect(screen.getAllByTestId("host-overlay-count").map((c) => c.textContent)).toEqual(["1 of 2", "2 of 2"]);
-    expect(screen.queryByTestId("host-unverified")).toBeNull();
     expect(acts.rendered).toHaveBeenCalledWith("al_000002");
   });
 
-  it("unverified alert shows the AI check unavailable badge", () => {
-    render(view({ alerts: [alert({ unverified: true })] }));
-    expect(screen.getByTestId("host-unverified")).toHaveTextContent("AI check unavailable");
+  it("D-436: the red box puts the language pack's retraction phrase before say_instead", () => {
+    const market = { market: "SG", name: "Singapore", lang: "en", tier: "live" as const,
+      retraction_phrase: "Sorry, I take that back." };
+    const { rerender } = render(view({ market, alerts: [alert({ say_instead: "Helps relieve the feeling of dryness." })] }));
+    expect(screen.getByTestId("host-compliance-overlay")).toHaveTextContent(
+      "Take it back, then say:“Sorry, I take that back. Helps relieve the feeling of dryness.”");
+    rerender(view({ market, alerts: [alert({ say_instead: "" })] }));  // no say_instead: the phrase alone
+    expect(screen.getByTestId("host-compliance-overlay")).toHaveTextContent(
+      "Take it back, then say:“Sorry, I take that back.”");
   });
 
   it("correction: a compact green Corrected line, with the product info at once below (D-115)", () => {
@@ -677,11 +682,11 @@ describe("AI PD card", () => {
 
   it("renders below CueStrip in team mode when both operator cue and AI PD card are active", () => {
     const cue = { cue_id: "cue_op_1", text: "Operator direction here", preset_id: null, created_at: now(), status: "active" as const, done_by_transcript_id: null };
-    const card = pdCard({ card_id: "card_ai_4", kind: "cover_point", say: "Ceramide NP 1%, panthenol 5%, squalane 3%." });
+    const card = pdCard({ card_id: "card_ai_4", kind: "shout_out", say: "Ceramide NP 1%, panthenol 5%, squalane 3%." });
     render(view({ session: session({ cue, pd_card: card }) }));
     expect(screen.getByTestId("host-cue")).toHaveTextContent("Operator direction here");
     expect(screen.getByTestId("host-pd-card")).toBeInTheDocument();
-    expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Say this point");
+    expect(screen.getByTestId("host-pd-kind")).toHaveTextContent("Shout-out");
     expect(screen.getByTestId("host-pd-say")).toHaveTextContent("Ceramide NP 1%, panthenol 5%, squalane 3%.");
   });
 
@@ -741,7 +746,7 @@ describe("settings and screen language (D-109)", () => {
       render(view({ alerts: [alert()] }));
       expect(screen.getByText("프롬프터")).toBeInTheDocument();
       const overlay = screen.getByTestId("host-compliance-overlay");
-      expect(overlay).toHaveTextContent("이렇게 말하세요.");
+      expect(overlay).toHaveTextContent("먼저 철회하고, 이렇게 말하세요:");
       expect(overlay).toHaveTextContent("“Helps keep skin hydrated for up to 24 hours in our in-house test.”");
     } finally {
       act(() => setLang("en"));
@@ -917,7 +922,7 @@ describe("immediate switch (D-349)", () => {
 
 describe("unchecked lines (D-412)", () => {
   const ev = (seq: number, id: string, cause: string, agent = "compliance_judge", at = T0 + seq, n = seq) =>
-    ({ seq, type: "judge.failed", payload: { transcript_id: id, status: "error", alert_ids: [], agent, cause, at, n } });
+    ({ seq, type: "judge.failed", payload: { transcript_id: id, agent, cause, at, n } });
   const strip = (s: ReturnType<typeof reduceSnapshot>) => uncheckedStrip(s);
   const show = (s: ReturnType<typeof reduceSnapshot>) =>
     render(<HostView state={{ ...s, serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark" actions={actions()} />);
@@ -971,29 +976,13 @@ describe("unchecked lines (D-412)", () => {
   });
 });
 
-describe("check what was said (D-303)", () => {
-  it("shows a possibly misheard number as heard, without the wrong mark", () => {
+describe("fact note (D-435: no heard-check variant)", () => {
+  it("marks the wrong value it heard", () => {
     const base = { alert_id: "fx_000009", kind: "fact" as const, rule_id: null, severity: null, field: "price",
       stated_value: "S$15", correct_value: "S$50.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price",
       quote: "Live broadcast price: S$50.00" };
-    render(view({ alerts: [alert({ ...base, heard_check: true })] }));
-    const note = screen.getByTestId("host-fact-note");
-    expect(note).toHaveTextContent("CHECK WHAT WAS SAID");
-    expect(screen.getByTestId("host-fact-wrong")).toHaveTextContent("Heard: S$15");
-    expect(screen.getByTestId("host-fact-wrong")).not.toHaveTextContent("✕");
-    cleanup();
     render(view({ alerts: [alert(base)] }));
     expect(screen.getByTestId("host-fact-wrong")).toHaveTextContent("✕ S$15");
-  });
-});
-
-describe("verifier wait (D-306)", () => {
-  it("labels an alert the verifier never answered", () => {
-    const base = { alert_id: "fx_000010", kind: "fact" as const, rule_id: null, severity: null, field: "price",
-      stated_value: "S$32", correct_value: "S$36.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price",
-      quote: "Live broadcast price: S$36.00", unverified: true, unverified_reason: "http_504" };
-    render(view({ alerts: [alert(base)] }));
-    expect(screen.getByTestId("host-unverified")).toHaveTextContent("Unverified (AI response delayed)");
   });
 });
 
@@ -1028,5 +1017,39 @@ describe("D-332: UI QA", () => {
     expect(screen.getAllByTestId("host-price-set").map((x) => x.textContent)).toEqual(
       ["Set Cream + Ampoule set S$62.00", "Set Trio S$80.00"]);
     expect(screen.queryByTestId("host-ing-water")).toBeNull();
+  });
+});
+
+describe("D-439: shown and cleared times on the host's boxes", () => {
+  const tr = (id: string, end: number, source: "mic" | "injected" = "mic") => ({
+    transcript_id: id, text: "x", is_final: true, speech_start_at: null, speech_end_at: end, received_at: end,
+    source, segment_id: "seg_000001" });
+  const red = alert({ transcript_id: "tr_1", shown_at: T0 + 4200 });
+  const fact = alert({ alert_id: "fx_1", kind: "fact", rule_id: null, severity: null, field: "price", stated_value: "S$32",
+    correct_value: "S$36.00", passage_id: "DL-CR-01#key-facts#live-broadcast-price", quote: "Live broadcast price: S$36.00",
+    transcript_id: "tr_2", shown_at: T0 + 2500 });
+
+  it("the red box and the orange note say how fast they were shown, grey, at the end of the bottom row", () => {
+    render(view({ alerts: [red, fact], transcripts: [tr("tr_1", T0), tr("tr_2", T0)] }));
+    const red_ = screen.getByTestId("host-compliance-overlay");
+    expect(within(red_).getByTestId("host-alert-timing")).toHaveTextContent(/^Shown in 4\.2 s$/);
+    expect(within(screen.getByTestId("host-fact-note")).getByTestId("host-alert-timing")).toHaveTextContent(/^Shown in 2\.5 s$/);
+  });
+
+  it("a typed line is marked, and nothing shows without the line", () => {
+    render(view({ alerts: [red], transcripts: [tr("tr_1", T0, "injected")] }));
+    expect(screen.getByTestId("host-alert-timing")).toHaveTextContent(/^Shown in 4\.2 s \(typed\)$/);
+    cleanup();
+    render(view({ alerts: [red] }));
+    expect(screen.queryByTestId("host-alert-timing")).toBeNull();
+  });
+
+  it("the green cleared bar says how fast the correcting line cleared it", () => {
+    const ts = [tr("tr_1", T0), tr("tr_3", T0 + 10_000)];
+    const { rerender } = render(view({ alerts: [red], transcripts: ts }));
+    rerender(view({ alerts: [{ ...red, status: "corrected", corrected_by_transcript_id: "tr_3", resolved_at: T0 + 13_100 }],
+      transcripts: ts }));
+    expect(screen.getByTestId("host-corrected")).toHaveTextContent("Corrected");
+    expect(within(screen.getByTestId("host-corrected")).getByTestId("host-alert-timing")).toHaveTextContent(/^Cleared in 3\.1 s$/);
   });
 });

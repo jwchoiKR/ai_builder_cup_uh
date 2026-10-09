@@ -66,7 +66,7 @@ describe("every event type", () => {
       "prompter.updated": { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: ["cr-p1"], required_total: 2, required_covered: 0 },
       "transcript.interim": { transcript_id: "tr_i", text: "hel", is_final: false, speech_start_at: null, speech_end_at: T0, received_at: T0, source: "mic", segment_id: "seg_000001" },
       "transcript.final": { transcript_id: "tr_1", text: "hello", is_final: true, speech_start_at: null, speech_end_at: T0, received_at: T0, source: "injected", segment_id: "seg_000001" },
-      "alert.created": alert({ status: "provisional" }),
+      "alert.created": alert(),
       "alert.updated": alert(),
       "alert.escalated": alert({ escalated_at: T0 + 10_000 }),
       "cue.updated": { cue_id: "cue_1", text: "Mention the patch test results.", preset_id: null, created_at: T0, status: "active", done_by_transcript_id: null },
@@ -88,7 +88,7 @@ describe("every event type", () => {
       "metrics.updated": { header: { alert_in_s: 2.4, judge_p50_s: 1.4, instant_answers: 3, answers_total: 4 } },
       "operator.action": { actor: "operator", action: "push", group_id: "grp_000001" },
       "agent.call": { call_id: "call_1", agent: "comment_triage", model: "m", prompt_version: "v", started_at: T0, latency_ms: 900, status: "ok", input_hash: "h", input_preview: "p", output: {}, error: null },
-      "judge.failed": { transcript_id: "tr_1", status: "timeout", alert_ids: [] },
+      "judge.failed": { transcript_id: "tr_1", cause: "timeout" },
       "judge.health": { degraded: ["compliance_judge"], at: 1 },
       "segment.extended": { segment: segment(), added_sec: 120 },
       "summary.ready": {},
@@ -111,7 +111,6 @@ describe("every event type", () => {
     expect(s.summaryReady).toBe(true);
     expect(s.metrics.header?.instant_answers).toBe(3);
     expect(s.agentCalls[0].call_id).toBe("call_1");
-    expect(s.actions[0].payload.action).toBe("push");
     expect(s.judgeFailures).toHaveLength(1);
     expect(s.session?.pinned_notice).toBe("Free shipping today");
     expect(s.messages.msg_p.state).toBe("cancelled");

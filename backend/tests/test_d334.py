@@ -3,8 +3,6 @@ by all three judges (alone when no answer comes in QUESTION_HOLD_MS); CONTEXT_JU
 CONVERSATION block of the last 3 finals and checks only the last. Made-up lines only."""
 from __future__ import annotations
 
-import pytest
-
 from .judge_fakes import CREAM, ScriptedBackend
 
 QUESTION = "For 30 mL of concentrate, how much water goes in?"
@@ -32,7 +30,7 @@ async def _case(monkeypatch, parts, **settings):
 
     monkeypatch.setattr(eval_adversarial, "PART_GAP_S", 0)
     llm = _Record()
-    ctx = make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT="v5", JUDGE_ARM="single", **settings)
+    ctx = make_ctx(backend=llm, FACT_PROMPT="v5", **settings)
     try:
         row = await eval_adversarial.run_case(ctx, {"case_id": "Q", "type": "t", "utterance": "",
                                                     "current_product_id": CREAM, "parts": parts,
@@ -47,25 +45,20 @@ def _texts(reqs, agent):
     return [r.mock_primary_text for r in reqs if r.agent == agent]
 
 
-@pytest.mark.parametrize("hold", [False, True])
-async def test_d334_a_question_and_its_answer_are_judged_as_one(monkeypatch, caplog, hold):
+async def test_d334_a_question_and_its_answer_are_judged_as_one(monkeypatch, caplog):
     caplog.set_level("INFO", logger="app.pipelines.utterances")
-    row, reqs = await _case(monkeypatch, [QUESTION, ANSWER], QUESTION_HOLD=hold)
+    row, reqs = await _case(monkeypatch, [QUESTION, ANSWER])
     for agent in ("fact_checker", "compliance_judge", "context_judge"):
         texts = _texts(reqs, agent)
-        if hold:
-            assert len(texts) == 1 and QUESTION in texts[0] and ANSWER in texts[0], (agent, texts)  # judged once
-        else:
-            assert len(texts) == 2, (agent, texts)  # today: each line alone
-    if hold:
-        [fact] = [r for r in reqs if r.agent == "fact_checker"]
-        assert f"[previous line] {QUESTION}\n[this line] {ANSWER}" in fact.user_message  # D-335: two marked lines
-        assert any("judged as one" in r.getMessage() for r in caplog.records)
-    assert any("question final" in r.getMessage() for r in caplog.records)  # STT's "?" is logged either way
+        assert len(texts) == 1 and QUESTION in texts[0] and ANSWER in texts[0], (agent, texts)  # judged once
+    [fact] = [r for r in reqs if r.agent == "fact_checker"]
+    assert f"[previous line] {QUESTION}\n[this line] {ANSWER}" in fact.user_message  # D-335: two marked lines
+    assert any("judged as one" in r.getMessage() for r in caplog.records)
+    assert any("question final" in r.getMessage() for r in caplog.records)  # STT's "?" is logged
 
 
 async def test_d334_a_question_with_no_answer_is_judged_alone(monkeypatch, caplog):
     caplog.set_level("INFO", logger="app.pipelines.utterances")
-    _, reqs = await _case(monkeypatch, [QUESTION], QUESTION_HOLD=True)
+    _, reqs = await _case(monkeypatch, [QUESTION])
     assert _texts(reqs, "fact_checker") == [QUESTION]
     assert any("judged alone: no answer" in r.getMessage() for r in caplog.records)

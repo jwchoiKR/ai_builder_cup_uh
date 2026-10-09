@@ -27,9 +27,9 @@ async def test_d304_correction_by_the_judge_alone():
 
 async def test_d304_verbal_check_by_the_context_judge():
     from app.agents.split_judges import ContextJudge
-    from app.models.agent_io import ContextOutput, ContextOutputB
+    from app.models.agent_io import ContextOutputB, ContextOutputQ
 
-    for check, model in (("code", ContextOutput), ("judge", ContextOutputB)):
+    for check, model in (("code", ContextOutputQ), ("judge", ContextOutputB)):  # D-435: the hold model is the A model
         rt, _ = await make_env(VERBAL_CHECK=check)
         try:
             j = ContextJudge(rt.ctx.llm, rt.ctx.prompts, rt.catalog, rt.reflex)
@@ -116,6 +116,3 @@ async def test_d304_shout_outs_by_triage(mode, label, kinds):
         assert [s.kind for s in rt.shoutouts] == kinds
     finally:
         await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

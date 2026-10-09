@@ -51,11 +51,6 @@ export interface JudgeFailure {
 }
 
 
-export interface OperatorAction {
-  seq: number;
-  payload: Record<string, unknown>;
-}
-
 export interface ClientState {
   role: Role;
   loaded: boolean;
@@ -77,7 +72,6 @@ export interface ClientState {
   metrics: Metrics;
   feed: FeedState | null;
   agentCalls: AgentCall[]; // newest first, max 50
-  actions: OperatorAction[]; // newest first, max 50
   overtime: Record<string, OvertimeInfo>;
   missingPoints: MissingPoints[];
   judgeFailures: JudgeFailure[];
@@ -125,7 +119,6 @@ export function emptyState(role: Role): ClientState {
       holds: {},
     market: null,
     agentCalls: [],
-    actions: [],
     overtime: {},
     missingPoints: [],
     judgeFailures: [],
@@ -398,10 +391,6 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
 
     case "feed.updated":
       return { ...state, feed: p as FeedState };
-
-    case "operator.action":
-      if (state.actions.some((a) => a.seq === ev.seq && ev.seq > 0)) return state;
-      return { ...state, actions: prune([{ seq: ev.seq, payload: p }, ...state.actions], MAX_LOG) };
 
     case "agent.call": {
       const call = p as AgentCall;

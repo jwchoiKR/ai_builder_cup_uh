@@ -1,5 +1,5 @@
 """P1 done-when: bursts B1-B4 produce the expected /state snapshots (DEV_SPEC §15, host_script S03,
-S04, S09, S11). Uses the recorded fixtures in tests/fixtures/llm (scenario = scene id)."""
+S04, S09, S11). Uses the recorded fixtures in mock_fixtures/llm (scenario = scene id)."""
 from __future__ import annotations
 
 import httpx

@@ -183,6 +183,7 @@ async def test_d419_an_old_session_with_a_pending_switch_keeps_undo_and_runs_no_
         await close_env(fresh)
 
 
+@pytest.mark.legacy_live  # D-434: JUDGE_MODE split and single read the rule JSON (deleted with them, N2)
 @pytest.mark.parametrize("mode", ["split", "single"])
 async def test_d419_the_mock_only_judge_modes_switch_too(mode):
     rt, llm = await make_env(JUDGE_MODE=mode)
@@ -198,6 +199,7 @@ async def test_d419_the_mock_only_judge_modes_switch_too(mode):
         await close_env(rt)
 
 
+@pytest.mark.legacy_live  # D-434: JUDGE_MODE split and single read the rule JSON (deleted with them, N2)
 @pytest.mark.parametrize("mode", ["split", "single"])
 async def test_d422_a_transition_that_does_not_name_the_next_product_does_not_switch(mode):
     rt, llm = await make_env(JUDGE_MODE=mode)
@@ -212,6 +214,3 @@ async def test_d422_a_transition_that_does_not_name_the_next_product_does_not_sw
         assert (await rt.current_segment()).product_id == CREAM
     finally:
         await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

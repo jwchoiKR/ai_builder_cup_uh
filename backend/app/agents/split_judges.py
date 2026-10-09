@@ -15,7 +15,7 @@ import logging
 
 from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
-from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO, ComplianceOutputR,
+from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO,
                                ContextOutput,
                                ContextOutputB, ContextOutputQ, with_alert_checks, with_product,
                                with_same_as, with_switch_naming)
@@ -24,7 +24,7 @@ from ..providers.llm import AgentResult, LLMClient, LLMRequest
 from ..providers.prompts import PromptTemplate
 from . import arms, inputs
 from .utterance_judge import (
-    STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, rule_based_context, symbolic_ids, validate_compliance,
+    STATIC_JUDGE_KEYS, JudgeInput, build_judge_values, rule_based_compliance, symbolic_ids, validate_compliance,
     validate_context, validate_original,
 )
 
@@ -64,12 +64,6 @@ class _SplitJudge:
             self.name == "context_judge" and getattr(getattr(llm, "settings", None), "VERBAL_CHECK", "code") == "judge")
         self.system_instruction = arms.system_instruction(self.prompt.system_instruction, self.name, self.arm,
                                                           llm.prompts_path, extra_b=self.b)
-        # D-242 arm FR: the record's test results and the qualifier each needs
-        self.fact_record = getattr(getattr(llm, "settings", None), "FACT_MODE", "sheet") in ("record", "docs",
-                                                                                              "prompter")
-        fr = arms._addenda(str(llm.prompts_path)).get(("FR", self.name)) if self.fact_record else None
-        if fr:
-            self.system_instruction = f"{self.system_instruction}\n\n{fr}"
         # D-290: a switched-on fix's prompt line for this judge (FACT_FIXES Q6)
         from .fact_checker import fixes_of
 
@@ -149,19 +143,7 @@ class ComplianceJudge(_SplitJudge):
             self.with_docs = self.handles = True
             self._docs = None
             return
-        if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: marked question/answer pairs
-            if extra := arms._addenda(str(llm.prompts_path)).get(("PAIR", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        # D-356: ACTIVE_ALERTS by per-call handle, and a yes or no per listed alert first in the answer
-        self.handles = bool(getattr(getattr(llm, "settings", None), "CORRECTION_HANDLES", False))
-        if self.handles:
-            if extra := arms._addenda(str(llm.prompts_path)).get(("HANDLES", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
-        if getattr(getattr(llm, "settings", None), "FACT_RELATION", False):
-            # D-296: a HIGH verdict names the claim the line makes; the rule-fit checks (Q6, G7) read it
-            self.output_model = ComplianceOutputR
-            if extra := arms._addenda(str(llm.prompts_path)).get(("REL", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        self.handles = False  # D-435: the rules-JSON path answers by alert id (handles are the originals path's)
 
     def regulation(self):
         """D-358: the originals behind the show's products' rules. D-363 (user): loaded ONCE, at show start (the cache
@@ -293,10 +275,9 @@ class ContextJudge(_SplitJudge):
 
     def __init__(self, llm: LLMClient, prompts: dict[str, PromptTemplate], catalog: Catalog, reflex: Reflex) -> None:
         super().__init__(llm, prompts, catalog, reflex)
-        if getattr(getattr(llm, "settings", None), "QUESTION_HOLD", False):  # D-335: does the next line resolve it?
-            self.output_model = ContextOutputQ
-            if extra := arms._addenda(str(llm.prompts_path)).get(("QHOLD", self.name)):
-                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        self.output_model = ContextOutputQ  # D-335: does the next line resolve it?
+        if extra := arms._addenda(str(llm.prompts_path)).get(("QHOLD", self.name)):
+            self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         # D-351: the switch verdict names the next product (D-415: the only switch mode)
         self.output_model = with_switch_naming(self.output_model)
         self.output_model_b = with_switch_naming(self.output_model_b)
@@ -304,7 +285,14 @@ class ContextJudge(_SplitJudge):
             self.system_instruction = f"{self.system_instruction}\n\n{extra}"
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
-        return rule_based_context(inp, self.catalog)
+        """D-435: the mock provider's answer when no test scripted one: no verdict (no rule engine)."""
+        return {"expects_resolution": False,
+                "answer": {"utterance_type": "product_talk", "matched_group_id": None, "is_answer": False,
+                           "consistent_with_suggested": False},
+                "prompter": {"covered_point_ids": [], "covered_cue_ids": [],
+                             "switch": {"is_transition": False, "is_quote": False, "target_product_id": None,
+                                        "confidence": "low", "moving_to_next_named": False}},
+                "reason": "no verdict"}
 
     def validate(self, out: ContextOutput, values: dict) -> ContextOutput:
         return validate_context(out, self.catalog, values)

@@ -1,0 +1,18 @@
+{
+ "claims": [
+  {
+   "span": "helps keep your skin hydrated for up to twenty-four hours in our in-house test",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "test_result",
+   "stated_value": "24 hours",
+   "evidence": [
+    "S12"
+   ],
+   "source_value": "24 hours",
+   "relation": "consistent",
+   "correct_value": "24 hours",
+   "say": null
+  }
+ ]
+}

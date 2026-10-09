@@ -1,0 +1,46 @@
+{
+ "claims": [
+  {
+   "span": "one percent ceramide NP",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "ingredient_amount",
+   "stated_value": "1% ceramide NP",
+   "evidence": [
+    "S6"
+   ],
+   "source_value": "1% ceramide NP",
+   "relation": "consistent",
+   "correct_value": "1% ceramide NP",
+   "say": null
+  },
+  {
+   "span": "five percent panthenol",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "ingredient_amount",
+   "stated_value": "5% panthenol",
+   "evidence": [
+    "S4"
+   ],
+   "source_value": "5% panthenol",
+   "relation": "consistent",
+   "correct_value": "5% panthenol",
+   "say": null
+  },
+  {
+   "span": "three percent squalane",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "ingredient_amount",
+   "stated_value": "3% squalane",
+   "evidence": [
+    "S5"
+   ],
+   "source_value": "3% squalane",
+   "relation": "consistent",
+   "correct_value": "3% squalane",
+   "say": null
+  }
+ ]
+}

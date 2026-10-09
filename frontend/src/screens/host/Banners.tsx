@@ -40,8 +40,10 @@ export function AlertMore({ n }: { n: number }) {
   return n > 0 ? <span className={styles.alertCount} data-testid="host-alert-more">+{n}</span> : null;
 }
 
-export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
+export function FactNote({ alert, catalog, onRendered, count = 1, more = 0, timing = null }: {
   alert: Alert;
+  /** D-439: "Shown in 4.2 s" (null: not known) */
+  timing?: string | null;
   catalog: Catalog | null;
   onRendered?: (alertId: string) => void;
   /** D-399: how many active notes cite this note's passage (this one is the newest) */
@@ -65,18 +67,12 @@ export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
         <KindLabel />
         <span className={styles.warnBadge}>
           <CircleAlert aria-hidden />
-          {alert.heard_check ? t("CHECK WHAT WAS SAID") : `${t(label).toUpperCase()} ${t("CORRECTION")}`}
+          {`${t(label).toUpperCase()} ${t("CORRECTION")}`}
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         <AlertMore n={more} />
-        {alert.unverified && (
-          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
-            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
-          </span>
-        )}
         <span className={styles.alertSaid} data-testid="host-fact-wrong">
-          {/* D-303: a possibly misheard number is shown as heard, without the wrong mark */}
-          {t("Heard:")} {alert.heard_check ? "" : "✕ "}{alert.stated_value}
+          {t("Heard:")} ✕ {alert.stated_value}
         </span>
       </div>
       {/* D-136: one line the host can read out, with the product and the promo condition */}
@@ -91,6 +87,7 @@ export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
           {context ? `${context} · ` : ""}
           {t("Source:")} {source}
         </span>
+        {timing && <span className={styles.alertTiming} data-testid="host-alert-timing">{timing}</span>}
       </span>
     </div>
   );
@@ -127,11 +124,6 @@ export function MediumBanner({
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         <AlertMore n={more} />
-        {alert.unverified && (
-          <span className={`${styles.riskBadge} ${styles.unverifiedBadge}`} data-testid="host-unverified">
-            {alert.unverified_reason ? t("Unverified (AI response delayed)") : t("AI check unavailable")}
-          </span>
-        )}
         <span className={styles.alertSaid}>
           {t("Heard:")} "{alert.span}"
         </span>
@@ -185,12 +177,14 @@ export function SwitchedBar({ productName, onUndo }: { productName: string; onUn
 }
 
 /** D-106: in the prompter card, where the alert was. */
-export function CorrectedBar() {
+export function CorrectedBar({ timing = null }: { timing?: string | null }) {
   const t = useT();
   return (
     <div className={styles.corrected} data-testid="host-corrected" role="status">
       <Check aria-hidden />
       {t("Corrected")}
+      {/* D-439: "Cleared in 3.1 s" */}
+      {timing && <span className={styles.alertTiming} data-testid="host-alert-timing">{timing}</span>}
     </div>
   );
 }

@@ -18,10 +18,8 @@ TESTS = Path(__file__).resolve().parent
 
 # The files that still use `legacy_live`; a batch removes its files here when it migrates them. Never add to it.
 LEGACY_LIVE_FILES = {
-    "test_alerts.py", "test_clean_base.py", "test_d304.py", "test_d338.py", "test_d349.py", "test_d356.py",
-    "test_demo_script_api.py", "test_design_arms.py", "test_multi_release.py", "test_prompter_segments.py",
-    "test_publish.py", "test_relation.py", "test_split_judges.py", "test_utterance_concurrency.py",
-    "test_utterance_merge.py", "test_utterance_pipeline.py",
+    "test_alerts.py", "test_prompter_segments.py", "test_split_judges.py", "test_utterance_concurrency.py",
+    "test_utterance_pipeline.py",
 }
 
 
@@ -39,10 +37,15 @@ def test_d434_the_tests_default_live_path_is_production_s():
     differ = {k: (getattr(prod, k), getattr(tests, k)) for k in LIVE_PATH_KEYS if getattr(prod, k) != getattr(tests, k)}
     assert differ == {}, differ
     # the deployed values the live path depends on (was test_d305's "shipped defaults")
-    assert (prod.JUDGE_MODE, prod.JUDGE_ARM, prod.FACT_RELATION, prod.FACT_PROMPT, prod.FACT_MODE) == (
-        "split3", "single", True, "v5", "prompter")
-    assert (prod.QUESTION_HOLD, prod.JUDGE_PRODUCTS, prod.STT_ENDPOINTING, prod.DESIGN_ARM) == (
-        True, "all", "STANDARD", "A")
+    assert (prod.JUDGE_MODE, prod.FACT_PROMPT) == ("split3", "v5")
+    assert (prod.STT_ENDPOINTING, prod.DESIGN_ARM) == ("STANDARD", "A")
+
+
+def test_d434_the_deploy_sets_only_settings_the_code_reads():
+    """D-435: a setting deleted from the code is deleted from the deploy script too."""
+    script = (REPO / "deploy" / "cloudrun.sh").read_text(encoding="utf-8")
+    [env] = re.findall(r'--set-env-vars="([^"]+)"', script)
+    assert [k for k in (i.split("=", 1)[0] for i in env.split(",")) if k not in Settings.model_fields] == []
 
 
 def test_d434_no_live_path_setting_comes_from_the_environment_or_a_dotenv():
@@ -63,3 +66,30 @@ def test_d434_legacy_live_is_used_only_by_the_files_not_migrated_yet():
              if p.name != Path(__file__).name and "legacy_live" in p.read_text(encoding="utf-8")}
     assert users <= LEGACY_LIVE_FILES, sorted(users - LEGACY_LIVE_FILES)
     assert LEGACY_LIVE_FILES <= users, sorted(LEGACY_LIVE_FILES - users)  # a migrated file leaves the list too
+
+
+async def test_d434_each_production_judge_gets_its_addenda():
+    """D-434 (review): a design_arms.md section a production judge needs must exist; a missing one would be dropped in
+    silence (the lookup returns None). Production: compliance = its prompt file alone (D-358); context = QHOLD and
+    SWITCH; the fact checker = F1 and F5 (FACT_FIXES), PAIR and NOTES, on fact_relation_v5."""
+    from app.agents import arms
+
+    from .helpers import live_runtime, make_ctx
+    from .judge_fakes import ScriptedBackend, close_env
+
+    rt = await live_runtime(make_ctx(backend=ScriptedBackend()))
+    try:
+        u = rt.utterances
+        add = arms._addenda(str(rt.ctx.settings.prompts_path))
+        needed = {"context_judge": ("QHOLD", "SWITCH"), "fact_checker": ("F1", "F5", "PAIR", "NOTES")}
+        for agent, layers in needed.items():
+            for layer in layers:
+                assert add.get((layer, agent)), (layer, agent)
+        assert u.compliance.system_instruction == rt.ctx.prompts["compliance_judge"].system_instruction
+        for layer in needed["context_judge"]:
+            assert add[(layer, "context_judge")] in u.context.system_instruction, layer
+        assert u.facts.prompt is rt.ctx.prompts["fact_relation_v5"]
+        for layer in needed["fact_checker"]:
+            assert add[(layer, "fact_checker")] in u.facts.system_instruction, layer
+    finally:
+        await close_env(rt)

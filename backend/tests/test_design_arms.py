@@ -191,7 +191,8 @@ async def test_arm_f2_preloads_the_on_air_file_in_the_cached_prefix():
     try:
         await speak(rt, "This cream feels so light.")
         judges = [r for r in seen if r.agent in ("compliance_judge", "context_judge")]
-        assert judges and all(r.cache_prefix.startswith('<data name="PRODUCT_FILE">')
+        # D-434: on the production path the compliance prefix starts with the regulation originals, then the file
+        assert judges and all('<data name="PRODUCT_FILE">' in r.cache_prefix
                               and r.user_message.startswith(r.cache_prefix) for r in judges)
         assert all("PRODUCT_FACTS" not in r.user_message for r in judges)
     finally:
@@ -255,6 +256,3 @@ def test_d201_the_draft_code_gate_per_arm(pack, catalog, arm, ok):
     refused = out.model_copy(update={"grounded": False, "answer": ""})
     assert draft_code_gate(refused, pack.passages, CREAM, arm=arm, reflex=Reflex(pack.rules, pack.lexicon),
                            not_approved=[])[0] is False
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

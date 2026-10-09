@@ -465,161 +465,111 @@
     },
     "B6_sample_questions": {
       "scene": "default",
-      "description": "D-375: sample viewer questions for the cream: three common questions asked several ways (price, sensitive skin, use with the ampoule) reach the host's Top 3; two singles; one the product info does not answer goes to the operator.",
+      "description": "D-375, D-437: sample viewer questions for the cream after the main merge (142c1dd). Three questions about health, each asked by two or three viewers in the same words (the merged path groups only the same words, lower case and spacing aside), need a person's approval, so they wait on the host's list with a verified suggested reply from the product info: use around the eyes, redness-prone skin, broken skin; D-440: each one's answer is a sentence of the cream's sheet, since a reply the comments composer has to infer goes to the operator. The more askers, the higher they rank. One single question the product info does not answer (halal) goes to the operator.",
       "comments": [
         {
           "offset_ms": 0,
           "author_id": "u_mei",
           "author_name": "Mei",
-          "text": "How much is the cream?",
+          "text": "Can I use it around my eyes?",
           "expect": {
             "kind": "question",
-            "intent": "price",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "intent": "suitability",
+            "needs_approval": true,
+            "approval_reason": "health",
+            "route": "HOST",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77",
+            "answer_from": "Cautions: for external use only; avoid contact with eyes; if the product gets into the eyes, rinse with water"
           }
         },
         {
           "offset_ms": 2500,
           "author_id": "u_hafiz",
           "author_name": "Hafiz",
-          "text": "is the cream ok for sensitive skin?",
+          "text": "I get redness easily, will this cream irritate my skin?",
           "expect": {
             "kind": "question",
-            "intent": "sensitive_skin",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "intent": "allergy_sensitivity",
+            "needs_approval": true,
+            "approval_reason": "health",
+            "route": "HOST",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77",
+            "answer_from": "Suitable for sensitive skin, patch tested with no irritation reactions (in-house test); stop and consult a dermatologist if redness, swelling or itching appears"
           }
         },
         {
           "offset_ms": 5000,
-          "author_id": "u_grace",
-          "author_name": "Grace",
-          "text": "do i put the ampoule before or after the cream?",
+          "author_id": "u_aisyah",
+          "author_name": "Aisyah",
+          "text": "can i use it around my eyes?",
           "expect": {
-            "kind": "question",
-            "intent": "how_to_use",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "group_with": "Mei"
           }
         },
         {
           "offset_ms": 7500,
           "author_id": "u_dev",
           "author_name": "Dev",
-          "text": "price of the barrier cream pls",
+          "text": "Can I put it on broken skin?",
           "expect": {
             "kind": "question",
-            "intent": "price",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "intent": "medical_condition",
+            "needs_approval": true,
+            "approval_reason": "health",
+            "route": "HOST",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77",
+            "answer_from": "Cautions: do not apply to broken or damaged skin"
           }
         },
         {
           "offset_ms": 10000,
-          "author_id": "u_aisyah",
-          "author_name": "Aisyah",
-          "text": "my skin is very sensitive, can I use this cream?",
+          "author_id": "u_joel",
+          "author_name": "Joel",
+          "text": "I get redness easily, will this cream irritate my skin?",
           "expect": {
-            "kind": "question",
-            "intent": "sensitive_skin",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "group_with": "Hafiz"
           }
         },
         {
           "offset_ms": 12500,
-          "author_id": "u_ken",
-          "author_name": "Ken",
-          "text": "ampoule first or cream first?",
+          "author_id": "u_lina",
+          "author_name": "Lina",
+          "text": "Can I use it around my eyes?",
           "expect": {
-            "kind": "question",
-            "intent": "how_to_use",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "group_with": "Mei"
           }
         },
         {
           "offset_ms": 15000,
-          "author_id": "u_lina",
-          "author_name": "Lina",
-          "text": "what's the live price for the cream today?",
+          "author_id": "u_farah",
+          "author_name": "Farah",
+          "text": "can i put it on broken skin?",
           "expect": {
-            "kind": "question",
-            "intent": "price",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "group_with": "Dev"
           }
         },
         {
           "offset_ms": 17500,
-          "author_id": "u_joel",
-          "author_name": "Joel",
-          "text": "will this cream irritate sensitive skin",
+          "author_id": "u_priya",
+          "author_name": "Priya",
+          "text": "i get redness easily, will this cream irritate my skin?",
           "expect": {
-            "kind": "question",
-            "intent": "sensitive_skin",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
+            "group_with": "Hafiz"
           }
         },
         {
           "offset_ms": 20000,
-          "author_id": "u_farah",
-          "author_name": "Farah",
-          "text": "how do i use the cream together with the ampoule?",
-          "expect": {
-            "kind": "question",
-            "intent": "how_to_use",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
-          }
-        },
-        {
-          "offset_ms": 22500,
-          "author_id": "u_priya",
-          "author_name": "Priya",
-          "text": "cream how much ah",
-          "expect": {
-            "kind": "question",
-            "intent": "price",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
-          }
-        },
-        {
-          "offset_ms": 25000,
-          "author_id": "u_tan",
-          "author_name": "Tan",
-          "text": "can i wear the cream under makeup?",
-          "expect": {
-            "kind": "question",
-            "intent": "how_to_use",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
-          }
-        },
-        {
-          "offset_ms": 27500,
-          "author_id": "u_rosa",
-          "author_name": "Rosa",
-          "text": "does the cream have any fragrance?",
-          "expect": {
-            "kind": "question",
-            "intent": "ingredients",
-            "route": "AUTO",
-            "product_id": "daon_lab_hydra_barrier_c_288d9c77"
-          }
-        },
-        {
-          "offset_ms": 30000,
           "author_id": "u_omar",
           "author_name": "Omar",
-          "text": "do you ship to Brunei?",
+          "text": "Is the cream halal certified?",
           "expect": {
             "kind": "question",
-            "intent": "shipping",
-            "route": "OPERATOR"
+            "intent": "certification",
+            "needs_approval": true,
+            "approval_reason": "certification",
+            "route": "OPERATOR",
+            "product_id": "daon_lab_hydra_barrier_c_288d9c77",
+            "why": "the product info says nothing about halal certification"
           }
         }
       ]

@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { api } from "../../app/api";
 import { translate, useT, type Translate } from "../../app/i18n";
-import { formatClock, runsheetOf } from "../../app/selectors";
+import { alertTimingStats, formatClock, runsheetOf } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
 import type { ThemePref } from "../../app/theme";
 import { Button, Chip, ConnectionLabel, Eyebrow, HubLink, SettingsButton, StatusDot } from "../../components";
@@ -67,6 +67,20 @@ export function impactChips(metrics: { impact?: Impact } | undefined, t: Transla
   ];
 }
 
+/** D-439: the show's alerts with a spoken line, how many were shown within 5 s, and the slowest */
+function AlertTimingLine() {
+  const t = useT();
+  const { state } = useOperator();
+  const x = alertTimingStats(state);
+  if (!x) return null;
+  return (
+    <span className={styles.subtitle} data-testid="op-alert-timing-stats">
+      {t("Alerts this show: {n} · {m} shown within 5 s · slowest {s} s",
+        { n: x.count, m: x.within5, s: (Math.max(0, x.slowestMs) / 1000).toFixed(1) })}
+    </span>
+  );
+}
+
 export function OperatorHeader({
   connection,
   themePref,
@@ -103,6 +117,7 @@ export function OperatorHeader({
         </Eyebrow>
         <h1 className={styles.title}>{t("Live control room")}</h1>
         <span className={styles.subtitle}>{subtitle}</span>
+        <AlertTimingLine />
       </div>
       <div className={styles.headerRight}>
         {state.market?.tier === "preview" && (

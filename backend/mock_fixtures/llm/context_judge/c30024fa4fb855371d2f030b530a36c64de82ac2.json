@@ -1,0 +1,22 @@
+{
+ "expects_resolution": false,
+ "answer": {
+  "utterance_type": "product_talk",
+  "matched_group_id": null,
+  "is_answer": false,
+  "consistent_with_suggested": false
+ },
+ "prompter": {
+  "covered_point_ids": [
+   "cr-p1"
+  ],
+  "covered_cue_ids": [],
+  "switch": {
+   "is_transition": false,
+   "is_quote": false,
+   "target_product_id": null,
+   "confidence": "low"
+  }
+ },
+ "reason": "Host describes the cream's texture and absorption, covering prompter point cr-p1."
+}

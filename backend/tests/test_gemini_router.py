@@ -84,12 +84,12 @@ async def test_outer_deadline_and_cached_warmup(module, monkeypatch):
 
 
 async def test_owned_client_closed_and_retries_disabled(module, monkeypatch):
-    import run_eval
+    import eval_common  # D-435: the helpers moved from run_eval
     from app.config import Settings
 
     client = Client(SimpleNamespace(status="error", output=None, latency_ms=0))
     client._settings = Settings(LLM_RETRY_ON_5XX=1)
-    monkeypatch.setattr(run_eval, "make_client", lambda record: (client, None))
+    monkeypatch.setattr(eval_common, "make_client", lambda record: (client, None))
     router = module.GeminiRouter()
     assert client._settings.LLM_RETRY_ON_5XX == 0
     await router.aclose()

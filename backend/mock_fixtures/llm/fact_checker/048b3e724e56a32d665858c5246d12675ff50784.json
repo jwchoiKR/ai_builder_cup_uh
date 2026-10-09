@@ -1,0 +1,18 @@
+{
+ "claims": [
+  {
+   "span": "ten percent niacinamide",
+   "stance": "HOST_ASSERTS",
+   "product_id": "ampoule_deep_hydration",
+   "field": "ingredient_amount",
+   "stated_value": "10% niacinamide",
+   "evidence": [
+    "S9"
+   ],
+   "source_value": "4% niacinamide",
+   "relation": "contradicts",
+   "correct_value": "4% niacinamide",
+   "say": null
+  }
+ ]
+}

@@ -27,7 +27,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from ..agents import arms
-from ..agents.fact_checker import FactChecker, FactInput, gather_fact_passages
+from ..agents.fact_checker import FactChecker, FactInput
 from ..agents.split_judges import ComplianceJudge, ContextJudge
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values
 from ..logic import alerts as alert_logic
@@ -132,9 +132,7 @@ class UtterancePipeline:
         self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex, single=self.single)
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
-        relation = "fact_relation_v5" if rt.settings.FACT_PROMPT == "v5" else "fact_relation"  # D-331
-        self.facts = FactChecker(ctx.llm, ctx.prompts[relation if rt.settings.FACT_RELATION else "fact_checker"],
-                                 rt.catalog)  # D-296
+        self.facts = FactChecker(ctx.llm, ctx.prompts["fact_relation_v5"], rt.catalog)  # D-296; D-331
         self.type_words = self._type_words()  # D-351
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
@@ -212,7 +210,7 @@ class UtterancePipeline:
     async def _expects_resolution(self, prev: Transcript | None) -> bool:
         """D-335: the context judge's verdict that the previous final (judged alone) asks or relays something the next
         line is expected to answer; waited for at most 300 ms."""
-        if not self.rt.settings.QUESTION_HOLD or prev is None or prev.transcript_id in self._held:
+        if prev is None or prev.transcript_id in self._held:
             return False
         fut = self._ready.get(prev.transcript_id)
         if fut is None:
@@ -293,7 +291,7 @@ class UtterancePipeline:
             self._question_finals += 1
             log.info("question final %s %s (%d of %d finals)", rt.sid, t.transcript_id, self._question_finals,
                      len(self._sequence))
-        if (rt.settings.QUESTION_HOLD and asks(t.text) and rt.settings.QUESTION_HOLD_MS > 0
+        if (asks(t.text) and rt.settings.QUESTION_HOLD_MS > 0
                 and len((merge.chain if merge else [])) + 1 < MAX_MERGED_FINALS):
             # D-334: a question is not judged alone: its answer, the next final, joins it into one utterance
             self._held[t.transcript_id] = (t, text, merge, scenario)
@@ -373,10 +371,8 @@ class UtterancePipeline:
                 inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch, inp.promo)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
-                comp_task = rt.spawn(self._once_more(
-                    lambda: self.compliance.run(inp, deadline_ms=(rt.settings.VERIFY_TIMEOUT_MS  # D-309: the strong
-                                                                  if rt.settings.JUDGE_ARM == "single"  # model's 5 s
-                                                                  else rt.settings.JUDGE_TIMEOUT_MS), values=values)),
+                comp_task = rt.spawn(self._once_more(  # D-309: the compliance judge's 5 s
+                    lambda: self.compliance.run(inp, deadline_ms=rt.settings.VERIFY_TIMEOUT_MS, values=values)),
                     name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self._context_once_more(inp, values), name=f"context:{t.transcript_id}")
             else:
@@ -497,7 +493,6 @@ class UtterancePipeline:
         on_screen = s.host_slots[0].group_id if s.host_slots else None
         inp = JudgeInput(utterance=text, on_air=on_air, active_alerts=alerts, open_questions=questions,
                          cue=s.cue, previous=previous, points_by_product=rt.points or None,
-                         all_products=rt.settings.JUDGE_PRODUCTS == "all",
                          session_id=rt.sid, scenario=scenario,
                          switch=self._scoped(s.switch), promo=promo, on_screen_group_id=on_screen,
                          run_sheet_types=self.type_words, now=rt.now(),
@@ -546,17 +541,13 @@ class UtterancePipeline:
 
     async def _fact_passages(self, text: str, on_air: str, switch: SwitchState, promo=None):
         rt = self.rt
-        if rt.settings.FACT_MODE == "prompter":  # D-360: only what the host prompter shows, the previous product's
-            # snapshot too inside the dual scope after a switch (D-349)
-            from ..logic.prompter import prompter_passages
+        # D-360: only what the host prompter shows, the previous product's snapshot too inside the dual scope after a
+        # switch (D-349)
+        from ..logic.prompter import prompter_passages
 
-            pids = [on_air, *([switch.previous_product_id] if switch.previous_product_id
-                              and switch.previous_product_id != on_air else [])]
-            return [x for pid in pids for x in prompter_passages(rt.catalog, pid, rt.points, promo)]
-        rt.sync_doc_version()
-        return await gather_fact_passages(rt.ctx.retriever, rt.catalog, rt.prefetched, utterance=text, on_air=on_air,
-                                          switch=switch, search_timeout_ms=rt.settings.FACT_SEARCH_TIMEOUT_MS,
-                                          all_products=rt.settings.JUDGE_PRODUCTS == "all")
+        pids = [on_air, *([switch.previous_product_id] if switch.previous_product_id
+                          and switch.previous_product_id != on_air else [])]
+        return [x for pid in pids for x in prompter_passages(rt.catalog, pid, rt.points, promo)]
 
     def _by_judge(self) -> bool:
         """D-187 arm B, or D-304 VERBAL_CHECK=judge: a spoken answer's numbers and hedges come from the context judge."""
@@ -588,14 +579,10 @@ class UtterancePipeline:
         return res
 
     async def warm_facts_cache(self, on_air: str) -> None:
-        """D-247 arm FD: the fact checker's files cache, made at session start for the first product."""
-        if self.compliance.with_docs:  # D-310: and the compliance judge's rules-and-documents cache
+        """D-310: the compliance judge's rules-and-documents cache, made at session start (D-435: the fact checker
+        sends no files, so it has no cache to warm)."""
+        if self.compliance.with_docs:
             self.rt.spawn(self.compliance.warm(on_air, self.rt.sid), name=f"compliance-cache:{on_air}")
-        if self.facts._parts(on_air):
-            switch = SwitchState()
-            await self.facts.warm_cache(FactInput(utterance="", on_air=on_air, switch=switch, promo=None,
-                                                  passages=await self._fact_passages("", on_air, switch),
-                                                  session_id=self.rt.sid))
 
     async def _run_facts(self, text: str, on_air: str, judge_input: JudgeInput, scenario: str,
                          parts: list[str] | None = None, transcript_id: str | None = None) -> AgentResult:
@@ -782,8 +769,8 @@ class UtterancePipeline:
         if first:  # D-416: the line is unchecked once, whichever judges failed on it
             await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
                                          "cause": cause, "at": now})
-        await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "status": res.status, "alert_ids": [],
-                                       "agent": agent, "cause": cause, "at": now, "n": event["n"]})
+        await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now,
+                                       "n": event["n"]})
 
     def check_failures(self) -> dict:
         """D-412/D-416/D-420: the snapshot's block, by the live stream's rule: the last 5 minutes' failure events (for
@@ -878,9 +865,7 @@ class UtterancePipeline:
             text = self._prepared[t.transcript_id][1] if t.transcript_id in self._prepared else t.text
             inp = JudgeInput(utterance=text, on_air=seg.product_id if seg else a.product_id, active_alerts=[a],
                              previous=[alert_line] if alert_line else [], session_id=rt.sid)
-        res = await self.compliance.run(inp, deadline_ms=(rt.settings.VERIFY_TIMEOUT_MS
-                                                          if rt.settings.JUDGE_ARM == "single"
-                                                          else rt.settings.JUDGE_TIMEOUT_MS))
+        res = await self.compliance.run(inp, deadline_ms=rt.settings.VERIFY_TIMEOUT_MS)
         listed = res.output.correction.corrects_alert_ids if res.status == "ok" and res.output is not None else []
         log.info("correction %s re-check: alert=%s t=%s status=%s listed=%s", rt.sid, alert_id, t.transcript_id,
                  res.status, alert_id in listed)
@@ -1036,7 +1021,7 @@ class UtterancePipeline:
         when the line's segment is gone (an undone switch), the product's open segment, else its pre_covered."""
         rt = self.rt
         inp = self._fact_inputs.get(t.transcript_id)
-        if rt.settings.FACT_MODE != "prompter" or inp is None:
+        if inp is None:
             return
         shown = {p.passage_id: p.product_id for p in inp.passages}  # the snapshot this check read
         cited: dict[str, list[str]] = {}
@@ -1620,7 +1605,9 @@ async def dismiss_alert(rt: "SessionRuntime", aid: str) -> None:
 async def correction_cue(rt: "SessionRuntime", aid: str) -> HostCue:
     async with rt.lock:
         a = await _alert_or_404(rt, aid)
-        text = f"Correct now: say '{a.say_instead}'" if a.kind == "compliance" else f"Say: {a.correct_value}"
+        # D-436: a red claim is taken back first: the language pack's retraction phrase, then say_instead
+        say = " ".join(x for x in (rt.pack.lang_pack.retraction_phrase, a.say_instead or "") if x)
+        text = f"Take it back, then say: '{say}'" if a.kind == "compliance" else f"Say: {a.correct_value}"
         cue = await set_cue_locked(rt, text, None)
         await rt.emit("operator.action", {"actor": "operator", "action": "alert_cue", "alert_id": aid, "at": rt.now()})
         return cue

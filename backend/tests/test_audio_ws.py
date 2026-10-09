@@ -8,8 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import create_app
-from app.providers.stt import (BYTES_PER_MS, SttResult, _StreamState, phrases_from_glossary, risk_phrases,
-                               with_risk_phrases)
+from app.providers.stt import BYTES_PER_MS, SttResult, _StreamState, phrases_from_glossary
 
 from .conftest import make_settings
 
@@ -67,24 +66,6 @@ def test_mic_finals_go_to_the_utterance_pipeline():
         assert "DAON LAB" in app.state.ctx.stt.opened[0]
 
 
-@pytest.mark.parametrize("flag", [False, True])
-def test_d186_the_markets_claim_words_follow_the_glossary_only_with_the_flag(flag, caplog):
-    """D-186 (cloud 00008: "whitens" was heard as "widens"): with STT_RISK_HINTS the reflex phrases of the session's
-    rules go after the glossary terms; the log line says how many of each."""
-    app = create_app(make_settings(STT_RISK_HINTS=flag))
-    app.state.ctx.stt = FakeStt()
-    caplog.set_level("INFO", logger="app.api.audio_ws")
-    with TestClient(app) as client:
-        sid = client.post("/api/sessions").json()["session_id"]
-        with client.websocket_connect(f"/api/sessions/{sid}/audio") as ws:
-            ws.receive_text()
-    [opened] = app.state.ctx.stt.opened
-    assert opened[0] == "DAON LAB" and ("whitens" in opened) is flag and ("cure" in opened) is flag
-    if flag:
-        assert opened.index("whitens") > opened.index("DAON LAB")
-    assert any(f"STT_RISK_HINTS={flag}" in r.getMessage() and "glossary" in r.getMessage() for r in caplog.records)
-
-
 @pytest.mark.parametrize("asked, language, hints", [
     ("ko-KR", "ko-KR", True), ("auto", "auto", False), ("xx-YY", "en-US", True), ("", "en-US", True)])
 def test_d316_the_mic_s_language(asked, language, hints, caplog):
@@ -103,13 +84,6 @@ def test_d316_the_mic_s_language(asked, language, hints, caplog):
     assert app.state.ctx.stt.languages == [language]
     assert bool(app.state.ctx.stt.opened[0]) is hints
     assert any(f"{final['transcript_id']} lang={language}" in r.getMessage() for r in caplog.records)
-
-
-def test_d186_risk_phrases_dedupe_and_keep_the_cap(pack):
-    risk = risk_phrases(pack.rules.rules)
-    assert "whiten" in risk and "bleaches" in risk and len(risk) == len({p.lower() for p in risk})
-    assert with_risk_phrases(["Cure", "DAON LAB"], ["cure", "whiten"]) == ["Cure", "DAON LAB", "whiten"]
-    assert with_risk_phrases(["a"] * 2, ["whiten", "bleach"], limit=3) == ["a", "a", "whiten"]
 
 
 def test_mock_stt_rejects_audio():

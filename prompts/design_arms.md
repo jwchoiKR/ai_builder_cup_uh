@@ -60,88 +60,6 @@ Design arm D: you are the only check before the reply is posted. SOURCE is the w
 is every advertising rule. Fail the REPLY when any number, price, amount or claim in it is not in SOURCE as
 written, when it breaks a rule in RULES, or when it does not answer the question.
 
-## FR: fact_checker
-
-Fact mode "record" (D-242): SOURCE includes "Record facts" passages taken from the product's approved record.
-- Sizes: a price belongs to the size it names ("(50 ml)"). When the host names a size, check the price against that
-  size's passage; a price that is right for another size is `contradicted`, with that size's price as the correction.
-  When the host names no size, a price that matches any size is `supported`.
-- Markets: a price passage names its market ("SG live price"). A price said on this show that is another market's
-  price (another currency, or the amount of another market) is `contradicted`, with this market's price.
-- Superseded: a "Superseded" passage is an older version's value. Saying it as current is `contradicted`, with the
-  current value from that passage.
-- Offers: an "Offer" passage gives the offer's terms (percent, amount or threshold, buy X get Y, dates, minutes). A
-  different term said for that offer is `contradicted` (field `promo`), with the passage's term.
-- Test results: a "Test result" passage says the qualifier the result must be said with; that is compliance, not a
-  fact: do not list a missing qualifier here.
-- Offers and totals: when the host states a total for several items, a bundle or an offer ("44 for two", "buy two
-  get one"), compare it with the offer's terms and its computed totals ("pay for 2 = ...", "2 units ..."), never with
-  the unit price. An offer's threshold, its comparison ("more than", "at least"), whether it combines with other offers
-  and which items it covers are checkable terms ("terms as written").
-- Packaging, form and texture stated in any passage (key facts included: "the current pack contains 50 mL in an
-  airless pump") are checkable: a different one ("a screw-top jar") is `contradicted` (field `packaging`, `texture`).
-- Versions: "same as before", "unchanged" or "the original formula" is checkable against "Superseded" and "Versions"
-  passages: a value that changed between versions contradicts it.
-- Thresholds: "above S$40" means S$40 itself does not qualify; "at least S$40" means it does. A host who says S$44
-  qualifies and S$40 does not, against "above S$40", is right (`supported`).
-- A line that quotes someone else's wrong idea and rejects it ("someone says double up; please don't, follow the daily
-  portion") states the rejection and the instruction; the quoted words are not the host's claim.
-- Offer totals: "best price for N" in an Offer passage is the cheapest mix of the offer and single units.
-- Totals: "Computed" passages give per-pack totals worked out in code (amount per unit × units in the pack). A total
-  the host states for a pack is checked against them, never against the amount per unit.
-- Substances: a compound and its element are different substances ("zinc gluconate" is not "zinc"; "2.5 mg zinc (as
-  zinc gluconate)" gives the zinc, not the gluconate). An amount of a substance SOURCE does not give is
-  `not_in_sources`.
-- Every number with a unit anywhere in SOURCE is checkable, wherever it appears (key facts, how to use, cautions):
-  periods after opening, hours, days, uses, pumps, drops, counts.
-- Price terms in SOURCE (tax included or not, delivery included or not, per unit or per set) are checkable (field
-  `price`).
-- Superseded values: describing an old value as old, previous or discontinued is `supported`; saying it is current,
-  or that it is not discontinued, is `contradicted`. A line that describes the change between versions ("the new
-  version is a larger pack at the same price") is `supported` when each value matches its own version.
-- An ingredient the host says the product contains, which a "Free from" statement or a complete ingredient list in
-  SOURCE excludes, is `contradicted` (field `ingredient`), with that statement as the correction.
-- Only contradict with a value SOURCE states. When SOURCE does not give the value ("not disclosed"), the claim is
-  `not_in_sources`.
-- `correct_value` is the line the host says. Without a number it is a short statement of the right fact in the
-  quote's words ("contains fragrance"), never a bare field word.
-
-## FD: fact_checker
-
-Fact mode "docs" (D-247): the product's original files come before this message, each after a line "FILE <name>".
-- The record facts in SOURCE are an index. The files are the authority: when a file and a passage disagree, the file
-  is right.
-- Check every fact the host states against the files too: numbers, conditions, offer terms, ingredients (present or
-  absent), cautions, test results and their footnotes.
-- A correction from a file sets `passage_id` to "file:<name>#<locator>" (the file's name as given, and where in it:
-  page, sheet and row, paragraph, "image"), and `quote` to the file's words copied character for character. Software
-  checks the quote in the file.
-- Only contradict with a value a file or SOURCE states. When neither gives the value, the claim is `not_in_sources`.
-
-## RD: fact_checker
-
-Fact mode "docs" with the relation arm (D-296): the product's original files come before this message, each after a
-line "FILE <name>". Their text is also in SOURCE as numbered sentences (passages whose id starts with "file:"). The
-files are the authority: when a file and another passage disagree, the file is right. Cite the ids of the sentences
-that settle a fact. A fact you can see only in a file's picture or layout, in no sentence, is `uncertain`.
-
-## REL: compliance_judge
-
-D-297: for a violation of a HIGH rule, set `claim_kind` to what the line itself asserts:
-- `safety_promise`: safe, harmless, gentle, no side effects, suits or is fine for someone;
-- `disease_treatment`: cures, treats, heals or prevents a disease or a medical condition;
-- `medical_or_physiological_effect`: changes the body (regenerates cells, removes wrinkles, burns fat, numbs);
-- `permanence`: results last forever or never come back;
-- `comparative_or_superlative`: the best, better than others;
-- `usage_instruction`: how to use it, even a wrong or unsafe direction ("let the child brush alone");
-- `composition_fact`: what it contains or how much;
-- `other`.
-Set `group` to the group or condition the line names for the claim ("babies", "people with eczema", "everyone"), or
-null. Name only what the line says. A cosmetic state (chapped lips, dry skin, dull hair) is no disease. A line that
-tells viewers to ignore or reverse a caution ("Irritated skin? Go ahead and use it.") is `usage_instruction`, unless
-it promises safety to a group such as babies or pregnant women. For a MEDIUM rule, `claim_kind` and `group` are
-null.
-
 ## QHOLD: context_judge
 
 D-335: set `expects_resolution` first. `true` when UTTERANCE asks something, or relays a claim, that the next line is
@@ -169,27 +87,6 @@ D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each prod
 - `false` for: a move that names no product ("okay, next one"); naming a product whose status is not `next` (say
   which product in `target_product_id`); a plan ("the serum is coming later", "later I'll show you the serum"); a
   comparison ("this feels lighter than the serum"); a viewer's question or a quote ("someone asked about the toner").
-
-## HANDLES: compliance_judge
-
-D-356 (Job 2, correction): each ACTIVE_ALERTS entry has a `handle` (A1, A2 ...), its `span`, `rule_id` and `status`
-(`provisional` or `active`). Your answer starts with `alert_checks`: exactly one entry per ACTIVE_ALERTS
-entry, `{"handle": ..., "fixed_by_this_line": true or false}`. `fixed_by_this_line` is true when this line, read in
-context, fixes the problem that alert names (a retraction or a compliant restatement). There is no `corrects_alert_ids` field in this answer; decide every alert
-before you write `violations` and `reason`. With no ACTIVE_ALERTS, `alert_checks` is [].
-
-Example H1
-ACTIVE_ALERTS: [{"handle":"A1","span":"it heals scars in a week","rule_id":"LAW-DISEASE","status":"active"}]
-UTTERANCE: "Sorry, I take that back about the scars; it helps skin look smoother."
-```json
-{"alert_checks":[{"handle":"A1","fixed_by_this_line":true}],"compliance":{"violations":[]},"reason":"Retracts the scar claim."}
-```
-
-## PAIR: compliance_judge
-
-D-335: When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ...", they are one exchange: judge what
-[this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
-a report by someone, not a claim of [this line].
 
 ## NOTES: fact_checker
 

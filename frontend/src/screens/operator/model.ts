@@ -3,6 +3,7 @@ import { translate, type Translate } from "../../app/i18n";
 import { formatMmSs, onAirSegment, ownDocFirst, productById } from "../../app/selectors";
 import type { ClientState, JudgeFailure } from "../../app/state";
 import type { Alert, Answer, Catalog, Comment, Message, QuestionGroup, SetOffer, Transcript } from "../../app/types";
+import { citedTitle } from "../host/hostSelectors";
 
 /** Default for the optional `t` of the label helpers below: English, as the tests expect. */
 const EN: Translate = (en, vars) => translate("en", en, vars);
@@ -219,13 +220,13 @@ export function complianceTitle(a: Alert, now: number, t: Translate = EN): strin
 export function correctedLine(a: Alert, t: Translate = EN): string | null {
   if (a.status !== "corrected" || a.resolved_at === null || a.shown_at === null) return null;
   const text = a.corrected_text ? ` · '${a.corrected_text}'` : "";
-  return `${t("Corrected in {s} s", { s: seconds1(a.resolved_at - a.shown_at) })}${text}`;
+  return `${t("Host fixed in {s} s", { s: seconds1(a.resolved_at - a.shown_at) })}${text}`;  // D-439: the host's reaction
 }
 
 export function alertOutcome(a: Alert, t: Translate = EN): string {
   switch (a.status) {
     case "corrected":
-      return a.shown_at !== null && a.resolved_at !== null ? t("Corrected in {s} s", { s: seconds1(a.resolved_at - a.shown_at) }) : t("Corrected");
+      return a.shown_at !== null && a.resolved_at !== null ? t("Host fixed in {s} s", { s: seconds1(a.resolved_at - a.shown_at) }) : t("Corrected");
     case "dismissed":
       return t("Dismissed");
     case "active":
@@ -349,8 +350,8 @@ export function transcriptChips(state: ClientState, catalog: Catalog | null, t: 
   const chips: TranscriptChip[] = [];
   for (const a of Object.values(state.alerts)) {
     if (a.transcript_id !== t.transcript_id) continue;
-    if (a.kind === "compliance" && a.status !== "cleared" && a.status !== "provisional") {
-      chips.push({ tone: "risk", text: a.rule_id ?? tr("compliance") });
+    if (a.kind === "compliance" && a.status !== "cleared") {
+      chips.push({ tone: "risk", text: citedTitle(a) ?? a.rule_id ?? tr("compliance") });  // D-440: not the slug
     } else if (a.kind === "fact") {
       chips.push({ tone: "fact", text: `${tr(fieldLabel(catalog, a.field))}` });
     }

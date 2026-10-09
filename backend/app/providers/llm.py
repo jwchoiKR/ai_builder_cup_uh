@@ -31,7 +31,7 @@ log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
 Status = Literal["ok", "timeout", "error", "invalid"]
 
-MOCK_FIXTURES_DIR = BACKEND_DIR / "tests" / "fixtures" / "llm"
+MOCK_FIXTURES_DIR = BACKEND_DIR / "mock_fixtures" / "llm"  # D-435: out of tests/ (app code reads it)
 WARMUP_TIMEOUT_MS = 10_000
 
 
@@ -121,7 +121,7 @@ def mock_key(agent: str, primary_text: str, scenario: str) -> str:
 
 
 class MockBackend:
-    """Canned outputs from tests/fixtures/llm/<agent>/<key>.json (§7.1, §14.2)."""
+    """Canned outputs from mock_fixtures/llm/<agent>/<key>.json (§7.1, §14.2)."""
 
     name = "mock"
 
@@ -490,16 +490,13 @@ class LLMClient:
         self.quality = ModelSpec(settings.LLM_QUALITY_MODEL, settings.LLM_QUALITY_THINKING)  # Brief, Summary
         self.composer = ModelSpec(settings.LLM_QUALITY_MODEL, settings.COMPOSER_THINKING)
         # D-128: the fast model with a thinking level per agent
-        # D-309 JUDGE_ARM=single: the compliance judge and the fact checker on the strong model
-        single = getattr(settings, "JUDGE_ARM", "") == "single"
+        # D-309: the compliance judge and the fact checker on SINGLE_MODEL (D-435: the guards arm is gone)
         strong = getattr(settings, "SINGLE_MODEL", settings.LLM_QUALITY_MODEL)
         strong_thinking = getattr(settings, "SINGLE_THINKING", "LOW")
-        self.compliance = ModelSpec(getattr(settings, "COMPLIANCE_MODEL", "") or (strong if single else settings.LLM_FAST_MODEL),
-                                    strong_thinking if single else settings.COMPLIANCE_THINKING)
+        self.compliance = ModelSpec(getattr(settings, "COMPLIANCE_MODEL", "") or strong, strong_thinking)
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
         facts_thinking = getattr(settings, "SINGLE_FACTS_THINKING", "") or strong_thinking  # D-311
-        self.facts = ModelSpec(settings.FACTS_MODEL or (strong if single else settings.LLM_FAST_MODEL),
-                               facts_thinking if single else settings.FACTS_THINKING)  # D-246; D-309
+        self.facts = ModelSpec(settings.FACTS_MODEL or strong, facts_thinking)  # D-246; D-309
         self.draft_verify = ModelSpec(settings.LLM_FAST_MODEL,
                                       getattr(settings, "DRAFT_VERIFY_THINKING", "") or settings.LLM_FAST_THINKING)
         self.triage = ModelSpec(getattr(settings, "TRIAGE_MODEL", "") or settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)

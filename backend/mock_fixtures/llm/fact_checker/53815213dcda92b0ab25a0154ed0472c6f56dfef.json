@@ -1,0 +1,30 @@
+{
+ "claims": [
+  {
+   "span": "lightweight gel-cream",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "texture",
+   "stated_value": "lightweight gel-cream",
+   "evidence": [
+    "S9"
+   ],
+   "source_value": "Gel-cream",
+   "relation": "consistent",
+   "correct_value": "Gel-cream",
+   "say": null
+  },
+  {
+   "span": "absorbs really quickly",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "texture",
+   "stated_value": "absorbs really quickly",
+   "evidence": [],
+   "source_value": "absorbs quickly",
+   "relation": "consistent",
+   "correct_value": "absorbs quickly",
+   "say": null
+  }
+ ]
+}

@@ -6,7 +6,7 @@ import pytest
 from app.models.session import Transcript
 from app.pipelines.utterances import ends_sentence
 
-from .judge_fakes import advance, claim, close_env, events, make_env, price_contradiction, speak, violation
+from .judge_fakes import rid, advance, claim, close_env, events, make_env, price_contradiction, speak, violation
 from .test_publish import ANSWER, messages, oily_on_host
 
 S08_A, S08_B = "Just to be clear, it does not", "treat acne. It's a moisturiser."
@@ -64,7 +64,6 @@ async def test_unfinished_previous_within_window_is_merged(env):
 @pytest.mark.parametrize("first, gap_ms", [
     (S08_A, 3501),                      # previous final too old
     ("Just to be clear.", 500),         # previous final ended the sentence
-    ("Is it clear?", 500),
     ("It is clear!", 500),
 ])
 async def test_not_merged(env, first, gap_ms):
@@ -73,6 +72,16 @@ async def test_not_merged(env, first, gap_ms):
     b = await stored(rt, b)
     assert b.merged_from_transcript_id is None and b.judged_text is None
     assert ("compliance_judge", S08_B) in llm.calls and ("context_judge", S08_B) in llm.calls
+
+
+async def test_d334_a_question_is_judged_together_with_the_next_final(env):
+    """D-334/D-343 (QUESTION_HOLD, production): a final ending with "?" waits for the next one; the two are judged as
+    one exchange, with the lines marked (was "Is it clear?" in test_not_merged, before the hold was on)."""
+    rt, llm = env
+    a, b = await split(rt, "Is it clear?", S08_B, gap_ms=500)
+    b = await stored(rt, b)
+    assert b.merged_from_transcript_id == a.transcript_id
+    assert b.judged_text == "[previous line] Is it clear?\n[this line] " + S08_B
 
 
 async def test_merge_off_and_chain_limit():
@@ -134,7 +143,7 @@ async def test_s07_split_mid_claim_gives_exactly_one_alert(env, fragment_flagged
     llm.judge(S07, violations=[violation("ASEAN-3-SKIN-AGEING", "your wrinkles will disappear overnight")])
     a, b = await split(rt, S07_A, S07_B)
     [alert] = [x for x in compliance(await rt.alerts()) if x.status == "active"]
-    assert alert.rule_id == "ASEAN-3-SKIN-AGEING"
+    assert alert.rule_id == rid("ASEAN-3-SKIN-AGEING")
     assert alert.transcript_id == b.transcript_id and alert.span == "your wrinkles will disappear overnight"
     assert len(await events(rt, "alert.created")) == (2 if fragment_flagged else 1)
 
@@ -214,24 +223,6 @@ async def test_the_fact_checker_sees_where_a_merged_utterance_was_split(env):
     await speak(rt, "Ceramides")
     assert '>The base is aloe water, about half, no plain water / Ceramides</data>' in seen[-1]
     assert "The base is aloe water, about half, no plain water" in seen[0] and " / " not in seen[0]
-
-
-async def test_a_bare_continuation_can_be_checked_against_the_product_just_named(env):
-    """D-172 (local SEED3 replay): "list price 42" after the ampoule's price, with the cream on air, was checked
-    against the cream: the ampoule's sheet was not even among the fact passages."""
-    rt, llm = env
-    seen: list[str] = []
-    generate = llm.generate
-
-    async def record(req, timeout_ms):
-        if req.agent == "fact_checker":
-            seen.append(req.user_message)
-        return await generate(req, timeout_ms)
-    llm.generate = record
-    await speak(rt, "If you want the ampoule on its own, it is 32 dollars.")
-    await rt.ctx.scheduler.advance(5000)  # past the merge window: judged alone
-    await speak(rt, "regular price 42")
-    assert "DL-AM-01" in seen[-1] and "DL-CR-01" in seen[-1]  # the ampoule just named, and the cream on air
 
 
 # ---- D-397: a merged line's verdict replaces its chain's alerts --------------------------------------
@@ -375,6 +366,3 @@ async def test_d403_the_summary_leaves_out_a_superseded_note(env):
     assert sorted(x.status for x in await rt.alerts() if x.kind == "fact") == ["cleared", "corrected"]
     facts = (await compute_stats(rt))["fact_alerts"]
     assert [(f["corrected"], f["shown_to_corrected_ms"] != "uncorrected") for f in facts] == [(True, True)]
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

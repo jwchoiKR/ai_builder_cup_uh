@@ -1,4 +1,4 @@
-"""D-296: the relation arm (FACT_RELATION). The fact checker names its evidence by SOURCE sentence id and states a
+"""D-296: the relation fact checker (D-435: the only one). The fact checker names its evidence by SOURCE sentence id and states a
 relation; code builds the quote.
 Made-up lines and passages across categories (skincare, a supplement, a children's product, a fragrance, a kettle)."""
 from __future__ import annotations
@@ -9,7 +9,7 @@ import re
 import pytest
 
 from app.agents.fact_checker import DROPS, from_relation, sentence_index
-from app.models.agent_io import FactRelationOutput, FactRelationOutputV5
+from app.models.agent_io import FactRelationOutputV5
 from app.models.data import Passage
 
 from .judge_fakes import CREAM, PRICE_PASSAGE, ScriptedBackend, close_env, speak
@@ -19,10 +19,10 @@ def _p(pid: str, text: str, product: str = CREAM, section: str = "Key facts") ->
     return Passage(passage_id=pid, product_id=product, doc="sheet", section=section, text=text, score=0.0)
 
 
-def _rel(*claims) -> FactRelationOutput:
-    return FactRelationOutput.model_validate({"claims": [
-        {"span": c[0], "product_id": c[1], "field": c[2], "stated_value": c[3], "evidence": c[4], "relation": c[5],
-         "correct_value": c[6]} for c in claims]})
+def _rel(*claims) -> FactRelationOutputV5:
+    return FactRelationOutputV5.model_validate({"claims": [
+        {"span": c[0], "stance": "HOST_ASSERTS", "product_id": c[1], "field": c[2], "stated_value": c[3],
+         "evidence": c[4], "source_value": c[6], "relation": c[5], "correct_value": c[6]} for c in claims]})
 
 
 def test_d296_sentences_are_numbered_once_and_keep_decimals():
@@ -95,51 +95,3 @@ async def test_d296_the_relation_arm_end_to_end(relation, alerts):
         assert "`evidence`" in req.system_instruction
     finally:
         await close_env(rt)
-
-
-def _validate_r(catalog, line, violations, fixes, prev=None):
-    """`_validate` with the relation arm's compliance output (`claim_kind`, `group`), and a previous final."""
-    import os
-
-    from app.agents.utterance_judge import JudgeInput, build_judge_values, validate_compliance
-    from app.config import get_settings
-    from app.models.agent_io import ComplianceOutputR
-
-    values = build_judge_values(catalog, JudgeInput(utterance=line, on_air=catalog.products[0].product_id))
-    if prev is not None:
-        values["last_two_final_transcripts_json"] = [prev]
-    out = ComplianceOutputR.model_validate({"compliance": {"violations": violations},
-                                            "correction": {"corrects_alert_ids": []}, "reason": "t"})
-    old = os.environ.get("FACT_FIXES")
-    os.environ["FACT_FIXES"] = ",".join(fixes)
-    get_settings.cache_clear()
-    try:
-        return validate_compliance(out, catalog, values).compliance.violations
-    finally:
-        os.environ.pop("FACT_FIXES") if old is None else os.environ.__setitem__("FACT_FIXES", old)
-        get_settings.cache_clear()
-
-
-V, D = "ASEAN-2D-VULNERABLE", "ASEAN-2D-DISEASE"
-ALL = ("CK", "Q6", "G7")
-
-
-def _high(rule, span, kind=None, group=None):
-    return {"span": span, "rule_id": rule, "severity": "HIGH", "is_negated": False, "is_quoted": False,
-            "say_instead": "x", "claim_kind": kind, "group": group}
-
-
-@pytest.mark.legacy_live  # D-434: the REL addendum and ComplianceOutputR are the rules-JSON path's (N4)
-async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():
-    from app.agents.split_judges import ComplianceJudge
-    from app.models.agent_io import ComplianceOutput, ComplianceOutputR
-
-    from .helpers import live_runtime, make_ctx
-
-    for on, model in ((False, ComplianceOutput), (True, ComplianceOutputR)):
-        rt = await live_runtime(make_ctx(backend=ScriptedBackend(), FACT_RELATION=on))
-        try:
-            j = ComplianceJudge(rt.ctx.llm, rt.ctx.prompts, rt.catalog, rt.reflex)
-            assert j.output_model is model and (("`claim_kind`" in j.system_instruction) is on)
-        finally:
-            await close_env(rt)

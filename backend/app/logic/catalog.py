@@ -312,12 +312,6 @@ class Catalog:
         ids = set(product_ids)
         return [r for r in self.pack.rules.rules if owners is None or owners.get(r.rule_id, frozenset()) & ids]
 
-    def line_products(self, on_air: str, switch_target: str | None, texts) -> set[str]:
-        """D-279: the products a line can be about: the one on air, a pending switch's target, and any product the
-        line or the last lines name clearly (an ambiguous shared alias names none)."""
-        named = {self.product_by_alias(x) for x in texts if x}
-        return ({on_air, switch_target} | named) - {None}
-
     @property
     def products(self) -> list[Product]:
         return list(self._products.values())

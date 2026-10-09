@@ -1,0 +1,24 @@
+{
+ "claims": [
+  {
+   "span": "thirty-six dollars",
+   "stance": "HOST_ASSERTS",
+   "product_id": "cream_hydra_barrier",
+   "field": "price",
+   "stated_value": "S$36",
+   "evidence": [
+    "S1"
+   ],
+   "source_value": null,
+   "relation": "consistent",
+   "correct_value": null,
+   "say": null
+  }
+ ],
+ "note_checks": [
+  {
+   "handle": "F1",
+   "fixed_by_this_line": true
+  }
+ ]
+}
