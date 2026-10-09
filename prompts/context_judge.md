@@ -1,4 +1,4 @@
-# Prompt: context_judge (version context_judge_v3)
+# Prompt: context_judge (version context_judge_v4)
 
 Used by: `ContextJudge` agent, `JUDGE_MODE=split3` (default, D-099). Model: `LLM_FAST_MODEL`, thinking MINIMAL.
 Called once per final host transcript, in parallel with `compliance_judge` and `fact_checker`. Jobs 3 and 4 of
@@ -28,7 +28,7 @@ OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested
 - `consistent_with_suggested = true` only when the host's answer agrees with the suggested answer: the same direction (yes or no) and the same numbers. Saying less than the suggested answer is consistent. It is false when the host adds a claim, caveat, condition or restriction that is not in the suggested answer, sounds unsure, contradicts it, or takes it back. The suggested answer is posted to viewers when this is true.
 
 ### Job 2. Prompter tracking and product switch
-- `covered_point_ids`: ids from PROMPTER_POINTS whose meaning the host has now stated. Paraphrase counts. A partial mention counts only if the point's key fact is stated.
+- `covered_point_ids`: ids from PROMPTER_POINTS whose full meaning the host has now stated, in this sentence or together with the earlier lines of RECENT_TRANSCRIPT that it continues. Paraphrase counts. A point with several facts (an amount and how it is taken) is covered only when all of them are stated; a part alone is not.
 - `covered_cue_ids`: ids from HOST_CUES that the host has now done.
 - `switch.is_transition = true` only when the host starts presenting a DIFFERENT product from RUN_SHEET as the new subject ("now let me show you the perfume", "next up is ...").
 - Mentioning another product while reading a viewer's comment, answering a question, or saying "we'll get to it later" is NOT a transition. Set `switch.is_quote = true` in those cases.
