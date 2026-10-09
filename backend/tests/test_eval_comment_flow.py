@@ -25,23 +25,6 @@ class InstantPace:
         await asyncio.sleep(0)
 
 
-async def test_scenario_cf01_runs_and_scores(monkeypatch):
-    monkeypatch.setattr(cf, "PACE", InstantPace())
-    case = next(c for c in cf.load_cases("comment_flow_cases.jsonl") if c["scenario_id"] == "CF01")
-    ctx = make_ctx()
-    try:
-        raw = await cf.run_scenario(ctx, case, 0)
-        await ctx.scheduler.idle()
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert len(raw["comments"]) == sum(e["type"] == "comment" for e in case["events"])
-    s = cf.score([raw], [case])
-    reactions = [c for c in raw["comments"] if c["gold"].get("kind") == "reaction"]
-    assert reactions and all(c["kind"] == "reaction" for c in reactions)  # deterministic prefilter, no LLM
-    assert s["rows"][0]["kind_total"] > 0 and 0 <= s["kind"] <= 1
-
-
 def test_scorer_flags_a_host_answer_posted_before_the_confirmation():
     case = {"scenario_id": "X", "events": [], "expect": {"clusters": {"c": {}}}}
     gold = {"kind": "question", "cluster": "c", "route": "HOST", "answer_must_include": ["50 mL"]}

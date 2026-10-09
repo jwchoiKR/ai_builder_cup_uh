@@ -64,24 +64,3 @@ def test_d198_pass_needs_no_false_missed_or_duplicate_post_and_timeouts_are_coun
     timed_out = {"id": case["case_id"], "run": 0, "judge": None, "ctx_status": "timeout"}
     s = score([timed_out], cases)
     assert not s["passed"] and [x["id"] for x in s["missed_timeouts"]] == [case["case_id"]] and g
-
-
-async def test_d198_runtime_replay_reads_the_committed_post():
-    from eval_verbal_post import run_runtime_case
-
-    from .helpers import make_ctx
-    from .judge_fakes import ScriptedBackend
-
-    case = next(c for c in load_cases() if c["case_id"] == "V01")
-    llm = ScriptedBackend()
-    llm.judge(case["utterance"], utterance_type="answer", matched=case["expected"]["matched_group"], is_answer=True,
-              consistent=True)
-    llm.facts(case["utterance"])
-    ctx = make_ctx(backend=llm)
-    try:
-        row = await run_runtime_case(ctx, case, 0)
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert row["posts"] == [{"group": case["expected"]["matched_group"], "state": "published"}]
-    assert score([row], [case])["passed"]

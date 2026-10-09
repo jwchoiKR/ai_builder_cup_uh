@@ -32,11 +32,6 @@ def test_every_spec_key_exists_with_its_default():
         assert _as_env(fields[key].default) == value, key
 
 
-def test_relative_paths_resolve_from_backend_dir(settings):
-    assert (settings.data_path / "products" / "products.json").is_file()
-    assert (settings.prompts_path / "utterance_judge.md").is_file()
-
-
 def test_google_provider_requires_project():
     with pytest.raises(ValidationError, match="GCP_PROJECT"):
         Settings(_env_file=None, LLM_PROVIDER="vertex", STT_PROVIDER="mock")

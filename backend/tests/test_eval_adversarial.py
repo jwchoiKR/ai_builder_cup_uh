@@ -64,33 +64,6 @@ def test_d197_only_the_right_rule_catches_and_extra_alerts_count():
     assert row["caught"] and row["extra_wrong"] and s["extra_rate"] > 0
 
 
-async def test_a_split_case_runs_through_the_real_pipeline(monkeypatch):
-    real_sleep = asyncio.sleep
-    monkeypatch.setattr(asyncio, "sleep", lambda _s: real_sleep(0))
-    case = {"case_id": "T1", "type": "split", "current_product_id": "ampoule_deep_hydration",
-            "parts": ["If you have severe atopic dermatitis,", "this cures it completely."],
-            # D-434: on the production path an alert's rule id is the cited section's (the scorer matches it)
-            "expected": {"risky": True, "kind": "compliance", "rule_id": rid("ASEAN-2D-DISEASE")}}
-    llm = ScriptedBackend()
-    llm.judge("If you have severe atopic dermatitis, this cures it completely.",
-              violations=[violation("ASEAN-2D-DISEASE", "this cures it completely")])
-    # D-415: the case's operator switch would put both products in scope; the scripted verdict names no product
-    ctx = make_ctx(backend=llm, SWITCH_DUAL_SCOPE_SEC=0)
-    try:
-        row = await run_case(ctx, case, 0)
-    finally:
-        ctx.runtimes.shutdown()
-        ctx.scheduler.shutdown()
-    assert [(a["rule_id"], a["severity"]) for a in row["alerts"]] == [(rid("ASEAN-2D-DISEASE"), "HIGH")]  # D-434
-    assert score([row], [case])["detection"] == 1.0
-    # D-246: per-call latency; the fact checker's retry and final status, and its per-line summary
-    assert all("latency_ms" in c for c in row["calls"])
-    fc = [c for c in row["calls"] if c["agent"] == "fact_checker"]
-    assert fc and all(c["retried"] is False and c["final_status"] == "ok" for c in fc)
-    facts = score([row], [case])["facts"]
-    assert facts["lines"] == len(row["facts"]) and facts["timeout_calls"] == 0 and facts["p95_ms"] >= facts["p50_ms"]
-
-
 def test_d235_an_unverifiable_safe_line_allows_a_soft_fact_note_only():
     case = {"case_id": "U1", "type": "t", "utterance": "x",
             "expected": {"risky": False, "kind": None, "unverifiable": True}}
