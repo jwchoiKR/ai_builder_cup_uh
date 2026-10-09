@@ -1,13 +1,15 @@
 // Studio (§12.6): Host, Operator and Viewer side by side for screen recording at 1920x1080,
-// with layout presets and recording mode (R).
+// with layout presets, recording mode (R) and the Demo Console drawer (D, demo tools only).
 import { useEffect, useState, type ComponentType } from "react";
 
 import type { ScreenProps } from "../app/nav";
+import { useHealth } from "../app/store";
 import { useTheme, type ScreenKey } from "../app/theme";
 import { Eyebrow, HubLink, PanelBoundary, SettingsButton } from "../components";
 import { Host } from "./Host";
 import { Operator } from "./Operator";
 import styles from "./studio.module.css";
+import { DemoConsole } from "./DemoConsole";
 import { Viewer } from "./Viewer";
 
 type PaneScreen = Extract<ScreenKey, "host" | "operator" | "viewer">;
@@ -81,6 +83,8 @@ function Pane({
 export function Studio({ sessionId, onSessionChange }: ScreenProps) {
   const [chrome, , setTheme, themePref] = useTheme();
   const [preset, setPreset] = useState<PresetKey>(readPreset);
+  const demoTools = useHealth()?.demo_tools_enabled ?? false;
+  const [consoleOpen, setConsoleOpen] = useState(false);
   const [recording, setRecording] = useState(() => new URLSearchParams(window.location.search).get("recording") === "1");
 
   useEffect(() => {
@@ -95,10 +99,11 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
     const on = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "r" || e.key === "R") setRecording((r) => !r);
+      if ((e.key === "d" || e.key === "D") && demoTools) setConsoleOpen((o) => !o);
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, []);
+  }, [demoTools]);
 
   return (
     <div className={styles.root} data-theme={chrome}>
@@ -109,7 +114,7 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
               <HubLink sessionId={sessionId} />
             </Eyebrow>
             <span className="tabular">{sessionId ?? "…"}</span>
-            <span className={styles.hint}>R recording mode</span>
+            <span className={styles.hint}>R recording mode{demoTools ? " · D demo console" : ""}</span>
           </div>
           <div className={styles.segmented} role="radiogroup" aria-label="Layout">
             {(Object.keys(PRESETS) as PresetKey[]).map((k) => (
@@ -140,6 +145,16 @@ export function Studio({ sessionId, onSessionChange }: ScreenProps) {
           />
         ))}
       </div>
+      {demoTools && !recording && (
+        <PanelBoundary name="demo console">
+          <DemoConsole
+            sessionId={sessionId}
+            open={consoleOpen}
+            onToggle={() => setConsoleOpen((o) => !o)}
+            onSessionChange={onSessionChange}
+          />
+        </PanelBoundary>
+      )}
     </div>
   );
 }
