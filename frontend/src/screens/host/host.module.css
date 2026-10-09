@@ -1291,7 +1291,7 @@
   line-clamp: 2;
   line-height: 1.15;
   font-size: calc(32px * var(--hs));
-  color: var(--text-3);
+  color: var(--text);  /* D-438a: as dark as the alert's say line */
 }
 .pdSay {
   font-size: calc(26px * var(--hs));
