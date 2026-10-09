@@ -349,7 +349,7 @@ export function transcriptChips(state: ClientState, catalog: Catalog | null, t: 
   const chips: TranscriptChip[] = [];
   for (const a of Object.values(state.alerts)) {
     if (a.transcript_id !== t.transcript_id) continue;
-    if (a.kind === "compliance" && a.status !== "cleared" && a.status !== "provisional") {
+    if (a.kind === "compliance" && a.status !== "cleared") {
       chips.push({ tone: "risk", text: a.rule_id ?? tr("compliance") });
     } else if (a.kind === "fact") {
       chips.push({ tone: "fact", text: `${tr(fieldLabel(catalog, a.field))}` });

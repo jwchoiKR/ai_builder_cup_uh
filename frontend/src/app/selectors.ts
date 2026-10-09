@@ -376,7 +376,7 @@ export function hostAlertStack(state: ClientState): {
 
 export function alertLog(state: ClientState): Alert[] {
   return Object.values(state.alerts)
-    .filter((a) => a.status !== "provisional" && a.status !== "cleared")
+    .filter((a) => a.status !== "cleared")
     .sort((a, b) => alertTime(b) - alertTime(a));
 }
 

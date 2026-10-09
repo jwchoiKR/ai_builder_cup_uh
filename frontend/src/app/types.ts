@@ -112,7 +112,7 @@ export interface Transcript {
   judged_text?: string | null;
 }
 
-export type AlertStatus = "provisional" | "active" | "corrected" | "dismissed" | "cleared";
+export type AlertStatus = "active" | "corrected" | "dismissed" | "cleared";  // D-410/D-435: no provisional state
 
 export interface Alert {
   alert_id: string;

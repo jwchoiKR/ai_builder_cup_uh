@@ -77,7 +77,7 @@ def test_agent_timeouts_never_earn_true_negative_scores():
 
 def test_latency_uses_first_active_event_even_after_correction():
     payload = {"alert_id": "a", "transcript_id": "t", "kind": "compliance"}
-    events = [{"type": "alert.created", "at": 101, "payload": {**payload, "status": "provisional"}},
+    events = [{"type": "alert.created", "at": 101, "payload": {**payload, "status": "dismissed"}},
               {"type": "alert.updated", "at": 130, "payload": {**payload, "status": "active", "shown_at": 125}},
               {"type": "alert.updated", "at": 140, "payload": {**payload, "status": "active", "shown_at": 125}},
               {"type": "alert.updated", "at": 160, "payload": {**payload, "status": "corrected"}}]

@@ -66,7 +66,7 @@ describe("every event type", () => {
       "prompter.updated": { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: ["cr-p1"], required_total: 2, required_covered: 0 },
       "transcript.interim": { transcript_id: "tr_i", text: "hel", is_final: false, speech_start_at: null, speech_end_at: T0, received_at: T0, source: "mic", segment_id: "seg_000001" },
       "transcript.final": { transcript_id: "tr_1", text: "hello", is_final: true, speech_start_at: null, speech_end_at: T0, received_at: T0, source: "injected", segment_id: "seg_000001" },
-      "alert.created": alert({ status: "provisional" }),
+      "alert.created": alert(),
       "alert.updated": alert(),
       "alert.escalated": alert({ escalated_at: T0 + 10_000 }),
       "cue.updated": { cue_id: "cue_1", text: "Mention the patch test results.", preset_id: null, created_at: T0, status: "active", done_by_transcript_id: null },

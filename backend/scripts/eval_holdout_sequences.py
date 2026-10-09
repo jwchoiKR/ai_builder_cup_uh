@@ -58,7 +58,7 @@ async def feed_turns(rt, turns: list[dict]) -> list:
 
 
 def alert_latencies(events: list[dict], transcript_id: str, speech_end_at: int) -> list[dict]:
-    """First active visibility per alert; provisional/dismissed chips are not red alerts.
+    """First active visibility per alert; a dismissed alert is not a red alert.
 
     Use event timestamps so a later correction cannot erase the original latency.
     None timestamps fall back to event time; zero is a valid timestamp.

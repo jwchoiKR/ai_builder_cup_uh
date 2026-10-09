@@ -188,7 +188,7 @@ def condition_slots_json(slots: dict[str, Any]) -> dict[str, Any]:
 
 
 def active_alerts_json(alerts: Sequence[Alert]) -> list[dict]:
-    """D-395 (was D-355's 3 newest): every active or provisional compliance alert, newest first, so a correction can
+    """D-395 (was D-355's 3 newest): every active compliance alert, newest first, so a correction can
     reach each one (since D-387 one claim said four times is four alerts). Each carries its product, so the model can
     tell an earlier product's similar claim from the on-air one; D-098: say_instead is what the host was shown."""
     live = [a for a in alerts if a.kind == "compliance" and a.status == "active"]  # D-410: no provisional state
