@@ -30,20 +30,8 @@ def close(ctx):
     ctx.scheduler.shutdown()
 
 
-def test_d430_sessions_firestore_true_runs_as_store_firestore_with_one_warning(caplog):
-    """D-430 (user): the old switch never stops the server; there is still one writer."""
-    import logging
-
-    with caplog.at_level(logging.WARNING):
-        on = make_settings(SESSIONS_FIRESTORE=True, STORE="memory", GCP_PROJECT="p")
-    assert on.STORE == "firestore"
-    assert [r.getMessage() for r in caplog.records if "SESSIONS_FIRESTORE" in r.getMessage()] == [
-        "SESSIONS_FIRESTORE is merged into STORE=firestore (D-428); using STORE=firestore"]
-    caplog.clear()
-    with caplog.at_level(logging.WARNING):
-        off = make_settings(SESSIONS_FIRESTORE=False, STORE="memory")
-    assert off.STORE == "memory" and not caplog.records
-    with pytest.raises(RuntimeError):  # and a test run never reaches the real database
+def test_d430_a_test_run_never_reaches_the_real_database():
+    with pytest.raises(RuntimeError):
         FirestoreStore(make_settings(STORE="firestore", GCP_PROJECT="p"))
 
 

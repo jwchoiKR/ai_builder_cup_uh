@@ -10,7 +10,6 @@ from pydantic import BaseModel
 from app.agents import inputs
 from app.agents.inputs import BUILDERS
 from app.models.agent_io import (
-    BriefOutput,
     CommentInsightsOutput,
     CommentTriageOutput,
     ComplianceOutput,
@@ -36,7 +35,6 @@ OUTPUT_MODELS: dict[str, type[BaseModel]] = {
     "comment_triage": CommentTriageOutput,
     "answer_composer": ComposerOutput,
     "draft_verifier": DraftCheckOutput,
-    "brief_agent": BriefOutput,
     "comment_insights": CommentInsightsOutput,
 }
 

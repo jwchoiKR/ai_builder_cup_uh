@@ -37,7 +37,7 @@ async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
             "llm": ctx.llm.backend.name,
             "stt": s.STT_PROVIDER,
             "store": ctx.store.name,
-            "retriever": s.RETRIEVER,
+            "retriever": s.ANSWER_RETRIEVER,
             # a store that writes to Firestore: queue depth, last commit, lost writes
             **({"store_status": ctx.store.status()} if hasattr(ctx.store, "status") else {}),
         },
