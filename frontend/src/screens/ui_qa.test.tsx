@@ -9,10 +9,9 @@ import { impactChips } from "./operator/Header";
 const t = (en: string, vars?: Record<string, string | number>) => translate("en", en, vars);
 
 describe("D-332: UI QA", () => {
-  it("says nothing about required points when a product has none", () => {
-    expect(pointsStatus(t, 0, null, 0)).toBe("");
-    expect(pointsStatus(t, 0, { elapsedMs: 0, plannedMs: 60_000 }, 0)).toBe("1:00");
-    expect(pointsStatus(t, 0, null, 3)).toBe("All required points said");
+  it("the status line shows only the time left", () => {
+    expect(pointsStatus(t, null)).toBe("");
+    expect(pointsStatus(t, { elapsedMs: 0, plannedMs: 60_000 })).toBe("1:00");
   });
 
   it("hides the token chip until there is a number", () => {

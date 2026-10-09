@@ -303,7 +303,7 @@ export function HostView({
                   <CueStrip cue={cue} />
                 ) : (
                   <span className={cx(styles.pointsStatus, "tabular")} data-testid="host-points-status">
-                    {pointsStatus(t, prompter.requiredTotal - prompter.requiredCovered, timing, prompter.requiredTotal)}
+                    {pointsStatus(t, timing)}
                   </span>
                 )
               }

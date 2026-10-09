@@ -55,12 +55,15 @@ function Working({ label, since }: { label: string; since: number }) {
   );
 }
 
-function Box({ title, note, testId, done, children }: {
-  title: string; note: string; testId: string; done: boolean; children: ReactNode;
+function Box({ title, note, testId, done, onRemove, children }: {
+  title: string; note: string; testId: string; done: boolean; onRemove?: () => void; children: ReactNode;
 }) {
   return (
     <section className={[styles.block, done && styles.ok].filter(Boolean).join(" ")} data-testid={testId}>
-      <h2 className={styles.blockTitle}>{title} {done && <Chip tone="ok">Done</Chip>}</h2>
+      <h2 className={styles.blockTitle}>{title} {done && <Chip tone="ok">Done</Chip>}
+        {onRemove && <button type="button" className={styles.cardClose} aria-label={`Remove ${title}`}
+                             onClick={onRemove}><X size={16} aria-hidden /></button>}
+      </h2>
       <p className={styles.muted}>{note}</p>
       {children}
     </section>
@@ -178,8 +181,8 @@ type Busy = { label: string; since: number };
 
 /** One product PDF: dropped → uploaded (POST /api/products) → read by one model call (POST .../read) → shown for
  * approval (POST .../approve). Upload and read run on their own; a person only approves. */
-function ProductUpload({ onRead, onApproved }: {
-  onRead: (read: boolean) => void; onApproved: (productId: string | null) => void;
+function ProductUpload({ title, onRead, onApproved, onRemove }: {
+  title: string; onRead: (read: boolean) => void; onApproved: (productId: string | null) => void; onRemove?: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploaded, setUploaded] = useState<Uploaded | null>(null);
@@ -218,8 +221,8 @@ function ProductUpload({ onRead, onApproved }: {
     }
   };
   return (
-    <Box title="1 · Product information" note="One PDF of the product's information. It is read as soon as you drop it."
-         testId="onb-product" done={approved !== null}>
+    <Box title={title} note="One PDF of the product's information. It is read as soon as you drop it."
+         testId="onb-product" done={approved !== null} onRemove={onRemove}>
       <div className={styles.actions}>
         <span className={styles.factLabel}>Host language</span>
         <div className={styles.segmented} role="radiogroup" aria-label="Host language">
@@ -330,13 +333,19 @@ function Steps({ items }: { items: [string, boolean][] }) {
   );
 }
 
+type Slot = { key: number; read: boolean; productId: string | null };
+
 export function Onboarding() {
-  const [productRead, setProductRead] = useState(false);
-  const [productId, setProductId] = useState<string | null>(null);
+  // several products share the one regulation PDF; each approved product becomes its own release
+  const [slots, setSlots] = useState<Slot[]>([{ key: 0, read: false, productId: null }]);
+  const setSlot = (key: number, patch: Partial<Slot>) =>
+    setSlots((ss) => ss.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  const productIds = slots.map((s) => s.productId).filter((id): id is string => id !== null);
+  const allApproved = productIds.length === slots.length;
   const [regulationId, setRegulationId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const missing = [!productId && "approve the product", !regulationId && "upload the regulation PDF"].filter(Boolean);
+  const missing = [!allApproved && "approve every product", !regulationId && "upload the regulation PDF"].filter(Boolean);
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -344,30 +353,43 @@ export function Onboarding() {
           <HubLink sessionId={null} /> · PRODUCT ONBOARDING
         </Eyebrow>
         <Steps items={[
-          ["Product read", productRead],
-          ["Product approved", productId !== null],
+          ["Products read", slots.every((s) => s.read)],
+          ["Products approved", allApproved],
           ["Regulations uploaded", regulationId !== null],
           ["Release created", false],
         ]} />
       </header>
-      <div className={styles.grid}>
-        <ProductUpload onRead={setProductRead} onApproved={setProductId} />
+      {/* before the first read, Regulations matches the product box's height */}
+      <div className={[styles.grid, slots.length === 1 && !slots[0].read && styles.gridEven].filter(Boolean).join(" ")}>
+        <div className={styles.column}>
+          {slots.map((s, i) => (
+            <ProductUpload key={s.key} title={`1 · Product ${slots.length > 1 ? i + 1 : "information"}`}
+                           onRead={(read) => setSlot(s.key, { read })}
+                           onApproved={(productId) => setSlot(s.key, { productId })}
+                           onRemove={slots.length > 1 ? () => setSlots((ss) => ss.filter((x) => x.key !== s.key)) : undefined} />
+          ))}
+        </div>
         <RegulationUpload onUploaded={setRegulationId} />
+        <button type="button" className={styles.addLink} data-testid="onb-product-add"
+                onClick={() => setSlots((ss) => [...ss, { key: Math.max(...ss.map((x) => x.key)) + 1, read: false, productId: null }])}>
+          <Plus size={14} aria-hidden /> Add product
+        </button>
       </div>
       {/* a release needs both (the server checks the same); the show starts from the hub's Pick products */}
       <section className={styles.block} data-testid="onb-ready">
         <h2 className={styles.blockTitle}>3 · Release</h2>
         <p className={styles.muted}>
-          {missing.length ? `To create the release, ${missing.join(" and ")}.` : "Ready. The release appears in the hub's Pick products."}
+          {missing.length ? `To create the release, ${missing.join(" and ")}.` : `Ready. ${productIds.length > 1 ? `${productIds.length} releases appear` : "The release appears"} in the hub's Pick products.`}
         </p>
         <div className={styles.actions}>
-          <Button variant="primary" disabled={starting || !productId || !regulationId} data-testid="onb-release"
+          <Button variant="primary" disabled={starting || !allApproved || !regulationId} data-testid="onb-release"
                   onClick={async () => {
                     setStarting(true);
                     setError(null);
                     try {
-                      await request("POST", `/products/${encodeURIComponent(productId!)}/release`,
-                        { regulation_id: regulationId });
+                      for (const id of productIds)  // one release per product, all on the same regulation
+                        await request("POST", `/products/${encodeURIComponent(id)}/release`,
+                          { regulation_id: regulationId });
                       navigate("/");  // the hub's Pick products lists the release
                     } catch (e) {
                       setError(errorText("Release", e));
@@ -375,7 +397,7 @@ export function Onboarding() {
                       setStarting(false);
                     }
                   }}>
-            {starting ? "Creating…" : "Create release"}
+            {starting ? "Creating…" : productIds.length > 1 ? `Create ${productIds.length} releases` : "Create release"}
           </Button>
         </div>
         {error && <p className={styles.error}>{error}</p>}
