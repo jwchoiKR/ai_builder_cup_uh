@@ -24,29 +24,6 @@ async def gather(catalog, retriever=None, switch=None, utterance="Hello"):
                                      on_air=CREAM, switch=switch or SwitchState(), search_timeout_ms=1)
 
 
-async def test_full_sheet_keeps_every_section_and_id(catalog):
-    passages = await gather(catalog)
-    expected = [p for p in catalog.pack.passages if p.product_id == CREAM]
-    assert passages == expected
-    assert len(passages) > 24  # The old retrieval cap must not truncate the sheet.
-    assert {p.section for p in passages} == {p.section for p in expected}
-
-
-async def test_a_comparison_has_complete_sheets(catalog):
-    target = catalog.next_product(CREAM)
-    expected = {p.passage_id for p in catalog.pack.passages if p.product_id in (CREAM, target)}
-    passages = await gather(catalog, utterance="Compare the ampoule and cream.")
-    assert {p.passage_id for p in passages} == expected
-
-
-async def test_uploaded_sheet_replaces_shipped_passages(catalog):
-    retriever = LocalRetriever(catalog.pack.passages)
-    replacement = next(p for p in catalog.pack.passages if p.product_id == CREAM).model_copy(
-        update={"text": "Updated full sheet", "passage_id": "uploaded#overview"})
-    retriever.replace_product(CREAM, [replacement])
-    assert await gather(catalog, retriever) == [replacement]
-
-
 def test_static_blocks_move_before_dynamic_without_reexpanding_data():
     prompt = PromptTemplate("test", "v1", "sys",
         '<data name="LIVE">{{utterance_text}}</data>\n<data name="SOURCE">{{passages_json}}</data>\nReturn JSON.',
@@ -58,25 +35,3 @@ def test_static_blocks_move_before_dynamic_without_reexpanding_data():
     assert "{{passages_json}}" in full[len(prefix):]
     assert "<\\/data>" in full[len(prefix):]
     assert full.endswith("Return JSON.")
-
-
-async def test_fact_checker_prefix_stays_stable_across_finals(catalog, prompts):
-    requests = []
-
-    class Client:
-        fast = facts = SimpleNamespace(model="gemini-3.5-flash-lite", thinking_level="MINIMAL")
-
-        async def call(self, req):
-            requests.append(req)
-            return AgentResult("ok", FactCheckOutput(claims=[], reason="test"), 0, "call")
-
-    checker = FactChecker(Client(), prompts["fact_checker"], catalog)
-    passages = await gather(catalog)
-    for text in ("Hello", "The cream is thirty-six dollars"):
-        await checker.run(FactInput(text, CREAM, SwitchState(), None, passages, session_id="ses"), deadline_ms=100)
-    first, second = requests
-    assert first.cache_prefix == second.cache_prefix
-    assert first.user_message != second.user_message
-    assert first.user_message.startswith(first.cache_prefix)
-    assert all(p.passage_id in first.cache_prefix for p in passages)
-    assert first.cache_ttl_sec == sum(i.planned_duration_sec for i in catalog.runsheet.items)

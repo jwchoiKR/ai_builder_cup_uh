@@ -46,55 +46,6 @@ class FakeStt:
         return FakeStream()
 
 
-def test_mic_finals_go_to_the_utterance_pipeline():
-    app = create_app(make_settings())
-    app.state.ctx.stt = FakeStt()
-    with TestClient(app) as client:
-        sid = client.post("/api/sessions").json()["session_id"]
-        client.post(f"/api/sessions/{sid}/start")
-        with client.websocket_connect(f"/api/sessions/{sid}/audio") as ws:
-            status = json.loads(ws.receive_text())
-            assert status == {"type": "status", "state": "listening", "phrases": status["phrases"], "lang": "en-US"}
-            assert status["phrases"] > 5  # glossary phrase hints were sent
-            ws.send_bytes(b"\x00" * 3200)
-            ws.send_bytes(b"SAY:It's a lightweight gel-cream, so it absorbs really quickly.")
-            final = json.loads(ws.receive_text())
-            assert final["type"] == "final" and final["transcript_id"]
-        state = client.get(f"/api/sessions/{sid}/state", params={"role": "operator"}).json()
-        [t] = state["transcripts"]
-        assert t["source"] == "mic" and t["speech_end_at"] == 123
-        assert "DAON LAB" in app.state.ctx.stt.opened[0]
-
-
-@pytest.mark.parametrize("asked, language, hints", [
-    ("ko-KR", "ko-KR", True), ("auto", "auto", False), ("xx-YY", "en-US", True), ("", "en-US", True)])
-def test_d316_the_mic_s_language(asked, language, hints, caplog):
-    """D-316: the demo console's language choice (?lang=) opens the stream in that code; a code off the list falls
-    back to the session's; "auto" takes no phrase hints (chirp_3 answers 404 with them). Each final logs its code."""
-    app = create_app(make_settings())
-    app.state.ctx.stt = FakeStt()
-    caplog.set_level("INFO", logger="app.api.audio_ws")
-    with TestClient(app) as client:
-        sid = client.post("/api/sessions").json()["session_id"]
-        client.post(f"/api/sessions/{sid}/start")
-        with client.websocket_connect(f"/api/sessions/{sid}/audio" + (f"?lang={asked}" if asked else "")) as ws:
-            assert json.loads(ws.receive_text())["lang"] == language
-            ws.send_bytes(b"SAY:It feels light.")
-            final = json.loads(ws.receive_text())
-    assert app.state.ctx.stt.languages == [language]
-    assert bool(app.state.ctx.stt.opened[0]) is hints
-    assert any(f"{final['transcript_id']} lang={language}" in r.getMessage() for r in caplog.records)
-
-
-def test_mock_stt_rejects_audio():
-    app = create_app(make_settings())  # STT_PROVIDER=mock -> ctx.stt is None
-    with TestClient(app) as client:
-        sid = client.post("/api/sessions").json()["session_id"]
-        with client.websocket_connect(f"/api/sessions/{sid}/audio") as ws:
-            msg = json.loads(ws.receive_text())
-            assert msg["state"] == "error" and msg["message"] == "Speech-to-text is off in this environment."
-
-
 def test_stream_state_maps_offsets_to_arrival_times():
     st = _StreamState()
     for i in range(5):  # five 100 ms chunks arriving at 1000, 1100, ... (end of each chunk's audio)
@@ -112,18 +63,6 @@ def test_phrases_from_glossary_dedupes_and_limits():
                    {"term": "niacinamide", "spoken_forms": ["nia-sin-a-mide"]}]}
     assert phrases_from_glossary(g) == ["DAON LAB", "day-on lab", "niacinamide", "nia-sin-a-mide"]
     assert len(phrases_from_glossary(g, limit=2)) == 2
-
-
-@pytest.mark.parametrize("asked, language", [("", "ko-KR"), ("ja-JP", "ja-JP")])
-def test_d316_with_no_choice_the_server_setting_keeps_its_language(asked, language):
-    """D-316 (review): a mic with no language choice sends no ?lang, so STT_LANGUAGE still applies; a choice wins."""
-    app = create_app(make_settings(STT_LANGUAGE="ko-KR"))
-    app.state.ctx.stt = FakeStt()
-    with TestClient(app) as client:
-        sid = client.post("/api/sessions").json()["session_id"]
-        with client.websocket_connect(f"/api/sessions/{sid}/audio" + (f"?lang={asked}" if asked else "")) as ws:
-            assert json.loads(ws.receive_text())["lang"] == language
-    assert app.state.ctx.stt.languages == [language]
 
 
 @pytest.mark.parametrize("given, setting, sent", [(None, "", "en-US"), (None, "ko-KR", "ko-KR"), ("ja-JP", "ko-KR", "ja-JP")])

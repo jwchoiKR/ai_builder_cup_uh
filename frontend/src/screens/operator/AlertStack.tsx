@@ -101,17 +101,8 @@ function ComplianceCard({ alert: a, seen }: { alert: Alert; seen?: HostVisibilit
           <blockquote className={styles.span}>“{a.span}”</blockquote>
           <p className={styles.alertMeta}>
             {t("Rule:")}{" "}
-            {catalog?.policy_pdf_url ? (
-              <a href={catalog.policy_pdf_url} target="_blank" rel="noreferrer">
-                {ruleTitle}
-                {ruleRef}
-              </a>
-            ) : (
-              <>
-                {ruleTitle}
-                {ruleRef}
-              </>
-            )}
+            {ruleTitle}
+            {ruleRef}
           </p>
           {/* D-374: the model's own citation and summary, as it wrote them (not a verbatim quote of the original) */}
           {a.citation && (

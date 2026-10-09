@@ -37,7 +37,7 @@ async def health(ctx: AppContext = Depends(get_ctx)) -> dict:
             "llm": ctx.llm.backend.name,
             "stt": s.STT_PROVIDER,
             "store": ctx.store.name,
-            "retriever": s.RETRIEVER,
+            "retriever": s.ANSWER_RETRIEVER,
             # a store that writes to Firestore: queue depth, last commit, lost writes
             **({"store_status": ctx.store.status()} if hasattr(ctx.store, "status") else {}),
         },
@@ -99,18 +99,11 @@ async def catalog(session: str | None = None, ctx: AppContext = Depends(get_ctx)
         "runsheets": [rs.model_dump(mode="json") for rs in pack.runsheets.values()],
         "rules": [{"rule_id": r.rule_id, "title": r.title, "severity": r.severity, "source_ref": r.source_ref,
                    "source_id": r.source_id} for r in pack.rules.rules],
-        "policy_pdf_url": "/api/files/policy",
         "intents": [i.model_dump(mode="json") for i in pack.intents.intents],
         "passages": {p.passage_id: {"product_id": p.product_id, "doc": p.doc, "section": p.section, "text": p.text}
                      for p in pack.passages},
         "notices": pack.notices.model_dump(mode="json"),
     }
-
-
-@meta.get("/files/policy")
-async def policy_pdf(ctx: AppContext = Depends(get_ctx)) -> FileResponse:
-    src = next(s for s in ctx.pack.rules.sources if s.source_id == "ASEAN_APPENDIX_III")
-    return FileResponse(ctx.settings.data_path / "policy" / Path(src.file).name, media_type="application/pdf")
 
 
 def create_app(
@@ -157,7 +150,7 @@ def _optional_routers() -> list[APIRouter]:
     import importlib
 
     out = []
-    for name in ("setup", "summary", "onboarding", "testdrive"):
+    for name in ("summary", "products", "regulations"):
         try:
             out.append(importlib.import_module(f"app.api.{name}").router)
         except ModuleNotFoundError as e:

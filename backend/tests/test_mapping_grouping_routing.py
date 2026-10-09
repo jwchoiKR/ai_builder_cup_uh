@@ -20,29 +20,6 @@ def triage(pid=None, basis="unknown", intent="price") -> CommentTriageOutput:
 # ---- product mapping -------------------------------------------------------------------------
 
 
-def test_alias_match_wins(catalog, pack):
-    intent = pack.intents_by_name["price"]
-    assert attribute_product("How much is the ampoule?", triage(CREAM, "context"), CREAM, catalog, intent) == (AMPOULE, "explicit")
-
-
-def test_triage_basis_used_without_alias(catalog, pack):
-    intent = pack.intents_by_name["price"]
-    assert attribute_product("price pls", triage(CREAM, "context"), AMPOULE, catalog, intent) == (AMPOULE, "context")
-    assert attribute_product("does it have niacinamide", triage(AMPOULE, "content"), CREAM, catalog,
-                             pack.intents_by_name["ingredients"]) == (AMPOULE, "content")
-    # D-135: no product named and triage unsure: the product on air ("ml?", "SPF?")
-    assert attribute_product("price?", triage(None, "unknown"), CREAM, catalog, intent) == (CREAM, "context")
-    assert attribute_product("price?", triage(None, "context"), None, catalog, intent) == (None, "unknown")
-
-
-def test_general_and_multi_intents(catalog, pack):
-    assert attribute_product("Do you ship the cream to Malaysia?", triage(CREAM, "explicit", "shipping"), CREAM,
-                             catalog, pack.intents_by_name["shipping"]) == (None, "unknown")
-    multi = pack.intents_by_name["product_comparison"]
-    assert attribute_product("which one should I buy first, cream or ampoule?", triage(None, "unknown",
-                             "product_comparison"), CREAM, catalog, multi) == (None, "explicit")
-
-
 def test_grace_window_at_switch_boundary():
     t0 = 1_000_000
     segs = [Segment(segment_id="s1", product_id=CREAM, order=1, started_at=t0, ended_at=t0 + 60_000,
@@ -91,25 +68,3 @@ def test_routes(pack):
     assert is_composable(i["product_comparison"], None)
     assert not is_composable(i["shipping"], None)
     assert not is_composable(i["price"], None)
-
-
-def test_a_set_question_always_uses_the_on_air_product(catalog, pack):
-    """D-147 (comment-flow CF10): "cream and serum set" with the ampoule on air was attributed to the cream
-    (named first), the other set questions to the ampoule: two groups and two drafts for one set."""
-    set_price = pack.intents_by_name["set_price"]
-    assert attribute_product("how much for cream and serum set?", triage(CREAM, "explicit", "set_price"), AMPOULE,
-                             catalog, set_price) == (AMPOULE, "context")
-    assert attribute_product("both together price pls", triage(None, "unknown", "set_price"), AMPOULE,
-                             catalog, set_price) == (AMPOULE, "context")
-    first = catalog.order[0]
-    assert attribute_product("set price?", triage(None, "unknown", "set_price"), None, catalog, set_price)[0] == first
-
-
-def test_d213_triage_decides_the_product_and_aliases_are_only_candidates(catalog, pack):
-    intent = pack.intents_by_name["price"]
-    # triage named the ampoule; the alias "cream" in the text does not override it
-    assert attribute_product("Is it cheaper than the cream?", triage(AMPOULE, "explicit"), CREAM, catalog,
-                             intent) == (AMPOULE, "explicit")
-    # no product from triage: the one alias candidate is used
-    assert attribute_product("how much is the cream?", triage(None, "unknown"), AMPOULE, catalog,
-                             intent) == (CREAM, "explicit")

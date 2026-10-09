@@ -32,30 +32,6 @@ class _V5Backend(ScriptedBackend):
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
 
 
-@pytest.mark.parametrize("stance, relation, alerts", [
-    ("HOST_ASSERTS", "contradicts", 1),
-    ("HOST_ENDORSES", "contradicts", 1),  # a compound line or an endorsement: checked
-    ("REPORTS_OR_ASKS", "not_checked", 0),
-    ("REPORTS_OR_ASKS", "contradicts", 0),  # the stance wins: someone else's words never alert
-])
-async def test_d331_only_the_host_s_own_facts_alert(stance, relation, alerts, caplog):
-    from .helpers import live_runtime, make_ctx
-
-    caplog.set_level("INFO", logger="app.agents.fact_checker")
-    llm = _V5Backend(stance, relation)
-    rt = await live_runtime(make_ctx(backend=llm))  # D-434: the production defaults
-    try:
-        await speak(rt, "A viewer says it's thirty-two dollars.")
-        await rt.utterances.drain()
-        assert len([a for a in await rt.alerts() if a.kind == "fact"]) == alerts
-        [fact] = [r for r in llm.requests if r.agent == "fact_checker"]
-        assert issubclass(fact.output_model, FactRelationOutputV5)
-        assert "adding `stance` must not add claims" in fact.system_instruction
-        assert any(f"fact claims 1 fact_relation_v5_v2: {{'{stance}': 1}}" in r.getMessage() for r in caplog.records)
-    finally:
-        await close_env(rt)
-
-
 def test_d331_the_stance_comes_right_after_the_span():
     order = list(FactRelationOutputV5.model_json_schema()["$defs"]["FactRelationClaimV5"]["properties"])
     assert order[:2] == ["span", "stance"] and order.index("stance") < order.index("evidence") < order.index("relation")

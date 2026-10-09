@@ -4,7 +4,15 @@
   "regulator": "National Pharmaceutical Regulatory Agency (NPRA), Ministry of Health Malaysia",
   "policy_id": "my_asean_cosmetic_claims_v1",
   "category": "cosmetics",
-  "covers": ["cosmetic", "skincare", "haircare", "makeup", "fragrance", "personal_care", "body_care"],
+  "covers": [
+    "cosmetic",
+    "skincare",
+    "haircare",
+    "makeup",
+    "fragrance",
+    "personal_care",
+    "body_care"
+  ],
   "tier": "preview",
   "currency": {
     "code": "MYR",
@@ -20,39 +28,7 @@
     }
   ],
   "phone_pattern": "(?<![\\d+])(?:\\+?60[\\s-]*|0)[1-9](?:[\\s-]?\\d){7,9}(?!\\d)",
-  "sources": [
-    {
-      "source_id": "ASEAN_APPENDIX_III",
-      "title": "ASEAN Cosmetic Documents, Appendix III - ASEAN Cosmetic Claims Guideline",
-      "file": "data/policy/asean_cosmetic_claims_guideline_appendix_iii_2007.pdf",
-      "publisher_url": "https://go.gov.sg/appendix-iii-asean-cosmetic-claims-guidelines",
-      "note": "ASEAN; 4 September 2007. Sections 2, 3 and decision process. Non-exhaustive guidance."
-    },
-    {
-      "source_id": "MY_CLAIMS",
-      "title": "Guidelines for Control of Cosmetic Products in Malaysia, Second Edition: Annex I, Part 8 - Guideline for Cosmetic Claims",
-      "publisher_url": "https://www.npra.gov.my/~npraweb/images/Guidelines_Central/Guidelines_on_Cosmetic/Annex_I_part_8-GUIDELINE_FOR_COSMETIC_CLAIMS.pdf",
-      "note": "NPRA, Ministry of Health; August 2022. Sections 2, 3 and 3.a."
-    },
-    {
-      "source_id": "MY_ADVERTISING",
-      "title": "Guidelines for Control of Cosmetic Products in Malaysia, Second Edition: Annex I, Part 10 - Guideline for Cosmetic Advertisement",
-      "publisher_url": "https://www.npra.gov.my/images/Guidelines_Central/Guidelines_on_Cosmetic/Annex_I_part_10-_Guideline_for_Cosmetic_Advertisement.pdf",
-      "note": "NPRA, Ministry of Health; August 2022. Sections 3-8; includes verbal and electronic advertising."
-    },
-    {
-      "source_id": "MY_HALAL",
-      "title": "Trade Descriptions (Certification and Marking of Halal) Order 2011, P.U. (A) 431",
-      "publisher_url": "https://jheains.ns.gov.my/images/download/Perintah-Perihal-Dagangan--Perakuan--Penandaan-Halal-2011.pdf",
-      "note": "Minister under Trade Descriptions Act 2011; gazetted 30 December 2011, effective 1 January 2012. Paragraphs 3-5. Check current recognized foreign certification bodies separately."
-    },
-    {
-      "source_id": "GOOGLE_STT",
-      "title": "Chirp 3 Transcription: Enhanced multilingual accuracy",
-      "publisher_url": "https://docs.cloud.google.com/speech-to-text/docs/models/chirp-3",
-      "note": "Google Cloud; checked 5 October 2026. Language availability for transcription. Publication date not established."
-    }
-  ],
+  "sources": [],
   "severity_display": {
     "HIGH": "fullscreen",
     "MEDIUM": "prompter_banner"
@@ -67,177 +43,5 @@
       "Makes your skin feel less oily"
     ]
   },
-  "rules": [
-    {
-      "rule_id": "ASEAN-2D-DISEASE",
-      "category": "disease",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "2.d",
-      "title": "Disease treatment or prevention",
-      "description": "A cosmetic must not be presented as treating or preventing disease in human beings. This covers spoken claims made in the broadcast. Malaysia: No medicinal presentation.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-2E-PERMANENT",
-      "category": "permanent",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "2.e",
-      "title": "Permanent results",
-      "description": "Cosmetic effects are typically not permanent and require regular use to be maintained. Claims of permanent results are not cosmetic. Malaysia: Effects ordinarily require continued use.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-DP5-PHYSIOLOGICAL",
-      "category": "physiological",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "Decision process step 5; 3, Skin product",
-      "title": "Physiological modification",
-      "description": "A product that permanently restores, corrects or modifies physiological function by a pharmacological, immunological or metabolic action is not a cosmetic. Malaysia: Local examples additionally cover cellular mechanisms.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-3-SKIN-AGEING",
-      "category": "skin_ageing",
-      "source_id": "ASEAN_APPENDIX_III",
-      "source_ref": "3, Skin products; MY_CLAIMS 3",
-      "title": "Ageing reversal",
-      "description": "Listed as unacceptable for skin products: 'Prevents, reduces or reverses the physiological changes and degeneration conditions brought about by aging'. Malaysia: Physiological ageing claims.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-3-SKIN-SCARS",
-      "category": "skin_scars",
-      "source_id": "ASEAN_APPENDIX_III",
-      "source_ref": "3, Skin products",
-      "title": "Scar removal",
-      "description": "Listed as unacceptable for skin products: 'Removes scars'.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-3-SKIN-ACNE",
-      "category": "skin_acne",
-      "source_id": "ASEAN_APPENDIX_III",
-      "source_ref": "3, Skin products; MY_CLAIMS 3",
-      "title": "Acne treatment",
-      "description": "Listed as unacceptable for skin products: 'Prevents, heals, treats or stops acne'. Malaysia: Assess permitted secondary claims separately.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-3-SKIN-BODY",
-      "category": "skin_body",
-      "source_id": "ASEAN_APPENDIX_III",
-      "source_ref": "3, Skin products",
-      "title": "Body modification",
-      "description": "Listed as unacceptable for skin products: treatment of cellulite, lose centimetres, reduces/controls swelling/oedema, removes/burns fat. Malaysia: Cellulite treatment, slimming, swelling or fat removal.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-3-SKIN-NUMBING",
-      "category": "skin_numbing",
-      "source_id": "ASEAN_APPENDIX_III",
-      "source_ref": "3, Skin products",
-      "title": "Numbing",
-      "description": "Listed as unacceptable for skin products: 'Numbing effect'. Not this rule: describing a mild, temporary sensation that the product's own data states (such as a light tingle), with its caution. Malaysia: Temporary tingling is not automatically numbing.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-3-SKIN-ANTIMICROBIAL",
-      "category": "skin_antimicrobial",
-      "source_id": "ASEAN_APPENDIX_III",
-      "source_ref": "3, Skin products; MY_CLAIMS 3, Others",
-      "title": "Fungicidal or virucidal action",
-      "description": "Listed as unacceptable for skin products: 'Fungicidal action', 'Virucidal action'. Malaysia: Do not blanket-ban authorized antibacterial product categories.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "ASEAN-2D-VULNERABLE",
-      "category": "vulnerable",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "2.d.vi",
-      "title": "Unsupported vulnerable-user assurances",
-      "description": "Product presentation includes marketing aimed at population groups with, or particularly vulnerable to, specific diseases or adverse conditions. Not this rule: telling pregnant or breastfeeding viewers that the product was not tested for them, or that they should check with their doctor first. Not this rule either: a skin-type suitability statement (\"suitable for all skin types\", \"good for sensitive or oily skin\"); skin types are not a vulnerable group. This rule is about named groups with or at risk of a condition (pregnancy, breastfeeding, babies, children, eczema) or safety promises to them (\"safe for everyone\"). Malaysia: Population targeting alone is not a blanket prohibition.",
-      "severity": "HIGH"
-    },
-    {
-      "rule_id": "MY-ABSOLUTE-SAFETY",
-      "category": "absolute_safety",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "3.a.iii",
-      "title": "Absolute safety",
-      "description": "Claims or implies freedom from side effects or harm, or safety because ingredients are natural. Excludes bounded, substantiated test results, cautions and denials.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-HALAL-UNVERIFIED",
-      "category": "halal_uncertified",
-      "source_id": "MY_HALAL",
-      "source_ref": "3-5",
-      "title": "Uncertified halal representation",
-      "description": "Represents the product as halal without verified certification and required marking under paragraphs 4-5, through JAKIM/MAIN or a JAKIM-recognized foreign certifier. Ingredient exclusions alone are insufficient.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-AUTHORITY-APPROVAL",
-      "category": "authority_approval",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "3, Others",
-      "title": "Government approval claim",
-      "description": "Presenting the product as approved, endorsed or certified by the Ministry of Health (KKM/MOH) or NPRA. A notification number is not an approval.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-COMPARATIVE",
-      "category": "comparative",
-      "source_id": "MY_ADVERTISING",
-      "source_ref": "5.1",
-      "title": "Improper competitor comparison",
-      "description": "Comparing the product with, or putting down, an identified competitor or brand, or claiming it is better than other products without evidence.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-PROFESSIONAL-ENDORSEMENT",
-      "category": "professional_endorsement",
-      "source_id": "MY_ADVERTISING",
-      "source_ref": "4.1",
-      "title": "Medical endorsement impression",
-      "description": "Implies individual healthcare-professional recommendation or endorsement. Permit verified objective professional surveys and professional-body endorsements with written consent. Do not infer endorsement from test supervision.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-UNSUPPORTED-EVIDENCE",
-      "category": "unsupported_evidence",
-      "source_id": "MY_ADVERTISING",
-      "source_ref": "4.3, 5.2 and 7",
-      "title": "Unsupported evidence",
-      "description": "Makes unsupported or misleading evidence claims; names test institutions without authorization; uses research for medicinal claims; or presents misleading before-and-after comparisons or omits elapsed time. Missing documentation requires verification.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-TESTIMONIAL",
-      "category": "testimonial",
-      "source_id": "MY_ADVERTISING",
-      "source_ref": "6",
-      "title": "Invalid testimonial",
-      "description": "Uses a fabricated, obsolete or inapplicable testimonial, or misrepresents personal experience over a reasonable period. Unknown authenticity requires verification; omitting a variability disclaimer alone is not a violation.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-GMP-PROMOTION",
-      "category": "gmp_promotion",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "3.a.i",
-      "title": "GMP promotional claim",
-      "description": "Promotes the product using the manufacturer's GMP certification or standard, including ISO 22716, even without claiming superior efficacy. Excludes denials.",
-      "severity": "MEDIUM"
-    },
-    {
-      "rule_id": "MY-RELIGIOUS-CLAIM",
-      "category": "religious_claim",
-      "source_id": "MY_CLAIMS",
-      "source_ref": "3.a.ii",
-      "title": "Religious efficacy claim",
-      "description": "Uses scripture or religious statements to promote the cosmetic. Excludes unrelated greetings and verified halal certification.",
-      "severity": "MEDIUM"
-    }
-  ]
+  "rules": []
 }

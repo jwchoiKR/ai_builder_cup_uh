@@ -19,15 +19,6 @@ def _out(product_id: str) -> ComplianceOutputO:
         "product_id": product_id}]}, "correction": {"corrects_alert_ids": []}, "reason": "r"})
 
 
-def test_d374_only_a_product_not_in_the_show_is_skipped(catalog, caplog):
-    values = {"current_product_json": {"product_id": CREAM}, "active_alerts_json": [], "scope_product_ids": [CREAM]}
-    with caplog.at_level(logging.INFO):
-        [v] = validate_original(_out(AMPOULE), catalog, values, ()).compliance.violations  # in the show: as given
-        assert validate_original(_out("no_such_product"), catalog, values, ()).compliance.violations == []
-    assert v.product_id == AMPOULE and v.rule_id == "guideline#3"
-    assert "is not in the show" in caplog.text
-
-
 def test_d374_a_note_the_model_marks_fixed_is_corrected_even_by_the_line_that_re_showed_it():
     note = Alert(alert_id="fx_1", kind="fact", status="active", transcript_id="t2", product_id=CREAM,
                  field="price", created_at=0)

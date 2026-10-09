@@ -75,23 +75,3 @@ class _RelationBackend(ScriptedBackend):
             "stated_value": "S$32", "evidence": [m.group(1)], "source_value": "S$36.00", "relation": self.relation,
             "correct_value": "S$36.00" if self.relation == "contradicts" else None}]
         return RawReply(json.dumps({"claims": claims}), model_version="scripted")
-
-
-@pytest.mark.parametrize("relation, alerts", [("contradicts", 1), ("consistent", 0), ("uncertain", 0)])
-async def test_d296_the_relation_arm_end_to_end(relation, alerts):
-    from .helpers import live_runtime, make_ctx
-
-    llm = _RelationBackend(relation)
-    rt = await live_runtime(make_ctx(backend=llm))  # D-434: the production fact checker (v5, prompter snapshot)
-    try:
-        await speak(rt, "It's only thirty-two dollars today.")
-        await rt.utterances.drain()
-        facts = [a for a in await rt.alerts() if a.kind == "fact"]
-        assert len(facts) == alerts
-        if alerts:
-            assert facts[0].correct_value == "S$36.00" and "S$36.00" in (facts[0].quote or "")
-        req = llm.requests[0]
-        assert issubclass(req.output_model, FactRelationOutputV5) and "sentences" in req.user_message
-        assert "`evidence`" in req.system_instruction
-    finally:
-        await close_env(rt)

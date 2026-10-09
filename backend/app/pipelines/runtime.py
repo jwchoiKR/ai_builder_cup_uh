@@ -25,7 +25,6 @@ from ..logic.grouping import is_open
 from ..logic.ranking import score
 from ..logic.reply_status import REPLY_KINDS, waiting_status
 from ..logic.segments import open_segment
-from ..onboarding.release import has_law as _has_law
 from ..models.data import Intent, Passage, Promo, PrompterPoint
 from ..logic.prompter import prompter_view
 from ..models.session import (
@@ -104,11 +103,8 @@ class SessionRuntime:
         self.reply_phraser = ReplyPhraser(ctx.llm, ctx.prompts["reply_phraser"])
         self.translating: set[tuple[str, str]] = set()  # (message, language) being translated
         self._reply_status: dict[str, str | None] = {}  # comment -> the status last written, so a repeat reads nothing
-        # D-278: no demo comments in a release show; D-375: the demo show (the demo's own releases) has them
-        from ..onboarding.demo import is_demo_show
-
-        self.feed = FeedEngine(self, demo=(session.release_id is None and not session.release_ids)
-                               or is_demo_show(ctx.settings, session.release_ids))
+        # D-278: no demo comments in a release show (only the tests' shipped run sheet has them)
+        self.feed = FeedEngine(self, demo=session.release_id is None and not session.release_ids)
         from .utterances import UtterancePipeline
 
         self.utterances = UtterancePipeline(self)
@@ -749,7 +745,7 @@ class SessionRuntime:
             "market": {"market": self.pack.market.market, "name": self.pack.market.name, "lang": self.pack.lang,
                        "tier": self.tier,  # D-150
                        # D-228: no law pack covers this release's category: no compliance checks run
-                       "law_checks": _has_law(self.pack.rules), "category": self.pack.rules.category,
+                       "law_checks": bool(self.pack.rules.rules or self.pack.rules.pack_ids), "category": self.pack.rules.category,
                        "retraction_phrase": self.pack.lang_pack.retraction_phrase},  # D-436
         }
         if role == "operator":
@@ -782,9 +778,6 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
 
         if len(release_ids) > MAX_RELEASES or len(set(release_ids)) != len(release_ids):
             raise ActionError(400, "bad_release_ids", f"2 to {MAX_RELEASES} different releases")
-        missing = [r for r in release_ids if not (ctx.settings.onboarding_path / "releases" / f"{r}.json").is_file()]
-        if missing:
-            raise ActionError(404, "unknown_release", f"no release {missing}")
         try:
             pack, _ = ctx.pack_for(market, lang, tuple(release_ids))
         except FileNotFoundError as e:
@@ -807,13 +800,6 @@ async def create_session(ctx: "AppContext", runsheet_id: str, show_mode: str = "
     except DataPackError as e:
         raise ActionError(404, "unknown_runsheet", str(e)) from None
     glossary_version, points = 0, {}
-    try:  # confirmed Setup state (§8.15, §12.7), frozen for this session
-        from .setup import current_glossary, prompter_overrides
-
-        glossary_version = (await current_glossary(ctx))["version"]
-        points = {pid: [p.model_dump() for p in pts] for pid, pts in (await prompter_overrides(ctx)).items()}
-    except ImportError:
-        pass
     session = Session(
         session_id=ctx.ids.new("ses_"), runsheet_id=runsheet.runsheet_id, title=runsheet.title, status="ready",
         show_mode=show_mode, assistant=assistant, market=market, lang=lang, release_id=release_id,

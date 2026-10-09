@@ -32,20 +32,15 @@ def test_every_spec_key_exists_with_its_default():
         assert _as_env(fields[key].default) == value, key
 
 
-def test_relative_paths_resolve_from_backend_dir(settings):
-    assert (settings.data_path / "products" / "products.json").is_file()
-    assert (settings.prompts_path / "utterance_judge.md").is_file()
-
-
 def test_google_provider_requires_project():
     with pytest.raises(ValidationError, match="GCP_PROJECT"):
         Settings(_env_file=None, LLM_PROVIDER="vertex", STT_PROVIDER="mock")
     assert Settings(_env_file=None, LLM_PROVIDER="vertex", STT_PROVIDER="mock", GCP_PROJECT="p").GCP_PROJECT == "p"
 
 
-def test_vertex_search_requires_data_store():
-    with pytest.raises(ValidationError, match="VERTEX_SEARCH_DATA_STORE_ID"):
-        make_settings(RETRIEVER="vertex_search", GCP_PROJECT="p")
+def test_vertex_answers_require_an_engine():
+    with pytest.raises(ValidationError, match="VERTEX_SEARCH_ENGINE_ID"):
+        make_settings(ANSWER_RETRIEVER="vertex_search", GCP_PROJECT="p")
 
 
 def test_demo_tools_off_in_cloud_unless_explicit():

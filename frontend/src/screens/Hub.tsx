@@ -1,13 +1,12 @@
-import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, LayoutGrid, ListChecks, Loader2, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
+import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, LayoutGrid, ListChecks, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 
-import { api, userMessage } from "../app/api";
+import { userMessage } from "../app/api";
 import { useLang, useT } from "../app/i18n";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
-import { useHealth } from "../app/store";
 import { useTheme } from "../app/theme";
-import { Button, Chip, SettingsButton } from "../components";
-import { BRIEF_RUNNING_NOTE, onboardingApi, type ReleaseRow } from "./onboarding/onboardingApi";
+import { Chip, SettingsButton } from "../components";
+import { onboardingApi, type ReleaseRow } from "./onboarding/onboardingApi";
 import styles from "./screens.module.css";
 
 interface Screen {
@@ -99,13 +98,6 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
       document.removeEventListener("pointerdown", onDown);
     };
   }, [open]);
-  // D-266: while a brief runs, look again every few seconds
-  const running = rows?.some((r) => r.brief === "running") ?? false;
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setTimeout(() => onboardingApi.releases().then(setRows, () => undefined), 4000);
-    return () => window.clearTimeout(timer);
-  }, [rows, running]);
   if (!rows?.length) return null;
   const byId = new Map(rows.map((r) => [r.release_id, r]));
   // D-332: a product's latest approved version; its older versions behind "Older versions"
@@ -150,9 +142,7 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
                   <span className={styles.hubReleaseMeta}>
                     {r.markets.map((m) => <Chip key={m}>{m}</Chip>)}
                     <span>v{r.version} · {new Date(r.approved_at).toLocaleDateString()}</span>
-                    {r.brief === "running" ? (
-                      <Chip tone="accent"><Loader2 className={styles.spin} aria-hidden />{t("brief running")}</Chip>
-                    ) : r.brief === "done" ? (
+                    {r.brief === "done" ? (
                       <Chip tone="ok">{t("ready")}</Chip>
                     ) : null}
                   </span>
@@ -192,21 +182,16 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
               <span className={styles.hubStudioNote}>{t("No product picked yet.")}</span>
             )}
           </div>
-      {lineup.some((id) => byId.get(id)?.brief === "running") && (
-        <span className={styles.hubStudioNote} data-testid="hub-brief-running">{t(BRIEF_RUNNING_NOTE)}</span>
-      )}
     </div>
   );
 }
 
-export function Hub({ sessionId, onSessionChange }: ScreenProps) {
+export function Hub({ sessionId }: ScreenProps) {
   const [theme, , setTheme, themePref] = useTheme();
   const t = useT();
   const lang = useLang();
-  const health = useHealth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const demoTools = health?.demo_tools_enabled ?? false;
   const [lineup, setLineup] = useState<string[]>([]);
 
   // a During-the-show card starts the show with the picked line-up, then opens that screen of it
@@ -224,19 +209,6 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
     }
   };
 
-  const run = async (fn: () => Promise<{ session_id: string }>) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const s = await fn();
-      onSessionChange?.(s.session_id);
-    } catch (e) {
-      setError(t(userMessage(e)));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <div className={styles.root} data-theme={theme} lang={lang}>
       <header className={`${styles.header} ${styles.hubHeader}`}>
@@ -248,16 +220,6 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
           </div>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="primary" disabled={busy} onClick={() => run(() => api.demoSession())}>
-            {t("New demo session")}
-          </Button>
-          <Button
-            disabled={busy || !demoTools}
-            title={demoTools ? undefined : t("Demo tools are disabled")}
-            onClick={() => run(() => api.demoReset())}
-          >
-            {t("Reset demo")}
-          </Button>
           <SettingsButton themePref={themePref} onTheme={setTheme} />
         </div>
       </header>
@@ -266,11 +228,6 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
           {error && <p className={styles.error}>{error}</p>}
           <section className={styles.hubHero}>
             <p className={styles.hubLead}>{t(LEAD)}</p>
-            <div className={styles.hubStudio}>
-              <a className={styles.hubStudioButton} href="/testdrive" onClick={go("/testdrive")} data-testid="hub-testdrive">
-                {t("Try it with a sample product →")}
-              </a>
-            </div>
           </section>
           <div className={styles.hubPhases}>
             {PHASES.map((phase, i) => (
