@@ -1,5 +1,5 @@
-import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, Loader2, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, LayoutGrid, ListChecks, Loader2, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 
 import { api, userMessage } from "../app/api";
 import { useLang, useT } from "../app/i18n";
@@ -16,14 +16,20 @@ interface Screen {
   icon: LucideIcon;
   who: string;
   text: string;
+  picker?: true;
+  wide?: true;  // a full-width row under the phase's other cards  // the card holds the approved-products picker instead of being one link
 }
 
 // The screens in the order of a show; Studio (all of them side by side, for the demo) is the hero button.
 const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
   {
     label: "Before the show",
-    screens: [{ path: "/setup", title: "Setup", icon: FileUp, who: "For the operator",
-      text: "Upload product documents. The AI drafts the host's talking points." }],
+    screens: [
+      { path: "/onboarding", title: "Onboard", icon: FileUp, who: "For the operator",
+        text: "Upload a new product's documents. The AI reads them for approval." },
+      { path: "/pick", title: "Pick products", icon: ListChecks, who: "For the operator", picker: true,
+        text: "Choose the approved products for this show. A During-the-show screen starts the show with them." },
+    ],
   },
   {
     label: "During the show",
@@ -35,6 +41,8 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
         text: "Show schedule, product switch and the question desk." },
       { path: "/viewer", title: "Viewer", icon: Smartphone, who: "What viewers see",
         text: "Live video, product strip and chat with fact-checked AI answers." },
+      { path: "/studio", title: "Combined view", icon: LayoutGrid, who: "Screens side by side", wide: true,
+        text: "Host + Operator, Host + Viewer or all three on one screen." },
     ],
   },
   {
@@ -59,12 +67,9 @@ const go = (href: string) => (e: MouseEvent) => {
 /** D-264: start a show from products approved earlier (the list survives a cold start, D-263). D-315: one row per
  * release; the rows picked, in order, are the show's line-up (D-279: at most 3). D-319: a secondary button in the hero
  * row opens them in a popover (a bottom sheet at phone width). */
-function ReleasePicker() {
+function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dispatch<SetStateAction<string[]>> }) {
   const t = useT();
   const [rows, setRows] = useState<ReleaseRow[] | null>(null);
-  const [lineup, setLineup] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [showOlder, setShowOlder] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -114,24 +119,11 @@ function ReleasePicker() {
   const shown = [...latest.values(), ...(showOlder ? older : [])];
   const toggle = (id: string) =>
     setLineup((l) => (l.includes(id) ? l.filter((x) => x !== id) : l.length < MAX_SHOW ? [...l, id] : l));
-  const start = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const s = await onboardingApi.startShow(lineup);
-      setOpen(false);
-      navigate(`/studio?session=${encodeURIComponent(s.session_id)}`);
-    } catch (e) {
-      setError(t(userMessage(e)));
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
     <div className={styles.hubPicker}>
       <button ref={button} type="button" className={styles.hubPickerButton} aria-haspopup="dialog" aria-expanded={open}
         aria-controls="hub-releases" onClick={() => setOpen((o) => !o)} data-testid="hub-releases-open">
-        {t("Start with approved products")}
+        {t("Approved products")}
         <span className={styles.hubPickerCount}>{latest.size}</span>
         <ChevronDown aria-hidden className={styles.hubPickerChevron} />
       </button>
@@ -174,6 +166,8 @@ function ReleasePicker() {
               {showOlder ? t("Hide older versions") : t("Older versions ({n})", { n: older.length })}
             </button>
           )}
+        </div>
+      )}
           <div className={styles.hubLineup} data-testid="hub-lineup">
             {lineup.length ? (
               <>
@@ -198,16 +192,8 @@ function ReleasePicker() {
               <span className={styles.hubStudioNote}>{t("No product picked yet.")}</span>
             )}
           </div>
-          <div className={styles.hubStudio}>
-            <Button variant="primary" disabled={busy || !lineup.length} onClick={start} data-testid="hub-release-start">
-              {lineup.length > 1 ? t("Start a show with {n} products", { n: lineup.length }) : t("Start a show with 1 product")}
-            </Button>
-            {lineup.some((id) => byId.get(id)?.brief === "running") && (
-              <span className={styles.hubStudioNote} data-testid="hub-brief-running">{t(BRIEF_RUNNING_NOTE)}</span>
-            )}
-          </div>
-          {error && <span className={styles.error} role="alert">{error}</span>}
-        </div>
+      {lineup.some((id) => byId.get(id)?.brief === "running") && (
+        <span className={styles.hubStudioNote} data-testid="hub-brief-running">{t(BRIEF_RUNNING_NOTE)}</span>
       )}
     </div>
   );
@@ -221,7 +207,22 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const demoTools = health?.demo_tools_enabled ?? false;
-  const studio = withSession("/studio", sessionId);
+  const [lineup, setLineup] = useState<string[]>([]);
+
+  // a During-the-show card starts the show with the picked line-up, then opens that screen of it
+  const openLive = (path: string) => async (e: MouseEvent) => {
+    if (!lineup.length || e.metaKey || e.ctrlKey || e.shiftKey) return go(withSession(path, sessionId))(e);
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const s = await onboardingApi.startShow(lineup);
+      navigate(withSession(path, s.session_id));
+    } catch (err) {
+      setError(t(userMessage(err)));
+      setBusy(false);
+    }
+  };
 
   const run = async (fn: () => Promise<{ session_id: string }>) => {
     setBusy(true);
@@ -266,17 +267,9 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
           <section className={styles.hubHero}>
             <p className={styles.hubLead}>{t(LEAD)}</p>
             <div className={styles.hubStudio}>
-              <a className={styles.hubStudioButton} href={studio} onClick={go(studio)} data-testid="hub-open-studio">
-                {t("Open Studio (demo) →")}
-              </a>
-              <span className={styles.hubStudioNote}>{t("Host, operator and viewer side by side, with prepared demo scenes.")}</span>
               <a className={styles.hubStudioButton} href="/testdrive" onClick={go("/testdrive")} data-testid="hub-testdrive">
                 {t("Try it with a sample product →")}
               </a>
-              <a className={styles.hubStudioNote} href="/onboarding" onClick={go("/onboarding")} data-testid="hub-onboarding">
-                {t("Onboard a new product →")}
-              </a>
-              <ReleasePicker />
             </div>
           </section>
           <div className={styles.hubPhases}>
@@ -285,12 +278,25 @@ export function Hub({ sessionId, onSessionChange }: ScreenProps) {
                 {i > 0 && <ChevronRight className={styles.hubChevron} aria-hidden />}
                 <section className={`${styles.hubPhase} ${phase.live ? styles.hubPhaseLive : ""}`} aria-label={t(phase.label)}>
                   <h2 className={styles.hubPhaseLabel}>{t(phase.label)}</h2>
-                  <div className={styles.hubPhaseCards} style={{ "--cards": phase.screens.length } as CSSProperties}>
+                  <div className={styles.hubPhaseCards} style={{ "--cards": phase.screens.filter((s) => !s.wide).length } as CSSProperties}>
                     {phase.screens.map((s) => {
                       const href = withSession(s.path, sessionId);
                       const Icon = s.icon;
+                      // the picked line-up becomes this hub's show: the cards below then open that show
+                      if (s.picker) return (
+                        <div key={s.path} className={`${styles.hubCard} ${styles.hubCardStatic}`} data-testid="hub-card-pick">
+                          <span className={styles.hubIcon}>
+                            <Icon aria-hidden />
+                          </span>
+                          <span className={styles.hubCardTitle}>{t(s.title)}</span>
+                          <span className={styles.hubWho}>{t(s.who)}</span>
+                          <span className={styles.hubText}>{t(s.text)}</span>
+                          <ReleasePicker lineup={lineup} setLineup={setLineup} />
+                        </div>
+                      );
                       return (
-                        <a key={s.path} className={styles.hubCard} href={href} onClick={go(href)}
+                        <a key={s.path} className={`${styles.hubCard} ${s.wide ? styles.hubCardWide : ""}`} href={href}
+                          onClick={phase.live ? openLive(s.path) : go(href)} aria-disabled={busy || undefined}
                           data-testid={`hub-card-${s.path.slice(1)}`}>
                           <span className={styles.hubIcon}>
                             <Icon aria-hidden />

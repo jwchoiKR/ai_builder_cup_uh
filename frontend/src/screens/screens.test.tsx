@@ -172,10 +172,9 @@ describe("screens", () => {
 
   it("Hub links every screen", async () => {
     render(<Hub sessionId="ses_000001" />);
-    for (const name of ["Host screen", "Operator", "Viewer", "Setup", "Summary"]) {
+    for (const name of ["Onboard", "Pick products", "Host screen", "Operator", "Viewer", "Summary"]) {
       expect(screen.getByText(name)).toBeInTheDocument();
     }
-    expect(screen.getByTestId("hub-open-studio")).toHaveAttribute("href", expect.stringContaining("/studio"));
     expect(screen.getByText("New demo session")).toBeInTheDocument();
     expect(screen.getByText(/ses_000001/)).toBeInTheDocument();
   });
@@ -187,7 +186,7 @@ describe("screens", () => {
     try {
       render(<Hub sessionId="ses_000001" />);
       const open = await screen.findByTestId("hub-releases-open");
-      expect(open).toHaveTextContent("Start with approved products1");
+      expect(open).toHaveTextContent("Approved products1");
       fireEvent.click(open);
       expect(screen.getByTestId("hub-release-rel_lumen_serum_v2")).toBeInTheDocument();
       expect(screen.queryByTestId("hub-release-rel_lumen_serum_v1")).toBeNull();
@@ -205,7 +204,7 @@ describe("screens", () => {
     try {
       render(<Hub sessionId="ses_000001" />);
       const open = await screen.findByTestId("hub-releases-open");
-      expect(open).toHaveTextContent("Start with approved products1");  // the count badge
+      expect(open).toHaveTextContent("Approved products1");  // the count badge
       expect(open).toHaveAttribute("aria-expanded", "false");
       expect(screen.queryByTestId("hub-releases")).toBeNull();  // D-319: the rows are in a popover
       fireEvent.click(open);
@@ -217,13 +216,13 @@ describe("screens", () => {
       expect(card).toHaveTextContent("SG");
       expect(card).toHaveTextContent("ready");
       expect(card).toHaveAttribute("aria-pressed", "false");
-      expect(screen.getByTestId("hub-release-start")).toBeDisabled();
+      expect(screen.queryByTestId("hub-release-start")).toBeNull();  // picking only; no start button
       fireEvent.click(card);
       expect(card).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getByTestId("hub-release-start")).toHaveTextContent("Start a show with 1 product");
-      fireEvent.click(screen.getByTestId("hub-release-start"));
+      expect(screen.getByTestId("hub-lineup")).toHaveTextContent("1. Night Serum");
+      fireEvent.click(screen.getByTestId("hub-card-host"));  // a During-the-show card starts the show
       await waitFor(() => expect(window.location.search).toContain("session=ses_rel"));
-      expect(window.location.pathname).toBe("/studio");
+      expect(window.location.pathname).toBe("/host");
     } finally {
       delete responses["/api/onboarding/releases"];
       delete responses["/api/sessions"];
@@ -245,16 +244,13 @@ describe("screens", () => {
       expect(screen.getByTestId("hub-brief-running")).toBeInTheDocument();  // a picked brief still runs
       fireEvent.click(screen.getByRole("button", { name: "Remove Serum" }));
       expect(screen.getByTestId("hub-lineup")).toHaveTextContent("1. Cream→ 2. Ampoule");
-      expect(screen.getByTestId("hub-release-start")).toHaveTextContent("Start a show with 2 products");
-      fireEvent.click(screen.getByTestId("hub-release-start"));
+      fireEvent.click(screen.getByTestId("hub-card-operator"));  // a During-the-show card starts the show
       await waitFor(() => expect(window.location.search).toContain("session=ses_show"));
-      expect(screen.queryByTestId("hub-releases")).toBeNull();  // closed on start
-      fireEvent.click(screen.getByTestId("hub-releases-open"));
       const calls = (fetch as unknown as { mock: { calls: [string, RequestInit?][] } }).mock.calls;
       const body = calls.filter(([u]) => u === "/api/sessions").map(([, init]) => JSON.parse(String(init?.body)));
       expect(body.at(-1)).toEqual({ release_ids: ["rel_c", "rel_b"] });
       fireEvent.click(screen.getByTestId("hub-lineup-clear"));
-      expect(screen.getByTestId("hub-release-start")).toBeDisabled();
+      expect(screen.getByTestId("hub-lineup")).toHaveTextContent("No product picked yet.");
     } finally {
       delete responses["/api/onboarding/releases"];
       delete responses["/api/sessions"];
@@ -288,7 +284,7 @@ describe("screens", () => {
     const phases = screen.getAllByRole("region");
     expect(phases.map((r) => r.getAttribute("aria-label"))).toEqual(["Before the show", "During the show", "After the show"]);
     expect(within(phases[1]).getAllByRole("link").map((a) => a.dataset.testid))
-      .toEqual(["hub-card-host", "hub-card-operator", "hub-card-viewer"]);
+      .toEqual(["hub-card-host", "hub-card-operator", "hub-card-viewer", "hub-card-studio"]);
     const host = screen.getByTestId("hub-card-host");
     expect(host).toHaveAttribute("href", expect.stringContaining("/host"));
     expect(host).toHaveTextContent("For the host");
@@ -301,7 +297,7 @@ describe("screens", () => {
     try {
       render(<Hub sessionId="ses_000001" />);
       expect(screen.getByText("방송 허브")).toBeInTheDocument();
-      expect(screen.getByTestId("hub-open-studio")).toHaveTextContent("스튜디오 열기 (데모) →");
+      expect(screen.getByTestId("hub-card-studio")).toHaveTextContent("통합 화면");
       expect(screen.getByTestId("hub-card-operator")).toHaveTextContent("운영자 화면");
       expect(screen.getByText("세션 ses_000001")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "설정" })).toBeInTheDocument();

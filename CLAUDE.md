@@ -18,6 +18,12 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - The goal is a general platform: 100% on any unseen product. No product-specific prompts, few-shots, heuristics or rule carve-outs; products enter only via onboarding; pass/fail on a sealed pool of other products.
 - Manual steps are design flaws: never ask a customer to match a template; absorb any document format; humans only approve.
 - If our logic misses its pass lines after a small patch budget (1-2 rounds), scrap it and rebuild; set kill criteria before testing.
+- Git commit messages (header / body / footer, separated by blank lines):
+  - Header (required): `type(scope): subject`; scope is optional. Types: feat, fix, build, chore, ci, docs, style, refactor, test, perf.
+  - Subject: 50 characters or fewer, imperative (not past tense), no trailing period, capitalized first letter for English.
+  - Body (optional, only when the header is not enough): wrap at 72 characters, say what changed and why, not how.
+  - Footer (optional): references such as `resolves: #1137` or `Issues #1234`.
+  - Keep the attribution line the harness asks for as the last footer line.
 - Decks and explainer HTML go in `docs/decks/` (build scripts in `docs/decks/build/`).
 - Scope (user, 10/6, restated 10/7): this team (the user, the planning session and dev) works only on the STT-driven live path: speech-to-text, the judges on its text, alert display and latency, plus UI/UX work on any screen (user, 10/7: "UI/UX는 괜찮어"). Viewer comments (classification, answers, posting) and pre-broadcast tasks (onboarding, approval, brief) belong to other people: do not change their code, prompts or settings, and do not measure or tune them. A change that would touch them goes to the user first.
 
