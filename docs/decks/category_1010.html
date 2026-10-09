@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>제품 종류 추가 As-is/To-be</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Roboto:wght@400;500&display=swap">
+<style>
+html,body{margin:0;height:100%;background:#E8EAED;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0;box-shadow:0 2px 12px rgba(60,64,67,.25)}
+section{position:absolute;inset:0;box-sizing:border-box;display:none !important}
+section.on{display:flex !important}
+section *{margin:0;box-sizing:border-box;word-break:keep-all;overflow-wrap:anywhere}
+section p,section td,section span{text-wrap:pretty}
+section h1,section h2{text-wrap:balance}
+table{border-collapse:collapse;width:100%;color:#202124}
+th{text-align:left;font-weight:500;color:#5F6368;border-bottom:2px solid #BDC1C6;padding:14px 16px}
+td{border-bottom:1px solid #BDC1C6;padding:18px 16px;vertical-align:top}
+.pg{position:absolute;right:128px;bottom:56px;font-size:24px;color:#9AA0A6}
+aside{display:none}
+.bd>*{flex:0 0 auto !important}
+.fx>div{flex:1}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:30vh;overflow:auto;background:#fff;color:#202124;font:16px/1.5 'Noto Sans KR',sans-serif;padding:12px 20px;display:none;border-top:3px solid #1A73E8}
+#hint{position:fixed;right:12px;bottom:8px;color:#80868b;font:13px Roboto,sans-serif}
+.lane-wide .nd { align-items:center; text-align:center; }
+
+@keyframes an-up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes an-pop { 0% { opacity: 0; transform: scale(.96); } 100% { opacity: 1; transform: none; } }
+@keyframes an-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } 40% { box-shadow: 0 0 0 10px var(--an-glow); } }
+.an-item { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both; }
+.an-img { animation: an-pop .6s cubic-bezier(.2,.7,.2,1) both; }
+.an-pulse { animation: an-up .45s cubic-bezier(.2,.7,.2,1) both, an-pulse 1.2s ease-out both; }
+/* always-on motion while a slide is shown: arrows flow, a dot runs along them, AI badges breathe, flow steps light up in turn */
+@keyframes an-dash { to { stroke-dashoffset: -28; } }
+@keyframes an-breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); } 50% { box-shadow: 0 0 0 8px rgba(26,115,232,.16); } }
+@keyframes an-step { 0%, 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); border-color: inherit; } 12%, 30% { box-shadow: 0 0 0 5px rgba(26,115,232,.22); } }
+@keyframes an-run { from { offset-distance: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } to { offset-distance: 100%; opacity: 0; } }
+.an-arrow { position: relative; display: inline-flex; align-items: center; justify-content: center; line-height: 0; flex: none; align-self: center; }
+@keyframes an-march { to { stroke-dashoffset: -11; } }
+section.on .an-shaft { animation: an-march .55s linear infinite; }
+</style></head><body>
+<div id="stage">
+<section id="cover" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:36px">
+<div style="display:inline-flex; align-items:center; gap:8px; background:#E8F0FE; color:#1A73E8; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>제품 종류 추가 · As-is / To-be · 10/10</span></div>
+<h1 style="font-size:84px; font-weight:500; line-height:1.15">이름에 종류가 없는 제품도<br>"다음은 앰플" 한마디로 넘어간다</h1>
+<p style="font-size:38px; color:#5F6368; line-height:1.45">상품 전환 0/5 → 4/4, 다른 판정은 그대로</p></div></div><p class="pg"></p><aside>D-448b. 제품 JSON의 category와 brand를 문맥 판정 AI(프롬프터 체크, 상품 전환, 질문 대기 담당)의 입력에 넣었다.</aside></section>
+<section id="what" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">무엇을 바꿨나</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">판정 AI가 보는 제품 정보에 브랜드와 종류를 넣었다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:25px"><tr><th style="width:22%"></th><th style="width:36%">As-is (전)</th><th style="width:42%">To-be (후)</th></tr><tr><td>지금 상품</td><td>제품명만<br>Hydra Calm Cream</td><td>제품명 + 브랜드 + 종류<br>Hydra Calm Cream · Lunelle · face cream</td></tr><tr><td>다음 상품 (런시트)</td><td>제품명만<br>종류 칸은 비어 있음</td><td>제품명 + 종류<br>Deep Glow · serum ampoule</td></tr><tr><td>프롬프트 문장</td><td>변화 없음</td><td>변화 없음 (전환 규칙이 원래 종류 칸을 읽음)</td></tr></table></div><p class="pg"></p><aside>종류는 다른 팀의 제품 JSON(approved.json)에 새로 생긴 category 값이다. 종류 칸은 예전 온보딩이 지워진 뒤 계속 비어 있었다.</aside></section>
+<section id="run2" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">효과가 드러난 경우</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">이름에 종류 단어가 없을 때 "the ampoule"은 종류 정보가 있어야 전환됐다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; align-items:stretch; gap:14px"><table style="font-size:23px"><tr><th style="width:46%">진행자 말</th><th style="width:22%">기대</th><th style="width:16%">As-is</th><th style="width:16%">To-be</th></tr><tr><td>"Next, let me show you the ampoule."</td><td>다음 상품으로 전환</td><td><span style='color:#D93025'>0/5</span></td><td><span style='color:#1E8E3E'>4/4</span></td></tr><tr><td>"다음은 앰플 보여드릴게요."</td><td>전환</td><td><span style='color:#1E8E3E'>5/5</span></td><td><span style='color:#1E8E3E'>5/5</span></td></tr><tr><td>"Okay, next up, the serum."</td><td>전환</td><td><span style='color:#1E8E3E'>5/5</span></td><td><span style='color:#1E8E3E'>5/5</span></td></tr><tr><td>"Next, let me show you the Deep Glow."</td><td>전환 (이름)</td><td><span style='color:#1E8E3E'>5/5</span></td><td><span style='color:#1E8E3E'>5/5</span></td></tr><tr><td>"Someone asked about the ampoule, we'll get to it soon."</td><td>전환 안 함</td><td><span style='color:#1E8E3E'>5/5</span></td><td><span style='color:#1E8E3E'>5/5</span></td></tr><tr><td>"This cream works well with an ampoule."</td><td>전환 안 함</td><td><span style='color:#1E8E3E'>5/5</span></td><td><span style='color:#1E8E3E'>5/5</span></td></tr><tr><td>"Next, let me show you the toner."</td><td>전환 안 함</td><td><span style='color:#1E8E3E'>5/5</span></td><td><span style='color:#1E8E3E'>4/4</span></td></tr></table><p style="font-size:24px; line-height:1.45; color:#5F6368; font-weight:400">다음 제품 이름은 "Deep Glow", 종류는 "serum ampoule". 한국어 문장과 serum은 전에도 맞혔다. To-be의 4/4는 5번 중 1번이 시간 초과로 빠진 결과다.</p></div></div><p class="pg"></p><aside>As-is가 0/5인 이유(모델 설명): '다음 순서가 아닌 앰플을 말했다'. 한국어 문장과 serum은 As-is도 맞혔다.</aside></section>
+<section id="run1" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">이미 잘 되던 경우</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">이름에 종류 단어가 있으면 전과 후가 같다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><table style="font-size:25px"><tr><th style="width:42%">묶음</th><th style="width:14%">문장 수</th><th style="width:22%">As-is</th><th style="width:22%">To-be</th></tr><tr><td>종류·이름으로 전환</td><td>4</td><td>모두 5/5</td><td>모두 5/5</td></tr><tr><td>전환하면 안 되는 말</td><td>3</td><td>모두 5/5</td><td>모두 5/5</td></tr><tr><td>"이거", "이 제품"으로 포인트 체크</td><td>3</td><td>모두 5/5</td><td>모두 5/5</td></tr><tr><td>기존 상품 전환·질문 대기</td><td>6</td><td>모두 5/5</td><td>모두 5/5 (1번은 429로 빠져 4/4)</td></tr></table></div><p class="pg"></p><aside>다음 제품 이름이 'Deep Glow Serum Ampoule'처럼 종류 단어를 포함하면 As-is도 이미 맞힌다. 새 입력이 기존 판정을 망가뜨리지 않았다는 확인이다.</aside></section>
+<section id="cost" style="background:#FFFFFF; color:#202124; font-family:'Noto Sans KR', Roboto, Arial, sans-serif; padding:112px 128px 150px; display:flex; flex-direction:column; gap:44px"><div style="display:flex; flex-direction:column; gap:10px"><p style="font-size:26px; font-weight:500; color:#1A73E8">속도와 한계</p><h2 style="font-size:56px; font-weight:500; line-height:1.2; color:#202124">16문장 시험은 속도가 같았고, 7문장 시험에서만 느렸다</h2></div><div class="bd" style="flex:1; min-height:0; display:flex; flex-direction:column; justify-content:center; gap:36px; zoom:1"><div style="flex:1; display:flex; flex-direction:column; align-items:stretch; gap:24px"><table style="font-size:25px"><tr><th style="width:44%">측정</th><th style="width:28%">As-is</th><th style="width:28%">To-be</th></tr><tr><td>응답 평균 / p95 (16문장)</td><td>1.50초 / 1.84초</td><td>1.47초 / 1.68초</td></tr><tr><td>응답 평균 / p95 (7문장, 이름에 종류 없음)</td><td>1.56초 / 2.14초</td><td>1.86초 / 3.57초 (시간 초과 2번)</td></tr></table><div style="display:flex; flex-direction:column; gap:14px"><div style="height:2px; background:#BDC1C6"></div><div style="display:flex; flex-wrap:wrap; align-items:center; gap:12px 14px"><p style="font-size:26px; font-weight:700; color:#5F6368; margin-right:6px">한계</p><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>만든 제품 2쌍, 문장당 5번</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#FEF7E0; color:#B06000; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" style="flex:none"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" fill="#B06000"/></svg><span>시간 초과 2번은 네트워크로 보이나 다시 확인 필요</span></div><div style="display:inline-flex; align-items:center; gap:8px; background:#F1F3F4; color:#5F6368; border-radius:999px; padding:10px 24px; font-size:28px; font-weight:500; width:max-content"><span>Gemini Flash-Lite · MINIMAL · seed 7</span></div></div></div></div></div><p class="pg"></p><aside>두 번째 실행의 시간 초과는 입력 증가(몇 단어)로 설명되지 않아 일시적인 혼잡으로 본다. 배포 후 실제 방송에서 다시 본다.</aside></section>
+</div>
+<div id="notes"></div><div id="hint">← → 이동 · N 노트 · F 전체 화면</div>
+<script>
+const s=[...document.querySelectorAll('#stage > section')];let i=0;
+s.forEach((x,j)=>{const p=x.querySelector('.pg'); if(p) p.textContent=j? (j+1)+' / '+s.length : '';});
+const notes=document.getElementById('notes');
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);document.getElementById('stage').style.transform='scale('+k+') translate(-50%,-50%)';}
+function show(n){i=Math.max(0,Math.min(s.length-1,n));s.forEach((x,j)=>x.classList.toggle('on',j===i));const a=s[i].querySelector('aside');notes.textContent=(i+1)+'/'+s.length+'  '+(a&&a.textContent.trim()?a.textContent.trim():'(노트 없음)');history.replaceState(null,'','#'+(i+1));}
+function over(b){const R=b.getBoundingClientRect();return [...b.querySelectorAll('*')].some(c=>{const r=c.getBoundingClientRect();return r.bottom>R.bottom+1||r.top<R.top-1||r.right>R.right+1||r.left<R.left-1;});}
+function autofit(){const out=[];s.forEach((x,j)=>{s.forEach(y=>y.classList.toggle('on',y===x));const b=x.querySelector('.bd');if(!b)return;
+const z0=parseFloat(b.style.zoom)||1;let z=z0;while(over(b)&&z>0.7){z=Math.round((z-0.03)*100)/100;b.style.zoom=z;}
+if(z<z0)out.push({slide:j+1,type:'shrunk',text:'zoom '+z0+' -> '+z});});return out;}
+function lint(out){s.forEach((x,j)=>{let small=null;s.forEach(y=>y.classList.toggle('on',y===x));const R=x.getBoundingClientRect(),b=x.querySelector('.bd');
+if(b&&over(b))out.push({slide:j+1,type:'overflow',text:'content taller than slide body'});
+const w=document.createTreeWalker(x,NodeFilter.SHOW_TEXT);let n;
+while(n=w.nextNode()){if(!n.textContent.trim()||n.parentElement.closest('aside,.pg'))continue;
+const r=document.createRange();r.selectNodeContents(n);const rs=[...r.getClientRects()].filter(q=>q.width>0);
+if(rs.length>1){const L=rs[rs.length-1],c=n.textContent.replace(/ /g,'').length;if(L.width<1.8*L.height)out.push({slide:j+1,type:'orphan',text:n.textContent.trim().slice(-20)});else if(c<=16&&new Set(rs.map(q=>Math.round(q.top))).size>1)out.push({slide:j+1,type:'wrap',text:n.textContent.trim()});}
+if(rs.length&&!small){let z=1;for(let e=n.parentElement;e;e=e.parentElement)z*=parseFloat(e.style.zoom)||1;const fs=parseFloat(getComputedStyle(n.parentElement).fontSize)*z;if(fs<21)small=n.textContent.trim().slice(0,20)+' ('+fs.toFixed(1)+'px)';}
+for(const q of rs)if(q.bottom>R.bottom+1||q.right>R.right+1||q.left<R.left-1){out.push({slide:j+1,type:'overflow',text:n.textContent.trim().slice(0,20)});break;}}
+if(small)out.push({slide:j+1,type:'small',text:small});if(x.textContent.includes('\u2014'))out.push({slide:j+1,type:'style',text:'em dash found'});});
+const pre=document.createElement('pre');pre.id='lint';pre.textContent=JSON.stringify(out);document.body.appendChild(pre);}
+addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key))show(i+1);else if(['ArrowLeft','PageUp'].includes(e.key))show(i-1);else if(e.key==='n'||e.key==='N')notes.style.display=notes.style.display==='block'?'none':'block';else if(e.key==='f'||e.key==='F')document.documentElement.requestFullscreen?.();});
+addEventListener('click',e=>show(e.clientX>innerWidth/2?i+1:i-1));
+addEventListener('resize',fit);fit();
+document.fonts.ready.then(()=>{const out=autofit();if(location.search.includes('lint'))lint(out);show((parseInt(location.hash.slice(1))||1)-1);});
+
+(function(){
+  const reduce = navigator.webdriver || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) return;
+  const BOX = el => { const cs = getComputedStyle(el);
+    const bg = cs.backgroundColor, bd = parseFloat(cs.borderTopWidth) || 0;
+    return (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && bg !== 'rgb(255, 255, 255)') || bd > 0; };
+  const GLOW = { 'rgb(252, 232, 230)': 'rgba(217,48,37,.25)', 'rgb(230, 244, 234)': 'rgba(30,142,62,.25)',
+                 'rgb(254, 247, 224)': 'rgba(249,171,0,.3)' };
+  function animate(sec){
+    const bd = sec.querySelector('.bd'); if (!bd) return;
+    sec.querySelectorAll('.an-item,.an-img,.an-pulse').forEach(e => { e.classList.remove('an-item','an-img','an-pulse'); e.style.animationDelay=''; });
+    const picks = [];
+    bd.querySelectorAll('div, tr, img, svg').forEach(el => {
+      if (el.tagName === 'IMG') { picks.push([el, 'an-img']); return; }
+      if (el.tagName === 'TR') { picks.push([el, 'an-item']); return; }
+      if (el.tagName !== 'svg' && !BOX(el)) return;
+      let p = el.parentElement, inner = false;
+      while (p && p !== bd) { if (BOX(p) && p.tagName === 'DIV') { inner = true; break; } p = p.parentElement; }
+      if (inner) return;
+      if (el.tagName === 'svg') { picks.push([el, 'an-item']); return; }
+      const bg = getComputedStyle(el).backgroundColor;
+      if (GLOW[bg]) { el.style.setProperty('--an-glow', GLOW[bg]); picks.push([el, 'an-pulse']); }
+      else picks.push([el, 'an-item']);
+    });
+    picks.forEach(([el]) => { el.dataset.anTop = Math.round(el.getBoundingClientRect().top / 40); el.dataset.anLeft = el.getBoundingClientRect().left; });
+    picks.sort((a, b) => (a[0].dataset.anTop - b[0].dataset.anTop) || (a[0].dataset.anLeft - b[0].dataset.anLeft));
+    picks.forEach(([el, cls], k) => { el.style.animationDelay = (0.08 * k).toFixed(2) + 's' + (cls === 'an-pulse' ? ', ' + (0.08 * k + 0.4).toFixed(2) + 's' : '');
+                                      el.classList.add(cls); });
+  }
+  function live(sec){
+    const bd = sec.querySelector('.bd'); if (!bd) return;
+    bd.querySelectorAll('svg').forEach(sv => { const p = sv.querySelector('path'); if (!p) return;
+      const st = p.getAttribute('stroke') || ''; if (st.toUpperCase() === '#9AA0A6') {
+        if (!sv.parentElement.classList.contains('an-arrow')) {
+          const wrap = document.createElement('span'); wrap.className = 'an-arrow';
+          const holder = sv.parentElement;
+          if (holder && holder.style && holder.style.paddingTop) { holder.style.paddingTop = '0'; holder.style.alignSelf = 'center'; holder.style.display = 'flex'; holder.style.alignItems = 'center'; }
+          holder.insertBefore(wrap, sv); wrap.appendChild(sv);
+          const d = p.getAttribute('d'); const segs = d.match(/M[^M]*/g) || [d];
+          if (segs.length >= 2) {
+            const NS = 'http://www.w3.org/2000/svg';
+            p.setAttribute('d', segs[0]); p.classList.add('an-shaft');
+            p.setAttribute('stroke-dasharray', '0.01 11'); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('stroke-width', '4.5');
+            const head = document.createElementNS(NS, 'path'); head.setAttribute('d', segs.slice(1).join(' '));
+            head.setAttribute('stroke', p.getAttribute('stroke')); head.setAttribute('stroke-width', '3'); head.setAttribute('fill', 'none');
+            head.setAttribute('stroke-linecap', 'round'); head.setAttribute('stroke-linejoin', 'round'); sv.appendChild(head);
+          }
+        } } });
+    // scene rows: every box in a row gets the same height (rows too, when the grid has no label rows), so arrows meet box centres
+    bd.querySelectorAll('div').forEach(g => { if (getComputedStyle(g).display !== 'grid' || !g.querySelector('.an-arrow')) return;
+      const cells = [...g.children];
+      const labelRows = cells.some(c => (c.style.gridColumn || '').replace(/\s/g, '') === '1/-1');
+      g.style.alignItems = 'stretch';
+      cells.forEach(cell => {
+        if ((cell.style.gridColumn || '').replace(/\s/g, '') === '1/-1') return;
+        if (cell.querySelector('.an-arrow')) { Object.assign(cell.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '0' }); return; }
+        Object.assign(cell.style, { display: 'flex', alignItems: 'stretch' });
+        const comp = cell.firstElementChild; if (!comp) return;
+        comp.style.flex = '1'; comp.style.alignSelf = 'stretch';
+        const isBox = BOX(comp);
+        const boxes = isBox ? [comp] : [...comp.children].filter(k => k.tagName === 'DIV' && BOX(k));
+        if (!isBox) { comp.style.display = 'flex'; comp.style.alignItems = 'stretch';
+          [...comp.children].forEach(k => { if (!boxes.includes(k)) k.style.alignSelf = 'center'; }); }
+        boxes.forEach(bx => { bx.style.alignSelf = 'stretch';
+          if (getComputedStyle(bx).display === 'flex' && getComputedStyle(bx).flexDirection === 'row') bx.style.alignItems = 'center';
+          else Object.assign(bx.style, { display: 'flex', flexDirection: 'column', justifyContent: 'center' }); });
+      });
+    });
+    bd.querySelectorAll('div').forEach(el => { const cs = getComputedStyle(el);
+      if (cs.backgroundColor === 'rgb(232, 240, 254)' && cs.borderRadius && parseFloat(cs.width) <= 90 && parseFloat(cs.width) >= 40 && Math.abs(parseFloat(cs.width) - parseFloat(cs.height)) < 4) el.classList.add('an-ai'); });
+    bd.querySelectorAll('div').forEach(row => { const kids = [...row.children];
+      const arrows = kids.filter(k => k.tagName === 'svg' && (k.querySelector('path')?.getAttribute('stroke') || '').toUpperCase() === '#9AA0A6');
+      const boxes = kids.filter(k => k.tagName === 'DIV' && BOX(k));
+      if (arrows.length >= 1 && boxes.length >= 2) boxes.forEach((b, k) => { b.classList.add('an-seq'); b.style.setProperty('--an-at', (k * 0.9).toFixed(1) + 's'); b.style.setProperty('--an-cycle', (boxes.length * 0.9 + 1.2).toFixed(1) + 's'); }); });
+  }
+  const base = show;
+  show = function(n){ base(n); const cur = document.querySelector('section.on'); if (cur) requestAnimationFrame(() => { animate(cur); live(cur); }); };
+  window.addEventListener('load', () => { const cur = document.querySelector('section.on'); if (cur) setTimeout(() => { animate(cur); live(cur); }, 300); });
+})();
+</script></body></html>
