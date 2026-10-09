@@ -6,7 +6,7 @@ import asyncio
 import pytest
 
 from .helpers import live_runtime, make_ctx
-from .judge_fakes import ScriptedBackend, close_env, events, speak, violation, price_contradiction, claim, AMPOULE
+from .judge_fakes import ScriptedBackend, close_env, events, rid, speak, violation, price_contradiction, claim, AMPOULE
 from app.pipelines.utterances import operator_switch, undo_switch
 
 
@@ -128,7 +128,9 @@ async def test_d398_a_fragment_verdict_after_the_merged_one_is_not_applied(env):
     assert not [a for a in await rt.alerts() if a.kind == 'fact' and a.status == 'active']
 
 
-@pytest.mark.parametrize('mode', ['split3', 'split', 'single'])
+# D-434: split and single read the rule JSON (deleted with it, N2); split3 is production
+@pytest.mark.parametrize('mode', ['split3', pytest.param('split', marks=pytest.mark.legacy_live),
+                                  pytest.param('single', marks=pytest.mark.legacy_live)])
 async def test_rollback_modes_keep_inference_concurrent(mode):
     llm = GatedBackend()
     rt = await live_runtime(make_ctx(backend=llm, JUDGE_MODE=mode))
@@ -153,7 +155,8 @@ async def test_rollback_modes_keep_inference_concurrent(mode):
 
 async def test_judge_timeout_does_not_block_later_context():
     llm = GatedBackend()
-    rt = await live_runtime(make_ctx(backend=llm, JUDGE_TIMEOUT_MS=50))
+    # D-309: the production compliance deadline is VERIFY_TIMEOUT_MS (single arm); both are made short
+    rt = await live_runtime(make_ctx(backend=llm, JUDGE_TIMEOUT_MS=50, VERIFY_TIMEOUT_MS=50))
     first = 'First complete sentence.'
     gate, started = llm.block('compliance_judge', first)
     llm.judge('Second sentence.', covered=['cr-p1'])
@@ -234,7 +237,7 @@ async def test_merged_rule_deduplicates_late_fragment_failure(env):
     await wait_for(applied)
     gate.set()
     await rt.utterances.drain()
-    assert len([a for a in await rt.alerts() if a.rule_id == rule and a.status == 'active']) == 1
+    assert len([a for a in await rt.alerts() if a.rule_id == rid(rule) and a.status == 'active']) == 1
 
 
 async def test_simultaneously_ready_compliance_precedes_facts(env):
@@ -263,6 +266,3 @@ async def test_simultaneously_ready_compliance_precedes_facts(env):
     release.set()
     await rt.utterances.drain()
     assert [e.payload['kind'] for e in await events(rt, 'alert.created')] == ['compliance', 'fact']
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

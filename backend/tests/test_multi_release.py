@@ -58,6 +58,7 @@ async def test_d279_a_show_holds_two_releases_in_order_with_their_own_law(show):
     assert rt.catalog.line_products(kettle_id, None, ["it heals eczema"]) == {kettle_id}
 
 
+@pytest.mark.legacy_live  # D-434: the rules-JSON path's per-product rule scope (JUDGE_PRODUCTS=named, N1/N5)
 async def test_d279_no_alert_from_another_category_s_law(show):
     rt, llm, _ = show
     kettle_id = product_key(kettle())
@@ -72,7 +73,7 @@ async def test_d279_no_alert_from_another_category_s_law(show):
     cream_line = "The Lumen Night Cream heals eczema."  # names the cream: its law applies on the kettle's segment
     llm.judge(cream_line, violations=[violation("ASEAN-2D-DISEASE", "heals eczema")])
     await speak(rt, cream_line)
-    assert [a.rule_id for a in await rt.alerts() if a.kind == "compliance"] == ["ASEAN-2D-DISEASE"]
+    assert [a.rule_id for a in await rt.alerts() if a.kind == "compliance"] == ["ASEAN-2D-DISEASE"]  # legacy path
 
 
 async def test_d279_a_wrong_product_value_is_caught_with_the_right_release_s_quote(show):
@@ -128,6 +129,3 @@ async def test_d279_eval_runs_a_case_on_its_segment_of_a_show(tmp_path, monkeypa
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

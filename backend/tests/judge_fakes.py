@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 
+from app.agents.originals import citation_rule_id
 from app.models.agent_io import ComplianceOutput, ContextOutput, FactCheckOutput, JudgeSingleOutput, UtteranceJudgeOutput
 from app.models.session import Event
 from app.providers.llm import LLMError, RawReply
@@ -17,6 +18,63 @@ SPLIT_PARTS = {"compliance_judge": (ComplianceOutput, ("compliance", "correction
                "context_judge": (ContextOutput, ("answer", "prompter"))}
 PRICE_PASSAGE = "DL-CR-01#key-facts#live-broadcast-price"
 PRICE_QUOTE = "Live broadcast price: S$36.00"
+
+# D-434 (temporary, removed with the rules-JSON path): the demo market's original and the section an old rule id's
+# verdict cites on the production (originals) path. An id that is not here is refused, never guessed.
+ASEAN_DOC = "asean_cosmetic_claims_guideline_appendix_iii_2007.pdf"
+OLD_RULE_SECTIONS = {
+    "ASEAN-2D-DISEASE": "2.d", "ASEAN-2D-VULNERABLE": "2.d.vi", "ASEAN-2E-PERMANENT": "2.e",
+    "ASEAN-3-SKIN-AGEING": "3 (anti-ageing)", "ASEAN-3-SKIN-ACNE": "3 (acne)",
+    "ASEAN-3-SKIN-ANTIMICROBIAL": "3 (antimicrobial)", "ASEAN-3-SKIN-SCARS": "3 (scars)",
+    "ASEAN-3-SKIN-NUMBING": "3 (numbing)", "ASEAN-3-SKIN-BODY": "3 (body)",
+}
+
+
+ADAPTER_ERRORS: list[str] = []  # D-434: checked after every test (tests/conftest.py)
+
+
+def _refuse(why: str):
+    ADAPTER_ERRORS.append(why)
+    raise AssertionError(why)
+
+
+def rid(old_rule_id: str) -> str:
+    """D-434: the alert rule id the production path gives an old rule id's verdict (citation_rule_id)."""
+    return citation_rule_id(ASEAN_DOC, OLD_RULE_SECTIONS[old_rule_id])
+
+
+def cited(old_rule_id: str) -> str:
+    """D-434: the citation the production verdict for an old rule id carries ("<document>#<section>")."""
+    return f"{ASEAN_DOC}#{OLD_RULE_SECTIONS[old_rule_id]}"
+
+
+def _cites(model) -> bool:
+    """The production compliance output (D-358: cited verdicts, ComplianceOutputO and its with_* variants)."""
+    return "citation" in json.dumps(model.model_json_schema())
+
+
+def to_cited(part: dict, model) -> dict:
+    """D-434: a scripted compliance part in the rules shape, as the production judge answers it: each violation cites
+    the original section its old rule id maps to; validated by the request's own output model. A part already in the
+    production shape (every violation cited) is returned as scripted."""
+    if all("citation" in v for v in part["compliance"]["violations"]) and "rule_id" not in json.dumps(part):
+        return part
+    violations = []
+    for v in part["compliance"]["violations"]:
+        if "citation" not in v:
+            if v["rule_id"] not in OLD_RULE_SECTIONS:
+                _refuse(f"D-434: no production citation for the old rule id {v['rule_id']!r}")
+            v = {"citation": cited(v["rule_id"]), "quote": "scripted section text", "span": v["span"],
+                 "is_negated": v["is_negated"], "is_quoted": v["is_quoted"], "say_instead": v["say_instead"],
+                 **{k: v[k] for k in ("product_id", "same_as") if k in v}}
+        violations.append(v)
+    schema = json.dumps(model.model_json_schema())
+    if '"same_as"' in schema:
+        violations = [{"same_as": None, **v} for v in violations]
+    out = {"compliance": {"violations": violations}, "correction": part["correction"], "reason": part["reason"]}
+    if '"alert_checks"' in schema:
+        out = {"alert_checks": part.get("alert_checks", []), **out}
+    return model.model_validate(out).model_dump(mode="json")
 
 
 def violation(rule_id: str, span: str = "the claim", *, negated: bool = False, quoted: bool = False,
@@ -48,6 +106,49 @@ def claim(field: str, verdict: str, *, product_id: str = CREAM, stated: str = "x
 
 def price_contradiction(stated: str = "S$32") -> dict:
     return claim("price", "contradicted", stated=stated, correct="S$36.00", passage_id=PRICE_PASSAGE, quote=PRICE_QUOTE)
+
+
+def _source_sentences(user_message: str) -> list[tuple[str, str]]:
+    """The SOURCE sentence ids and texts the fact checker's request numbers (D-296)."""
+    import re
+
+    return [(i, json.loads(f'"{t}"')) for i, t in re.findall(r'\["(S\d+)",\s*"((?:[^"\\]|\\.)*)"\]', user_message)]
+
+
+def _evidence(sentences: list[tuple[str, str]], *values: str | None) -> list[str]:
+    """The first SOURCE sentence that holds one of these values (the right value, then the quote): its id."""
+    for v in values:
+        if v:
+            key = v.casefold().strip(" .")
+            found = [i for i, t in sentences if key and key in t.casefold()]
+            if found:
+                return found[:1]
+    return []
+
+
+def to_v5(out: dict, model, user_message: str) -> dict:
+    """D-434: a scripted fact check in the old claim shape, as the production fact checker answers it (v5: a stance
+    per claim, evidence by SOURCE sentence id, the relation); validated by the request's own output model."""
+    if all("stance" in c for c in out.get("claims", [])):
+        return out
+    sentences = _source_sentences(user_message)
+    relation = {"contradicted": "contradicts", "supported": "consistent", "not_in_sources": "not_in_documents"}
+    claims = []
+    for c in out["claims"]:
+        rel = relation[c["verdict"]]
+        ev = (_evidence(sentences, c.get("correct_value"), c.get("quote")) if rel == "contradicts"
+              else _evidence(sentences, c.get("quote"), c.get("stated_value")) if rel == "consistent" else [])
+        claims.append({"span": c["span"], "stance": c.get("stance", "HOST_ASSERTS"), "product_id": c["product_id"],
+                       "field": c["field"], "stated_value": c["stated_value"], "evidence": ev,
+                       "source_value": c.get("correct_value"), "relation": rel, "correct_value": c.get("correct_value"),
+                       "say": c.get("say"), **({"same_as": c["same_as"]} if "same_as" in c else {})})
+    schema = json.dumps(model.model_json_schema())
+    if '"same_as"' in schema:
+        claims = [{"same_as": None, **c} for c in claims]
+    data = {"claims": claims}
+    if '"note_checks"' in schema:
+        data = {"note_checks": out.get("note_checks", []), **data}
+    return model.model_validate(data).model_dump(mode="json")
 
 
 def split_part(agent: str, data: dict) -> dict:
@@ -107,6 +208,10 @@ class ScriptedBackend:
             raise LLMError("scripted failure")
         if key in self.outputs:
             out = self.outputs[key]
+            if req.agent == "compliance_judge" and _cites(req.output_model):
+                out = to_cited(out, req.output_model)
+            if req.agent == "fact_checker" and '"stance"' in json.dumps(req.output_model.model_json_schema()):
+                out = to_v5(out, req.output_model, req.user_message)
             if req.agent in ("utterance_judge", "judge_single") and "prompter" in out:  # D-419: as the split path
                 sw_model = req.output_model.model_fields["prompter"].annotation.model_fields["switch"].annotation
                 if "moving_to_next_named" in sw_model.model_fields:
@@ -117,6 +222,8 @@ class ScriptedBackend:
         if req.agent in SPLIT_PARTS:
             data = self.outputs.get((JUDGE, req.mock_primary_text)) or judge_output()
             part = split_part(req.agent, data)
+            if req.agent == "compliance_judge" and _cites(req.output_model):
+                part = to_cited(part, req.output_model)
             if "expects_resolution" in getattr(req.output_model, "model_fields", {}):  # D-335 QUESTION_HOLD
                 part = {"expects_resolution": self.expects.get(req.mock_primary_text, False), **part}
             if "prompter" in part:  # D-351 SWITCH_MODE=immediate: the switch verdict says whether the line names it

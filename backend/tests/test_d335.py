@@ -81,6 +81,3 @@ async def test_d335_the_operator_sees_collecting_context_while_a_question_waits(
         assert [e.payload["transcript_id"] for e in await events(rt, "hold.ended")] == [started.payload["transcript_id"]]
     finally:
         await close_env(rt)
-
-
-pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
