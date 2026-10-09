@@ -10,8 +10,7 @@
   flex-direction: column;
   gap: var(--space-4);
 }
-.header { display: flex; flex-direction: column; gap: var(--space-2); }
-.title { font-size: var(--fs-28); font-weight: var(--fw-semibold); margin: 0; }
+.header { display: flex; flex-direction: column; gap: var(--space-3); }
 .muted { color: var(--text-2); font-size: var(--fs-14); margin: 0; }
 .block {
   background: var(--surface);
@@ -21,43 +20,51 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
 }
-.risk { background: var(--risk-bg); border-color: var(--risk-border); }
-.ok { background: var(--ok-bg); border-color: var(--ok-border); }
+.ok { border-color: var(--ok-border); }
 .warning { color: var(--risk-text); font-weight: var(--fw-semibold); margin: 0; }
-.blockTitle { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin: 0; }
+.blockTitle { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin: 0; display: flex; gap: var(--space-2); align-items: center; }
 .count { color: var(--text-3); font-weight: var(--fw-regular); }
 .rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.row { display: flex; flex-direction: column; gap: 2px; }
-.value { font-size: var(--fs-14); white-space: pre-wrap; }
-.evidence { display: flex; flex-direction: column; color: var(--text-3); font-size: var(--fs-12); }
-.evidence span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.value { font-size: var(--fs-14); white-space: pre-wrap; overflow-wrap: anywhere; }
 .summary { display: flex; flex-direction: column; gap: var(--space-2); }
 .product { font-size: var(--fs-22); margin: 0; }
-.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.input {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  padding: var(--space-2);
-  background: var(--surface-2);
-  color: var(--text);
-  font: inherit;
-}
-.status { color: var(--text-2); margin: 0; }
+.status { color: var(--text-2); font-size: var(--fs-14); margin: 0; }
 .error { color: var(--risk-text); margin: 0; }
-.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
-.editor {
-  width: 100%;
-  font-family: ui-monospace, monospace;
-  font-size: var(--fs-12);
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-}
-.editable { display: inline-flex; gap: var(--space-2); align-items: baseline; flex-wrap: wrap; }
-.editLink {
-  border: 0; background: none; padding: 0; cursor: pointer; color: var(--accent);
-  font: inherit; font-size: var(--fs-12); text-decoration: underline;
-}
+.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 .inline { display: flex; gap: var(--space-1); align-items: baseline; font-size: var(--fs-14); flex-wrap: wrap; }
+
+/* product and regulation side by side; stacked on narrow screens */
+.grid { display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-4); align-items: start; }
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+.drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 96px;
+  padding: var(--space-4);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface-2);
+  text-align: center;
+  cursor: pointer;
+}
+.drop:hover, .dropOver { border-color: var(--accent); }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.dropDisabled { cursor: default; opacity: 0.6; }
+.dropDisabled:hover { border-color: var(--border); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.step {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text-3); font-size: var(--fs-14);
+}
+.stepNext { color: var(--text); border-color: var(--accent); }
+.stepDone { color: var(--ok-text); border-color: var(--ok-border); background: var(--ok-bg); }
+.stepMark { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
