@@ -128,3 +128,6 @@ async def test_d279_eval_runs_a_case_on_its_segment_of_a_show(tmp_path, monkeypa
     finally:
         ctx.runtimes.shutdown()
         ctx.scheduler.shutdown()
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

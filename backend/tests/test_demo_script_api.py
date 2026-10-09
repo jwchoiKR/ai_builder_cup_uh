@@ -208,3 +208,6 @@ async def test_demo_script_end_to_end(demo: Demo):
     await demo.refresh()
     assert demo.state["session"]["status"] == "ended"
     assert len(lines) == 15
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

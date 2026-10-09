@@ -3,6 +3,8 @@
 Made-up lines; the judge's answers are scripted."""
 from __future__ import annotations
 
+import pytest
+
 import logging
 
 from app.models.agent_io import ComplianceOutputR, with_alert_checks
@@ -72,3 +74,6 @@ async def test_d356_an_id_the_judge_was_not_shown_is_logged_when_dropped(caplog)
     a, _ = await _show(["al_not_shown"], caplog, handles=False)
     assert a.status == "active"
     assert "correction ids dropped: not in ACTIVE_ALERTS: ['al_not_shown']" in caplog.text
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

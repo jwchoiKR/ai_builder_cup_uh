@@ -375,3 +375,6 @@ async def test_d403_the_summary_leaves_out_a_superseded_note(env):
     assert sorted(x.status for x in await rt.alerts() if x.kind == "fact") == ["cleared", "corrected"]
     facts = (await compute_stats(rt))["fact_alerts"]
     assert [(f["corrected"], f["shown_to_corrected_ms"] != "uncorrected") for f in facts] == [(True, True)]
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

@@ -91,3 +91,6 @@ async def test_split_mode_is_kept_for_rollback():
         assert (await rt.current_segment()).covered_point_ids == ["cr-p1"]
     finally:
         await close_env(rt)
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

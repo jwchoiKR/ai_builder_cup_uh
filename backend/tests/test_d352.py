@@ -2,6 +2,8 @@
 the judges' verdicts are scripted, and the correcting line's verdict lists whatever alerts its input showed."""
 from __future__ import annotations
 
+import pytest
+
 import asyncio
 import json
 import re
@@ -86,3 +88,6 @@ async def test_d357_the_re_check_fires_although_the_line_s_own_verdict_has_not_c
         alerts, llm = await _run(_HandleBackend(), CORRECTION_HANDLES=True)
     assert [a.status for a in alerts] == ["corrected"] and llm.sorry_calls == 2
     assert "re-check trigger" in caplog.text and "-> fired" in caplog.text
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

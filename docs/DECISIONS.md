@@ -2946,3 +2946,11 @@ D-433 (user go 10/10; display only): the host's red box shows the cited document
 - Unchanged: judging, rule ids, D-399 grouping, the operator card, what fires.
 - hostSelectors' ruleInfo found-branch, shortRef and ownDocFirst stay: MediumBanner (the legacy MEDIUM path) and the operator's AlertStack still use them.
 - Tests: test_d358 (an originals-path alert's cited_title is "kelmar_code 2.1"; a market source's title and an ungiven document's name); host.test (the red box shows the document and section, also from the citation alone, never the slug).
+
+D-434 (user go 10/10; GPT, Gemini and the Sonnet critic: approve with changes): the test suite runs the production live path, so the N1-N18 code can be deleted afterwards. Built in batches, one commit each.
+- Step 0:
+  - tests/conftest.py no longer pins the live path. Tests get the code defaults, which are production's.
+  - Live-path variables inherited from the shell are removed (LIVE_PATH_KEYS). get_settings() in a test never reads the developer's .env, and its cache is cleared around every test. LLM and STT stay mock.
+  - The rules-JSON compliance path (LEGACY_RULES) is off by default.
+  - A temporary `legacy_live` marker gives the 30 files not migrated yet the old pins and the rules path. The comments team's pins (COMMENT_PINS) are unchanged.
+  - tests/test_d434.py is the drift guard: the tests' default live-path settings must equal production's (code defaults plus deploy/cloudrun.sh --set-env-vars), nothing may come from the environment, and only the listed files may use `legacy_live`. The list shrinks with each batch and must end empty.

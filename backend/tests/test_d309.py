@@ -84,3 +84,6 @@ async def test_d309_eval_rows_carry_the_alert_latency(monkeypatch):
         ctx.scheduler.shutdown()
     [a] = [a for a in row["alerts"] if a["kind"] == "compliance"]
     assert a["ms_to_shown"] is not None and a["ms_to_shown"] >= 0 and a["ms_to_created"] is not None
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

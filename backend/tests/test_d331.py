@@ -70,3 +70,6 @@ def test_d331_the_prompt_s_examples_carry_a_stance_on_every_claim():
     assert claims and all(claims)
     for stance in ("HOST_ASSERTS", "HOST_ENDORSES", "REPORTS_OR_ASKS"):
         assert f'"stance":"{stance}"' in examples
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

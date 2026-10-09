@@ -263,3 +263,6 @@ async def test_simultaneously_ready_compliance_precedes_facts(env):
     release.set()
     await rt.utterances.drain()
     assert [e.payload['kind'] for e in await events(rt, 'alert.created')] == ['compliance', 'fact']
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

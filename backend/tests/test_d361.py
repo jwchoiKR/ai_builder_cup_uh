@@ -171,3 +171,6 @@ def test_d361_the_rule_json_judge_modes_do_not_start_in_production(monkeypatch):
         with pytest.raises(ValueError, match="production runs split3 only"):
             make_ctx(JUDGE_MODE=mode)
     make_ctx(JUDGE_MODE="split3").runtimes.shutdown()
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

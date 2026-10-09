@@ -89,3 +89,6 @@ async def test_d374_the_record_s_not_approved_sentence_keeps_the_fact_alert(tmp_
 async def test_d346_the_brochure_file_s_not_approved_sentence_gives_no_fact_alert(tmp_path):
     kinds, cited = await _run(tmp_path, "NOT APPROVED: Cures eczema.")
     assert cited and kinds == ["compliance"]
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

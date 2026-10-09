@@ -233,3 +233,5 @@ def _full_list():
     return Passage(passage_id="DL-CR-01#ingredients#all", product_id=CREAM, doc="sheet", section="Ingredients",
                    text="Water, glycerin, panthenol, ceramide NP, squalane.", score=0.0)
 
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

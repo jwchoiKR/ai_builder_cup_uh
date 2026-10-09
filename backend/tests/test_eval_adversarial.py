@@ -98,3 +98,6 @@ def test_d235_an_unverifiable_safe_line_allows_a_soft_fact_note_only():
     assert note["false_rate"] == 0 and note["unverifiable_soft"] == 1
     high = score([{"id": "U1", "run": 0, "alerts": [alert(rule_id="ASEAN-2D-DISEASE", severity="HIGH")]}], [case])
     assert high["false_rate"] == 1 and high["wrong_high"] == 1
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

@@ -141,3 +141,6 @@ async def test_d297_the_compliance_judge_asks_for_claim_kind_only_in_the_arm():
             assert j.output_model is model and (("`claim_kind`" in j.system_instruction) is on)
         finally:
             await close_env(rt)
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)

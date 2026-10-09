@@ -1342,3 +1342,6 @@ def test_d276_every_record_caution_gets_a_required_point_worded_only_if_its_mean
         ("Do not use on broken skin.", True),  # the record's text
         ("Contains milk.", True),  # never lost, even when the model leaves it out
         ("Store it below 30 degrees.", True)]
+
+
+pytestmark = pytest.mark.legacy_live  # D-434: not migrated yet (removed in its batch)
