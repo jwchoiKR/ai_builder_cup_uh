@@ -173,7 +173,6 @@ function ProductPanel({
     <>
       <div className={styles.facts}>
         <div>
-          <h4 className={styles.factsLabel}>{t("Price & offers")}</h4>
           {of("price").map((i) =>
             i.main ? (
               <div key={i.id} className={cx(styles.pfPrice, said(i) && styles.said)} data-testid="host-price-current"
