@@ -4,6 +4,7 @@ VertexSearchRetriever: the evidence of viewer-question answers (ANSWER_RETRIEVER
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from collections.abc import Sequence
@@ -89,11 +90,12 @@ class LocalRetriever:
 
 
 class VertexSearchRetriever:
-    """Chunks from a Vertex AI Search app (its data store reads the product documents from GCS). No metadata
-    filter: the caller puts the product name in the query, and the chunk is tagged with the asked product."""
+    """The Vertex AI Search app's own answer (answer_query: search + answer with citations, like the console
+    Preview) is the one evidence passage; the composer writes the viewer reply from it alone. No metadata filter:
+    the caller puts the product name in the query, and the passage is tagged with the asked product."""
     name = "vertex_search"
 
-    def __init__(self, project: str, location: str, engine_id: str) -> None:
+    def __init__(self, project: str, location: str, engine_id: str, timeout_ms: int) -> None:
         from google.cloud import discoveryengine_v1 as de
 
         self._de = de
@@ -102,30 +104,37 @@ class VertexSearchRetriever:
         self._client = None  # made on the first search: a grpc aio client belongs to the loop it was made in
         self._serving = (f"projects/{project}/locations/{location}/collections/default_collection"
                          f"/engines/{engine_id}/servingConfigs/default_serving_config")
+        self._timeout_ms = timeout_ms  # the caller's search budget is too short for a written answer
         self._seen: dict[str, Passage] = {}  # ponytail: grows per process; an LRU if shows run for days
 
     async def search(self, query: str, *, product_filter: str | None, top_k: int, timeout_ms: int) -> list[Passage]:
-        R = self._de.SearchRequest
-        req = R(serving_config=self._serving, query=query, page_size=top_k,
-                content_search_spec=R.ContentSearchSpec(search_result_mode=R.ContentSearchSpec.SearchResultMode.CHUNKS))
+        R = self._de.AnswerQueryRequest
+        req = R(
+            serving_config=self._serving,
+            query=self._de.Query(text=query),
+            query_understanding_spec=R.QueryUnderstandingSpec(
+                query_rephraser_spec=R.QueryUnderstandingSpec.QueryRephraserSpec(disable=False, max_rephrase_steps=1)),
+            search_spec=R.SearchSpec(search_params=R.SearchSpec.SearchParams(max_return_results=10)),
+            answer_generation_spec=R.AnswerGenerationSpec(
+                model_spec=R.AnswerGenerationSpec.ModelSpec(model_version="stable"), include_citations=True,
+                answer_language_code="en", ignore_non_answer_seeking_query=False),
+        )
         try:
             if self._client is None:
-                self._client = self._de.SearchServiceAsyncClient(client_options=self._options)
-            pager = await self._client.search(req, timeout=timeout_ms / 1000)
+                self._client = self._de.ConversationalSearchServiceAsyncClient(client_options=self._options)
+            answer = (await self._client.answer_query(req, timeout=self._timeout_ms / 1000)).answer
         except Exception as e:  # noqa: BLE001 - no evidence: the composer finds nothing and a person answers
-            log.warning("vertex search failed for %r: %s", query[:80], e)
+            log.warning("vertex answer failed for %r: %s", query[:80], e)
             return []
-        out = []
-        for r in list(pager.results)[:top_k]:
-            ch = r.chunk
-            if not ch.content:
-                continue
-            p = Passage(passage_id="vx:" + ch.name.split("/documents/")[-1], product_id=product_filter or "",
-                        doc=ch.document_metadata.title or ch.document_metadata.uri, section="Vertex AI Search",
-                        text=ch.content, score=ch.relevance_score or 0)
-            self._seen[p.passage_id] = p
-            out.append(p)
-        return out
+        if answer.answer_skipped_reasons or not answer.answer_text.strip():
+            log.info("vertex answer skipped for %r: %s", query[:80], list(answer.answer_skipped_reasons))
+            return []
+        # answer.name comes back empty: the id is the text's hash, so the same answer keeps one id
+        p = Passage(passage_id="vx:" + hashlib.sha1(answer.answer_text.encode()).hexdigest()[:16],
+                    product_id=product_filter or "",
+                    doc="Vertex AI Search answer", section="Vertex AI Search", text=answer.answer_text, score=1.0)
+        self._seen[p.passage_id] = p
+        return [p]
 
     async def prefetch(self, product_id: str) -> list[Passage]:
         return []
