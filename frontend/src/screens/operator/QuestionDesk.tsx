@@ -294,12 +294,16 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
             {!canReply && <p className={styles.replyText}>{answer.text}</p>}
             {answer.citations.length > 0 && (
               <div className={styles.citations}>
-                {answer.citations.map((c, i) => (
+                {/* one chip per source: a reply that quotes one passage sentence by sentence shows it once */}
+                {Object.values(answer.citations.reduce<Record<string, typeof answer.citations>>((by, x) => {
+                  (by[x.passage_id] ??= []).push(x);
+                  return by;
+                }, {})).map(([c, ...more]) => (
                   <button
-                    key={`${c.passage_id}-${i}`}
+                    key={c.passage_id}
                     type="button"
                     className={styles.citationChip}
-                    onClick={() => setSheet({ passageId: c.passage_id, quote: c.quote })}
+                    onClick={() => setSheet({ passageId: c.passage_id, quote: [c, ...more].map((x) => x.quote).join(" … ") })}
                   >
                     <FileText size={12} aria-hidden />
                     {citationLabel(c.section ?? catalog?.passages?.[c.passage_id]?.section, t)}
