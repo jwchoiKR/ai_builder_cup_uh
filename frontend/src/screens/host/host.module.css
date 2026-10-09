@@ -1021,6 +1021,28 @@
   line-height: 1.2;
   color: var(--text);
 }
+/* D-442: the line's other alerts, said after the red's line: smaller, one row each */
+.alertThen {
+  display: flex;
+  align-items: baseline;
+  gap: calc(10px * var(--hs));
+}
+.alertThen > .alertSayLabel {
+  flex: none;
+}
+.alertThenSay {
+  flex: 1;
+  min-width: 0;
+  font-size: calc(24px * var(--hs));
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  color: var(--text);
+}
+.alertGroup {
+  font-size: calc(18px * var(--hs));
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
 .alertMeta {
   display: flex;
   align-items: center;

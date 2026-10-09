@@ -21,6 +21,7 @@ import {
   hostSlots,
   runOfShow,
   clearedTiming,
+  lineStillActive,
   shownTiming,
   timingLabel,
 } from "../../app/selectors";
@@ -256,7 +257,9 @@ export function HostView({
         fresh={b.view.position === 1 && now - b.view.alert.created_at < RED_BLOCK_MS}
         catalog={catalog} serverOffsetMs={state.serverOffsetMs} onRendered={actions.rendered} more={more}
         retraction={state.market?.retraction_phrase}
-        timing={timingLabel("shown", shownTiming(b.view.alert, state.transcripts), t)} />
+        timing={timingLabel("shown", shownTiming(b.view.alert, state.transcripts), t)}
+        then={b.then} cleared={b.cleared}
+        timingOf={(a) => timingLabel("shown", shownTiming(a, state.transcripts), t)} />
     ) : b.kind === "fact" ? (
       <FactNote key={b.alert.alert_id} alert={b.alert} catalog={catalog} onRendered={actions.rendered} count={b.count}
         more={more} timing={timingLabel("shown", shownTiming(b.alert, state.transcripts), t)} />
@@ -294,7 +297,8 @@ export function HostView({
               product={prompter.product ?? product}
               degraded={state.judgeDegraded}
               alerts={prompterAlerts}
-              notice={!high && toast ? <CorrectedBar timing={timingLabel("cleared", clearedTiming(toast, state.transcripts), t)} /> : null}
+              notice={!high && toast && !lineStillActive(state, toast)  // D-442: never "Corrected" while the line has an active alert
+                ? <CorrectedBar timing={timingLabel("cleared", clearedTiming(toast, state.transcripts), t)} /> : null}
               status={
                 // D-115: one reserved line, so nothing below the prompter moves
                 switched ? (

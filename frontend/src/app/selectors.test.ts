@@ -375,3 +375,43 @@ describe("D-439: shown and cleared times, on server times only", () => {
     expect(alertTimingStats(reduceSnapshot(snapshot({ alerts: [] }), "operator", T0))).toBeNull();
   });
 });
+
+describe("D-442: one host box per line", () => {
+  const tr = (id: string, merged: string | null = null) => ({ transcript_id: id, text: "x", is_final: true,
+    speech_start_at: null, speech_end_at: T0, received_at: T0, source: "mic" as const, segment_id: "seg_000001",
+    merged_from_transcript_id: merged });
+  const red = (id: string, line: string) => alert({ alert_id: id, transcript_id: line });
+  const note = (id: string, line: string) => alert({ alert_id: id, kind: "fact", transcript_id: line, rule_id: null,
+    severity: null, field: "price", passage_id: `P#${id}` });
+  const stack = async (alerts: ReturnType<typeof alert>[], transcripts: ReturnType<typeof tr>[]) => {
+    const { hostAlertStack } = await import("./selectors");
+    return hostAlertStack(reduceSnapshot(snapshot({ alerts, transcripts }), "host", T0));
+  };
+
+  it("a red and a fact note of the same line are one box, the red first", async () => {
+    const s = await stack([red("al_1", "tr_1"), note("fx_1", "tr_1")], [tr("tr_1")]);
+    expect(s.shown.map((b) => b.kind)).toEqual(["high"]);
+    const [b] = s.shown;
+    expect(b.kind === "high" && [b.view.alert.alert_id, b.then.map((a) => a.alert_id), b.cleared]).toEqual(["al_1", ["fx_1"], 0]);
+    expect(s.visibility).toEqual({ al_1: "shown", fx_1: "shown" });
+  });
+
+  it("a merged STT-split line's fragments are one line", async () => {
+    const s = await stack([red("al_1", "tr_2"), note("fx_1", "tr_1")], [tr("tr_1"), tr("tr_2", "tr_1")]);
+    expect(s.shown.map((b) => (b.kind === "high" ? b.then.length : -1))).toEqual([1]);
+  });
+
+  it("two lines in a row, not merged, are two boxes", async () => {
+    const s = await stack([red("al_1", "tr_1"), note("fx_1", "tr_2")], [tr("tr_1"), tr("tr_2")]);
+    expect(s.shown.map((b) => b.kind)).toEqual(["high", "fact"]);
+  });
+
+  it("a cleared member is counted, an orange alone after the red clears is a normal note", async () => {
+    const done = { ...note("fx_1", "tr_1"), status: "corrected" as const, resolved_at: T0 + 1 };
+    const s = await stack([red("al_1", "tr_1"), done], [tr("tr_1")]);
+    expect(s.shown.map((b) => (b.kind === "high" ? [b.then.length, b.cleared] : b.kind))).toEqual([[0, 1]]);
+    const r = await stack([{ ...red("al_1", "tr_1"), status: "corrected" as const, resolved_at: T0 + 1 }, note("fx_1", "tr_1")],
+      [tr("tr_1")]);
+    expect(r.shown.map((b) => b.kind)).toEqual(["fact"]);
+  });
+});
