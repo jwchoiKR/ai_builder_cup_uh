@@ -26,7 +26,7 @@ def test_upload_puts_one_pdf_in_the_bucket_only(tmp_path, monkeypatch):
         assert bad.status_code == 400 and bad.json()["error"]["code"] == "not_pdf"
 
 
-INFO = {"brand": "Lumen", "product_name": "Night Serum", "currency": "SGD", "list_price": "46.00",
+INFO = {"brand": "Lumen", "product_name": "Night Serum", "category": "face serum", "currency": "SGD", "list_price": "46.00",
         "live_price": "36.00", "points": [{"text": "Hydrates for 24 hours (in-house test)", "required": True}]}
 
 
@@ -63,6 +63,11 @@ def test_approve_fixes_the_read_and_sends_the_pdf_to_the_search_bucket(tmp_path,
         assert r.json()["info"] == INFO and r.json()["warnings"] == []
         assert json.loads(buckets["fake"].download(f"products/{pid}/approved.json"))["info"] == INFO
         assert buckets["search"].download(f"{pid}/Sheet A.pdf") == b"%PDF-1.7 x"
+        # a person's edit is what the show uses; info.json keeps the model's read
+        edited = {**INFO, "product_name": "Night Serum EX", "points": [{"text": "Edited point", "required": False}]}
+        assert c.post(f"/api/products/{pid}/approve", json={"info": edited}).json()["info"] == edited
+        assert json.loads(buckets["fake"].download(f"products/{pid}/approved.json"))["info"] == edited
+        assert json.loads(buckets["fake"].download(f"products/{pid}/info.json")) == INFO
 
 
 def test_regulation_upload_puts_one_pdf_in_the_bucket(tmp_path, monkeypatch):
@@ -96,7 +101,7 @@ def test_a_release_needs_the_approved_product_and_a_regulation_file(tmp_path, mo
                       ).status_code == 409  # no regulation file
         c.post(f"/api/products/{pid}/approve")
         rel = c.post(f"/api/products/{pid}/release", json={"regulation_id": rid}).json()
-        assert rel["release_id"] == f"{pid}:{rid}" and rel["product_name"] == "Night Serum"
+        assert rel["release_id"] == f"{pid}:{rid}" and rel["product_name"] == "Night Serum" and rel["category"] == "face serum"
         assert [x["release_id"] for x in c.get("/api/products/releases").json()] == [rel["release_id"]]
         r = c.post("/api/sessions", json={"release_id": rel["release_id"]})  # the hub's pick
         assert r.status_code == 201, r.text
