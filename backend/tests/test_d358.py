@@ -42,7 +42,7 @@ class _Backend(ScriptedBackend):
 
 async def _show(tmp_path, llm):
     from app.onboarding.files import store
-    from app.onboarding.lawpack import LawPackRecord, normalise_pack, save_lawpack
+    from app.onboarding.lawpack import LawPackRecord, save_lawpack
     from app.onboarding.read import normalise
     from app.onboarding.record import ProductRecord
     from app.onboarding.release import save_release
@@ -51,13 +51,7 @@ async def _show(tmp_path, llm):
     from .helpers import make_ctx
     from .test_onboarding import EV, _record
 
-    law, _ = normalise_pack(LawPackRecord.model_validate({
-        "name": "Kelmar supplement code", "regulator": "Kelmar authority", "covers": ["food_supplement"],
-        "language": "en", "rules": [
-            {"rule_id": "K-DISEASE", "title": "No disease claims", "description": "No cure claims.",
-             "severity": "HIGH", "rule_category": "Disease", "unacceptable_examples": [], "say_instead_hint": "",
-             "evidence": [{"file": "kelmar_code.pdf", "locator": "2.1", "quote": "must not be presented"}]}]}))
-    save_lawpack(tmp_path, "SG", law, "jlaw")
+    save_lawpack(tmp_path, "SG", LawPackRecord(covers=["food_supplement"]), "jlaw")  # D-427: the PDF only
     store(tmp_path, "jlaw", "kelmar_code.pdf", CODE)
     rec, _ = normalise(ProductRecord.model_validate(_record(category="food_supplement", approved_claims=[
         {"text": "Supports normal joint comfort.", "evidence": EV}])))
@@ -144,27 +138,6 @@ async def test_d400_a_document_citation_is_red_and_a_correction_goes_by_handle(t
         await close_env(rt)
 
 
-def test_d414_a_test_qualifier_verdict_keeps_the_model_s_say_instead(catalog):
-    from app.agents.utterance_judge import validate_original
-    from app.models.agent_io import ComplianceOutputO
-
-    product = next(p for p in catalog.products if p.qualified_results)
-    result = product.qualified_results[0]
-
-    def run(rid, quote):
-        out = ComplianceOutputO.model_validate({"compliance": {"violations": [{
-            "citation": "TEST-QUALIFIER", "quote": quote, "span": "s", "severity": "MEDIUM", "is_negated": False,
-            "is_quoted": False, "say_instead": "x", "qualified_result_id": rid}]},  # an old field: ignored
-            "correction": {"corrects_alert_ids": []}, "reason": "r"})
-        values = {"current_product_json": {"product_id": product.product_id}, "active_alerts_json": []}
-        return validate_original(out, catalog, values, ()).compliance.violations
-
-    # D-414 (user): the model's own say_instead, whatever it sends; no recorded wording put in by code
-    for rid in (result.result_id, None, "no-such-result"):
-        assert [(x.rule_id, x.say_instead) for x in run(rid, "anything")] == [("TEST-QUALIFIER", "x")]
-    assert "qualified_result_id" not in ComplianceOutputO.model_json_schema()["$defs"]["ViolationO"]["properties"]
-
-
 async def test_d358_a_rule_source_with_no_original_is_reported(caplog):
     """The shipped demo's product-sheet rules have no original file: it is logged and marked on the judge's calls;
     the judge still reads the originals that exist (the SG cosmetics guideline)."""
@@ -188,18 +161,21 @@ async def test_d358_a_rule_source_with_no_original_is_reported(caplog):
         await close_env(rt)
 
 
-def test_d400_the_model_is_not_asked_for_a_severity_and_test_qualifier_is_orange(catalog):
+def test_d400_the_model_is_not_asked_for_a_severity_and_a_document_citation_is_red(catalog):
+    """D-427: TEST-QUALIFIER (the only orange citation) is gone; its name is now cited like any document."""
     from app.agents.utterance_judge import validate_original
     from app.models.agent_io import ComplianceOutputO
 
-    assert "severity" not in ComplianceOutputO.model_json_schema()["$defs"]["ViolationO"]["properties"]
+    props = ComplianceOutputO.model_json_schema()["$defs"]["ViolationO"]["properties"]
+    assert "severity" not in props and "qualified_result_id" not in props
     out = ComplianceOutputO.model_validate({"compliance": {"violations": [
         {"citation": "TEST-QUALIFIER", "quote": "q", "span": "s", "is_negated": False, "is_quoted": False,
-         "say_instead": "x", "qualified_result_id": None},
+         "say_instead": "x"},
         {"citation": "guideline.pdf#3", "quote": "q", "span": "t", "is_negated": False, "is_quoted": False,
-         "say_instead": "y", "qualified_result_id": None}]}, "correction": {"corrects_alert_ids": []}, "reason": "r"})
+         "say_instead": "y"}]}, "correction": {"corrects_alert_ids": []}, "reason": "r"})
     values = {"current_product_json": {"product_id": catalog.order[0]}, "active_alerts_json": []}
-    assert [v.severity for v in validate_original(out, catalog, values, ()).compliance.violations] == ["MEDIUM", "HIGH"]
+    got = validate_original(out, catalog, values, ()).compliance.violations
+    assert [(v.severity, v.rule_id) for v in got] == [("HIGH", "test-qualifier#document"), ("HIGH", "guideline#3")]
 
 
 def test_d405_no_own_rule_for_vulnerable_groups_in_the_prompt():

@@ -27,13 +27,12 @@ def perfect(case):
         return []
     if exp["kind"] == "fact":
         return [alert("fact", field=_field(exp.get("field")), correct=exp.get("correct_value"))]
-    if exp["kind"] == "qualifier":
-        return [alert(rule_id="TEST-QUALIFIER", severity="MEDIUM", say=exp.get("correct_value") or "x")]
     return [alert(rule_id=exp.get("rule_id"), severity="HIGH")]
 
 
 def test_a_perfect_run_passes_and_each_failure_line_trips():
-    cases = load_cases("adversarial_cases.jsonl")
+    # D-427: the TEST-QUALIFIER rule is gone; its cases in the data file cannot be caught any more
+    cases = [c for c in load_cases("adversarial_cases.jsonl") if c["expected"].get("kind") != "qualifier"]
     raw = [{"id": c["case_id"], "run": 0, "alerts": perfect(c)} for c in cases]
     assert score(raw, cases)["passed"]
     safe = next(c for c in cases if not c["expected"]["risky"])

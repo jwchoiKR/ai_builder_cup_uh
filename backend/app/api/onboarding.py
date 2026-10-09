@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
-from ..onboarding.files import MAX_BYTES, UnsupportedFile
+from ..onboarding.files import MAX_BYTES, UnsupportedFile, store
 from ..onboarding.pipeline import onboard_files
 from ..onboarding.release import has_law
 from ..onboarding.storage import persisted
@@ -176,7 +176,8 @@ def brief_status(ctx: AppContext, release_id: str) -> str:
 def _live_summary(pack, record) -> dict:
     """D-231/D-234: what the show will get, in plain words."""
     rules = pack.rules
-    law = (f"{len(rules.rules)} rules from {rules.policy_id}" if has_law(rules) else "no law checks for this category")
+    law = (f"{len(rules.rules)} rules from {rules.policy_id}" if rules.rules else  # D-427: a pack has no rules
+           f"regulation documents of {', '.join(rules.pack_ids)}" if has_law(rules) else "no law checks for this category")
     p = pack.products.products[0]
     return {"law": law, "law_rules": len(rules.rules), "cautions": len(record.cautions),
             "approved_claims": len(record.approved_claims), "not_approved_claims": len(record.not_approved_claims),
@@ -210,75 +211,45 @@ async def preview_job(job_id: str, body: ApproveBody | None = None, ctx: AppCont
     return {"translations": translations, "live": live}
 
 
+def _pack_job(ctx: AppContext, job: dict, data: list[tuple[str, bytes]], covers: str) -> dict:
+    """D-427 (user): the uploaded files are stored as they are and no model reads them; the job is done at once, with
+    the category from the request. The live compliance judge reads the files (D-358)."""
+    _jobs[job["job_id"]] = job
+    try:
+        for name, body in data:
+            store(ctx.settings.onboarding_path, job["job_id"], name, body)
+        job.update(status="done", result={"record": {"covers": [covers]}})
+    except Exception as e:  # noqa: BLE001 - reported on the job
+        log.exception("pack job %s failed", job["job_id"])
+        job.update(status="failed", error=f"{type(e).__name__}: {e}")
+    return {"job_id": job["job_id"], "status": job["status"]}
+
+
 @router.post("/lawpacks/jobs")
 async def create_lawpack_job(files: list[UploadFile] = File(...), market: str = Form(...), category: str = Form(...),
                              ctx: AppContext = Depends(get_ctx)) -> dict:
-    """D-229: regulator documents in, rule records with evidence out (approve with /jobs/{id}/approve-lawpack)."""
-    from ..onboarding.files import model_part, store
-    from ..onboarding.lawpack import read_lawpack
-
+    """D-229: regulator documents in, stored as they are (approve with /jobs/{id}/approve-lawpack)."""
     data = await _read_files(files)
     job_id = "law_" + uuid.uuid4().hex[:12]
-    _jobs[job_id] = {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None, "error": None,
-                     "market": market.upper(), "category": category}
-
-    async def run() -> None:
-        async with _running:
-            _jobs[job_id]["status"] = "reading"
-            try:
-                for name, body in data:
-                    store(ctx.settings.onboarding_path, job_id, name, body)
-                rec, notes, secs = await read_lawpack(ctx.llm, [model_part(n, b) for n, b in data],
-                                                      market=market.upper(), category=category,
-                                                      model=ctx.settings.ONBOARDING_MODEL,
-                                                      thinking=ctx.settings.ONBOARDING_THINKING)
-                _jobs[job_id].update(status="done", result={"record": rec.model_dump(mode="json"), "notes": notes,
-                                                            "seconds": secs})
-            except Exception as e:  # noqa: BLE001 - reported on the job
-                log.exception("law pack job %s failed", job_id)
-                _jobs[job_id].update(status="failed", error=f"{type(e).__name__}: {e}")
-
-    ctx.scheduler.spawn(run(), name=f"lawpack:{job_id}")
-    return {"job_id": job_id, "status": "queued"}
+    return _pack_job(ctx, {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None,
+                           "error": None, "market": market.upper(), "category": category}, data, category)
 
 
 @router.post("/brandpacks/jobs")
 async def create_brandpack_job(files: list[UploadFile] = File(...), brand: str = Form(...),
                                ctx: AppContext = Depends(get_ctx)) -> dict:
-    """D-241: brand guideline documents in, brand rule records with evidence out (approve-brandpack)."""
-    from ..onboarding.files import model_part, store
-    from ..onboarding.lawpack import read_lawpack
-
+    """D-241: brand guideline documents in, stored as they are (approve-brandpack)."""
     data = await _read_files(files)
     job_id = "brd_" + uuid.uuid4().hex[:12]
-    _jobs[job_id] = {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None, "error": None,
-                     "brand": brand.strip()}
-
-    async def run() -> None:
-        async with _running:
-            _jobs[job_id]["status"] = "reading"
-            try:
-                for name, body in data:
-                    store(ctx.settings.onboarding_path, job_id, name, body)
-                rec, notes, secs = await read_lawpack(ctx.llm, [model_part(n, b) for n, b in data],
-                                                      market=ctx.pack.market.market, category=f"brand:{brand.strip()}",
-                                                      model=ctx.settings.ONBOARDING_MODEL,
-                                                      thinking=ctx.settings.ONBOARDING_THINKING)
-                _jobs[job_id].update(status="done", result={"record": rec.model_dump(mode="json"), "notes": notes,
-                                                            "seconds": secs})
-            except Exception as e:  # noqa: BLE001 - reported on the job
-                log.exception("brand pack job %s failed", job_id)
-                _jobs[job_id].update(status="failed", error=f"{type(e).__name__}: {e}")
-
-    ctx.scheduler.spawn(run(), name=f"brandpack:{job_id}")
-    return {"job_id": job_id, "status": "queued"}
+    return _pack_job(ctx, {"job_id": job_id, "status": "queued", "files": [n for n, _ in data], "result": None,
+                           "error": None, "brand": brand.strip()}, data, f"brand:{brand.strip()}")
 
 
 @router.post("/jobs/{job_id}/approve-brandpack")
 async def approve_brandpack(job_id: str, body: ApproveBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
     from pydantic import ValidationError
 
-    from ..onboarding.lawpack import LawPackRecord, normalise_pack, save_brandpack
+    from ..onboarding.lawpack import LawPackRecord, save_brandpack
 
     job = _jobs.get(job_id)
     if job is None or job["status"] != "done" or "brand" not in job:
@@ -287,7 +258,6 @@ async def approve_brandpack(job_id: str, body: ApproveBody | None = None, ctx: A
         rec = LawPackRecord.model_validate((body.record if body and body.record else None) or job["result"]["record"])
     except ValidationError as e:
         raise ActionError(400, "invalid_record", str(e)[:400]) from None
-    rec, _ = normalise_pack(rec)
     return {"pack_id": save_brandpack(ctx.settings.onboarding_path, job["brand"], rec, job_id)}
 
 
@@ -295,7 +265,7 @@ async def approve_brandpack(job_id: str, body: ApproveBody | None = None, ctx: A
 async def approve_lawpack(job_id: str, body: ApproveBody | None = None, ctx: AppContext = Depends(get_ctx)) -> dict:
     from pydantic import ValidationError
 
-    from ..onboarding.lawpack import LawPackRecord, normalise_pack, save_lawpack
+    from ..onboarding.lawpack import LawPackRecord, save_lawpack
 
     job = _jobs.get(job_id)
     if job is None or job["status"] != "done" or "market" not in job:
@@ -304,7 +274,6 @@ async def approve_lawpack(job_id: str, body: ApproveBody | None = None, ctx: App
         rec = LawPackRecord.model_validate((body.record if body and body.record else None) or job["result"]["record"])
     except ValidationError as e:
         raise ActionError(400, "invalid_record", str(e)[:400]) from None
-    rec, _ = normalise_pack(rec)
     return {"pack_id": save_lawpack(ctx.settings.onboarding_path, job["market"], rec, job_id)}
 
 
@@ -333,8 +302,8 @@ def _job_files(root, job_id: str | None) -> list[str]:
 
 @router.get("/regulations")
 async def regulations(ctx: AppContext = Depends(get_ctx)) -> dict:
-    """D-359 (read-only): the approved regulation packs with their source files and the sections their rules cite,
-    the pack active for each market and category (the newest approved one replaces older ones), the market's own
+    """D-359 (read-only): the approved regulation packs with their market, categories and source files (D-427), the
+    pack active for each market and category (the newest approved one replaces older ones), the market's own
     law, and per release the regulation originals its live compliance judge reads (D-358), with a warning when none
     match. Nothing here changes onboarding."""
     from ..agents.originals import originals_of_rules
@@ -351,12 +320,9 @@ async def regulations(ctx: AppContext = Depends(get_ctx)) -> dict:
         except ValueError:
             continue
         rec = data.get("record", {})
-        packs.append({"pack_id": data["pack_id"], "market": data.get("market"), "name": rec.get("name"),
-                      "regulator": rec.get("regulator"), "covers": rec.get("covers", []),
+        packs.append({"pack_id": data["pack_id"], "market": data.get("market"), "covers": rec.get("covers", []),
                       "approved_at": data.get("approved_at"), "job_id": data.get("job_id"),
-                      "files": _job_files(root, data.get("job_id")),
-                      "sections": sorted({f"{e.get('file')} · {e.get('locator')}" for r in rec.get("rules", [])
-                                          for e in r.get("evidence", [])})})
+                      "files": _job_files(root, data.get("job_id"))})
     for pk in packs:
         pk["active_for"] = [c for c in pk["covers"]
                             if (hit := lawpack_for(root, pk["market"] or "", c)) is not None and hit[0] == pk["pack_id"]]
@@ -365,7 +331,7 @@ async def regulations(ctx: AppContext = Depends(get_ctx)) -> dict:
     for r in rows:
         try:
             pack, _ = ctx.pack_for(market.market, ctx.pack.lang, r["release_id"])
-            found, missing = originals_of_rules(pack.rules.rules, pack.rules.sources, root)
+            found, missing = originals_of_rules(pack.rules.rules, pack.rules.sources, root, pack.rules.pack_ids)
         except Exception as e:  # noqa: BLE001 - shown on the release row
             releases.append({"release_id": r["release_id"], "product_name": r["product_name"],
                              "category": r["category"], "originals": [], "missing": [], "warning": True,

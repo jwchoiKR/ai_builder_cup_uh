@@ -4,7 +4,6 @@ import { ArrowLeftRight, Check, CircleAlert, Headphones, ShieldAlert } from "luc
 import { useEffect } from "react";
 
 import { useT } from "../../app/i18n";
-import { TEST_QUALIFIER_RULE } from "../../app/selectors";
 import type { Alert, Catalog, HostCue } from "../../app/types";
 import { factContext, factSayLine, factSourceLabel, fieldLabel, ruleInfo } from "./hostSelectors";
 import styles from "./host.module.css";
@@ -100,50 +99,31 @@ export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
 export function MediumBanner({
   alert,
   catalog,
-  fact = null,
-  factFixed = null,
   onRendered,
   count = 1,
   more = 0,
-  factCount = 1,
 }: {
   alert: Alert;
   catalog: Catalog | null;
-  /** D-105: the fact note on the same sentence, shown in this card instead of its own. */
-  fact?: Alert | null;
-  /** D-418: that note once corrected: its right line stays on the card */
-  factFixed?: Alert | null;
   onRendered?: (alertId: string) => void;
   /** D-399: how many unresolved MEDIUM alerts cite this rule (this one is the newest) */
   count?: number;
   /** D-402: active alerts the stack does not show */
   more?: number;
-  /** D-403: how many active notes cite the merged note's passage (the note shown is the newest) */
-  factCount?: number;
 }) {
   // D-106: a block at the top of the prompter card, yellow, with the replacement as the biggest text.
   const t = useT();
   useEffect(() => {
     onRendered?.(alert.alert_id);
-    if (fact) onRendered?.(fact.alert_id);
-  }, [alert.alert_id, fact?.alert_id, onRendered]);
+  }, [alert.alert_id, onRendered]);
   const rule = ruleInfo(catalog, alert.rule_id, alert.product_id);
-  const qualifier = alert.rule_id === TEST_QUALIFIER_RULE;
-  // D-418: with the line's fact note, the card says the note's line once (its say, else its value), and the qualifier
-  // becomes the top instruction; without one, the model's say_instead
-  const factLine = fact ?? factFixed;
-  // D-424: the note's line (a blank say is a missing one); empty when both say and correct_value are blank
-  const factText = factLine ? (factLine.say?.trim() || factLine.correct_value?.trim() || "") : "";
   return (
     <div className={cx(styles.alertBlock, styles.alertMedium)} data-testid="host-medium-banner" role="alert">
       <div className={styles.alertTop}>
         <KindLabel />
         <span className={styles.warnBadge}>
           <ShieldAlert aria-hidden />
-          {/* D-355: a suggestion; any wording that says where the result comes from corrects it */}
-          {!qualifier ? t("CHECK WORDING")
-            : factLine ? t("Also say where the result comes from (e.g. 'in our in-house test')")
-              : t("Say where the result comes from (e.g. 'in our in-house test')")}
+          {t("CHECK WORDING")}
         </span>
         {count > 1 && <span className={styles.alertCount} data-testid="host-alert-count">×{count}</span>}
         <AlertMore n={more} />
@@ -156,19 +136,11 @@ export function MediumBanner({
           {t("Heard:")} "{alert.span}"
         </span>
       </div>
-      {!(factLine && !factText) && <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>}
-      {factLine ? (
-        factText && (
-          <span className={styles.alertSay} data-testid="host-medium-fact">
-            {/* D-401: the note's own say line, as on a fact note (D-396); else its correct value */}
-            “{factText}”
-            {fact && factCount > 1 && <span className={styles.alertCount} data-testid="host-medium-fact-count"> ×{factCount}</span>}
-          </span>
-        )
-      ) : (
-        <span className={styles.alertSay}>
-          {alert.say_instead ? `“${alert.say_instead}”` : t("Say the result with where it comes from (e.g. 'in our in-house test').")}
-        </span>
+      {alert.say_instead && (
+        <>
+          <span className={styles.alertSayLabel}>{t("Say this instead.")}</span>
+          <span className={styles.alertSay}>“{alert.say_instead}”</span>
+        </>
       )}
       <span className={styles.alertMeta}>
         <span className={styles.alertRule}>{rule.title}</span>

@@ -265,8 +265,8 @@ describe("D-399: the host groups MEDIUM alerts by rule and fact notes by passage
     const { hostBanners } = await import("./selectors");
     const { reduceSnapshot } = await import("./state");
     const state = reduceSnapshot(snapshot({ alerts: [
-      alert({ alert_id: "al_q1", transcript_id: "tr_1", severity: "MEDIUM", rule_id: "TEST-QUALIFIER", created_at: 1, shown_at: 1 }),
-      alert({ alert_id: "al_q2", transcript_id: "tr_2", severity: "MEDIUM", rule_id: "TEST-QUALIFIER", created_at: 2, shown_at: 2 }),
+      alert({ alert_id: "al_q1", transcript_id: "tr_1", severity: "MEDIUM", rule_id: "BRAND-COMPARISON", created_at: 1, shown_at: 1 }),
+      alert({ alert_id: "al_q2", transcript_id: "tr_2", severity: "MEDIUM", rule_id: "BRAND-COMPARISON", created_at: 2, shown_at: 2 }),
       alert({ alert_id: "al_s", transcript_id: "tr_3", severity: "MEDIUM", rule_id: "BRAND-SUPERLATIVE", created_at: 3, shown_at: 3 }),
       alert({ alert_id: "fx_1", kind: "fact", transcript_id: "tr_4", rule_id: null, severity: null,
         passage_id: "P#price", created_at: 4, shown_at: 4 }),

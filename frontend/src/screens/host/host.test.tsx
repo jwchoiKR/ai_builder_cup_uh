@@ -281,17 +281,6 @@ describe("fact note", () => {
     expect(screen.getByTestId("host-alert-more")).toHaveTextContent("+2");
   });
 
-  it("D-404: a hidden qualifier card merged with its fact note counts as one", () => {
-    const red = alert({ alert_id: "al_r1", span: "erases wrinkles", transcript_id: "tr_r1" });
-    const note = { ...fx, transcript_id: "tr_fact" };
-    const q = alert({ alert_id: "al_q", rule_id: "TEST-QUALIFIER", severity: "MEDIUM", span: "up seventy percent",
-      transcript_id: "tr_q" });
-    const qFact = { ...fx, alert_id: "fx_q", transcript_id: "tr_q", field: "test_result", passage_id: "P#q" };
-    render(view({ alerts: [red, note, q, qFact] }));
-    expect(screen.queryByTestId("host-medium-banner")).toBeNull();
-    expect(screen.getByTestId("host-alert-more")).toHaveTextContent("+1");
-  });
-
   it("D-402: red says Regulation, orange says Product info, in the host's language", () => {
     const high = alert({ alert_id: "al_000010", span: "erases wrinkles", transcript_id: "tr_high" });
     const medium = alert({ alert_id: "al_000011", rule_id: "BRAND-SUPERLATIVE", severity: "MEDIUM", span: "the best",
@@ -409,14 +398,14 @@ describe("compliance", () => {
     expect(banner).toHaveTextContent("Comparative or superlative claims");
   });
 
-  // D-105: a test number without "in our in-house test", with a wrong number on the same sentence
-  const qualifier = alert({
+  // D-427: a MEDIUM alert (a market rule) and a fact note on the same sentence: two cards, nothing merged
+  const medium = alert({
     alert_id: "al_000002",
     transcript_id: "tr_000007",
-    rule_id: "TEST-QUALIFIER",
+    rule_id: "BRAND-SUPERLATIVE",
     severity: "MEDIUM",
-    span: "increased by seventy percent",
-    say_instead: "In our in-house test, skin hydration went up 45% right after one use.",
+    span: "the best cream in Singapore",
+    say_instead: "It helps keep skin hydrated.",
   });
   const wrongNumber = alert({
     alert_id: "fx_000002",
@@ -429,66 +418,28 @@ describe("compliance", () => {
     correct_value: "+45%",
   });
 
-  it("MEDIUM test qualifier: one card with the right number when the fact note is on the same sentence", () => {
-    const { rerender } = render(view({ alerts: [qualifier] }));
-    let banner = screen.getByTestId("host-medium-banner");
-    expect(banner).toHaveTextContent("Say where the result comes from (e.g. 'in our in-house test')");
-    expect(banner).toHaveTextContent("“In our in-house test, skin hydration went up 45% right after one use.”");
-    expect(screen.queryByTestId("host-medium-fact")).toBeNull();
-
-    // the fact checker finishes later: the same card gains the number, no second banner
-    rerender(view({ alerts: [qualifier, wrongNumber] }));
-    banner = screen.getByTestId("host-medium-banner");
-    expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("“+45%”");
-    expect(screen.queryByTestId("host-fact-note")).toBeNull();
-    // D-401/D-418: the note's say line, once, as the line to say; the qualifier is the top instruction
-    const said = { ...wrongNumber, say: "Hydration went up 45%." };
-    rerender(view({ alerts: [qualifier, said] }));
-    banner = screen.getByTestId("host-medium-banner");
-    expect(within(banner).getByTestId("host-medium-fact")).toHaveTextContent("“Hydration went up 45%.”");
-    expect(banner).toHaveTextContent("Also say where the result comes from (e.g. 'in our in-house test')");
-    expect(banner).not.toHaveTextContent("went up 45% right after one use");  // the model's say_instead is not shown too
-    // D-422: a blank say falls back to the correct value
-    rerender(view({ alerts: [qualifier, { ...wrongNumber, say: "  " }] }));
-    expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact")).toHaveTextContent("“+45%”");
-    // D-424: with both say and value blank, no empty quotes and no "Say this instead" line
-    rerender(view({ alerts: [qualifier, { ...wrongNumber, say: "", correct_value: "" }] }));
-    expect(screen.queryByTestId("host-medium-fact")).toBeNull();
-    expect(screen.getByTestId("host-medium-banner")).not.toHaveTextContent("Say this instead.");
-    // D-418: once the note is corrected, the card keeps its right line (the old number never comes back)
-    rerender(view({ alerts: [qualifier, { ...said, status: "corrected", resolved_at: now() }] }));
-    expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-medium-fact"))
-      .toHaveTextContent("“Hydration went up 45%.”");
-
-    // a fact note on another sentence keeps its own card
-    rerender(view({ alerts: [qualifier, { ...wrongNumber, transcript_id: "tr_000008" }] }));
-    expect(screen.queryByTestId("host-medium-fact")).toBeNull();
-    expect(screen.getByTestId("host-fact-note")).toBeInTheDocument();
+  it("D-427: a MEDIUM card and a fact note on the same sentence are two cards", () => {
+    render(view({ alerts: [medium, wrongNumber] }));
+    const banner = screen.getByTestId("host-medium-banner");
+    expect(banner).toHaveTextContent("CHECK WORDING");
+    expect(banner).toHaveTextContent("“It helps keep skin hydrated.”");
+    expect(banner).not.toHaveTextContent("+45%");
+    expect(screen.getByTestId("host-fact-note")).toHaveTextContent("+45%");
   });
 
-  it("D-403: the merged card takes the note's whole passage group (×2), no second card for the older note", () => {
-    const newer = { ...wrongNumber, passage_id: "P#test", created_at: T0 - 1000, shown_at: T0 - 1000 };
-    const older = { ...wrongNumber, alert_id: "fx_old", transcript_id: "tr_000003", passage_id: "P#test",
-      created_at: T0 - 9000, shown_at: T0 - 9000 };
-    render(view({ alerts: [qualifier, newer, older] }));
-    expect(screen.getAllByTestId("host-medium-banner")).toHaveLength(1);
-    expect(screen.queryByTestId("host-fact-note")).toBeNull();
-    expect(screen.getByTestId("host-medium-fact-count")).toHaveTextContent("×2");
-  });
-
-  it("D-399: two unresolved qualifier alerts show as one card with ×2, the newest", () => {
-    const older = { ...qualifier, alert_id: "al_q_old", transcript_id: "tr_old", span: "the older claim",
-      created_at: qualifier.created_at - 5000, shown_at: (qualifier.shown_at ?? qualifier.created_at) - 5000 };
-    render(view({ alerts: [older, qualifier] }));
+  it("D-399: two unresolved alerts of one MEDIUM rule show as one card with ×2, the newest", () => {
+    const older = { ...medium, alert_id: "al_q_old", transcript_id: "tr_old", span: "the older claim",
+      created_at: medium.created_at - 5000, shown_at: (medium.shown_at ?? medium.created_at) - 5000 };
+    render(view({ alerts: [older, medium] }));
     const [card] = screen.getAllByTestId("host-medium-banner");
     expect(screen.getAllByTestId("host-medium-banner")).toHaveLength(1);
     expect(within(card).getByTestId("host-alert-count")).toHaveTextContent("×2");
-    expect(card).toHaveTextContent("increased by seventy percent");
+    expect(card).toHaveTextContent("the best cream in Singapore");
   });
 
-  it("MEDIUM test qualifier without an approved sentence asks for the qualifier", () => {
-    render(view({ alerts: [{ ...qualifier, say_instead: null }] }));
-    expect(screen.getByTestId("host-medium-banner")).toHaveTextContent("Say the result with where it comes from (e.g. 'in our in-house test').");
+  it("a MEDIUM alert without a say_instead shows no line to say", () => {
+    render(view({ alerts: [{ ...medium, say_instead: null }] }));
+    expect(screen.getByTestId("host-medium-banner")).not.toHaveTextContent("Say this instead.");
   });
 });
 

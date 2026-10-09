@@ -10,9 +10,6 @@ Design arm B: the server checks your output instead of judging the wording itsel
 - Correction quotes: for every alert_id you put in `corrects_alert_ids`, also add `{"alert_id": ..., "quote": ...}`
   to `correction.quotes`. `quote` is the exact words of UTTERANCE that make the correction, copied verbatim, at
   least two words. The server accepts a correction only when it finds your quote in UTTERANCE.
-- Test results: every violation has `qualified_result_id`. For a TEST-QUALIFIER violation, set it to the
-  `result_id` in QUALIFIED_RESULTS whose result the host stated (the same numbers); null when none matches, and the
-  server then drops the violation. For every other rule it is null.
 
 ## B: context_judge
 
@@ -142,10 +139,8 @@ D-297: for a violation of a HIGH rule, set `claim_kind` to what the line itself 
 Set `group` to the group or condition the line names for the claim ("babies", "people with eczema", "everyone"), or
 null. Name only what the line says. A cosmetic state (chapped lips, dry skin, dull hair) is no disease. A line that
 tells viewers to ignore or reverse a caution ("Irritated skin? Go ahead and use it.") is `usage_instruction`, unless
-it promises safety to a group such as babies or pregnant women. For a TEST-QUALIFIER violation, set
-`qualified_result_id` to the `result_id` of the QUALIFIED_RESULTS entry the line states (by its number or by its
-meaning: "complete coverage" states "100% of strands"). For a MEDIUM rule, `claim_kind` and `group` are null; for
-every rule but TEST-QUALIFIER, `qualified_result_id` is null.
+it promises safety to a group such as babies or pregnant women. For a MEDIUM rule, `claim_kind` and `group` are
+null.
 
 ## STT: compliance_judge
 
@@ -179,14 +174,7 @@ instead of being corrected. A wrong number that is clearly said ("thirty-two dol
 
 D-310: PRODUCT_DOCUMENTS (and any files before this message) are the on-air product's own documents. They are not
 rules. Use them to recognise what the line refers to: a tester, laboratory, brand or ingredient said as a sound-alike
-by speech-to-text ("Marlo Fenn" for "Marlow Fen") is that name, and a line that names the tester of a result states
-its qualifier.
-
-## V2: compliance_judge
-
-D-312: speech-to-text may spell a tester, laboratory or test name as a sound-alike ("Marro Bey labs" for "Marrow Bay
-Labs"). A line that names the tester of a result in such a spelling states its qualifier. Do not report a missing or
-wrong qualifier only because the name is spelled differently from APPROVED_CLAIMS or the product's data.
+by speech-to-text ("Marlo Fenn" for "Marlow Fen") is that name.
 
 ## QHOLD: context_judge
 
@@ -219,45 +207,16 @@ D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each prod
 ## HANDLES: compliance_judge
 
 D-356 (Job 2, correction): each ACTIVE_ALERTS entry has a `handle` (A1, A2 ...), its `span`, `rule_id` and `status`
-(`provisional`, `active` or `banner`). Your answer starts with `alert_checks`: exactly one entry per ACTIVE_ALERTS
+(`provisional` or `active`). Your answer starts with `alert_checks`: exactly one entry per ACTIVE_ALERTS
 entry, `{"handle": ..., "fixed_by_this_line": true or false}`. `fixed_by_this_line` is true when this line, read in
-context, fixes the problem that alert names (a retraction, a compliant restatement, or for a TEST-QUALIFIER banner the
-same result said again with its source). There is no `corrects_alert_ids` field in this answer; decide every alert
+context, fixes the problem that alert names (a retraction or a compliant restatement). There is no `corrects_alert_ids` field in this answer; decide every alert
 before you write `violations` and `reason`. With no ACTIVE_ALERTS, `alert_checks` is [].
 
 Example H1
-ACTIVE_ALERTS: [{"handle":"A1","span":"it heals scars in a week","rule_id":"LAW-DISEASE","status":"active"},{"handle":"A2","span":"9 in 10 felt smoother","rule_id":"TEST-QUALIFIER","status":"banner"}]
+ACTIVE_ALERTS: [{"handle":"A1","span":"it heals scars in a week","rule_id":"LAW-DISEASE","status":"active"}]
 UTTERANCE: "Sorry, I take that back about the scars; it helps skin look smoother."
 ```json
-{"alert_checks":[{"handle":"A1","fixed_by_this_line":true},{"handle":"A2","fixed_by_this_line":false}],"compliance":{"violations":[]},"reason":"Retracts the scar claim; the test result is not said again."}
-```
-
-## RESAY: compliance_judge
-
-D-355 (Job 2, correction): judge a correction by its meaning in context, never by its phrasing. An alert's
-`say_instead` is only a suggestion: the host does not need to say those words. A line corrects an alert when, read
-with RECENT_TRANSCRIPT, it fixes the problem the alert names.
-For a `TEST-QUALIFIER` alert in ACTIVE_ALERTS: UTTERANCE corrects it when it states the SAME test result of the same
-product (the same test and the same measure; the wording and the number form may differ, such as "80%" and "8 of 10")
-and makes clear that the result comes from the brand's or the product's own test or a named tester. Any wording that
-says so counts ("our own test", "in the product's moisture test with 25 adults", "in Velmora's self-assessment", "a
-lab we hired measured"); the words "in-house" are not needed. Then put its alert_id in `corrects_alert_ids`.
-These do NOT correct it: a customer opinion ("our customers loved it"); "tests confirm ..." or "clinically proven"
-with no tester or source made clear; a different result, even with its source; the same result with no source; an
-apology alone.
-
-Example R1
-ACTIVE_ALERTS: [{"alert_id":"al_4","span":"80% saw softer skin","rule_id":"TEST-QUALIFIER"}]
-UTTERANCE: "To be clear, in Velmora's own skin test, 8 of 10 people said their skin felt softer."
-```json
-{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":["al_4"]},"reason":"Same result said again, now with the brand's own test as its source."}
-```
-
-Example R2
-ACTIVE_ALERTS: [{"alert_id":"al_4","span":"80% saw softer skin","rule_id":"TEST-QUALIFIER"}]
-UTTERANCE: "Tests confirm it, 80% saw softer skin."
-```json
-{"compliance":{"violations":[]},"correction":{"corrects_alert_ids":[]},"reason":"Same result, but no tester or source is made clear."}
+{"alert_checks":[{"handle":"A1","fixed_by_this_line":true}],"compliance":{"violations":[]},"reason":"Retracts the scar claim."}
 ```
 
 ## PAIR: compliance_judge
@@ -347,14 +306,6 @@ D-302: for each violation, set `confidence` (0 to 1): how sure you are that the 
 ## CONF: fact_checker
 
 D-302: for each claim, set `confidence` (0 to 1): how sure you are of its relation.
-
-## FR: compliance_judge
-
-Fact mode "record" (D-242): QUALIFIED_RESULTS lists the product's test results, each with the qualifier it must be
-said with (an in-house test, a named laboratory, a clinical study: the wording in brackets). A host who states one of
-these results (the same numbers) without that qualifier breaks the test-result rule in RULES, whoever ran the test. Naming
-who ran the test or who certified it (the laboratory or body in the qualifier) is saying the qualifier. A generic mention
-that names no one ("testing confirmed", "according to the tests", "clinically proven") is not the qualifier.
 
 ## VS: target_group
 

@@ -92,8 +92,6 @@ class Settings(BaseSettings):
     COMPLIANCE_NEG: bool = False
     # D-333: the compliance judge judges what this line endorses from the previous line as this line's own claim
     COMPLIANCE_ENDORSE: bool = False
-    # D-355 arm: a correction job addendum: a qualified re-say of the same test result clears its TEST-QUALIFIER alert
-    COMPLIANCE_RESAY: bool = False
     # D-356: ACTIVE_ALERTS by per-call handle; the compliance judge answers {handle, fixed_by_this_line} first.
     # D-358: on by default (the originals path always uses handles; this setting only matters for the legacy path)
     CORRECTION_HANDLES: bool = True

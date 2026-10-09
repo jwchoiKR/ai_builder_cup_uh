@@ -1,5 +1,5 @@
-"""D-187 design arms. Arm B: the model returns the meaning (correction quotes, numbers said, hedges, qualifier ids,
-shout-out labels) and code only checks it. Arm A stays as it is (every other test runs arm A)."""
+"""D-187 design arms. Arm B: the model returns the meaning (correction quotes, numbers said, hedges, shout-out
+labels) and code only checks it. Arm A stays as it is (every other test runs arm A)."""
 from __future__ import annotations
 
 import pytest
@@ -20,12 +20,12 @@ PROMPTS = get_settings().prompts_path
 def test_arm_b_adds_its_prompt_lines_and_requires_its_fields():
     assert arms.system_instruction("BASE", "compliance_judge", "A", PROMPTS) == "BASE"
     b = arms.system_instruction("BASE", "compliance_judge", "B", PROMPTS)
-    assert b.startswith("BASE\n\n") and "correction.quotes" in b and "qualified_result_id" in b
+    assert b.startswith("BASE\n\n") and "correction.quotes" in b and "qualified_result_id" not in b  # D-427
     assert arms.system_instruction("BASE", "compliance_judge", "C", PROMPTS) == b  # C is B's family
     assert "numbers_said" in arms.system_instruction("BASE", "context_judge", "B", PROMPTS)
     assert "shoutout" in arms.system_instruction("BASE", "comment_triage_batch", "B", PROMPTS)
     schema = ComplianceOutputB.model_json_schema()["$defs"]
-    assert "quotes" in schema["CorrectionB"]["required"] and "qualified_result_id" in schema["ViolationB"]["required"]
+    assert "quotes" in schema["CorrectionB"]["required"] and "qualified_result_id" not in str(schema)
 
 
 def _jo(**link) -> UtteranceJudgeOutput:
@@ -44,24 +44,6 @@ def test_arm_b_posting_compares_the_judges_numbers_and_hedge(link, action):
     d = decide(_jo(**link), OFFERED, grp(), ans(), lex=LEX, high_alert_active=False, facts=None, by_judge=True,
                utterance="I think maybe four")  # the wording itself is not parsed in arm B
     assert d.action == action
-
-
-@pytest.mark.parametrize("rid, say", [("cr-t1", "In our in-house test, skin hydration went up 38% right after one "
-                                                  "application."), ("nope", None)])
-async def test_arm_b_the_qualifier_replacement_is_the_result_the_judge_picked(rid, say):
-    rt, llm = await make_env(DESIGN_ARM="B")
-    try:
-        line = "Skin hydration goes up thirty-eight percent right away."
-        v = violation("TEST-QUALIFIER", "goes up thirty-eight percent", severity="MEDIUM") | {
-            "qualified_result_id": rid}
-        llm.outputs[("compliance_judge", line)] = {"compliance": {"violations": [v]},
-                                                   "correction": {"corrects_alert_ids": [], "quotes": []},
-                                                   "reason": "scripted"}
-        await speak(rt, line)
-        alerts = [x for x in await rt.alerts() if x.rule_id == "TEST-QUALIFIER" and x.status == "active"]
-        assert [x.say_instead for x in alerts] == [say or "Say this instead."]  # D-391: unknown id: the model's
-    finally:
-        await close_env(rt)
 
 
 class _SecondCallLinks(ScriptedBackend):

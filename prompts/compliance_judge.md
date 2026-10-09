@@ -41,14 +41,9 @@ Flag a violation ONLY when the host's own words make a claim about the product t
 - Each violation cites the regulation: `citation` is "<document>#<section>", with the document name exactly as in
   REGULATION_DOCUMENTS and the section as written in that document ("3", "2.d", "Table 1"). `quote` is a short exact
   quote (under 25 words) from that document that prohibits the claim. Cite only what the documents say.
-- A test or study result of the product (QUALIFIED_RESULTS, the same numbers) said WITHOUT who tested it is cited as
-  `citation` "TEST-QUALIFIER", `quote` the QUALIFIED_RESULTS wording. Naming the tester, the lab or the brand's own test is saying the qualifier; speech-to-text may spell the
-  name as a sound-alike.
 - `span` is the exact words that carry the claim. `say_instead` is what the host can say now, built ONLY from
   APPROVED_CLAIMS of the current product: only what must be said (the claim and any required qualifier), worded as
   compactly as possible; never add facts.
-- For a TEST-QUALIFIER violation, `say_instead` is the host's own sentence with the source added ("In our own test, " +
-  what the host said).
 
 ### Output rules
 - Return JSON only, matching the schema. Empty lists are allowed. Never omit a field.
@@ -77,7 +72,7 @@ Return the JSON verdict for UTTERANCE.
   "compliance": {
     "violations": [
       {
-        "citation": "<document>#<section> | TEST-QUALIFIER",
+        "citation": "<document>#<section>",
         "quote": "string",
         "span": "string",
         "is_negated": false,
@@ -123,13 +118,6 @@ CURRENT_PRODUCT: product_m (a hand cream)
 UTTERANCE: "It heals cracked, bleeding eczema skin in two days."
 ```json
 {"alert_checks":[],"compliance":{"violations":[{"citation":"kelmar_cosmetic_code.pdf#2.1","quote":"A cosmetic must not be presented as treating or preventing disease.","span":"heals cracked, bleeding eczema skin","is_negated":false,"is_quoted":false,"say_instead":"It helps dry hands feel soft and smooth."}]},"reason":"Claims to heal a skin condition."}
-```
-
-Example E
-QUALIFIED_RESULTS: [{"product_id":"product_m","say":"9 of 10 users said hands felt softer (in Kelmar's own panel test)"}]
-UTTERANCE: "Nine out of ten people said their hands felt softer."
-```json
-{"alert_checks":[],"compliance":{"violations":[{"citation":"TEST-QUALIFIER","quote":"9 of 10 users said hands felt softer (in Kelmar's own panel test)","span":"Nine out of ten people said their hands felt softer","is_negated":false,"is_quoted":false,"say_instead":"In Kelmar's own panel test, nine out of ten people said their hands felt softer."}]},"reason":"A test result said without who tested it."}
 ```
 
 Example F (a fix)

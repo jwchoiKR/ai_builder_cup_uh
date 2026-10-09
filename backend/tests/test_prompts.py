@@ -81,7 +81,7 @@ def _example_outputs(system: str) -> list[dict]:
     return [json.loads(b) for b in blocks + inline]
 
 
-EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 6, "compliance_judge_rules": 3,
+EXAMPLE_COUNTS = {"utterance_judge": 6, "judge_single": 8, "compliance_judge": 5, "compliance_judge_rules": 3,
                   "context_judge": 4,
                   "fact_checker": 4, "comment_triage": 7, "answer_composer": 6, "draft_verifier": 4,
                   "brief_agent": 1}

@@ -74,9 +74,6 @@ export const KO_HOST: Record<string, string> = {
   "AI error": "AI 오류",
   "{cause}: 1 line unchecked": "{cause}: 확인 못 한 문장 1개",
   "{cause}: {n} lines unchecked": "{cause}: 확인 못 한 문장 {n}개",
-  "Also say where the result comes from (e.g. 'in our in-house test')": "결과의 출처도 함께 말하세요 (예: 'in our in-house test')",
-  "Say where the result comes from (e.g. 'in our in-house test')": "결과의 출처를 덧붙이세요 (예: 'in our in-house test')",
-  "Say the result with where it comes from (e.g. 'in our in-house test').": "결과를 출처와 함께 말하세요 (예: 'in our in-house test').",
   "(not {value})": "({value} 아님)",
   CORRECTION: "정정",
   "Source:": "출처:",
@@ -240,7 +237,7 @@ export const KO_SETUP: Record<string, string> = {
     "읽는 중인 작업은 서버 메모리에만 있어 서버가 다시 시작되면 사라집니다.",
   Queued: "대기 중",
   "Reading the documents… about 1–3 minutes.": "문서를 읽는 중… 1~3분 정도 걸립니다.",
-  "Read. Review the source files and sections, then approve.": "읽기 완료. 원본 파일과 조항을 확인한 뒤 승인하세요.",
+  "Uploaded. Review the source files, then approve.": "업로드 완료. 원본 파일을 확인한 뒤 승인하세요.",
   Failed: "실패",
   "Source files:": "원본 파일:",
   "Approval is write-once: an approved pack is never edited. A newer approved pack for the same market and category replaces it in live shows.":

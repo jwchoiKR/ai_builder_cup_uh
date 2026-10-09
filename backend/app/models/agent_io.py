@@ -199,7 +199,7 @@ class CorrectionB(Correction, _ArmB):
 
 
 class ViolationB(Violation, _ArmB):
-    qualified_result_id: str | None = None  # TEST-QUALIFIER: the result the host stated
+    pass
 
 
 class ComplianceB(Compliance, _ArmB):
@@ -219,7 +219,6 @@ class ViolationR(Violation, _ArmB):
     # D-297: for a HIGH rule only, what kind of claim the line makes and the group it names (code checks the fit)
     claim_kind: ClaimKind | None = None
     group: str | None = None
-    qualified_result_id: str | None = None  # D-299: TEST-QUALIFIER: the QUALIFIED_RESULTS entry the line states
 
 
 class ComplianceR(Compliance, _ArmB):
@@ -243,8 +242,8 @@ def _cited_schema(s: dict) -> None:
 
 class ViolationO(Violation, _ArmB):
     """D-358: a violation cited from a regulation original (no rule JSON): the document and section as written in the
-    original ("<document>#<section>", or "TEST-QUALIFIER" for a test result said without who tested it), a short quote
-    from it, and the severity the model chose by the prompt's criteria. Code sets `rule_id` from the citation."""
+    original ("<document>#<section>"), a short quote from it, and the severity the model chose by the prompt's
+    criteria. Code sets `rule_id` from the citation."""
     model_config = ConfigDict(json_schema_extra=_cited_schema)
     citation: str
     quote: str

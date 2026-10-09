@@ -14,7 +14,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..config import REPO_DIR
-from ..logic import qualifier
 
 log = logging.getLogger(__name__)
 
@@ -124,14 +123,19 @@ def _load(sources: tuple, root: str) -> tuple[tuple[Original, ...], tuple[str, .
     return tuple(found), tuple(missing)
 
 
-def originals_of_rules(rules, sources, onboarding_root: Path) -> tuple[tuple[Original, ...], tuple[str, ...]]:
-    """The originals behind these rules (by their source ids), and the source ids that have no original."""
-    wanted = {r.source_id for r in rules} - {qualifier.SOURCE_ID}
+def originals_of_rules(rules, sources, onboarding_root: Path,
+                       pack_ids=()) -> tuple[tuple[Original, ...], tuple[str, ...]]:
+    """The originals behind these rules (by their source ids) and these law or brand packs (D-427: a pack's uploaded
+    files), and the source ids that have no original."""
+    wanted = {r.source_id for r in rules} | set(pack_ids)
     by_id = {s.source_id: (s.source_id, s.title, s.file) for s in sources}
     return _load(tuple(sorted(by_id.get(sid, (sid, "", None)) for sid in wanted)), str(onboarding_root))
 
 
 def originals_for(catalog, onboarding_root: Path, product_ids) -> tuple[tuple[Original, ...], tuple[str, ...]]:
-    """The originals behind the rules of these products, and the source ids that have no original (logged)."""
-    rules = catalog.rules_for(set(product_ids)) if catalog.pack.rule_products is not None else catalog.pack.rules.rules
-    return originals_of_rules(rules, catalog.pack.rules.sources, onboarding_root)
+    """The originals behind the rules and packs of these products, and the source ids that have no original
+    (logged). D-427: in a multi-release show a pack belongs to the products whose release has it."""
+    owners, ids = catalog.pack.rule_products, set(product_ids)
+    rules = catalog.rules_for(ids) if owners is not None else catalog.pack.rules.rules
+    packs = [k for k in catalog.pack.rules.pack_ids if owners is None or owners.get(k, frozenset()) & ids]
+    return originals_of_rules(rules, catalog.pack.rules.sources, onboarding_root, packs)

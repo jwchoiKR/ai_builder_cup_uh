@@ -41,10 +41,8 @@ def product_key(record: ProductRecord) -> str:
 
 
 def has_law(rules) -> bool:
-    """D-248: a law or brand rule runs; the test-result qualifier rule alone (it comes with the record) is none."""
-    from ..logic.qualifier import RULE_ID
-
-    return any(r.rule_id != RULE_ID for r in rules.rules)
+    """D-248: a law or brand rule runs, or (D-427) an approved law or brand pack's documents are read."""
+    return bool(rules.rules or rules.pack_ids)
 
 
 def law_applies(base: DataPack, category: str) -> bool:
@@ -404,33 +402,20 @@ def release_pack(base: DataPack, record: ProductRecord, release_id: str, lawpack
     rules = base.rules if law_applies(base, record.category) else base.rules.model_copy(
         update={"rules": [], "category": record.category})
     if rules is not base.rules and lawpacks is not None and base.market is not None:
-        # D-229: an approved law pack built from the regulator's documents for this market and category
-        from .lawpack import lawpack_for, to_rules
+        # D-229: an approved law pack of the regulator's documents for this market and category; D-427: its PDFs are
+        # what the compliance judge reads (no rules are made from them)
+        from .lawpack import lawpack_for
 
         found = lawpack_for(lawpacks, base.market.market, record.category)
         if found is not None:
-            wording = base.lang_pack.categories if base.lang_pack else None  # D-291: Q6 terms for law packs too
-            rules = rules.model_copy(update={"rules": to_rules(*found, wording), "policy_id": found[0]})
-    from ..logic.qualifier import RULE_ID as QUALIFIER_RULE
-
-    if record.qualified_results and QUALIFIER_RULE not in {x.rule_id for x in rules.rules}:
-        # D-248 (sealed run: a supplement under a law pack built from documents never got the qualifier alert): the
-        # test-result qualifier rule comes with the record's qualified results, whatever law pack the category gets.
-        # D-278: built from the language pack, not copied from a demo brand rule in the base
-        from ..logic.qualifier import rule as qualifier_rule
-
-        rules = rules.model_copy(update={"rules": [*rules.rules, qualifier_rule(base.lang_pack)]})
+            rules = rules.model_copy(update={"pack_ids": [found[0]], "policy_id": found[0]})
     if lawpacks is not None:
-        # D-241: the brand's own approved rules are added on top (restrict only: no law rule is removed or replaced)
-        from .lawpack import brandpack_for, to_rules as _to_rules
+        # D-241: the brand's own approved pack is added on top (restrict only: no law document is removed or replaced)
+        from .lawpack import brandpack_for
 
         brand = brandpack_for(lawpacks, record.brand)
         if brand is not None:
-            have = {x.rule_id for x in rules.rules}
-            extra = [x.model_copy(update={"rule_id": f"BR-{x.rule_id}"}) for x in _to_rules(
-                *brand, base.lang_pack.categories if base.lang_pack else None)
-                     if f"BR-{x.rule_id}" not in have]
-            rules = rules.model_copy(update={"rules": [*rules.rules, *extra]})
+            rules = rules.model_copy(update={"pack_ids": [*rules.pack_ids, brand[0]]})
     return dataclasses.replace(base, products=products, runsheets={release_id: runsheet}, rules=rules,
                                promos=PromosFile(promos=promos, rules=base.promos.rules), passages=unique,
                                releases={pid: release_id})

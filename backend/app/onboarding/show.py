@@ -2,8 +2,9 @@
 
 Each release's pack is built as for a one-product show (release.py), then merged: products, passages, promos, the run
 sheet (one segment per release, in order, each with its own planned time and required points) and the rules. A rule
-remembers which products it came with, so the compliance judge gets only the rules of the products a line can be
-about (`Catalog.rules_for`). Offers stay per release: no set offer across releases.
+(D-427: and a law or brand pack) remembers which products it came with, so the compliance judge gets only the rules
+of the products a line can be about (`Catalog.rules_for`) and only the packs of the given products
+(`originals_for`). Offers stay per release: no set offer across releases.
 """
 from __future__ import annotations
 
@@ -44,11 +45,15 @@ def show_pack(packs: list[DataPack], release_ids: tuple[str, ...]) -> DataPack:
                 rules.append(r)
                 owners[r.rule_id] = frozenset()
             owners[r.rule_id] |= pids  # ponytail: a same id from two packs is one rule (the first text wins)
+        for k in p.rules.pack_ids:  # D-427: a law or brand pack's documents, by the products whose release has it
+            owners[k] = owners.get(k, frozenset()) | pids
     return dataclasses.replace(
         first, products=products, runsheets={sid: runsheet},
         rules=first.rules.model_copy(update={"rules": rules,
                                              "sources": list({s.source_id: s for p in packs
-                                                              for s in p.rules.sources}.values())}),
+                                                              for s in p.rules.sources}.values()),
+                                             "pack_ids": list(dict.fromkeys(k for p in packs
+                                                                            for k in p.rules.pack_ids))}),
         promos=PromosFile(promos=[x for p in packs for x in p.promos.promos], rules=first.promos.rules),
         passages=[x for p in packs for x in p.passages],
         releases={k: v for p in packs for k, v in p.releases.items()}, rule_products=owners)

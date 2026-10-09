@@ -56,18 +56,6 @@ def claim_rules(market: MarketPack, lang: LangPack) -> ClaimRulesFile:
 log = logging.getLogger(__name__)
 
 
-def _with_qualifier(rules: ClaimRulesFile, products: ProductsFile, lang: LangPack) -> ClaimRulesFile:
-    """D-278: the test-qualifier rule joins the rules when a product has qualified results."""
-    from . import qualifier
-
-    if not any(p.qualified_results for p in products.products):
-        return rules
-    source = PolicySource(source_id=qualifier.SOURCE_ID, title="The product's own test results",
-                          file="the product's documents", note="Each result's qualifier as the documents state it.")
-    return rules.model_copy(update={"rules": [*rules.rules, qualifier.rule(lang)],
-                                    "sources": [*rules.sources, source]})
-
-
 def _priced_for(market: str, products: ProductsFile, promos: PromosFile, passages: list[Passage],
                 runsheets: dict[str, Runsheet]):
     """D-179: the pack in another market's prices (`products.json` `market_prices`). Every amount the products file
@@ -216,7 +204,7 @@ class DataPack:
             products=products,
             runsheets=runsheets,
             promos=promos,
-            rules=_with_qualifier(claim_rules(market_pack, lang_pack), products, lang_pack),
+            rules=claim_rules(market_pack, lang_pack),
             intents=IntentsFile.model_validate(_read_json(data_dir / "policy" / "intents.json")),
             notices=NoticesFile.model_validate(_read_json(data_dir / "templates" / "notices.json")),
             passages=passages,

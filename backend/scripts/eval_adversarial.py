@@ -38,7 +38,6 @@ from eval_holdout_sequences import ReplayClock  # noqa: E402
 
 from app.config import REPO_DIR, Settings, get_settings  # noqa: E402
 from app.context import build_context  # noqa: E402
-from app.logic.qualifier import RULE_ID as QUALIFIER  # noqa: E402
 from app.models.session import AgentCall, Event, Transcript  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.pipelines.utterances import operator_switch  # noqa: E402
@@ -150,7 +149,7 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
 def _kind(a: dict) -> str:
     if a["kind"] == "fact":
         return "fact"
-    return "qualifier" if a["rule_id"] == QUALIFIER else "compliance"
+    return "compliance"
 
 
 def _lexicon():

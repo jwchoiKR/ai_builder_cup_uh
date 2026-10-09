@@ -35,7 +35,7 @@ function hostile(): StateSnapshot {
     session: { ...snapshot().session!, status: "live", current_segment_id: "seg_000002" },
     alerts: [
       nulls({ alert_id: "al_n1", say_instead: null, span: null, rule_id: null, severity: null }),
-      nulls({ alert_id: "al_n2", severity: "MEDIUM", say_instead: null, rule_id: "TEST-QUALIFIER", product_id: GONE }),
+      nulls({ alert_id: "al_n2", severity: "MEDIUM", say_instead: null, rule_id: "BRAND-SUPERLATIVE", product_id: GONE }),
       nulls({ alert_id: "fx_n1", kind: "fact", rule_id: null, severity: null, field: null, stated_value: null,
         correct_value: null, say_instead: null, product_id: GONE }),
       nulls({ alert_id: "xx_n1", kind: "weird" as Alert["kind"], product_id: GONE }),
