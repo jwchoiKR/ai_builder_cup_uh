@@ -2967,3 +2967,6 @@ D-434 (user go 10/10; GPT, Gemini and the Sonnet critic: approve with changes): 
   - Migrated: test_utterance_merge, test_prompter_segments and test_d349, with QUESTION_HOLD on.
   - "Is it clear?" is no longer a not-merged case: production judges a question together with the next final, so test_d334_a_question_is_judged_together_with_the_next_final checks the marked pair.
   - Per-test `legacy_live` stays on the JUDGE_MODE split/single switch cases (N2) and on the other-product sheet case of the FACT_MODE docs path (N10).
+- B4 (the rest):
+  - Migrated: test_publish (a violation in a spoken answer blocks the post: now a cited section, not the brand rule), test_clean_base, test_d304 (VERBAL_CHECK, measured without the hold model) and test_design_arms (arm F2: the product file is in the compliance prefix after the regulation originals).
+  - Every file now runs the production path. Per-test `legacy_live` stays only on tests of N-code: N1, N2, N4, N5 and N10, plus the demo script on tests/fixtures/llm, which is recorded in the rules shape and gets re-recorded with N3.
