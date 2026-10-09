@@ -509,6 +509,22 @@
   justify-content: space-between;
   text-align: left;
 }
+/* a During-the-show card was pressed before any product was picked */
+.hubCardStatic.hubCardNudge {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent);
+  animation: hubNudge 600ms var(--ease) 2;
+}
+@keyframes hubNudge {
+  50% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+.hubNudge {
+  margin: 0;
+  font-weight: 600;
+  color: var(--accent);
+}
 /* Combined view: one row across the During-the-show cards */
 .hubCardWide {
   grid-column: 1 / -1;
@@ -517,6 +533,7 @@
 @media (prefers-reduced-motion: reduce) {
   .hubCard {
     transition: none;
+    animation: none;
   }
   .hubCard:hover,
   .hubCard:focus-visible {
