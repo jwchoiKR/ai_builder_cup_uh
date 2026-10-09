@@ -555,6 +555,17 @@
   transition: color var(--motion) var(--ease);
 }
 /* the first required point not said yet is the column's hero */
+/* a required point: bold, full-strength text and an accent star in place of the dot */
+.requiredPoint {
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+.requiredPoint .pointIcon {
+  color: var(--accent);
+}
+.requiredPoint .pointIcon svg {
+  fill: currentColor;
+}
 .leadPoint {
   font-size: calc(22px * var(--hs));
   font-weight: var(--fw-semibold);
