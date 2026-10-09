@@ -82,6 +82,16 @@ class AppContext:
                 pack = show_pack([self.pack_for(market, lang, r)[0] for r in release_id], release_id)
                 self._packs[rkey] = (pack, Reflex(pack.rules, pack.lexicon))
             return self._packs[rkey]
+        if isinstance(release_id, str) and release_id.startswith("prd_"):
+            # rebuilt onboarding: an approved product and its regulation PDF ("<product_id>:<regulation_id>")
+            rkey = (market.upper(), lang, release_id)
+            if rkey not in self._packs:
+                from .onboarding.product_show import build
+
+                pack = build(self.settings, self.pack_for(market, lang)[0], release_id)
+                self.retriever.replace_product(pack.products.products[0].product_id, pack.passages)
+                self._packs[rkey] = (pack, Reflex(pack.rules, pack.lexicon))
+            return self._packs[rkey]
         if release_id is not None:
             rkey = (market.upper(), lang, release_id)
             if rkey not in self._packs:
