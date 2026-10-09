@@ -25,16 +25,11 @@ const mmss = (ms: number) => {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 };
 
-/** "2 required points left · 0:30", or "+0:15 over" past the planned time. */
-export function pointsStatus(t: Translate, left: number, timing: SegmentTiming | null, total = 1): string {
-  // D-332: a product with no required points says nothing about them
-  const points = left
-    ? t(left === 1 ? "{n} required point left" : "{n} required points left", { n: left })
-    : total > 0 ? t("All required points said") : "";
-  if (!timing || !timing.plannedMs) return points;
+/** "0:30" left, or "+0:15 over" past the planned time. The required count is in the header only. */
+export function pointsStatus(t: Translate, timing: SegmentTiming | null): string {
+  if (!timing || !timing.plannedMs) return "";
   const rest = timing.plannedMs - timing.elapsedMs;
-  const time = rest >= 0 ? mmss(rest) : t("+{time} over", { time: mmss(rest) });
-  return points ? `${points} · ${time}` : time;
+  return rest >= 0 ? mmss(rest) : t("+{time} over", { time: mmss(rest) });
 }
 
 /** D-107 (the prototype's fitSlot): when the box content is taller than the box, shrink it step by
