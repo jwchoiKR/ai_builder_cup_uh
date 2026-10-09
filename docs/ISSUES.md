@@ -48,3 +48,16 @@ Both B and B2 failed the pre-set kill rule (any wrong clear), so the prompt was 
 **What was done instead.** The red box tells the host to read one full sentence: "Take it back, then say: 'Sorry, I take that back. <say_instead>'" (language-pack retraction phrase). Read as shown, it clears in every run.
 
 **Options not taken (time and the 5 s latency line):** have the judge first quote the words of the line that withdraw the claim (empty quote = not cleared); thinking MEDIUM for the compliance judge; a stronger model for the clear decision only.
+
+## I-5. A near-complete line ticks a multi-fact prompter point (10/10, open)
+
+**What happens.** Point "1,000 mg of EPA and DHA in two softgels a day." ticks on "It has a thousand milligrams of EPA and DHA." (the dose "two softgels a day" is not said), 5/5 runs, with the context judge (Gemini 3.5 Flash-Lite, thinking MINIMAL).
+
+**What was tried (probes, nothing shipped).**
+- D-444 (shipped): "full meaning, a part alone does not tick". Fixed "1,000 mg." alone; this line passed once, then ticked again when the show had one more point.
+- D-445 (killed): a bare-word sentence made MINIMAL tick more ("레몬향", "1,000 mg.").
+- D-446: thinking MINIMAL / LOW / MEDIUM. LOW used 0 thinking tokens (same as MINIMAL). MEDIUM fixed this line but ticked the bare "레몬향"; context p95 4.7 s, too slow for switch and question hold.
+- D-447 step 1 (Sonnet): same call, host words copied before the point id. This line still ticks 5/5; all other 15 lines right; switch and hold unchanged; p95 1.8 s.
+- D-447 step 2 (GPT): a separate prompter-only call at MINIMAL. Same result on this line; all others right; p95 1.3 s.
+
+**Left to try (needs the user):** the separate prompter-only call at thinking MEDIUM (nothing waits on it; an 8 s budget covers MEDIUM's p95 4.7 s), with the bare-word sentence. Or accept that a line stating amount and content but not the dose ticks.
