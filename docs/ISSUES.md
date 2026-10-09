@@ -29,3 +29,22 @@ Issues found and waiting for a team decision. Each entry: what happens, where in
 **What happens.** After a demo reset the new session is `ready`, with no product on air. A HOST question with a verified draft gets reply status "host" (`logic/reply_status.py`), so the viewer reads "The host will answer this on air", but the host list only takes questions about the on-air product, so the host sees nothing until the show starts.
 
 **Status.** Noted for the comments team.
+
+## I-4. A red box clears on a retraction alone; requiring "retraction + replacement" is not reliable with the current judge (10/10, known limit)
+
+**What happens.** The compliance judge clears a red box when the host's line makes clear, in any words, that the claim is withdrawn or corrected ("Sorry, I take that back", "I shouldn't have said that"). The host does not have to say the suggested replacement line too. Saying only an approved claim, with no retraction, can also clear it (seen twice on the cloud: "It helps keep skin hydrated for up to 24 hours..." cleared a "treats eczema and psoriasis" box).
+
+**What was tried (D-436, 10/10).** A one-sentence rule "clear only when the line says the claim is not true or withdrawn; an approved claim alone does not clear it" (B), and one rephrase (B2), were checked against the current prompt on 13 cases x 3 runs each with Gemini 3.5 Flash-Lite at thinking LOW:
+
+| Next line after the red box | Current | B | B2 |
+|---|---|---|---|
+| 7 natural retractions ("Sorry, it doesn't treat eczema", "Scratch that...", "Sorry, I take that back. <say_instead>") | 21/21 cleared | 21/21 | 21/21 |
+| "It helps keep skin hydrated for up to 24 hours..." (approved claim, no retraction) | 0/3 cleared | 3/3 (wrong) | 0/3 |
+| The suggested say_instead alone | 3/3 (wrong) | 3/3 (wrong) | 1/3 (wrong) |
+| Repeat of the claim, a viewer question, another topic | not cleared | not cleared | not cleared |
+
+Both B and B2 failed the pre-set kill rule (any wrong clear), so the prompt was left as it was. Cause: at thinking LOW the judge writes `fixed_by_this_line` with no reasoning step, and the example "take back + replacement = fixed" plus the say_instead text it is shown pull it toward "an approved claim means fixed". A harder rule ("retraction AND replacement both required") would be even less reliable.
+
+**What was done instead.** The red box tells the host to read one full sentence: "Take it back, then say: 'Sorry, I take that back. <say_instead>'" (language-pack retraction phrase). Read as shown, it clears in every run.
+
+**Options not taken (time and the 5 s latency line):** have the judge first quote the words of the line that withdraw the claim (empty quote = not cleared); thinking MEDIUM for the compliance judge; a stronger model for the clear decision only.
