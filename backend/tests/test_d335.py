@@ -33,7 +33,7 @@ async def _case(monkeypatch, llm, parts, **settings):
     from .helpers import make_ctx
 
     monkeypatch.setattr(eval_adversarial, "PART_GAP_S", 0.05)
-    ctx = make_ctx(backend=llm, FACT_RELATION=True, FACT_PROMPT="v5",
+    ctx = make_ctx(backend=llm, FACT_PROMPT="v5",
                    **settings)
     try:
         return await eval_adversarial.run_case(ctx, {"case_id": "M", "type": "t", "utterance": "",

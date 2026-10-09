@@ -182,12 +182,11 @@ class FactChecker:
         settings = getattr(llm, "settings", None)
         mode = getattr(settings, "FACT_MODE", "sheet")
         self.mode = mode
-        # D-296: the relation arm cites file sentences by id (RD), not by "file:<name>" and a copied quote (FD)
-        self.relation = bool(getattr(settings, "FACT_RELATION", False))
         # D-331: v5 adds a stance per claim (D-432: v2-v4 and v6-v8 are deleted)
         self.relation_model = FactRelationOutputV5 if getattr(settings, "FACT_PROMPT", "v1") == "v5" \
             else FactRelationOutput
-        layers = {"record": ["FR"], "docs": ["FR", "RD" if self.relation else "FD"]}.get(mode, [])
+        # D-296: the relation verdict cites file sentences by id (RD); D-435: the only fact checker (FD is gone)
+        layers = {"record": ["FR"], "docs": ["FR", "RD"]}.get(mode, [])
         addenda = arms._addenda(str(llm.prompts_path)) if layers else {}
         extras = [addenda.get((layer, self.name)) for layer in layers]
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
@@ -227,7 +226,7 @@ class FactChecker:
             agent=self.name, model=self.llm.facts.model, thinking_level=self.llm.facts.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,
             user_message=user,
-            output_model=output_model or (self.relation_model if self.relation else FactCheckOutput),
+            output_model=output_model or self.relation_model,
             deadline_ms=deadline_ms, session_id=session_id,
             cache_prefix=prefix, cache_parts=parts,
             cache_ttl_sec=sum(i.planned_duration_sec for i in self.catalog.runsheet.items), **mock)
@@ -262,8 +261,7 @@ class FactChecker:
             "active_promo_json_or_null": None if shown else inputs.active_promo_json_or_null(self.catalog, inp.promo),
             "active_offers_json": [] if shown else inputs.active_offers_json(self.catalog, inp.offers),
             "set_offers_json": [] if shown else inputs.set_offers_json(self.catalog, inp.promo),
-            "passages_json": (sentence_index(self._source(inp))[0] if self.relation
-                              else inputs.passages_json(inp.passages)),
+            "passages_json": sentence_index(self._source(inp))[0],
             "last_two_final_transcripts_json": inp.previous[-2:],
             # D-167: a merged utterance shows where speech-to-text split it ("A / B")
             "utterance_text": inputs.utterance_text(" / ".join(inp.parts) if len(inp.parts) > 1 else inp.utterance),
@@ -289,14 +287,12 @@ class FactChecker:
     async def run(self, inp: FactInput, *, deadline_ms: int, **opts) -> AgentResult[FactCheckOutput]:
         user, prefix = self._render(inp)
         block, handles = self._notes(inp)
-        base = self.relation_model if self.relation else FactCheckOutput
+        base = self.relation_model
         res = await self.llm.call(self._request(
             user + block, prefix, deadline_ms, inp.session_id, self._parts(inp.on_air), **opts,
-            output_model=(with_note_checks(with_same_as(base, "claims") if self.relation and len(inp.parts) > 1
+            output_model=(with_note_checks(with_same_as(base, "claims") if len(inp.parts) > 1
                                            else base) if handles else base), mock_primary_text=inp.utterance,
-            mock_scenario=inp.scenario,
-            mock_fallback=lambda _: ({"claims": []} if self.relation
-                                     else {"claims": [], "reason": "rule-based: no fact check"}), preview=inp.utterance,
+            mock_scenario=inp.scenario, mock_fallback=lambda _: {"claims": []}, preview=inp.utterance,
         ))
         checks = list(getattr(res.output, "note_checks", []) or []) if res.output is not None else []
         res = self._validated(inp, res)
@@ -319,17 +315,12 @@ class FactChecker:
     def _validated(self, inp: FactInput, res: AgentResult[FactCheckOutput]) -> AgentResult[FactCheckOutput]:
         if res.output is None:
             return res
-        if self.relation:
-            # D-331: claims per call and their stances, to compare prompt versions (over-extraction)
-            stances = [getattr(c, "stance", None) for c in res.output.claims]
-            log.info("fact claims %d %s: %r", len(stances), self.prompt_version,
-                     {s: stances.count(s) for s in set(stances) if s})
-            _, index = sentence_index(self._source(inp))
-            terms = ({"promo"} if inp.promo is not None else set()) | {o.promo_id for o in inp.offers}
-            res.output = from_relation(res.output, index, terms)
-        else:
-            for c in res.output.claims:  # D-247: "file:<name>#<locator>" names the file
-                if c.passage_id and c.passage_id.startswith("file:"):
-                    c.passage_id = c.passage_id.split("#", 1)[0]
+        # D-331: claims per call and their stances, to compare prompt versions (over-extraction)
+        stances = [getattr(c, "stance", None) for c in res.output.claims]
+        log.info("fact claims %d %s: %r", len(stances), self.prompt_version,
+                 {s: stances.count(s) for s in set(stances) if s})
+        _, index = sentence_index(self._source(inp))
+        terms = ({"promo"} if inp.promo is not None else set()) | {o.promo_id for o in inp.offers}
+        res.output = from_relation(res.output, index, terms)
         res.output = as_given(res.output, self.catalog)  # D-389
         return res
