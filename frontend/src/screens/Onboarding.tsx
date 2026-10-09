@@ -1,5 +1,5 @@
 // Product onboarding: rebuilt from scratch. Product documents and regulation documents are uploaded in separate
-// boxes, one PDF each. Product: uploaded to the bucket, then read by one model call (new API, steps 1-3).
+// boxes, one PDF each. Product: uploaded to the bucket, read by one model call, approved (new API, steps 1-4).
 // Regulations: picking only.
 import { useState, type ReactNode } from "react";
 
@@ -49,6 +49,9 @@ type ReadResult = { product_id: string; file: string; info: ProductInfo; seconds
 
 const readProduct = (productId: string) =>
   request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, {});
+type Approved = { product_id: string; approved_at: number; info: ProductInfo; warnings: string[] };
+const approveProduct = (productId: string) =>
+  request<Approved>("POST", `/products/${encodeURIComponent(productId)}/approve`, {});
 
 /** The rebuilt onboarding, steps 1-3: one product PDF into the bucket (POST /api/products), one model read
  * (POST /api/products/{id}/read), and what it found. */
@@ -56,9 +59,10 @@ function ProductUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [uploaded, setUploaded] = useState<Uploaded | null>(null);
   const [read, setRead] = useState<ReadResult | null>(null);
+  const [approved, setApproved] = useState<Approved | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"upload" | "read" | null>(null);
-  const run = async (kind: "upload" | "read", fn: () => Promise<void>) => {
+  const [busy, setBusy] = useState<"upload" | "read" | "approve" | null>(null);
+  const run = async (kind: "upload" | "read" | "approve", fn: () => Promise<void>) => {
     setBusy(kind);
     setError(null);
     try {
@@ -72,14 +76,17 @@ function ProductUpload() {
   const info = read?.info;
   return (
     <UploadBox title="Product information" note="One PDF of the product's information." testId="onb-product"
-               onFile={(f) => { setFile(f); setUploaded(null); setRead(null); setError(null); }}>
+               onFile={(f) => { setFile(f); setUploaded(null); setRead(null); setApproved(null); setError(null); }}>
       <div className={styles.actions}>
         <Button variant="primary" disabled={busy !== null || !file || uploaded !== null} data-testid="onb-product-upload"
                 onClick={() => run("upload", async () => setUploaded(await uploadProduct(file!)))}>
           {busy === "upload" ? "Uploading…" : "Upload"}
         </Button>
         <Button variant="primary" disabled={busy !== null || !uploaded} data-testid="onb-product-read"
-                onClick={() => run("read", async () => setRead(await readProduct(uploaded!.product_id)))}>
+                onClick={() => run("read", async () => {
+                  setRead(await readProduct(uploaded!.product_id));
+                  setApproved(null);
+                })}>
           {busy === "read" ? "Reading… up to a minute" : read ? "Read again" : "Read"}
         </Button>
       </div>
@@ -107,6 +114,13 @@ function ProductUpload() {
             ))}
           </ul>
           <p className={styles.muted}>Read in {read!.seconds} s</p>
+          <div className={styles.actions}>
+            <Button variant="primary" disabled={busy !== null || approved !== null} data-testid="onb-product-approve"
+                    onClick={() => run("approve", async () => setApproved(await approveProduct(read!.product_id)))}>
+              {busy === "approve" ? "Approving…" : approved ? "Approved" : "Approve"}
+            </Button>
+          </div>
+          {approved?.warnings.map((w) => <p key={w} className={styles.warning}>{w}</p>)}
         </div>
       )}
       {error && <p className={styles.error}>{error}</p>}

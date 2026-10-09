@@ -2,13 +2,16 @@
 
 Step 1: the PDF lands at gs://<ONBOARDING_GCS_BUCKET>/products/<product_id>/<file name>.
 Step 2: one model call reads it into what the screens and the prompter show (ProductInfo), stored next to it as
-info.json. Later steps (approve, show) build on the product id.
+info.json. Step 4: approval copies info.json to approved.json (what a show uses; a later read does not change it) and
+the PDF to the Vertex AI Search bucket (VERTEX_SEARCH_GCS_BUCKET), the evidence of viewer answers.
 """
 from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
+import time
 import uuid
 from pathlib import PurePath
 
@@ -21,6 +24,7 @@ from ..onboarding import storage
 from ..pipelines.runtime import ActionError
 from ..providers.llm import LLMRequest
 
+log = logging.getLogger(__name__)
 router = APIRouter(prefix="/products")
 READ_DEADLINE_MS = 300_000
 READ_THINKING = "MEDIUM"  # the read's own level (ONBOARDING_THINKING stays HIGH for the old onboarding)
@@ -60,17 +64,23 @@ def _bucket(ctx: AppContext):
     return storage.bucket_for(ctx.settings.ONBOARDING_GCS_BUCKET, ctx.settings.GCP_PROJECT)
 
 
-@router.post("/{product_id}/read")
-async def read_product(product_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
-    """One model call over the uploaded PDF; the result is stored as products/<id>/info.json (a new read replaces it)."""
+async def _pdf_key(bucket, product_id: str) -> str:
+    """The product's uploaded PDF (404 for an id in another shape or without one)."""
     if not re.fullmatch(r"prd_[0-9a-f]{12}", product_id):
         raise ActionError(404, "product_not_found", f"unknown product {product_id!r}")
-    bucket = _bucket(ctx)
     keys = [k for k in await asyncio.to_thread(bucket.keys, f"products/{product_id}/") if k.lower().endswith(".pdf")]
     if not keys:
         raise ActionError(404, "product_not_found", f"no PDF for {product_id}")
-    name = keys[0].rsplit("/", 1)[1]
-    data = await asyncio.to_thread(bucket.download, keys[0])
+    return keys[0]
+
+
+@router.post("/{product_id}/read")
+async def read_product(product_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """One model call over the uploaded PDF; the result is stored as products/<id>/info.json (a new read replaces it)."""
+    bucket = _bucket(ctx)
+    key = await _pdf_key(bucket, product_id)
+    name = key.rsplit("/", 1)[1]
+    data = await asyncio.to_thread(bucket.download, key)
     s = ctx.settings
     res = await ctx.llm.call(LLMRequest(
         agent="product_read", model=s.ONBOARDING_MODEL, thinking_level=READ_THINKING,
@@ -101,3 +111,30 @@ async def upload_product(file: UploadFile = File(...), ctx: AppContext = Depends
     await asyncio.to_thread(bucket.upload, key, data, create_only=True)
     return {"product_id": product_id, "file": name, "bytes": len(data),
             "gcs_uri": f"gs://{ctx.settings.ONBOARDING_GCS_BUCKET}/{key}"}
+
+
+@router.post("/{product_id}/approve")
+async def approve_product(product_id: str, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """The current read becomes what a show uses (approved.json, replaced by a later approval), and the PDF goes to
+    the Vertex AI Search bucket. A failed copy keeps the approval and says so in `warnings`."""
+    bucket = _bucket(ctx)
+    key = await _pdf_key(bucket, product_id)
+    info = await asyncio.to_thread(bucket.download, f"products/{product_id}/info.json")
+    if info is None:
+        raise ActionError(409, "not_read", f"{product_id} has not been read yet")
+    approved = {"product_id": product_id, "approved_at": int(time.time() * 1000), "info": json.loads(info)}
+    await asyncio.to_thread(bucket.upload, f"products/{product_id}/approved.json",
+                            json.dumps(approved, ensure_ascii=False, indent=1).encode(), create_only=False)
+    warnings = []
+    search = ctx.settings.VERTEX_SEARCH_GCS_BUCKET
+    if not search:
+        warnings.append("VERTEX_SEARCH_GCS_BUCKET is not set: viewer answers will not find this document")
+    else:
+        try:
+            pdf = await asyncio.to_thread(bucket.download, key)
+            target = storage.bucket_for(search, ctx.settings.GCP_PROJECT)
+            await asyncio.to_thread(target.upload, f"{product_id}/{key.rsplit('/', 1)[1]}", pdf, create_only=True)
+        except Exception as e:  # noqa: BLE001 - the approval stands; viewer answers lack this document
+            log.warning("PDF of %s not sent to the search bucket: %s", product_id, e)
+            warnings.append(f"PDF not sent to Vertex AI Search: {str(e)[:200]}")
+    return approved | {"warnings": warnings}

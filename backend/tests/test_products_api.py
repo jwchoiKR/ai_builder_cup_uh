@@ -51,3 +51,24 @@ def test_read_makes_one_model_call_and_stores_the_info(tmp_path, monkeypatch):
             assert c.post("/api/products/prd_000000000000/read").status_code == 404
     finally:
         storage.configure(tmp_path, None)
+
+
+def test_approve_fixes_the_read_and_sends_the_pdf_to_the_search_bucket(tmp_path, monkeypatch):
+    buckets: dict[str, storage.MemoryBucket] = {}
+    monkeypatch.setattr(storage, "bucket_for", lambda name, project=None: buckets.setdefault(name, storage.MemoryBucket()))
+    backend = ScriptedBackend()
+    backend.outputs[("product_read", "Sheet A.pdf")] = INFO
+    try:
+        with TestClient(create_app(make_settings(ONBOARDING_DIR=str(tmp_path), ONBOARDING_GCS_BUCKET="fake",
+                                                 VERTEX_SEARCH_GCS_BUCKET="search"), llm_backend=backend)) as c:
+            pid = c.post("/api/products", files={"file": ("Sheet A.pdf", b"%PDF-1.7 x", "application/pdf")}
+                         ).json()["product_id"]
+            assert c.post(f"/api/products/{pid}/approve").json()["error"]["code"] == "not_read"
+            c.post(f"/api/products/{pid}/read")
+            r = c.post(f"/api/products/{pid}/approve")
+            assert r.status_code == 200, r.text
+            assert r.json()["info"] == INFO and r.json()["warnings"] == []
+            assert json.loads(buckets["fake"].download(f"products/{pid}/approved.json"))["info"] == INFO
+            assert buckets["search"].download(f"{pid}/Sheet A.pdf") == b"%PDF-1.7 x"
+    finally:
+        storage.configure(tmp_path, None)
