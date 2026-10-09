@@ -190,3 +190,20 @@ def test_a_fresh_alert_is_one_created_within_the_block():
     assert pdl.alert_blocks([Alert(**fact)], pdl.RED_BLOCK_MS - 1)
     assert not pdl.alert_blocks([Alert(**fact)], pdl.RED_BLOCK_MS)
     assert not pdl.alert_blocks([Alert(**{**fact, "status": "dismissed"})], 1)
+
+
+async def test_d431_a_question_card_stored_before_d429_ends_at_the_next_decision(env):
+    """D-431 (codex review): nothing else would end it now that no question cards are made."""
+    from app.models.session import PdCard
+
+    rt, _ = env
+    seg = await rt.current_segment()
+    s = await rt.load_session()
+    s.pd_card = PdCard(card_id="pd_old", kind="read_question", say="S$36.", ref_id="grp_x", created_at=rt.now(),
+                       hold_until=rt.now() + pdl.HOLD_MS, source="rule", segment_id=seg.segment_id)
+    await rt.save_session(s)
+    rt.pd.trigger()
+    await rt.ctx.scheduler.idle()
+    assert (await rt.load_session()).pd_card is None
+    [ev] = [e for e in await events(rt, "pd.card") if e.payload["card_id"] == "pd_old"]
+    assert ev.payload["status"] == "done"

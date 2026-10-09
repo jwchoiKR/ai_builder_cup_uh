@@ -129,6 +129,8 @@ class PdDirector:
     def is_done(card: PdCard, st: pdl.PdState) -> bool:
         if card.segment_id != st.segment_id:
             return True  # the product changed: every card of the old segment is over
+        if card.kind in ("answer_question", "read_question", "clarify_product"):
+            return True  # D-431: a question card stored before D-429; nothing else would end it
         if card.kind == "cover_point":
             return card.ref_id in st.covered_ids
         if card.kind == "promo":

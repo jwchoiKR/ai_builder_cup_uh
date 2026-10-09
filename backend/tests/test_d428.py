@@ -208,3 +208,14 @@ async def test_d428_an_ended_show_leaves_memory_and_comes_back_when_it_is_opened
     finally:
         close(ctx)
         await store.aclose()
+
+
+async def test_d431_a_skipped_oversized_write_keeps_the_ended_session_in_memory():
+    """D-431 (codex review): Firestore holds an older copy of a document too large to write, so evict refuses."""
+    store = FirestoreStore(client=FakeFirestore())
+    await store.put(SESSIONS, SID, session().model_copy(update={"status": "ended"}))
+    await store.put(sub(SID, "comments"), "cm_big", comment("cm_big", "x" * 1_100_000))
+    assert await store.flush(5)
+    assert store.status()["comments"]["oversize_skipped"] == 1
+    assert not await store.evict(SID)
+    assert await store.get(SESSIONS, SID, Session) is not None

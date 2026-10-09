@@ -419,7 +419,7 @@ class FirestoreStore(MemoryStore):
         nothing of it is still waiting to be written and no write was lost, so the copy that stays is complete.
         False when it was kept in memory."""
         await self.flush(8)
-        if self.pending(session_id) or self.lost:
+        if self.pending(session_id) or self.lost or self.oversize:  # D-431: a skipped oversized write too
             log.warning("firestore: session %s stays in memory (writes pending or lost)", session_id)
             return False
         await MemoryStore.delete_session(self, session_id)  # memory's copy only: nothing is queued

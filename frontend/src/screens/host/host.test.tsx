@@ -476,7 +476,8 @@ describe("audience questions", () => {
     expect(within(items[0]).getByTestId("host-question-state")).toHaveTextContent("Ready to answer");
     // the first line of the suggested reply, in quiet text under the question, so the host can prepare
     expect(within(items[0]).getByTestId("host-question-preview")).toHaveTextContent("Yes. Apply sunscreen after the cream, then makeup.");
-    expect(within(items[2]).queryByTestId("host-question-preview")).toBeNull(); // already read out
+    // D-431: a read-out question shows its verified answer too (no AI PD card carries it since D-429)
+    expect(within(items[2]).getByTestId("host-question-preview")).toHaveTextContent("The set is S$62.00.");
     expect(items[1]).toHaveTextContent("3");
     expect(items[1]).not.toHaveTextContent("For you");
     expect(items[2]).toHaveTextContent("Read out");
