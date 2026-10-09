@@ -80,14 +80,121 @@ const uploadProduct = (file: File) => uploadPdf<Uploaded>("/products", file);
 const uploadRegulation = (file: File) => uploadPdf<RegulationUploaded>("/regulations", file);
 
 type ProductInfo = { brand: string; product_name: string; currency: string | null; list_price: string | null;
-  live_price: string | null; points: { text: string; required: boolean }[] };
+  live_price: string | null; points: { text: string; required: boolean }[];
+  extra?: { name: string; value: string | null }[] };
 type ReadResult = { product_id: string; file: string; info: ProductInfo; seconds: number };
 
-const readProduct = (productId: string) =>
-  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, {});
+const readProduct = (productId: string, fields: string[]) =>
+  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, { fields });
+
+// what every read returns; the person adds fields on top of these before dropping the PDF
+const FIXED_FIELDS = ["Brand", "Product name", "Currency", "Live price", "List price", "Points"];
+
+/** The fields the read must return: the fixed ones locked, the person's own ones added and removed here. */
+function FieldTags({ fields, onChange, disabled }: {
+  fields: string[]; onChange: (f: string[]) => void; disabled: boolean;
+}) {
+  const [text, setText] = useState("");
+  const add = () => {
+    const name = text.trim();
+    const taken = [...FIXED_FIELDS, ...fields].some((f) => f.toLowerCase() === name.toLowerCase());
+    if (name && !taken && fields.length < 20) onChange([...fields, name]);
+    setText("");
+  };
+  return (
+    <div className={styles.tags} data-testid="onb-fields">
+      <span className={styles.fieldLabel}>Fields to read</span>
+      <div className={styles.chips}>
+        {FIXED_FIELDS.map((f) => <span key={f} className={styles.tagFixed} title="Always read">🔒 {f}</span>)}
+        {fields.map((f) => (
+          <span key={f} className={styles.tag}>
+            {f}
+            {!disabled && (
+              <button type="button" className={styles.tagRemove} aria-label={`Remove ${f}`}
+                      onClick={() => onChange(fields.filter((x) => x !== f))}>×</button>
+            )}
+          </span>
+        ))}
+        {!disabled && (
+          <input className={styles.tagInput} value={text} placeholder="+ Add a field (Enter)" maxLength={60}
+                 data-testid="onb-fields-input" aria-label="Add a field to read"
+                 onChange={(e) => setText(e.target.value)} onBlur={add}
+                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
+        )}
+      </div>
+    </div>
+  );
+}
 type Approved = { product_id: string; approved_at: number; info: ProductInfo; warnings: string[] };
-const approveProduct = (productId: string) =>
-  request<Approved>("POST", `/products/${encodeURIComponent(productId)}/approve`, {});
+const approveProduct = (productId: string, info: ProductInfo) =>
+  request<Approved>("POST", `/products/${encodeURIComponent(productId)}/approve`, { info });
+
+/** The read as the person left it: blank prices and currency become null, blank points are dropped. */
+const cleaned = (d: ProductInfo): ProductInfo => {
+  const opt = (v: string | null) => v?.trim() || null;
+  return { ...d, brand: d.brand.trim(), product_name: d.product_name.trim(), currency: opt(d.currency),
+    list_price: opt(d.list_price), live_price: opt(d.live_price),
+    points: d.points.map((p) => ({ ...p, text: p.text.trim() })).filter((p) => p.text),
+    extra: d.extra?.map((x) => ({ ...x, value: opt(x.value) })) };
+};
+
+function Field({ label, value, onChange, disabled, wide }: {
+  label: string; value: string | null; onChange: (v: string) => void; disabled: boolean; wide?: boolean;
+}) {
+  return (
+    <label className={[styles.field, wide && styles.fieldWide].filter(Boolean).join(" ")}>
+      <span className={styles.fieldLabel}>{label}</span>
+      <input className={styles.input} value={value ?? ""} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+/** The model's read, editable before approval. Each point carries its own Required box. */
+function ProductForm({ draft, onChange, disabled }: {
+  draft: ProductInfo; onChange: (d: ProductInfo) => void; disabled: boolean;
+}) {
+  const set = (patch: Partial<ProductInfo>) => onChange({ ...draft, ...patch });
+  const setPoint = (i: number, patch: Partial<ProductInfo["points"][number]>) =>
+    set({ points: draft.points.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
+  return (
+    <div className={styles.form} data-testid="onb-product-form">
+      <div className={styles.fields}>
+        <Field label="Brand" value={draft.brand} disabled={disabled} onChange={(v) => set({ brand: v })} />
+        <Field label="Product name" value={draft.product_name} disabled={disabled} wide
+               onChange={(v) => set({ product_name: v })} />
+        <Field label="Currency" value={draft.currency} disabled={disabled} onChange={(v) => set({ currency: v })} />
+        <Field label="Live price" value={draft.live_price} disabled={disabled} onChange={(v) => set({ live_price: v })} />
+        <Field label="List price" value={draft.list_price} disabled={disabled} onChange={(v) => set({ list_price: v })} />
+        {draft.extra?.map((x, i) => (
+          <Field key={x.name} label={x.name} value={x.value} disabled={disabled}
+                 onChange={(v) => set({ extra: draft.extra!.map((y, j) => (j === i ? { ...y, value: v } : y)) })} />
+        ))}
+      </div>
+      <h4 className={styles.blockTitle}>Points <span className={styles.count}>{draft.points.length}</span></h4>
+      <ul className={styles.pointRows}>
+        {draft.points.map((pt, i) => (
+          <li key={i} className={[styles.point, pt.required && styles.pointRequired].filter(Boolean).join(" ")}>
+            <textarea className={styles.input} rows={2} value={pt.text} disabled={disabled} aria-label={`Point ${i + 1}`}
+                      onChange={(e) => setPoint(i, { text: e.target.value })} />
+            <label className={styles.required}>
+              <input type="checkbox" checked={pt.required} disabled={disabled}
+                     onChange={(e) => setPoint(i, { required: e.target.checked })} /> Required
+            </label>
+            {!disabled && (
+              <Button aria-label={`Remove point ${i + 1}`}
+                      onClick={() => set({ points: draft.points.filter((_, j) => j !== i) })}>Remove</Button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {!disabled && (
+        <div className={styles.actions}>
+          <Button onClick={() => set({ points: [...draft.points, { text: "", required: false }] })}>Add point</Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Busy = { label: string; since: number };
 
@@ -99,6 +206,8 @@ function ProductUpload({ onRead, onApproved }: {
   const [file, setFile] = useState<File | null>(null);
   const [uploaded, setUploaded] = useState<Uploaded | null>(null);
   const [read, setRead] = useState<ReadResult | null>(null);
+  const [draft, setDraft] = useState<ProductInfo | null>(null);
+  const [fields, setFields] = useState<string[]>([]);
   const [approved, setApproved] = useState<Approved | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy | null>(null);
@@ -122,19 +231,21 @@ function ProductUpload({ onRead, onApproved }: {
       }
       current = "Read";
       const productId = u.product_id;
-      setRead(await step("Reading the document (up to a minute)…", () => readProduct(productId)));
+      const r = await step("Reading the document (up to a minute)…", () => readProduct(productId, fields));
+      setRead(r);
+      setDraft(r.info);
       onRead(true);
     } catch (e) {
       setError(errorText(current, e));
     }
   };
-  const info = read?.info;
   return (
-    <Box title="1 · Product information" note="One PDF of the product's information. It is read as soon as you drop it."
+    <Box title="1 · Product information" note="Add any fields you need read, then drop one PDF of the product's information. It is read as soon as you drop it."
          testId="onb-product" done={approved !== null}>
+      <FieldTags fields={fields} onChange={setFields} disabled={busy !== null || approved !== null} />
       <DropZone testId="onb-product" file={file} disabled={busy !== null || approved !== null}
                 onFile={(f) => {
-                  setFile(f); setUploaded(null); setRead(null); setApproved(null);
+                  setFile(f); setUploaded(null); setRead(null); setDraft(null); setApproved(null);
                   onRead(false); onApproved(null);
                   if (f) void uploadAndRead(f, null);
                 }} />
@@ -146,30 +257,15 @@ function ProductUpload({ onRead, onApproved }: {
                            onClick={() => void uploadAndRead(file, uploaded)}>Try again</Button>}
         </div>
       )}
-      {info && (
+      {read && draft && (
         <div className={styles.summary} data-testid="onb-product-info">
-          <h3 className={styles.product}>{info.brand} · {info.product_name}</h3>
-          <p className={styles.value}>
-            {info.live_price ? `${info.currency ?? ""} ${info.live_price} live` : "No price in the document"}
-            {info.list_price && info.list_price !== info.live_price ? ` · ${info.list_price} list` : ""}
-          </p>
-          <h4 className={styles.blockTitle}>
-            Points <span className={styles.count}>{info.points.length}</span>
-          </h4>
-          <ul className={styles.rows}>
-            {info.points.map((pt, i) => (
-              <li key={i} className={styles.inline}>
-                {pt.required && <Chip tone="risk">Required</Chip>}
-                <span className={styles.value}>{pt.text}</span>
-              </li>
-            ))}
-          </ul>
-          <p className={styles.muted}>Read in {read!.seconds} s. Check the points, then approve.</p>
+          <ProductForm draft={draft} onChange={setDraft} disabled={busy !== null || approved !== null} />
+          <p className={styles.muted}>Read in {read.seconds} s. Check and edit what was read, then approve.</p>
           <div className={styles.actions}>
             <Button variant="primary" disabled={busy !== null || approved !== null} data-testid="onb-product-approve"
                     onClick={() => {
                       setError(null);
-                      step("Approving…", () => approveProduct(read!.product_id)).then((a) => {
+                      step("Approving…", () => approveProduct(read.product_id, cleaned(draft))).then((a) => {
                         setApproved(a);
                         onApproved(a.product_id);
                       }).catch((e) => setError(errorText("Approve", e)));

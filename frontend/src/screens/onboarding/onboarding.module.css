@@ -26,14 +26,11 @@
 .warning { color: var(--risk-text); font-weight: var(--fw-semibold); margin: 0; }
 .blockTitle { font-size: var(--fs-16); font-weight: var(--fw-semibold); margin: 0; display: flex; gap: var(--space-2); align-items: center; }
 .count { color: var(--text-3); font-weight: var(--fw-regular); }
-.rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .value { font-size: var(--fs-14); white-space: pre-wrap; overflow-wrap: anywhere; }
 .summary { display: flex; flex-direction: column; gap: var(--space-2); }
-.product { font-size: var(--fs-22); margin: 0; }
 .status { color: var(--text-2); font-size: var(--fs-14); margin: 0; }
 .error { color: var(--risk-text); margin: 0; }
 .actions { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
-.inline { display: flex; gap: var(--space-1); align-items: baseline; font-size: var(--fs-14); flex-wrap: wrap; }
 
 /* product and regulation side by side; stacked on narrow screens */
 .grid { display: grid; grid-template-columns: 3fr 2fr; gap: var(--space-4); align-items: start; }
@@ -68,3 +65,47 @@
 .stepNext { color: var(--text); border-color: var(--accent); }
 .stepDone { color: var(--ok-text); border-color: var(--ok-border); background: var(--ok-bg); }
 .stepMark { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
+
+/* the product as read, editable before approval */
+.form { display: flex; flex-direction: column; gap: var(--space-3); }
+.fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.fieldWide { grid-column: span 2; }
+.field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fieldLabel { color: var(--text-3); font-size: var(--fs-12); }
+.input {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-14);
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+.input:disabled { background: transparent; border-color: transparent; resize: none; }
+.pointRows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.point {
+  display: grid; grid-template-columns: 1fr auto auto; gap: var(--space-2); align-items: start;
+  padding-left: var(--space-2); border-left: 3px solid var(--border);
+}
+.pointRequired { border-left-color: var(--risk-border); }
+.required { display: flex; align-items: center; gap: var(--space-1); font-size: var(--fs-14); padding-top: var(--space-2); white-space: nowrap; }
+@media (max-width: 500px) { .fields { grid-template-columns: 1fr; } .fieldWide { grid-column: auto; } }
+
+/* fields the read must return: fixed ones locked, the person's own removable */
+.tags { display: flex; flex-direction: column; gap: var(--space-1); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
+.tag, .tagFixed {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2); border-radius: 999px; font-size: var(--fs-12);
+  border: 1px solid var(--border);
+}
+.tagFixed { color: var(--text-3); background: var(--surface-2); }
+.tag { color: var(--text); border-color: var(--accent); }
+.tagRemove { border: 0; background: none; padding: 0 2px; cursor: pointer; color: var(--text-2); font: inherit; }
+.tagInput {
+  border: 1px dashed var(--border); border-radius: 999px; padding: 2px var(--space-2);
+  background: transparent; color: var(--text); font: inherit; font-size: var(--fs-12); min-width: 140px;
+}
