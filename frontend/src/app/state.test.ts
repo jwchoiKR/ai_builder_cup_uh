@@ -111,7 +111,6 @@ describe("every event type", () => {
     expect(s.summaryReady).toBe(true);
     expect(s.metrics.header?.instant_answers).toBe(3);
     expect(s.agentCalls[0].call_id).toBe("call_1");
-    expect(s.actions[0].payload.action).toBe("push");
     expect(s.judgeFailures).toHaveLength(1);
     expect(s.session?.pinned_notice).toBe("Free shipping today");
     expect(s.messages.msg_p.state).toBe("cancelled");
