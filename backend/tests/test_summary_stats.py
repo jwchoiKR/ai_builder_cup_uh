@@ -79,7 +79,7 @@ def recorded_broadcast():
         Transcript(transcript_id="tr_7", text="wrinkles", is_final=True, speech_end_at=T0 + 300_000,
                    received_at=T0 + 300_000, source="injected", segment_id="seg_1"),
         Transcript(transcript_id="tr_9", text="x", is_final=True, speech_end_at=T0 + 400_000,
-                   received_at=T0 + 400_000, source="injected", segment_id="seg_1"),
+                   received_at=T0 + 400_000, source="mic", segment_id="seg_1"),
     ]
     alerts = [
         Alert(alert_id="al_1", kind="compliance", status="corrected", transcript_id="tr_7", product_id=CREAM,
@@ -141,6 +141,7 @@ def test_summary_numbers(catalog):
     assert al1["corrected_text"] == "Let me correct that."
     assert al2["shown_to_corrected_ms"] == "dismissed" and "unverified" not in al2  # D-435: the field is gone
     assert len(s["compliance_alerts"]) == 2  # cleared provisional alert not listed
+    assert (al1["typed"], al2["typed"]) == (True, False)  # D-439: a typed line, a spoken line
 
     fx1, fx2 = s["fact_alerts"]
     assert (fx1["field"], fx1["stated_value"], fx1["correct_value"], fx1["corrected"], fx1["time_to_correction_ms"]) == (

@@ -40,6 +40,7 @@ export interface ComplianceRow {
   speech_end_to_shown_ms: number | null;
   shown_to_corrected_ms: number | "dismissed" | "uncorrected";
   corrected_text: string | null;
+  typed?: boolean | null; // D-439: the line was typed (no real speech end)
 }
 
 export interface FactRow {
@@ -55,6 +56,7 @@ export interface FactRow {
   speech_end_to_shown_ms?: number | null;
   shown_to_corrected_ms?: number | "dismissed" | "uncorrected";
   corrected_text?: string | null;
+  typed?: boolean | null; // D-439
 }
 
 export interface PromoRow {

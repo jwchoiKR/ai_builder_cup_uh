@@ -174,6 +174,7 @@ async def test_snapshot_blocks(env):
     host = await rt.snapshot("host")
     assert [a["rule_id"] for a in op["alerts"]] == [rid("ASEAN-3-SKIN-ANTIMICROBIAL")] and host["alerts"] == op["alerts"]
     assert op["prompter"]["covered_point_ids"] == ["cr-p1"] and op["prompter"]["required_total"] == 3
-    assert [t["text"] for t in op["transcripts"]] == [BACTERIA] and "transcripts" not in host
+    assert [t["text"] for t in op["transcripts"]] == [BACTERIA]
+    assert [t["text"] for t in host["transcripts"]] == [BACTERIA]  # D-439: only the lines alerts were raised on
     assert {"compliance_judge", "context_judge"} <= {c["agent"] for c in op["agent_calls"]} and "agent_calls" not in host
     assert op["metrics"]["alert"]["count"] == 1

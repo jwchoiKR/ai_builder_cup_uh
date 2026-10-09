@@ -219,13 +219,13 @@ export function complianceTitle(a: Alert, now: number, t: Translate = EN): strin
 export function correctedLine(a: Alert, t: Translate = EN): string | null {
   if (a.status !== "corrected" || a.resolved_at === null || a.shown_at === null) return null;
   const text = a.corrected_text ? ` · '${a.corrected_text}'` : "";
-  return `${t("Corrected in {s} s", { s: seconds1(a.resolved_at - a.shown_at) })}${text}`;
+  return `${t("Host fixed in {s} s", { s: seconds1(a.resolved_at - a.shown_at) })}${text}`;  // D-439: the host's reaction
 }
 
 export function alertOutcome(a: Alert, t: Translate = EN): string {
   switch (a.status) {
     case "corrected":
-      return a.shown_at !== null && a.resolved_at !== null ? t("Corrected in {s} s", { s: seconds1(a.resolved_at - a.shown_at) }) : t("Corrected");
+      return a.shown_at !== null && a.resolved_at !== null ? t("Host fixed in {s} s", { s: seconds1(a.resolved_at - a.shown_at) }) : t("Corrected");
     case "dismissed":
       return t("Dismissed");
     case "active":

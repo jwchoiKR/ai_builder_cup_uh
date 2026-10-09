@@ -79,7 +79,8 @@ export const KO_OPERATOR: Record<string, string> = {
   "Host correction required": "진행자 정정 필요",
   Corrected: "정정됨",
   "Not corrected": "정정 안 됨",
-  "Corrected in {s} s": "{s}초 만에 정정",
+  "Host fixed in {s} s": "진행자 정정까지 {s}초",
+  "Alerts this show: {n} · {m} shown within 5 s · slowest {s} s": "이번 방송 경고 {n}건 · {m}건이 5초 안에 표시 · 가장 느린 것 {s}초",
   HIGH: "높음",
   MEDIUM: "중간",
   "Rule:": "규정:",
@@ -255,7 +256,6 @@ export const KO_OPERATOR: Record<string, string> = {
   "Alert log": "경고 기록",
   "No alerts yet.": "아직 경고가 없습니다.",
   Dismissed: "무시함",
-  "shown {s} s after speech": "발언 {s}초 뒤 표시",
   "Agent calls": "에이전트 호출",
 
   // dialogs

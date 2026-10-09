@@ -724,6 +724,11 @@ class SessionRuntime:
         groups = await self.groups()
         answer_ids = {g.answer_id for g in groups if g.answer_id}
         answers = [a for a in await store.query(self.path("answers"), Answer) if a.answer_id in answer_ids]
+        alerts = await self.alerts()
+        finals = await store.query(self.path("transcripts"), Transcript, order_by="received_at")
+        # D-439: the lines the alerts were raised and cleared on (their speech end times the "Shown in" and "Cleared in"
+        # labels), also for the host and after a restart
+        cited = {x for a in alerts for x in (a.transcript_id, a.corrected_by_transcript_id) if x}
         out: dict[str, Any] = {
             "last_seq": last_seq,
             "server_time": self.now(),
@@ -734,7 +739,8 @@ class SessionRuntime:
             "host_slots": [sl.model_dump() for sl in s.host_slots],
             "comments": [c.model_dump(mode="json") for c in shown],
             "messages": [m.model_dump(mode="json") for m in await store.query(self.path("messages"), Message, order_by="created_at")],
-            "alerts": [a.model_dump(mode="json") for a in await self.alerts()],
+            "alerts": [a.model_dump(mode="json") for a in alerts],
+            "transcripts": [t.model_dump(mode="json") for t in finals if t.transcript_id in cited],
             "prompter": await self.prompter_view_now(await self.current_segment()),
             "metrics": await self.compute_metrics(),
             "feed": self.feed.state(),
@@ -750,8 +756,8 @@ class SessionRuntime:
             ids = {c.comment_id for c in shown}
             out["analyses"] = {a.comment_id: a.model_dump(mode="json")
                                for a in await store.query(self.path("analyses"), CommentAnalysis) if a.comment_id in ids}
-            finals = await store.query(self.path("transcripts"), Transcript, order_by="received_at")
-            out["transcripts"] = [t.model_dump(mode="json") for t in finals[-20:]]
+            last = {t.transcript_id for t in finals[-20:]}
+            out["transcripts"] = [t.model_dump(mode="json") for t in finals if t.transcript_id in last | cited]
             calls = await store.query(self.path("agent_calls"), AgentCall, order_by="started_at")
             out["agent_calls"] = [c.model_dump(mode="json") for c in calls[-50:]]
         return out

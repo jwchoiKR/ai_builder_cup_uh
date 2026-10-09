@@ -40,8 +40,10 @@ export function AlertMore({ n }: { n: number }) {
   return n > 0 ? <span className={styles.alertCount} data-testid="host-alert-more">+{n}</span> : null;
 }
 
-export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
+export function FactNote({ alert, catalog, onRendered, count = 1, more = 0, timing = null }: {
   alert: Alert;
+  /** D-439: "Shown in 4.2 s" (null: not known) */
+  timing?: string | null;
   catalog: Catalog | null;
   onRendered?: (alertId: string) => void;
   /** D-399: how many active notes cite this note's passage (this one is the newest) */
@@ -85,6 +87,7 @@ export function FactNote({ alert, catalog, onRendered, count = 1, more = 0 }: {
           {context ? `${context} · ` : ""}
           {t("Source:")} {source}
         </span>
+        {timing && <span className={styles.alertTiming} data-testid="host-alert-timing">{timing}</span>}
       </span>
     </div>
   );
@@ -174,12 +177,14 @@ export function SwitchedBar({ productName, onUndo }: { productName: string; onUn
 }
 
 /** D-106: in the prompter card, where the alert was. */
-export function CorrectedBar() {
+export function CorrectedBar({ timing = null }: { timing?: string | null }) {
   const t = useT();
   return (
     <div className={styles.corrected} data-testid="host-corrected" role="status">
       <Check aria-hidden />
       {t("Corrected")}
+      {/* D-439: "Cleared in 3.1 s" */}
+      {timing && <span className={styles.alertTiming} data-testid="host-alert-timing">{timing}</span>}
     </div>
   );
 }

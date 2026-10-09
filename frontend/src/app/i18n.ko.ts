@@ -66,6 +66,10 @@ export const KO_HOST: Record<string, string> = {
   "{a} of {b}": "{b}개 중 {a}",
   "Say this instead.": "이렇게 말하세요.",
   "Take it back, then say:": "먼저 철회하고, 이렇게 말하세요:",
+  // D-439: how fast an alert was shown and cleared
+  "Shown in {s} s": "{s}초 만에 표시",
+  "Cleared in {s} s": "{s}초 만에 해제",
+  "(typed)": "(입력)",
   "Waiting for your correction": "정정을 기다리는 중",
   "CHECK WORDING": "표현 확인",
   // D-412: the host's strip for lines no judge could check
