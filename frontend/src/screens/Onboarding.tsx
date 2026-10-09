@@ -55,12 +55,15 @@ function Working({ label, since }: { label: string; since: number }) {
   );
 }
 
-function Box({ title, note, testId, done, children }: {
-  title: string; note: string; testId: string; done: boolean; children: ReactNode;
+function Box({ title, note, testId, done, onRemove, children }: {
+  title: string; note: string; testId: string; done: boolean; onRemove?: () => void; children: ReactNode;
 }) {
   return (
     <section className={[styles.block, done && styles.ok].filter(Boolean).join(" ")} data-testid={testId}>
-      <h2 className={styles.blockTitle}>{title} {done && <Chip tone="ok">Done</Chip>}</h2>
+      <h2 className={styles.blockTitle}>{title} {done && <Chip tone="ok">Done</Chip>}
+        {onRemove && <button type="button" className={styles.cardClose} aria-label={`Remove ${title}`}
+                             onClick={onRemove}><X size={16} aria-hidden /></button>}
+      </h2>
       <p className={styles.muted}>{note}</p>
       {children}
     </section>
@@ -219,9 +222,8 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
   };
   return (
     <Box title={title} note="One PDF of the product's information. It is read as soon as you drop it."
-         testId="onb-product" done={approved !== null}>
+         testId="onb-product" done={approved !== null} onRemove={onRemove}>
       <div className={styles.actions}>
-        {onRemove && <Button disabled={busy !== null} onClick={onRemove}>Remove product</Button>}
         <span className={styles.factLabel}>Host language</span>
         <div className={styles.segmented} role="radiogroup" aria-label="Host language">
           {HOST_LANGUAGES.map(([code, label]) => (
