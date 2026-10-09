@@ -97,8 +97,8 @@ async def read_product(product_id: str, ctx: AppContext = Depends(get_ctx)) -> d
     return {"product_id": product_id, "file": name, "info": info, "seconds": round(res.latency_ms / 1000, 1)}
 
 
-@router.post("")
-async def upload_product(file: UploadFile = File(...), ctx: AppContext = Depends(get_ctx)) -> dict:
+async def store_pdf(ctx: AppContext, file: UploadFile, folder: str, prefix: str) -> dict:
+    """One PDF straight into the onboarding bucket as <folder>/<new id>/<file name>; nothing on local disk."""
     bucket = _bucket(ctx)
     name = PurePath(file.filename or "").name
     data = await file.read(MAX_BYTES + 1)
@@ -106,11 +106,16 @@ async def upload_product(file: UploadFile = File(...), ctx: AppContext = Depends
         raise ActionError(400, "not_pdf", f"PDF files only: {name or '(no name)'}")
     if len(data) > MAX_BYTES:
         raise ActionError(413, "too_large", f"{name}: larger than {MAX_BYTES // (1024 * 1024)} MB")
-    product_id = "prd_" + uuid.uuid4().hex[:12]
-    key = f"products/{product_id}/{name}"
+    new_id = prefix + uuid.uuid4().hex[:12]
+    key = f"{folder}/{new_id}/{name}"
     await asyncio.to_thread(bucket.upload, key, data, create_only=True)
-    return {"product_id": product_id, "file": name, "bytes": len(data),
-            "gcs_uri": f"gs://{ctx.settings.ONBOARDING_GCS_BUCKET}/{key}"}
+    return {"id": new_id, "file": name, "bytes": len(data), "gcs_uri": f"gs://{ctx.settings.ONBOARDING_GCS_BUCKET}/{key}"}
+
+
+@router.post("")
+async def upload_product(file: UploadFile = File(...), ctx: AppContext = Depends(get_ctx)) -> dict:
+    out = await store_pdf(ctx, file, "products", "prd_")
+    return {"product_id": out.pop("id"), **out}
 
 
 @router.post("/{product_id}/approve")

@@ -1,6 +1,6 @@
 // Product onboarding: rebuilt from scratch. Product documents and regulation documents are uploaded in separate
 // boxes, one PDF each. Product: uploaded to the bucket, read by one model call, approved (new API, steps 1-4).
-// Regulations: picking only.
+// Regulations: one PDF uploaded to the bucket. A show needs both.
 import { useState, type ReactNode } from "react";
 
 import { Button, Chip, Eyebrow, HubLink } from "../components";
@@ -33,15 +33,18 @@ function UploadBox({ title, note, testId, onFile, children }: {
 }
 
 type Uploaded = { product_id: string; file: string; bytes: number; gcs_uri: string };
+type RegulationUploaded = { regulation_id: string; file: string; bytes: number; gcs_uri: string };
 
-async function uploadProduct(file: File): Promise<Uploaded> {
+async function uploadPdf<T>(path: string, file: File): Promise<T> {
   const form = new FormData();
   form.append("file", file, file.name);
-  const res = await fetch(`${API_BASE}/products`, { method: "POST", body: form });
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST", body: form });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? "http_error", data?.error?.message ?? `HTTP ${res.status}`);
   return data;
 }
+const uploadProduct = (file: File) => uploadPdf<Uploaded>("/products", file);
+const uploadRegulation = (file: File) => uploadPdf<RegulationUploaded>("/regulations", file);
 
 type ProductInfo = { brand: string; product_name: string; currency: string | null; list_price: string | null;
   live_price: string | null; points: { text: string; required: boolean }[] };
@@ -55,7 +58,7 @@ const approveProduct = (productId: string) =>
 
 /** The rebuilt onboarding, steps 1-3: one product PDF into the bucket (POST /api/products), one model read
  * (POST /api/products/{id}/read), and what it found. */
-function ProductUpload() {
+function ProductUpload({ onApproved }: { onApproved: (productId: string | null) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploaded, setUploaded] = useState<Uploaded | null>(null);
   const [read, setRead] = useState<ReadResult | null>(null);
@@ -76,7 +79,7 @@ function ProductUpload() {
   const info = read?.info;
   return (
     <UploadBox title="Product information" note="One PDF of the product's information." testId="onb-product"
-               onFile={(f) => { setFile(f); setUploaded(null); setRead(null); setApproved(null); setError(null); }}>
+               onFile={(f) => { setFile(f); setUploaded(null); setRead(null); setApproved(null); setError(null); onApproved(null); }}>
       <div className={styles.actions}>
         <Button variant="primary" disabled={busy !== null || !file || uploaded !== null} data-testid="onb-product-upload"
                 onClick={() => run("upload", async () => setUploaded(await uploadProduct(file!)))}>
@@ -86,6 +89,7 @@ function ProductUpload() {
                 onClick={() => run("read", async () => {
                   setRead(await readProduct(uploaded!.product_id));
                   setApproved(null);
+                  onApproved(null);
                 })}>
           {busy === "read" ? "Reading… up to a minute" : read ? "Read again" : "Read"}
         </Button>
@@ -116,7 +120,11 @@ function ProductUpload() {
           <p className={styles.muted}>Read in {read!.seconds} s</p>
           <div className={styles.actions}>
             <Button variant="primary" disabled={busy !== null || approved !== null} data-testid="onb-product-approve"
-                    onClick={() => run("approve", async () => setApproved(await approveProduct(read!.product_id)))}>
+                    onClick={() => run("approve", async () => {
+                      const a = await approveProduct(read!.product_id);
+                      setApproved(a);
+                      onApproved(a.product_id);
+                    })}>
               {busy === "approve" ? "Approving…" : approved ? "Approved" : "Approve"}
             </Button>
           </div>
@@ -128,7 +136,47 @@ function ProductUpload() {
   );
 }
 
+/** One regulation PDF into the bucket (POST /api/regulations). A show needs one. */
+function RegulationUpload({ onUploaded }: { onUploaded: (regulationId: string | null) => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [uploaded, setUploaded] = useState<RegulationUploaded | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <UploadBox title="Regulations" note="One PDF of the regulations that apply. Required for the show."
+               testId="onb-regulation"
+               onFile={(f) => { setFile(f); setUploaded(null); setError(null); onUploaded(null); }}>
+      <div className={styles.actions}>
+        <Button variant="primary" disabled={busy || !file || uploaded !== null} data-testid="onb-regulation-upload"
+                onClick={async () => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    const u = await uploadRegulation(file!);
+                    setUploaded(u);
+                    onUploaded(u.regulation_id);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}>
+          {busy ? "Uploading…" : "Upload"}
+        </Button>
+      </div>
+      {uploaded && (
+        <p className={styles.value} data-testid="onb-regulation-uploaded">
+          Uploaded <b>{uploaded.file}</b> as {uploaded.regulation_id}
+        </p>
+      )}
+      {error && <p className={styles.error}>{error}</p>}
+    </UploadBox>
+  );
+}
+
 export function Onboarding() {
+  const [productId, setProductId] = useState<string | null>(null);
+  const [regulationId, setRegulationId] = useState<string | null>(null);
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -136,8 +184,16 @@ export function Onboarding() {
           <HubLink sessionId={null} /> · PRODUCT ONBOARDING
         </Eyebrow>
       </header>
-      <ProductUpload />
-      <UploadBox title="Regulations" note="One PDF of the regulations that apply." testId="onb-regulation" />
+      <ProductUpload onApproved={setProductId} />
+      <RegulationUpload onUploaded={setRegulationId} />
+      {/* the show needs both; starting it is the next step */}
+      <section className={styles.block} data-testid="onb-ready">
+        <h2 className={styles.blockTitle}>Before the show</h2>
+        <ul className={styles.rows}>
+          <li className={styles.value}>{productId ? "✓" : "○"} Product approved</li>
+          <li className={styles.value}>{regulationId ? "✓" : "○"} Regulation file uploaded</li>
+        </ul>
+      </section>
     </div>
   );
 }
