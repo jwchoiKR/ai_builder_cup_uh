@@ -11,6 +11,7 @@ from app.pipelines.demo_script import load_host_script
 from app.scheduler import ManualScheduler
 
 from .conftest import make_settings
+from .judge_fakes import rid
 
 CREAM, AMPOULE = "cream_hydra_barrier", "ampoule_deep_hydration"
 LINE_GAP_MS = 8000  # judge, fact check, 2 s publish window, 5 s escalation
@@ -66,7 +67,6 @@ async def demo():
     scheduler.shutdown()
 
 
-@pytest.mark.legacy_live  # D-434: runs on tests/fixtures/llm, recorded in the rules shape; re-recorded with N3
 async def test_demo_script_end_to_end(demo: Demo):
     steps = load_host_script(str(make_settings().data_path))
     lines = {s.text: s for s in steps if s.action == "host_line"}
@@ -127,7 +127,7 @@ async def test_demo_script_end_to_end(demo: Demo):
     # ---- S07 compliance: full screen HIGH, escalation, correction ----------------------------------
     t = await demo.line(L[6], "S07")
     [al] = [a for a in demo.alerts(t["transcript_id"]) if a["kind"] == "compliance" and a["status"] == "active"]
-    assert al["rule_id"] == "ASEAN-3-SKIN-AGEING" and al["severity"] == "HIGH" and al["say_instead"]
+    assert al["rule_id"] == rid("ASEAN-3-SKIN-AGEING") and al["severity"] == "HIGH" and al["say_instead"]
     assert al["shown_at"] - t["speech_end_at"] <= 5000
     assert al["escalated_at"] is not None  # not corrected within 5 s
     await demo.line(L[7], "S07")

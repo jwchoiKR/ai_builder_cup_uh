@@ -2,14 +2,15 @@
  "claims": [
   {
    "span": "it's a lightweight gel-cream, so just use a smaller amount on oily areas",
-   "field": "usage",
+   "stance": "HOST_ASSERTS",
    "product_id": "cream_hydra_barrier",
+   "field": "usage",
    "stated_value": "use a smaller amount on oily areas",
-   "verdict": "supported",
+   "evidence": [],
+   "source_value": "use a smaller amount on oily areas",
+   "relation": "consistent",
    "correct_value": "use a smaller amount on oily areas",
-   "passage_id": "DL-CR-01#frequently-asked-questions#is-it-suitable-for-oily-skin",
-   "quote": "Use a smaller amount on oily areas."
+   "say": null
   }
- ],
- "reason": "The host correctly describes the usage advice for oily skin from the FAQs."
+ ]
 }

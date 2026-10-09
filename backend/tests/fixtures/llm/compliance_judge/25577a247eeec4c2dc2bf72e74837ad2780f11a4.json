@@ -1,13 +1,14 @@
 {
+ "alert_checks": [],
  "compliance": {
   "violations": [
    {
     "span": "your wrinkles will disappear overnight",
-    "rule_id": "ASEAN-3-SKIN-AGEING",
-    "severity": "HIGH",
     "is_negated": false,
     "is_quoted": false,
-    "say_instead": "Helps keep skin hydrated for up to 24 hours.*"
+    "say_instead": "Helps keep skin hydrated for up to 24 hours.*",
+    "citation": "asean_cosmetic_claims_guideline_appendix_iii_2007.pdf#3 (anti-ageing)",
+    "quote": "scripted section text"
    }
   ]
  },

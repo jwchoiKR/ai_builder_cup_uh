@@ -1,21 +1,24 @@
 {
+ "claims": [
+  {
+   "span": "four percent niacinamide",
+   "stance": "HOST_ASSERTS",
+   "product_id": "ampoule_deep_hydration",
+   "field": "ingredient_amount",
+   "stated_value": "4% niacinamide",
+   "evidence": [
+    "S4"
+   ],
+   "source_value": "4% niacinamide",
+   "relation": "consistent",
+   "correct_value": "4% niacinamide",
+   "say": null
+  }
+ ],
  "note_checks": [
   {
    "handle": "F1",
    "fixed_by_this_line": true
   }
- ],
- "claims": [
-  {
-   "span": "four percent niacinamide",
-   "field": "ingredient_amount",
-   "product_id": "ampoule_deep_hydration",
-   "stated_value": "4% niacinamide",
-   "verdict": "supported",
-   "correct_value": "4% niacinamide",
-   "passage_id": "DL-AM-01#key-ingredients#niacinamide",
-   "quote": "Niacinamide: 4%"
-  }
- ],
- "reason": "The host correctly states the niacinamide percentage as 4%."
+ ]
 }
