@@ -387,9 +387,8 @@ function GroupDetail({ group: g }: { group: QuestionGroup }) {
 }
 
 /** The operator's reply, in place: it starts as the suggested reply and can be posted as it is, edited, or written
- * from nothing. Unchanged and verified, it is approved as the suggestion; anything else is checked by the server as
- * the operator's own text (a restricted phrase or an unverifiable number needs "Post anyway", §8.13). Ctrl+Enter
- * posts. While the operator has not typed, a suggestion that arrives later fills the box. */
+ * from nothing. Unchanged and verified, it is approved as the suggestion; anything else is posted as the operator's
+ * own text. Ctrl+Enter posts. While the operator has not typed, a suggestion that arrives later fills the box. */
 export function ReplyBox({ group: g, answer, busy, composing }: {
   group: QuestionGroup;
   answer: Answer | null;
@@ -410,12 +409,11 @@ export function ReplyBox({ group: g, answer, busy, composing }: {
   }, [start, touched]);
   const edited = text.trim() !== start.trim();
   const asSuggested = !edited && Boolean(answer?.verified);
-  const restricted = act.errorCode === "restricted_phrase" || act.errorCode === "unverified_reply";
-  const post = (confirm: boolean) =>
+  const post = () =>
     act.run(() =>
       asSuggested
         ? api.approve(sid, g.group_id)
-        : api.answer(sid, g.group_id, text.trim(), suggestion ? "operator_edit" : "operator_written", confirm),
+        : api.answer(sid, g.group_id, text.trim(), suggestion ? "operator_edit" : "operator_written"),
     );
   const disabled = act.busy || busy || !text.trim();
   return (
@@ -434,24 +432,14 @@ export function ReplyBox({ group: g, answer, busy, composing }: {
         onChange={(e) => {
           setText(e.target.value);
           setTouched(true);
-          if (restricted) act.clear();
         }}
         onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !disabled) void post(false);
+          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !disabled) void post();
         }}
       />
-      {restricted ? (
-        <div className={styles.restricted} role="alert">
-          <span>{act.error}</span>
-          <Button size="sm" variant="danger" disabled={act.busy} onClick={() => void post(true)}>
-            {t("Post anyway")}
-          </Button>
-        </div>
-      ) : (
-        act.error && <p className={styles.error}>{act.error}</p>
-      )}
+      {act.error && <p className={styles.error}>{act.error}</p>}
       <div className={styles.actions}>
-        <Button variant="primary" className={styles.postBtn} disabled={disabled} title={t("Post (Ctrl+Enter)")} onClick={() => void post(false)}>
+        <Button variant="primary" className={styles.postBtn} disabled={disabled} title={t("Post (Ctrl+Enter)")} onClick={() => void post()}>
           {t("Post")}
         </Button>
         {edited && start && (
@@ -467,17 +455,17 @@ export function ReplyBox({ group: g, answer, busy, composing }: {
               : asSuggested
               ? t("Posts the suggested reply as it is")
               : edited && suggestion
-                ? t("Edited: checked again when you post")
+                ? t("Edited: posts as it is, not checked")
                 : suggestion
-                  ? t("Not verified: checked again when you post")
-                  : t("Your own reply: checked when you post")}
+                  ? t("Not verified: posts as it is, not checked")
+                  : t("Your own reply: posts as it is, not checked")}
         </span>
       </div>
     </div>
   );
 }
 
-/** Inline editor; a restricted phrase needs "Post anyway" (§12.4.7, §8.13). */
+/** Inline editor (§12.4.7): posts the operator's text as it is. */
 export function ReplyEditor({
   group: g,
   origin,
@@ -493,10 +481,8 @@ export function ReplyEditor({
   const { sid } = useOperator();
   const [text, setText] = useState(initial);
   const act = useAction();
-  // D-205: a restricted phrase or a reply that could not be verified needs an explicit "Post anyway"
-  const restricted = act.errorCode === "restricted_phrase" || act.errorCode === "unverified_reply";
-  const post = async (confirm: boolean) => {
-    if (await act.run(() => api.answer(sid, g.group_id, text.trim(), origin, confirm))) onDone();
+  const post = async () => {
+    if (await act.run(() => api.answer(sid, g.group_id, text.trim(), origin))) onDone();
   };
   return (
     <div className={styles.editor}>
@@ -506,23 +492,11 @@ export function ReplyEditor({
         value={text}
         autoFocus
         aria-label={origin === "operator_edit" ? t("Edit reply") : t("Write reply")}
-        onChange={(e) => {
-          setText(e.target.value);
-          if (restricted) act.clear();
-        }}
+        onChange={(e) => setText(e.target.value)}
       />
-      {restricted ? (
-        <div className={styles.restricted} role="alert">
-          <span>{act.error}</span>
-          <Button size="sm" variant="danger" disabled={act.busy} onClick={() => void post(true)}>
-            {t("Post anyway")}
-          </Button>
-        </div>
-      ) : (
-        act.error && <p className={styles.error}>{act.error}</p>
-      )}
+      {act.error && <p className={styles.error}>{act.error}</p>}
       <div className={styles.actions}>
-        <Button size="sm" variant="primary" disabled={act.busy || !text.trim()} onClick={() => void post(false)}>
+        <Button size="sm" variant="primary" disabled={act.busy || !text.trim()} onClick={() => void post()}>
           {t("Post")}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDone}>

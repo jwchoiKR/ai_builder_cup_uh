@@ -19,7 +19,7 @@ from ..logic.cache import CachedAnswer, answer_cache_key, normalise_comment, tri
 from ..logic.grouping import is_open, join_group
 from ..logic.prefilter import PrefilterVerdict, mask_links, prefilter
 from ..logic.product_mapping import attribute_product, set_question
-from ..logic.promos import promo_passage, promo_state
+from ..logic.promos import promo_state
 from ..logic.record_answers import record_answer
 from ..logic.routing import is_composable, route_for
 from ..logic.pd import ShoutOut
@@ -919,57 +919,23 @@ async def approve(rt: "SessionRuntime", gid: str) -> None:
         await operator_action(rt, "approve", group_id=gid)
 
 
-async def write_answer(rt: "SessionRuntime", gid: str, text: str, origin: str, confirm: bool) -> None:
+async def write_answer(rt: "SessionRuntime", gid: str, text: str, origin: str) -> None:
     text = text.strip()
     if not text:
         raise ActionError(400, "empty_answer", "reply text is empty")
     if origin not in ("operator_edit", "operator_written"):
         raise ActionError(400, "invalid_origin", "origin must be operator_edit or operator_written")
-    hit = rt.reflex.first_hit(text)
-    if hit is not None and not confirm:
-        rule = rt.pack.rules_by_id[hit.rule_id]
-        raise ActionError(409, "restricted_phrase",
-                          f"This reply contains a restricted phrase: '{hit.phrase}' ({rule.title}).")
-    problems = await _check_operator_reply(rt, gid, text, origin)
-    if problems and not confirm:
-        raise ActionError(409, "unverified_reply", "This reply could not be verified: " + "; ".join(problems))
     async with rt.lock:
         g = await _group_or_404(rt, gid)
         if g.status in ("answered", "rejected", "closed"):
             raise ActionError(409, "invalid_state", f"group is {g.status}")
+        # the operator's reply is posted as written: no phrase, number or LLM check (user, 10/10)
         answer = Answer(answer_id=rt.new_id("ans_"), group_id=gid, text=text, citations=[], origin=origin,
-                        verified=not problems, verify_errors=problems, needs_human=False, created_at=rt.now())
+                        verified=True, verify_errors=[], needs_human=False, created_at=rt.now())
         await rt.save_answer(answer)
         g.answer_id = answer.answer_id
         await _publish_answer_locked(rt, g, kind="brand_answer", text=text, citations=[], key=f"brand_answer:{gid}")
-        await operator_action(rt, "answer", group_id=gid, origin=origin, confirmed_restricted=hit is not None)
-
-
-async def _check_operator_reply(rt: "SessionRuntime", gid: str, text: str, origin: str) -> list[str]:
-    """D-205 (full review P2): an operator's reply is checked before it is posted. Every number must be in the
-    product's sheet, a running promo or the question's draft; an edited AI draft also passes the LLM draft verifier
-    on the product's whole sheet. Problems need the operator's explicit confirmation ("Post anyway")."""
-    g = await _group_or_404(rt, gid)
-    sheet = inputs.all_passages(rt.catalog, g.product_id)
-    promo = await rt.active_price_promo()
-    sources = [p.text for p in sheet] + [promo_passage(o, rt.catalog).text
-                                         for o in [*([promo] if promo else []), *await rt.active_offers()]]
-    draft = await rt.get_answer(g.answer_id) if g.answer_id else None
-    if draft is not None and draft.verified:
-        sources.append(draft.text)
-    allowed = set().union(*(number_set(x) for x in sources)) if sources else set()
-    problems = [f"number {n} is not in the product sheet" for n in sorted(number_set(text) - allowed)]
-    if origin == "operator_edit" and not problems:
-        res = await rt.draft_verifier.run(DraftCheckInput(
-            product_id=g.product_id, question=g.canonical_question, answer=text, promo=promo, passages=sheet,
-            session_id=rt.sid, comments=[c.text for cid in g.member_comment_ids[:5]
-                                         if (c := await rt.get_comment(cid)) is not None]),
-            deadline_ms=rt.settings.DRAFT_VERIFY_TIMEOUT_MS)
-        if res.status != "ok" or res.output is None:
-            problems.append(f"draft check {res.status}")
-        elif res.output.verdict == "fail":
-            problems += [f"draft check: {p}" for p in res.output.problems] or [f"draft check: {res.output.reason}"]
-    return problems
+        await operator_action(rt, "answer", group_id=gid, origin=origin)
 
 
 async def post_suggested(rt: "SessionRuntime", gid: str) -> None:

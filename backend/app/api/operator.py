@@ -52,12 +52,11 @@ async def approve(group_id: str, rt: SessionRuntime = Depends(runtime)) -> dict:
 class AnswerBody(BaseModel):
     text: str = Field(min_length=1, max_length=1000)
     origin: Literal["operator_edit", "operator_written"]
-    confirm: bool = False
 
 
 @router.post("/groups/{group_id}/answer")
 async def answer(group_id: str, body: AnswerBody, rt: SessionRuntime = Depends(runtime)) -> dict:
-    await ops.write_answer(rt, group_id, body.text, body.origin, body.confirm)
+    await ops.write_answer(rt, group_id, body.text, body.origin)
     return OK
 
 
