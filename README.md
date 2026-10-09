@@ -58,7 +58,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 | Speech-to-Text V2, `chirp_3` (region `us`) | streaming transcription of the host, with phrase hints from the brief |
 | Vertex AI Gemini 3.5 Flash-Lite (global endpoint) | the three live judges, with a fixed seed |
 | Vertex AI Gemini 3.8 Flash | onboarding: reading product documents, the Brief agent |
-| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; one instance |
+| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; autoscaling up to 3 instances with session affinity |
 | Firestore (`live-studio`) | show state (sessions, transcripts, alerts, segments, events), written behind memory and read back after a restart |
 | Cloud Storage | approved releases, briefs and regulation packs (write-once) |
 | Model Armor | screening viewer comments |
@@ -86,7 +86,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 
 - False alerts are above the 1% line, and three products miss the detection line.
 - Tested with TTS voices, not yet with a real human host.
-- One Cloud Run instance. Show state, comments included, survives a restart through Firestore.
+- Show state, comments included, is kept in Firestore and survives a restart or a move to a new instance.
 - No per-show cost figure yet.
 
 ## Layout
