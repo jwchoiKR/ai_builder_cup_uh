@@ -25,7 +25,7 @@ ALL_FIXES = "F1,F5,Q6"
 # deploy/cloudrun.sh; test_d434.py guards that they agree). No live-path setting comes from the environment: the ones a
 # developer's shell sets are removed here, and get_settings() never reads the developer's .env in a test.
 LIVE_PATH_KEYS = (
-    "JUDGE_MODE", "JUDGE_ARM", "JUDGE_SEED", "JUDGE_PRODUCTS", "JUDGE_TIMEOUT_MS", "VERIFY_TIMEOUT_MS",
+    "JUDGE_MODE", "JUDGE_SEED", "JUDGE_PRODUCTS", "JUDGE_TIMEOUT_MS", "VERIFY_TIMEOUT_MS",
     "SINGLE_MODEL", "SINGLE_THINKING", "SINGLE_FACTS_THINKING", "FACT_RELATION", "FACT_PROMPT", "FACT_MODE",
     "FACT_FIXES", "FACT_TIMEOUT_MS", "FACT_LATE_MS", "QUESTION_HOLD", "QUESTION_HOLD_MS",
     "VERBAL_CHECK", "UTTERANCE_MERGE_WINDOW_MS", "STT_ENDPOINTING", "STT_PHRASE_HINTS_ENABLED", "DESIGN_ARM", "LLM_RETRY_ON_429_MS", "LLM_RETRY_ON_5XX", "JUDGE_HEDGE_MS",
@@ -41,7 +41,7 @@ os.environ.setdefault("STT_PROVIDER", "mock")
 # D-434: the old live-path pins, applied (with the rules-JSON compliance path) only to a file or test marked
 # `legacy_live` until it is migrated. Temporary: test_d434 fails when a file outside LEGACY_LIVE_FILES uses it.
 LEGACY_LIVE = {
-    "FACT_RELATION": "false", "JUDGE_ARM": "guards", "VERBAL_CHECK": "code", "JUDGE_PRODUCTS": "named",
+    "FACT_RELATION": "false", "VERBAL_CHECK": "code", "JUDGE_PRODUCTS": "named",
     "UTTERANCE_MERGE_WINDOW_MS": "3500", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "SINGLE_MODEL": "gemini-3.8-flash",
     "SINGLE_THINKING": "LOW", "SINGLE_FACTS_THINKING": "", "STT_ENDPOINTING": "SHORT", "QUESTION_HOLD": "false",
     "FACT_MODE": "docs",
@@ -59,7 +59,7 @@ LEGACY = LEGACY_LIVE | COMMENT_PINS
 SHIPPED = {k: Settings.model_fields[k].default for k in LEGACY}
 # D-336: the verifier arm as it shipped from D-305 to D-335 (the default is now the single arm)
 # D-392: the verify arm is gone; these shipped-default tests run the single arm
-VERIFY_SHIPPED = SHIPPED | {"JUDGE_ARM": "single", "FACT_PROMPT": "v1", "JUDGE_SEED": "", "QUESTION_HOLD": False,
+VERIFY_SHIPPED = SHIPPED | {"FACT_PROMPT": "v1", "JUDGE_SEED": "", "QUESTION_HOLD": False,
                             "FACT_MODE": "docs", "SINGLE_THINKING": "MEDIUM"}  # D-360: as it shipped
 
 _REPO = Path(__file__).resolve().parents[2]

@@ -48,7 +48,6 @@ class Settings(BaseSettings):
     # (VERIFY_MODEL) that keeps or rejects it with the evidence; "guards" is the guard layer (R3)
     # D-309 "single": the compliance judge and the fact checker on one model (SINGLE_MODEL, SINGLE_THINKING; unless
     # COMPLIANCE_MODEL / FACTS_MODEL name another), no verifier, no code drops
-    JUDGE_ARM: Literal["guards", "single"] = "single"  # D-305; D-336: the measured config; D-392: no verify or vote
     # D-314 (eval): the live judges' sampling (compliance_judge, fact_checker, context_judge); empty = not sent (the
     # model's default, D-008). JUDGE_TEMPERATURE is a number ("0"), JUDGE_SEED an integer ("7")
     JUDGE_TEMPERATURE: str = ""
@@ -98,10 +97,8 @@ class Settings(BaseSettings):
     COMPOSER_THINKING: ThinkingLevel = "LOW"  # per-agent override for AnswerComposer (D-067)
     PD_THINKING: ThinkingLevel = "LOW"  # D-166: the AI PD on LLM_QUALITY_MODEL (docs/eval/ai-pd-arms.md)
     # D-128: per-agent overrides of LLM_FAST_THINKING (thinking-level comparison, docs/eval/models/README.md)
-    COMPLIANCE_THINKING: ThinkingLevel = "LOW"
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
-    FACTS_THINKING: ThinkingLevel = "LOW"  # D-255: sealed unseen products, 5 s budget
-    # D-309 JUDGE_ARM=single: the one model and thinking level of the compliance judge and the fact checker
+    # D-309: the one model and thinking level of the compliance judge and the fact checker (D-435: the only arm)
     SINGLE_MODEL: str = "gemini-3.5-flash-lite"  # D-336: the measured config (Flash-Lite, compliance MEDIUM, facts LOW)
     SINGLE_THINKING: ThinkingLevel = "LOW"  # D-360 (user): the compliance judge thinks LOW (was MEDIUM, D-336)
     SINGLE_FACTS_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "LOW"  # D-311: the fact checker's; empty = SINGLE_THINKING
