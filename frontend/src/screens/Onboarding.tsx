@@ -85,8 +85,10 @@ type ProductInfo = { brand: string; product_name: string; category?: string; cur
   live_price: string | null; points: { text: string; required: boolean }[] };
 type ReadResult = { product_id: string; file: string; info: ProductInfo; seconds: number };
 
-const readProduct = (productId: string) =>
-  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, {});
+type HostLanguage = "en" | "ko";
+const HOST_LANGUAGES: [HostLanguage, string][] = [["en", "ENG"], ["ko", "KR"]];
+const readProduct = (productId: string, hostLanguage: HostLanguage) =>
+  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, { host_language: hostLanguage });
 
 type Approved = { product_id: string; approved_at: number; info: ProductInfo; warnings: string[] };
 const approveProduct = (productId: string, info: ProductInfo) =>
@@ -186,6 +188,7 @@ function ProductUpload({ onRead, onApproved }: {
   const [approved, setApproved] = useState<Approved | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy | null>(null);
+  const [hostLanguage, setHostLanguage] = useState<HostLanguage>("en");  // the STT terms are read for this language
   const step = async <T,>(label: string, fn: () => Promise<T>): Promise<T> => {
     setBusy({ label, since: Date.now() });
     try {
@@ -206,7 +209,7 @@ function ProductUpload({ onRead, onApproved }: {
       }
       current = "Read";
       const productId = u.product_id;
-      const r = await step("Reading the document (up to a minute)…", () => readProduct(productId));
+      const r = await step("Reading the document (up to a minute)…", () => readProduct(productId, hostLanguage));
       setRead(r);
       setDraft(r.info);
       onRead(true);
@@ -217,6 +220,19 @@ function ProductUpload({ onRead, onApproved }: {
   return (
     <Box title="1 · Product information" note="One PDF of the product's information. It is read as soon as you drop it."
          testId="onb-product" done={approved !== null}>
+      <div className={styles.actions}>
+        <span className={styles.factLabel}>Host language</span>
+        <div className={styles.segmented} role="radiogroup" aria-label="Host language">
+          {HOST_LANGUAGES.map(([code, label]) => (
+            <button key={code} type="button" role="radio" aria-checked={hostLanguage === code}
+                    data-testid={`onb-host-lang-${code}`} disabled={busy !== null || approved !== null}
+                    className={[styles.segment, hostLanguage === code && styles.segmentActive].filter(Boolean).join(" ")}
+                    onClick={() => setHostLanguage(code)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <DropZone testId="onb-product" file={file} disabled={busy !== null || approved !== null}
                 onFile={(f) => {
                   setFile(f); setUploaded(null); setRead(null); setDraft(null); setApproved(null);
