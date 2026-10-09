@@ -88,7 +88,7 @@ describe("every event type", () => {
       "metrics.updated": { header: { alert_in_s: 2.4, judge_p50_s: 1.4, instant_answers: 3, answers_total: 4 } },
       "operator.action": { actor: "operator", action: "push", group_id: "grp_000001" },
       "agent.call": { call_id: "call_1", agent: "comment_triage", model: "m", prompt_version: "v", started_at: T0, latency_ms: 900, status: "ok", input_hash: "h", input_preview: "p", output: {}, error: null },
-      "judge.failed": { transcript_id: "tr_1", status: "timeout", alert_ids: [] },
+      "judge.failed": { transcript_id: "tr_1", cause: "timeout" },
       "judge.health": { degraded: ["compliance_judge"], at: 1 },
       "segment.extended": { segment: segment(), added_sec: 120 },
       "summary.ready": {},

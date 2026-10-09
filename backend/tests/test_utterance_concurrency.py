@@ -165,7 +165,7 @@ async def test_judge_timeout_does_not_block_later_context():
         await asyncio.wait_for(started.wait(), 2)
         await speak(rt, 'Second sentence.', wait=False)
         await asyncio.wait_for(rt.utterances.drain(), 2)
-        assert any(e.payload['status'] == 'timeout' for e in await events(rt, 'judge.failed'))
+        assert any(e.payload['cause'] == 'timeout' for e in await events(rt, 'judge.failed'))
         assert (await rt.current_segment()).covered_point_ids == ['cr-p1']
     finally:
         gate.set()

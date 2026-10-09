@@ -65,7 +65,7 @@ async def test_compliance_failure_fails_toward_warning_and_skips_publish(env):
     llm.fail("compliance_judge", ANSWER)
     await speak(rt, ANSWER)
     [ev] = await events(rt, "judge.failed")
-    assert ev.payload["status"] == "error"
+    assert ev.payload["cause"] == "error"
     assert await messages(rt, "host_answer") == []  # no compliance verdict: never post
     assert (await rt.current_segment()).covered_point_ids == ["cr-p1"]  # context still applied
 
