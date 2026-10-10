@@ -101,8 +101,13 @@ export function DemoConsole({
   const { state } = useSession(sessionId, "operator");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [script, setScript] = useState(() => load(SCRIPT_KEY) ?? "");
-  const [comments, setComments] = useState(() => load(COMMENTS_KEY) ?? "");
+  const [script, setScript] = useState("");
+  const [comments, setComments] = useState("");
+  // Lists are remembered per product set, so one product's lines never show on another's show.
+  const s0 = state.session;
+  const productKey = (s0?.release_ids?.length ? [...s0.release_ids] : s0?.release_id ? [s0.release_id] : [])
+    .sort().join(",");
+  const [loadedKey, setLoadedKey] = useState("");
   const [injected, setInjected] = useState<Set<number>>(new Set());
   const [freeText, setFreeText] = useState("");
   const [author, setAuthor] = useState("Viewer");
@@ -138,8 +143,13 @@ export function DemoConsole({
     resizeTo((height ?? drawer.current?.getBoundingClientRect().height ?? 300) + step);
   };
 
-  useEffect(() => save(SCRIPT_KEY, script), [script]);
-  useEffect(() => save(COMMENTS_KEY, comments), [comments]);
+  useEffect(() => {
+    setScript(productKey ? load(`${SCRIPT_KEY}.${productKey}`) ?? "" : "");
+    setComments(productKey ? load(`${COMMENTS_KEY}.${productKey}`) ?? "" : "");
+    setLoadedKey(productKey);
+  }, [productKey]);
+  useEffect(() => { if (loadedKey) save(`${SCRIPT_KEY}.${loadedKey}`, script); }, [script, loadedKey]);
+  useEffect(() => { if (loadedKey) save(`${COMMENTS_KEY}.${loadedKey}`, comments); }, [comments, loadedKey]);
   useEffect(() => {
     setInjected(new Set());
     setChatter(false);

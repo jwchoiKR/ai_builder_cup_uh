@@ -1,33 +1,70 @@
-// Product onboarding: rebuilt from scratch. Product documents and regulation documents are uploaded in separate
-// boxes, one PDF each. Product: uploaded to the bucket, read by one model call, approved (new API, steps 1-4).
-// Regulations: one PDF uploaded to the bucket. A show needs both.
+// Product onboarding. Product documents and regulation documents go in separate boxes, one PDF each.
+// Dropping a file is the only manual step before approval: the product PDF is uploaded and read on its own,
+// the regulation PDF is uploaded on its own. A person approves the product and creates the release.
 import { useState, type ReactNode } from "react";
 
-import { Button, Chip, Eyebrow, HubLink } from "../components";
+import { Plus, X } from "lucide-react";
+
+import { Button, Chip, Elapsed, Eyebrow, HubLink } from "../components";
 import { PDF_ACCEPT, pdfOnly } from "../app/pdfOnly";
 import { API_BASE, ApiError, request } from "../app/api";
 import { navigate } from "../app/nav";
 import styles from "./onboarding/onboarding.module.css";
 
-function UploadBox({ title, note, testId, onFile, children }: {
-  title: string; note: string; testId: string; onFile?: (f: File | null) => void; children?: ReactNode;
+const sizeLabel = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+const errorText = (step: string, e: unknown) => `${step} failed: ${e instanceof Error ? e.message : String(e)}`;
+
+/** Drop a PDF on the box, or click it to choose one. Keyboard users reach the hidden input through the label. */
+function DropZone({ testId, file, disabled, onFile }: {
+  testId: string; file: File | null; disabled: boolean; onFile: (f: File | null) => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [over, setOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pick = (files: File[]) => {
+    const picked = pdfOnly(files.slice(0, 1));
+    setError(picked.error);
+    if (picked.files[0]) onFile(picked.files[0]);
+  };
   return (
-    <section className={styles.block} data-testid={testId}>
-      <h2 className={styles.blockTitle}>{title}</h2>
-      <p className={styles.muted}>{note}</p>
-      <input type="file" accept={PDF_ACCEPT} data-testid={`${testId}-file`}
-             onChange={(e) => {
-               const pick = pdfOnly(Array.from(e.target.files ?? []).slice(0, 1));
-               setError(pick.error);
-               setFile(pick.files[0] ?? null);
-               onFile?.(pick.files[0] ?? null);
-               if (pick.error) e.target.value = "";
-             }} />
-      {file && <p className={styles.value}>{file.name}</p>}
+    <>
+      <label className={[styles.drop, over && styles.dropOver, disabled && styles.dropDisabled].filter(Boolean).join(" ")}
+             data-testid={`${testId}-drop`}
+             onDragOver={(e) => { e.preventDefault(); if (!disabled) setOver(true); }}
+             onDragLeave={() => setOver(false)}
+             onDrop={(e) => { e.preventDefault(); setOver(false); if (!disabled) pick(Array.from(e.dataTransfer.files)); }}>
+        <input type="file" accept={PDF_ACCEPT} className="visually-hidden" disabled={disabled}
+               data-testid={`${testId}-file`}
+               onChange={(e) => { pick(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+        {file
+          ? <span className={styles.value}><b>{file.name}</b> <span className={styles.count}>{sizeLabel(file.size)}</span></span>
+          : <span className={styles.muted}>Drop a PDF here, or click to choose one</span>}
+        {file && !disabled && <span className={styles.muted}>Drop another PDF to replace it</span>}
+      </label>
       {error && <p className={styles.error}>{error}</p>}
+    </>
+  );
+}
+
+/** What is running now, with the seconds since it started. */
+function Working({ label, since }: { label: string; since: number }) {
+  return (
+    <p className={styles.status} role="status">
+      {label} <Elapsed since={since} serverOffsetMs={0} format="mmss" className={styles.count} />
+    </p>
+  );
+}
+
+function Box({ title, note, testId, done, onRemove, children }: {
+  title: string; note: string; testId: string; done: boolean; onRemove?: () => void; children: ReactNode;
+}) {
+  return (
+    <section className={[styles.block, done && styles.ok].filter(Boolean).join(" ")} data-testid={testId}>
+      <h2 className={styles.blockTitle}>{title} {done && <Chip tone="ok">Done</Chip>}
+        {onRemove && <button type="button" className={styles.cardClose} aria-label={`Remove ${title}`}
+                             onClick={onRemove}><X size={16} aria-hidden /></button>}
+      </h2>
+      <p className={styles.muted}>{note}</p>
       {children}
     </section>
   );
@@ -47,139 +84,266 @@ async function uploadPdf<T>(path: string, file: File): Promise<T> {
 const uploadProduct = (file: File) => uploadPdf<Uploaded>("/products", file);
 const uploadRegulation = (file: File) => uploadPdf<RegulationUploaded>("/regulations", file);
 
-type ProductInfo = { brand: string; product_name: string; currency: string | null; list_price: string | null;
+type ProductInfo = { brand: string; product_name: string; category?: string; currency: string | null; list_price: string | null;
   live_price: string | null; points: { text: string; required: boolean }[] };
 type ReadResult = { product_id: string; file: string; info: ProductInfo; seconds: number };
 
-const readProduct = (productId: string) =>
-  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, {});
-type Approved = { product_id: string; approved_at: number; info: ProductInfo; warnings: string[] };
-const approveProduct = (productId: string) =>
-  request<Approved>("POST", `/products/${encodeURIComponent(productId)}/approve`, {});
+type HostLanguage = "en" | "ko";
+const HOST_LANGUAGES: [HostLanguage, string][] = [["en", "ENG"], ["ko", "KR"]];
+const readProduct = (productId: string, hostLanguage: HostLanguage) =>
+  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, { host_language: hostLanguage });
 
-/** The rebuilt onboarding, steps 1-3: one product PDF into the bucket (POST /api/products), one model read
- * (POST /api/products/{id}/read), and what it found. */
-function ProductUpload({ onApproved }: { onApproved: (productId: string | null) => void }) {
+type Approved = { product_id: string; approved_at: number; info: ProductInfo; warnings: string[] };
+const approveProduct = (productId: string, info: ProductInfo) =>
+  request<Approved>("POST", `/products/${encodeURIComponent(productId)}/approve`, { info });
+
+/** The read as the person left it: blank prices and currency become null, blank points are dropped. */
+const cleaned = (d: ProductInfo): ProductInfo => {
+  const opt = (v: string | null) => v?.trim() || null;
+  return { ...d, brand: d.brand.trim(), product_name: d.product_name.trim(),
+    category: d.category?.trim() ?? "", currency: opt(d.currency),
+    list_price: opt(d.list_price), live_price: opt(d.live_price),
+    points: d.points.map((p) => ({ ...p, text: p.text.trim() })).filter((p) => p.text) };
+};
+
+/** One label: value row; the value reads as text and turns into an input on hover and focus. */
+function FactRow({ label, value, onChange, disabled }: {
+  label: string; value: string | null; onChange: (v: string) => void; disabled: boolean;
+}) {
+  return (
+    <>
+      <dt className={styles.factLabel}>{label}</dt>
+      <dd className={styles.factValue}>
+        <input className={styles.ghost} value={value ?? ""} placeholder="Not in the document" disabled={disabled}
+               aria-label={label} onChange={(e) => onChange(e.target.value)} />
+      </dd>
+    </>
+  );
+}
+
+/** The model's read, editable before approval: every value is edited in place, each point has its own
+ * Required toggle. */
+function ProductForm({ draft, onChange, disabled }: {
+  draft: ProductInfo; onChange: (d: ProductInfo) => void; disabled: boolean;
+}) {
+  const set = (patch: Partial<ProductInfo>) => onChange({ ...draft, ...patch });
+  const setPoint = (i: number, patch: Partial<ProductInfo["points"][number]>) =>
+    set({ points: draft.points.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
+  const required = draft.points.filter((p) => p.required).length;
+  return (
+    <div className={styles.sheet} data-testid="onb-product-form">
+      <div>
+        <input className={[styles.ghost, styles.brandInput].join(" ")} value={draft.brand} placeholder="Brand"
+               aria-label="Brand" disabled={disabled} onChange={(e) => set({ brand: e.target.value })} />
+        <input className={[styles.ghost, styles.nameInput].join(" ")} value={draft.product_name}
+               placeholder="Product name" aria-label="Product name" disabled={disabled}
+               onChange={(e) => set({ product_name: e.target.value })} />
+      </div>
+      <dl className={styles.facts}>
+        <FactRow label="Category" value={draft.category ?? null} disabled={disabled} onChange={(v) => set({ category: v })} />
+        <FactRow label="Currency" value={draft.currency} disabled={disabled} onChange={(v) => set({ currency: v })} />
+        <FactRow label="Live price" value={draft.live_price} disabled={disabled} onChange={(v) => set({ live_price: v })} />
+        <FactRow label="List price" value={draft.list_price} disabled={disabled} onChange={(v) => set({ list_price: v })} />
+      </dl>
+      <div className={styles.pointsHead}>
+        <h4 className={styles.blockTitle}>Points</h4>
+        <span className={styles.count}>{draft.points.length} · {required} required</span>
+      </div>
+      <ul className={styles.pointRows}>
+        {draft.points.map((pt, i) => (
+          <li key={i} className={styles.point}>
+            <button type="button" className={[styles.reqToggle, pt.required && styles.reqOn].filter(Boolean).join(" ")}
+                    aria-pressed={pt.required} disabled={disabled} title="Must the host say this?"
+                    onClick={() => setPoint(i, { required: !pt.required })}>
+              {pt.required ? "Required" : "Optional"}
+            </button>
+            <textarea className={[styles.ghost, styles.pointText].join(" ")} rows={Math.max(1, Math.ceil(pt.text.length / 70))} value={pt.text}
+                      disabled={disabled} aria-label={`Point ${i + 1}`} placeholder="New point"
+                      onChange={(e) => setPoint(i, { text: e.target.value })} />
+            {!disabled && (
+              <button type="button" className={styles.iconBtn} aria-label={`Remove point ${i + 1}`}
+                      onClick={() => set({ points: draft.points.filter((_, j) => j !== i) })}><X size={14} aria-hidden /></button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {!disabled && (
+        <button type="button" className={styles.addLink}
+                onClick={() => set({ points: [...draft.points, { text: "", required: false }] })}>
+          <Plus size={14} aria-hidden /> Add point
+        </button>
+      )}
+    </div>
+  );
+}
+
+type Busy = { label: string; since: number };
+
+/** One product PDF: dropped → uploaded (POST /api/products) → read by one model call (POST .../read) → shown for
+ * approval (POST .../approve). Upload and read run on their own; a person only approves. */
+function ProductUpload({ title, onRead, onApproved, onRemove }: {
+  title: string; onRead: (read: boolean) => void; onApproved: (productId: string | null) => void; onRemove?: () => void;
+}) {
   const [file, setFile] = useState<File | null>(null);
   const [uploaded, setUploaded] = useState<Uploaded | null>(null);
   const [read, setRead] = useState<ReadResult | null>(null);
+  const [draft, setDraft] = useState<ProductInfo | null>(null);
   const [approved, setApproved] = useState<Approved | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"upload" | "read" | "approve" | null>(null);
-  const run = async (kind: "upload" | "read" | "approve", fn: () => Promise<void>) => {
-    setBusy(kind);
-    setError(null);
+  const [busy, setBusy] = useState<Busy | null>(null);
+  const [hostLanguage, setHostLanguage] = useState<HostLanguage>("en");  // the points and STT terms are read for this language
+  const step = async <T,>(label: string, fn: () => Promise<T>): Promise<T> => {
+    setBusy({ label, since: Date.now() });
     try {
-      await fn();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      return await fn();
     } finally {
       setBusy(null);
     }
   };
-  const info = read?.info;
+  // upload when not yet uploaded, then read; a failure stops here and "Try again" resumes from that step
+  const uploadAndRead = async (f: File, up: Uploaded | null) => {
+    setError(null);
+    let current = "Upload";
+    try {
+      let u = up;
+      if (!u) {
+        u = await step("Uploading…", () => uploadProduct(f));
+        setUploaded(u);
+      }
+      current = "Read";
+      const productId = u.product_id;
+      const r = await step("Reading the document (up to a minute)…", () => readProduct(productId, hostLanguage));
+      setRead(r);
+      setDraft(r.info);
+      onRead(true);
+    } catch (e) {
+      setError(errorText(current, e));
+    }
+  };
   return (
-    <UploadBox title="Product information" note="One PDF of the product's information." testId="onb-product"
-               onFile={(f) => { setFile(f); setUploaded(null); setRead(null); setApproved(null); setError(null); onApproved(null); }}>
+    <Box title={title} note="One PDF of the product's information. It is read as soon as you drop it."
+         testId="onb-product" done={approved !== null} onRemove={onRemove}>
       <div className={styles.actions}>
-        <Button variant="primary" disabled={busy !== null || !file || uploaded !== null} data-testid="onb-product-upload"
-                onClick={() => run("upload", async () => setUploaded(await uploadProduct(file!)))}>
-          {busy === "upload" ? "Uploading…" : "Upload"}
-        </Button>
-        <Button variant="primary" disabled={busy !== null || !uploaded} data-testid="onb-product-read"
-                onClick={() => run("read", async () => {
-                  setRead(await readProduct(uploaded!.product_id));
-                  setApproved(null);
-                  onApproved(null);
-                })}>
-          {busy === "read" ? "Reading… up to a minute" : read ? "Read again" : "Read"}
-        </Button>
+        <span className={styles.factLabel}>Host language</span>
+        <div className={styles.segmented} role="radiogroup" aria-label="Host language">
+          {HOST_LANGUAGES.map(([code, label]) => (
+            <button key={code} type="button" role="radio" aria-checked={hostLanguage === code}
+                    data-testid={`onb-host-lang-${code}`} disabled={busy !== null || approved !== null}
+                    className={[styles.segment, hostLanguage === code && styles.segmentActive].filter(Boolean).join(" ")}
+                    onClick={() => setHostLanguage(code)}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
-      {uploaded && (
-        <p className={styles.value} data-testid="onb-product-uploaded">
-          Uploaded <b>{uploaded.file}</b> as {uploaded.product_id}
-        </p>
+      <DropZone testId="onb-product" file={file} disabled={busy !== null || approved !== null}
+                onFile={(f) => {
+                  setFile(f); setUploaded(null); setRead(null); setDraft(null); setApproved(null);
+                  onRead(false); onApproved(null);
+                  if (f) void uploadAndRead(f, null);
+                }} />
+      {busy && <Working label={busy.label} since={busy.since} />}
+      {error && (
+        <div className={styles.actions}>
+          <p className={styles.error}>{error}</p>
+          {file && <Button disabled={busy !== null} data-testid="onb-product-retry"
+                           onClick={() => void uploadAndRead(file, uploaded)}>Try again</Button>}
+        </div>
       )}
-      {info && (
+      {read && draft && (
         <div className={styles.summary} data-testid="onb-product-info">
-          <h3 className={styles.product}>{info.brand} · {info.product_name}</h3>
-          <p className={styles.value}>
-            {info.live_price ? `${info.currency ?? ""} ${info.live_price} live` : "No price in the document"}
-            {info.list_price && info.list_price !== info.live_price ? ` · ${info.list_price} list` : ""}
-          </p>
-          <h4 className={styles.blockTitle}>
-            Points <span className={styles.count}>{info.points.length}</span>
-          </h4>
-          <ul className={styles.rows}>
-            {info.points.map((pt, i) => (
-              <li key={i} className={styles.inline}>
-                {pt.required && <Chip tone="risk">Required</Chip>}
-                <span className={styles.value}>{pt.text}</span>
-              </li>
-            ))}
-          </ul>
-          <p className={styles.muted}>Read in {read!.seconds} s</p>
-          <div className={styles.actions}>
+          <ProductForm draft={draft} onChange={setDraft} disabled={busy !== null || approved !== null} />
+          <div className={styles.footer}>
             <Button variant="primary" disabled={busy !== null || approved !== null} data-testid="onb-product-approve"
-                    onClick={() => run("approve", async () => {
-                      const a = await approveProduct(read!.product_id);
-                      setApproved(a);
-                      onApproved(a.product_id);
-                    })}>
-              {busy === "approve" ? "Approving…" : approved ? "Approved" : "Approve"}
+                    onClick={() => {
+                      setError(null);
+                      step("Approving…", () => approveProduct(read.product_id, cleaned(draft))).then((a) => {
+                        setApproved(a);
+                        onApproved(a.product_id);
+                      }).catch((e) => setError(errorText("Approve", e)));
+                    }}>
+              {approved ? "Approved" : "Approve"}
             </Button>
+            {!approved && (
+              <Button disabled={busy !== null} data-testid="onb-product-read"
+                      onClick={() => file && void uploadAndRead(file, uploaded)}>
+                Read again
+              </Button>
+            )}
+            <span className={styles.footerNote}>Read in {read.seconds} s · click any text to edit</span>
           </div>
           {approved?.warnings.map((w) => <p key={w} className={styles.warning}>{w}</p>)}
         </div>
       )}
-      {error && <p className={styles.error}>{error}</p>}
-    </UploadBox>
+    </Box>
   );
 }
 
-/** One regulation PDF into the bucket (POST /api/regulations). A show needs one. */
+/** One regulation PDF into the bucket (POST /api/regulations), uploaded as soon as it is dropped. */
 function RegulationUpload({ onUploaded }: { onUploaded: (regulationId: string | null) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploaded, setUploaded] = useState<RegulationUploaded | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [since, setSince] = useState<number | null>(null);
+  const upload = async (f: File) => {
+    setError(null);
+    setSince(Date.now());
+    try {
+      const u = await uploadRegulation(f);
+      setUploaded(u);
+      onUploaded(u.regulation_id);
+    } catch (e) {
+      setError(errorText("Upload", e));
+    } finally {
+      setSince(null);
+    }
+  };
   return (
-    <UploadBox title="Regulations" note="One PDF of the regulations that apply. Required for the show."
-               testId="onb-regulation"
-               onFile={(f) => { setFile(f); setUploaded(null); setError(null); onUploaded(null); }}>
-      <div className={styles.actions}>
-        <Button variant="primary" disabled={busy || !file || uploaded !== null} data-testid="onb-regulation-upload"
-                onClick={async () => {
-                  setBusy(true);
-                  setError(null);
-                  try {
-                    const u = await uploadRegulation(file!);
-                    setUploaded(u);
-                    onUploaded(u.regulation_id);
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : String(e));
-                  } finally {
-                    setBusy(false);
-                  }
-                }}>
-          {busy ? "Uploading…" : "Upload"}
-        </Button>
-      </div>
-      {uploaded && (
-        <p className={styles.value} data-testid="onb-regulation-uploaded">
-          Uploaded <b>{uploaded.file}</b> as {uploaded.regulation_id}
-        </p>
+    <Box title="Regulations" note="One PDF of the regulations that apply. Required for the show."
+         testId="onb-regulation" done={uploaded !== null}>
+      <DropZone testId="onb-regulation" file={file} disabled={since !== null}
+                onFile={(f) => {
+                  setFile(f); setUploaded(null); onUploaded(null);
+                  if (f) void upload(f);
+                }} />
+      {since !== null && <Working label="Uploading…" since={since} />}
+      {error && (
+        <div className={styles.actions}>
+          <p className={styles.error}>{error}</p>
+          {file && <Button disabled={since !== null} data-testid="onb-regulation-retry"
+                           onClick={() => void upload(file)}>Try again</Button>}
+        </div>
       )}
-      {error && <p className={styles.error}>{error}</p>}
-    </UploadBox>
+    </Box>
   );
 }
 
+/** One stage of the page on the left rail (products, regulations, release, done): its mark, then the line down to the next stage. */
+function Stage({ mark, done, next, last, children }: {
+  mark: string; done: boolean; next: boolean; last?: boolean; children?: ReactNode;
+}) {
+  return (
+    <div className={[styles.stage, done && styles.stageDone, last && styles.stageLast].filter(Boolean).join(" ")}
+         aria-current={next ? "step" : undefined}>
+      <span className={[styles.stageMark, next && styles.stageNext].filter(Boolean).join(" ")}>{done ? "✓" : mark}</span>
+      <div className={styles.stageBody}>{children}</div>
+    </div>
+  );
+}
+
+type Slot = { key: number; read: boolean; productId: string | null };
+
 export function Onboarding() {
-  const [productId, setProductId] = useState<string | null>(null);
+  // several products share the one regulation PDF; each approved product becomes its own release
+  const [slots, setSlots] = useState<Slot[]>([{ key: 0, read: false, productId: null }]);
+  const setSlot = (key: number, patch: Partial<Slot>) =>
+    setSlots((ss) => ss.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  const productIds = slots.map((s) => s.productId).filter((id): id is string => id !== null);
+  const allApproved = productIds.length === slots.length;
   const [regulationId, setRegulationId] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const missing = [!allApproved && "approve every product", !regulationId && "upload the regulation PDF"].filter(Boolean);
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -187,35 +351,53 @@ export function Onboarding() {
           <HubLink sessionId={null} /> · PRODUCT ONBOARDING
         </Eyebrow>
       </header>
-      <ProductUpload onApproved={setProductId} />
-      <RegulationUpload onUploaded={setRegulationId} />
-      {/* a release needs both (the server checks the same); the show starts from the hub's Pick products */}
-      <section className={styles.block} data-testid="onb-ready">
-        <h2 className={styles.blockTitle}>Before the show</h2>
-        <ul className={styles.rows}>
-          <li className={styles.value}>{productId ? "✓" : "○"} Product approved</li>
-          <li className={styles.value}>{regulationId ? "✓" : "○"} Regulation file uploaded</li>
-        </ul>
-        <div className={styles.actions}>
-          <Button variant="primary" disabled={starting || !productId || !regulationId} data-testid="onb-release"
-                  onClick={async () => {
-                    setStarting(true);
-                    setError(null);
-                    try {
-                      await request("POST", `/products/${encodeURIComponent(productId!)}/release`,
-                        { regulation_id: regulationId });
-                      navigate("/");  // the hub's Pick products lists the release
-                    } catch (e) {
-                      setError(e instanceof Error ? e.message : String(e));
-                    } finally {
-                      setStarting(false);
-                    }
-                  }}>
-            {starting ? "Creating…" : "Create release"}
-          </Button>
-        </div>
-        {error && <p className={styles.error}>{error}</p>}
-      </section>
+      <Stage mark="1" done={allApproved} next={!allApproved}>
+        {slots.map((s, i) => (
+          <ProductUpload key={s.key} title={`Product ${slots.length > 1 ? i + 1 : "information"}`}
+                         onRead={(read) => setSlot(s.key, { read })}
+                         onApproved={(productId) => setSlot(s.key, { productId })}
+                         onRemove={slots.length > 1 ? () => setSlots((ss) => ss.filter((x) => x.key !== s.key)) : undefined} />
+        ))}
+        <button type="button" className={styles.addLink} data-testid="onb-product-add"
+                onClick={() => setSlots((ss) => [...ss, { key: Math.max(...ss.map((x) => x.key)) + 1, read: false, productId: null }])}>
+          <Plus size={14} aria-hidden /> Add product
+        </button>
+      </Stage>
+      <Stage mark="2" done={regulationId !== null} next={allApproved && regulationId === null}>
+        <RegulationUpload onUploaded={setRegulationId} />
+      </Stage>
+      <Stage mark="3" done={false} next={!missing.length}>
+        {/* a release needs both (the server checks the same); the show starts from the hub's Pick products */}
+        <section className={styles.block} data-testid="onb-ready">
+          <h2 className={styles.blockTitle}>Release</h2>
+          <p className={styles.muted}>
+            {missing.length ? `To create the release, ${missing.join(" and ")}.` : `Ready. ${productIds.length > 1 ? `${productIds.length} releases appear` : "The release appears"} in the hub's Pick products.`}
+          </p>
+          <div className={styles.actions}>
+            <Button variant="primary" disabled={starting || !allApproved || !regulationId} data-testid="onb-release"
+                    onClick={async () => {
+                      setStarting(true);
+                      setError(null);
+                      try {
+                        for (const id of productIds)  // one release per product, all on the same regulation
+                          await request("POST", `/products/${encodeURIComponent(id)}/release`,
+                            { regulation_id: regulationId });
+                        navigate("/");  // the hub's Pick products lists the release
+                      } catch (e) {
+                        setError(errorText("Release", e));
+                      } finally {
+                        setStarting(false);
+                      }
+                    }}>
+              {starting ? "Creating…" : productIds.length > 1 ? `Create ${productIds.length} releases` : "Create release"}
+            </Button>
+          </div>
+          {error && <p className={styles.error}>{error}</p>}
+        </section>
+      </Stage>
+      <Stage mark="" done={false} next={false} last>
+        <span className={styles.stageEnd}>Done</span>
+      </Stage>
     </div>
   );
 }

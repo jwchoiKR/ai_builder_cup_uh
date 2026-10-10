@@ -51,7 +51,7 @@ afterEach(() => {
 describe("screens", () => {
   it("D-230: the Studio's panes load the session's own catalog (an onboarded product's show)", async () => {
     render(<Studio sessionId="ses_rel" />);
-    await screen.findByText("Host + Operator");
+    await screen.findByRole("button", { name: "Host" });
     await waitFor(() =>
       expect((fetch as unknown as { mock: { calls: string[][] } }).mock.calls.map((c) => c[0])).toContain(
         "/api/catalog?session=ses_rel",
@@ -61,18 +61,33 @@ describe("screens", () => {
 
   it("Studio renders the default preset, the demo console, and toggles recording mode", async () => {
     render(<Studio sessionId="ses_000001" />);
-    expect(await screen.findByText("Host + Operator")).toBeInTheDocument();
-    expect(screen.getAllByText("Host screen").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("button", { name: "Host", pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Operator", pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Viewer", pressed: false })).toBeInTheDocument();
+    expect(screen.queryByText("Host screen")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /Demo console/ })).toBeInTheDocument();
     act(() => {
       fireEvent.keyDown(window, { key: "r" });
     });
-    expect(screen.queryByText("Host + Operator")).not.toBeInTheDocument(); // recording mode hides the chrome
+    expect(screen.queryByRole("button", { name: "Viewer" })).not.toBeInTheDocument(); // recording mode hides the chrome
     act(() => {
       fireEvent.keyDown(window, { key: "R" });
     });
-    fireEvent.click(screen.getByText("All three"));
-    expect(screen.getAllByText("Viewer").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Viewer" }));
+    expect(screen.getByRole("region", { name: "Viewer" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Operator" }));
+    expect(screen.queryByRole("region", { name: "Operator" })).not.toBeInTheDocument();
+  });
+
+  it("Studio: the splitter between two screens moves their edge (arrow keys, 5%)", async () => {
+    render(<Studio sessionId="ses_000001" />);
+    const split = await screen.findByTestId("studio-split-0");
+    const host = () => screen.getByRole("region", { name: "Host" }).style.flexGrow;
+    const before = Number(host());
+    fireEvent.keyDown(split, { key: "ArrowRight" });
+    expect(Number(host())).toBeGreaterThan(before);
+    fireEvent.doubleClick(split);
+    expect(Number(host())).toBe(50);
   });
 
   it("Studio has one link back to the hub, in its header; the panes have none", async () => {

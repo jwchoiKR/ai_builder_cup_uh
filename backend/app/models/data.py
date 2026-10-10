@@ -63,6 +63,7 @@ class Product(BaseModel):
     cautions: list[str] = []  # short host lines from the sheet's Cautions section (D-106)
     avoid_saying: list[AvoidSaying] = []
     variants: list[ProductVariant] = []  # D-281: every priced variant, the first is the main one (volume, live_price)
+    stt_terms: list[str] = []  # speech recognizer hints from the product read (onboarded products); no judge reads them
     ingredients: list[Ingredient] = []  # D-423: every ingredient (onboarded products); the shipped demo uses key_facts
     # D-448: the approved product's brand and category ("face cream"), for the judges' product context
     brand: str = ""
