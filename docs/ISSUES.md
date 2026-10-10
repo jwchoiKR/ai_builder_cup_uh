@@ -63,3 +63,8 @@ Both B and B2 failed the pre-set kill rule (any wrong clear), so the prompt was 
 **Left to try (needs the user):** the separate prompter-only call at thinking MEDIUM (nothing waits on it; an 8 s budget covers MEDIUM's p95 4.7 s), with the bare-word sentence. Or accept that a line stating amount and content but not the dose ticks.
 
 **Update 10/11 (revision 00027, D-450 prompter judge at MEDIUM deployed).** Cloud check on the new product reads: "레몬향" alone no tick (fixed); "다음은 크림 보여드릴게요." switched to the cream by category (D-448b works); but "It has a thousand milligrams of EPA and DHA." ticked "Provides 1,000 mg of EPA and DHA in two softgels a day." again (the probe had 0/5; the point wording from the new onboarding differs, and the prompter call took 0.7 s, so MEDIUM did not think), and "레몬향 코팅이라 비린 맛이 거의 없어요." ticked "Features a lemon-scented coating, with 26 of 30 people in an in-house survey reporting no fishy aftertaste." without the survey number. Still open.
+
+**Resolved 10/11 (D-455, revision 00028, main 30f4852).** The prompter judge runs on gemini-3.8-flash at thinking LOW with no deadline (D-454 probe: wrong 0/40, missed 0/63). Cloud check on the real Omega-3 read: the near-complete EPA line and the lemon line without the survey number no longer tick; the full lines tick; "레몬향" alone does not tick.
+
+## I-1 status (10/11)
+Resolved by the other team's PR #3 (34982cf): a screen without `?session` no longer joins a demo show.
