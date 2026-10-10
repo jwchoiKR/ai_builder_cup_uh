@@ -62,11 +62,12 @@ Other behaviour:
 - **Hidden comments.** Profanity, insults aimed at people, spam and personal information are hidden. A negative
   opinion without abuse ("boo, not for me") is a reaction and stays visible (owner decision).
 - **Prompt injection.** A comment that only gives the system orders, found by Model Armor's injection filter or by
-  triage (`signal=injection`), stays in chat and gets one fixed line as its reply (`viewer_replies.cannot_answer` in
-  `data/templates/notices.json`; no model writes it, and no model reads an Armor-blocked comment). One such reply
-  per viewer a minute; their next attempts are hidden. `INJECTION_REPLY=hide` hides them all, as before. Anything
-  else Armor blocks (a harmful link, abuse) is hidden. A real question with an order appended stays a question and
-  the order is ignored.
+  triage (`signal=injection`), is hidden like any other hidden comment, and no model reads an Armor-blocked comment.
+  `INJECTION_REPLY=reply` keeps it in chat instead and answers it with one fixed line
+  (`viewer_replies.cannot_answer` in `data/templates/notices.json`; no model writes it; one per viewer a minute).
+  A real question with an order appended stays a question and the order is ignored.
+- **A hidden comment in the viewer chat** keeps its place as a grey line, "This comment has been hidden.", with the
+  author's name and time and never its text. The host's chat drops it; the operator's list shows it with its text.
 - **Stream problems.** "No sound", "frozen" are reactions with `signal=stream_issue`, shown to the operator.
 - **No grouping by meaning** (owner decision). Only a comment that repeats a member's own words joins a question;
   every other wording is its own question with its own reply and its own row.

@@ -45,7 +45,7 @@ export type ViewerChatRow =
   | { kind: "hidden"; key: string; at: number; comment: Comment };
 
 /** English label (i18n key) of a hidden comment's line. */
-export const HIDDEN_LABEL = "This comment was hidden by the moderator.";
+export const HIDDEN_LABEL = "This comment has been hidden.";
 
 export const PROMO_PREFIX = "PROMO#";
 
