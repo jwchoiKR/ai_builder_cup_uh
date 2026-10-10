@@ -184,7 +184,7 @@ export const KO_HUB: Record<string, string> = {
   "Pick products": "방송 제품 선택",
   "Combined view": "통합 화면",
   "Screens side by side": "여러 화면을 한 번에",
-  "Host + Operator, Host + Viewer or all three on one screen.": "진행자+운영자, 진행자+시청자 또는 세 화면을 한 화면에 봅니다.",
+  "Host, Operator and Viewer side by side: turn each one on or off.": "진행자, 운영자, 시청자 화면을 나란히 봅니다. 화면마다 켜고 끌 수 있습니다.",
   "Choose the approved products for this show. A During-the-show screen starts the show with them.": "승인된 제품 중 이번 방송에 쓸 제품을 고릅니다. 방송 중 화면을 열면 이 제품들로 방송이 시작됩니다.",
   "Approved products": "승인된 제품",
   "For the operator": "운영자용",

@@ -1,7 +1,7 @@
 // Prompter card (§12.3.3, D-091, D-106): the on-air product's information for the host to refer to.
 // One fixed box with two columns (price and offers | points to say); ingredients, cautions and wording to avoid are
 // no longer shown (user, 10/10). Facts already said turn grey; the price never does. Compliance alerts take this same box while they are active, so nothing else moves.
-import { Check, ListChecks } from "lucide-react";
+import { Check, ListChecks, Star } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from "react";
 
 import { useT, type Translate } from "../../app/i18n";
@@ -25,16 +25,11 @@ const mmss = (ms: number) => {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
 };
 
-/** "2 required points left · 0:30", or "+0:15 over" past the planned time. */
-export function pointsStatus(t: Translate, left: number, timing: SegmentTiming | null, total = 1): string {
-  // D-332: a product with no required points says nothing about them
-  const points = left
-    ? t(left === 1 ? "{n} required point left" : "{n} required points left", { n: left })
-    : total > 0 ? t("All required points said") : "";
-  if (!timing || !timing.plannedMs) return points;
+/** "0:30" left, or "+0:15 over" past the planned time. The required count is in the header only. */
+export function pointsStatus(t: Translate, timing: SegmentTiming | null): string {
+  if (!timing || !timing.plannedMs) return "";
   const rest = timing.plannedMs - timing.elapsedMs;
-  const time = rest >= 0 ? mmss(rest) : t("+{time} over", { time: mmss(rest) });
-  return points ? `${points} · ${time}` : time;
+  return rest >= 0 ? mmss(rest) : t("+{time} over", { time: mmss(rest) });
 }
 
 /** D-107 (the prototype's fitSlot): when the box content is taller than the box, shrink it step by
@@ -178,7 +173,6 @@ function ProductPanel({
     <>
       <div className={styles.facts}>
         <div>
-          <h4 className={styles.factsLabel}>{t("Price & offers")}</h4>
           {of("price").map((i) =>
             i.main ? (
               <div key={i.id} className={cx(styles.pfPrice, said(i) && styles.said)} data-testid="host-price-current"
@@ -208,14 +202,14 @@ function ProductPanel({
             {rows.map((p) => (
               <li
                 key={p.point_id}
-                className={cx(styles.point, p === lead && styles.leadPoint, p === lead && late && styles.leadLate,
+                className={cx(styles.point, p.required && styles.requiredPoint, p === lead && styles.leadPoint, p === lead && late && styles.leadLate,
                   p.covered && styles.said)}
                 data-testid={`host-point-${p.point_id}`}
                 data-state={p.covered ? "said" : "todo"}
                 data-late={p === lead && late ? "true" : undefined}
               >
                 <span className={styles.pointIcon} aria-label={p.covered ? t("Said") : undefined}>
-                  {p.covered ? <Check /> : <span className={styles.bullet} />}
+                  {p.covered ? <Check /> : p.required ? <Star /> : <span className={styles.bullet} />}
                 </span>
                 <span>{p.text}</span>
               </li>

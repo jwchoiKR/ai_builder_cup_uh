@@ -98,19 +98,19 @@ describe("prompter", () => {
   it("counts covered required points and drops the label", () => {
     render(view({ segments: [segment({ covered_point_ids: ["cr-p1", "cr-p2"] })] }));
     expect(screen.getByTestId("host-required-count")).toHaveTextContent("1 / 2 required points");
-    expect(screen.getByTestId("host-points-status")).toHaveTextContent("1 required point left");
+    expect(screen.getByTestId("host-points-status")).not.toHaveTextContent(/required/);
   });
 
   it("D-107: status line with points and time left; the lead point is emphasised once from 80% of the time", () => {
     const at = (share: number) => view({ segments: [segment({ started_at: now() - 900_000 * share, covered_point_ids: ["cr-p2"] })] });
     const { rerender } = render(at(0.5));
-    expect(screen.getByTestId("host-points-status")).toHaveTextContent(/^1 required point left · 7:(29|30)$/);
+    expect(screen.getByTestId("host-points-status")).toHaveTextContent(/^7:(29|30)$/);
     expect(screen.getByTestId("host-point-cr-p3")).not.toHaveAttribute("data-late");
     rerender(at(0.85));
     expect(screen.getByTestId("host-point-cr-p3")).toHaveAttribute("data-late", "true");
     expect(screen.getByTestId("host-point-cr-p3").className).toMatch(/leadLate/);
     rerender(at(1.1));
-    expect(screen.getByTestId("host-points-status")).toHaveTextContent(/^1 required point left · \+1:(29|30) over$/);
+    expect(screen.getByTestId("host-points-status")).toHaveTextContent(/^\+1:(29|30) over$/);
   });
 
   it("user 10/10: the prompter shows no ingredients, cautions or wording to avoid", () => {
