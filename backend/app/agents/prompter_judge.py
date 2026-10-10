@@ -33,7 +33,9 @@ class PrompterJudge:
         self.prompt_version = prompt.version
         self.catalog = catalog
 
-    async def run(self, inp: PrompterInput, *, deadline_ms: int) -> AgentResult[PrompterJudgeOutput]:
+    async def run(self, inp: PrompterInput, *, deadline_ms: int | None = None) -> AgentResult[PrompterJudgeOutput]:
+        """D-455: no deadline by default: the verdict counts whenever it comes (the caller applies it to the line's own
+        segment)."""
         user = self.prompt.render({
             "prompter_judge_points_json": inputs.prompter_judge_points_json(self.catalog, inp.on_air, inp.points),
             "last_two_final_transcripts_json": inp.previous[-2:],
@@ -43,7 +45,7 @@ class PrompterJudge:
             agent=self.name, model=self.llm.prompter.model, thinking_level=self.llm.prompter.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction, user_message=user,
             output_model=PrompterJudgeOutput, deadline_ms=deadline_ms, session_id=inp.session_id,
-            retry_429=False, hedge=False,  # D-449: one call, no 429 wait, not hedged
+            retry_429=False, hedge=False,  # D-449: one call, no 429 wait, not hedged; D-455: no deadline
             mock_primary_text=inp.utterance, mock_scenario=inp.scenario, mock_fallback=lambda _: {"covered": []},
             preview=inp.utterance,
         ))
