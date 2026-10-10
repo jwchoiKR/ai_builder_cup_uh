@@ -760,13 +760,14 @@ class UtterancePipeline:
             await rt.save_session(s)
 
     async def _run_prompter(self, t: Transcript, inp: JudgeInput) -> None:
-        """D-450: the prompter judge on this line (its own call, MEDIUM, its own deadline); its ticks go to the line's
-        own segment. A failure shows nothing on the host screen: it only counts for the operator."""
+        """D-450: the prompter judge on this line (its own call; D-455: gemini-3.8-flash LOW, no deadline); its ticks go
+        to the line's own segment whenever they come. A failure shows nothing on the host screen: it only counts for
+        the operator."""
         rt = self.rt
         res = await self.prompter.run(PrompterInput(utterance=inp.utterance, on_air=inp.on_air,
                                                     previous=list(inp.previous), points=inp.points_by_product,
                                                     session_id=rt.sid, scenario=inp.scenario),
-                                      deadline_ms=rt.settings.PROMPTER_TIMEOUT_MS)
+                                      deadline_ms=None)
         async with rt.lock:
             if res.status != "ok" or res.output is None:
                 await self._prompter_failed_locked(t, res)

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 
+from app.models.session import AgentCall
 from app.pipelines.utterances import operator_switch
 
 from .helpers import text_pdf
@@ -66,7 +67,9 @@ async def test_d450_the_prompter_judge_ticks_the_lines_points():
         assert await _covered_now(rt) == [P1]
         assert (await rt.load_session()).pre_covered == {"prd_000000000102": [NEXT_P1]}  # the next product, as before
         [req] = [r for r in llm.requests if r.agent == "prompter_judge"]
-        assert (req.thinking_level, req.deadline_ms, req.retry_429, req.hedge) == ("MEDIUM", 8000, False, False)
+        # D-455: gemini-3.8-flash LOW, no app deadline, no 429 wait, not hedged
+        assert (req.model, req.thinking_level, req.deadline_ms, req.retry_429, req.hedge) == (
+            "gemini-3.8-flash", "LOW", None, False, False)
         assert '"brand":"Lunelle"' in req.user_message and '"category":"serum ampoule"' in req.user_message
     finally:
         await close_env(rt)
@@ -122,5 +125,27 @@ async def test_d450_a_failed_prompter_check_only_counts_for_the_operator():
         assert [f["agent"] for f in failures["recent"]] == ["prompter_judge"] and failures["unchecked"] == []
         snap = await rt.snapshot("host")
         assert snap["check_failures"]["unchecked"] == []
+    finally:
+        await close_env(rt)
+
+
+async def test_d455_a_result_after_later_lines_and_a_switch_ticks_its_own_line():
+    llm = _Backend()
+    llm.outputs[("prompter_judge", LINE)] = _covered(P1)
+    llm.delays[("prompter_judge", LINE)] = 0.5  # no deadline: it comes after two more lines and a switch
+    rt = await _show(llm)
+    try:
+        first = await rt.current_segment()
+        await speak(rt, LINE, wait=False)
+        await asyncio.sleep(0.05)
+        await speak(rt, "And the texture is light.")
+        await operator_switch(rt, "prd_000000000102")
+        await speak(rt, "Now the ampoule, it has 10% niacinamide.")
+        await rt.utterances.drain()
+        assert (await rt.get_segment(first.segment_id)).covered_point_ids == [P1]
+        assert (await rt.current_segment()).covered_point_ids == []
+        [call] = [c for c in await rt.ctx.store.query(rt.path("agent_calls"), AgentCall)
+                  if c.agent == "prompter_judge" and c.input_preview == LINE]
+        assert call.status == "ok" and call.latency_ms >= 500
     finally:
         await close_env(rt)

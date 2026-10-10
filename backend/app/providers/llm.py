@@ -54,7 +54,7 @@ class LLMRequest(Generic[T]):
     system_instruction: str
     user_message: str
     output_model: type[T]
-    deadline_ms: int
+    deadline_ms: int | None  # D-455: None = no app deadline (the prompter judge: its verdict counts whenever it comes)
     session_id: str | None = None
     # Mock lookup (§7.1): primary text and scenario tag; fallback builds an output for unit tests.
     mock_primary_text: str = ""
@@ -462,6 +462,10 @@ def write_usage_report(path: str) -> None:
 
 
 # D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
+# D-455: what a backend is told is left of a call with no app deadline. No code enforces it (the Vertex request has no
+# timeout, D-047); the backend only sizes its short context-cache wait with it.
+NO_DEADLINE_MS = 600_000
+
 SAMPLED_AGENTS = frozenset({"compliance_judge", "fact_checker", "context_judge", "prompter_judge"})  # D-314; D-450
 HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker"})
 
@@ -495,7 +499,9 @@ class LLMClient:
         strong_thinking = getattr(settings, "SINGLE_THINKING", "LOW")
         self.compliance = ModelSpec(getattr(settings, "COMPLIANCE_MODEL", "") or strong, strong_thinking)
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
-        self.prompter = ModelSpec(settings.LLM_FAST_MODEL, getattr(settings, "PROMPTER_THINKING", "MEDIUM"))  # D-450
+        # D-450/D-455: the prompter judge's own model and thinking level (gemini-3.8-flash LOW, D-454)
+        self.prompter = ModelSpec(getattr(settings, "PROMPTER_MODEL", "") or settings.LLM_FAST_MODEL,
+                                  getattr(settings, "PROMPTER_THINKING", "LOW"))
         facts_thinking = getattr(settings, "SINGLE_FACTS_THINKING", "") or strong_thinking  # D-311
         self.facts = ModelSpec(settings.FACTS_MODEL or strong, facts_thinking)  # D-246; D-309
         self.triage = ModelSpec(getattr(settings, "TRIAGE_MODEL", "") or settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)
@@ -548,8 +554,10 @@ class LLMClient:
         try:
             hedge_ms = (self._hedge_delays.get(req.agent, self._settings.JUDGE_HEDGE_MS)
                         if req.agent in self._hedged_agents and req.hedge else 0)
-            work = self._hedged(req, t0, hedge_ms) if 0 < hedge_ms < req.deadline_ms else self._generate(req, t0)
-            raw = await asyncio.wait_for(work, timeout=req.deadline_ms / 1000)
+            limited = req.deadline_ms is not None
+            work = (self._hedged(req, t0, hedge_ms) if limited and 0 < hedge_ms < req.deadline_ms
+                    else self._generate(req, t0))
+            raw = await (asyncio.wait_for(work, timeout=req.deadline_ms / 1000) if limited else work)
             meta = {"model_version": raw.model_version, "usage": raw.usage, "finish_reason": raw.finish_reason}
             try:
                 output = req.output_model.model_validate_json(raw.text)
@@ -594,7 +602,8 @@ class LLMClient:
         attempt = 0
         while True:
             attempt += 1
-            remaining_ms = req.deadline_ms - (time.perf_counter() - t0) * 1000
+            remaining_ms = (NO_DEADLINE_MS if req.deadline_ms is None
+                            else req.deadline_ms - (time.perf_counter() - t0) * 1000)
             if remaining_ms <= 0:
                 raise LLMTimeout("deadline reached before retry")
             try:
@@ -605,7 +614,8 @@ class LLMClient:
                 log.warning("agent=%s 5xx (%s), retry %d/%d", req.agent, e, attempt, attempts - 1)
             except LLMError as e:
                 # D-340: one short wait and retry on a 429, only when the deadline leaves room for an answer
-                left = req.deadline_ms - (time.perf_counter() - t0) * 1000
+                left = (NO_DEADLINE_MS if req.deadline_ms is None
+                        else req.deadline_ms - (time.perf_counter() - t0) * 1000)
                 if (not backoff_429 or backoff_429 < 0 or attempt > 1 or not req.retry_429
                         or failure_kind("error", str(e)) != "http_429"
                         or left < backoff_429 + MIN_RETRY_ROOM_MS):

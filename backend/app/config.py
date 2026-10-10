@@ -80,10 +80,10 @@ class Settings(BaseSettings):
     PD_THINKING: ThinkingLevel = "LOW"  # D-166: the AI PD on LLM_QUALITY_MODEL (docs/eval/ai-pd-arms.md)
     # D-128: per-agent overrides of LLM_FAST_THINKING (thinking-level comparison, docs/eval/models/README.md)
     CONTEXT_THINKING: ThinkingLevel = "MINIMAL"
-    # D-450: the prompter judge (the only judge that ticks points): its thinking level and its own deadline (D-449:
-    # MEDIUM, p95 2.0 s); nothing waits on it
-    PROMPTER_THINKING: ThinkingLevel = "MEDIUM"
-    PROMPTER_TIMEOUT_MS: int = 8000
+    # D-450/D-455: the prompter judge (the only judge that ticks points): its model and thinking level (D-454:
+    # gemini-3.8-flash LOW, the only arm with no partial ticks). It has no app deadline and nothing waits on it.
+    PROMPTER_MODEL: str = "gemini-3.8-flash"
+    PROMPTER_THINKING: ThinkingLevel = "LOW"
     # D-309: the one model and thinking level of the compliance judge and the fact checker (D-435: the only arm)
     SINGLE_MODEL: str = "gemini-3.5-flash-lite"  # D-336: the measured config (Flash-Lite, compliance MEDIUM, facts LOW)
     SINGLE_THINKING: ThinkingLevel = "LOW"  # D-360 (user): the compliance judge thinks LOW (was MEDIUM, D-336)
