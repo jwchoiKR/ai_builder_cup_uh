@@ -9,6 +9,7 @@ import asyncio
 import logging
 import re
 import time
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from ..agents import arms, file_tools, inputs
@@ -78,9 +79,41 @@ async def submit_comment(
     return comment
 
 
+ARMOR_INJECTION_FILTERS = frozenset({"pi_and_jailbreak"})  # Model Armor's name for orders to the system
+
+
+def armor_found_only_injection(detail: str) -> bool:
+    """`detail` lists the Armor filters that matched ("pi_and_jailbreak, rai"). Only a comment whose every match is
+    the injection filter may stay in chat: a harmful link or abuse is hidden whatever else it holds."""
+    found = {x.strip() for x in detail.split(",") if x.strip()}
+    return bool(found) and found <= ARMOR_INJECTION_FILTERS
+
+
+async def _refuse_locked(rt: "SessionRuntime", comment: Comment) -> bool:
+    """INJECTION_REPLY=reply: a comment that only gives the system orders stays in chat and gets the fixed line of
+    notices.json as its reply. No model reads the comment for it and none writes the line, so it says the same thing
+    for any product and any wording. One per viewer in INJECTION_REPLY_COOLDOWN_SEC: a viewer who keeps trying fills
+    the chat with nothing (False: the caller hides the comment as before)."""
+    text = rt.pack.notices.viewer_replies.get("cannot_answer", "").strip()
+    if rt.settings.INJECTION_REPLY != "reply" or not text:
+        return False
+    now, last = rt.now(), rt.refused_at.get(comment.author_id)
+    if last is not None and now - last < rt.settings.INJECTION_REPLY_COOLDOWN_SEC * 1000:
+        return False
+    rt.refused_at[comment.author_id] = now
+    # a notice, not an answer: it is no reply to a product question, so the answer counts and the reply
+    # translator leave it alone
+    await rt.publish_message_locked(kind="notice", text=text, group=None, comment_ids=[comment.comment_id],
+                                    citations=[], idempotency_key=f"cannot_answer:{comment.comment_id}")
+    rt.counters["injection_replies"] += 1
+    return True
+
+
 async def _finish_armored(rt, comment_id: str, verdict: str, detail: str, latency_ms: int) -> None:
-    """Blocked: hidden from chat, no LLM call; in the operator's hidden list (team) or only counted (solo);
-    never a host card. Unscreened: stays in chat as a plain comment, never triaged, answered or carded."""
+    """Blocked: no LLM call and never a host card. A comment blocked only as an injection stays in chat with the
+    fixed "cannot answer" reply (`_refuse_locked`); any other blocked comment is hidden from chat, in the operator's
+    hidden list (team) or only counted (solo). Unscreened: stays in chat as a plain comment, never triaged, answered
+    or carded."""
     async with rt.lock:
         comment = await rt.get_comment(comment_id)
         if comment is None:
@@ -90,13 +123,17 @@ async def _finish_armored(rt, comment_id: str, verdict: str, detail: str, latenc
                                    product_basis="unknown", source="armor", latency_ms=latency_ms)
         await rt.save_analysis(analysis)
         comment.armor, comment.analysis_id = verdict, analysis.analysis_id
-        if verdict == "blocked":
+        refused = (verdict == "blocked" and armor_found_only_injection(detail)
+                   and await _refuse_locked(rt, comment))
+        if refused:
+            comment.kind, comment.signal = "reaction", "injection"
+        elif verdict == "blocked":
             comment.kind, comment.visibility, comment.hide_category = "hide", "hidden", "armor_blocked"
         else:
             comment.kind = "reaction"
         await rt.save_comment(comment)
         rt.counters[f"armor_{verdict}"] += 1
-        if verdict == "blocked":
+        if comment.visibility == "hidden":
             await rt.emit("comment.hidden", comment)
         await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"),
                                            "analysis": analysis.model_dump(mode="json")})
@@ -329,12 +366,18 @@ async def _finish_non_question(rt, comment_id, output, context_pid, source, late
         comment.analysis_id = analysis.analysis_id
         comment.kind = output.kind
         _note_language(comment, output)
-        if output.kind == "hide":
+        # triage found what Model Armor did not: a comment that only gives the system orders is handled the same
+        # way on both paths
+        refused = (output.kind == "hide" and getattr(output, "signal", None) == "injection"
+                   and await _refuse_locked(rt, comment))
+        if refused:
+            comment.kind = "reaction"
+        elif output.kind == "hide":
             comment.visibility, comment.hide_category = "hidden", output.hide_category
         await rt.save_comment(comment)
         if output.kind == "reaction":
             note_shoutout(rt, comment, getattr(output, "shoutout", None))
-        if output.kind == "hide":
+        if comment.visibility == "hidden":
             await rt.emit("comment.hidden", comment)
         await rt.emit("comment.analyzed", {"comment": comment.model_dump(mode="json"), "analysis": analysis.model_dump(mode="json")})
 

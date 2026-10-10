@@ -1,6 +1,6 @@
 # Prompt: comment_triage_batch (version comment_triage_batch_v1)
 
-Used by: `CommentTriage.run_batch`. Model: `LLM_FAST_MODEL`, thinking MINIMAL. Deadline `TRIAGE_BATCH_TIMEOUT_MS`.
+Used by: `CommentTriage.run_batch`. Model: `TRIAGE_MODEL`, thinking `TRIAGE_THINKING`, seed `COMMENT_SEED`. Deadline `TRIAGE_BATCH_TIMEOUT_MS`.
 Called only when comments pile up while every triage slot is busy (adaptive micro-batch, PLANNING 5.1.2): up to `TRIAGE_MAX_BATCH` comments in one call. A single waiting comment still uses `comment_triage.md`.
 The system instruction is built at load time: the SYSTEM INSTRUCTION of `comment_triage.md`, then the text below, then the EXAMPLES of `comment_triage.md`. The classification rules therefore never drift apart.
 Output must validate against `CommentTriageBatchOutput`.

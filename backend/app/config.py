@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # model's default, D-008). JUDGE_TEMPERATURE is a number ("0"), JUDGE_SEED an integer ("7")
     JUDGE_TEMPERATURE: str = ""
     JUDGE_SEED: str = "7"  # D-336: the measured config (a seed removes most run-to-run flips)
+    # the comment path's sampling seed (comment_triage, comment_triage_batch, answer_composer): the same comment gets
+    # the same triage and the same draft from one run to the next; empty = not sent
+    COMMENT_SEED: str = "7"
     VERIFY_TIMEOUT_MS: int = 5000  # D-306/D-309: the compliance judge's deadline in the single arm
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
@@ -131,6 +134,11 @@ class Settings(BaseSettings):
     MODEL_ARMOR_LOCATION: str = "us-central1"
     MODEL_ARMOR_TEMPLATE: str = "live-studio-comments"
     MODEL_ARMOR_TIMEOUT_MS: int = 500  # slower or failing: the comment stays unscreened
+    # a comment that only gives the system orders (Model Armor's injection filter, or triage's `signal=injection`):
+    # "reply" keeps it in chat and answers it with the fixed line of notices.json (no model writes it); "hide" hides
+    # it without a word, as before. Anything else Armor blocks (a harmful link, abuse) stays hidden either way
+    INJECTION_REPLY: Literal["reply", "hide"] = "reply"
+    INJECTION_REPLY_COOLDOWN_SEC: int = 60  # one such reply per viewer in this time; their next ones are hidden
     # a comment whose triage failed (timeout, 429) is triaged again this many times, this long apart, before it
     # goes to the operator as "AI unavailable"
     TRIAGE_RETRIES: int = 2
@@ -154,6 +162,15 @@ class Settings(BaseSettings):
     ANSWER_RETRIEVER: Literal["local", "vertex_search"] = "vertex_search"
     VERTEX_SEARCH_ENGINE_ID: str = "ai-budiler-cup-uh-search_1791461058419"
     VERTEX_ANSWER_TIMEOUT_MS: int = 8000  # answer_query writes an answer: 2-5 s measured 10/10
+    # what the composer is given as evidence, from the Vertex AI Search app. "segments": the search results' own text,
+    # only the asked product's, word for word (the same query, the same passages). "answer": the search app's own
+    # written answer (a model writes it anew on every call, from every product's documents; 10 such calls a minute
+    # for the whole project). With either, a search that fails or finds nothing for the product falls back to the
+    # product's own PDF from the onboarding bucket, whole, when it has at most WHOLE_DOCUMENT_MAX_CHARS characters.
+    # "document": that PDF first, and the search only for a longer one
+    VERTEX_EVIDENCE: Literal["segments", "answer", "document"] = "segments"
+    WHOLE_DOCUMENT_MAX_CHARS: int = 30000  # about ten pages of text
+    VERTEX_SEARCH_TIMEOUT_MS: int = 3000  # a search without a written answer: about 0.5 s
     VERTEX_SEARCH_GCS_BUCKET: str = ""  # an approved product's original files are copied here (the data store's source)
     COMPLIANCE_ESCALATE_SEC: int = 5
     CORRECTED_TOAST_MS: int = 1500
@@ -200,13 +217,13 @@ class Settings(BaseSettings):
     DEMO_TOOLS_ENABLED: bool = True
     LOG_LEVEL: str = "INFO"
 
-    @field_validator("JUDGE_TEMPERATURE", "JUDGE_SEED")
+    @field_validator("JUDGE_TEMPERATURE", "JUDGE_SEED", "COMMENT_SEED")
     @classmethod
     def _sampling(cls, v: str, info) -> str:
         """D-314: a bad sampling value fails at startup, not inside a judge call."""
         v = v.strip()
         if v:
-            (int if info.field_name == "JUDGE_SEED" else float)(v)
+            (float if info.field_name == "JUDGE_TEMPERATURE" else int)(v)
         return v
 
     @model_validator(mode="after")

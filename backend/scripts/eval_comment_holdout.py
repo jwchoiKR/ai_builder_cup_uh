@@ -38,7 +38,8 @@ from app.scheduler import AsyncScheduler  # noqa: E402
 
 ARM_KEYS = ("TRIAGE_MODEL", "TRIAGE_RETRIES",
             "TRIAGE_TIMEOUT_MS", "SENSITIVE_APPROVAL", "PREFILTER", "COMMENT_PRODUCT", "GROUP_JOIN", "TRIAGE_THINKING",
-            "LLM_FAST_MODEL", "LLM_QUALITY_MODEL", "COMPOSER_THINKING", "MODEL_ARMOR_ENABLED")
+            "LLM_FAST_MODEL", "LLM_QUALITY_MODEL", "COMPOSER_THINKING", "MODEL_ARMOR_ENABLED",
+            "ANSWER_RETRIEVER", "VERTEX_EVIDENCE", "COMMENT_SEED")
 
 
 def load(name: str) -> list[dict]:
@@ -241,8 +242,11 @@ def score(raw: list[dict], rows: list[dict], gold: list[dict]) -> dict:
                                   "facts": [f["fact"] for f in g["answer_facts"]]})
     s["answers_to_review"] = facts_missing
     # a reply to the real question inside an injected comment is right; listed so each text is read by a person
-    s["injection_replies"] = [{"id": i, "replies": got[i]["replies"]} for i in sorted(got)
-                              if gold_by.get(i, {}).get("injection") and got[i]["replies"]]
+    # INJECTION_REPLY=reply: the fixed "cannot answer" line (a notice no model wrote) is the designed reply to an
+    # injection comment; any other message under one is still listed
+    s["injection_replies"] = [{"id": i, "replies": [r for r in got[i]["replies"] if r["kind"] != "notice"]}
+                              for i in sorted(got) if gold_by.get(i, {}).get("injection")
+                              and [r for r in got[i]["replies"] if r["kind"] != "notice"]]
     flagged = [i for i in sure if gold_by[i].get("signal") == "stream_issue"]
     s["stream_issues"] = table(flagged, lambda i: got[i].get("signal") == "stream_issue")
     s["stream_false"] = sorted(i for i in sure if i in got and got[i].get("signal") == "stream_issue"
@@ -348,7 +352,7 @@ async def main() -> int:
         saved = json.loads(args.from_json.read_text(encoding="utf-8"))
         raw, arm = saved["scenes"], saved["arm"]
     else:
-        settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local")
+        settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory")
         arm = {k: getattr(settings, k) for k in ARM_KEYS} | {"show_mode": args.show_mode, "gap_ms": args.gap_ms}
         clock = ReplayClock()
         ctx = build_context(settings, clock=clock, scheduler=AsyncScheduler(clock))
