@@ -135,9 +135,10 @@ class Settings(BaseSettings):
     MODEL_ARMOR_TEMPLATE: str = "live-studio-comments"
     MODEL_ARMOR_TIMEOUT_MS: int = 500  # slower or failing: the comment stays unscreened
     # a comment that only gives the system orders (Model Armor's injection filter, or triage's `signal=injection`):
-    # "reply" keeps it in chat and answers it with the fixed line of notices.json (no model writes it); "hide" hides
-    # it without a word, as before. Anything else Armor blocks (a harmful link, abuse) stays hidden either way
-    INJECTION_REPLY: Literal["reply", "hide"] = "reply"
+    # "hide" hides it like any other hidden comment (the viewer chat shows a "hidden" line in its place, never its
+    # text); "reply" keeps it in chat and answers it with the fixed line of notices.json (no model writes it).
+    # Anything else Armor blocks (a harmful link, abuse) is hidden either way
+    INJECTION_REPLY: Literal["reply", "hide"] = "hide"
     INJECTION_REPLY_COOLDOWN_SEC: int = 60  # one such reply per viewer in this time; their next ones are hidden
     # a comment whose triage failed (timeout, 429) is triaged again this many times, this long apart, before it
     # goes to the operator as "AI unavailable"
