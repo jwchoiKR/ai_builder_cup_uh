@@ -83,6 +83,7 @@ class SessionRuntime:
         self.assistant = session.assistant  # D-139
         self.lock = asyncio.Lock()
         self.triage_cache = TriageCache()
+        self.refused_at: dict[str, int] = {}  # author -> when they last got the fixed "cannot answer" reply
         self.shoutouts: deque = deque(maxlen=20)  # D-113: recent purchase/welcome/compliment comments
         self.answer_cache = AnswerCache()
         self.composing: dict[str, asyncio.Future] = {}

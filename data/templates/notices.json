@@ -82,5 +82,8 @@
     "sensitive": "Everyone is different, so please check with your doctor or pharmacist before using it. I'll reply in the chat with what our product information says.",
     "general_solo": "Good question! I don't want to guess, so I'll check that for you.",
     "sensitive_solo": "Everyone is different, so please check with your doctor or pharmacist before using it."
+  },
+  "viewer_replies": {
+    "cannot_answer": "Sorry, we can't help with that request in this chat. You're welcome to ask about the product on air."
   }
 }

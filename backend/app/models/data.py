@@ -381,3 +381,5 @@ class NoticesFile(BaseModel):
     # D-135: no verified answer, said honestly. The _solo lines promise no chat reply: a solo host does not
     # type during a show (planning session); in a team show the operator replies from the list.
     host_deferrals: dict[Literal["general", "sensitive", "general_solo", "sensitive_solo"], str]
+    # fixed replies to a viewer that no model writes. cannot_answer: to a comment that gives the system orders
+    viewer_replies: dict[str, str] = {}
