@@ -27,10 +27,13 @@ describe("reduceSnapshot", () => {
     expect(s.prompter).toBeNull();
   });
 
-  it("drops hidden comments for host and viewer", () => {
-    const snap = snapshot({ comments: [comment(), comment({ comment_id: "cm_2", visibility: "hidden" })] });
-    expect(Object.keys(reduceSnapshot(snap, "viewer").comments)).toEqual(["cm_000001"]);
-    expect(Object.keys(reduceSnapshot(snap, "operator").comments)).toHaveLength(2);
+  it("drops hidden comments for the host; the viewer keeps them without their text", () => {
+    const snap = snapshot({ comments: [comment(), comment({ comment_id: "cm_2", visibility: "hidden", text: "buy at x" })] });
+    expect(Object.keys(reduceSnapshot(snap, "host").comments)).toEqual(["cm_000001"]);
+    const viewer = reduceSnapshot(snap, "viewer").comments;
+    expect(Object.keys(viewer)).toHaveLength(2);
+    expect(viewer.cm_2).toMatchObject({ visibility: "hidden", text: "" });
+    expect(reduceSnapshot(snap, "operator").comments.cm_2.text).toBe("buy at x");
   });
 });
 
@@ -142,13 +145,14 @@ describe("event semantics", () => {
     expect(s.session?.switch.last_commit).toBeNull();
   });
 
-  it("hidden comments are removed for the viewer (redacted payload)", () => {
-    let s = reduceEvent(base(), ev(11, "comment.created", comment({ comment_id: "cm_x" })));
-    expect(s.comments.cm_x).toBeDefined();
+  it("a hidden comment stays for the viewer as a line without its text (redacted payload)", () => {
+    let s = reduceEvent(base(), ev(11, "comment.created", comment({ comment_id: "cm_x", text: "buy at x" })));
+    expect(s.comments.cm_x.text).toBe("buy at x");
     s = reduceEvent(s, ev(12, "comment.hidden", { comment_id: "cm_x", visibility: "hidden" }));
-    expect(s.comments.cm_x).toBeUndefined();
-    s = reduceEvent(s, ev(13, "comment.analyzed", { comment: { comment_id: "cm_y", visibility: "hidden" } }));
-    expect(s.comments.cm_y).toBeUndefined();
+    // the text that arrived before the comment was hidden is dropped from the browser's state too
+    expect(s.comments.cm_x).toMatchObject({ visibility: "hidden", text: "" });
+    s = reduceEvent(s, ev(13, "comment.unhidden", comment({ comment_id: "cm_x", text: "buy at x" })));
+    expect(s.comments.cm_x).toMatchObject({ visibility: "visible", text: "buy at x" });
   });
 
   it("the viewer's snapshot has no groups, answers or metrics; a status event updates the comment", () => {

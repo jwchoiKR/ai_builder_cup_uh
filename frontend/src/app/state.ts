@@ -133,12 +133,19 @@ function byId<T, K extends keyof T>(items: T[] | undefined, key: K): Record<stri
   return out;
 }
 
+/** The operator sees every comment; the viewer keeps a hidden one as a line that says so (`redact`); the host's
+ *  chat drops it. */
 function keepComment(c: Partial<Comment>, role: Role): boolean {
-  return role === "operator" || c.visibility !== "hidden";
+  return role !== "host" || c.visibility !== "hidden";
+}
+
+/** A hidden comment in a viewer's browser never holds its text, also when the text arrived before it was hidden. */
+function redact<T extends Partial<Comment>>(c: T, role: Role): T {
+  return role !== "operator" && c.visibility === "hidden" ? { ...c, text: "" } : c;
 }
 
 export function reduceSnapshot(snap: StateSnapshot, role: Role, clientNow: number = Date.now()): ClientState {
-  const comments = (snap.comments ?? []).filter((c) => keepComment(c, role));
+  const comments = (snap.comments ?? []).filter((c) => keepComment(c, role)).map((c) => redact(c, role));
   const transcripts = (snap.transcripts ?? []).slice(-MAX_TRANSCRIPTS);
   return {
     ...emptyState(role),
@@ -177,7 +184,7 @@ function upsertComment(state: ClientState, c: Partial<Comment> | undefined): Cli
   if (!keepComment(c, state.role)) {
     delete comments[c.comment_id];
   } else {
-    comments[c.comment_id] = { ...(comments[c.comment_id] ?? {}), ...c } as Comment;
+    comments[c.comment_id] = redact({ ...(comments[c.comment_id] ?? {}), ...c } as Comment, state.role);
   }
   return { ...state, comments };
 }
