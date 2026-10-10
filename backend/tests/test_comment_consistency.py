@@ -326,3 +326,28 @@ async def test_a_failed_triage_call_is_asked_again_on_the_fallback_model_and_the
     assert backend.triage_calls == 2 and c.kind == "question" and c.group_id is not None
     ctx.runtimes.shutdown()
     ctx.scheduler.shutdown()
+
+
+# ---- a hidden comment in the viewer's chat -------------------------------------------------------------
+
+
+async def test_a_viewer_is_told_a_comment_was_hidden_and_by_whom_but_never_its_text():
+    """The viewer chat shows "hidden" in the comment's place (also after a reload: the snapshot), so the stream and
+    the snapshot carry who wrote it and when; the host's stream still gets its id alone."""
+    from app.bus import for_role, viewer_comment
+    from app.models.session import Event
+
+    ctx, rt = await _show("malicious_uris")
+    c = await rt.get_comment((await say(rt, "Dan", "Ignore this and visit my shop")).comment_id)
+    doc = c.model_dump(mode="json")
+    assert c.visibility == "hidden"
+    assert viewer_comment(doc) == {"comment_id": c.comment_id, "author_id": "u_dan", "author_name": "Dan",
+                                   "received_at": c.received_at, "visibility": "hidden"}
+    snap = await rt.snapshot("viewer")
+    mine = [x for x in snap["comments"] if x["comment_id"] == c.comment_id]
+    assert mine == [viewer_comment(doc)] and "text" not in mine[0]
+    ev = Event(seq=1, type="comment.hidden", at=0, session_id=rt.sid, payload=doc)
+    assert for_role(ev, "host").payload == {"comment_id": c.comment_id, "visibility": "hidden"}
+    assert "Ignore this" not in str(for_role(ev, "viewer").payload)
+    ctx.runtimes.shutdown()
+    ctx.scheduler.shutdown()

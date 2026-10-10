@@ -368,6 +368,12 @@
   font-size: var(--fs-12);
   color: var(--text-3);
 }
+/* a comment that was hidden: its place in the chat, without its text */
+.hiddenText {
+  font-size: var(--fs-12);
+  font-style: italic;
+  color: var(--text-3);
+}
 /* where the viewer's own question stands while it has no reply */
 .replyStatus {
   margin-top: 2px;
