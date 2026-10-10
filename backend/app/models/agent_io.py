@@ -69,9 +69,15 @@ class ComplianceOutput(BaseModel):
     reason: str
 
 
+class ContextPrompter(BaseModel):
+    """D-450: the context judge's prompter part: cues and the switch (the prompter judge ticks the points)."""
+    covered_cue_ids: list[str]
+    switch: SwitchCue
+
+
 class ContextOutput(BaseModel):
     answer: AnswerLink
-    prompter: PrompterJudgement
+    prompter: ContextPrompter
     reason: str
 
 
@@ -247,8 +253,18 @@ class ContextOutputQ(BaseModel):
     """D-335: the context verdict, first saying whether the next line is expected to resolve this one."""
     expects_resolution: bool
     answer: AnswerLink
-    prompter: PrompterJudgement
+    prompter: ContextPrompter
     reason: str
+
+
+class CoveredPoint(BaseModel):
+    """D-450: the host's words first, then the point they say (host_words is for the log; code reads point_id)."""
+    host_words: str
+    point_id: str
+
+
+class PrompterJudgeOutput(BaseModel):
+    covered: list[CoveredPoint]
 
 
 class ContextOutputB(ContextOutput, _ArmB):

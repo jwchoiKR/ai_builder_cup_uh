@@ -40,6 +40,7 @@ export const EVENT_TYPES = [
   "operator.action",
   "agent.call",
   "judge.failed",
+  "prompter.failed",  // D-450: the prompter judge's failures, counted for the operator only
   "judge.health",
   "segment.extended",
   "summary.ready",

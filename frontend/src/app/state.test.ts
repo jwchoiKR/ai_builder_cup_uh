@@ -89,6 +89,7 @@ describe("every event type", () => {
       "operator.action": { actor: "operator", action: "push", group_id: "grp_000001" },
       "agent.call": { call_id: "call_1", agent: "comment_triage", model: "m", prompt_version: "v", started_at: T0, latency_ms: 900, status: "ok", input_hash: "h", input_preview: "p", output: {}, error: null },
       "judge.failed": { transcript_id: "tr_1", cause: "timeout" },
+      "prompter.failed": { transcript_id: "tr_2", agent: "prompter_judge", cause: "timeout" },
       "judge.health": { degraded: ["compliance_judge"], at: 1 },
       "segment.extended": { segment: segment(), added_sec: 120 },
       "summary.ready": {},
@@ -110,7 +111,7 @@ describe("every event type", () => {
     expect(s.summaryReady).toBe(true);
     expect(s.metrics.header?.instant_answers).toBe(3);
     expect(s.agentCalls[0].call_id).toBe("call_1");
-    expect(s.judgeFailures).toHaveLength(1);
+    expect(s.judgeFailures).toHaveLength(2);  // judge.failed and D-450 prompter.failed
     expect(s.session?.pinned_notice).toBe("Free shipping today");
     expect(s.messages.msg_p.state).toBe("cancelled");
     expect(s.messages.msg_000001.reply_to_author_names).toEqual(["Raj", "Mei"]);
@@ -239,3 +240,14 @@ describe("segment.extended (D-138)", () => {
   });
 });
 
+
+describe("D-450: a failed prompter check", () => {
+  it("counts for the operator and never makes the line unchecked (no host strip)", () => {
+    const base = reduceSnapshot(snapshot(), "operator");
+    const f = { transcript_id: "tr_1", agent: "prompter_judge", cause: "busy", at: T0, n: 1 };
+    const s = reduceEvent(reduceEvent(base, ev(20, "prompter.failed", f)), ev(21, "prompter.failed", f));
+    expect(s.judgeFailures.map((j) => [j.agent, j.cause])).toEqual([["prompter_judge", "busy"]]);  // once per line
+    expect(s.unchecked).toEqual([]);
+    expect(EVENT_TYPES).toContain("prompter.failed");
+  });
+});

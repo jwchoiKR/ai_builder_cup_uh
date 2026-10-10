@@ -1,4 +1,4 @@
-# Prompt: context_judge (version context_judge_v4)
+# Prompt: context_judge (version context_judge_v5)
 
 Used by: `ContextJudge` agent, `JUDGE_MODE=split3` (default, D-099). Model: `LLM_FAST_MODEL`, thinking MINIMAL.
 Called once per final host transcript, in parallel with `compliance_judge` and `fact_checker`. Jobs 3 and 4 of
@@ -28,13 +28,12 @@ OPEN_QUESTIONS lists audience questions currently waiting, each with a suggested
 - `consistent_with_suggested = true` only when the host's answer agrees with the suggested answer: the same direction (yes or no) and the same numbers. Saying less than the suggested answer is consistent. It is false when the host adds a claim, caveat, condition or restriction that is not in the suggested answer, sounds unsure, contradicts it, or takes it back. The suggested answer is posted to viewers when this is true.
 
 ### Job 2. Prompter tracking and product switch
-- `covered_point_ids`: ids from PROMPTER_POINTS whose full meaning the host has now stated, in this sentence or together with the earlier lines of RECENT_TRANSCRIPT that it continues. Paraphrase counts. A point with several facts (an amount and how it is taken) is covered only when all of them are stated; a part alone is not.
 - `covered_cue_ids`: ids from HOST_CUES that the host has now done.
 - `switch.is_transition = true` only when the host starts presenting a DIFFERENT product from RUN_SHEET as the new subject ("now let me show you the perfume", "next up is ...").
 - Mentioning another product while reading a viewer's comment, answering a question, or saying "we'll get to it later" is NOT a transition. Set `switch.is_quote = true` in those cases.
 - `switch.target_product_id` is the product being introduced, or null.
 - `switch.confidence` is `high` only for an explicit introduction of the next product.
-- A sentence that keeps describing the product named in the last transition (its texture, usage, ingredients) is a continuation: set `is_transition = false` and list the covered points of that product.
+- A sentence that keeps describing the product named in the last transition (its texture, usage, ingredients) is a continuation: set `is_transition = false`.
 
 ### Output rules
 - Return JSON only, matching the schema. No markdown, no comments.
@@ -70,7 +69,6 @@ Return the JSON verdict for UTTERANCE.
     "also_answered_group_ids": ["string"]
   },
   "prompter": {
-    "covered_point_ids": ["string"],
     "covered_cue_ids": ["string"],
     "switch": {
       "is_transition": false,
@@ -90,24 +88,24 @@ Return the JSON verdict for UTTERANCE.
 Example A
 UTTERANCE: "Let me correct that. Vitamin D contributes to the maintenance of normal bones."
 ```json
-{"answer":{"utterance_type":"correction","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pa-p3"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"A correction that also states the vitamin D point."}
+{"answer":{"utterance_type":"correction","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"A correction that states an approved vitamin D claim."}
 ```
 
 Example B
 OPEN_QUESTIONS: [{"group_id":"g_12","canonical_question":"Is it suitable for vegans?","suggested_answer":"Yes. The tablets contain no animal-derived ingredients."}]
 UTTERANCE: "Raj is asking if it's OK for vegans. Yes, there's nothing animal-derived in the tablets."
 ```json
-{"answer":{"utterance_type":"answer","matched_group_id":"g_12","is_answer":true,"consistent_with_suggested":true},"prompter":{"covered_point_ids":["pa-p1"],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Reads the vegan question and answers it in line with the suggested answer."}
+{"answer":{"utterance_type":"answer","matched_group_id":"g_12","is_answer":true,"consistent_with_suggested":true},"prompter":{"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":false,"target_product_id":null,"confidence":"low"}},"reason":"Reads the vegan question and answers it in line with the suggested answer."}
 ```
 
 Example C
 UTTERANCE: "Someone is asking about the perfume, we'll get to it in a minute."
 ```json
-{"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":[],"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"product_b","confidence":"low"}},"reason":"Defers a viewer question about the perfume; no OPEN_QUESTION is about the perfume, so no match."}
+{"answer":{"utterance_type":"question_readout","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_cue_ids":[],"switch":{"is_transition":false,"is_quote":true,"target_product_id":"product_b","confidence":"low"}},"reason":"Defers a viewer question about the perfume; no OPEN_QUESTION is about the perfume, so no match."}
 ```
 
 Example D
 UTTERANCE: "Okay, now let me show you our Fernlight Eau de Parfum. It opens with bergamot and settles on cedar."
 ```json
-{"answer":{"utterance_type":"transition","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_point_ids":["pb-p1"],"covered_cue_ids":[],"switch":{"is_transition":true,"is_quote":false,"target_product_id":"product_b","confidence":"high"}},"reason":"Explicit introduction of the next product and its scent-notes point."}
+{"answer":{"utterance_type":"transition","matched_group_id":null,"is_answer":false,"consistent_with_suggested":false},"prompter":{"covered_cue_ids":[],"switch":{"is_transition":true,"is_quote":false,"target_product_id":"product_b","confidence":"high"}},"reason":"Explicit introduction of the next product."}
 ```

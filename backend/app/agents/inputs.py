@@ -118,6 +118,24 @@ def prompter_points_json(
     return out
 
 
+def prompter_judge_points_json(
+    catalog: Catalog,
+    on_air_product_id: str,
+    points_by_product: dict[str, list[PrompterPoint]] | None = None,
+) -> list[dict]:
+    """D-450: the prompter judge's points: the on-air and the next product's, each with its product's name, brand and
+    category (D-448)."""
+    out = []
+    for pid in (on_air_product_id, catalog.next_product(on_air_product_id)):
+        if pid is None:
+            continue
+        p = catalog.get_product(pid)
+        points = (points_by_product or {}).get(pid) or p.prompter_points
+        out.extend({"point_id": pt.point_id, "product": p.name, "brand": p.brand, "category": p.category,
+                    "text": pt.text} for pt in points)
+    return out
+
+
 def set_offers_json(catalog: Catalog, promo: Promo | None) -> list[dict]:
     price_promo = promo if promo is not None and promo.changes_prices else None
     return [
@@ -299,6 +317,7 @@ BUILDERS = {
     for f in (
         current_product_json, product_compact_json, products_compact_json,
         run_sheet_compact_json, approved_claims_of_current_product_json, avoid_saying_json, prompter_points_json,
+        prompter_judge_points_json,
         cautions_json, viewer_comments_json, asked_questions_json,
         set_offers_json, active_promo_json_or_null, active_offers_json, switch_context_json, rules_compact_json,
         intent_names_json, condition_slots_json, active_alerts_json, open_questions_json,

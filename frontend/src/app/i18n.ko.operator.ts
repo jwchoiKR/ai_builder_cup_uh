@@ -111,6 +111,7 @@ export const KO_OPERATOR: Record<string, string> = {
   "Compliance check": "규정 확인",
   "Fact check": "사실 확인",
   "Context check": "문맥 확인",
+  "Prompter check": "대본 확인",
   "AI check": "AI 확인",
   "Overtime +{time} on {product}": "{product} 시간 초과 +{time}",
   "Active promotion": "진행 중인 프로모션",

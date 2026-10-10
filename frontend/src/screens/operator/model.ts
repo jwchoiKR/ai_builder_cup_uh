@@ -264,6 +264,7 @@ const FAILURE_JUDGES: Record<string, string> = {
   compliance_judge: "Compliance check",
   fact_checker: "Fact check",
   context_judge: "Context check",
+  prompter_judge: "Prompter check",  // D-450
 };
 
 export function systemCards(state: ClientState, catalog: Catalog | null, now: number, t: Translate = EN): SystemCard[] {
