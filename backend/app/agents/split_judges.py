@@ -289,7 +289,7 @@ class ContextJudge(_SplitJudge):
         return {"expects_resolution": False,
                 "answer": {"utterance_type": "product_talk", "matched_group_id": None, "is_answer": False,
                            "consistent_with_suggested": False},
-                "prompter": {"covered_point_ids": [], "covered_cue_ids": [],
+                "prompter": {"covered_cue_ids": [],
                              "switch": {"is_transition": False, "is_quote": False, "target_product_id": None,
                                         "confidence": "low", "moving_to_next_named": False}},
                 "reason": "no verdict"}

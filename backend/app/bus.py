@@ -103,7 +103,7 @@ def format_sse(ev: Event) -> str:
     return f"id: {ev.seq}\nevent: {ev.type}\ndata: {data}\n\n"
 
 
-OPERATOR_ONLY_EVENTS = frozenset({"agent.call", "transcript.interim"})
+OPERATOR_ONLY_EVENTS = frozenset({"agent.call", "transcript.interim", "prompter.failed"})  # D-450: operator counts
 
 
 # A viewer's browser gets the public chat and the show's public state, field by field. An event type or a field

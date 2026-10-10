@@ -462,7 +462,7 @@ def write_usage_report(path: str) -> None:
 
 
 # D-184: the agents on the 3 s alert path, whose single slow call must not be a silent miss
-SAMPLED_AGENTS = frozenset({"compliance_judge", "fact_checker", "context_judge"})  # D-314
+SAMPLED_AGENTS = frozenset({"compliance_judge", "fact_checker", "context_judge", "prompter_judge"})  # D-314; D-450
 HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker"})
 
 
@@ -495,6 +495,7 @@ class LLMClient:
         strong_thinking = getattr(settings, "SINGLE_THINKING", "LOW")
         self.compliance = ModelSpec(getattr(settings, "COMPLIANCE_MODEL", "") or strong, strong_thinking)
         self.context = ModelSpec(settings.LLM_FAST_MODEL, settings.CONTEXT_THINKING)
+        self.prompter = ModelSpec(settings.LLM_FAST_MODEL, getattr(settings, "PROMPTER_THINKING", "MEDIUM"))  # D-450
         facts_thinking = getattr(settings, "SINGLE_FACTS_THINKING", "") or strong_thinking  # D-311
         self.facts = ModelSpec(settings.FACTS_MODEL or strong, facts_thinking)  # D-246; D-309
         self.triage = ModelSpec(getattr(settings, "TRIAGE_MODEL", "") or settings.LLM_FAST_MODEL, settings.TRIAGE_THINKING)

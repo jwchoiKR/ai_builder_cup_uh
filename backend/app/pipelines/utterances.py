@@ -28,13 +28,14 @@ from typing import TYPE_CHECKING
 
 from ..agents import arms
 from ..agents.fact_checker import FactChecker, FactInput
+from ..agents.prompter_judge import PrompterInput, PrompterJudge
 from ..agents.split_judges import ComplianceJudge, ContextJudge
 from ..agents.utterance_judge import JudgeInput, UtteranceJudge, build_judge_values
 from ..logic import alerts as alert_logic
 from ..logic import facts as fact_logic
 from ..logic import publish as publish_logic
 from ..logic.prompter import apply_coverage, missing_required, points_of, tick_item
-from ..models.agent_io import ContextOutput, FactCheckOutput, UtteranceJudgeOutput
+from ..models.agent_io import ContextOutput, FactCheckOutput, PrompterJudgement, UtteranceJudgeOutput
 from ..models.session import Alert, Answer, HostCue, Message, QuestionGroup, Segment, SwitchState, Transcript
 from ..providers.llm import AgentResult
 from .comments import answer_key, move_previous_product_questions_locked
@@ -133,6 +134,7 @@ class UtterancePipeline:
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.facts = FactChecker(ctx.llm, ctx.prompts["fact_relation_v5"], rt.catalog)  # D-296; D-331
+        self.prompter = PrompterJudge(ctx.llm, ctx.prompts["prompter_judge"], rt.catalog)  # D-450
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
         self._amber: set[str] = set()
@@ -374,6 +376,10 @@ class UtterancePipeline:
                     lambda: self.compliance.run(inp, deadline_ms=rt.settings.VERIFY_TIMEOUT_MS, values=values)),
                     name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self._context_once_more(inp, values), name=f"context:{t.transcript_id}")
+                # D-450: the prompter judge ticks the line's points; nothing waits on it (only drain, at the end)
+                prompter_task = rt.spawn(self._run_prompter(t, inp), name=f"prompter:{t.transcript_id}")
+                self._pending.add(prompter_task)
+                prompter_task.add_done_callback(self._pending.discard)
             else:
                 comp_task = rt.spawn(self.judge.run(inp, deadline_ms=rt.settings.JUDGE_TIMEOUT_MS),
                                      name=f"judge:{t.transcript_id}")
@@ -449,8 +455,11 @@ class UtterancePipeline:
             elif ctx is None:
                 return None, facts
             if self.split3:
+                # D-450: the context part carries no points (the prompter judge ticks them); its cues and switch as they are
+                prompter = PrompterJudgement.model_construct(covered_point_ids=[], covered_cue_ids=ctx.prompter.covered_cue_ids,
+                                                             switch=ctx.prompter.switch)
                 comp = UtteranceJudgeOutput(compliance=comp.compliance, correction=comp.correction,
-                                            answer=ctx.answer, prompter=ctx.prompter,
+                                            answer=ctx.answer, prompter=prompter,
                                             reason=f"{comp.reason} | {ctx.reason}")
             return comp, facts
         finally:
@@ -706,29 +715,19 @@ class UtterancePipeline:
         if not self._claim_application(t, "context"):
             return
         sw = judge.prompter.switch  # D-341 (review H18): the context verdict, for tracing a switch or a missed cue
+        # D-450: production's context judge ticks no points (the prompter judge does); the legacy one-call judges do
+        legacy_points = getattr(judge.prompter, "covered_point_ids", None) or []
         log.info("context %s t=%s: type=%s answer=%s points=%s cues=%s transition=%s quote=%s target=%s conf=%s%s",
                  rt.sid, t.transcript_id, judge.answer.utterance_type, judge.answer.matched_group_id,
-                 judge.prompter.covered_point_ids, judge.prompter.covered_cue_ids, sw.is_transition, sw.is_quote,
+                 legacy_points, judge.prompter.covered_cue_ids, sw.is_transition, sw.is_quote,
                  sw.target_product_id, sw.confidence,
                  f" expects_resolution={judge.expects_resolution}" if hasattr(judge, "expects_resolution") else "")
+        if legacy_points:
+            await self._apply_points_locked(t, legacy_points, "context")
         s = await rt.load_session()
         seg = await rt.current_segment()
         stale = (seg is None or seg.segment_id != t.segment_id
                  or self._generations.get(t.transcript_id) != self._segment_generation)
-        # D-388 (user): the points the model marked covered always count, on the line's own segment (as D-373 does
-        # for ticks); only the switch and the cue are not applied to a line said before a switch or an undo
-        own = seg if not stale else await rt.get_segment(t.segment_id)
-        if own is not None and judge.prompter.covered_point_ids:
-            added, pre = apply_coverage(judge.prompter.covered_point_ids, own, s, rt.catalog, rt.points)
-            if added:
-                await rt.save_segment(own)
-                if seg is not None and own.segment_id == seg.segment_id:
-                    await rt.emit("prompter.updated", await rt.prompter_view_now(seg))
-            if pre:
-                await rt.save_session(s)
-        elif judge.prompter.covered_point_ids:
-            log.info("context %s t=%s: covered points %s skipped (cannot apply: the line's segment is gone)", rt.sid,
-                     t.transcript_id, judge.prompter.covered_point_ids)
         if stale:
             log.info("context %s t=%s: said before a switch or undo; its points count, its cue and switch do not",
                      rt.sid, t.transcript_id)
@@ -739,6 +738,57 @@ class UtterancePipeline:
             await rt.emit("cue.updated", s.cue)
         if seg is not None:
             await self._switch_now_locked(judge, t, seg.product_id)
+
+    async def _apply_points_locked(self, t: Transcript, point_ids: list[str], judge: str) -> None:
+        """D-388 (user): the points a judge marked covered always count, on the line's own segment (as D-373 does for
+        ticks), never on a product switched to later; the next product's go to pre_covered. An id that is not a point
+        of the on-air or the next product is skipped (apply_coverage)."""
+        rt = self.rt
+        s = await rt.load_session()
+        seg = await rt.current_segment()
+        own = seg if seg is not None and seg.segment_id == t.segment_id else await rt.get_segment(t.segment_id)
+        if own is None:
+            log.info("%s %s t=%s: covered points %s skipped (cannot apply: the line's segment is gone)", judge, rt.sid,
+                     t.transcript_id, point_ids)
+            return
+        added, pre = apply_coverage(point_ids, own, s, rt.catalog, rt.points)
+        if added:
+            await rt.save_segment(own)
+            if seg is not None and own.segment_id == seg.segment_id:
+                await rt.emit("prompter.updated", await rt.prompter_view_now(seg))
+        if pre:
+            await rt.save_session(s)
+
+    async def _run_prompter(self, t: Transcript, inp: JudgeInput) -> None:
+        """D-450: the prompter judge on this line (its own call, MEDIUM, its own deadline); its ticks go to the line's
+        own segment. A failure shows nothing on the host screen: it only counts for the operator."""
+        rt = self.rt
+        res = await self.prompter.run(PrompterInput(utterance=inp.utterance, on_air=inp.on_air,
+                                                    previous=list(inp.previous), points=inp.points_by_product,
+                                                    session_id=rt.sid, scenario=inp.scenario),
+                                      deadline_ms=rt.settings.PROMPTER_TIMEOUT_MS)
+        async with rt.lock:
+            if res.status != "ok" or res.output is None:
+                await self._prompter_failed_locked(t, res)
+                return
+            covered = res.output.covered
+            log.info("prompter %s t=%s: covered %s", rt.sid, t.transcript_id,
+                     [(c.point_id, c.host_words) for c in covered])
+            if covered:
+                await self._apply_points_locked(t, list(dict.fromkeys(c.point_id for c in covered)), "prompter")
+
+    async def _prompter_failed_locked(self, t: Transcript, res: AgentResult) -> None:
+        """D-450: a failed prompter check is counted with the other failures of the last 5 minutes (the operator's
+        counts, D-412); it never makes the line unchecked and never shows the host's "AI busy" strip."""
+        rt = self.rt
+        now, cause = rt.now(), failure_cause(res)
+        self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
+        self._failure_n += 1
+        event = {"transcript_id": t.transcript_id, "agent": "prompter_judge", "cause": cause, "at": now,
+                 "n": self._failure_n}
+        self.failures[(t.transcript_id, "prompter_judge")] = event
+        log.info("prompter check failed %s t=%s: %s (%s)", rt.sid, t.transcript_id, cause, res.meta.get("failure"))
+        await rt.emit("prompter.failed", event)
 
     async def _check_failed_locked(self, t: Transcript, text: str, res: AgentResult, agent: str) -> None:
         """D-288/D-408/D-412: a check of this line failed. The events say why (`cause`). D-416: each failure event

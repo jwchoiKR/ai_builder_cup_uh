@@ -401,6 +401,13 @@ function applyEvent(state: ClientState, ev: SessionEvent, clientNow: number): Cl
       return { ...state, judgeFailures: [...state.judgeFailures, f], unchecked: [...state.unchecked.filter((j) => !same(j)), f] };
     }
 
+    case "prompter.failed": {
+      // D-450: counted with the last 5 minutes' failures (the operator's card); it never makes a line unchecked
+      const same = (j: JudgeFailure) => j.transcript_id === p.transcript_id && j.agent === p.agent;
+      if (state.judgeFailures.some(same)) return state;
+      return { ...state, judgeFailures: [...state.judgeFailures, { ...p, seq: ev.seq } as JudgeFailure] };
+    }
+
     case "checks.recovered": {
       // D-416: only the lines the server cleared (said at or before the line that was answered normally)
       const cleared = p.cleared as string[] | undefined;

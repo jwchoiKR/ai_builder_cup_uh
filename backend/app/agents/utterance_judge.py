@@ -154,8 +154,9 @@ def validate_context(o, catalog: Catalog, values: dict):
     group_ids = {q["group_id"] for q in values["open_questions_json"]}
     point_ids = {p["point_id"] for p in values["prompter_points_json"]}
     cue_ids = {c["cue_id"] for c in values["host_cues_json"]}
+    points = getattr(o.prompter, "covered_point_ids", None)  # D-450: production's context judge ticks no points
     unknown = ([o.answer.matched_group_id] if o.answer.matched_group_id not in group_ids | {None} else []) + [
-        x for x in [*o.prompter.covered_point_ids, *o.prompter.covered_cue_ids] if x not in point_ids | cue_ids]
+        x for x in [*(points or []), *o.prompter.covered_cue_ids] if x not in point_ids | cue_ids]
     if unknown or not (o.prompter.switch.target_product_id is None
                        or catalog.is_product(o.prompter.switch.target_product_id)):
         log.info("context ids skipped (cannot apply, not in the input): %s target=%r", unknown,  # D-374
@@ -166,7 +167,8 @@ def validate_context(o, catalog: Catalog, values: dict):
     o.answer.also_answered_group_ids = (
         [g for g in dict.fromkeys(o.answer.also_answered_group_ids) if g in group_ids and g != o.answer.matched_group_id]
         if o.answer.matched_group_id is not None and o.answer.is_answer else [])
-    o.prompter.covered_point_ids = [p for p in dict.fromkeys(o.prompter.covered_point_ids) if p in point_ids]
+    if points is not None:
+        o.prompter.covered_point_ids = [p for p in dict.fromkeys(points) if p in point_ids]
     o.prompter.covered_cue_ids = [c for c in o.prompter.covered_cue_ids if c in cue_ids]
     if not catalog.is_product(o.prompter.switch.target_product_id):
         o.prompter.switch.target_product_id = None
