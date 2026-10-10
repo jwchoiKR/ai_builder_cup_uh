@@ -26,25 +26,16 @@ _active: dict[str, WebSocket] = {}
 
 
 def default_glossary(ctx, cat=None) -> dict:
-    """§8.15 default glossary: brand, product names, ingredient names from key facts. D-230: `cat` is a session's
-    own catalog (an onboarded release)."""
+    """The show's speech hints: only the STT terms of each product read (D-452: no stt_terms, no hints; nothing is
+    built from the brand, names or key facts). D-230: `cat` is a session's own catalog."""
     from ..logic.catalog import Catalog
 
     cat = cat or Catalog(ctx.pack)
-    if any(p.stt_terms for p in cat.products):  # a product read's STT terms already hold the brand and names
-        return {"version": 0, "terms": [{"term": t, "spoken_forms": []} for p in cat.products for t in p.stt_terms]}
-    terms = [{"term": cat.brand, "spoken_forms": []}]
-    for p in cat.products:
-        terms.append({"term": p.name, "spoken_forms": []})
-        for key in p.key_facts:
-            if key not in {"volume", "list_price", "live_price", "set_price", "ph", "pao_months",
-                           "shelf_life_unopened_months", "made_in", "texture", "fragrance"}:
-                terms.append({"term": key.replace("_", " "), "spoken_forms": []})
-    return {"version": 0, "terms": terms}
+    return {"version": 0, "terms": [{"term": t, "spoken_forms": []} for p in cat.products for t in p.stt_terms]}
 
 
 def release_phrases(ctx, cat, release_id: str) -> list[str]:
-    """A release's show hints the product read's STT terms (else its brand and product names)."""
+    """A release's show hints: the product read's STT terms (D-452: only those)."""
     return phrases_from_glossary(default_glossary(ctx, cat))
 
 
@@ -56,10 +47,6 @@ def phrases_for_release(ctx, release_id: str, mode: str | None = None, market: s
 
     pack, _ = ctx.pack_for(market or ctx.settings.MARKET, lang or ctx.settings.BROADCAST_LANGUAGE, release_id)
     return release_phrases(ctx, Catalog(pack, release_id), release_id)[:MAX_PHRASES]
-
-
-async def glossary_phrases(ctx) -> list[str]:
-    return phrases_from_glossary(default_glossary(ctx))
 
 
 async def _send(ws: WebSocket, payload: dict) -> None:
@@ -86,7 +73,7 @@ async def stream_setup(ctx, rt, asked: str = "") -> tuple[list[str], str]:
         ordered = sorted(s.release_ids, key=lambda r: r != on_air)
         glossary = list(dict.fromkeys(x for r in ordered for x in release_phrases(ctx, rt.catalog, r)))
     else:
-        glossary = (release_phrases(ctx, rt.catalog, s.release_id) if s.release_id else await glossary_phrases(ctx))
+        glossary = release_phrases(ctx, rt.catalog, s.release_id or "")  # D-452: the show's own products' terms
     phrases = glossary[:MAX_PHRASES]  # D-186: chirp_3's cap
     # D-186: which hints this run's streams use, visible in Cloud Logging
     log.info("stt phrase hints for %s: glossary %d (hints %s)", session_id, len(phrases),
