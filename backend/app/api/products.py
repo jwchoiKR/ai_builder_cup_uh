@@ -35,6 +35,9 @@ READ_THINKING = "MEDIUM"
 
 READ_PROMPT = """You read a seller's document about one product (any language, any layout) for a live shopping show.
 Return what the show's screens and the host's prompter need, as JSON:
+- `is_product_document`: true when the document describes a product that could be sold on the show (a product sheet,
+  spec, label, catalog page, seller brief). false for anything else (a regulation, a contract, an invoice, a CV, an
+  article, a blank or unreadable file); then leave the other fields empty.
 - `brand` and `product_name` as written.
 - `category`: what kind of product it is, a short phrase in English ("face cream", "hair dye", "vitamin supplement").
 - `currency`: the ISO 4217 code of the prices (e.g. "SGD", "KRW").
@@ -72,6 +75,7 @@ class PriceOption(BaseModel):
 
 class ProductInfo(BaseModel):
     """What the screens and the prompter show (step 2 of the rebuilt onboarding)."""
+    is_product_document: bool = True  # reads before product_read-9 have none
     brand: str
     product_name: str
     category: str = ""  # reads before product_read-3 have none
@@ -115,13 +119,15 @@ async def read_product(product_id: str, body: ReadBody | None = None, ctx: AppCo
     s = ctx.settings
     res = await ctx.llm.call(LLMRequest(
         agent="product_read", model=s.ONBOARDING_MODEL, thinking_level=READ_THINKING,
-        prompt_version="product_read-8", system_instruction=READ_PROMPT,
+        prompt_version="product_read-9", system_instruction=READ_PROMPT,
         user_message=f"The host speaks {host}. Return the product JSON.", output_model=ProductInfo, deadline_ms=READ_DEADLINE_MS,
         parts=((f"FILE {name}".encode(), "text/plain"), (data, "application/pdf")),
         mock_primary_text=name, preview=name,
     ))
     if res.status != "ok" or res.output is None:
         raise ActionError(502, "read_failed", f"the model could not read {name}: {res.status} {res.error or ''}".strip())
+    if not res.output.is_product_document:
+        raise ActionError(422, "not_product_document", f"{name} is not a product document, so it cannot be processed")
     info = res.output.model_dump(mode="json")
     await asyncio.to_thread(bucket.upload, f"products/{product_id}/info.json",
                             json.dumps(info, ensure_ascii=False, indent=1).encode(), create_only=False)
