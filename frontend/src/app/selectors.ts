@@ -208,7 +208,7 @@ export interface PrompterPointRow {
 export interface PrompterViewModel {
   product: Product | null;
   points: PrompterPointRow[];
-  /** D-423: the server's item list for this product, rendered as is (prices, sets, ingredients, cautions) */
+  /** D-423: the server's item list for this product, rendered as is (prices, sets, points) */
   items: PrompterItem[];
   /** D-372: the prompter item ids said right (the fact checker's verdicts); the only source of their ticks */
   ticked: string[];

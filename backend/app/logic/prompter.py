@@ -1,10 +1,9 @@
 """Prompter point coverage (DEV_SPEC §8.7.1). Covered points are never removed."""
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 
-from ..models.data import Ingredient, Passage, PrompterPoint
+from ..models.data import Passage, PrompterPoint
 from ..models.session import Segment, Session
 from .catalog import Catalog
 
@@ -72,22 +71,13 @@ def prompter_view(catalog: Catalog, segment: Segment | None,
 
 # ---- D-360: the prompter's display snapshot, the fact checker's only source ---------------------------------------
 
-# D-423: the shipped demo catalog keeps its ingredient amounts among other key facts (volume, prices, pH); an amount
-# (a share or a mass) marks an ingredient there. Onboarded products list their ingredients (Product.ingredients).
-AMOUNT = re.compile(r"^\d+(\.\d+)?\s*(%|mg|mcg|µg|g|iu)$", re.IGNORECASE)
-
-
-def _ingredient_name(key: str) -> str:
-    return " ".join(w.upper() if len(w) <= 2 else w[0].upper() + w[1:] for w in key.split("_"))
-
-
 def prompter_items(catalog: Catalog, product_id: str, overrides: dict[str, list[PrompterPoint]] | None = None,
                    promo=None) -> list[dict]:
     """D-423 (user): the host prompter's item list, built once. The host renders it as is and the fact checker's
     snapshot is the same list (`prompter_passages`). Each item: `id` (the snapshot passage id, stable for ticks; a
-    promo's items carry its id, D-372), `key`, `section`, `kind` (price, set, ingredient, point, caution), `text` (the
-    passage text) and the parts the screen shows. Nothing is cut: every set offer of the product, every ingredient
-    (one without an amount shows its name only), every point (D-388) and every caution; no test result."""
+    promo's items carry its id, D-372), `key`, `section`, `kind` (price, set, point), `text` (the passage text) and
+    the parts the screen shows. Nothing is cut: every set offer of the product and every point (D-388); no
+    ingredients, cautions or test results."""
     from ..agents.fact_checker import CLAIMS_SECTION
 
     p = catalog.get_product(product_id)
@@ -122,19 +112,8 @@ def prompter_items(catalog: Catalog, product_id: str, overrides: dict[str, list[
         value = catalog.money(promo.promo_prices[s.set_id] if promo_set else s.live_price)
         add(price, "set", f"set-{s.set_id}-{promo.promo_id}" if promo_set else f"set-{s.set_id}",
             f"Set {s.name}: {value}", label=s.short_name or s.name, value=value)
-    # D-426: an onboarded product's ingredient keys can repeat (a name with no Latin letters slugs to "item"; two
-    # ingredients can share a name), so its item key carries the ingredient's position in the release, stable for the
-    # same release; the shipped demo's key_facts keys are unique already
-    ingredients = ([i.model_copy(update={"key": f"{n}-{i.key}"}) for n, i in enumerate(p.ingredients, 1)]
-                   or [Ingredient(key=k, name=_ingredient_name(k), amount=v.strip())
-                       for k, v in p.key_facts.items() if AMOUNT.match(v.strip())])
-    for i in ingredients:
-        add("Ingredients", "ingredient", f"ingredient-{i.key}", f"{i.name}: {i.amount}" if i.amount else i.name,
-            name=i.name, value=i.amount)
     for pt in points_of(catalog, product_id, overrides):
         add(CLAIMS_SECTION, "point", f"point-{pt.point_id}", pt.text)
-    for i, c in enumerate(p.cautions, 1):
-        add("Cautions", "caution", f"caution-{i}", c)
     return out
 
 
@@ -147,6 +126,6 @@ def prompter_passages(catalog: Catalog, product_id: str, overrides: dict[str, li
 
 
 def tick_item(passage_id: str | None) -> bool:
-    """D-372: a snapshot item the fact checker's verdict ticks: a price line, an ingredient amount or a caution (the
-    points to say stay with the context judge)."""
+    """D-372: a snapshot item the fact checker's verdict ticks: a price or set line (the points to say stay with the
+    context judge)."""
     return bool(passage_id) and "#prompter#" in passage_id and "#prompter#point-" not in passage_id

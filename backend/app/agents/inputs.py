@@ -78,13 +78,6 @@ def approved_claims_of_current_product_json(catalog: Catalog, product_id: str) -
     return catalog.approved_claims(product_id)
 
 
-def cautions_json(catalog: Catalog, product_id: str | None) -> list[str]:
-    """D-212: every caution of the product's sheet (of every product for a multi question), for the draft verifier,
-    independent of the passages the composer chose."""
-    return [p.text for p in catalog.pack.passages
-            if p.section == "Cautions" and (product_id is None or p.product_id == product_id)]
-
-
 def viewer_comments_json(texts: Sequence[str], max_chars: int = 300) -> list[str]:
     """D-212: the askers' own comments (at most 5), not only the canonical question."""
     return [t[:max_chars] for t in list(texts)[:5]]
@@ -318,7 +311,7 @@ BUILDERS = {
         current_product_json, product_compact_json, products_compact_json,
         run_sheet_compact_json, approved_claims_of_current_product_json, avoid_saying_json, prompter_points_json,
         prompter_judge_points_json,
-        cautions_json, viewer_comments_json, asked_questions_json,
+        viewer_comments_json, asked_questions_json,
         set_offers_json, active_promo_json_or_null, active_offers_json, switch_context_json, rules_compact_json,
         intent_names_json, condition_slots_json, active_alerts_json, open_questions_json,
         host_cues_json, last_two_final_transcripts_json, passages_json,

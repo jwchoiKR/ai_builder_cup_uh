@@ -166,7 +166,7 @@ export function alert(over: Partial<Alert> = {}): Alert {
 }
 
 /** D-423: the cream's prompter items as the server builds them (backend/app/logic/prompter.py prompter_items) */
-export function creamItems(sale = false, cautions = ["Do not apply to broken or damaged skin."]): PrompterItem[] {
+export function creamItems(sale = false): PrompterItem[] {
   const item = (section: string, kind: PrompterItem["kind"], key: string, text: string, more: Partial<PrompterItem> = {}) =>
     ({ id: `DL-CR-01#prompter#${key}`, key, product_id: CREAM, section, kind, text, ...more });
   const P = "Price & offers";
@@ -181,10 +181,6 @@ export function creamItems(sale = false, cautions = ["Do not apply to broken or 
         { label: "Cream + Ampoule set", value: "S$55.80" })
       : item(P, "set", "set-set_cream_ampoule", "Set Hydra Barrier Cream + Deep Hydration Ampoule set: S$62.00",
         { label: "Cream + Ampoule set", value: "S$62.00" }),
-    item("Ingredients", "ingredient", "ingredient-panthenol", "Panthenol: 5%", { name: "Panthenol", value: "5%" }),
-    item("Ingredients", "ingredient", "ingredient-squalane", "Squalane: 3%", { name: "Squalane", value: "3%" }),
-    item("Ingredients", "ingredient", "ingredient-ceramide_np", "Ceramide NP: 1%", { name: "Ceramide NP", value: "1%" }),
-    ...cautions.map((c, i) => item("Cautions", "caution", `caution-${i + 1}`, c)),
   ];
 }
 
@@ -214,8 +210,6 @@ export const catalog: Catalog = {
     {
       product_id: CREAM, code: "DL-CR-01", name: "Hydra Barrier Cream", short_name: "the cream", eyebrow: "THE EVERYDAY ESSENTIAL",
       tagline: "", doc: "DAON_LAB_Hydra_Barrier_Cream.pdf", volume: "50 mL", list_price: 48, live_price: 36, hero_badge: "", aliases: [],
-      key_facts: { volume: "50 mL", panthenol: "5%", squalane: "3%", ceramide_np: "1%" },
-      cautions: ["Do not apply to broken or damaged skin."],
       avoid_saying: [{ say_not: "Heals eczema", say: "Helps relieve the feeling of dryness." }],
       prompter_points: [
         { point_id: "cr-p1", text: "Lightweight gel-cream. Absorbs quickly.", required: false },
@@ -227,7 +221,6 @@ export const catalog: Catalog = {
     {
       product_id: AMPOULE, code: "DL-AM-01", name: "Deep Hydration Ampoule", short_name: "the ampoule", eyebrow: "NEXT IN YOUR ROUTINE",
       tagline: "", doc: "DAON_LAB_Deep_Hydration_Ampoule.pdf", volume: "30 mL", list_price: 42, live_price: 32, hero_badge: "", aliases: [],
-      key_facts: {},
       prompter_points: [{ point_id: "am-p1", text: "4% niacinamide, clearly stated.", required: true }],
       approved_claims: [], not_approved_claims: [], list_price_display: "S$42.00", live_price_display: "S$32.00",
     },
