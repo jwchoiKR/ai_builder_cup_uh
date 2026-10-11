@@ -25,8 +25,7 @@ async def live_runtime(ctx, show_mode: str = "solo"):
     """A made-up kettle's show (rebuilt onboarding: one product, one regulation file), on air."""
     from app.pipelines.runtime import create_session
 
-    key = product_show(ctx, {"brand": "Kelmar", "product_name": "Boil Kettle", "currency": "SGD", "list_price": "60.00",
-                             "live_price": "48.00", "points": [{"text": "Boils a litre in three minutes.",
+    key = product_show(ctx, {"brand": "Kelmar", "product_name": "Boil Kettle", "currency": "SGD", "variants": [{"label": "", "list_price": "60.00", "live_price": "48.00"}], "points": [{"text": "Boils a litre in three minutes.",
                                                                 "required": True}]},
                        [("kelmar_code.pdf", text_pdf("Kelmar advertising code. No safety guarantees."))])
     s = await create_session(ctx, "", show_mode, release_id=key)

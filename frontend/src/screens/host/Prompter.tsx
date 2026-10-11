@@ -167,13 +167,31 @@ function ProductPanel({
   const state = (i: PrompterItem) => (said(i) ? "said" : "todo");
   const mark = (on: boolean) => on && <span className={styles.saidMark} aria-label={t("Said")}><Check /></span>;
   const of = (kind: PrompterItem["kind"]) => items.filter((i) => i.kind === kind);
+  // an onboarded product with several priced options: each live price (main) with the list price that follows it
+  const prices = of("price");
+  const options = prices.filter((i) => i.main).length > 1
+    ? prices.flatMap((i, n) => (i.main ? [[i, prices[n + 1] && !prices[n + 1].main ? prices[n + 1] : undefined] as const] : []))
+    : null;
   const rows = points; // D-388 (user): every point, as the fact checker's snapshot has them
   const lead = rows.find((p) => p.required && !p.covered) ?? null;
   return (
     <>
       <div className={styles.facts}>
         <div>
-          {of("price").map((i) =>
+          {options ? options.map(([i, was]) => (
+            // several priced options: each option's name, its live price and its list price (struck) as one block
+            <div key={i.id} className={styles.pfOption}>
+              <div className={styles.pfOptionName}>{i.label}</div>
+              <div className={styles.pfOptionPrices}>
+                <span className={cx(styles.pfOptionLive, said(i) && styles.said)} data-testid="host-price-current"
+                  data-state={state(i)}>{mark(said(i))}<span className="tabular">{i.value}</span></span>
+                {was && (
+                  <span className={cx(styles.pfOptionWas, said(was) && styles.said)} data-testid="host-price-struck"
+                    data-state={state(was)}>{mark(said(was))}<s className="tabular">{was.value}</s></span>
+                )}
+              </div>
+            </div>
+          )) : of("price").map((i) =>
             i.main ? (
               <div key={i.id} className={cx(styles.pfPrice, said(i) && styles.said)} data-testid="host-price-current"
                 data-state={state(i)}>
