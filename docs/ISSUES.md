@@ -68,3 +68,36 @@ Both B and B2 failed the pre-set kill rule (any wrong clear), so the prompt was 
 
 ## I-1 status (10/11)
 Resolved by the other team's PR #3 (34982cf): a screen without `?session` no longer joins a demo show.
+
+## Sealed pool 8 measurement (10/11): issues found
+
+One round on main 30f4852 (revision 00028): 6 new products (4 cosmetics on the ASEAN cosmetic claims guideline, 2 supplements on the HSA claims list), 504 host lines, voice A (Windows TTS Zira) through Chirp 3. Headline (overlap, stress and outside-the-prompter lines apart): detection 95.8% (115/120; compliance 66/66), false alerts 5.1% (17/336), wrong strongest alerts 7, alert p95 2.7 s. Two pass lines missed (false alerts < 1%, wrong strongest 0). Nothing was changed after the run. The examples below are made up; the sealed lines stay outside the repo.
+
+### I-6. A product with several sizes or bundles gets one price on the prompter
+
+**What happens.** The product read keeps one `list_price` and one `live_price` (`backend/app/api/products.py` `ProductInfo`), and a show builds one product with one price (`backend/app/onboarding/product_show.py`). A document with a 300 mL and a 500 mL bottle, each with its own price and a two-bottle bundle, shows only one pair of prices, without saying which size it belongs to. When the read cannot pick one (two pack sizes and a subscription price), it leaves both prices empty and the release is refused ("the product has no price").
+
+**Effect.** The fact checker sees only that one price, so a host who says another size's right price ("the big bottle is $26") gets an orange "wrong price" alert. 4 of the 17 false alerts. A wrong price for another size can never be caught.
+
+**Where to fix.** The product read and record (other team's onboarding) and the prompter/fact snapshot (live path). Not decided.
+
+### I-7. A correct "more than $X" threshold line is flagged
+
+**What happens.** The document says a gift or free shipping needs more than a set amount. The host says it right ("exactly $40 does not qualify yet, it has to be above $40"), and the fact checker shows an orange promo alert with the same threshold. 4 of the 17 false alerts.
+
+### I-8. A claim the host rejects still gets an alert
+
+**What happens.** The host reads a viewer's wrong claim and rejects it ("someone says it treats eczema, no, it doesn't"), or corrects a number in the next part of the same sentence, and an alert appears anyway (red for the rejected claim, orange for the corrected number). 4 of the 17 false alerts and 2 of the 7 wrong red alerts. The same class was seen in pools 6 and 7.
+
+### I-9. The compliance judge raises red on lines that are only a wrong fact
+
+**What happens.** A line that reverses a caution or overstates a test result ("you can take it even with a fish allergy", "dermatologist tested means allergy proof") gets a red regulation box, sometimes next to the right orange fact box. The line breaks the product's own document, not a clause of the regulation. 5 of the 7 wrong red alerts.
+
+### I-10. STT returned no text for some audio
+
+**What happens.** In the first STT pass of 636 short audio units, 9 came back with no final at all (5 of them in a row); a second pass of only those 9 gave text for all. On air these lines would be lost without any sign on the screen.
+
+### Smaller items
+- An old, discontinued size mentioned as old ("the 120 mL in that photo is the old bottle") is flagged as a wrong volume (2 false alerts).
+- A test result explained in more detail than the prompter point (the share and the count of the same survey) is flagged (2).
+- Fact lines whose value the prompter does not show (another size, a caution not in the points) are caught 2 of 18 times, as designed: the fact checker reads only what the prompter shows.
