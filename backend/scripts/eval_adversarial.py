@@ -116,6 +116,7 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 # every judge and fact output with its reason, to diagnose a miss or a false alert
                 "calls": [{"agent": c.agent, "input": c.input_preview, "status": c.status, "output": c.output,
                            "latency_ms": c.latency_ms, "failure": c.failure}
+                          | {"model": c.model, "prompt_version": c.prompt_version}  # D-456: which arm answered
                           | {"usage": c.usage}  # D-310: every agent's tokens (prompt, output, thoughts, cached)
                           | {"temperature": c.temperature, "seed": c.seed}  # D-314: the sampling sent
                           | ({"retried": len(tries[c.input_preview]) > 1,

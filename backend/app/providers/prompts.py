@@ -19,7 +19,7 @@ from typing import Any
 
 PROMPT_NAMES = (
     "utterance_judge", "judge_single", "compliance_judge", "compliance_judge_rules", "context_judge", "fact_checker",
-    "fact_relation_v5",
+    "fact_relation_v5", "fact_relation_v5_cot",
     "prompter_judge",
     "comment_triage", "comment_triage_batch", "answer_composer",
     "broadcast_summary", "reply_translator", "comment_insights",

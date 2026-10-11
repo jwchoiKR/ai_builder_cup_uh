@@ -8,8 +8,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from ..logic.catalog import Catalog
-from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutputV5, with_note_checks,
-                               with_same_as)
+from ..models.agent_io import (FactCheckOutput, FactClaim, FactRelationOutputV5, FactRelationOutputV5Cot,
+                               with_note_checks, with_same_as)
 from ..models.data import Passage, Promo
 from ..models.session import SwitchState
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -181,6 +181,8 @@ class FactChecker:
         settings = getattr(llm, "settings", None)
         # D-331: v5 adds a stance per claim (D-432: v2-v4 and v6-v8 are deleted)
         self.relation_model = FactRelationOutputV5  # D-435: the v1 relation prompt is gone
+        if prompt.name == "fact_relation_v5_cot":  # D-456: a short `reasoning` first in each claim (logged only)
+            self.relation_model = FactRelationOutputV5Cot
         extras: list = []  # D-435: the record (FR) and release-file (RD) addenda are gone
         self.fixes = fixes_of(getattr(settings, "FACT_FIXES", ""))  # D-280: the fixes' prompt lines (F1, F5)
         fix_addenda = arms._addenda(str(llm.prompts_path)) if self.fixes else {}

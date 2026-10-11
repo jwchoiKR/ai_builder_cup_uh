@@ -322,6 +322,26 @@ class FactRelationOutputV5(BaseModel):
     claims: list[FactRelationClaimV5]
 
 
+class FactRelationClaimV5Cot(BaseModel):
+    """D-456 FACT_PROMPT=v5_cot (a probe arm): v5 with a short `reasoning` FIRST (Vertex writes the schema's properties
+    in order), the line's net meaning against the evidence. Code decides nothing from it; the agent-call log keeps it."""
+    reasoning: str
+    span: str
+    stance: Literal["HOST_ASSERTS", "HOST_ENDORSES", "REPORTS_OR_ASKS"]
+    product_id: str
+    field: FactField
+    stated_value: str
+    evidence: list[str]
+    source_value: str | None
+    relation: Literal["contradicts", "consistent", "not_in_documents", "uncertain", "not_checked"]
+    correct_value: str | None
+    say: str | None = None
+
+
+class FactRelationOutputV5Cot(BaseModel):
+    claims: list[FactRelationClaimV5Cot]
+
+
 class JudgeSingleOutput(UtteranceJudgeOutput):
     facts: FactCheckOutput
 

@@ -133,7 +133,8 @@ class UtterancePipeline:
         self.judge = UtteranceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex, single=self.single)
         self.compliance = ComplianceJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
         self.context = ContextJudge(ctx.llm, ctx.prompts, rt.catalog, rt.reflex)
-        self.facts = FactChecker(ctx.llm, ctx.prompts["fact_relation_v5"], rt.catalog)  # D-296; D-331
+        self.facts = FactChecker(ctx.llm, ctx.prompts[f"fact_relation_{rt.settings.FACT_PROMPT}"],  # D-296; D-331
+                                 rt.catalog)  # D-456: v5_cot
         self.prompter = PrompterJudge(ctx.llm, ctx.prompts["prompter_judge"], rt.catalog)  # D-450
         # D-137, D-144: per judge, the times it failed (timeout, error, invalid) within HEALTH_WINDOW_MS
         self._failures: dict[str, list[int]] = {}
