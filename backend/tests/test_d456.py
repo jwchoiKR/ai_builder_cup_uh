@@ -23,7 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 REG = text_pdf("Lunelle Code\n2.1 A cosmetic must not be presented as treating disease.\n")
 CREAM = {"brand": "Lunelle", "product_name": "Hydra Calm Cream", "category": "face cream", "currency": "SGD",
-         "list_price": "42.00", "live_price": "36.00", "points": [{"text": "Fragrance-free.", "required": True}]}
+         "variants": [{"label": "", "list_price": "42.00", "live_price": "36.00"}],
+         "points": [{"text": "Fragrance-free.", "required": True}]}
 PID = "prd_000000000101"
 LINE = "And today it's only thirty-two dollars."
 REASONING = "Host commits to: the live price is S$32 now. Evidence says: the live price is S$36.00. Same: no."
