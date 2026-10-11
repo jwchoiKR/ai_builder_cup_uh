@@ -79,7 +79,7 @@ One round on main 30f4852 (revision 00028): 6 new products (4 cosmetics on the A
 
 **Effect.** The fact checker sees only that one price, so a host who says another size's right price ("the big bottle is $26") gets an orange "wrong price" alert. 4 of the 17 false alerts. A wrong price for another size can never be caught.
 
-**Where to fix.** The product read and record (other team's onboarding) and the prompter/fact snapshot (live path). Not decided.
+**Where to fix.** The product read and record (other team's onboarding) and the prompter/fact snapshot (live path). The onboarding team is changing the read to keep every size and bundle price (10/11); after it lands, the live path shows them on the prompter and to the fact checker, and the fact-checker arms (D-456) are measured again.
 
 ### I-7. A correct "more than $X" threshold line is flagged
 
