@@ -38,9 +38,11 @@ Return what the show's screens and the host's prompter need, as JSON:
 - `brand` and `product_name` as written.
 - `category`: what kind of product it is, a short phrase in English ("face cream", "hair dye", "vitamin supplement").
 - `currency`: the ISO 4217 code of the prices (e.g. "SGD", "KRW").
-- `list_price` (regular price) and `live_price` (the price in this broadcast) as plain numbers in that currency,
-  digits and a decimal point only ("46.00", "29000"). When the document gives one price only, use it for both.
-  null when the document gives no price.
+- `variants`: every priced option of the product (sizes, pack counts, shades, bundles) in the document's order, as
+  {`label` (the option as written, "50 mL", "Pack of 3"; "" when the document names no option), `list_price` (regular
+  price), `live_price` (the price in this broadcast)}, prices as plain numbers in that currency, digits and a decimal
+  point only ("46.00", "29000"). When an option has one price only, use it for both. One price in the whole document
+  is one option. [] when the document gives no price.
 - `points`: the things the host should say about the product, each one short sentence in the host's language
   (the message names it; translate when the document is in another language, keeping names, numbers and units
   as stated), taken from what the document allows to be said (approved claims, key benefits, test results with their
@@ -62,15 +64,20 @@ class Point(BaseModel):
     required: bool
 
 
+class PriceOption(BaseModel):
+    label: str
+    list_price: str | None
+    live_price: str | None
+
+
 class ProductInfo(BaseModel):
     """What the screens and the prompter show (step 2 of the rebuilt onboarding)."""
     brand: str
     product_name: str
     category: str = ""  # reads before product_read-3 have none
     currency: str | None
-    list_price: str | None
-    live_price: str | None
     points: list[Point]
+    variants: list[PriceOption] = []  # every priced option
     stt_terms: list[str] = []  # speech recognizer hints; reads before product_read-4 have none
 
 
@@ -108,7 +115,7 @@ async def read_product(product_id: str, body: ReadBody | None = None, ctx: AppCo
     s = ctx.settings
     res = await ctx.llm.call(LLMRequest(
         agent="product_read", model=s.ONBOARDING_MODEL, thinking_level=READ_THINKING,
-        prompt_version="product_read-6", system_instruction=READ_PROMPT,
+        prompt_version="product_read-8", system_instruction=READ_PROMPT,
         user_message=f"The host speaks {host}. Return the product JSON.", output_model=ProductInfo, deadline_ms=READ_DEADLINE_MS,
         parts=((f"FILE {name}".encode(), "text/plain"), (data, "application/pdf")),
         mock_primary_text=name, preview=name,

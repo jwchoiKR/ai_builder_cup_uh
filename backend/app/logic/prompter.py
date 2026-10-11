@@ -105,6 +105,13 @@ def prompter_items(catalog: Catalog, product_id: str, overrides: dict[str, list[
             main=True)
         add(price, "price", "live-price", f"Live price: {catalog.money(p.live_price)}", label="Live price",
             value=catalog.money(p.live_price))
+    elif p.variants:  # every priced option, each with its own live price (and list price when it differs)
+        for i, v in enumerate(p.variants, 1):
+            live, lst = catalog.money(v.live_price), catalog.money(v.list_price)
+            add(price, "price", f"live-price-{i}", f"Live price ({v.label}): {live}", label=v.label, value=live,
+                main=True)
+            if v.list_price != v.live_price:
+                add(price, "price", f"list-price-{i}", f"List price ({v.label}): {lst}", label="List price", value=lst)
     else:
         add(price, "price", "live-price", f"Live price: {catalog.money(p.live_price)}", label="LIVE PRICE",
             value=catalog.money(p.live_price), main=True)

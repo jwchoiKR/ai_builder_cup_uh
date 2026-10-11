@@ -7,7 +7,7 @@ from app.api.audio_ws import phrases_for_release
 from .helpers import make_ctx, product_show, text_pdf
 
 INFO = {"brand": "Lunelle", "product_name": "Hydra Calm Cream", "category": "face cream", "currency": "SGD",
-        "list_price": "42.00", "live_price": "36.00", "points": [{"text": "5% panthenol.", "required": True}]}
+        "variants": [{"label": "", "list_price": "42.00", "live_price": "36.00"}], "points": [{"text": "5% panthenol.", "required": True}]}
 REG = [("lunelle_code.pdf", text_pdf("Lunelle Code\n2.1 No disease claims.\n"))]
 
 

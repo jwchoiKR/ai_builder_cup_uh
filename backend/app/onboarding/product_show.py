@@ -12,7 +12,7 @@ import json
 import re
 
 from ..logic.catalog import DataPack, DataPackError
-from ..models.data import (Passage, Product, ProductsFile, PromosFile, PrompterPoint, Runsheet, RunsheetItem)
+from ..models.data import (Passage, Product, ProductVariant, ProductsFile, PromosFile, PrompterPoint, Runsheet, RunsheetItem)
 
 SHOW_KEY = re.compile(r"(prd_[0-9a-f]{12}):(reg_[0-9a-f]{12})")
 SEGMENT_SEC = 600
@@ -46,22 +46,25 @@ def product_pack(base: DataPack, info: dict, key: str) -> DataPack:
     cur, sym = base.market.currency.code, base.market.currency.symbol
     if info.get("currency") and info["currency"].upper() != cur:
         raise DataPackError(f"the product is priced in {info['currency']}; this server's market uses {cur}")
-    live = info.get("live_price") or info.get("list_price")
-    if not live:
+    variants = [ProductVariant(label=v.get("label") or "", live_price=float(v.get("live_price") or v["list_price"]),
+                               list_price=float(v.get("list_price") or v.get("live_price")))
+                for v in info.get("variants") or [] if v.get("live_price") or v.get("list_price")]
+    if not variants:
         raise DataPackError("the product has no price")
-    list_price = float(info.get("list_price") or live)
+    main = variants[0]  # the product's own price is the first option's (D-281)
     points = [PrompterPoint(point_id=f"{product_id}-p{i}", text=p["text"], required=bool(p["required"]))
               for i, p in enumerate(info.get("points", []), 1)]
     name, brand = info["product_name"], info["brand"]
     product = Product(product_id=product_id, code=product_id, name=name, short_name=name, eyebrow=brand, tagline="",
-                      doc="", volume="", list_price=list_price, live_price=float(live), hero_badge="", aliases=[name],
+                      doc="", volume="", list_price=main.list_price, live_price=main.live_price, hero_badge="", aliases=[name],
                       key_facts={}, prompter_points=points, approved_claims=[p.text for p in points],
                       not_approved_claims=[], stt_terms=info.get("stt_terms") or [],
+                      variants=variants if len(variants) > 1 or main.label else [],  # one unnamed price: no options
                       brand=brand, category=str(info.get("category") or "").strip())  # D-448
-    passages = [Passage(passage_id=f"{product_id}#key-facts#live-price", product_id=product_id, doc="", section="Key facts",
-                        text=f"Live broadcast price: {sym}{float(live):.2f}"),
-                Passage(passage_id=f"{product_id}#key-facts#list-price", product_id=product_id, doc="", section="Key facts",
-                        text=f"List price: {sym}{list_price:.2f}")]
+    passages = [Passage(passage_id=f"{product_id}#key-facts#price-{i}", product_id=product_id, doc="",
+                        section="Key facts", text=f"{v.label + ': ' if v.label else ''}live broadcast price "
+                                                  f"{sym}{v.live_price:.2f}, list price {sym}{v.list_price:.2f}")
+                for i, v in enumerate(variants, 1)]
     if points:
         passages.append(Passage(passage_id=f"{product_id}#claims#approved", product_id=product_id, doc="",
                                 section="Approved on-air claims",

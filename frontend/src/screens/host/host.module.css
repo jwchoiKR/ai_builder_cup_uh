@@ -514,6 +514,31 @@
   letter-spacing: var(--eyebrow-tracking);
   color: var(--text-2);
 }
+.pfOption {
+  padding: calc(6px * var(--hs)) 0;
+}
+.pfOption:first-child { padding-top: 0; }
+.pfOption + .pfOption { border-top: 1px solid var(--border); }
+.pfOptionName {
+  font-size: calc(16px * var(--hs));
+  line-height: 1.3;
+  color: var(--text-2);
+}
+.pfOptionPrices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: calc(8px * var(--hs));
+}
+.pfOptionLive {
+  font-size: calc(32px * var(--hs));
+  font-weight: var(--fw-semibold);
+  line-height: 1.15;
+}
+.pfOptionWas {
+  font-size: calc(18px * var(--hs));
+  color: var(--text-3);
+}
 .priceSale {
   color: var(--live);
 }
