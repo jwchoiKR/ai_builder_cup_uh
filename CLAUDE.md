@@ -44,7 +44,15 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - In the cloud, onboarding state lives in `gs://ai-budiler-cup-uh-team-pjt-live-studio-onboarding/onboarding/` (D-263; bucket name since the 10/6 project move). The bucket is the source of truth; the container's ONBOARDING_DIR is only a cache that is refilled at start. Never edit the bucket by hand: releases and packs are write-once.
 - Approving a release also runs the BriefAgent (about 30 s, D-265) and writes `briefs/<release_id>.json` (write-once). A release approved before D-265 has no brief: its show keeps the approved claims as points and only brand, product and ingredient names as STT hints until it is approved again.
 
-## Handoff 10/11 (read this first)
+## Handoff 10/12 early morning (read this first)
+
+- **Blocked:** from 10/12 00:43 KST every Gemini call in ai-budiler-cup-uh-team-pjt returns 403 PERMISSION_DENIED "Request rejected in accordance with our terms of use and policies." (all models, global and us-central1; rechecked 01:30 with a one-line call). The deployed app uses the same project. The user checks the console/owner mail; do not retry in loops or change IAM.
+- **Results (deck `docs/decks/judges_1012.html`, proof-plan last two sections):** sealed pool 8, diagnostic. Fact checker: 3.8 Flash LOW is the candidate (fact-caused false alerts 11 -> 2). Compliance: Flash-Lite MEDIUM cut wrong red alerts 9 -> 1 but 5.4% of calls go over 5 s (max 45.7 s); HIGH and 3.8 LOW (W4-W6) are invalid because of the 403 and wait for a rerun. Nothing changed in code defaults.
+- **User rules 10/12:** a judge's time is one call, input to output, retries excluded; failures counted apart. 5 s is a soft target ("넘으면 아쉽다"), not a cut that drops an answer (the code still drops answers after 5 s: a logic change for peers + user). Test documents in English and Korean only for now.
+- **Pool 9** (sealed, outside git; copied to the eval bucket `sealed_sets/onboarding9`): 6 en/ko products, 504 lines, labels final (GPT vs blind critic 499/504, 5 ruled safe), TTS for both voices done. Not yet: onboarding, STT, live runs; the revised plan (6 runs, about 5-7k KRW) waits for the user's go.
+- **Open question from the user:** what to change in `docs/decks/submission_1011.pptx` (see the answer in the session; nothing edited).
+
+## Handoff 10/11
 
 - **State:** main = multi_agent_test = 30f4852 (+ docs d518d1d on the branch); cloud revision 00028 runs it. Sessions: dev `ai-builder-cup-uh-31` (Opus), critic `ai-builder-cup-uh-75` (Sonnet, plan reviews only).
 - **Done 10/10-11:** merged main PR #2-#8 (other team: new product/regulation upload, demo console back, category and stt_terms in the product read); D-442 one box per line; D-444 full-meaning ticks; D-448b brand/category to the judges (category-word switch works); D-450/D-455 a separate prompter judge on gemini-3.8-flash LOW with no deadline (the context judge no longer ticks; D-454 probe wrong 0/40, missed 0/63; cloud check passed); D-452 STT hints only from stt_terms; D-453 fixed two stale product-API test expectations. Decks: repo_compare_1010 (README ranking 3rd of 90), repo_code_1010 (code ranking 3rd of 24), category_1010. Issues I-1..I-5 in docs/ISSUES.md (I-1, I-5 resolved).
