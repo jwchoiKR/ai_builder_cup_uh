@@ -170,7 +170,7 @@ function ProductPanel({
   // an onboarded product with several priced options: each live price (main) with the list price that follows it
   const prices = of("price");
   const options = prices.filter((i) => i.main).length > 1
-    ? prices.flatMap((i, n) => (i.main ? [[i, prices[n + 1]?.main === false ? prices[n + 1] : undefined] as const] : []))
+    ? prices.flatMap((i, n) => (i.main ? [[i, prices[n + 1] && !prices[n + 1].main ? prices[n + 1] : undefined] as const] : []))
     : null;
   const rows = points; // D-388 (user): every point, as the fact checker's snapshot has them
   const lead = rows.find((p) => p.required && !p.covered) ?? null;
@@ -186,8 +186,8 @@ function ProductPanel({
                 <span className={cx(styles.pfOptionLive, said(i) && styles.said)} data-testid="host-price-current"
                   data-state={state(i)}>{mark(said(i))}<span className="tabular">{i.value}</span></span>
                 {was && (
-                  <s className={cx(styles.pfOptionWas, "tabular", said(was) && styles.said)} data-testid="host-price-struck"
-                    data-state={state(was)}>{was.value}</s>
+                  <span className={cx(styles.pfOptionWas, said(was) && styles.said)} data-testid="host-price-struck"
+                    data-state={state(was)}>{mark(said(was))}<s className="tabular">{was.value}</s></span>
                 )}
               </div>
             </div>
