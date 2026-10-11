@@ -135,9 +135,13 @@ def viewer_session(doc: dict) -> dict:
     return _only(doc, VIEWER_SESSION_FIELDS)
 
 
+# a hidden comment for a viewer: who wrote it and when, so the chat shows "hidden" in its place; never its text
+VIEWER_HIDDEN_COMMENT_FIELDS = ("comment_id", "author_id", "author_name", "received_at", "visibility")
+
+
 def viewer_comment(doc: dict) -> dict:
     if doc.get("visibility") == "hidden":
-        return {"comment_id": doc.get("comment_id"), "visibility": "hidden"}
+        return _only(doc, VIEWER_HIDDEN_COMMENT_FIELDS)
     return _only(doc, VIEWER_COMMENT_FIELDS)
 
 

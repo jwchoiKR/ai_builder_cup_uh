@@ -47,8 +47,7 @@ async def _show(tmp_path, llm):
     from .helpers import make_ctx, product_show
 
     ctx = make_ctx(backend=llm, CORRECTION_CHECK="judge")
-    key = product_show(ctx, {"brand": "Kelmar", "product_name": "Joint Ease", "currency": "SGD", "list_price": "30.00",
-                             "live_price": "25.00",
+    key = product_show(ctx, {"brand": "Kelmar", "product_name": "Joint Ease", "currency": "SGD", "variants": [{"label": "", "list_price": "30.00", "live_price": "25.00"}],
                              "points": [{"text": "Supports normal joint comfort.", "required": True}]},
                        [("kelmar_code.pdf", CODE)])
     s = await create_session(ctx, "", release_id=key)

@@ -1,4 +1,5 @@
-"""AnswerComposer agent (DEV_SPEC §7.6): short cited answer to a question group, verified by code."""
+"""AnswerComposer agent (DEV_SPEC §7.6): short cited answer to a question group. No code check follows it:
+its own `grounded` and `needs_human` decide whether the draft is used and whether it posts by itself."""
 from __future__ import annotations
 
 import re
@@ -45,7 +46,6 @@ class ComposeInput:
     scenario: str = "default"
     sensitive: bool = False
     rules: bool = True  # D-192 arm F1: RULES only when the tool step fetched them
-    revise: dict | None = None  # {previous_reply, problems}: the code gate rejected the first draft; write it again
 
 
 def compose_primary_text(product_id: str | None, canonical_question: str, promo: Promo | None) -> str:
@@ -118,9 +118,7 @@ class AnswerComposer:
         })
         if arms.agents_decide(self.llm.design_arm) and inp.rules:  # D-191 arms D to F2: the advertising rules, whole
             user += inputs.data_block("RULES", inputs.rules_compact_json(self.catalog))
-        if inp.revise:
-            user += inputs.data_block("REVISE", inp.revise)
-        primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo) + ("|revise" if inp.revise else "")
+        primary = compose_primary_text(inp.product_id, inp.canonical_question, inp.promo)
         return await self.llm.call(LLMRequest(
             agent=self.name, model=self.llm.composer.model, thinking_level=self.llm.composer.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.system_instruction,

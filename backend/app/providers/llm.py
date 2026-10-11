@@ -467,6 +467,7 @@ def write_usage_report(path: str) -> None:
 NO_DEADLINE_MS = 600_000
 
 SAMPLED_AGENTS = frozenset({"compliance_judge", "fact_checker", "context_judge", "prompter_judge"})  # D-314; D-450
+COMMENT_AGENTS = frozenset({"comment_triage", "comment_triage_batch", "answer_composer"})  # COMMENT_SEED
 HEDGED_AGENTS = frozenset({"compliance_judge", "context_judge", "utterance_judge", "judge_single", "fact_checker"})
 
 
@@ -544,6 +545,8 @@ class LLMClient:
             t, s = self._settings.JUDGE_TEMPERATURE, self._settings.JUDGE_SEED  # checked at startup
             req = replace(req, temperature=float(t) if t and req.temperature is None else req.temperature,
                           seed=int(s) if s and req.seed is None and req.seeded else req.seed)
+        elif req.agent in COMMENT_AGENTS and self._settings.COMMENT_SEED and req.seed is None and req.seeded:
+            req = replace(req, seed=int(self._settings.COMMENT_SEED))
         call_id = self._ids.new("call_", req.session_id)
         started_at = self._clock.now_ms()
         t0 = time.perf_counter()

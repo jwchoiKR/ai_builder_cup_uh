@@ -83,6 +83,7 @@ class SessionRuntime:
         self.assistant = session.assistant  # D-139
         self.lock = asyncio.Lock()
         self.triage_cache = TriageCache()
+        self.refused_at: dict[str, int] = {}  # author -> when they last got the fixed "cannot answer" reply
         self.shoutouts: deque = deque(maxlen=20)  # D-113: recent purchase/welcome/compliment comments
         self.answer_cache = AnswerCache()
         self.composing: dict[str, asyncio.Future] = {}
@@ -697,7 +698,8 @@ class SessionRuntime:
                 "server_time": self.now(),
                 "session": viewer_session(s.model_dump(mode="json")),
                 "segments": [x.model_dump(mode="json") for x in await self.segments()],
-                "comments": [viewer_comment(c.model_dump(mode="json")) for c in visible],
+                # hidden ones too, without their text: the chat shows "hidden" in their place, also after a reload
+                "comments": [viewer_comment(c.model_dump(mode="json")) for c in comments[-SNAPSHOT_COMMENTS:]],
                 "messages": [m for m in (viewer_message(x.model_dump(mode="json")) for x in messages) if m is not None],
             }
         hidden = [c for c in comments if c.visibility == "hidden"][-SNAPSHOT_COMMENTS:] if role == "operator" else []

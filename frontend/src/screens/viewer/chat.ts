@@ -40,7 +40,12 @@ export type ViewerChatRow =
       /** only on the viewer's own question, and only while no reply to it is shown */
       waiting: WaitingStatus | null;
     }
-  | { kind: "message"; key: string; at: number; message: Message };
+  | { kind: "message"; key: string; at: number; message: Message }
+  /** a comment that was hidden: its place in the chat, without its text */
+  | { kind: "hidden"; key: string; at: number; comment: Comment };
+
+/** English label (i18n key) of a hidden comment's line. */
+export const HIDDEN_LABEL = "This comment has been hidden.";
 
 export const PROMO_PREFIX = "PROMO#";
 
@@ -104,7 +109,11 @@ export function viewerChat(state: ClientState, now: number, me: string | null = 
       waiting,
     });
   }
-  return rows;
+  // a hidden comment keeps its place in the chat as a line that says so
+  const hidden = Object.values(state.comments).filter((c) => c.visibility === "hidden" && c.received_at);
+  if (hidden.length === 0) return rows;
+  for (const c of hidden) rows.push({ kind: "hidden", key: c.comment_id, at: c.received_at, comment: c });
+  return rows.sort((a, b) => a.at - b.at);
 }
 
 /** A short, stable signature of what is visible, to keep the chat pinned to the bottom. */
