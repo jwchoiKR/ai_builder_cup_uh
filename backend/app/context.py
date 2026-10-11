@@ -17,7 +17,7 @@ from .models.session import AgentCall
 from .providers.armor import make_armor
 from .providers.llm import LLMBackend, LLMClient, make_backend
 from .providers.prompts import PromptTemplate, load_prompts
-from .providers.retriever import LocalRetriever, Retriever, VertexSearchRetriever
+from .providers.retriever import LocalRetriever, ProductDocumentRetriever, Retriever, VertexSearchRetriever
 from .providers.stt import make_stt
 from .scheduler import AsyncScheduler, ManualScheduler
 from .store import make_store
@@ -136,14 +136,37 @@ def build_context(
         reflex=Reflex(pack.rules, pack.lexicon),
         stt=make_stt(settings, clock),
         armor=make_armor(settings),
-        answer_retriever=VertexSearchRetriever(settings.GCP_PROJECT, settings.VERTEX_SEARCH_LOCATION,
-                                               settings.VERTEX_SEARCH_ENGINE_ID, settings.VERTEX_ANSWER_TIMEOUT_MS)
-        if settings.ANSWER_RETRIEVER == "vertex_search" else None,
+        answer_retriever=_answer_retriever(settings),
     )
     ctx.runtimes = Runtimes(ctx)
     if hasattr(store, "on_loaded"):  # STORE=firestore: a session came back from Firestore (D-428)
         store.on_loaded = ctx.runtimes.session_loaded
     return ctx
+
+
+def _answer_retriever(settings: Settings) -> Retriever | None:
+    """The evidence of viewer answers (ANSWER_RETRIEVER=vertex_search, VERTEX_EVIDENCE); None = the local index."""
+    if settings.ANSWER_RETRIEVER != "vertex_search":
+        return None
+    mode = settings.VERTEX_EVIDENCE
+    search = VertexSearchRetriever(settings.GCP_PROJECT, settings.VERTEX_SEARCH_LOCATION,
+                                   settings.VERTEX_SEARCH_ENGINE_ID, settings.VERTEX_ANSWER_TIMEOUT_MS,
+                                   "answer" if mode == "answer" else "segments", settings.VERTEX_SEARCH_TIMEOUT_MS)
+
+    def load(product_id: str) -> list[tuple[str, bytes]]:
+        """The product's uploaded PDFs, from the onboarding bucket (products/<product_id>/, api/products.py)."""
+        from .onboarding.storage import bucket_for
+
+        if not settings.ONBOARDING_GCS_BUCKET:
+            return []
+        bucket = bucket_for(settings.ONBOARDING_GCS_BUCKET, settings.GCP_PROJECT)
+        return [(k.rsplit("/", 1)[1], bucket.download(k)) for k in bucket.keys(f"products/{product_id}/")
+                if k.lower().endswith(".pdf")]
+
+    # the search is the evidence; the product's own PDF stands in when the search gives nothing (or goes first, for
+    # VERTEX_EVIDENCE=document)
+    return ProductDocumentRetriever(load, search, settings.WHOLE_DOCUMENT_MAX_CHARS,
+                                    first="document" if mode == "document" else "search")
 
 
 def get_ctx(request: Request) -> AppContext:

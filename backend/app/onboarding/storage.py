@@ -2,6 +2,7 @@
 in-memory bucket for tests. Nothing is kept on the container's disk."""
 from __future__ import annotations
 
+import mimetypes
 from functools import lru_cache
 from typing import Protocol
 
@@ -27,7 +28,9 @@ class GcsBucket:
 
         blob = self._bucket.blob(key)
         try:
-            blob.upload_from_string(data, if_generation_match=0 if create_only else None)
+            # upload_from_string defaults to text/plain, which made PDFs open as garbled text
+            blob.upload_from_string(data, content_type=mimetypes.guess_type(key)[0] or "application/octet-stream",
+                                    if_generation_match=0 if create_only else None)
         except PreconditionFailed:
             if blob.download_as_bytes() != data:
                 raise Immutable(f"gs://{self._bucket.name}/{key} exists with other content") from None

@@ -1,11 +1,9 @@
 # Viewer comments: how a comment is handled, and what was measured
 
-Status 2026-10-09, branch `perf/realtime-overhaul` (local, not pushed). Scope: the comment path only. The speech path
-(STT, judges, alerts) is unchanged.
-
-Every number below is measured, one run each, on the real models on Vertex AI (global endpoint) with the two demo
-products. The raw run reports are kept locally (`docs/eval/comments-1008/`, not in the repository). One run on small
-sets: read the percentages with their counts.
+Status 2026-10-10, branch `feature/comment-consistency`. Scope: the comment path only. The speech path (STT, judges,
+alerts) is unchanged. Sections 1 and 2 describe the code as it is now; the numbers in sections 6 and 7 were measured
+on 10/8 and 10/9 on the earlier path (record answers, code checks and a draft verifier, all removed on 10/10) and are
+kept as history.
 
 ## 1. The decision: answered by itself, or waits for a person
 
@@ -13,18 +11,22 @@ A question ends in one of two ways. Nothing else is decided while the show runs.
 
 | outcome | when | what the viewer gets |
 |---|---|---|
-| answered by itself | triage says no person is needed **and** a draft passed every check | a reply marked "AI answer", text only |
-| waits for a person | triage says a person must approve it, **or** no draft passed the checks | the reply the host says on air or the operator posts |
+| answered by itself | triage says the kind of question needs no person **and** the composer found the answer stated in the product's documents | a reply marked "AI answer" |
+| waits for a person | triage says a person must approve it, **or** the composer found no answer, or its reply is not a plain statement of the documents | the reply the host says on air or the operator posts |
 
-The rule the triage prompt gives the model: no person is needed only when the reply would be one fact read straight off
-the product sheet, the same sentence for every viewer who asks. If the reply has to be reasoned out of the sheet, or it
-touches the viewer's health or safety, what the product will achieve, test results, certificates, personal advice, or
-anything the host or the shop would have to do, a person approves it.
+Two agents decide, and each decides only what it can see.
+
+- **Triage sees the comment, not the documents.** It says what kind of question it is: one about the viewer's health
+  or safety, about what the product will achieve, its test results, a certificate, personal advice, something outside
+  the product, a follow-up on the host's line, or unclear. Those wait for a person. Every other question about the
+  product itself needs none. Triage never guesses whether the documents cover a question, so the same comment gets the
+  same decision for any product.
+- **The composer sees the documents.** `grounded=false`: they do not answer the question, and it goes to the operator
+  without a draft. `needs_human=true`: the reply is not a plain statement of theirs (it was reasoned out, gives a test
+  or survey result, touches health or safety, or covers only a part), so a person reads it before it is posted.
 
 The topic of a question (its intent, e.g. `price`, `shipping`) is still returned by triage but routes nothing when
-triage gives the decision. It is used to pick the record answer for price and size, to fetch passages, and as the
-fallback route when triage gives no decision (`data/policy/intents.json`). Statistics by topic are not built during
-the show: the comments are analysed once after the broadcast (§2, "After the show").
+triage gives the decision. It is the fallback route when triage gives none (`data/policy/intents.json`).
 
 ## 2. The flow
 
@@ -33,17 +35,16 @@ viewer comment
   │
   ├─ 1. code: rate limit, links masked, e-mail / phone hidden, emoji-only and listed reactions settled      (no LLM)
   ├─ 2. Model Armor screen (deploy only): blocked comments never reach a model
-  ├─ 3. triage agent, one call: kind (question / reaction / hide), product, topic, a normalised English question,
-  │      language, a second question if the comment asks two things, and needs_approval + approval_reason
+  ├─ 3. triage agent, one call (seeded): kind (question / reaction / hide), product, topic, a normalised English
+  │      question, language, a second question if the comment asks two things, and needs_approval + approval_reason
   ├─ 4. code: ids checked, product attributed, new group (or the group of the very same words)
   ├─ 5. code: route from triage's decision
   └─ 6. answer
-        ├─ record answer   price, size: the value by code from the product record, worded by the reply phraser;
-        │                  code keeps the wording only if the value is there and no other number was added
-        ├─ cached answer   the same question again: the verified answer of this broadcast, no LLM
-        └─ composed answer the composer writes from the sheet passages → code checks citations and numbers
-                           → on a rejection the composer writes once more with the reasons
-        every one of the three then passes the draft verifier (meaning, and "is this what the viewer asked?")
+        ├─ cached answer   the same question again: the grounded answer of this broadcast, no LLM
+        └─ composed answer evidence from Vertex AI Search: the asked product's own passages, word for word
+                           (the product's PDF itself when the search gives nothing)
+                           → the composer (seeded) writes the reply and says grounded / needs_human
+        no code check and no second model follows the composer (10/10)
 ```
 
 Who gets a question that waits for a person:
@@ -52,35 +53,106 @@ Who gets a question that waits for a person:
 |---|---|
 | health, claim, personal, host_line, unclear | the host's card with the suggested reply **and** the operator's list at once; the first of the two posts it, once |
 | test_results, certification, outside (shipping, payment, the show itself), no product | the operator's list only |
-| no draft passed the checks | the operator's list only |
+| the composer's reply needs a person (`needs_human`) | the operator's list (team show) or the host's card (solo show) |
+| the documents do not answer it (`grounded=false`) | the operator's list only, without a draft |
 | a comment with two questions | always waits for a person |
 
 Other behaviour:
 
 - **Hidden comments.** Profanity, insults aimed at people, spam and personal information are hidden. A negative
   opinion without abuse ("boo, not for me") is a reaction and stays visible (owner decision).
-- **Prompt injection.** A comment that gives the system orders is hidden with `signal=injection`; a real question with
-  an order appended stays a question and the order is ignored.
+- **Prompt injection.** A comment that only gives the system orders, found by Model Armor's injection filter or by
+  triage (`signal=injection`), is hidden like any other hidden comment, and no model reads an Armor-blocked comment.
+  `INJECTION_REPLY=reply` keeps it in chat instead and answers it with one fixed line
+  (`viewer_replies.cannot_answer` in `data/templates/notices.json`; no model writes it; one per viewer a minute).
+  A real question with an order appended stays a question and the order is ignored.
+- **A hidden comment in the viewer chat** keeps its place as a grey line, "This comment has been hidden.", with the
+  author's name and time and never its text. The host's chat drops it; the operator's list shows it with its text.
 - **Stream problems.** "No sound", "frozen" are reactions with `signal=stream_issue`, shown to the operator.
-- **No grouping by meaning** (owner decision). Triage is no longer given the open questions and returns no group
-  pick, and the grouping rules are gone from `logic/grouping.py` (prompt `comment_triage_v10`); a comment is no longer
-  triaged a second time because the list of open questions had changed. Only a comment that repeats a member's own words joins a question;
-  every other wording is its own question with its own reply and its own row. A reply therefore never lands on a
-  question it does not answer. The host's cards are ordered by the remaining terms of the score: the product on air,
-  the topic's purchase weight, and the waiting time (the number of askers is 1 unless viewers typed the same words).
-  A question the operator sends to the host is pinned ahead of the automatic ones.
+- **No grouping by meaning** (owner decision). Only a comment that repeats a member's own words joins a question;
+  every other wording is its own question with its own reply and its own row.
 - **Translation.** After a reply is posted, the reply translator adds it in the language of askers who wrote in
   another language. The reply never waits for it, and a translation whose numbers differ from the reply's is dropped.
-- **Other currencies.** A price asked in another currency is answered in S$ with a note that the amount depends on
-  the exchange rate (owner decision).
-- **No source.** When the product information does not answer a question, no answer is suggested. The operator's
-  reply box starts with one fixed sentence ("That isn't covered in our product information. Our team will check and
-  get back to you."), editable, with a note only the team sees.
+- **No source.** When the product's documents do not answer a question, no answer is suggested. The operator's
+  reply box starts with one fixed sentence, editable, with a note only the team sees.
+- **The operator's own reply** is posted as written: no phrase, number or model check (10/10).
 
-Rules that hold everywhere: the model proposes, code decides. No model output posts anything by itself; every id a
-model returns is checked against the ids it was offered; a failed, late or invalid model call posts nothing and the
-question goes to the operator. Triage and the composer are retried on a failed call (`TRIAGE_RETRIES`,
-`COMPOSE_RETRIES`); the draft verifier is asked once more on a timeout or an error.
+### The same comment, the same result, for any product
+
+Nothing in the path names a product, a category or a document layout. A product enters only through its PDF.
+
+| source of run-to-run change | what holds it still |
+|---|---|
+| triage and composer sampling | `COMMENT_SEED` (default 7) on `comment_triage`, `comment_triage_batch`, `answer_composer` |
+| triage guessing what the documents say | it no longer does: the decision is the kind of question only (prompt v11) |
+| the search app writing its own answer on every call, from every product's documents | `VERTEX_EVIDENCE=segments` (the default): the Vertex AI Search results' own text, only from the asked product's folder (`<product_id>/` in the search bucket), in document order, with ids made from product, page and text. The written answer (`answer`) is also limited to 10 calls a minute for the whole project; a plain search is not |
+| a search that fails or finds nothing (a 429, a timeout, a file not indexed yet) | the product's own PDF is read from the onboarding bucket and handed over whole when it has at most `WHOLE_DOCUMENT_MAX_CHARS` characters. `VERTEX_EVIDENCE=document` puts that PDF first and searches only a longer one |
+| triage wording the normalised question differently from run to run | it keeps the viewer's own words and adds none (prompt v11) |
+| the composer choosing among facts | it keeps the documents' own words, gives a study result only when asked, and answers a "is it big / easy / enough?" question with the stated measure (prompt v7) |
+
+`scripts/eval_comment_consistency.py` measures it: every question of `data/eval/consistency_questions.jsonl` (no
+product in any of them) is sent `--runs` times, each on a fresh session, on one or more onboarded shows. It reports
+the share of questions whose every run ended the same way, the same per stage (triage, wording, evidence, draft,
+outcome), the first stage at which an inconsistent question's runs part, and, across shows, whether a question gets
+the same triage decision on every product.
+
+Measured 10/10, one run of each arm (`docs/eval/comment-consistency/`): 14 questions (12 of the product-free set and
+two a teammate reported, "will this irritate my skin?" and "are they easy to swallow?") × 2 products of different
+categories (a cream, a supplement) × 4 runs = 112 runs an arm. Both arms ran at the same time, 5 sessions each.
+
+| | main as it was (v10 / v6 prompts, no seed, the search app's written answer) | this branch (v11 / v7, `COMMENT_SEED=7`, `VERTEX_EVIDENCE=segments`) |
+|---|---|---|
+| questions whose every run ended the same way | 15 of 28 (54%) | **27 of 28 (96%)** |
+| … the same triage decision in every run | 25 of 28 | 28 of 28 |
+| … the same evidence in every run | 11 of 28 | 28 of 28 |
+| triage decision as expected, of the runs triage answered | 77 of 98 (79%) | 104 of 104 |
+| runs left out: triage had not answered in 90 s, or a model call failed | 14 of 112 | 8 of 112 |
+
+- Read with their counts: one run, 28 question-product pairs. A run in which triage never answered (the model was
+  slow under the test's own load) is left out of a question's score; counted in, the two arms are 9 and 23 of 28.
+- In the first arm 21 runs got no evidence because the search app refused its written answer with a 429 ("LLM query
+  requests" quota); they are in its 15 of 28. A plain search uses no such quota: the second arm had none.
+- The one question still not consistent in the second arm: a Korean health question on the supplement, where the
+  composer said `grounded` once and not once, on the same question wording and the same passages. The seed does not
+  remove every flip.
+- "Will this irritate my skin?" on the cream: host card 1 and operator 3 before; host card 4 of 4 after.
+  "Are they easy to swallow?" on the supplement: host card 2 and posted 2 before, four different texts; after, posted
+  4 of 4 with one text ("The softgels are 21 mm, oval.").
+- Not measured: more than two products, a real show's load, and whether each posted reply is right (this eval counts
+  agreement, not correctness; `eval_comment_holdout.py` is the accuracy eval and has not been run on this branch).
+
+Second round, same day, with `VERTEX_EVIDENCE=document` (the product's PDF first; not the default), the wording rule
+and the health rule of the composer (one run each; "left out" as above):
+
+| products | questions × runs | every run ended the same way | same triage decision in every run | left out |
+|---|---|---|---|---|
+| the four onboarded ones (two creams' category, two supplements) | 14 × 4 | 55 of 56 | 56 of 56 | 9 of 224 |
+| three made-up ones of other shapes, run from a local folder (`--local`): an air fryer whose sheet is all tables, a supplement whose sheet is in Korean, an 11-page backpack manual | 31 × 4 | **93 of 93** | 93 of 93 | 0 of 372 |
+
+Third round, the shipped default (`VERTEX_EVIDENCE=segments`, Vertex AI Search first), on the new main (30f4852),
+with every prompt change in: the cream and one supplement, 14 questions × 4 runs = 112 runs. **28 of 28** questions
+ended the same way every time; every question's evidence came from the search (none needed the PDF stand-in); the
+triage decision was as expected in 112 of 112 runs and the same on both products for 14 of 14 questions; no run was
+left out. Two of the 14 were new: "is it vegan?" and "I'm vegan, can I use this?", both `certification` in every run
+(the prompt used to name `suitability` for one wording and `certification` for the other).
+
+- The four-product run was made before the wording rule and the health rule; its one miss is the kind the health
+  rule is for (a health question where the document holds a caution but no yes or no). It has not been run again.
+- The made-up products' first run, before those two rules, was 91 of 93; both misses began with two wordings of the
+  normalised question.
+- The manual is 31,236 characters, just over the default limit: it was run with `WHOLE_DOCUMENT_MAX_CHARS=200000`.
+  A document over the limit that is searched instead has not been measured at all.
+- **A bug found by these runs, on main since 10/9:** `pipelines/comments.py` called `replace(...)` without importing
+  it, so the second triage call after a failed first one raised a NameError and the comment stayed pending for good
+  (no reply, no card, not on the operator's list). Every "left out" run above is this. Fixed here, with a test.
+
+Limits known today: the data store has no field to filter on, so the asked product's file is picked out of the first
+50 documents a search returns; with many products in one store a file can fall outside them (then no evidence, and
+the question goes to the operator). A seed removes most run-to-run change of a model, not all of it.
+
+Rules that hold everywhere: the model proposes, code decides. Every id a model returns is checked against the ids it
+was offered; a failed, late or invalid model call posts nothing and the question goes to the operator. Triage and the
+composer are retried on a failed call (`TRIAGE_RETRIES`, `COMPOSE_RETRIES`).
 
 ## 3. Code map
 

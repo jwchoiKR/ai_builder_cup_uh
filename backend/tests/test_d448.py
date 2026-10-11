@@ -10,7 +10,7 @@ from app.onboarding.product_show import product_pack, show_key
 from .helpers import make_ctx
 
 CREAM = {"brand": "Lunelle", "product_name": "Hydra Calm Cream", "category": "face cream", "currency": "SGD",
-         "list_price": "42.00", "live_price": "36.00", "points": [{"text": "5% panthenol.", "required": True}]}
+         "variants": [{"label": "", "list_price": "42.00", "live_price": "36.00"}], "points": [{"text": "5% panthenol.", "required": True}]}
 
 
 def _pack(info: dict, n: str = "101"):

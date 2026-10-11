@@ -91,9 +91,15 @@ async def show_session(ctx, release: str | None, show_mode: str = "solo"):
     runsheet = next(iter(ctx.pack.runsheets), "")
     if release is not None or runsheet:
         return await create_session(ctx, runsheet, show_mode, release_id=release), {}
-    from app.onboarding.demo import demo_release_ids
+    # the demo releases are no longer built by the app (onboarding/demo.py is gone): name the onboarded shows of the
+    # cases' two demo products, in DEMO_IDS order
+    import os
 
-    s = await create_session(ctx, "", show_mode, release_ids=demo_release_ids(ctx))
+    releases = [x.strip() for x in os.environ.get("EVAL_DEMO_SHOWS", "").split(",") if x.strip()]
+    if len(releases) != len(DEMO_IDS):
+        raise SystemExit("this data has no run sheet: pass --release, or set EVAL_DEMO_SHOWS to the onboarded shows of "
+                         f"{', '.join(DEMO_IDS)} (<product_id>:<regulation_id>,<product_id>:<regulation_id>)")
+    s = await create_session(ctx, "", show_mode, release_ids=releases)
     rt = await ctx.runtimes.get(s.session_id)
     return s, dict(zip(DEMO_IDS, rt.catalog.order))
 
@@ -410,7 +416,7 @@ async def main() -> int:
     if args.from_json:
         raw = refresh_gold(json.loads(args.from_json.read_text(encoding="utf-8")), cases)
     else:
-        settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory", RETRIEVER="local",
+        settings = Settings(LLM_PROVIDER="vertex", STT_PROVIDER="mock", STORE="memory",
                             JUDGE_MODE="split3")
         clock = ReplayClock()
         ctx = build_context(settings, clock=clock, scheduler=AsyncScheduler(clock))

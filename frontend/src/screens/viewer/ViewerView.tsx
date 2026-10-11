@@ -17,7 +17,7 @@ import { useServerNow } from "../../app/store";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
 import { Countdown, HubLink, RelativeTime, SettingsButton, windowRange } from "../../components";
-import { chatSignature, isPinnedCorrection, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
+import { chatSignature, HIDDEN_LABEL, isPinnedCorrection, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
 import { useCamera } from "./useCamera";
 import styles from "./viewer.module.css";
@@ -336,6 +336,21 @@ function ChatList({
                   ↳ Also answered: @{row.comment.author_name}
                 </p>
               )}
+            </div>
+          </div>
+        ) : row.kind === "hidden" ? (
+          <div key={row.key} className={styles.row} data-testid={`viewer-hidden-${row.comment.comment_id}`}>
+            <span className={styles.avatar} aria-hidden>
+              {((row.comment.author_name ?? "").trim()[0] ?? "?").toUpperCase()}
+            </span>
+            <div className={styles.rowBody}>
+              <div className={styles.rowHead}>
+                <span className={styles.author}>{row.comment.author_name}</span>
+                <span className={styles.time}>
+                  <RelativeTime at={row.comment.received_at} serverOffsetMs={serverOffsetMs} />
+                </span>
+              </div>
+              <p className={styles.hiddenText}>{t(HIDDEN_LABEL)}</p>
             </div>
           </div>
         ) : (

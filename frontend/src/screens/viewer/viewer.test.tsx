@@ -162,6 +162,11 @@ describe("Viewer chat", () => {
     rerender(view(state));
     expect(screen.queryByTestId("viewer-comment-cm_2")).toBeNull();
     expect(screen.getByTestId("viewer-comment-cm_1")).toBeInTheDocument();
+    // in its place: who wrote it and that it was hidden, never what it said
+    const line = screen.getByTestId("viewer-hidden-cm_2");
+    expect(line).toHaveTextContent("This comment has been hidden.");
+    expect(line).toHaveTextContent(priya.author_name);
+    expect(line).not.toHaveTextContent(priya.text);
   });
 
   it("keeps a correction notice pinned for 60 s with the label 'Correction'", () => {

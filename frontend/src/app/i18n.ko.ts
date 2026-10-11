@@ -161,6 +161,7 @@ export const KO_HOST: Record<string, string> = {
   "Checking…": "확인 중…",
   "The host will answer this on air": "진행자가 방송에서 답변할 예정입니다",
   "Sent to the team": "담당 팀에 전달했습니다",
+  "This comment has been hidden.": "이 댓글은 숨김 처리되었습니다.",
 };
 
 /** The Hub (home screen). */
