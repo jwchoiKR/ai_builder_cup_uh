@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -430,24 +429,6 @@ async def _assign_question_locked(rt, comment_id, output, pid, basis, context_pi
 # ---- answering (§8.9.3) ----------------------------------------------------------------------------
 
 
-def _ingredients_named(rt: "SessionRuntime", product_id: str, question: str) -> list[str]:
-    """D-176: the product's key ingredients (its sheet, "Name: amount") the question names, matched by the first five
-    letters of each name's longest word ("hyaluronic" for "Sodium Hyaluronate")."""
-    passages_of = getattr(rt.ctx.retriever, "passages_of", None)
-    passages = passages_of(product_id) if callable(passages_of) else [p for p in rt.ctx.pack.passages
-                                                                       if p.product_id == product_id]
-    words = re.findall(r"[a-z]+", question.lower())
-    out = []
-    for p in passages:
-        if p.section != "Key ingredients" or ":" not in p.text:
-            continue
-        name = re.sub(r"\(.*?\)", "", p.text.split(":", 1)[0]).strip().lower()
-        stem = max(re.findall(r"[a-z]+", name), key=len, default="")[:5]
-        if len(stem) == 5 and any(w.startswith(stem) for w in words):
-            out.append(name)
-    return sorted(set(out))
-
-
 ONE_ANSWER_INTENTS = frozenset({"price", "set_price", "volume"})
 
 
@@ -457,11 +438,6 @@ async def answer_key(rt: "SessionRuntime", g: QuestionGroup) -> str:
     # question was worded, so two groups of it share one draft. D-214: only those; "shelf life once opened" and
     # "unopened shelf life" are two answers
     question = "" if g.intent in ONE_ANSWER_INTENTS else g.canonical_question
-    if g.intent == "ingredient_amount" and g.product_id and rt.settings.GROUP_JOIN == "code":  # D-304
-        # D-176 (comment flow CF12): "percentage of panthenol in it?" and "… in the ampoule?" drafted twice; the
-        # same ingredient's amount is one answer
-        named = _ingredients_named(rt, g.product_id, g.canonical_question)
-        question = "ingredient:" + ",".join(named) if named else question
     state = promo_state(promo)
     # D-168: an offer's answer holds while that offer runs
     if g.intent == "promo":

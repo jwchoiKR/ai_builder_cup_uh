@@ -17,11 +17,11 @@ from ..providers.llm import LLMClient, LLMRequest
 log = logging.getLogger(__name__)
 
 MAX_ROUNDS = 3
-PROMPT_VERSION = "file_tools-1"
+PROMPT_VERSION = "file_tools-2"
 SYSTEM = """You prepare the sources for answering one viewer question in a live shopping show. You do not see any
 product sheet or advertising rule yet. Ask for the files you need with these tools:
 - list_documents(): the files that exist.
-- get_product(product_id): one product's whole sheet (facts, ingredients, how to use, cautions, approved claims).
+- get_product(product_id): one product's whole sheet (prices and approved claims).
 - get_rules(market, category): the market's advertising rules for the category.
 Return the calls to make now in `calls`; every field of a call is null when that tool does not take it. Ask only
 for what the question needs: the sheet of each product it is about (PRODUCT, or every product when PRODUCT is null),
