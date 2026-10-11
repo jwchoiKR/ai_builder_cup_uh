@@ -13,10 +13,9 @@ SPEC.loader.exec_module(routing)
 
 
 def test_regex_spoken_numbers_catalog_names_and_boundaries():
-    product = SimpleNamespace(name="Demo Cream", short_name="cream", aliases=["gel-cream"],
-                              key_facts={"ceramide_np": "1%", "texture": "watery"})
+    product = SimpleNamespace(name="Demo Cream", short_name="cream", aliases=["gel-cream"])
     pattern = routing.fact_pattern(SimpleNamespace(products=SimpleNamespace(products=[product], set_offers=[])))
-    for text in ("thirty-two dollars", "ten percent", "contains ceramide NP", "gel-cream", "50 mL"):
+    for text in ("thirty-two dollars", "ten percent", "gel-cream", "50 mL"):
         assert pattern.search(text), text
     for text in ("Welcome everyone", "someone joined", "stone", "alone"):
         assert not pattern.search(text), text

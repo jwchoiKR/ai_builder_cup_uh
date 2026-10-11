@@ -27,13 +27,6 @@ class AvoidSaying(BaseModel):
     say: str
 
 
-class Ingredient(BaseModel):
-    """D-423: one ingredient of an onboarded product, in the record's order; `amount` is empty when it has none."""
-    key: str  # the prompter item key ("ingredient-<key>"), stable for ticks
-    name: str
-    amount: str = ""
-
-
 class ProductVariant(BaseModel):
     """D-281: one priced size or variant of an onboarded product."""
     label: str  # the variant's name and size as the documents write them ("Eau de Parfum 100 mL")
@@ -54,17 +47,14 @@ class Product(BaseModel):
     live_price: float
     hero_badge: str
     aliases: list[str]
-    key_facts: dict[str, str]
     prompter_points: list[PrompterPoint]
     approved_claims: list[str]
     not_approved_claims: list[str]
     qualified_results: list[QualifiedResult] = []
     target_group: list[str] = []  # D-256: who the product is made for (onboarded products), for the judges
-    cautions: list[str] = []  # short host lines from the sheet's Cautions section (D-106)
     avoid_saying: list[AvoidSaying] = []
     variants: list[ProductVariant] = []  # D-281: every priced variant, the first is the main one (volume, live_price)
     stt_terms: list[str] = []  # speech recognizer hints from the product read (onboarded products); no judge reads them
-    ingredients: list[Ingredient] = []  # D-423: every ingredient (onboarded products); the shipped demo uses key_facts
     # D-448: the approved product's brand and category ("face cream"), for the judges' product context
     brand: str = ""
     category: str = ""

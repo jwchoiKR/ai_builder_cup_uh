@@ -19,7 +19,7 @@ from ..models.data import Passage
 
 log = logging.getLogger(__name__)
 
-PREFETCH_SECTIONS = ("Key facts", "Key ingredients", "How to use", "Cautions", "In-house test results")
+PREFETCH_SECTIONS = ("Key facts",)
 _TOKEN = re.compile(r"[a-z0-9]+(?:\.[0-9]+)?%?")
 
 

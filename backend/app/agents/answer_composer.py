@@ -20,17 +20,13 @@ KEY_FACT_INTENTS = frozenset({"price", "set_price", "promo", "volume"})
 # vs "Made in: ..."; "Does it sting?" vs "tingling"). Added on top of §7.6, never instead of it.
 SECTION_INTENTS: dict[str, tuple[str, ...]] = {
     "origin": ("Key facts",), "packaging": ("Key facts",), "shelf_life": ("Key facts",),
-    "texture": ("Key facts",), "fragrance": ("Key facts",), "ingredient_amount": ("Key ingredients",),
-    "ingredients": ("Key ingredients",), "allergy_sensitivity": ("Cautions",),
-    "pregnancy_breastfeeding": ("Cautions",), "medical_condition": ("Cautions",), "age_suitability": ("Cautions",),
-    # D-153 (00007 show replays): "How many drops?" never retrieved "Apply two to three drops ..."
-    "how_to_use": ("How to use",), "order_of_use": ("How to use",),
+    "texture": ("Key facts",), "fragrance": ("Key facts",),
     # D-190 (comment flow CF06: "will this ampoule remove wrinkles?" drafted nothing, because search found the
     # not-approved list but not the approved "Helps reduce the look of fine dryness lines"): an efficacy question is
     # answered from the approved claims
     "efficacy_claim": ("Approved on-air claims",),
-    # a specification or a certificate is a key fact when the sheet states it; test results have their own section
-    "specification": ("Key facts",), "certification": ("Key facts",), "clinical_results": ("In-house test results",),
+    # a specification or a certificate is a key fact when the sheet states it
+    "specification": ("Key facts",), "certification": ("Key facts",),
 }
 
 
