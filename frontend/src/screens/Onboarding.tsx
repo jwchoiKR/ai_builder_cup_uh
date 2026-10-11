@@ -13,6 +13,7 @@ import styles from "./onboarding/onboarding.module.css";
 
 const sizeLabel = (bytes: number) =>
   bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+const MAX_PDF_BYTES = 20 * 1024 * 1024;  // same per-file cap as the server (backend/app/api/products.py MAX_BYTES)
 const errorText = (step: string, e: unknown) => `${step} failed: ${e instanceof Error ? e.message : String(e)}`;
 
 /** Drop a PDF on the box, or click it to choose one. Keyboard users reach the hidden input through the label. */
@@ -23,8 +24,13 @@ function DropZone({ testId, file, disabled, onFile }: {
   const [error, setError] = useState<string | null>(null);
   const pick = (files: File[]) => {
     const picked = pdfOnly(files.slice(0, 1));
+    const f = picked.files[0];
+    if (f && f.size > MAX_PDF_BYTES) {
+      setError(`${f.name}: larger than ${MAX_PDF_BYTES / 1024 / 1024} MB`);
+      return;
+    }
     setError(picked.error);
-    if (picked.files[0]) onFile(picked.files[0]);
+    if (f) onFile(f);
   };
   return (
     <>
