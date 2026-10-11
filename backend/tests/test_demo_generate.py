@@ -17,7 +17,7 @@ def test_generate_writes_lines_for_the_show_s_products_and_sends_nothing():
     app = create_app(make_settings(), llm_backend=backend)
     with TestClient(app) as c:
         key = product_show(app.state.ctx, {"brand": "Kelmar", "product_name": "Joint Ease", "currency": "SGD",
-                                           "list_price": "30.00", "live_price": "25.00",
+                                           "variants": [{"label": "", "list_price": "30.00", "live_price": "25.00"}],
                                            "points": [{"text": "Supports joint comfort.", "required": True}]},
                            [("kelmar_code.pdf", CODE)])
         sid = c.post("/api/sessions", json={"release_id": key}).json()["session_id"]

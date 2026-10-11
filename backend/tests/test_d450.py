@@ -14,11 +14,11 @@ from .judge_fakes import ScriptedBackend, close_env, events, speak
 
 REG = text_pdf("Lunelle Code\n2.1 A cosmetic must not be presented as treating disease.\n")
 CREAM = {"brand": "Lunelle", "product_name": "Hydra Calm Cream", "category": "face cream", "currency": "SGD",
-         "list_price": "42.00", "live_price": "36.00",
+         "variants": [{"label": "", "list_price": "42.00", "live_price": "36.00"}],
          "points": [{"text": "5% panthenol to calm dry skin.", "required": True},
                     {"text": "Fragrance-free.", "required": False}]}
 AMPOULE = {"brand": "Lunelle", "product_name": "Deep Glow", "category": "serum ampoule", "currency": "SGD",
-           "list_price": "48.00", "live_price": "39.00",
+           "variants": [{"label": "", "list_price": "48.00", "live_price": "39.00"}],
            "points": [{"text": "10% niacinamide.", "required": True}]}
 P1, P2, NEXT_P1 = "prd_000000000101-p1", "prd_000000000101-p2", "prd_000000000102-p1"
 LINE = "This one has 5% panthenol to calm dry skin."

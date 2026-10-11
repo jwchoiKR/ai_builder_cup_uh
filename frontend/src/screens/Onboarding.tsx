@@ -84,8 +84,9 @@ async function uploadPdf<T>(path: string, file: File): Promise<T> {
 const uploadProduct = (file: File) => uploadPdf<Uploaded>("/products", file);
 const uploadRegulation = (file: File) => uploadPdf<RegulationUploaded>("/regulations", file);
 
-type ProductInfo = { brand: string; product_name: string; category?: string; currency: string | null; list_price: string | null;
-  live_price: string | null; points: { text: string; required: boolean }[] };
+type ProductInfo = { brand: string; product_name: string; category?: string; currency: string | null;
+  points: { text: string; required: boolean }[]; variants: PriceOption[] };
+type PriceOption = { label: string; list_price: string | null; live_price: string | null };
 type ReadResult = { product_id: string; file: string; info: ProductInfo; seconds: number };
 
 type HostLanguage = "en" | "ko";
@@ -97,12 +98,14 @@ type Approved = { product_id: string; approved_at: number; info: ProductInfo; wa
 const approveProduct = (productId: string, info: ProductInfo) =>
   request<Approved>("POST", `/products/${encodeURIComponent(productId)}/approve`, { info });
 
-/** The read as the person left it: blank prices and currency become null, blank points are dropped. */
+/** The read as the person left it: blank currency becomes null, blank prices become null, blank points and
+ * options are dropped. */
 const cleaned = (d: ProductInfo): ProductInfo => {
   const opt = (v: string | null) => v?.trim() || null;
   return { ...d, brand: d.brand.trim(), product_name: d.product_name.trim(),
     category: d.category?.trim() ?? "", currency: opt(d.currency),
-    list_price: opt(d.list_price), live_price: opt(d.live_price),
+    variants: d.variants.map((v) => ({ label: v.label.trim(), list_price: opt(v.list_price), live_price: opt(v.live_price) }))
+      .filter((v) => v.label || v.list_price || v.live_price),
     points: d.points.map((p) => ({ ...p, text: p.text.trim() })).filter((p) => p.text) };
 };
 
@@ -130,6 +133,10 @@ function ProductForm({ draft, onChange, disabled }: {
   const setPoint = (i: number, patch: Partial<ProductInfo["points"][number]>) =>
     set({ points: draft.points.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
   const required = draft.points.filter((p) => p.required).length;
+  const variants = draft.variants;
+  const cur = draft.currency?.trim() ? ` (${draft.currency.trim()})` : "";
+  const setVariant = (i: number, patch: Partial<PriceOption>) =>
+    set({ variants: variants.map((v, j) => (j === i ? { ...v, ...patch } : v)) });
   return (
     <div className={styles.sheet} data-testid="onb-product-form">
       <div>
@@ -142,9 +149,38 @@ function ProductForm({ draft, onChange, disabled }: {
       <dl className={styles.facts}>
         <FactRow label="Category" value={draft.category ?? null} disabled={disabled} onChange={(v) => set({ category: v })} />
         <FactRow label="Currency" value={draft.currency} disabled={disabled} onChange={(v) => set({ currency: v })} />
-        <FactRow label="Live price" value={draft.live_price} disabled={disabled} onChange={(v) => set({ live_price: v })} />
-        <FactRow label="List price" value={draft.list_price} disabled={disabled} onChange={(v) => set({ list_price: v })} />
       </dl>
+      <div className={styles.pointsHead}>
+        <h4 className={styles.blockTitle}>Prices</h4>
+        <span className={styles.count}>{variants.length} {variants.length === 1 ? "option" : "options"}</span>
+      </div>
+      <div className={styles.priceTable} data-testid="onb-price-options">
+        <div className={styles.priceHead}>
+          <span>Option</span><span className={styles.num}>Live price{cur}</span><span className={styles.num}>List price{cur}</span><span />
+        </div>
+        {variants.map((v, i) => (
+          <div key={i} className={styles.priceRow}>
+            <input className={styles.ghost} value={v.label} placeholder="One price" aria-label={`Option ${i + 1}`}
+                   disabled={disabled} onChange={(e) => setVariant(i, { label: e.target.value })} />
+            <input className={[styles.ghost, styles.num, styles.live].join(" ")} value={v.live_price ?? ""} placeholder="—"
+                   aria-label={`Option ${i + 1} live price`} disabled={disabled} inputMode="decimal"
+                   onChange={(e) => setVariant(i, { live_price: e.target.value })} />
+            <input className={[styles.ghost, styles.num].join(" ")} value={v.list_price ?? ""} placeholder="—"
+                   aria-label={`Option ${i + 1} list price`} disabled={disabled} inputMode="decimal"
+                   onChange={(e) => setVariant(i, { list_price: e.target.value })} />
+            {disabled ? <span /> : (
+              <button type="button" className={styles.iconBtn} aria-label={`Remove option ${i + 1}`}
+                      onClick={() => set({ variants: variants.filter((_, j) => j !== i) })}><X size={14} aria-hidden /></button>
+            )}
+          </div>
+        ))}
+      </div>
+      {!disabled && (
+        <button type="button" className={styles.addLink}
+                onClick={() => set({ variants: [...variants, { label: "", list_price: null, live_price: null }] })}>
+          <Plus size={14} aria-hidden /> Add option
+        </button>
+      )}
       <div className={styles.pointsHead}>
         <h4 className={styles.blockTitle}>Points</h4>
         <span className={styles.count}>{draft.points.length} · {required} required</span>
