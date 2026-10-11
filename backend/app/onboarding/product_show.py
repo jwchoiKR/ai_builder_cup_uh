@@ -57,7 +57,7 @@ def product_pack(base: DataPack, info: dict, key: str) -> DataPack:
     name, brand = info["product_name"], info["brand"]
     product = Product(product_id=product_id, code=product_id, name=name, short_name=name, eyebrow=brand, tagline="",
                       doc="", volume="", list_price=main.list_price, live_price=main.live_price, hero_badge="", aliases=[name],
-                      key_facts={}, prompter_points=points, approved_claims=[p.text for p in points],
+                      prompter_points=points, approved_claims=[p.text for p in points],
                       not_approved_claims=[], stt_terms=info.get("stt_terms") or [],
                       variants=variants if len(variants) > 1 or main.label else [],  # one unnamed price: no options
                       brand=brand, category=str(info.get("category") or "").strip())  # D-448
