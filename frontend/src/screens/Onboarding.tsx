@@ -226,6 +226,7 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
   const [draft, setDraft] = useState<ProductInfo | null>(null);
   const [approved, setApproved] = useState<Approved | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rejected, setRejected] = useState<string | null>(null);  // the file the read found no product in
   const [busy, setBusy] = useState<Busy | null>(null);
   const [hostLanguage, setHostLanguage] = useState<HostLanguage>("en");  // the points and STT terms are read for this language
   const step = async <T,>(label: string, fn: () => Promise<T>): Promise<T> => {
@@ -239,6 +240,7 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
   // upload when not yet uploaded, then read; a failure stops here and "Try again" resumes from that step
   const uploadAndRead = async (f: File, up: Uploaded | null) => {
     setError(null);
+    setRejected(null);
     let current = "Upload";
     try {
       let u = up;
@@ -253,7 +255,8 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
       setDraft(r.info);
       onRead(true);
     } catch (e) {
-      setError(errorText(current, e));
+      if (e instanceof ApiError && e.code === "not_product_document") setRejected(f.name);  // a retry would read it the same
+      else setError(errorText(current, e));
     }
   };
   return (
@@ -279,6 +282,15 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
                   if (f) void uploadAndRead(f, null);
                 }} />
       {busy && <Working label={busy.label} since={busy.since} />}
+      {rejected && (
+        <div className={styles.rejected} role="alert" data-testid="onb-product-rejected">
+          <p className={styles.rejectedTitle}>This is not a product document</p>
+          <p className={styles.muted}>
+            No product to sell was found in <strong>{rejected}</strong>, so it cannot be used.
+            Drop the product's own PDF (product sheet, spec, label or catalog page) in the box above.
+          </p>
+        </div>
+      )}
       {error && (
         <div className={styles.actions}>
           <p className={styles.error}>{error}</p>
