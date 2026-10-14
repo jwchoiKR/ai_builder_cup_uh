@@ -3104,3 +3104,7 @@ D-459 (user go 10/14, via planning: "끊긴 조각 대기는 적용 ㄱ"): INCOM
 
 D-460 (user go 10/14, via planning: "ㅇㅋ 가보자"): INCOMPLETE_HOLD is off by default again (reverts the D-459 default; the D-458 code stays as an off arm). Why: in a continuous show replay (eval_show, 40 shows, 662 finals) each final waited for the previous final's context verdict (the serial wait of D-458): wait before the context call p95 8.5 s vs 0.3 s off, switch shown p95 7.1 s vs 1.5 s, fact checker timeouts 68 vs 0.
 - config.py and .env.example: INCOMPLETE_HOLD=false. test_d458.py checks the code default again (no field, no gate).
+
+D-461 (planning, 10/14): eval_show names the release of each committed switch again. Why: a rebuilt-onboarding show ("<product_id>:<regulation_id>" releases) builds its pack with an empty `releases` map, so every committed switch carried `release: null` and switch_score counted no switch as caught.
+- eval_show.py only (no app change): the product id -> release id map also reads each show key's product id. The same map fills on_air_release, prompter, alerts and segments.
+- Tests: test_eval_show_release.py (a made-up two-product show: the committed switch names the second release and is caught; fails without the fix).
