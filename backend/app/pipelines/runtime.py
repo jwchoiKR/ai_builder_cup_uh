@@ -707,7 +707,8 @@ class SessionRuntime:
         groups = await self.groups()
         answer_ids = {g.answer_id for g in groups if g.answer_id}
         answers = [a for a in await store.query(self.path("answers"), Answer) if a.answer_id in answer_ids]
-        alerts = await self.alerts()
+        # D-462: the host gets only the alerts shown to it (ALERT_GRACE holds a new one back for a moment)
+        alerts = [a for a in await self.alerts() if role == "operator" or a.shown_at is not None]
         finals = await store.query(self.path("transcripts"), Transcript, order_by="received_at")
         # D-439: the lines the alerts were raised and cleared on (their speech end times the "Shown in" and "Cleared in"
         # labels), also for the host and after a restart
@@ -722,8 +723,7 @@ class SessionRuntime:
             "host_slots": [sl.model_dump() for sl in s.host_slots],
             "comments": [c.model_dump(mode="json") for c in shown],
             "messages": [m.model_dump(mode="json") for m in await store.query(self.path("messages"), Message, order_by="created_at")],
-            # D-462: the host gets only the alerts shown to it (ALERT_GRACE holds a new one back for a moment)
-            "alerts": [a.model_dump(mode="json") for a in alerts if role == "operator" or a.shown_at is not None],
+            "alerts": [a.model_dump(mode="json") for a in alerts],
             "transcripts": [t.model_dump(mode="json") for t in finals if t.transcript_id in cited],
             "prompter": await self.prompter_view_now(await self.current_segment()),
             "metrics": await self.compute_metrics(),

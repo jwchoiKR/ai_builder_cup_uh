@@ -257,15 +257,6 @@ class ContextOutputQ(BaseModel):
     reason: str
 
 
-class ContextOutputQI(BaseModel):
-    """D-458 INCOMPLETE_HOLD: the same verdict, also saying whether this line stops mid-thought."""
-    expects_resolution: bool
-    incomplete: bool
-    answer: AnswerLink
-    prompter: ContextPrompter
-    reason: str
-
-
 class CoveredPoint(BaseModel):
     """D-450: the host's words first, then the point they say (host_words is for the log; code reads point_id)."""
     host_words: str

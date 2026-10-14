@@ -86,16 +86,6 @@ def failure_codes(res: AgentResult) -> dict:
     return {"http_status": res.meta.get("http_status"), "deadline_ms": res.meta.get("deadline_ms")}
 
 
-def _what(kind: str, res: AgentResult) -> str:
-    """D-458: a held verdict, for the log: its alerts (rule ids or fact fields), or its failure."""
-    if res.status != "ok" or res.output is None:
-        return f"{kind} failed ({res.status})"
-    if kind == "compliance":
-        return f"compliance {[getattr(v, 'rule_id', None) for v in res.output.compliance.violations]}"
-    claims = getattr(res.output, "claims", [])
-    return f"facts {[(getattr(c, 'field', None), getattr(c, 'relation', None) or getattr(c, 'verdict', None)) for c in claims]}"
-
-
 def ends_sentence(text: str) -> bool:
     """True when a final ends with . ? or ! (closing quotes and brackets ignored)."""
     return text.rstrip().rstrip("\"'”’)]").endswith(SENTENCE_END)
@@ -139,16 +129,6 @@ class Judged:
     chain: list[str]  # transcript ids whose words were judged, ending with this one
     text: str
     publish: tuple[str, str] | None = None  # (group_id, action) applied by this judgment
-
-
-@dataclass
-class Gate:
-    """D-458 INCOMPLETE_HOLD: a final's alerts (its compliance and fact verdicts, or their failure cards), waiting for
-    its context verdict and, when that says the line stops mid-thought, for the next final."""
-    t: Transcript
-    state: str = "context"  # context -> open, or held -> open (released alone) or superseded (by a merged line)
-    deferred: list = dataclasses.field(default_factory=list)  # (what, apply) in the order they came
-    by: str | None = None  # the merged line that superseded it
 
 
 class UtterancePipeline:
@@ -196,16 +176,10 @@ class UtterancePipeline:
         self.unchecked: dict[str, dict[str, dict]] = {}
         self._failure_n = 0
         self._fact_inputs: dict[str, FactInput] = {}  # D-364: line -> its fact check's input (a re-check reuses it)
-        # D-458 INCOMPLETE_HOLD: the gates of finals judged alone; the final received after each final; the lines a
-        # question hold already waited on (never held twice); each final's `incomplete` verdict and the hold counts
-        # (for the eval)
-        self._gates: dict[str, Gate] = {}
         self._followed: dict[str, Transcript] = {}
         self._last_received: Transcript | None = None
-        self._question_held: set[str] = set()
-        self.incomplete: dict[str, bool | None] = {}
-        self.hold_counts = {"holds": 0, "superseded": 0, "released_alone": 0}
-        # D-462 ALERT_GRACE: each final's compliance and fact verdicts (set once both are applied), the correction
+        # D-462 ALERT_GRACE: the final received after each final; each final's compliance and fact verdicts (set once
+        # both are applied), the correction
         # re-checks of an alert on a later line ((alert, line) -> task), and per held alert how its wait went (eval)
         self._verdicts: dict[str, asyncio.Future] = {}
         self._rechecks: dict[tuple[str, str], asyncio.Task] = {}
@@ -236,7 +210,7 @@ class UtterancePipeline:
                        segment_id=seg.segment_id if seg else "")
         self._generations[t.transcript_id] = self._segment_generation
         self._segments[t.transcript_id] = t.segment_id
-        if self._last_received is not None:  # D-458: a held piece's next final, known as soon as it is received
+        if self._last_received is not None:  # D-462: a held alert's next final, known when received
             self._followed[self._last_received.transcript_id] = t
         self._last_received = t
         prev = self._main_tail
@@ -250,12 +224,6 @@ class UtterancePipeline:
             self.rt.ctx.scheduler.cancel(self.rt.key(f"hold:{tid}"))
             await self._release(tid)
         await asyncio.gather(*tuple(self._pending), return_exceptions=True)
-        for tid, g in list(self._gates.items()):  # D-458: no next final is coming; a held piece waits out its time
-            if g.state == "held":
-                left = g.t.received_at + self.rt.settings.INCOMPLETE_HOLD_MS - self.rt.now()
-                if left > 0:
-                    await asyncio.sleep(left / 1000)
-                await self._release_incomplete(tid, timer=False)
         for aid, g in list(self.grace.items()):  # D-462: a held alert waits out its time, then is decided
             if g["outcome"] is None:
                 left = g["due"] - self.rt.now()
@@ -280,24 +248,10 @@ class UtterancePipeline:
                 await asyncio.wait_for(asyncio.shield(fut), EXPECTS_WAIT_S)
         return fut.done() and not fut.cancelled() and bool(getattr(fut.result(), "expects_resolution", False))
 
-    async def _incomplete_prev(self, t: Transcript) -> bool:
-        """D-458: whether the previous final stopped mid-thought and its alerts are held for this one. A final within
-        INCOMPLETE_HOLD_MS of it waits for its context verdict (bounded by the context call's own deadline), so a piece
-        that turns out incomplete is never judged alone as well."""
-        prev = self._last
-        g = self._gates.get(prev.transcript_id) if prev is not None else None
-        if g is None or t.received_at - prev.received_at > self.rt.settings.INCOMPLETE_HOLD_MS:
-            return False
-        fut = self._ready.get(prev.transcript_id)
-        if fut is not None and not fut.done():
-            await asyncio.wait([fut])
-        return g.state == "held"
-
-    def _merge_for(self, t: Transcript, expects: bool = False, incomplete: bool = False) -> Merge | None:
+    def _merge_for(self, t: Transcript, expects: bool = False) -> Merge | None:
         """D-088: join with the previous final if it arrived within the window and is unfinished. D-334/335: a
         question held for its answer ("?"), or a line the context judge says expects one ("model"), joins the next
-        final as a marked pair. D-458: a held piece the context judge says stops mid-thought joins the next final as
-        one sentence, whatever its punctuation."""
+        final as a marked pair."""
         prev = self._last
         window = self.rt.settings.UTTERANCE_MERGE_WINDOW_MS
         pair = None
@@ -305,8 +259,6 @@ class UtterancePipeline:
             window = self.rt.settings.QUESTION_HOLD_MS
             asked = prev.transcript_id in self._questions or asks(prev.text)
             pair = "both" if asked and expects else "?" if asked else "model"
-        elif incomplete:
-            window = self.rt.settings.INCOMPLETE_HOLD_MS
         elif prev is not None and ends_sentence(prev.text):
             return None
         if (prev is None or window <= 0 or t.received_at - prev.received_at > window
@@ -342,9 +294,7 @@ class UtterancePipeline:
         if prev is not None:
             await asyncio.gather(prev, return_exceptions=True)
         rt = self.rt
-        last = self._last
-        incomplete = await self._incomplete_prev(t)  # D-458
-        merge = self._merge_for(t, await self._expects_resolution(self._last), incomplete)
+        merge = self._merge_for(t, await self._expects_resolution(self._last))
         text = merge.text if merge else t.text
         if merge:
             t.merged_from_transcript_id, t.judged_text = merge.prev.transcript_id, text
@@ -362,7 +312,6 @@ class UtterancePipeline:
             rt.ctx.scheduler.cancel(rt.key(f"hold:{merge.prev.transcript_id}"))
             if self._questions.pop(merge.prev.transcript_id, None) is not None:
                 await rt.emit("hold.ended", {"transcript_id": merge.prev.transcript_id})
-        await self._resolve_incomplete(last, t, merge)  # D-458
         if merge is not None and merge.pair:  # D-335: the trigger and the wait of every pair
             log.info("pair %s + %s trigger=%s after %d ms: judged as one", merge.prev.transcript_id, t.transcript_id,
                      merge.pair, t.received_at - merge.prev.received_at)
@@ -386,96 +335,11 @@ class UtterancePipeline:
         """D-334: no answer joined the held question within its wait: it is judged on its own."""
         held = self._held.pop(tid, None)
         if held is not None:
-            self._question_held.add(tid)  # D-458: one hold per line
             began = self._questions.pop(tid, None)
             if began is not None:  # D-334
                 log.info("question %s judged alone: no answer within %d ms", tid, self.rt.now() - began)
                 await self.rt.emit("hold.ended", {"transcript_id": tid})
             await self._judge(*held)
-
-    async def _resolve_incomplete(self, prev: Transcript | None, t: Transcript, merge: Merge | None) -> None:
-        """D-458: the final after a held piece decides it: joined with it, the piece's own alerts are never shown (the
-        merged line's verdict replaces them); not joined, they are shown now."""
-        g = self._gates.get(prev.transcript_id) if prev is not None else None
-        if g is None or g.state != "held":
-            return
-        if merge is None or merge.prev.transcript_id != prev.transcript_id:
-            await self._release_incomplete(prev.transcript_id, timer=False)
-            return
-        rt = self.rt
-        g.state, g.by = "superseded", t.transcript_id
-        rt.ctx.scheduler.cancel(rt.key(f"ihold:{prev.transcript_id}"))
-        self.hold_counts["superseded"] += 1
-        log.info("held piece %s superseded by merged line %s after %d ms: held verdict %s", prev.transcript_id,
-                 t.transcript_id, t.received_at - prev.received_at, [what for what, _ in g.deferred])
-        g.deferred.clear()
-        await rt.emit("hold.ended", {"transcript_id": prev.transcript_id})
-
-    async def _release_incomplete(self, tid: str, timer: bool = True) -> None:
-        """D-458: no next final joined the held piece in time: its alerts are shown as they are. The timer leaves a
-        piece whose next final was received in time to that final's turn."""
-        g = self._gates.get(tid)
-        if g is None or g.state != "held":
-            return
-        nxt = self._followed.get(tid)
-        if timer and nxt is not None and nxt.received_at - g.t.received_at <= self.rt.settings.INCOMPLETE_HOLD_MS:
-            return
-        rt = self.rt
-        rt.ctx.scheduler.cancel(rt.key(f"ihold:{tid}"))
-        g.state = "open"
-        self.hold_counts["released_alone"] += 1
-        log.info("held piece %s released alone after %d ms: %s", tid, rt.now() - g.t.received_at,
-                 [what for what, _ in g.deferred])
-        await rt.emit("hold.ended", {"transcript_id": tid})
-        await self._flush(g)
-
-    @staticmethod
-    async def _flush(g: Gate) -> None:
-        while g.deferred:
-            _, apply = g.deferred.pop(0)
-            await apply()
-
-    async def _deliver(self, t: Transcript, what: str, apply) -> None:
-        """D-458: a verdict of this line is applied now, or kept while its gate waits, or dropped once a merged line
-        superseded the piece."""
-        g = self._gates.get(t.transcript_id)
-        if g is None or g.state == "open":
-            await apply()
-        elif g.state == "superseded":
-            log.info("held piece %s superseded by merged line %s: %s not shown", t.transcript_id, g.by, what)
-        else:
-            g.deferred.append((what, apply))
-
-    async def _context_known(self, t: Transcript, output, ready: asyncio.Future) -> None:
-        """D-458: the context verdict opens the gate, or holds the piece for the next final. A failed context check
-        opens it (fail open, logged). The gate's state is set before `ready`, which the next final waits for."""
-        rt = self.rt
-        g = self._gates.get(t.transcript_id)
-        inc = getattr(output, "incomplete", None) if output is not None else None
-        if rt.settings.INCOMPLETE_HOLD:
-            self.incomplete[t.transcript_id] = inc
-        if g is not None and g.state == "context":
-            if output is None:
-                log.info("context check failed for %s: its alerts are shown without the incomplete verdict",
-                         t.transcript_id)
-                g.state = "open"
-            elif inc:
-                g.state = "held"
-                self.hold_counts["holds"] += 1
-                due = t.received_at + rt.settings.INCOMPLETE_HOLD_MS
-                rt.ctx.scheduler.call_at(rt.key(f"ihold:{t.transcript_id}"), due,
-                                         lambda tid=t.transcript_id: self._release_incomplete(tid))
-                log.info("held piece %s: incomplete, waiting for the next final (%d ms left)", t.transcript_id,
-                         due - rt.now())
-            else:
-                g.state = "open"
-        if not ready.done():
-            ready.set_result(output)
-        if g is not None and g.state == "held":
-            await rt.emit("hold.started", {"transcript_id": t.transcript_id,
-                                           "max_ms": max(0, t.received_at + rt.settings.INCOMPLETE_HOLD_MS - rt.now())})
-        elif g is not None and g.state == "open":
-            await self._flush(g)
 
     async def _judge(self, t: Transcript, text: str, merge: Merge | None, scenario: str) -> None:
         rt = self.rt
@@ -488,11 +352,6 @@ class UtterancePipeline:
         # Only preparation waits for the previous final.
         ready = asyncio.Future()
         self._ready[t.transcript_id] = ready  # D-335: the next final may wait for this line's context verdict
-        # D-458: with INCOMPLETE_HOLD, the alerts of a final judged alone wait for its context verdict; a merged line, or
-        # a question that already waited (one hold per line), is shown as soon as it is judged
-        if (self.split3 and rt.settings.INCOMPLETE_HOLD and merge is None
-                and t.transcript_id not in self._question_held):
-            self._gates[t.transcript_id] = Gate(t)
         previous_context = self._context_tail
         self._context_tail = rt.spawn(self._ordered_context(previous_context, ready, t, merge),
                                       name=f"context-apply:{t.transcript_id}")
@@ -530,9 +389,7 @@ class UtterancePipeline:
                 self._fact_shown.pop(tid, None)
                 self._fact_inputs.pop(tid, None)
                 self._ready.pop(tid, None)
-                self._gates.pop(tid, None)
                 self._followed.pop(tid, None)
-                self.incomplete.pop(tid, None)
                 self._verdicts.pop(tid, None)
 
     async def _infer(self, t, on_air, inp, merge, scenario, ready):
@@ -577,11 +434,8 @@ class UtterancePipeline:
                     failed = failed or output is None  # D-416: the context judge's failure counts too
                     if task is comp_task:
                         comp = output
-
-                        async def apply_compliance(res=res) -> None:
-                            async with rt.lock:
-                                await self._apply_compliance_locked(t, on_air, res, merge)
-                        await self._deliver(t, _what("compliance", res), apply_compliance)
+                        async with rt.lock:
+                            await self._apply_compliance_locked(t, on_air, res, merge)
                         if not self.split3:
                             ctx = output
                             ready.set_result(ctx)
@@ -592,21 +446,18 @@ class UtterancePipeline:
                                         await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
                     elif task is ctx_task:
                         ctx = output
+                        ready.set_result(ctx)
                         if output is None:  # D-416: shown like the other judges' failures
                             async with rt.lock:
                                 await self._check_failed_locked(t, merge.text if merge else t.text, res, "context_judge")
-                        await self._context_known(t, output, ready)  # D-458: sets `ready`
                     else:
                         facts = output
-
-                        async def apply_facts(res=res, facts=facts) -> None:
+                        if facts is not None:
                             async with rt.lock:
-                                if facts is not None:
-                                    await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
-                                else:  # D-408: a failed fact check shows the judge-failed state at once
-                                    await self._check_failed_locked(t, merge.text if merge else t.text, res,
-                                                                    "fact_checker")
-                        await self._deliver(t, _what("facts", res), apply_facts)
+                                await self._apply_facts_locked(t, facts, set(merge.chain) if merge else set())
+                        else:  # D-408: a failed fact check shows the judge-failed state at once, as a failed judge
+                            async with rt.lock:
+                                await self._check_failed_locked(t, merge.text if merge else t.text, res, "fact_checker")
                     judged.discard(task)
                     if not judged and not self._verdicts_of(t.transcript_id).done():
                         self._verdicts_of(t.transcript_id).set_result(None)  # D-462: a held alert may be decided now
@@ -647,10 +498,6 @@ class UtterancePipeline:
         finally:
             if waiting:
                 await asyncio.gather(*waiting, return_exceptions=True)
-            g = self._gates.get(t.transcript_id)
-            if g is not None and g.state == "context":  # D-458: no context verdict came: fail open
-                g.state = "open"
-                await self._flush(g)
             if not ready.done():
                 ready.set_result(None)
             if not self._verdicts_of(t.transcript_id).done():  # D-462
@@ -1076,7 +923,8 @@ class UtterancePipeline:
         now, cause = rt.now(), failure_cause(res)
         self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
         self._failure_n += 1
-        event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now, "n": self._failure_n}             | failure_codes(res)
+        event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now,
+                 "n": self._failure_n} | failure_codes(res)
         self.failures[(t.transcript_id, agent)] = event
         first = t.transcript_id not in self.unchecked
         self.unchecked.setdefault(t.transcript_id, {})[agent] = event

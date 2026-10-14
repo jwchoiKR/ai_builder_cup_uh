@@ -127,13 +127,8 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                 "facts": [{"input": k, "ms": sum(c.latency_ms for c in v), "tries": len(v), "final_status": v[-1].status,
                            "timeouts": sum(c.status == "timeout" for c in v)} for k, v in tries.items()],
                 "on_air": on_air_pid,  # D-279: the product on air when the line was spoken
-                # D-458 INCOMPLETE_HOLD: each final's verdict (None: unknown or off), the holds and how they ended, and
-                # the alerts shown and later cleared (by a merged line's verdict); latency on both clocks is per alert
-                # below (ms_to_shown from its own final, ms_from_first_final from the utterance's first piece)
-                "finals": [{"text": t.text, "incomplete": rt.utterances.incomplete.get(tid),
-                            "merged_from": t.merged_from_transcript_id is not None}
-                           for tid, t in sorted(finals.items(), key=lambda x: x[1].received_at)],
-                "holds": dict(rt.utterances.hold_counts),
+                # the alerts shown to the host and later cleared; latency on both clocks is per alert below
+                # (ms_to_shown from its own final, ms_from_first_final from the utterance's first piece)
                 "shown_then_cleared": sum(a.status == "cleared" for a in alerts),
                 # D-288: "check this line" cards (REFLEX_ON_FAIL=card), counted apart from alerts
                 "reflex_card": [e.payload for e in await rt.ctx.store.query(rt.path("events"), Event)
