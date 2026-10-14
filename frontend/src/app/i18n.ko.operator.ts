@@ -106,7 +106,11 @@ export const KO_OPERATOR: Record<string, string> = {
   "AI busy (429)": "AI 혼잡 (429)",
   "AI timed out": "AI 시간 초과",
   "AI answer unreadable": "AI 응답 해석 불가",
-  "Last 5 min: {counts}": "최근 5분: {counts}",
+  // the 5-minute card: the total, then per judge, or one judge's cause in plain words
+  "AI checks missed in the last 5 min: {total} ({detail})": "최근 5분 AI 확인 누락 {total}건 ({detail})",
+  "no reply in time": "응답 지연",
+  "AI busy": "AI 혼잡",
+  "unreadable answer": "응답 해석 불가",
   // D-420: which judge failed on the line
   "Compliance check": "규정 확인",
   "Fact check": "사실 확인",

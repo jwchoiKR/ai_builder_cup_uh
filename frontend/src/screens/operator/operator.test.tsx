@@ -119,7 +119,14 @@ describe("alert cards", () => {
     expect(texts).toContain(
       "AI check unavailable for the last sentence · Compliance check: AI busy (429) · Fact check: AI timed out");
     expect(texts.filter((x) => x.startsWith("AI check unavailable"))).toHaveLength(3);  // tr_old, tr_1, tr_2
-    expect(texts).toContain("Last 5 min: AI busy (429) 2 · AI timed out 1");  // tr_old is older than 5 minutes
+    // tr_old is older than 5 minutes; several judges: the total, then per judge
+    expect(texts).toContain("AI checks missed in the last 5 min: 3 (Compliance check 2, Fact check 1)");
+    // one judge: its cause in plain words (EN and KO)
+    const one = { ...st, judgeFailures: [{ seq: 5, transcript_id: "tr_3", agent: "context_judge", cause: "timeout", at: T0 - 1000 }] };
+    expect(systemCards(one, catalog, T0).map((c) => c.text))
+      .toContain("AI checks missed in the last 5 min: 1 (Context check, no reply in time)");
+    expect(systemCards(one, catalog, T0, (en, vars) => translate("ko", en, vars)).map((c) => c.text))
+      .toContain("최근 5분 AI 확인 누락 1건 (문맥 확인, 응답 지연)");
     // D-422: a later failure on a line gets a new card key, so a dismissed card shows again
     const key = (u: typeof failures) => systemCards({ ...st, unchecked: u }, catalog, T0)
       .find((x) => x.text.startsWith("AI check unavailable"))?.key;
