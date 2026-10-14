@@ -17,7 +17,7 @@ from ..logic.catalog import Catalog
 from ..logic.reflex import Reflex
 from ..models.agent_io import (ComplianceOutput, ComplianceOutputB, ComplianceOutputO,
                                ContextOutput,
-                               ContextOutputB, ContextOutputQ, with_alert_checks, with_product,
+                               ContextOutputB, ContextOutputQ, ContextOutputQI, with_alert_checks, with_product,
                                with_same_as, with_switch_naming)
 from ..providers.docstore import LocalDocStore
 from ..providers.llm import AgentResult, LLMClient, LLMRequest
@@ -278,6 +278,10 @@ class ContextJudge(_SplitJudge):
         self.output_model = ContextOutputQ  # D-335: does the next line resolve it?
         if extra := arms._addenda(str(llm.prompts_path)).get(("QHOLD", self.name)):
             self.system_instruction = f"{self.system_instruction}\n\n{extra}"
+        if getattr(getattr(llm, "settings", None), "INCOMPLETE_HOLD", False):  # D-458: does the line stop mid-thought?
+            self.output_model = ContextOutputQI
+            if extra := arms._addenda(str(llm.prompts_path)).get(("IHOLD", self.name)):
+                self.system_instruction = f"{self.system_instruction}\n\n{extra}"
         # D-351: the switch verdict names the next product (D-415: the only switch mode)
         self.output_model = with_switch_naming(self.output_model)
         self.output_model_b = with_switch_naming(self.output_model_b)
@@ -286,7 +290,7 @@ class ContextJudge(_SplitJudge):
 
     def fallback(self, inp: JudgeInput, values: dict) -> dict:
         """D-435: the mock provider's answer when no test scripted one: no verdict (no rule engine)."""
-        return {"expects_resolution": False,
+        return {"expects_resolution": False, "incomplete": False,
                 "answer": {"utterance_type": "product_talk", "matched_group_id": None, "is_answer": False,
                            "consistent_with_suggested": False},
                 "prompter": {"covered_cue_ids": [],

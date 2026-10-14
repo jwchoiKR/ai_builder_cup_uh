@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     # judged as one utterance by all three judges; with none, the question is judged alone. D-343: measured (pool 7 +
     # pairs: two-host lines 82.8% -> 96.6%, no one-host loss); D-435: always on (the QUESTION_HOLD switch is gone)
     QUESTION_HOLD_MS: int = 2500
+    # D-458 (user, 10/14): the context judge also says whether a final stops mid-thought (`incomplete`); its alerts
+    # wait for that verdict, and an incomplete final's alerts wait for the next final (judged with it as one line) up
+    # to INCOMPLETE_HOLD_MS from its end. Off until measured
+    INCOMPLETE_HOLD: bool = False
+    INCOMPLETE_HOLD_MS: int = 2500
     # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
     # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
     # no record facts the prompter does not show. Was "docs" (D-247/D-255). The release pack itself is still built at
