@@ -259,6 +259,13 @@ export const FAILURE_CAUSES: Record<string, string> = {
   invalid: "AI answer unreadable",
 };
 export const FAILURE_WINDOW_MS = 300_000; // D-412: the same 5 minutes as the server's
+/** The 5-minute card's plain words for a cause (the per-line card keeps FAILURE_CAUSES, with the code) */
+const MISSED_CAUSES: Record<string, string> = {
+  busy: "AI busy",
+  timeout: "no reply in time",
+  error: "AI error",
+  invalid: "unreadable answer",
+};
 /** D-420: which judge failed, in plain words */
 const FAILURE_JUDGES: Record<string, string> = {
   compliance_judge: "Compliance check",
@@ -289,15 +296,21 @@ export function systemCards(state: ClientState, catalog: Catalog | null, now: nu
     cards.push({ key: `judge:${tid}:${covered}`, kind: "judge_failed",
       text: `${t("AI check unavailable for the last sentence")} · ${causes.join(" · ")}` });
   }
-  // D-412/D-416: the failure events of the last 5 minutes, by cause (one per line and judge, as the server counts
-  // them); a new failure shows the card again
+  // D-412/D-416: the failure events of the last 5 minutes (one per line and judge, as the server counts them): the
+  // total, then per judge; with one judge, its cause in plain words. A new failure shows the card again
   const recent = state.judgeFailures.filter((j) => j.cause && j.at !== undefined && now - j.at < FAILURE_WINDOW_MS);
   if (recent.length) {
-    const by = new Map<string, number>();
-    for (const j of recent) by.set(j.cause!, (by.get(j.cause!) ?? 0) + 1);
-    const parts = [...by].map(([c, n]) => `${t(FAILURE_CAUSES[c] ?? "AI error")} ${n}`);
+    const count = (keys: string[]) => {
+      const by = new Map<string, number>();
+      for (const k of keys) by.set(k, (by.get(k) ?? 0) + 1);
+      return [...by].sort((a, b) => b[1] - a[1]);
+    };
+    const judges = count(recent.map((j) => t(FAILURE_JUDGES[j.agent ?? ""] ?? "AI check")));
+    const causes = count(recent.map((j) => t(MISSED_CAUSES[j.cause!] ?? "AI error")));
+    const detail = judges.length > 1 ? judges.map(([name, n]) => `${name} ${n}`).join(", ")
+      : `${judges[0][0]}, ${causes.length > 1 ? causes.map(([c, n]) => `${c} ${n}`).join(", ") : causes[0][0]}`;
     cards.push({ key: `failures:${recent.length}:${recent[recent.length - 1].transcript_id}`, kind: "ai_delay",
-      text: t("Last 5 min: {counts}", { counts: parts.join(" · ") }) });
+      text: t("AI checks missed in the last 5 min: {total} ({detail})", { total: recent.length, detail }) });
   }
   const onAir = onAirSegment(state);
   for (const o of Object.values(state.overtime)) {
