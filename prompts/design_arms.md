@@ -72,6 +72,14 @@ When UTTERANCE has two marked lines, "[previous line] ..." and "[this line] ..."
 [this line] asserts, endorses or rejects about [previous line]. Words that only [previous line] says are a question or
 a report by someone, not a claim of [this line].
 
+## IHOLD: context_judge
+
+D-458: set `incomplete` to `true` when UTTERANCE stops mid-thought, so the next line is expected to finish it: a value
+cut off ("The family size is now 12." when the next words would be the currency or unit), a negation or condition cut
+off ("If you have sensitive skin, please don't."), or a sentence cut off ("오늘 라이브에서만 이 세트를" / "이 크림은 하루
+두 번."). Speech-to-text may add a period where the speaker did not stop: judge the meaning, not the punctuation. `false`
+when the line says a whole thought, even a short one ("Yes, that's right.", "가격은 2만 9천 원입니다.").
+
 ## SWITCH: context_judge
 
 D-351 (immediate product switch): RUN_SHEET is the show's fixed order. Each product has `name`, `short_name`, `type`
