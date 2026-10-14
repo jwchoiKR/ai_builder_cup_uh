@@ -94,6 +94,12 @@ class LLMServerError(LLMError):
     """HTTP 5xx: retried once."""
 
 
+def _coded(exc: Exception, code: int | None) -> Exception:
+    """D-464: the HTTP status Gemini answered with, kept on the error for the failure event."""
+    exc.http_status = code
+    return exc
+
+
 MIN_RETRY_ROOM_MS = 1_000  # D-340: a 429 retry is worth it only with this much of the deadline left after the wait
 
 
@@ -377,10 +383,10 @@ class VertexBackend:
         except errors.ServerError as e:
             if e.code == 504 or e.status == "DEADLINE_EXCEEDED":
                 # The server enforced our own deadline (X-Server-Timeout): a timeout, never retried.
-                raise LLMTimeout(f"{e.code} {e.status}") from e
-            raise LLMServerError(f"{e.code} {e.status}: {e.message}") from e
+                raise _coded(LLMTimeout(f"{e.code} {e.status}"), e.code) from e
+            raise _coded(LLMServerError(f"{e.code} {e.status}: {e.message}"), e.code) from e
         except errors.APIError as e:
-            raise LLMError(f"{e.code} {e.status}: {e.message}") from e
+            raise _coded(LLMError(f"{e.code} {e.status}: {e.message}"), e.code) from e
         except httpx.TimeoutException as e:
             raise LLMTimeout(type(e).__name__) from e
         except httpx.HTTPError as e:
@@ -573,8 +579,10 @@ class LLMClient:
             status, error = "timeout", f"deadline {req.deadline_ms} ms"
         except LLMTimeout as e:
             status, error = "timeout", f"{e} (deadline {req.deadline_ms} ms)"
+            meta["http_status"] = getattr(e, "http_status", None)
         except LLMError as e:
             status, error = "error", str(e)[:500]
+            meta["http_status"] = getattr(e, "http_status", None)
         except Exception as e:  # noqa: BLE001 - fail safe: never raise into a pipeline (§3.2)
             log.exception("LLM call %s failed", req.agent)
             status, error = "error", f"{type(e).__name__}: {e}"[:500]
@@ -592,6 +600,8 @@ class LLMClient:
             temperature=req.temperature, seed=req.seed,
         )
         meta["failure"] = call.failure
+        if status != "ok":
+            meta["deadline_ms"] = req.deadline_ms  # D-464: the deadline this call had, for the failure event
         if self._audit is not None:
             try:
                 await self._audit.record(call, req.session_id)
