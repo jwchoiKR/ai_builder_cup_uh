@@ -167,10 +167,14 @@ async def test_a_high_alert_escalates_from_when_the_host_saw_it(env):
     assert esc.payload["escalated_at"] == a.speech_end_at + 2000 + rt.settings.COMPLIANCE_ESCALATE_SEC * 1000
 
 
-async def test_off_by_default_the_host_sees_it_when_it_is_created():
+async def test_on_by_default():  # D-465
+    assert make_ctx().settings.ALERT_GRACE is True and make_ctx().settings.ALERT_GRACE_MS == 2000
+
+
+async def test_off_the_host_sees_it_when_it_is_created():
     llm = ScriptedBackend()
     llm.outputs[("compliance_judge", A)] = violation()
-    rt = await show(llm)
+    rt = await show(llm, ALERT_GRACE=False)
     try:
         await speak(rt, A)
         [shown] = await host_alerts(rt)

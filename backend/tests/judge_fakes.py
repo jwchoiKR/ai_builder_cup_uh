@@ -172,7 +172,6 @@ class ScriptedBackend:
         self.errors: set[tuple[str, str]] = set()
         self.calls: list[tuple[str, str]] = []
         self.expects: dict[str, bool] = {}  # D-335: the context judge's expects_resolution per line
-        self.incomplete: dict[str, bool] = {}  # D-458: the context judge's incomplete per line
         self.named: dict[str, bool] = {}  # D-351: moving_to_next_named per line (default: the transition flag)
 
     def judge(self, text: str, named: bool | None = None, **kw) -> None:
@@ -229,8 +228,6 @@ class ScriptedBackend:
                 part = to_cited(part, req.output_model)
             if "expects_resolution" in getattr(req.output_model, "model_fields", {}):  # D-335 QUESTION_HOLD
                 part = {"expects_resolution": self.expects.get(req.mock_primary_text, False), **part}
-            if "incomplete" in getattr(req.output_model, "model_fields", {}):  # D-458 INCOMPLETE_HOLD
-                part = {"incomplete": self.incomplete.get(req.mock_primary_text, False), **part}
             if "prompter" in part:  # D-351 SWITCH_MODE=immediate: the switch verdict says whether the line names it
                 sw_model = req.output_model.model_fields["prompter"].annotation.model_fields["switch"].annotation
                 if "moving_to_next_named" in sw_model.model_fields:
