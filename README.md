@@ -35,10 +35,11 @@ Measured on a sealed set of 6 products the app had never seen (set 7, 10/8), hos
 viewer comments ─▶ comment path (triage, answer from the product record, or send to a person)
 
 host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
-              │ each final line, judged in parallel by three Gemini 3.5 Flash-Lite calls
+              │ each final line, judged in parallel by four Gemini calls
               ├─▶ Compliance judge: the regulation PDFs, as original files in the prompt
               ├─▶ Fact checker:     exactly what the host prompter shows
-              └─▶ Context judge:    product switch, prompter ticks, which viewer question was answered
+              ├─▶ Context judge:    product switch, which viewer question was answered
+              └─▶ Prompter judge:   which prompter points the host has covered
                         │
                         ▼
               code: maps the model's handles to alert ids, merges a sentence that STT split in two,
@@ -56,9 +57,10 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 | Service | Use |
 |---|---|
 | Speech-to-Text V2, `chirp_3` (region `us`) | streaming transcription of the host, with phrase hints from the brief |
-| Vertex AI Gemini 3.5 Flash-Lite (global endpoint) | the three live judges, with a fixed seed |
-| Vertex AI Gemini 3.8 Flash | onboarding: reading product documents, the Brief agent |
-| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; autoscaling up to 3 instances with session affinity |
+| Vertex AI Gemini 3.5 Flash-Lite (global endpoint) | live compliance judge and context judge, with a fixed seed |
+| Vertex AI Gemini 3.8 Flash (global endpoint) | live fact checker and prompter judge; onboarding: reading product documents, the Brief agent |
+| Agent Development Kit (ADK) | the AI PD, an `LlmAgent` that picks the next operator card (promo ending, shout-out) from checked candidates (`backend/app/agents/ai_pd.py`) |
+| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; one instance (max-instances 1) with session affinity, so a show's live timers, event stream and audio socket stay in one process |
 | Firestore (`live-studio`) | show state (sessions, transcripts, alerts, segments, events), written behind memory and read back after a restart |
 | Cloud Storage | approved releases, briefs and regulation packs (write-once) |
 | Model Armor | screening viewer comments |
