@@ -135,8 +135,6 @@ def is_promo_passage(passage_id: str) -> bool:
     return passage_id.startswith("PROMO#")
 
 
-IN_HOUSE_SECTION = "In-house test results"
-
 def verify_answer(
     output: ComposerOutput,
     passages: Sequence[Passage],
@@ -199,22 +197,6 @@ def verify_answer(
                                    reflex.lexicon.stopwords)
         for n, subject in misattributed_numbers(answer, subjects):
             errors.append(f"number {n} is not the value of '{subject}' in the cited quotes")
-
-        # 7. D-126: a number from an in-house test result is said with "in-house" / "our test" (D007). D-278: a
-        # release's result passage ends with its own qualifier ("(tested by Larkspur Labs)"), whoever ran the test;
-        # the answer names that qualifier, and only an in-house one is met by "our test"
-        lex = reflex.lexicon
-        for p in cited:
-            if p.section != IN_HOUSE_SECTION or not number_set(p.text) & number_set(answer):
-                continue
-            q = re.search(r"\(([^()]+)\)\W*$", p.text)
-            own = q is None or lex.is_qualified(q.group(1))
-            words = lex.content_words(q.group(1)) if q else []
-            if (words and lex.coverage(words, lex.content_words(answer)) >= 0.5) or (own and lex.is_qualified(answer)):
-                continue
-            errors.append("in-house test result without 'in-house test'" if own else
-                          f"test result without its qualifier ({q.group(1)})")
-            break
 
     # 5. no restricted wording, even negated
     hits = [h for h in reflex.scan(answer) if not (negated_ok and h.negated)]  # D-304: a negated mention passes

@@ -989,35 +989,27 @@ describe("fact note (D-435: no heard-check variant)", () => {
 
 describe("D-332: UI QA", () => {
   it("D-426: a verdict that cites an item id ticks it: the sale price", () => {
-    const water = { id: "DL-CR-01#prompter#ingredient-4-water", key: "ingredient-4-water", product_id: CREAM,
-      section: "Ingredients", kind: "ingredient" as const, text: "Water", name: "Water", value: "" };
     const s = snapshot({
       session: session({ active_promo_id: "promo_time_sale_10", promo_started_at: T0,
         active_promos: [{ promo_id: "promo_time_sale_10", started_at: T0, ends_at: T0 + 600_000 }] }),
-      segments: [segment({ ticked_item_ids: ["DL-CR-01#prompter#sale-price-promo_time_sale_10",
-        "DL-CR-01#prompter#ingredient-4-water"] })],
+      segments: [segment({ ticked_item_ids: ["DL-CR-01#prompter#sale-price-promo_time_sale_10"] })],
       prompter: { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: [], required_total: 2,
-        required_covered: 0, items: [...creamItems(true), water] } });
+        required_covered: 0, items: creamItems(true) } });
     render(<HostView state={{ ...reduceSnapshot(s, "host", Date.now()), serverOffsetMs: 0 }} catalog={cat}
       connection="connected" theme="dark" actions={actions()} />);
     expect(screen.getByTestId("host-price-current")).toHaveAttribute("data-state", "said");
   });
 
-  it("D-423: shows every set the server lists; no cautions or ingredients (user, 10/10)", () => {
-    const many = Array.from({ length: 7 }, (_, i) => `Caution number ${i + 1}.`);
-    const items = [...creamItems(false, many),
+  it("D-423: shows every set the server lists", () => {
+    const items = [...creamItems(),
       { id: "DL-CR-01#prompter#set-trio", key: "set-trio", product_id: CREAM, section: "Price & offers", kind: "set" as const,
-        text: "Set Trio: S$80.00", label: "Trio", value: "S$80.00" },
-      { id: "DL-CR-01#prompter#ingredient-water", key: "ingredient-water", product_id: CREAM, section: "Ingredients",
-        kind: "ingredient" as const, text: "Water", name: "Water", value: "" }];
+        text: "Set Trio: S$80.00", label: "Trio", value: "S$80.00" }];
     const s = snapshot({ prompter: { product_id: CREAM, segment_id: "seg_000001", covered_point_ids: [], required_total: 2,
       required_covered: 0, items } });
     render(<HostView state={{ ...reduceSnapshot(s, "host", Date.now()), serverOffsetMs: 0 }} catalog={cat}
       connection="connected" theme="dark" actions={actions()} />);
-    expect(screen.queryByText(/^Caution number/)).toBeNull();
     expect(screen.getAllByTestId("host-price-set").map((x) => x.textContent)).toEqual(
       ["Set Cream + Ampoule set S$62.00", "Set Trio S$80.00"]);
-    expect(screen.queryByTestId("host-ing-water")).toBeNull();
   });
 });
 

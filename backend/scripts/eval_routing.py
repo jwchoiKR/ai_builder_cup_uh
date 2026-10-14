@@ -78,10 +78,8 @@ def fact_pattern(pack) -> re.Pattern:
                 "cents cent sgd usd ml milliliter milliliters millilitre millilitres liter litre grams "
                 "gram mg kg oz ounces ounce drops drop hours hour minutes minute seconds second "
                 "days day weeks week months month years year".split())
-    # Structured percentage-valued key_facts identify ingredient names in this catalog.
     for product in pack.products.products:
         words.update([product.name, product.short_name, *product.aliases])
-        words.update(k.replace("_", " ") for k, v in product.key_facts.items() if "%" in v)
     words.update(s.name for s in pack.products.set_offers)
     names = "|".join(re.escape(w) for w in sorted(words, key=lambda s: (-len(s), s)))
     return re.compile(r"\d|[%$??Ｂβ궔]|(?<!\w)(?:" + names + r")(?!\w)", re.IGNORECASE)

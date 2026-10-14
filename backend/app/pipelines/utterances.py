@@ -1180,7 +1180,7 @@ class UtterancePipeline:
             await rt.emit("alert.updated", a)
 
     async def _tick_prompter_locked(self, t: Transcript, claims: list) -> None:
-        """D-372: the prompter items (price lines, ingredient amounts, cautions) a supported claim cites are ticked as
+        """D-372: the prompter items (price and set lines) a supported claim cites are ticked as
         said. A contradiction ticks nothing; reported speech never reaches `supported` (v5). D-373: routed by the
         line's own segment (captured with its input), not by what is on air when the verdict arrives: that segment for
         its product; for the product that had just left the air in the line's scope, that product's segment before it;
