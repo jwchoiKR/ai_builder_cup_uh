@@ -37,7 +37,7 @@ for _key in LIVE_PATH_KEYS:
 Settings.model_config["env_file"] = None  # get_settings() in a test: code defaults, never the developer's .env
 os.environ.setdefault("LLM_PROVIDER", "mock")  # as make_settings: no Google provider in a test
 os.environ.setdefault("STT_PROVIDER", "mock")
-os.environ.setdefault("ANSWER_RETRIEVER", "local")  # the code default searches Vertex AI Search
+os.environ.setdefault("ANSWER_RETRIEVER", "local")
 
 # D-434: the old live-path pins, applied (with the rules-JSON compliance path) only to a file or test marked
 # `legacy_live` until it is migrated. Temporary: test_d434 fails when a file outside LEGACY_LIVE_FILES uses it.

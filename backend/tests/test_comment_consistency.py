@@ -146,10 +146,10 @@ async def test_the_search_is_the_evidence_and_the_products_own_document_stands_i
 def test_the_shipped_evidence_is_the_search_with_the_document_behind_it():
     from app.context import _answer_retriever
 
-    r = _answer_retriever(make_settings(ANSWER_RETRIEVER="vertex_search", GCP_PROJECT="p"))
+    r = _answer_retriever(make_settings(ANSWER_RETRIEVER="vertex_search", GCP_PROJECT="p", VERTEX_SEARCH_ENGINE_ID="e"))
     assert (r._first, r._fallback._evidence) == ("search", "segments")
     assert _answer_retriever(make_settings(ANSWER_RETRIEVER="vertex_search", GCP_PROJECT="p",
-                                           VERTEX_EVIDENCE="answer"))._fallback._evidence == "answer"
+                                           VERTEX_SEARCH_ENGINE_ID="e", VERTEX_EVIDENCE="answer"))._fallback._evidence == "answer"
     assert _answer_retriever(make_settings()) is None
 
 
