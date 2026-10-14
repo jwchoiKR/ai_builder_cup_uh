@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     ALERT_GRACE: bool = True
     ALERT_GRACE_MS: int = 2000
     # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
-    # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
+    # snapshot (price and offers, points); no product files,
     # no record facts the prompter does not show. Was "docs" (D-247/D-255). The release pack itself is still built at
     # record level for its other readers (answers to viewers).
     PROMPTS_DIR: str = "../prompts"

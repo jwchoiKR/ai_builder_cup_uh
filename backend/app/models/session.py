@@ -98,7 +98,7 @@ class Segment(BaseModel):  # [sessions/{sid}/segments/{segment_id}]
     start_reason: Literal["session_start", "auto_speech", "operator"]
     planned_duration_sec: int
     covered_point_ids: list[str] = []  # monotonic, never removed
-    ticked_item_ids: list[str] = []  # D-372: prompter items (prices, ingredients, cautions) said right; monotonic
+    ticked_item_ids: list[str] = []  # D-372: prompter items (price and set lines) said right; monotonic
     reopen_times: list[int] = []  # D-381/382: every time an undo reopened this segment (a later undo adds, never moves)
 
 

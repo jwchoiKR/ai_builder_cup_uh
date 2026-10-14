@@ -94,7 +94,7 @@ export interface Segment {
   start_reason: "session_start" | "auto_speech" | "operator";
   planned_duration_sec: number;
   covered_point_ids: string[];
-  ticked_item_ids?: string[]; // D-372: prompter items (prices, ingredients, cautions) the fact checker found said right
+  ticked_item_ids?: string[]; // D-372: prompter items (price and set lines) the fact checker found said right
 }
 
 export interface Transcript {
@@ -356,11 +356,10 @@ export interface PrompterItem {
   key: string;
   product_id: string;
   section: string;
-  kind: "price" | "set" | "ingredient" | "point" | "caution";
+  kind: "price" | "set" | "point";
   text: string;
   label?: string; // price and set: the label ("LIVE PRICE", "TIME SALE", "List price", the set's name)
-  value?: string; // price, set and ingredient: the amount ("" for an ingredient without one)
-  name?: string; // ingredient
+  value?: string; // price and set: the amount
   main?: boolean; // the big price
 }
 
@@ -426,12 +425,9 @@ export interface Product {
   live_price: number;
   hero_badge: string;
   aliases: string[];
-  key_facts: Record<string, string>;
   prompter_points: PrompterPoint[];
   approved_claims: string[];
   not_approved_claims: string[];
-  /** D-106: short host lines from the sheet's Cautions section */
-  cautions?: string[];
   /** D-106: wording to avoid and an approved claim to say instead */
   avoid_saying?: { say_not: string; say: string }[];
   list_price_display: string;
