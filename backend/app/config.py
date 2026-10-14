@@ -64,8 +64,8 @@ class Settings(BaseSettings):
     QUESTION_HOLD_MS: int = 2500
     # D-458 (user, 10/14): the context judge also says whether a final stops mid-thought (`incomplete`); its alerts
     # wait for that verdict, and an incomplete final's alerts wait for the next final (judged with it as one line) up
-    # to INCOMPLETE_HOLD_MS from its end. Off until measured
-    INCOMPLETE_HOLD: bool = False
+    # to INCOMPLETE_HOLD_MS from its end. On since D-459 (measured on pool 10)
+    INCOMPLETE_HOLD: bool = True
     INCOMPLETE_HOLD_MS: int = 2500
     # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
     # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
