@@ -9,7 +9,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 - Never show or commit the sealed test sets (`D:\code_test\study\ai_builder_cup_git\sealed_sets\`). The dev session never reads that folder.
 - Design choices are made by measurement: build every candidate as a switchable arm (`DESIGN_ARM`) and pick by the same evals. Fixed pass lines are in `docs/eval/proof-plan.md`.
 - Viewer questions: post when the product info answers them, send to the operator when it does not.
-- Deploy only to project `ai-budiler-cup-uh-team-pjt` (moved from separk-cloocus on 10/6), and only after the user approves (the user runs `! bash deploy/cloudrun.sh`).
+- Deploy only to project `sample-uh` (moved on 10/14 from ai-budiler-cup-uh-team-pjt, whose Gemini access was blocked on 10/12 and whose billing is now disabled; earlier separk-cloocus), and only after the user approves (the user runs `! bash deploy/cloudrun.sh`).
 - Never commit `.env` or keys. Run a key-pattern scan of the diff from origin before every push, and push only when it finds nothing. Never force-push.
 - Never edit agent permission or config files. Do not touch the user's Chrome.
 - Call peers with explicit models: `codex exec -m gpt-6-astra -c model_reasoning_effort=high`, `agy --model gemini-3.8-flash-high`.
