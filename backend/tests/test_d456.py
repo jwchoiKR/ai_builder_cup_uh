@@ -72,7 +72,8 @@ def _fact_requests(llm):
 
 def test_d456_the_defaults_are_today_s():
     f = Settings.model_fields
-    assert (f["FACT_PROMPT"].default, f["SINGLE_FACTS_THINKING"].default, f["FACTS_MODEL"].default) == ("v5", "LOW", "")
+    assert (f["FACT_PROMPT"].default, f["SINGLE_FACTS_THINKING"].default, f["FACTS_MODEL"].default) == ("v5", "LOW",
+                                                                                            "gemini-3.8-flash")  # D-466
 
 
 def test_d456_reasoning_is_the_first_field_of_a_claim():
@@ -103,7 +104,7 @@ async def test_d456_v5_cot_alerts_as_v5_and_logs_the_reasoning():
         [req] = _fact_requests(llm)
         assert req.prompt_version == "fact_relation_v5_cot_v1"
         assert "`reasoning`: first" in req.system_instruction
-        assert (req.model, req.thinking_level) == ("gemini-3.5-flash-lite", "LOW")
+        assert (req.model, req.thinking_level) == ("gemini-3.8-flash", "LOW")  # D-466
         [fact] = [a for a in await rt.alerts() if a.kind == "fact"]
         assert (fact.correct_value, fact.status) == ("S$36.00", "active")
         [call] = [c for c in await rt.ctx.store.query(rt.path("agent_calls"), AgentCall) if c.agent == "fact_checker"]
@@ -113,11 +114,11 @@ async def test_d456_v5_cot_alerts_as_v5_and_logs_the_reasoning():
 
 
 @pytest.mark.parametrize("arm, want", [
-    ({}, ("gemini-3.5-flash-lite", "LOW", "fact_relation_v5_v2")),
-    ({"SINGLE_FACTS_THINKING": "MEDIUM"}, ("gemini-3.5-flash-lite", "MEDIUM", "fact_relation_v5_v2")),
+    ({}, ("gemini-3.8-flash", "LOW", "fact_relation_v5_v2")),  # D-466
+    ({"SINGLE_FACTS_THINKING": "MEDIUM"}, ("gemini-3.8-flash", "MEDIUM", "fact_relation_v5_v2")),
     ({"SINGLE_FACTS_THINKING": "MEDIUM", "FACT_PROMPT": "v5_cot"},
-     ("gemini-3.5-flash-lite", "MEDIUM", "fact_relation_v5_cot_v1")),
-    ({"FACTS_MODEL": "gemini-3.8-flash"}, ("gemini-3.8-flash", "LOW", "fact_relation_v5_v2")),
+     ("gemini-3.8-flash", "MEDIUM", "fact_relation_v5_cot_v1")),
+    ({"FACTS_MODEL": ""}, ("gemini-3.5-flash-lite", "LOW", "fact_relation_v5_v2")),  # empty = SINGLE_MODEL
 ])
 async def test_d456_each_arm_changes_only_the_fact_call(arm, want):
     llm = _Backend()

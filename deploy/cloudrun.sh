@@ -69,7 +69,7 @@ $G run deploy "$SERVICE" --region="$REGION" --image="$IMAGE" --service-account="
   --no-allow-unauthenticated \
   --min-instances=0 --max-instances=1 --session-affinity --timeout=3600 --cpu=2 --memory=2Gi \
   --cpu-boost --no-cpu-throttling \
-  --set-env-vars="APP_ENV=cloud,VIEWER_INPUT_ENABLED=true,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=firestore,FIRESTORE_DATABASE=live-studio,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=false,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},STT_ENDPOINTING=STANDARD,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=LOW,SINGLE_FACTS_THINKING=LOW,FACT_PROMPT=v5,JUDGE_SEED=7,LLM_RETRY_ON_429_MS=500,ANSWER_RETRIEVER=local"
+  --set-env-vars="APP_ENV=cloud,VIEWER_INPUT_ENABLED=true,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=firestore,FIRESTORE_DATABASE=live-studio,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=false,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},STT_ENDPOINTING=STANDARD,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=LOW,SINGLE_FACTS_THINKING=LOW,FACTS_MODEL=gemini-3.8-flash,FACT_PROMPT=v5,JUDGE_SEED=7,LLM_RETRY_ON_429_MS=500,ANSWER_RETRIEVER=local"
 # D-457: MODEL_ARMOR_ENABLED=false and ANSWER_RETRIEVER=local until the comments team recreates the Model Armor template
 # and the Vertex AI Search app in sample-uh (the one-time setup block above says how to turn them back on).
 

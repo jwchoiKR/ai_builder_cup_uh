@@ -99,7 +99,9 @@ class Settings(BaseSettings):
     SINGLE_THINKING: ThinkingLevel = "LOW"  # D-360 (user): the compliance judge thinks LOW (was MEDIUM, D-336)
     SINGLE_FACTS_THINKING: Literal["", "MINIMAL", "LOW", "MEDIUM", "HIGH"] = "LOW"  # D-311: the fact checker's; empty = SINGLE_THINKING
     COMPLIANCE_MODEL: str = ""
-    FACTS_MODEL: str = ""  # D-246: the fact checker's model (base and FR); empty = LLM_FAST_MODEL
+    # D-246: the fact checker's model; empty = SINGLE_MODEL. D-466 (user, 10/15): gemini-3.8-flash (pool 8: fact-caused
+    # false alerts 2/336 vs 11/336 on Flash-Lite, same detection)
+    FACTS_MODEL: str = "gemini-3.8-flash"
     TRIAGE_THINKING: ThinkingLevel = "LOW"
     LLM_RETRY_ON_5XX: int = 1
     # D-340 (review H15): a 429 (Google's shared capacity) is retried once after this many ms, when the call's

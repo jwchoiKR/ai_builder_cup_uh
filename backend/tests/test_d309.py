@@ -18,14 +18,14 @@ def test_d309_the_single_arm_s_models(settings, clock, ids, store, bus):
         c = LLMClient(ScriptedBackend(), settings.model_copy(update=kw), clock, ids, StoreAudit(store, bus))
         return (c.compliance.model, c.compliance.thinking_level), (c.facts.model, c.facts.thinking_level)
 
-    # D-434: the production defaults (Flash-Lite, compliance LOW, facts LOW); D-435: the only arm
-    assert specs() == (("gemini-3.5-flash-lite", "LOW"), ("gemini-3.5-flash-lite", "LOW"))
-    lite = specs(SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="HIGH",
+    # D-434: the production defaults (compliance Flash-Lite LOW; D-466: facts gemini-3.8-flash LOW)
+    assert specs() == (("gemini-3.5-flash-lite", "LOW"), ("gemini-3.8-flash", "LOW"))
+    lite = specs(SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="HIGH", FACTS_MODEL="",
                  SINGLE_FACTS_THINKING="")  # cell A: empty = the facts follow SINGLE_THINKING
     assert lite == (("gemini-3.5-flash-lite", "HIGH"), ("gemini-3.5-flash-lite", "HIGH"))
     assert specs(COMPLIANCE_MODEL="m1")[0][0] == "m1"
     # D-311: compliance MEDIUM, facts LOW on Flash-Lite
-    split = specs(SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="MEDIUM",
+    split = specs(SINGLE_MODEL="gemini-3.5-flash-lite", SINGLE_THINKING="MEDIUM", FACTS_MODEL="",
                   SINGLE_FACTS_THINKING="LOW")
     assert split == (("gemini-3.5-flash-lite", "MEDIUM"), ("gemini-3.5-flash-lite", "LOW"))
 
