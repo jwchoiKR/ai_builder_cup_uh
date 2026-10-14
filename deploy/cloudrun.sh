@@ -24,7 +24,8 @@ G="gcloud --project=${PROJECT}"
 # uncomment for a new project) ----------------------------------------------------------------------------------
 # echo "== APIs"
 # $G services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-#   iap.googleapis.com aiplatform.googleapis.com speech.googleapis.com secretmanager.googleapis.com
+#   iap.googleapis.com aiplatform.googleapis.com speech.googleapis.com secretmanager.googleapis.com \
+#   cloudresourcemanager.googleapis.com  # D-457: the IAP access binding below needs it
 
 # echo "== service account (least privilege: Vertex AI, Speech, Model Armor, Firestore, Trace)"
 # $G iam service-accounts describe "$SA" >/dev/null 2>&1 || \
