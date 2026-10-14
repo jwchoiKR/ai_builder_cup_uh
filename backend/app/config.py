@@ -161,8 +161,9 @@ class Settings(BaseSettings):
     VERTEX_SEARCH_LOCATION: str = "global"
     # evidence of viewer-question answers: "vertex_search" searches the Vertex AI Search app below for every product
     # question (record answers off too); the live fact checker reads the prompter snapshot
-    ANSWER_RETRIEVER: Literal["local", "vertex_search"] = "vertex_search"
-    VERTEX_SEARCH_ENGINE_ID: str = "ai-budiler-cup-uh-search_1791461058419"
+    # D-457: local until a search app exists in sample-uh (the old one was in ai-budiler-cup-uh-team-pjt)
+    ANSWER_RETRIEVER: Literal["local", "vertex_search"] = "local"
+    VERTEX_SEARCH_ENGINE_ID: str = ""
     VERTEX_ANSWER_TIMEOUT_MS: int = 8000  # answer_query writes an answer: 2-5 s measured 10/10
     # what the composer is given as evidence, from the Vertex AI Search app. "segments": the search results' own text,
     # only the asked product's, word for word (the same query, the same passages). "answer": the search app's own
