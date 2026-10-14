@@ -145,10 +145,16 @@ async def run_case(ctx, case: dict, run_no: int) -> dict:
                             "evidence_ids": a.evidence_ids,
                             # D-309: from the final received to the alert created and to it shown (active)
                             "ms_to_created": a.created_at - heard[a.transcript_id] if a.transcript_id in heard else None,
-                            "ms_to_shown": a.shown_at - heard[a.transcript_id] if a.transcript_id in heard else None,
+                            # D-462: None when ALERT_GRACE never showed it to the host (a later verdict cleared it)
+                            "ms_to_shown": (a.shown_at - heard[a.transcript_id]
+                                            if a.transcript_id in heard and a.shown_at is not None else None),
                             # D-334: from the first final of the utterance it was judged in (a held question's wait)
                             "ms_from_first_final": (a.shown_at - first_heard(a.transcript_id)
-                                                    if a.transcript_id in finals else None)}
+                                                    if a.transcript_id in finals and a.shown_at is not None else None),
+                            # D-462 ALERT_GRACE: created (the operator sees it) and published to the host (None: never),
+                            # and how its wait went: next final within the window, outcome, the clearing final
+                            "created_at": a.created_at, "published_at": a.shown_at,
+                            "grace": rt.utterances.grace.get(a.alert_id)}
                            for a in alerts]}
     finally:
         await ctx.runtimes.drop(rt.sid)

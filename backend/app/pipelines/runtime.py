@@ -722,7 +722,8 @@ class SessionRuntime:
             "host_slots": [sl.model_dump() for sl in s.host_slots],
             "comments": [c.model_dump(mode="json") for c in shown],
             "messages": [m.model_dump(mode="json") for m in await store.query(self.path("messages"), Message, order_by="created_at")],
-            "alerts": [a.model_dump(mode="json") for a in alerts],
+            # D-462: the host gets only the alerts shown to it (ALERT_GRACE holds a new one back for a moment)
+            "alerts": [a.model_dump(mode="json") for a in alerts if role == "operator" or a.shown_at is not None],
             "transcripts": [t.model_dump(mode="json") for t in finals if t.transcript_id in cited],
             "prompter": await self.prompter_view_now(await self.current_segment()),
             "metrics": await self.compute_metrics(),

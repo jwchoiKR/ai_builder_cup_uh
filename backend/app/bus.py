@@ -176,6 +176,8 @@ def for_role(ev: Event, role: str) -> Event | None:
     if ev.type in OPERATOR_ONLY_EVENTS:
         return None
     p = ev.payload
+    if ev.type.startswith("alert.") and p.get("shown_at") is None:  # D-462: not shown to the host yet (ALERT_GRACE)
+        return None
     if ev.type.startswith("comment."):
         comment = p.get("comment", p)
         if comment.get("visibility") == "hidden":

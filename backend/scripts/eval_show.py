@@ -160,6 +160,11 @@ async def _collect(rt, show: dict, lines: list[dict], release_of: dict) -> dict:
                "say_instead": a.say_instead, "stated_value": a.stated_value, "correct_value": a.correct_value,
                "resolved_by_line": resolved_by,
                "ms_to_shown": ms(line, a.shown_at),
+               # D-462 ALERT_GRACE: from the line end to created (the operator sees it) and to shown to the host
+               # (ms_to_shown; None: never), and how its wait went (next final within the window, outcome, the clearing
+               # final)
+               "ms_to_created": ms(line, a.created_at), "created_at": a.created_at, "published_at": a.shown_at,
+               "grace": rt.utterances.grace.get(a.alert_id),
                "ms_to_escalated": ms(line, a.escalated_at), "ms_to_resolved": ms(line, a.resolved_at)}
         alerts.append(row)
 
