@@ -48,6 +48,9 @@ export interface JudgeFailure {
   at?: number;
   agent?: string;
   n?: number;
+  /** D-464: the HTTP status Gemini answered with, and the deadline the call had (our own timeout) */
+  http_status?: number | null;
+  deadline_ms?: number | null;
 }
 
 

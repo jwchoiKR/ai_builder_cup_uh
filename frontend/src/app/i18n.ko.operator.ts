@@ -103,14 +103,12 @@ export const KO_OPERATOR: Record<string, string> = {
   "AI check unavailable for the last sentence": "마지막 문장은 AI 확인을 못 했습니다",
   "AI error": "AI 오류",
   // D-412: a failed check's cause, with the code where there is one, and the last 5 minutes' counts
-  "AI busy (429)": "AI 혼잡 (429)",
-  "AI timed out": "AI 시간 초과",
-  "AI answer unreadable": "AI 응답 해석 불가",
-  // the 5-minute card: the total, then per judge, or one judge's cause in plain words
+  // D-464: a failed check's cause as its code (an HTTP status is shown as its number)
+  "timeout {s} s": "응답 지연 {s}초",
+  timeout: "응답 지연",
+  unreadable: "응답 해석 불가",
+  // the 5-minute card: the total, then per judge with its causes
   "AI checks missed in the last 5 min: {total} ({detail})": "최근 5분 AI 확인 누락 {total}건 ({detail})",
-  "no reply in time": "응답 지연",
-  "AI busy": "AI 혼잡",
-  "unreadable answer": "응답 해석 불가",
   // D-420: which judge failed on the line
   "Compliance check": "규정 확인",
   "Fact check": "사실 확인",

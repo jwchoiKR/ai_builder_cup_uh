@@ -80,6 +80,12 @@ def failure_cause(res: AgentResult) -> str:
     return "error"
 
 
+def failure_codes(res: AgentResult) -> dict:
+    """D-464: what the operator's cards show for a failed check: the HTTP status Gemini answered with (429, 503, 504
+    ...) and the deadline the call had (our own timeout), each None when there is none."""
+    return {"http_status": res.meta.get("http_status"), "deadline_ms": res.meta.get("deadline_ms")}
+
+
 def _what(kind: str, res: AgentResult) -> str:
     """D-458: a held verdict, for the log: its alerts (rule ids or fact fields), or its failure."""
     if res.status != "ok" or res.output is None:
@@ -867,7 +873,7 @@ class UtterancePipeline:
         def expired() -> AgentResult:
             log.info("fact check for %r: not called, the line's fact deadline passed %d ms ago", text[:80], -left())
             return AgentResult(status="timeout", output=None, latency_ms=0, call_id="", error="line deadline passed",
-                               meta={"failure": "client_timeout"})
+                               meta={"failure": "client_timeout", "deadline_ms": self.rt.settings.FACT_LATE_MS})
 
         if left() <= 0:
             return expired()
@@ -1057,7 +1063,7 @@ class UtterancePipeline:
         self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
         self._failure_n += 1
         event = {"transcript_id": t.transcript_id, "agent": "prompter_judge", "cause": cause, "at": now,
-                 "n": self._failure_n}
+                 "n": self._failure_n} | failure_codes(res)
         self.failures[(t.transcript_id, "prompter_judge")] = event
         log.info("prompter check failed %s t=%s: %s (%s)", rt.sid, t.transcript_id, cause, res.meta.get("failure"))
         await rt.emit("prompter.failed", event)
@@ -1070,7 +1076,7 @@ class UtterancePipeline:
         now, cause = rt.now(), failure_cause(res)
         self.failures = {k: v for k, v in self.failures.items() if now - v["at"] < FAILURE_WINDOW_MS}
         self._failure_n += 1
-        event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now, "n": self._failure_n}
+        event = {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now, "n": self._failure_n}             | failure_codes(res)
         self.failures[(t.transcript_id, agent)] = event
         first = t.transcript_id not in self.unchecked
         self.unchecked.setdefault(t.transcript_id, {})[agent] = event
@@ -1078,8 +1084,7 @@ class UtterancePipeline:
         if first:  # D-416: the line is unchecked once, whichever judges failed on it
             await rt.emit("line.check", {"transcript_id": t.transcript_id, "text": text, "rule_ids": [], "phrases": [],
                                          "cause": cause, "at": now})
-        await rt.emit("judge.failed", {"transcript_id": t.transcript_id, "agent": agent, "cause": cause, "at": now,
-                                       "n": event["n"]})
+        await rt.emit("judge.failed", event)
 
     def check_failures(self) -> dict:
         """D-412/D-416/D-420: the snapshot's block, by the live stream's rule: the last 5 minutes' failure events (for

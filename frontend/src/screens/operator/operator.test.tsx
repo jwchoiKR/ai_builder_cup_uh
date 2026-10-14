@@ -94,39 +94,38 @@ describe("alert cards", () => {
       ...st,
       missingPoints: [{ seq: 1, segment_id: "seg_000001", product_id: "cream_hydra_barrier", missing_point_ids: ["cr-p3"],
         missing_texts: ["Helps keep skin hydrated for up to 24 hours (in-house test)."] }],  // D-432: as the server sends
-      unchecked: [{ seq: 2, transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0 }],
+      unchecked: [{ seq: 2, transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0, http_status: 429 }],
       overtime: { seg_000001: { segment_id: "seg_000001", product_id: "cream_hydra_barrier", overtime_sec: 5 } },
     };
     const cards = systemCards(st, catalog, T0 + 905_000);
     expect(cards.map((c) => c.text)).toEqual([
       "Switched with missing required points: Helps keep skin hydrated for up to 24 hours (in-house test).",
-      "AI check unavailable for the last sentence · Compliance check: AI busy (429)",
+      "AI check unavailable for the last sentence · Compliance check: 429",
       "Overtime +0:05 on Hydra Barrier Cream",
     ]);
   });
-  it("D-412: a failed line says its cause with the code; the last 5 minutes are counted by cause", () => {
+  it("D-412/D-464: a failed line says its cause as its code; the last 5 minutes are counted per judge", () => {
     let st = reduceSnapshot(snapshot(), "operator", T0);
     const failures = [
-      { seq: 1, transcript_id: "tr_old", agent: "compliance_judge", cause: "busy", at: T0 - 400_000 },
-      { seq: 2, transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0 - 60_000 },
-      { seq: 3, transcript_id: "tr_2", agent: "compliance_judge", cause: "busy", at: T0 - 30_000 },
-      { seq: 4, transcript_id: "tr_2", agent: "fact_checker", cause: "timeout", at: T0 - 1000 },
+      { seq: 1, transcript_id: "tr_old", agent: "compliance_judge", cause: "busy", at: T0 - 400_000, http_status: 429 },
+      { seq: 2, transcript_id: "tr_1", agent: "context_judge", cause: "timeout", at: T0 - 60_000, deadline_ms: 2500 },
+      { seq: 3, transcript_id: "tr_2", agent: "context_judge", cause: "timeout", at: T0 - 30_000, deadline_ms: 2500 },
+      { seq: 4, transcript_id: "tr_2", agent: "fact_checker", cause: "timeout", at: T0 - 1000, http_status: 504,
+        deadline_ms: 5000 },
     ];
     st = { ...st, judgeFailures: failures.slice(1), unchecked: failures };  // the snapshot's two lists (D-420)
     const texts = systemCards(st, catalog, T0).map((c) => c.text);
     // D-420: one card per unchecked line, whatever its age, listing each failed judge with its cause
-    expect(texts).toContain("AI check unavailable for the last sentence · Compliance check: AI busy (429)");
-    expect(texts).toContain(
-      "AI check unavailable for the last sentence · Compliance check: AI busy (429) · Fact check: AI timed out");
+    expect(texts).toContain("AI check unavailable for the last sentence · Compliance check: 429");
+    expect(texts).toContain("AI check unavailable for the last sentence · Context check: timeout 2.5 s · Fact check: 504");
     expect(texts.filter((x) => x.startsWith("AI check unavailable"))).toHaveLength(3);  // tr_old, tr_1, tr_2
-    // tr_old is older than 5 minutes; several judges: the total, then per judge
-    expect(texts).toContain("AI checks missed in the last 5 min: 3 (Compliance check 2, Fact check 1)");
-    // one judge: its cause in plain words (EN and KO)
-    const one = { ...st, judgeFailures: [{ seq: 5, transcript_id: "tr_3", agent: "context_judge", cause: "timeout", at: T0 - 1000 }] };
-    expect(systemCards(one, catalog, T0).map((c) => c.text))
-      .toContain("AI checks missed in the last 5 min: 1 (Context check, no reply in time)");
-    expect(systemCards(one, catalog, T0, (en, vars) => translate("ko", en, vars)).map((c) => c.text))
-      .toContain("최근 5분 AI 확인 누락 1건 (문맥 확인, 응답 지연)");
+    // tr_old is older than 5 minutes: the total, then per judge (most first) with its causes
+    expect(texts).toContain("AI checks missed in the last 5 min: 3 (Context check 2: timeout 2.5 s · Fact check 1: 504)");
+    expect(systemCards(st, catalog, T0, (en, vars) => translate("ko", en, vars)).map((c) => c.text))
+      .toContain("최근 5분 AI 확인 누락 3건 (문맥 확인 2: 응답 지연 2.5초 · 사실 확인 1: 504)");
+    const invalid = { ...st, judgeFailures: [{ seq: 5, transcript_id: "tr_3", agent: "fact_checker", cause: "invalid", at: T0 }] };
+    expect(systemCards(invalid, catalog, T0).map((c) => c.text))
+      .toContain("AI checks missed in the last 5 min: 1 (Fact check 1: unreadable)");
     // D-422: a later failure on a line gets a new card key, so a dismissed card shows again
     const key = (u: typeof failures) => systemCards({ ...st, unchecked: u }, catalog, T0)
       .find((x) => x.text.startsWith("AI check unavailable"))?.key;
