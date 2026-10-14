@@ -115,25 +115,11 @@ async def test_a_whole_line_shows_its_alerts_once_its_context_verdict_is_in(env)
     assert await events(rt, "hold.started") == []
 
 
-async def test_on_by_default_an_incomplete_final_is_held():
+async def test_off_by_default_the_context_output_has_no_incomplete_field():
     llm = ScriptedBackend()
     llm.outputs[("compliance_judge", A)] = verdict("calms any rash")
     llm.incomplete[A] = True
-    rt = await show(llm)  # D-459: code defaults
-    try:
-        a = await speak(rt, A)
-        assert await created(rt) == []
-        assert "incomplete" in rt.utterances.context.output_model.model_fields
-        assert rt.utterances.incomplete == {a.transcript_id: True}
-    finally:
-        await close_env(rt)
-
-
-async def test_switched_off_the_context_output_has_no_incomplete_field():
-    llm = ScriptedBackend()
-    llm.outputs[("compliance_judge", A)] = verdict("calms any rash")
-    llm.incomplete[A] = True
-    rt = await show(llm, INCOMPLETE_HOLD=False)
+    rt = await show(llm)  # D-460: code defaults
     try:
         a = await speak(rt, A)
         assert [x["transcript_id"] for x in await created(rt)] == [a.transcript_id]
