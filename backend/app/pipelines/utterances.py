@@ -64,6 +64,7 @@ LATE_CORRECTION_LINES = 2
 MIN_CONTEXT_RETRY_MS = 1_000  # D-351: a context retry needs at least this much of its total deadline
 MIN_FACT_RETRY_MS = 1_000  # D-411: a fact retry needs at least this much left of the fact deadline from the line end
 FAILURE_WINDOW_MS = 300_000  # D-412: the operator's rolling count of failed checks covers the last 5 minutes
+GRACE_CAP_MS = 5_000  # D-462: an alert held back by ALERT_GRACE reaches the host by its line's end + this
 
 
 def failure_cause(res: AgentResult) -> str:
@@ -198,6 +199,11 @@ class UtterancePipeline:
         self._question_held: set[str] = set()
         self.incomplete: dict[str, bool | None] = {}
         self.hold_counts = {"holds": 0, "superseded": 0, "released_alone": 0}
+        # D-462 ALERT_GRACE: each final's compliance and fact verdicts (set once both are applied), the correction
+        # re-checks of an alert on a later line ((alert, line) -> task), and per held alert how its wait went (eval)
+        self._verdicts: dict[str, asyncio.Future] = {}
+        self._rechecks: dict[tuple[str, str], asyncio.Task] = {}
+        self.grace: dict[str, dict] = {}
 
     def _claim_application(self, t: Transcript, kind: str) -> bool:
         key = (t.transcript_id, kind)
@@ -244,6 +250,14 @@ class UtterancePipeline:
                 if left > 0:
                     await asyncio.sleep(left / 1000)
                 await self._release_incomplete(tid, timer=False)
+        for aid, g in list(self.grace.items()):  # D-462: a held alert waits out its time, then is decided
+            if g["outcome"] is None:
+                left = g["due"] - self.rt.now()
+                if left > 0:
+                    await asyncio.sleep(left / 1000)
+                await self._grace_due(aid)
+                if g["outcome"] is None:  # its next final's verdict is gone (pruned): decided now
+                    await self._grace_publish(aid, "drain")
 
     # ---- steps 1-4 -----------------------------------------------------------------------------
 
@@ -513,6 +527,7 @@ class UtterancePipeline:
                 self._gates.pop(tid, None)
                 self._followed.pop(tid, None)
                 self.incomplete.pop(tid, None)
+                self._verdicts.pop(tid, None)
 
     async def _infer(self, t, on_air, inp, merge, scenario, ready):
         rt = self.rt
@@ -541,6 +556,7 @@ class UtterancePipeline:
                                                                            t.transcript_id),
                                                            name=f"facts:{t.transcript_id}")
             waiting = {task for task in (comp_task, ctx_task, facts_task) if task is not None}
+            judged = {task for task in (comp_task, facts_task) if task is not None}  # D-462
             failed = False  # D-412: a check of this line failed
             while waiting:
                 done, waiting = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
@@ -585,6 +601,9 @@ class UtterancePipeline:
                                     await self._check_failed_locked(t, merge.text if merge else t.text, res,
                                                                     "fact_checker")
                         await self._deliver(t, _what("facts", res), apply_facts)
+                    judged.discard(task)
+                    if not judged and not self._verdicts_of(t.transcript_id).done():
+                        self._verdicts_of(t.transcript_id).set_result(None)  # D-462: a held alert may be decided now
             if not failed and self.unchecked:
                 # D-412/D-416: the judges answered this line normally again: the unchecked lines said at or before it
                 # are cleared; a line said after it (a late success of an earlier line) stays
@@ -628,6 +647,95 @@ class UtterancePipeline:
                 await self._flush(g)
             if not ready.done():
                 ready.set_result(None)
+            if not self._verdicts_of(t.transcript_id).done():  # D-462
+                self._verdicts_of(t.transcript_id).set_result(None)
+
+    def _verdicts_of(self, tid: str) -> asyncio.Future:
+        """D-462: the future set once this final's compliance and fact verdicts are applied (or failed)."""
+        if tid not in self._verdicts:
+            self._verdicts[tid] = asyncio.get_running_loop().create_future()
+        return self._verdicts[tid]
+
+    def _hold_for_grace(self, a: Alert, t: Transcript) -> None:
+        """D-462 ALERT_GRACE: a new alert is not shown to the host yet (shown_at None; the operator sees it). It is
+        decided ALERT_GRACE_MS after its line's end (timer from the line end, not from the verdict), and at the latest
+        GRACE_CAP_MS after it."""
+        rt = self.rt
+        end = t.speech_end_at
+        due, cap = end + rt.settings.ALERT_GRACE_MS, end + GRACE_CAP_MS
+        a.shown_at = None
+        self.grace[a.alert_id] = {"transcript_id": t.transcript_id, "segment_id": t.segment_id, "line_end": end,
+                                  "due": due, "cap": cap, "next_final": None, "next_in_window": False,
+                                  "outcome": None, "at": None, "cleared_by": None}
+        if rt.now() >= due:  # the verdict came after the grace time: decided at once (after this lock is released)
+            task = rt.spawn(self._grace_due(a.alert_id), name=f"grace:{a.alert_id}")
+            self._pending.add(task)
+            task.add_done_callback(self._pending.discard)
+        else:
+            rt.ctx.scheduler.call_at(rt.key(f"grace:{a.alert_id}"), due, lambda aid=a.alert_id: self._grace_due(aid))
+        if cap > rt.now():
+            rt.ctx.scheduler.call_at(rt.key(f"gracecap:{a.alert_id}"), cap,
+                                     lambda aid=a.alert_id: self._grace_publish(aid, "cap"))
+
+    async def _grace_due(self, aid: str) -> None:
+        """D-462: the grace time is over. When the next final of the same segment came within it, the alert also
+        waits for that final's compliance and fact verdicts and for this alert's correction re-check on it (each
+        bounded by its own deadline, the whole wait by the cap); otherwise it is decided now. Later finals never
+        restart the wait."""
+        g = self.grace.get(aid)
+        if g is None or g["outcome"] is not None:
+            return
+        self.rt.ctx.scheduler.cancel(self.rt.key(f"grace:{aid}"))
+        nxt = self._followed.get(g["transcript_id"])
+        if nxt is None or nxt.segment_id != g["segment_id"] or nxt.received_at > g["due"] or self.rt.now() >= g["cap"]:
+            await self._grace_publish(aid, "grace time over")
+            return
+        g["next_final"], g["next_in_window"] = nxt.transcript_id, True
+        waits = [w for w in (self._verdicts_of(nxt.transcript_id), self._rechecks.get((aid, nxt.transcript_id)))
+                 if w is not None and not w.done()]
+        if not waits:
+            await self._grace_publish(aid, "next final judged")
+            return
+
+        def check(_=None) -> None:
+            if all(w.done() for w in waits) and g["outcome"] is None:
+                task = self.rt.spawn(self._grace_publish(aid, "next final judged"), name=f"grace:{aid}")
+                self._pending.add(task)
+                task.add_done_callback(self._pending.discard)
+
+        for w in waits:
+            w.add_done_callback(check)
+
+    async def _grace_publish(self, aid: str, why: str) -> None:
+        """D-462: the held alert is shown to the host now, unless a later verdict (or the operator) closed it in the
+        meantime: then it never reaches the host screen."""
+        rt = self.rt
+        async with rt.lock:
+            g = self.grace.get(aid)
+            if g is None or g["outcome"] is not None:
+                return
+            rt.ctx.scheduler.cancel(rt.key(f"grace:{aid}"))
+            rt.ctx.scheduler.cancel(rt.key(f"gracecap:{aid}"))
+            a = await rt.get_alert(aid)
+            now = rt.now()
+            g["at"] = now
+            for key in [k for k in self._rechecks if k[0] == aid]:
+                self._rechecks.pop(key, None)
+            if a is None or a.status != "active":
+                g["outcome"] = "cleared before display"
+                g["cleared_by"] = (a.corrected_by_transcript_id if a is not None and a.corrected_by_transcript_id
+                                   else g["next_final"])
+                log.info("provisional alert cleared before display %s: alert=%s t=%s %s rule=%s field=%s span=%r "
+                         "stated=%r correct=%r -> %s by %s (next final %s) after %d ms from its line end", rt.sid, aid,
+                         g["transcript_id"], a.kind if a else None, a.rule_id if a else None, a.field if a else None,
+                         a.span if a else None, a.stated_value if a else None, a.correct_value if a else None,
+                         a.status if a else "gone", g["cleared_by"], g["next_final"], now - g["line_end"])
+                return
+            g["outcome"] = "published"
+            a.shown_at = now
+            log.info("alert %s shown to the host %s: t=%s (%s) %d ms after its line end; next final %s", aid, rt.sid,
+                     g["transcript_id"], why, now - g["line_end"], g["next_final"])
+            await self._save_alert_change_locked(a)
 
     async def _note_health(self, agent: str, status: str) -> None:
         """D-137: "silence must not look like safety". A judge that failed HEALTH_STREAK times within
@@ -858,6 +966,8 @@ class UtterancePipeline:
             if protected:
                 log.info("compliance %s t=%s: merged verdict over %s", rt.sid, t.transcript_id, sorted(protected))
             for a in created:
+                if rt.settings.ALERT_GRACE:  # D-462: the host sees it after the grace time (the operator now)
+                    self._hold_for_grace(a, t)
                 await rt.save_alert(a)
                 await rt.emit("alert.created", a)
                 self._schedule_escalation(a)
@@ -1043,6 +1153,8 @@ class UtterancePipeline:
         for x in fire:
             task = rt.spawn(self._recheck_correction(a.alert_id, x, origin[1] if origin else None),
                             name=f"recheck:{a.alert_id}:{x.transcript_id}")
+            if a.alert_id in self.grace:  # D-462
+                self._rechecks[(a.alert_id, x.transcript_id)] = task
             self._pending.add(task)
             task.add_done_callback(self._pending.discard)
 
@@ -1192,6 +1304,8 @@ class UtterancePipeline:
             log.info("facts %s t=%s: merged verdict over %s: cleared %s", rt.sid, t.transcript_id,
                      sorted(protected), [a.alert_id for a in chain])
         for a in created:
+            if rt.settings.ALERT_GRACE:  # D-462
+                self._hold_for_grace(a, t)
             await rt.save_alert(a)
             await rt.emit("alert.created", a)
             self._on_fact_note_active(a)
@@ -1298,6 +1412,8 @@ class UtterancePipeline:
                      "fired" if why is None else f"skipped ({why})")
         for x in fire:
             task = rt.spawn(self._recheck_fact_note(a.alert_id, x), name=f"factcheck:{a.alert_id}:{x.transcript_id}")
+            if a.alert_id in self.grace:  # D-462
+                self._rechecks[(a.alert_id, x.transcript_id)] = task
             self._pending.add(task)
             task.add_done_callback(self._pending.discard)
 

@@ -139,7 +139,8 @@ class Alert(BaseModel):  # [sessions/{sid}/alerts/{alert_id}]
     say: str | None = None  # D-396: fact note, the model's line the host says to fix it
     # timing
     created_at: int
-    shown_at: int | None = None  # became active; escalation and latency use this
+    shown_at: int | None = None  # became active; escalation and latency use this. D-462: None while ALERT_GRACE holds
+    # it back from the host (the operator sees it), and for good when a later verdict cleared it before that
     host_rendered_at: int | None = None
     escalated_at: int | None = None
     resolved_at: int | None = None

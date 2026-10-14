@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     # to INCOMPLETE_HOLD_MS from its end. Off again since D-460 (the serial wait in a continuous show); an off arm
     INCOMPLETE_HOLD: bool = False
     INCOMPLETE_HOLD_MS: int = 2500
+    # D-462 (user, 10/14): a new compliance or fact alert reaches the host screen ALERT_GRACE_MS after its line's end;
+    # when the next final of the segment came within that time, also after that final's compliance and fact verdicts,
+    # which may clear it first (it is then never shown to the host); at the latest 5 s after its line's end. The
+    # operator sees it at once. Off until measured
+    ALERT_GRACE: bool = False
+    ALERT_GRACE_MS: int = 2000
     # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
     # snapshot (price and offers, the shown ingredients, points, in-house test results, cautions); no product files,
     # no record facts the prompter does not show. Was "docs" (D-247/D-255). The release pack itself is still built at
