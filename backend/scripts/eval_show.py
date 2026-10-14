@@ -42,6 +42,7 @@ from eval_holdout_sequences import ReplayClock  # noqa: E402
 from app.config import Settings  # noqa: E402
 from app.context import build_context  # noqa: E402
 from app.models.session import AgentCall, Event, Segment, Transcript  # noqa: E402
+from app.onboarding.product_show import SHOW_KEY  # noqa: E402
 from app.pipelines.runtime import create_session  # noqa: E402
 from app.scheduler import AsyncScheduler  # noqa: E402
 
@@ -76,7 +77,9 @@ async def run_show(ctx, show: dict, settle_ms: int) -> dict:
     rt.pd.agent = None  # the utterance pipeline only
     try:
         await rt.start()
-        release_of = dict(rt.pack.releases)  # product id -> release id
+        # product id -> release id; a rebuilt-onboarding release ("<product_id>:<regulation_id>") leaves pack.releases
+        # empty, so its product id is read from the key
+        release_of = dict(rt.pack.releases) | {m[1]: r for r in show["release_ids"] if (m := SHOW_KEY.fullmatch(r))}
         lines = []
         for line in show["lines"]:
             await asyncio.sleep(line.get("gap_ms", 0) / 1000)
