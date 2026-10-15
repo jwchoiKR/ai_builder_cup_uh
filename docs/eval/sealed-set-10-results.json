@@ -1,0 +1,1639 @@
+{
+ "set": 10,
+ "products": 4,
+ "lines": 180,
+ "runs": {
+  "P": {
+   "setting": "compliance Flash-Lite LOW (deployed setting)",
+   "total": {
+    "violations": 54,
+    "detected": 52,
+    "detection_pct": 96.3,
+    "safe": 108,
+    "false_alerts": 0,
+    "false_alert_pct": 0.0,
+    "compliance_call_s": {
+     "p50": 1.4,
+     "p95": 2.9,
+     "n": 245
+    },
+    "fact_call_s": {
+     "p50": 6.0,
+     "p95": 31.5,
+     "n": 218
+    },
+    "failed_calls": {
+     "client_timeout": 29
+    },
+    "fact_alerts_after_5s": 18,
+    "detected_by_time": {
+     "within_5s": 34,
+     "within_10s": 45,
+     "within_20s": 50
+    }
+   },
+   "per_product": [
+    {
+     "product": 1,
+     "category": "skincare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 2.3,
+     "fact_call_p95_s": 17.0
+    },
+    {
+     "product": 2,
+     "category": "skincare",
+     "violations": 13,
+     "detected": 12,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 2.7,
+     "fact_call_p95_s": 44.7
+    },
+    {
+     "product": 3,
+     "category": "food supplement",
+     "violations": 13,
+     "detected": 12,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 3.3,
+     "fact_call_p95_s": 24.4
+    },
+    {
+     "product": 4,
+     "category": "haircare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 2.3,
+     "fact_call_p95_s": 31.5
+    }
+   ],
+   "lines": [
+    {
+     "id": "X1-01",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-02",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-03",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 6826,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X1-04",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-05",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1648
+    },
+    {
+     "id": "X1-06",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-07",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-08",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 10803,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X1-09",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-10",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "false alert"
+    },
+    {
+     "id": "X1-11",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1551
+    },
+    {
+     "id": "X1-12",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-13",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-14",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 20869,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X1-15",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-16",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-17",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1489
+    },
+    {
+     "id": "X1-18",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-19",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-20",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 5793,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X1-21",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-22",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-23",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1156
+    },
+    {
+     "id": "X1-24",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X1-25",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 3186
+    },
+    {
+     "id": "X1-26",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-27",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-28",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-29",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1395
+    },
+    {
+     "id": "X1-30",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-31",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "excluded": "fact not on the prompter or rule not in the product's regulation PDF"
+    },
+    {
+     "id": "X1-32",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-33",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-34",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-35",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1528
+    },
+    {
+     "id": "X1-36",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-37",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 2766
+    },
+    {
+     "id": "X1-38",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-39",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "false alert"
+    },
+    {
+     "id": "X1-40",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1458
+    },
+    {
+     "id": "X1-41",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-42",
+     "product": 1,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 13423,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X1-43",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-44",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X1-45",
+     "product": 1,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-01",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-02",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-03",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 5394,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X2-04",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-05",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1299
+    },
+    {
+     "id": "X2-06",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-07",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-08",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 5275,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X2-09",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-10",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X2-11",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1792
+    },
+    {
+     "id": "X2-12",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-13",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-14",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 2275
+    },
+    {
+     "id": "X2-15",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-16",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-17",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1239
+    },
+    {
+     "id": "X2-18",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-19",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-20",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 3522
+    },
+    {
+     "id": "X2-21",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-22",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-23",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1998
+    },
+    {
+     "id": "X2-24",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X2-25",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 3095
+    },
+    {
+     "id": "X2-26",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-27",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-28",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-29",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1380
+    },
+    {
+     "id": "X2-30",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-31",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "excluded": "fact not on the prompter or rule not in the product's regulation PDF"
+    },
+    {
+     "id": "X2-32",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-33",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-34",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-35",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1818
+    },
+    {
+     "id": "X2-36",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-37",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "excluded": "fact not on the prompter or rule not in the product's regulation PDF"
+    },
+    {
+     "id": "X2-38",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-39",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X2-40",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1429
+    },
+    {
+     "id": "X2-41",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-42",
+     "product": 2,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "missed"
+    },
+    {
+     "id": "X2-43",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-44",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X2-45",
+     "product": 2,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-01",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-02",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-03",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "missed"
+    },
+    {
+     "id": "X3-04",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-05",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 2205
+    },
+    {
+     "id": "X3-06",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-07",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-08",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 9261,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X3-09",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-10",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X3-11",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1830
+    },
+    {
+     "id": "X3-12",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-13",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-14",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 5463,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X3-15",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-16",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-17",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 2588
+    },
+    {
+     "id": "X3-18",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-19",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-20",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 3982
+    },
+    {
+     "id": "X3-21",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-22",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-23",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "excluded": "fact not on the prompter or rule not in the product's regulation PDF"
+    },
+    {
+     "id": "X3-24",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X3-25",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 8357,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X3-26",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-27",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-28",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-29",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1787
+    },
+    {
+     "id": "X3-30",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-31",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 8319,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X3-32",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-33",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-34",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-35",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1977
+    },
+    {
+     "id": "X3-36",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-37",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 5442,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X3-38",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-39",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "false alert"
+    },
+    {
+     "id": "X3-40",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "excluded": "fact not on the prompter or rule not in the product's regulation PDF"
+    },
+    {
+     "id": "X3-41",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-42",
+     "product": 3,
+     "lang": "en",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 21412,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X3-43",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-44",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X3-45",
+     "product": 3,
+     "lang": "en",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-01",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-02",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-03",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 16663,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X4-04",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-05",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1310
+    },
+    {
+     "id": "X4-06",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-07",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-08",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 10578,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X4-09",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-10",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X4-11",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1483
+    },
+    {
+     "id": "X4-12",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-13",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-14",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 5290,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X4-15",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-16",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-17",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1673
+    },
+    {
+     "id": "X4-18",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-19",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-20",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 10306,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X4-21",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-22",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-23",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1462
+    },
+    {
+     "id": "X4-24",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "no alert"
+    },
+    {
+     "id": "X4-25",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 5436,
+     "late_fact_alert": true
+    },
+    {
+     "id": "X4-26",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-27",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-28",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-29",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1497
+    },
+    {
+     "id": "X4-30",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-31",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 2527
+    },
+    {
+     "id": "X4-32",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-33",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-34",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-35",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 1817
+    },
+    {
+     "id": "X4-36",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-37",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "excluded": "fact not on the prompter or rule not in the product's regulation PDF"
+    },
+    {
+     "id": "X4-38",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-39",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "excluded": "stress line: one sentence cut into two audio clips on purpose",
+     "stress_outcome": "false alert"
+    },
+    {
+     "id": "X4-40",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 2366
+    },
+    {
+     "id": "X4-41",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-42",
+     "product": 4,
+     "lang": "ko",
+     "risky": true,
+     "outcome": "detected",
+     "alert_ms": 2821
+    },
+    {
+     "id": "X4-43",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-44",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    },
+    {
+     "id": "X4-45",
+     "product": 4,
+     "lang": "ko",
+     "risky": false,
+     "outcome": "no alert"
+    }
+   ]
+  },
+  "B": {
+   "setting": "compliance Flash-Lite MEDIUM",
+   "total": {
+    "violations": 54,
+    "detected": 54,
+    "detection_pct": 100.0,
+    "safe": 108,
+    "false_alerts": 1,
+    "false_alert_pct": 0.9,
+    "compliance_call_s": {
+     "p50": 2.7,
+     "p95": 4.7,
+     "n": 241
+    },
+    "fact_call_s": {
+     "p50": 2.6,
+     "p95": 12.9,
+     "n": 241
+    },
+    "failed_calls": {
+     "client_timeout": 2
+    },
+    "fact_alerts_after_5s": 4,
+    "detected_by_time": {
+     "within_5s": 50,
+     "within_10s": 53,
+     "within_20s": 54
+    }
+   },
+   "per_product": [
+    {
+     "product": 1,
+     "category": "skincare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 5.1,
+     "fact_call_p95_s": 44.4
+    },
+    {
+     "product": 2,
+     "category": "skincare",
+     "violations": 13,
+     "detected": 13,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 5.1,
+     "fact_call_p95_s": 8.1
+    },
+    {
+     "product": 3,
+     "category": "food supplement",
+     "violations": 13,
+     "detected": 13,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 4.7,
+     "fact_call_p95_s": 6.0
+    },
+    {
+     "product": 4,
+     "category": "haircare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 1,
+     "compliance_call_p95_s": 4.7,
+     "fact_call_p95_s": 8.9
+    }
+   ]
+  },
+  "C": {
+   "setting": "compliance Flash-Lite HIGH",
+   "total": {
+    "violations": 54,
+    "detected": 54,
+    "detection_pct": 100.0,
+    "safe": 108,
+    "false_alerts": 0,
+    "false_alert_pct": 0.0,
+    "compliance_call_s": {
+     "p50": 3.4,
+     "p95": 5.9,
+     "n": 241
+    },
+    "fact_call_s": {
+     "p50": 2.7,
+     "p95": 5.3,
+     "n": 240
+    },
+    "failed_calls": {
+     "client_timeout": 2
+    },
+    "fact_alerts_after_5s": 5,
+    "detected_by_time": {
+     "within_5s": 34,
+     "within_10s": 54,
+     "within_20s": 54
+    }
+   },
+   "per_product": [
+    {
+     "product": 1,
+     "category": "skincare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 5.6,
+     "fact_call_p95_s": 5.0
+    },
+    {
+     "product": 2,
+     "category": "skincare",
+     "violations": 13,
+     "detected": 13,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 5.9,
+     "fact_call_p95_s": 5.1
+    },
+    {
+     "product": 3,
+     "category": "food supplement",
+     "violations": 13,
+     "detected": 13,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 6.7,
+     "fact_call_p95_s": 6.0
+    },
+    {
+     "product": 4,
+     "category": "haircare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 5.7,
+     "fact_call_p95_s": 5.4
+    }
+   ]
+  },
+  "D": {
+   "setting": "compliance Gemini 3.8 Flash LOW",
+   "total": {
+    "violations": 54,
+    "detected": 54,
+    "detection_pct": 100.0,
+    "safe": 108,
+    "false_alerts": 1,
+    "false_alert_pct": 0.9,
+    "compliance_call_s": {
+     "p50": 2.7,
+     "p95": 6.4,
+     "n": 241
+    },
+    "fact_call_s": {
+     "p50": 2.4,
+     "p95": 5.6,
+     "n": 241
+    },
+    "failed_calls": {
+     "client_timeout": 4
+    },
+    "fact_alerts_after_5s": 4,
+    "detected_by_time": {
+     "within_5s": 45,
+     "within_10s": 52,
+     "within_20s": 53
+    }
+   },
+   "per_product": [
+    {
+     "product": 1,
+     "category": "skincare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 11.6,
+     "fact_call_p95_s": 25.2
+    },
+    {
+     "product": 2,
+     "category": "skincare",
+     "violations": 13,
+     "detected": 13,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 11.1,
+     "fact_call_p95_s": 5.3
+    },
+    {
+     "product": 3,
+     "category": "food supplement",
+     "violations": 13,
+     "detected": 13,
+     "safe": 27,
+     "false_alerts": 0,
+     "compliance_call_p95_s": 7.1,
+     "fact_call_p95_s": 5.5
+    },
+    {
+     "product": 4,
+     "category": "haircare",
+     "violations": 14,
+     "detected": 14,
+     "safe": 27,
+     "false_alerts": 1,
+     "compliance_call_p95_s": 5.1,
+     "fact_call_p95_s": 5.4
+    }
+   ]
+  }
+ }
+}
