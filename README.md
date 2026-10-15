@@ -18,6 +18,7 @@ Measured on a sealed set of 6 products the app had never seen (set 7, 10/8), hos
 | Alert latency p95, end of sentence to host screen | | **4.2 s** | ≤ 5 s |
 
 - The second run added one change chosen from the first run (a line that expects an answer is judged together with the next line). The set was no longer unseen, so the fresh-set number is 94.0%.
+- Per product and per line (ids and outcomes, no sealed text): [docs/eval/sealed-set-7-results.md](docs/eval/sealed-set-7-results.md).
 - **Not yet measured:** the 10/9 simplification described below. The next sealed set will be run on it. Details and conditions are in [Evaluation](#evaluation).
 
 ## What happens on air
@@ -76,7 +77,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 **Set 7 in detail** (10/8, one voice)
 - Scored lines: 261 of 288 (134 with a violation, 127 safe). Left out: 18 lines where two hosts speak over each other, 4 contrived stress lines, 5 lines outside the product's own regulation pack.
 - Critic rulings made after the run: 2 corrections credited, 3 extra alerts not penalised. Without them the second run is 94.8% detection, 1.6% false alerts and 1 wrong strongest alert; the first run is 93.3% and 2.4%.
-- Per product (second run): detection 82.6% to 100%, false alerts 0% to 4.8%. The per-product pass lines are met by 3 of 6 products for detection and 4 of 6 for false alerts.
+- Per product (second run): detection 82.6% to 100%, false alerts 0% to 4.8%. The per-product pass lines are met by 4 of 6 products for detection, 4 of 6 for false alerts and 6 of 6 for latency ([per-product table](docs/eval/sealed-set-7-results.md)).
 - The 2 false alerts in the second run are both STT writing "four" as "for" next to a number.
 - "Wrong strongest alert" was measured when the model still graded severity. Since 10/9 every regulation citation is red, so this line will be re-measured.
 
@@ -86,7 +87,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 
 ## Known limits
 
-- False alerts are above the 1% line, and three products miss the detection line.
+- False alerts are above the 1% line, and two products miss the detection line.
 - Tested with TTS voices, not yet with a real human host.
 - Show state, comments included, is kept in Firestore and survives a restart or a move to a new instance.
 - No per-show cost figure yet.

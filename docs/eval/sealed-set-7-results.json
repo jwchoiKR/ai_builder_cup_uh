@@ -1,0 +1,4810 @@
+{
+ "set": 7,
+ "date": "2026-10-08",
+ "products": 6,
+ "lines": 288,
+ "runs": {
+  "first_run": {
+   "total": {
+    "violations": 134,
+    "detected": 126,
+    "detection_pct": 94.0,
+    "safe": 127,
+    "false_alerts": 3,
+    "false_alert_pct": 2.4,
+    "wrong_strongest_alerts": 0,
+    "alert_p95_ms": 4479,
+    "judge_calls": 1154,
+    "judge_failures": {
+     "client_timeout": 28
+    }
+   },
+   "per_product": [
+    {
+     "product": 1,
+     "category": "lip balm SPF20",
+     "violations": 23,
+     "detected": 20,
+     "detection_pct": 87.0,
+     "safe": 21,
+     "false_alerts": 1,
+     "false_alert_pct": 4.8,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 9607
+    },
+    {
+     "product": 2,
+     "category": "fermented toner",
+     "violations": 23,
+     "detected": 23,
+     "detection_pct": 100.0,
+     "safe": 19,
+     "false_alerts": 0,
+     "false_alert_pct": 0.0,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 4479
+    },
+    {
+     "product": 3,
+     "category": "omega-3 softgels",
+     "violations": 23,
+     "detected": 22,
+     "detection_pct": 95.7,
+     "safe": 22,
+     "false_alerts": 1,
+     "false_alert_pct": 4.5,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 6445
+    },
+    {
+     "product": 4,
+     "category": "dry shampoo",
+     "violations": 23,
+     "detected": 23,
+     "detection_pct": 100.0,
+     "safe": 21,
+     "false_alerts": 1,
+     "false_alert_pct": 4.8,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 4256
+    },
+    {
+     "product": 5,
+     "category": "kids' sunscreen SPF50",
+     "violations": 23,
+     "detected": 22,
+     "detection_pct": 95.7,
+     "safe": 22,
+     "false_alerts": 0,
+     "false_alert_pct": 0.0,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 3489
+    },
+    {
+     "product": 6,
+     "category": "cold brew concentrate",
+     "violations": 19,
+     "detected": 16,
+     "detection_pct": 84.2,
+     "safe": 22,
+     "false_alerts": 0,
+     "false_alert_pct": 0.0,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 3898
+    }
+   ],
+   "lines": [
+    {
+     "id": "V1-01",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4251,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-02",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2642,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-03",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-04",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-05",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1267,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-06",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V1-07",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-08",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-09",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1355,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-10",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1408,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-11",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-12",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-13",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1403,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-14",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1743,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-15",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-16",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-17",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V1-18",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1950,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-19",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-20",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-21",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1457,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-22",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1483,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-23",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-24",
+     "product": 1,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V1-25",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4140,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-26",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1346,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-27",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-28",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-29",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1350,
+     "outcome": "detected",
+     "note": "extra alert not penalised by critic ruling"
+    },
+    {
+     "id": "V1-30",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1388,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-31",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-32",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-33",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1777,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-34",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1288,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-35",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 2419,
+     "outcome": "false alert"
+    },
+    {
+     "id": "V1-36",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-37",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 9607,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-38",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1480,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-39",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-40",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1454,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-41",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-42",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-43",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V1-44",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1776,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-45",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-46",
+     "product": 1,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 1570,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V1-47",
+     "product": 1,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V1-48",
+     "product": 1,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V2-01",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2453,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-02",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1954,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-03",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-04",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-05",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4232,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-06",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1573,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-07",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-08",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-09",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1336,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-10",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1187,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-11",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-12",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-13",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1208,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-14",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1295,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-15",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-16",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-17",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1404,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-18",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1524,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-19",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-20",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-21",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1347,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-22",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1264,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-23",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V2-24",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V2-25",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1088,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-26",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1213,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-27",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-28",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-29",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1159,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-30",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1024,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-31",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-32",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-33",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1478,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-34",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3459,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-35",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-36",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": 1239,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V2-37",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3659,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-38",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1181,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-39",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-40",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1281,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-41",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-42",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-43",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 966,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-44",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1255,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-45",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-46",
+     "product": 2,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V2-47",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V2-48",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": 1162,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V3-01",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3103,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-02",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2755,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-03",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-04",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1228,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-05",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1327,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-06",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1223,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-07",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-08",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-09",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1267,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-10",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1097,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-11",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-12",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-13",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1270,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-14",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 6445,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-15",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-16",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-17",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1454,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-18",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1536,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-19",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-20",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-21",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1287,
+     "outcome": "detected",
+     "note": "credited by critic ruling"
+    },
+    {
+     "id": "V3-22",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1501,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-23",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-24",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-25",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1517,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-26",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1417,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-27",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-28",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 2824,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-29",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3530,
+     "outcome": "detected",
+     "note": "extra alert not penalised by critic ruling"
+    },
+    {
+     "id": "V3-30",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1160,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-31",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-32",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-33",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1325,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-34",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1397,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-35",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-36",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-37",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1398,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-38",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1495,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-39",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-40",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1407,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-41",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-42",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-43",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1065,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-44",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V3-45",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1290,
+     "outcome": "false alert"
+    },
+    {
+     "id": "V3-46",
+     "product": 3,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V3-47",
+     "product": 3,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V3-48",
+     "product": 3,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": 1241,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V4-01",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2232,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-02",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2916,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-03",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-04",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1375,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-05",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1481,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-06",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1290,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-07",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-08",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-09",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4256,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-10",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1265,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-11",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-12",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-13",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1518,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-14",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2232,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-15",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-16",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-17",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1294,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-18",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1413,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-19",
+     "product": 4,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V4-20",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-21",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1217,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-22",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1223,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-23",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-24",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-25",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3171,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-26",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1401,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-27",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-28",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-29",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1211,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-30",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1520,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-31",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-32",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-33",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1748,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-34",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1377,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-35",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1293,
+     "outcome": "false alert"
+    },
+    {
+     "id": "V4-36",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-37",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 8731,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-38",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1293,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-39",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-40",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1259,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-41",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-42",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-43",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1221,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-44",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1376,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-45",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-46",
+     "product": 4,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 1333,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V4-47",
+     "product": 4,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V4-48",
+     "product": 4,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V5-01",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3374,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-02",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3489,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-03",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-04",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-05",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1148,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-06",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1724,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-07",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-08",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-09",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1138,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-10",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1426,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-11",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-12",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-13",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1410,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-14",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1363,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-15",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-16",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-17",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1550,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-18",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2110,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-19",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-20",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-21",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1093,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-22",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1257,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-23",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-24",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-25",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1368,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-26",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1258,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-27",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-28",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-29",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1188,
+     "outcome": "detected",
+     "note": "extra alert not penalised by critic ruling"
+    },
+    {
+     "id": "V5-30",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1718,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-31",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-32",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-33",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1527,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-34",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1190,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-35",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-36",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-37",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V5-38",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1365,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-39",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-40",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1334,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-41",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-42",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-43",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1563,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-44",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1278,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-45",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-46",
+     "product": 5,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V5-47",
+     "product": 5,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V5-48",
+     "product": 5,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V6-01",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-02",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 2387,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-03",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-04",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-05",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 994,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-06",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1101,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-07",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-08",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-09",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1219,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-10",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1164,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-11",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-12",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-13",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1032,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-14",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1276,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-15",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-16",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-17",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1387,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-18",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1294,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-19",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-20",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-21",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1126,
+     "outcome": "missed"
+    },
+    {
+     "id": "V6-22",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1148,
+     "outcome": "detected",
+     "note": "credited by critic ruling"
+    },
+    {
+     "id": "V6-23",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-24",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-25",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-26",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1200,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-27",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-28",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-29",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1099,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-30",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1125,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-31",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-32",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-33",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1292,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-34",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1478,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-35",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-36",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-37",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-38",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1141,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-39",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-40",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V6-41",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-42",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-43",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V6-44",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3898,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-45",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-46",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 1578,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V6-47",
+     "product": 6,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V6-48",
+     "product": 6,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    }
+   ]
+  },
+  "second_run": {
+   "total": {
+    "violations": 134,
+    "detected": 128,
+    "detection_pct": 95.5,
+    "safe": 127,
+    "false_alerts": 2,
+    "false_alert_pct": 1.6,
+    "wrong_strongest_alerts": 0,
+    "alert_p95_ms": 4207,
+    "judge_calls": 1037,
+    "judge_failures": {
+     "client_timeout": 21
+    }
+   },
+   "per_product": [
+    {
+     "product": 1,
+     "category": "lip balm SPF20",
+     "violations": 23,
+     "detected": 19,
+     "detection_pct": 82.6,
+     "safe": 21,
+     "false_alerts": 1,
+     "false_alert_pct": 4.8,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 4234
+    },
+    {
+     "product": 2,
+     "category": "fermented toner",
+     "violations": 23,
+     "detected": 23,
+     "detection_pct": 100.0,
+     "safe": 19,
+     "false_alerts": 0,
+     "false_alert_pct": 0.0,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 4170
+    },
+    {
+     "product": 3,
+     "category": "omega-3 softgels",
+     "violations": 23,
+     "detected": 23,
+     "detection_pct": 100.0,
+     "safe": 22,
+     "false_alerts": 0,
+     "false_alert_pct": 0.0,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 4253
+    },
+    {
+     "product": 4,
+     "category": "dry shampoo",
+     "violations": 23,
+     "detected": 23,
+     "detection_pct": 100.0,
+     "safe": 21,
+     "false_alerts": 1,
+     "false_alert_pct": 4.8,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 4823
+    },
+    {
+     "product": 5,
+     "category": "kids' sunscreen SPF50",
+     "violations": 23,
+     "detected": 22,
+     "detection_pct": 95.7,
+     "safe": 22,
+     "false_alerts": 0,
+     "false_alert_pct": 0.0,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 4386
+    },
+    {
+     "product": 6,
+     "category": "cold brew concentrate",
+     "violations": 19,
+     "detected": 18,
+     "detection_pct": 94.7,
+     "safe": 22,
+     "false_alerts": 0,
+     "false_alert_pct": 0.0,
+     "wrong_strongest_alerts": 0,
+     "alert_p95_ms": 1728
+    }
+   ],
+   "lines": [
+    {
+     "id": "V1-01",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2400,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-02",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2601,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-03",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-04",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-05",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4234,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-06",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V1-07",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-08",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-09",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1316,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-10",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1101,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-11",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-12",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-13",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1351,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-14",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1401,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-15",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-16",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-17",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V1-18",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1330,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-19",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-20",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-21",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1459,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-22",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1526,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-23",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-24",
+     "product": 1,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V1-25",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3428,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-26",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1463,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-27",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-28",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-29",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3805,
+     "outcome": "missed",
+     "note": "extra alert not penalised by critic ruling"
+    },
+    {
+     "id": "V1-30",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2445,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-31",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-32",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-33",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4201,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-34",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1180,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-35",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1401,
+     "outcome": "false alert"
+    },
+    {
+     "id": "V1-36",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-37",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3610,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-38",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1591,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-39",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-40",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4427,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-41",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-42",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-43",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V1-44",
+     "product": 1,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1263,
+     "outcome": "detected"
+    },
+    {
+     "id": "V1-45",
+     "product": 1,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V1-46",
+     "product": 1,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 1060,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V1-47",
+     "product": 1,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V1-48",
+     "product": 1,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V2-01",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1902,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-02",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2022,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-03",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-04",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-05",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1256,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-06",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1152,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-07",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-08",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-09",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1323,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-10",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1168,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-11",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-12",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-13",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1244,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-14",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1174,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-15",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-16",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-17",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1833,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-18",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1354,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-19",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-20",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-21",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1196,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-22",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1350,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-23",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V2-24",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V2-25",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1122,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-26",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1462,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-27",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-28",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-29",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1216,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-30",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1117,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-31",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-32",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-33",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1149,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-34",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1119,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-35",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-36",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": 1378,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V2-37",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1326,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-38",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1427,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-39",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-40",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1492,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-41",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-42",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-43",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1228,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-44",
+     "product": 2,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1225,
+     "outcome": "detected"
+    },
+    {
+     "id": "V2-45",
+     "product": 2,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V2-46",
+     "product": 2,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V2-47",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V2-48",
+     "product": 2,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V3-01",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2583,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-02",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3731,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-03",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-04",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1101,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-05",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1360,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-06",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1051,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-07",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-08",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-09",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1278,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-10",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1554,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-11",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-12",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-13",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1317,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-14",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1217,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-15",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-16",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-17",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1581,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-18",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1491,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-19",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-20",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-21",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1391,
+     "outcome": "detected",
+     "note": "credited by critic ruling"
+    },
+    {
+     "id": "V3-22",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4253,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-23",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-24",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-25",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1776,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-26",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1417,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-27",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-28",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-29",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1255,
+     "outcome": "detected",
+     "note": "extra alert not penalised by critic ruling"
+    },
+    {
+     "id": "V3-30",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1302,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-31",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-32",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-33",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1189,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-34",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1472,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-35",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-36",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-37",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1577,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-38",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1739,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-39",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-40",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1718,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-41",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-42",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-43",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1091,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-44",
+     "product": 3,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1112,
+     "outcome": "detected"
+    },
+    {
+     "id": "V3-45",
+     "product": 3,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V3-46",
+     "product": 3,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V3-47",
+     "product": 3,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V3-48",
+     "product": 3,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": 1179,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V4-01",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2198,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-02",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2959,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-03",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-04",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1106,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-05",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1608,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-06",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1393,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-07",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-08",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-09",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1255,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-10",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1170,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-11",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-12",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-13",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1133,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-14",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1574,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-15",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-16",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-17",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1446,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-18",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4823,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-19",
+     "product": 4,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "stress line"
+    },
+    {
+     "id": "V4-20",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-21",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1409,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-22",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1901,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-23",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-24",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-25",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3851,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-26",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1401,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-27",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-28",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-29",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1370,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-30",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1418,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-31",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-32",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-33",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 3243,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-34",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1657,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-35",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": 1104,
+     "outcome": "false alert"
+    },
+    {
+     "id": "V4-36",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-37",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4985,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-38",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1482,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-39",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-40",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2162,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-41",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-42",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-43",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1134,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-44",
+     "product": 4,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1318,
+     "outcome": "detected"
+    },
+    {
+     "id": "V4-45",
+     "product": 4,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V4-46",
+     "product": 4,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 1600,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V4-47",
+     "product": 4,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V4-48",
+     "product": 4,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V5-01",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2674,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-02",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2193,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-03",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-04",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-05",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1623,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-06",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "missed"
+    },
+    {
+     "id": "V5-07",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-08",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-09",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 4386,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-10",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1427,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-11",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-12",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-13",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1456,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-14",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1484,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-15",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-16",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-17",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1786,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-18",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1752,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-19",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-20",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-21",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1199,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-22",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1426,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-23",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-24",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-25",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1327,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-26",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1504,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-27",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-28",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-29",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1542,
+     "outcome": "detected",
+     "note": "extra alert not penalised by critic ruling"
+    },
+    {
+     "id": "V5-30",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1107,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-31",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-32",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-33",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1328,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-34",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1483,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-35",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-36",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-37",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 2869,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-38",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1505,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-39",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-40",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1583,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-41",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-42",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-43",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1085,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-44",
+     "product": 5,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1494,
+     "outcome": "detected"
+    },
+    {
+     "id": "V5-45",
+     "product": 5,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V5-46",
+     "product": 5,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V5-47",
+     "product": 5,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V5-48",
+     "product": 5,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V6-01",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-02",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 2305,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-03",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-04",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-05",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1448,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-06",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1382,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-07",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-08",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-09",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1065,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-10",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1098,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-11",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-12",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-13",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1426,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-14",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1110,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-15",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-16",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-17",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1423,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-18",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1728,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-19",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-20",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-21",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1070,
+     "outcome": "missed"
+    },
+    {
+     "id": "V6-22",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1468,
+     "outcome": "detected",
+     "note": "credited by critic ruling"
+    },
+    {
+     "id": "V6-23",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-24",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-25",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-26",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 978,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-27",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-28",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-29",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1200,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-30",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1043,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-31",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-32",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-33",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1246,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-34",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1073,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-35",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-36",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-37",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "outside the product's rule pack"
+    },
+    {
+     "id": "V6-38",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1386,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-39",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-40",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1374,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-41",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-42",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-43",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1043,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-44",
+     "product": 6,
+     "risky": true,
+     "scored": true,
+     "first_alert_ms": 1176,
+     "outcome": "detected"
+    },
+    {
+     "id": "V6-45",
+     "product": 6,
+     "risky": false,
+     "scored": true,
+     "first_alert_ms": null,
+     "outcome": "no alert"
+    },
+    {
+     "id": "V6-46",
+     "product": 6,
+     "risky": true,
+     "scored": false,
+     "first_alert_ms": 1491,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V6-47",
+     "product": 6,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    },
+    {
+     "id": "V6-48",
+     "product": 6,
+     "risky": false,
+     "scored": false,
+     "first_alert_ms": null,
+     "excluded": "two hosts overlap"
+    }
+   ]
+  }
+ }
+}
