@@ -61,7 +61,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 | Vertex AI Gemini 3.5 Flash-Lite (global endpoint) | live compliance judge and context judge, with a fixed seed |
 | Vertex AI Gemini 3.8 Flash (global endpoint) | live fact checker and prompter judge; onboarding: reading product documents, the Brief agent |
 | Agent Development Kit (ADK) | the AI PD, an `LlmAgent` that picks the next operator card (promo ending, shout-out) from checked candidates (`backend/app/agents/ai_pd.py`) |
-| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; one instance (max-instances 1) with session affinity, so a show's live timers, event stream and audio socket stay in one process |
+| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; autoscaling up to 3 instances with session affinity |
 | Firestore (`live-studio`) | show state (sessions, transcripts, alerts, segments, events), written behind memory and read back after a restart |
 | Cloud Storage | approved releases, briefs and regulation packs (write-once) |
 | Model Armor | screening viewer comments |

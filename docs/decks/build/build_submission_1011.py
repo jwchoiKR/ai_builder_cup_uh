@@ -503,7 +503,7 @@ for k, (t1, t2, tone) in enumerate(judges):
 tb(s, 3.1, 3.76, 3.3, 0.24, [[("4 judges in parallel on every final line", {"bold": True})]], size=8.5, color=BLUE)
 tb(s, 3.1, 4.02, 3.3, 1.0, [[("•  ", {"color": BLUE}), ("Comment path: screen, triage, answer, check", {})],
                             [("•  ", {"color": BLUE}), ("Code maps ids, runs timers, draws screens; it never drops a verdict", {})],
-                            [("•  ", {"color": BLUE}), ("IAP login · one instance · session affinity", {})]], size=8.5, space=3)
+                            [("•  ", {"color": BLUE}), ("IAP login · up to 3 instances · session affinity", {})]], size=8.5, space=3)
 shape(s, MSO_SHAPE.LEFT_RIGHT_ARROW, 6.6, 3.36, 0.22, 0.16, fill="9AA0A6")
 svc = [("Speech-to-Text V2", "chirp_3, region us"), ("Vertex AI Gemini", "3.5 Flash-Lite · 3.8 Flash (global)"),
        ("Vertex AI Search", "product sheets for viewer answers"), ("Model Armor", "screens viewer comments"),
@@ -525,7 +525,7 @@ table(s, 1.6, [(0.4, 2.25), (2.65, 2.85), (5.5, 4.1)], ["Service", "Model or set
     [[("Vertex AI Gemini", {"bold": True})], "3.8 Flash", "Fact checker and prompter judge; reading product PDFs; comment triage, answers, recap"],
     [[("Vertex AI Search", {"bold": True})], "product sheets, per market", "Finds the product-sheet passage behind a viewer answer"],
     [[("Model Armor", {"bold": True})], "before any model", "Screens viewer comments for spam, abuse and prompt attacks"],
-    [[("Cloud Run + IAP", {"bold": True})], "us-central1, one instance", "FastAPI backend, React screens, server-sent events"],
+    [[("Cloud Run + IAP", {"bold": True})], "us-central1, up to 3 instances", "FastAPI backend, React screens, server-sent events"],
     [[("Firestore", {"bold": True})], "Native mode", "Sessions, transcripts, alerts, segments and every AI call with its tokens"],
     [[("Cloud Storage", {"bold": True})], "write-once objects", "Approved products, regulation files and releases"],
     [[("App stack", {"bold": True})], "Python 3.12, FastAPI, React 18, TypeScript, Vite", "Agent Development Kit for the AI PD agent; pytest, Vitest, Playwright"]],
