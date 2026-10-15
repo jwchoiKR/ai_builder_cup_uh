@@ -492,7 +492,7 @@ for k, (t1, t2) in enumerate([("Host mic", "audio over WebSocket"), ("Viewer cha
         shape(s, MSO_SHAPE.LEFT_ARROW, 2.65, y + 0.25, 0.25, 0.12, fill="9AA0A6")
 shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, 2.95, 1.85, 3.6, 3.26, fill="FFFFFF", border=BLUE, radius=0.04, lw=1.5)
 tb(s, 3.1, 1.93, 3.3, 0.4, [[("STT stream per show · a split sentence is merged · timers", {})]], size=8.5, color=SUB)
-judges = [("Compliance", "Flash-Lite · regulation PDFs as files", "red"), ("Fact checker", "Flash-Lite · what the prompter shows", "yellow"),
+judges = [("Compliance", "Flash-Lite · regulation PDFs as files", "red"), ("Fact checker", "3.8 Flash · what the prompter shows", "yellow"),
           ("Context", "Flash-Lite · switch, question hold", "blue"), ("Prompter", "3.8 Flash · full-meaning ticks", "green")]
 for k, (t1, t2, tone) in enumerate(judges):
     x = 3.1 + (k % 2) * 1.67
@@ -503,7 +503,7 @@ for k, (t1, t2, tone) in enumerate(judges):
 tb(s, 3.1, 3.76, 3.3, 0.24, [[("4 judges in parallel on every final line", {"bold": True})]], size=8.5, color=BLUE)
 tb(s, 3.1, 4.02, 3.3, 1.0, [[("•  ", {"color": BLUE}), ("Comment path: screen, triage, answer, check", {})],
                             [("•  ", {"color": BLUE}), ("Code maps ids, runs timers, draws screens; it never drops a verdict", {})],
-                            [("•  ", {"color": BLUE}), ("IAP login · up to 3 instances · session affinity", {})]], size=8.5, space=3)
+                            [("•  ", {"color": BLUE}), ("IAP login · one instance · session affinity", {})]], size=8.5, space=3)
 shape(s, MSO_SHAPE.LEFT_RIGHT_ARROW, 6.6, 3.36, 0.22, 0.16, fill="9AA0A6")
 svc = [("Speech-to-Text V2", "chirp_3, region us"), ("Vertex AI Gemini", "3.5 Flash-Lite · 3.8 Flash (global)"),
        ("Vertex AI Search", "product sheets for viewer answers"), ("Model Armor", "screens viewer comments"),
@@ -521,11 +521,11 @@ s = S[7]
 headline(s, "Each Google Cloud service has one job in the show")
 table(s, 1.6, [(0.4, 2.25), (2.65, 2.85), (5.5, 4.1)], ["Service", "Model or setting", "Its job"], [
     [[("Speech-to-Text V2", {"bold": True})], "chirp_3, region us, STANDARD endpointing", "Streams the host's speech; speech terms from the product record as hints"],
-    [[("Vertex AI Gemini", {"bold": True})], "3.5 Flash-Lite", "Compliance judge, fact checker, context judge (one call each per line)"],
-    [[("Vertex AI Gemini", {"bold": True})], "3.8 Flash", "Prompter judge; reading product PDFs; comment triage, answers, recap"],
+    [[("Vertex AI Gemini", {"bold": True})], "3.5 Flash-Lite", "Compliance judge and context judge (one call each per line)"],
+    [[("Vertex AI Gemini", {"bold": True})], "3.8 Flash", "Fact checker and prompter judge; reading product PDFs; comment triage, answers, recap"],
     [[("Vertex AI Search", {"bold": True})], "product sheets, per market", "Finds the product-sheet passage behind a viewer answer"],
     [[("Model Armor", {"bold": True})], "before any model", "Screens viewer comments for spam, abuse and prompt attacks"],
-    [[("Cloud Run + IAP", {"bold": True})], "us-central1, up to 3 instances", "FastAPI backend, React screens, server-sent events"],
+    [[("Cloud Run + IAP", {"bold": True})], "us-central1, one instance", "FastAPI backend, React screens, server-sent events"],
     [[("Firestore", {"bold": True})], "Native mode", "Sessions, transcripts, alerts, segments and every AI call with its tokens"],
     [[("Cloud Storage", {"bold": True})], "write-once objects", "Approved products, regulation files and releases"],
     [[("App stack", {"bold": True})], "Python 3.12, FastAPI, React 18, TypeScript, Vite", "Agent Development Kit for the AI PD agent; pytest, Vitest, Playwright"]],
@@ -534,19 +534,19 @@ notes(s, "로고 나열 대신 '서비스 | 설정 | 맡은 일' 표(GPT·Gemini
 
 # ---------------- 9 Cost ----------------
 s = S[8]
-headline(s, "Judges + speech: about US$3.7 an hour at 600 lines an hour")
+headline(s, "Judges + speech: about US$4.2 an hour at 600 lines an hour")
 table(s, 1.6, [(0.4, 2.0), (2.4, 4.3), (6.7, 1.4), (8.1, 1.5)], ["Item", "Basis (measured)", "Per line", "Per hour (600 lines)"], [
     ["Compliance judge", "Flash-Lite, ~16.8k tokens (regulation PDFs), cached", "$0.0011", "$0.63"],
     ["Context judge", "Flash-Lite, ~4.0k tokens in", "$0.0016", "$0.94"],
     ["Prompter judge", "3.8 Flash, ~1.2k tokens in, low thinking", "$0.0012", "$0.74"],
-    ["Fact checker", "Flash-Lite, ~5.3k tokens, part cached", "$0.0008", "$0.45"],
+    ["Fact checker", "3.8 Flash, ~5.3k tokens, part cached (est.)", "$0.0016", "$0.95"],
     ["Speech-to-Text", "chirp_3, $0.016 per audio minute", "", "$0.96"],
-    [[("Total", {"bold": True})], "judges per line; per hour adds speech", [("$0.0046", {"bold": True})], [("≈ $3.7", {"bold": True})]]],
+    [[("Total", {"bold": True})], "judges per line; per hour adds speech", [("$0.0054", {"bold": True})], [("≈ $4.2", {"bold": True})]]],
     0.36, size=9.5)
 (b1, w2), (b2, _) = cols(2)
 box(s, b1, 4.22, w2, 1.0, [[("How it was measured", {"bold": True, "color": BLUE})],
                             ["Token counts of every judge call in 2 shows on the deployed app (10/11, 14 host lines) from Firestore, "
-                             "times Google's list prices. Per hour assumes 10 final lines a minute (600 lines, an assumption, not measured)."]],
+                             "times Google's list prices. The fact checker moved to 3.8 Flash on 10/15; its row is estimated from the same tokens. Per hour assumes 10 final lines a minute (600 lines, an assumption, not measured)."]],
     fill="FFFFFF", border=LINE, size=8.5, pad=0.12, space=2, radius=0.06)
 box(s, b2, 4.22, w2, 1.0, [[("Not included", {"bold": True, "color": YELT})],
                             ["Repeat requests sent when a judge is slow (not logged; at most doubles that call). Viewer comments: ~$0.006 a comment "
@@ -555,7 +555,7 @@ box(s, b2, 4.22, w2, 1.0, [[("Not included", {"bold": True, "color": YELT})],
 tb(s, 0.4, 5.3, 9.2, 0.18, [[("List prices on 10/11: Gemini API pricing page (ai.google.dev) and Speech-to-Text pricing (cloud.google.com).", {})]], size=7, color=SUB)
 notes(s, "비용: Firestore agent_calls의 토큰(2개 방송, 진행자 문장 14개, 10/11 배포본) × 공식 단가. 3.5 Flash-Lite 입력 $0.30, 캐시 $0.03, 출력 $2.50, "
          "3.8 Flash 입력 $0.75, 출력 $3.75 (12/31까지, 2027년 2배). STT Standard(chirp 포함) $0.016/분. 1시간 600문장은 가정. "
-         "헤지(느린 호출에 두 번째 요청)는 기록되지 않아 빠졌다.")
+         "헤지(느린 호출에 두 번째 요청)는 기록되지 않아 빠졌다. 사실 확인은 10/15에 3.8 Flash로 바뀌어 같은 토큰으로 추정했다(D-466: 시간당 약 +$0.5).")
 
 # ---------------- 10 Snapshots ----------------
 s = S[9]
@@ -577,11 +577,11 @@ notes(s, "10/11 배포본에서 만든 한 방송의 캡처 4장(검토 의견: 
 
 # ---------------- 11 Performance ----------------
 s = S[10]
-headline(s, "Detection 94.0% on a fresh set; false alerts still above the 1% line")
-kpis = [("Detection", "94.0%", "retest after one change: 95.5%", "≥ 95%", "yellow"),
-        ("False alerts on safe lines", "2.4%", "retest: 1.6% (2 of 127)", "< 1% · not met", "red"),
-        ("Wrong strongest alerts", "0", "too-strong alert · both runs", "0", "green"),
-        ("Alert latency p95", "4.2 s", "end of line to host screen", "≤ 5 s", "green")]
+headline(s, "Detection 96.3% and no false alerts on a fresh set; fact checks are slow")
+kpis = [("Detection", "96.3%", "52 of 54 · other settings 100%", "≥ 95%", "green"),
+        ("False alerts on safe lines", "0%", "0 of 108 · other settings 0-0.9%", "< 1%", "green"),
+        ("Compliance judge, one call p95", "2.9 s", "input to output, no retries", "≤ 5 s", "green"),
+        ("Fact checker, one call p95", "31.5 s", "slow night · 5.3-12.9 s on 10/14", "≤ 5 s · not met", "red")]
 for (x, w), (t, num, sub, line, tone) in zip(cols(4), kpis):
     fg, bg = TONE[tone]
     shape(s, MSO_SHAPE.ROUNDED_RECTANGLE, x, 1.6, w, 1.2, fill="FFFFFF", border=LINE, radius=0.06)
@@ -589,8 +589,8 @@ for (x, w), (t, num, sub, line, tone) in zip(cols(4), kpis):
     tb(s, x + 0.14, 1.88, w - 0.28, 0.42, [[(num, {"bold": True})]], size=22)
     tb(s, x + 0.14, 2.3, w - 0.28, 0.25, [sub], size=8, color=SUB)
     chip(s, x + 0.14, 2.52, "Pass line " + line, tone, size=7.5)
-tb(s, 0.4, 2.88, 9.2, 0.38, [[("Sealed set 7: 6 products the app never saw, invented documents; 261 host lines spoken by a TTS voice through the real "
-                               "Chirp 3 path (27 of 288 left out: two hosts at once, stress lines, rules outside the pack). Labels by GPT and a blind Claude critic. Per product 82.6-100%.", {})]],
+tb(s, 0.4, 2.88, 9.2, 0.38, [[("Sealed set 10: 4 products the app never saw, invented documents; 162 natural host lines in English and Korean spoken by a TTS voice through the real "
+                               "Chirp 3 path (12 lines cut in two on purpose and 6 out-of-scope lines reported apart). Labels by GPT and a blind Claude critic. Red alert on a non-regulation line: 0. Per product 92.3-100%.", {})]],
    size=8, color=SUB)
 (b1, w2), (b2, _) = cols(2)
 label(s, 3.32, "Why models judge, not code", x=b1, w=w2)
@@ -598,22 +598,22 @@ table(s, 3.56, [(b1, 2.1), (b1 + 2.1, 1.25), (b1 + 3.35, 1.15)], ["Same STT line
     ["Code rules on top of the model", [("19.4%", {"color": RED, "bold": True})], "5"],
     ["Model verdicts only", [("0.9-1.9%", {"color": GRN, "bold": True})], "1"]], 0.3, size=9, head_size=8)
 label(s, 4.56, "Detection on each new unseen set", x=b1, w=w2)
-tb(s, b1, 4.8, w2, 0.3, [[("84% → 91.0% → 89.6-90.3% → ", {}), ("94.0%", {"bold": True})]], size=11)
-tb(s, b1, 5.08, w2, 0.2, [["sets 3, 4, 6, 7 (set 6 was the first through TTS and STT)"]], size=7.5, color=SUB)
+tb(s, b1, 4.8, w2, 0.3, [[("84% → 91.0% → 89.6-90.3% → 94.0% → ", {}), ("96.3%", {"bold": True})]], size=11)
+tb(s, b1, 5.08, w2, 0.2, [["sets 3, 4, 6, 7, 10 (from set 6 through TTS and STT; earlier sets ran under older conditions)"]], size=7.5, color=SUB)
 label(s, 3.32, "Other measured parts", x=b2, w=w2)
 table(s, 3.56, [(b2, 2.75), (b2 + 2.75, 1.75)], ["Test", "Result"], [
     ["Prompter judge, partial vs full points (10/11 probe)", "wrong ticks 0 / 40, missed 0 / 63"],
     ["Product switch on a category word only", "0 / 5 → 4 / 4 with category"],
     ["Viewer comments: question / reaction / hide (233)", "99.6%"],
     ["Comments: auto vs needs a person, as labelled", "90.6% · injection replies 0"]], 0.32, size=8.5, head_size=8)
-tb(s, 0.4, 5.32, 9.2, 0.2, [[("The submitted revision has not yet been run on a fresh sealed set; no real human host yet.", {})]],
+tb(s, 0.4, 5.32, 9.2, 0.2, [[("Measured on the current judge setting with a TTS voice; no real human host yet. A slow fact check now shows late instead of being dropped.", {})]],
    size=8.5, color=RED)
-notes(s, "README의 측정값 그대로. 첫 실행 94.0%(새 세트), 같은 세트 두 번째 95.5%(한 가지 변경 후). 오경보 1.6%는 통과선 1% 미만을 넘지 못했다. "
+notes(s, "README의 측정값 그대로(docs/eval/sealed-set-10-results.md). 세트 10, 지금 설정(규정 Flash-Lite LOW, 사실 3.8 Flash LOW), Gemini가 느리던 10/15 밤: 탐지 52/54, 놓친 2줄은 사실 확인 답이 끝내 오지 않은 줄. 다른 규정 설정 3개(10/14)는 54/54. "
          "코드 규칙 vs 모델 판정(세트 5, 진단용). 댓글 수치는 다른 팀의 docs/comments.md(1회, 233개 댓글).")
 
 # ---------------- 12 Additional details / future ----------------
 s = S[11]
-headline(s, "Flags people act on; next, a fresh test of the submitted version")
+headline(s, "Flags people act on; next, faster fact checks and a larger test")
 
 
 def item_box(x, w, title, items, kind, tone):
@@ -632,13 +632,13 @@ item_box(b1, w2, "Responsible AI (in the prototype)", [
     "Judge calls are stored with input, output and tokens; code never drops a verdict.",
     "No product-specific prompts: a new product enters only through its documents."], "check", "green")
 item_box(b2, w2, "Next (planned, not in the prototype)", [
-    "Freeze the judges, then run a new sealed set on the exact submitted revision.",
+    "Faster fact checks: a quicker model when Gemini 3.8 Flash is slow.",
     "Test with a real human host and two hosts speaking over each other.",
-    "Bring false alerts under 1% for every product.",
+    "A larger sealed set (set 10 had 4 products and 54 violations).",
     "Log repeat requests so the cost per show is complete.",
     "Copy AI-call logs to BigQuery for analysis across shows."], "plus", "blue")
 notes(s, "왼쪽(초록 체크 = 지금 있음): 법적 판단이 아님, 대체 문구는 승인된 문구에서만, 사람 확인 질문, 모든 AI 호출 기록, 제품별 프롬프트 없음. "
-         "오른쪽(파랑 더하기 = 계획): 판정 동결 후 새 봉인 세트 측정, 사람 진행자 시험, 오경보 1% 미만, 비용 기록 보완, BigQuery.")
+         "오른쪽(파랑 더하기 = 계획): 느린 날 사실 확인 속도, 사람 진행자 시험, 더 큰 봉인 세트, 비용 기록 보완, BigQuery.")
 
 # ---------------- 13 Links ----------------
 s = S[12]
