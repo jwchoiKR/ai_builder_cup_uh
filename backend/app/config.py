@@ -65,8 +65,9 @@ class Settings(BaseSettings):
     # D-462 (user, 10/14): a new compliance or fact alert reaches the host screen ALERT_GRACE_MS after its line's end;
     # when the next final of the segment came within that time, also after that final's compliance and fact verdicts,
     # which may clear it first (it is then never shown to the host); at the latest 5 s after its line's end. The
-    # operator sees it at once. D-465: on by default (user, 10/15; D-458 INCOMPLETE_HOLD deleted)
-    ALERT_GRACE: bool = True
+    # operator sees it at once. D-465 turned it on (D-458 INCOMPLETE_HOLD deleted); D-467 (user, 10/15): off again,
+    # no gain on natural host lines and up to 2 s later on real alerts
+    ALERT_GRACE: bool = False
     ALERT_GRACE_MS: int = 2000
     # D-360 (user): the fact checker flags ONLY facts on the host prompter: its passages are the prompter's display
     # snapshot (price and offers, points); no product files,
