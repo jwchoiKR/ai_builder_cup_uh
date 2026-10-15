@@ -30,7 +30,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 ## Quirks
 
 - STT chirp_3 works only in region `us` (403 in Asia). Gemini 3.5 Flash-Lite and 3.8 Flash work only on the global endpoint.
-- Cloud Run runs max-instances 1. From D-369 the deploy script sets `STORE=firestore` (database `live-studio`, created 10/9 in ai-budiler-cup-uh-team-pjt, us-central1). Show data (sessions, transcripts, alerts, events, segments, agent calls) is written there; revision 00007 still ran `STORE=memory` because it was deployed before D-369.
+- Cloud Run runs max-instances 3 (user, 10/15; was 1 from D-369). From D-369 the deploy script sets `STORE=firestore` (database `live-studio`, created 10/9 in ai-budiler-cup-uh-team-pjt, us-central1). Show data (sessions, transcripts, alerts, events, segments, agent calls) is written there; revision 00007 still ran `STORE=memory` because it was deployed before D-369.
 - Gemini 3 context caching needs a prefix of 4,096 tokens or more. Only the fact checker benefits today.
 - Korean output from Python on this Windows machine needs `PYTHONIOENCODING=utf-8`.
 - agy on this PC (10/10) cannot use tools: its `googlecloudtools.datacloud_telemetry` pre-tool hook fails (a quoted path), so any agy task that must read a file or an image fails. Text-only `agy -p` answers still work. For Gemini on files, call Vertex `gemini-3.8-flash` (thinking HIGH, `max_output_tokens` 65000: HIGH thinking alone used 29-39k tokens) through the backend's `google.genai` client. Do not edit the agy config.
