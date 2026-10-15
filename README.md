@@ -8,18 +8,18 @@ While the host talks on air, it flags claims that the uploaded regulations prohi
 
 ## Evidence at a glance
 
-Measured on a sealed set of 6 products the app had never seen (set 7, 10/8), host lines spoken by a TTS voice through the real Chirp 3 speech-to-text path:
+Measured on a sealed set of 4 products the app had never seen (set 10, 10/14-15), 162 natural host lines in English and Korean, spoken by a TTS voice through the real Chirp 3 speech-to-text path, on the current judge setting:
 
-| | First run (fresh set) | Second run (same set, after one change) | Pass line |
-|---|---|---|---|
-| Detection of prohibited claims and wrong facts | 94.0% (126 of 134) | **95.5%** (128 of 134) | ≥ 95% |
-| False alerts on safe lines | 2.4% (3 of 127) | **1.6%** (2 of 127) | < 1% (not met) |
-| Wrong strongest alerts | 0 | **0** | 0 |
-| Alert latency p95, end of sentence to host screen | | **4.2 s** | ≤ 5 s |
+| | Result | Pass line |
+|---|---|---|
+| Detection of prohibited claims and wrong facts | **96.3%** (52 of 54) | ≥ 95% |
+| False alerts on safe lines | **0%** (0 of 108) | < 1% |
+| Red (regulation) alert on a line without a regulation problem | **0** | 0 |
+| Compliance judge, one call p50 / p95 | **1.4 / 2.9 s** | ≤ 5 s |
+| Fact checker, one call p50 / p95 | 6.0 / 31.5 s (slow Gemini night) | ≤ 5 s (not met) |
 
-- The second run added one change chosen from the first run (a line that expects an answer is judged together with the next line). The set was no longer unseen, so the fresh-set number is 94.0%.
-- Per product and per line (ids and outcomes, no sealed text): [docs/eval/sealed-set-7-results.md](docs/eval/sealed-set-7-results.md).
-- **Not yet measured:** the 10/9 simplification described below. The next sealed set will be run on it. Details and conditions are in [Evaluation](#evaluation).
+- Three more runs on the same set with other compliance settings, on a normal Gemini day: 100% detection and 0-0.9% false alerts each.
+- Per product, per line (ids and outcomes, no sealed text), alert times and the conditions: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
 
 ## What happens on air
 
@@ -69,25 +69,25 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 ## Evaluation
 
 **Method**
-- Each round uses a new sealed set of 6 products with invented documents. The developer never sees it.
-- GPT wrote the host lines and a first label for each; a separate Claude critic labelled the same lines blind. They agreed on 286 to 288 of 288 lines. Every later label change is logged with its reason.
+- Each round uses a new sealed set of products with invented documents. The developer never sees it.
+- GPT wrote the host lines and a first label for each; a separate Claude critic labelled the same lines blind. Every later label change is logged with its reason.
 - Host lines are spoken by a Windows TTS voice and go through the real Chirp 3 path into the app, so speech-to-text errors count.
-- Pass lines hold for every product, not on average: detection ≥ 95%, false alerts < 1%, no wrong strongest alert, alert p95 ≤ 5 s.
+- Pass lines hold for every product, not on average: detection ≥ 95%, false alerts < 1%, no red alert on a non-regulation line, judge time ≤ 5 s (a soft target: a slower answer still shows, late).
+- Contrived stress lines are reported apart from the natural lines.
 
-**Set 7 in detail** (10/8, one voice)
-- Scored lines: 261 of 288 (134 with a violation, 127 safe). Left out: 18 lines where two hosts speak over each other, 4 contrived stress lines, 5 lines outside the product's own regulation pack.
-- Critic rulings made after the run: 2 corrections credited, 3 extra alerts not penalised. Without them the second run is 94.8% detection, 1.6% false alerts and 1 wrong strongest alert; the first run is 93.3% and 2.4%.
-- Per product (second run): detection 82.6% to 100%, false alerts 0% to 4.8%. The per-product pass lines are met by 4 of 6 products for detection, 4 of 6 for false alerts and 6 of 6 for latency ([per-product table](docs/eval/sealed-set-7-results.md)).
-- The 2 false alerts in the second run are both STT writing "four" as "for" next to a number.
-- "Wrong strongest alert" was measured when the model still graded severity. Since 10/9 every regulation citation is red, so this line will be re-measured.
+**Set 10 in detail**: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
+- Left out: 12 stress lines (one sentence cut into two audio clips on purpose) and 6 lines that need a fact not on the prompter or a rule outside the product's regulation document.
+- Both misses in the main run are fact checks that never came back on a night when Gemini 3.8 Flash was slow.
+- Alerts seen within 5 s of the line's end: 34 to 50 of 54, depending on the run. Most late alerts are fact checks.
 
-**Earlier sealed sets** (detection on unseen products): 84% (set 3, typed text, 10/5) → 91.0% (set 4, typed text) → 89.6-90.3% (set 6, first round through TTS and STT) → 94.0% (set 7, first run).
+**Earlier sealed sets** (detection on unseen products, older conditions, not comparable): 84% (set 3, typed text, 10/5) → 91.0% (set 4, typed text) → 89.6-90.3% (set 6, first round through TTS and STT) → 94.0% / 95.5% (set 7, 10/8: the fact checker read whole product documents and judge answers were dropped after 5 s).
 
 **Code rules against model judges** (set 5, same STT lines, diagnostic because the set had been seen): code gates on top of the model gave 19.4% false alerts and 5 wrong strongest alerts; model verdicts alone gave 0.9-1.9% false alerts and 1 wrong strongest alert. This is why code no longer judges meaning.
 
 ## Known limits
 
-- False alerts are above the 1% line, and two products miss the detection line.
+- The fact checker (Gemini 3.8 Flash) is often slower than 5 s, and much slower on a busy Gemini day; its alerts then show late.
+- Set 10 has 4 products and 54 violations, so one line moves detection by about 2 points.
 - Tested with TTS voices, not yet with a real human host.
 - Show state, comments included, is kept in Firestore and survives a restart or a move to a new instance.
 - No per-show cost figure yet.
