@@ -45,7 +45,8 @@ class Settings(BaseSettings):
     # the comment path's sampling seed (comment_triage, comment_triage_batch, answer_composer): the same comment gets
     # the same triage and the same draft from one run to the next; empty = not sent
     COMMENT_SEED: str = "7"
-    VERIFY_TIMEOUT_MS: int = 5000  # D-306/D-309: the compliance judge's deadline in the single arm
+    # D-306/D-309: the compliance judge's deadline. D-468 (user): 5 s is a soft target, not a cut: 60 s
+    VERIFY_TIMEOUT_MS: int = 60000
     # D-304: each code rule that judges meaning, switchable against the model's own judgment (defaults: today)
     # D-353 (user order 10/8): no code word, name, number or regex check on the host's text; the model decides
     # D-353 addendum (user, 10/8): back to "code": spoken-answer posting belongs to the comments team (out of scope)
@@ -128,9 +129,10 @@ class Settings(BaseSettings):
     HEDGE_DELAYS: str = "fact=3000,context=2000"  # D-293 (D-413: the verifier entry is gone with its agent)
     UTTERANCE_MERGE_WINDOW_MS: int = 3500  # D-308: back  # join a final with the previous unfinished one (D-088); 0 = off
     # the "on time" line: a slower fact call counts as a timeout for the health dot; D-255: fact corrections may take
-    # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more
-    FACT_TIMEOUT_MS: int = 5000
-    FACT_LATE_MS: int = 5000  # D-144: a fact call may still answer until here; a late wrong-fact note beats none
+    # 5 s at p95 (user, 10/6), the same as the deadline, so there is no late window any more. D-468 (user): 5 s is a
+    # soft target, not a cut: the line's fact deadline is 60 s from its end
+    FACT_TIMEOUT_MS: int = 60000
+    FACT_LATE_MS: int = 60000  # D-144: a fact call may still answer until here; a late wrong-fact note beats none
     FACT_SEARCH_TIMEOUT_MS: int = 600
     # Triage decides whether a reply needs a person's approval, so it runs on the quality model: a comment may wait
     # a few seconds, a wrong decision may not. Empty TRIAGE_MODEL = LLM_FAST_MODEL. When the call fails or runs past
@@ -190,8 +192,10 @@ class Settings(BaseSettings):
     # D-349/D-415: the context judge's transition verdict alone switches at once (no name match, no confirm, no
     # countdown); for SWITCH_DUAL_SCOPE_SEC after a switch or an undo the judges get both products, labelled
     SWITCH_DUAL_SCOPE_SEC: int = 10
-    # D-351: the context call and its one retry share this deadline (immediate switch arm only)
-    CONTEXT_RETRY_TOTAL_MS: int = 4000
+    # D-468 (user: "2로 해"): the context judge's call deadline (was JUDGE_TIMEOUT_MS, 2.5 s); its verdicts apply in line
+    # order, so it stays short. D-351: the call and its one retry (fast failures only) share CONTEXT_RETRY_TOTAL_MS
+    CONTEXT_TIMEOUT_MS: int = 10000
+    CONTEXT_RETRY_TOTAL_MS: int = 10000
     UNDO_SWITCH_WINDOW_SEC: int = 60
     STREAM_GRACE_SEC: int = 2
     HOST_TOP_N: int = 6  # D-113: the compact waiting list (cards are released one at a time by the AI PD)

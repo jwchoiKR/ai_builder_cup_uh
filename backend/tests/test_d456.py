@@ -128,7 +128,7 @@ async def test_d456_each_arm_changes_only_the_fact_call(arm, want):
         await rt.utterances.drain()
         [req] = _fact_requests(llm)
         assert (req.model, req.thinking_level, req.prompt_version) == want
-        assert 4000 < req.deadline_ms <= 5000 and req.hedge and req.retry_429  # the line's 5 s fact deadline, as today
+        assert 59000 < req.deadline_ms <= 60000 and req.hedge and req.retry_429  # D-468: the line's 60 s fact deadline
         [comp] = [r for r in llm.requests if r.agent == "compliance_judge"]
         assert (comp.model, comp.thinking_level) == ("gemini-3.5-flash-lite", "LOW")
         assert [a.correct_value for a in await rt.alerts() if a.kind == "fact"] == ["S$36.00"]
