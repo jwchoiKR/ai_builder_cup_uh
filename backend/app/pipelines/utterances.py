@@ -62,6 +62,7 @@ _KEEP_JUDGED = 20  # judgments remembered for merging (only the last one is ever
 LATE_CORRECTION_MS = 10_000  # D-352: a line this soon after an alert's line may correct it before it turned active
 LATE_CORRECTION_LINES = 2
 MIN_CONTEXT_RETRY_MS = 1_000  # D-351: a context retry needs at least this much of its total deadline
+MIN_COMPLIANCE_RETRY_MS = 1_000  # D-468: a compliance retry needs at least this much of its deadline left
 MIN_FACT_RETRY_MS = 1_000  # D-411: a fact retry needs at least this much left of the fact deadline from the line end
 FAILURE_WINDOW_MS = 300_000  # D-412: the operator's rolling count of failed checks covers the last 5 minutes
 GRACE_CAP_MS = 5_000  # D-462: an alert held back by ALERT_GRACE reaches the host by its line's end + this
@@ -401,8 +402,8 @@ class UtterancePipeline:
                 inp.passages = await self._fact_passages(inp.utterance, on_air, inp.switch, inp.promo)
             if self.split3:
                 values = build_judge_values(rt.catalog, inp)
-                comp_task = rt.spawn(self._once_more(  # D-309: the compliance judge's 5 s
-                    lambda: self.compliance.run(inp, deadline_ms=rt.settings.VERIFY_TIMEOUT_MS, values=values)),
+                comp_task = rt.spawn(self._once_more(  # D-309; D-468: the compliance judge's 60 s
+                    lambda ms: self.compliance.run(inp, deadline_ms=ms, values=values), rt.settings.VERIFY_TIMEOUT_MS),
                     name=f"compliance:{t.transcript_id}")
                 ctx_task = rt.spawn(self._context_once_more(inp, values), name=f"context:{t.transcript_id}")
                 # D-450: the prompter judge ticks the line's points; nothing waits on it (only drain, at the end)
@@ -672,28 +673,35 @@ class UtterancePipeline:
         return arms.meaning_to_llm(self.rt.settings.DESIGN_ARM) or self.rt.settings.VERBAL_CHECK == "judge"
 
     async def _context_once_more(self, inp, values):
-        """D-351 immediate switch arm (the switch hangs on the context verdict): a failed context call (timeout, error,
+        """D-351 immediate switch arm (the switch hangs on the context verdict): a failed context call (error or
         invalid, a 429 included) is made once more, inside one total deadline, CONTEXT_RETRY_TOTAL_MS from the first
-        call. These calls skip the LLM layer's own 429 wait, so the two retries never stack. Worst case: the verdict
-        comes CONTEXT_RETRY_TOTAL_MS - JUDGE_TIMEOUT_MS later than without the retry (4.0 - 2.5 = 1.5 s by default)."""
+        call. These calls skip the LLM layer's own 429 wait, so the two retries never stack. D-468: each call has
+        CONTEXT_TIMEOUT_MS (10 s), and a timeout is not retried (it used the whole deadline)."""
         st = self.rt.settings
         start = self.rt.ctx.clock.now_ms()
-        res = await self.context.run(inp, deadline_ms=st.JUDGE_TIMEOUT_MS, values=values, retry_429=False)
+        res = await self.context.run(inp, deadline_ms=min(st.CONTEXT_TIMEOUT_MS, st.CONTEXT_RETRY_TOTAL_MS),
+                                     values=values, retry_429=False)
         left = st.CONTEXT_RETRY_TOTAL_MS - (self.rt.ctx.clock.now_ms() - start)
-        if res.status in ("timeout", "error", "invalid") and left >= MIN_CONTEXT_RETRY_MS:
+        if res.status in ("error", "invalid") and left >= MIN_CONTEXT_RETRY_MS:
             log.info("context check %s: once more within %d ms", res.status, left)
-            res = await self.context.run(inp, deadline_ms=min(st.JUDGE_TIMEOUT_MS, left), values=values,
+            res = await self.context.run(inp, deadline_ms=min(st.CONTEXT_TIMEOUT_MS, left), values=values,
                                          retry_429=False)
+        elif res.status != "ok":
+            log.info("context check %s: no retry (%d ms left)", res.status, left)
         return res
 
-    @staticmethod
-    async def _once_more(call):
+    async def _once_more(self, call, total_ms: int):
         """D-260 (candidate aa995d1: one compliance call failed, so a negated caution got no alert): a compliance call
-        that times out, errors or comes back invalid is made once more, like the fact check (D-203)."""
-        res = await call()
-        if res.status in ("timeout", "error", "invalid"):
-            log.info("compliance check %s: once more", res.status)
-            res = await call()
+        that errors or comes back invalid is made once more, like the fact check (D-203). D-468: only such a fast
+        failure, with the time left of the one deadline; a timeout used the whole deadline and is not retried."""
+        start = self.rt.ctx.clock.now_ms()
+        res = await call(total_ms)
+        left = total_ms - (self.rt.ctx.clock.now_ms() - start)
+        if res.status in ("error", "invalid") and left >= MIN_COMPLIANCE_RETRY_MS:
+            log.info("compliance check %s: once more within %d ms", res.status, left)
+            res = await call(left)
+        elif res.status != "ok":
+            log.info("compliance check %s: no retry (%d ms left)", res.status, left)
         return res
 
     async def warm_facts_cache(self, on_air: str) -> None:
