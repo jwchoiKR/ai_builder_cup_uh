@@ -2,7 +2,7 @@
 Sources (outside git, C:\\code_test\\study\\ai_builder_cup_git\\cup1015): cup_repos_1015.md (GitHub search, 2,477 candidates,
 227 entries + 22 unclear), all 249 repos plus ours cloned read-only and scanned (code_scan.csv), fact sheets from the code
 by 10 Sonnet readers (sheets/sheet_b00..b09.md, 25 repos each), scores by GPT (codex gpt-6-astra high), Gemini (Vertex
-gemini-3.8-flash HIGH) and Sonnet, each alone (score_*.md), merged by mean rank (merge_scores.py -> combined_1015.json).
+gemini-3.8-flash HIGH) and Sonnet, each alone (score_*.md), merged by mean rank (merge_scores.py -> combined_1015.json; after Model Armor was turned on, GPT re-scored ours alone: rescore_armor_gpt.md, merge_scores_armor.py -> combined_1015_armor.json).
 Run: python docs/decks/build/build_repo_compare_1015.py"""
 import sys
 from pathlib import Path
@@ -23,9 +23,9 @@ def bad(x):
 
 slide("cover", "", "", f'''<div style="flex:1; display:flex; flex-direction:column; justify-content:center; gap:36px">
 {chip("AI Builder Cup 2026 · 전체 참가작 코드 비교 · 10/15", "blue")}
-<h1 style="font-size:88px; font-weight:500; line-height:1.15">248팀 중 10위,<br>리테일 28팀 중 3위</h1>
+<h1 style="font-size:88px; font-weight:500; line-height:1.15">248팀 중 7위,<br>리테일 28팀 중 2위</h1>
 <p style="font-size:38px; color:{SUB}; line-height:1.45">공개 레포를 모두 내려받아 코드를 읽고, GPT·Gemini·Sonnet이 따로 채점</p></div>''',
-      notes="10/10에는 README로 90팀 중 3위, 코드로 24팀 중 3위였다. 이번에는 찾은 참가작 전부의 코드를 읽었다. 그사이 참가작이 크게 늘었다.")
+      notes="10/10에는 README로 90팀 중 3위, 코드로 24팀 중 3위였다. 이번에는 찾은 참가작 전부의 코드를 읽었다. 그사이 참가작이 크게 늘었다. 처음 채점은 10위였고, Model Armor를 다시 켠 뒤 GPT가 우리만 다시 채점해 88점이 89점이 되면서 7위가 됐다.")
 
 slide("method", "어떻게 매겼나", "README가 아니라 코드를 읽고 매겼다", col(
     table(["단계", "한 일"], [
@@ -45,11 +45,11 @@ slide("top", "코드 기준 순위", "상위 3팀은 세 모델이 모두 1~6위
         ["3", "CatSight", "재보험 계약", "3위", "4위", "3위", "91.7"],
         ["4", "Taal", "리테일 할인", "6위", "1위", "4위", "91.3"],
         ["5", "GoldenHour Scam", "금융 사기 피해 복구", "4위", "5위", "12위", "89.0"],
-        ["9", "Shop Honest", "리테일 다크패턴", "13위", "13위", "10위", "87.3"],
-        ["10", "<b>Live Studio (우리)</b>", "라이브 커머스", "17위", "11위", "9위", "88.0"]],
+        ["7", "<b>Live Studio (우리)</b>", "라이브 커머스", "11위", "11위", "9위", "88.3"],
+        ["10", "Shop Honest", "리테일 다크패턴", "14위", "13위", "10위", "87.3"]],
     [8, 26, 22, 10, 11, 11, 12], 24),
-    t("우리 점수: 기술 35.7 · 문제 22.3 · 혁신 22.0 · UX 8.0 (세 모델 평균). 상위 4팀의 기술 점수는 37.7 ~ 39.0이다.", 24, SUB), gap=14),
-    notes="평균 점수로만 줄 세우면 우리는 9위다. 6~10위는 점수 차가 1점 안쪽이다. 10/10에 1위였던 Gapline은 19위가 됐다.")
+    t("우리 점수: 기술 36.0 · 문제 22.3 · 혁신 22.0 · UX 8.0 (세 모델 평균). 상위 4팀의 기술 점수는 37.7 ~ 39.0이다.", 24, SUB), gap=14),
+    notes="Model Armor를 켠 뒤 GPT가 우리만 다시 채점했다(88점에서 89점, 기술 +1). 다른 팀은 다시 채점하지 않았다. 처음 채점에서 우리는 10위였다. 6~10위는 점수 차가 1점 안쪽이다. 10/10에 1위였던 Gapline은 19위가 됐다.")
 
 slide("field", "참가작 전체 모습", "참가작 4개 중 1개는 AI가 실제로 돌지 않는다", table(
     ["코드에서 본 것", "팀 수"], [
@@ -68,7 +68,7 @@ slide("gap", "위 팀과의 차이", "상위 팀은 결과 파일과 비교 기�
         ["Pramaan", ok("평가 보고서와 지표 파일. 222개 항목, 실행 날짜별 89 ~ 100%")],
         ["CatSight", ok("결과 파일에 186개 중 185개. 같은 문구로 다듬어 상한이라는 단서까지 적음")],
         ["우리", bad("탐지·오경보·지연 숫자가 README와 덱에만 있음. 봉인 세트라 원본이 레포에 없음")],
-        ["우리", "채점 때는 Model Armor가 배포 설정에서 꺼져 있었음 (sample-uh 이전 뒤). " + ok("10/15 team-pjt로 돌아가며 다시 켬")]],
+        ["우리", "처음 채점 때는 Model Armor가 꺼져 있었음. " + ok("10/15 다시 켬, GPT 재채점 88 → 89점")]],
     [24, 76], 25),
     notes="GPT가 우리에게 단 이유: 'headline sealed-set artifacts unavailable and Model Armor disabled'. Gemini와 Sonnet은 Chirp 3 실시간 STT와 판정 구조, 테스트 596개를 높게 봤다.")
 
