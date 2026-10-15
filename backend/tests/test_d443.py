@@ -8,7 +8,7 @@ from app.models.session import Alert
 from app.pipelines import utterances as utt
 from app.pipelines.summary import compute_stats
 
-from .judge_fakes import advance, close_env, speak
+from .judge_fakes import close_env, speak
 from .test_d358 import CLAIM, CODE, _Backend, _verdict
 
 
@@ -69,8 +69,6 @@ async def test_d439_the_snapshot_carries_the_alerts_lines_and_the_summary_marks_
     try:
         await speak(rt, "This tub has sixty capsules.")  # no alert: its line is not carried to the host
         a = await _red(rt, llm)
-        assert (await rt.snapshot("host"))["transcripts"] == []  # D-465: the host has not seen the alert yet
-        await advance(rt, rt.settings.ALERT_GRACE_MS)
         host, op = await rt.snapshot("host"), await rt.snapshot("operator")
         assert [t["transcript_id"] for t in host["transcripts"]] == [a.transcript_id]
         assert a.transcript_id in {t["transcript_id"] for t in op["transcripts"]} and len(op["transcripts"]) == 2

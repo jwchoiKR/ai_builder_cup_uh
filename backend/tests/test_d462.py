@@ -167,8 +167,8 @@ async def test_a_high_alert_escalates_from_when_the_host_saw_it(env):
     assert esc.payload["escalated_at"] == a.speech_end_at + 2000 + rt.settings.COMPLIANCE_ESCALATE_SEC * 1000
 
 
-async def test_on_by_default():  # D-465
-    assert make_ctx().settings.ALERT_GRACE is True and make_ctx().settings.ALERT_GRACE_MS == 2000
+async def test_off_by_default():  # D-467 (D-465 had it on)
+    assert make_ctx().settings.ALERT_GRACE is False and make_ctx().settings.ALERT_GRACE_MS == 2000
 
 
 async def test_off_the_host_sees_it_when_it_is_created():
