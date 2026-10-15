@@ -34,11 +34,11 @@ The script:
 
 ## Settings and limits
 
-- **Cold start, at most one instance:** `--min-instances=0`, so it scales to zero when idle and the first
-  request after a pause waits for a start (open the page a minute before a show). `--max-instances=1` because sessions live in
-  memory (`STORE=memory`). With more instances, the SSE stream, the audio WebSocket and the API calls of
-  one session could land on different instances. `--session-affinity` is set but is best effort, so it
-  does not replace the single instance. Firestore (`STORE=firestore`) removes this limit later.
+- **Cold start, up to 3 instances:** `--min-instances=0`, so it scales to zero when idle and the first
+  request after a pause waits for a start (open the page a minute before a show). `--max-instances=3` (user, 10/15;
+  it was 1 from D-369). Show state is in Firestore (`STORE=firestore`) and `--session-affinity` keeps a browser on one
+  instance, but a session's timers, SSE stream and audio WebSocket run in one process: the screens of one show can
+  miss live events if they land on different instances. Affinity is best effort.
 - **CPU always allocated** (`--no-cpu-throttling`): the runtime keeps timers and background tasks (alert
   escalation, AI PD tick, pending posts) between requests. This bills only while an instance is up; with
   min-instances 0 it stops when idle (a session in memory is lost then).
