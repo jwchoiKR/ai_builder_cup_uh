@@ -2,10 +2,10 @@
 # Deploy Live Studio to Cloud Run with IAP (see docs/DEPLOY.md). Test deployments only.
 #   deploy/cloudrun.sh                     # us-central1, next to Speech-to-Text "us" (user, 10/5)
 # Builds the image and deploys a new revision; the one-time setup below is commented out (already done).
-# Env: IAP_MEMBERS (comma list; default user:jaewoo@cloocus.com; used only by the commented IAP setup). The project is fixed to sample-uh (D-457; was ai-budiler-cup-uh-team-pjt, before that separk-cloocus).
+# Env: IAP_MEMBERS (comma list; default user:jaewoo@cloocus.com; used only by the commented IAP setup). The project is fixed to ai-budiler-cup-uh-team-pjt (back from sample-uh on 10/15 after its Gemini block was lifted; D-457 had moved it to sample-uh).
 set -euo pipefail
 
-PROJECT="sample-uh"  # never another project
+PROJECT="ai-budiler-cup-uh-team-pjt"  # never another project
 REGION="${1:-us-central1}"
 case "$REGION" in
   us-central1) SERVICE="live-studio-us" ;;
@@ -15,11 +15,11 @@ IAP_MEMBERS="${IAP_MEMBERS:-user:jaewoo@cloocus.com}"
 SA_NAME="live-studio-run"
 SA="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 REPO="live-studio"
-BUCKET="sample-uh-live-studio-onboarding"  # D-263: onboarding state (uploads, releases, law and brand packs)
+BUCKET="ai-budiler-cup-uh-team-pjt-live-studio-onboarding"  # D-263: onboarding state (uploads, releases, law and brand packs)
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/${REPO}/app:$(git rev-parse --short HEAD)"
 G="gcloud --project=${PROJECT}"
 
-# ---- one-time setup (done for sample-uh by the user on 10/14: APIs incl. firestore and modelarmor, the service
+# ---- one-time setup (done for this project, and for sample-uh by the user on 10/14: APIs incl. firestore and modelarmor, the service
 # account and its roles, Firestore database live-studio (us-central1, native), the bucket, the image repository;
 # uncomment for a new project) ----------------------------------------------------------------------------------
 # echo "== APIs"
@@ -69,11 +69,10 @@ $G run deploy "$SERVICE" --region="$REGION" --image="$IMAGE" --service-account="
   --no-allow-unauthenticated \
   --min-instances=0 --max-instances=1 --session-affinity --timeout=3600 --cpu=2 --memory=2Gi \
   --cpu-boost --no-cpu-throttling \
-  --set-env-vars="APP_ENV=cloud,VIEWER_INPUT_ENABLED=true,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=firestore,FIRESTORE_DATABASE=live-studio,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=false,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},STT_ENDPOINTING=STANDARD,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=LOW,SINGLE_FACTS_THINKING=LOW,FACTS_MODEL=gemini-3.8-flash,FACT_PROMPT=v5,JUDGE_SEED=7,LLM_RETRY_ON_429_MS=500,ANSWER_RETRIEVER=local"
-# D-457: MODEL_ARMOR_ENABLED=false and ANSWER_RETRIEVER=local until the comments team recreates the Model Armor template
-# and the Vertex AI Search app in sample-uh (the one-time setup block above says how to turn them back on).
+  --set-env-vars="APP_ENV=cloud,VIEWER_INPUT_ENABLED=true,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=firestore,FIRESTORE_DATABASE=live-studio,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},STT_ENDPOINTING=STANDARD,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=LOW,SINGLE_FACTS_THINKING=LOW,FACTS_MODEL=gemini-3.8-flash,FACT_PROMPT=v5,JUDGE_SEED=7,LLM_RETRY_ON_429_MS=500,ANSWER_RETRIEVER=vertex_search,VERTEX_SEARCH_ENGINE_ID=ai-budiler-cup-uh-search_1791461058419,VERTEX_SEARCH_GCS_BUCKET=ai-budiler-cup-uh-data-source"
+# Model Armor and Vertex AI Search exist in this project (the comments team set them up); sample-uh had neither (D-457).
 
-# ---- one-time, right after the first deploy to sample-uh: IAP on + access (needs the gcloud beta component) -------
+# ---- one-time, right after the first deploy to a new project: IAP on + access (needs the gcloud beta component) -------
 # echo "== IAP on"
 # $G beta run services update "$SERVICE" --region="$REGION" --iap
 # echo "== IAP access"

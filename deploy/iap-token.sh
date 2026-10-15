@@ -4,8 +4,8 @@
 # Direct IAP on Cloud Run refuses ordinary ID tokens ("Invalid JWT audience"); a signed JWT with the
 # service URL as audience works. Usage: IAP_TOKEN=$(deploy/iap-token.sh) BASE=<url> node e2e/rehearsal-voice.mjs
 set -euo pipefail
-URL="${1:-https://live-studio-us-699711909838.us-central1.run.app}"
-SA="live-studio-driver@sample-uh.iam.gserviceaccount.com"  # D-457: create it in sample-uh first
+URL="${1:-https://live-studio-us-830408193168.us-central1.run.app}"
+SA="live-studio-driver@ai-budiler-cup-uh-team-pjt.iam.gserviceaccount.com"  # D-289: create it in the new project first
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 now="$(date +%s)"
 printf '{"iss":"%s","sub":"%s","aud":"%s/*","iat":%d,"exp":%d}' "$SA" "$SA" "$URL" "$now" "$((now + 3600))" > "$tmp/claim.json"
