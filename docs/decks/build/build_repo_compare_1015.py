@@ -68,7 +68,7 @@ slide("gap", "위 팀과의 차이", "상위 팀은 결과 파일과 비교 기�
         ["Pramaan", ok("평가 보고서와 지표 파일. 222개 항목, 실행 날짜별 89 ~ 100%")],
         ["CatSight", ok("결과 파일에 186개 중 185개. 같은 문구로 다듬어 상한이라는 단서까지 적음")],
         ["우리", bad("탐지·오경보·지연 숫자가 README와 덱에만 있음. 봉인 세트라 원본이 레포에 없음")],
-        ["우리", bad("Model Armor가 지금 배포 설정에서 꺼져 있음 (sample-uh 이전 뒤)")]],
+        ["우리", "채점 때는 Model Armor가 배포 설정에서 꺼져 있었음 (sample-uh 이전 뒤). " + ok("10/15 team-pjt로 돌아가며 다시 켬")]],
     [24, 76], 25),
     notes="GPT가 우리에게 단 이유: 'headline sealed-set artifacts unavailable and Model Armor disabled'. Gemini와 Sonnet은 Chirp 3 실시간 STT와 판정 구조, 테스트 596개를 높게 봤다.")
 
@@ -76,7 +76,7 @@ slide("next", "점수를 올릴 일", "기능보다 확인할 수 있는 증거�
     ["할 일", "효과", "비용"], [
         ["1. 결과 집계 파일 공개", "봉인 문장은 빼고 제품별 탐지·오경보·지연 집계를 레포에 올림", "없음"],
         ["2. 'Gemini 혼자 vs 우리 시스템' 비교", "상위 팀처럼 비교 기준을 둠", "Gemini 조금"],
-        ["3. Model Armor 다시 켜기", "댓글 팀이 sample-uh에 템플릿을 다시 만든 뒤 켬", "없음"]],
+        ["3. Model Armor 다시 켜기", ok("완료: team-pjt 배포(00034)에서 켬, 댓글 검사 호출 200 확인"), "없음"]],
     [30, 54, 16], 25),
     tags("오늘 고친 것 (d85de43)", chip("README의 판정 모델과 인스턴스 수를 코드와 맞춤", "green", "check"),
          chip("README에 ADK AI PD 에이전트 추가", "green", "check")),
