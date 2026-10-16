@@ -494,6 +494,15 @@
   transform: translateY(-2px);
   outline: none;
 }
+.hubStarting {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
 /* the picker card: no lift, and no transform that would trap the phone-width bottom sheet */
 .hubCardStatic:hover,
 .hubCardStatic:focus-within {

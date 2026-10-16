@@ -1,6 +1,7 @@
 // Operator control room (DEV_SPEC §12.4). Light by default. Three columns at >= 1440 px, the right rail
 // under the middle column at 1280-1439 px, one column below (Studio panes).
 import { useT } from "../../app/i18n";
+import { ShowLoading } from "../../components";
 import type { ScreenProps } from "../../app/nav";
 import { useCatalog, useServerNow, useSession } from "../../app/store";
 import { useTheme } from "../../app/theme";
@@ -35,6 +36,7 @@ export function OperatorScreen(props: ScreenProps) {
       <div className={styles.root} data-theme={theme}>
         <OperatorHeader connection={connection} themePref={themePref} onSetTheme={setTheme} showSettings={!props.embedded} />
         {error && <p className={styles.error}>{error}</p>}
+        <ShowLoading show={!error && (!state.loaded || !catalog)} />
         <AlertStack />
         <div className={styles.columns}>
           <div className={[styles.col, styles.colLeft].join(" ")}>
