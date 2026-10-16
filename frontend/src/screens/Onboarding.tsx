@@ -4,7 +4,7 @@
 // the regulation PDF is uploaded on its own. A person approves the product and creates the release.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Plus, X } from "lucide-react";
+import { Download, FileText, Plus, X } from "lucide-react";
 
 import { Button, Chip, Elapsed, Eyebrow, HubLink } from "../components";
 import { PDF_ACCEPT, pdfOnly } from "../app/pdfOnly";
@@ -397,6 +397,40 @@ function Stage({ mark, done, next, last, children }: {
 
 type Slot = { key: number; read: boolean; productId: string | null; file: File | null };
 
+/** Sample documents to try the service with: whatever PDFs are in the bucket's onboarding/sample/ folders. */
+function Samples() {
+  const [list, setList] = useState<{ products: string[]; regulations: string[] } | null>(null);
+  useEffect(() => { request<{ products: string[]; regulations: string[] }>("GET", "/samples").then(setList, () => {}); }, []);
+  if (!list || !(list.products.length + list.regulations.length)) return null;
+  const group = (kind: "products" | "regulations", label: string) => list[kind].length > 0 && (
+    <div className={styles.sampleGroup}>
+      <span className={styles.sampleLabel}>{label}</span>
+      <div className={styles.sampleFiles}>
+        {list[kind].map((name) => (
+          <a key={name} className={styles.sampleFile} href={`${API_BASE}/samples/${kind}/${encodeURIComponent(name)}`} download
+             title={name}>
+            <FileText size={16} aria-hidden />
+            <span className={styles.sampleName}>{name.replace(/\.pdf$/i, "").replace(/_/g, " ")}</span>
+            <Download size={14} aria-hidden className={styles.sampleIcon} />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <section className={styles.samples} data-testid="onb-samples">
+      <div>
+        <h2 className={styles.blockTitle}>Sample documents</h2>
+        <p className={styles.muted}>No documents of your own yet? Download these and drop them in the steps below.</p>
+      </div>
+      <div className={styles.sampleGroups}>
+        {group("products", "Products")}
+        {group("regulations", "Regulation")}
+      </div>
+    </section>
+  );
+}
+
 export function Onboarding() {
   // several products share the one regulation PDF; each approved product becomes its own release
   const [slots, setSlots] = useState<Slot[]>([{ key: 0, read: false, productId: null, file: null }]);
@@ -419,6 +453,7 @@ export function Onboarding() {
         <Eyebrow>
           <HubLink sessionId={null} /> · PRODUCT ONBOARDING
         </Eyebrow>
+        <Samples />
       </header>
       <Stage mark="1" done={allApproved} next={!allApproved}>
         {slots.map((s, i) => (
