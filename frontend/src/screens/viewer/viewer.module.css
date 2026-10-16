@@ -323,6 +323,7 @@
   display: block;
   width: 100%;
   height: auto;
+  transition: opacity 150ms ease-out; /* D-488: solid again when it stops to speak */
 }
 /* two leg frames, swapped in steps (no in-between frame) */
 .legA {

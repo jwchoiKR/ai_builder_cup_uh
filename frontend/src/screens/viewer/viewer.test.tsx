@@ -1188,3 +1188,18 @@ describe("D-487: who stays on screen", () => {
     expect(screen.queryByTestId("viewer-bubble-u_ask")).toBeNull();
   });
 });
+
+describe("D-488: walking animals are a little see-through", () => {
+  it("the drawing is 0.85 while walking and solid while speaking; the bubble and name are not faded", () => {
+    const chat = (who: string, ago: number) =>
+      comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `hi from ${who}`,
+                received_at: NOW - ago, group_id: null, kind: "reaction" });
+    render(view(stateWith({ comments: [chat("old", 20_000), chat("ann", 500)] })));
+    const svg = (who: string) => screen.getByTestId(`viewer-figure-u_${who}`).querySelector<SVGElement>("svg[data-view]")!;
+    expect(svg("old").style.opacity).toBe("0.85");
+    expect(svg("ann").style.opacity).toBe("1");
+    expect(screen.getByTestId("viewer-bubble-u_ann").style.opacity).toBe("");
+    act(() => vi.advanceTimersByTime(4000));
+    expect(svg("ann").style.opacity).toBe("0.85");
+  });
+});
