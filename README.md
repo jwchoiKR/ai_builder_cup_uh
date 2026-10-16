@@ -26,6 +26,7 @@ Measured on a sealed set of 4 products the app had never seen (set 10, 10/14-15)
 
 - Three more runs on the same set with other compliance settings, on a normal Gemini day: 100% detection and 0-0.9% false alerts each.
 - Per product, per line (ids and outcomes, no sealed text), alert times and the conditions: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
+- The set itself (product documents, host lines, labels, raw results) and the script that rebuilds these numbers: [eval/sealed_set_10](eval/sealed_set_10/README.md).
 
 ## What happens on air
 
