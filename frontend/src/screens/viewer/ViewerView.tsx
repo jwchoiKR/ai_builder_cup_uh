@@ -16,7 +16,7 @@ import type { ClientState } from "../../app/state";
 import { useServerNow } from "../../app/store";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
-import { Countdown, HubLink, RelativeTime, SettingsButton, Watching, windowRange } from "../../components";
+import { Countdown, HubLink, RelativeTime, SettingsButton, ShowLoading, Watching, windowRange } from "../../components";
 import { Badge } from "./Badge";
 import { Crowd, type ReplyPost } from "./Crowd";
 import { chatSignature, HIDDEN_LABEL, isPinnedCorrection, ownTranslation, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
@@ -69,6 +69,7 @@ export interface ViewerViewProps {
   showSources?: boolean;
   /** D-477: how many are watching; null hides it */
   audience?: number | null;
+  loading?: boolean;  // the session or its product info is still on the way
 }
 
 export function ViewerView({
@@ -84,6 +85,7 @@ export function ViewerView({
   onSend,
   showSources = false,
   audience = null,
+  loading = false,
 }: ViewerViewProps) {
   const now = useServerNow(state, 1000);
   const offset = state.serverOffsetMs;
@@ -147,6 +149,7 @@ export function ViewerView({
         </>
       )}
       <div className={cx(styles.phone, !embedded && styles.framed)} data-testid="viewer-phone">
+        <ShowLoading show={loading} />
         {/* video area */}
         <div className={styles.video} data-testid="viewer-video" data-camera={camera.state}>
           {cameraEnabled && !embedded && (

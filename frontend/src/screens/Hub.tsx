@@ -1,4 +1,4 @@
-import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, LayoutGrid, ListChecks, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
+import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, LayoutGrid, ListChecks, Loader2, Mic, Smartphone, X, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 
 import { api, userMessage } from "../app/api";
@@ -170,7 +170,7 @@ export function Hub({ sessionId }: ScreenProps) {
   const [theme, , setTheme, themePref] = useTheme();
   const t = useT();
   const lang = useLang();
-  const [busy, setBusy] = useState(false);
+  const [starting, setStarting] = useState<string | null>(null);  // the card whose show is being created
   const [error, setError] = useState<string | null>(null);
   const [lineup, setLineup] = useState<string[]>([]);
   const [nudge, setNudge] = useState(false);  // a During-the-show card was pressed with no show and no product picked
@@ -191,6 +191,7 @@ export function Hub({ sessionId }: ScreenProps) {
 
   // a During-the-show card starts the show with the picked line-up, then opens that screen of it
   const openLive = (path: string) => async (e: MouseEvent) => {
+    if (starting) return e.preventDefault();  // one show per press: the first one is still being created
     if (!lineup.length && !sessionId && !(e.metaKey || e.ctrlKey || e.shiftKey)) {
       // no show to open yet: point at Pick products instead
       e.preventDefault();
@@ -201,14 +202,14 @@ export function Hub({ sessionId }: ScreenProps) {
     }
     if (!lineup.length || lineup.join() === shown.current || e.metaKey || e.ctrlKey || e.shiftKey) return go(withSession(path, sessionId))(e);
     e.preventDefault();
-    setBusy(true);
+    setStarting(path);
     setError(null);
     try {
       const s = await onboardingApi.startShow(lineup);
       navigate(withSession(path, s.session_id));
     } catch (err) {
       setError(t(userMessage(err)));
-      setBusy(false);
+      setStarting(null);
     }
   };
 
@@ -262,7 +263,7 @@ export function Hub({ sessionId }: ScreenProps) {
                       );
                       return (
                         <a key={s.path} className={`${styles.hubCard} ${s.wide ? styles.hubCardWide : ""}`} href={href}
-                          onClick={phase.live ? openLive(s.path) : go(href)} aria-disabled={busy || undefined}
+                          onClick={phase.live ? openLive(s.path) : go(href)} aria-disabled={!!starting || undefined} aria-busy={starting === s.path || undefined}
                           data-testid={`hub-card-${s.path.slice(1)}`}>
                           <span className={styles.hubIcon}>
                             <Icon aria-hidden />
@@ -270,6 +271,11 @@ export function Hub({ sessionId }: ScreenProps) {
                           <span className={styles.hubCardTitle}>{t(s.title)}</span>
                           <span className={styles.hubWho}>{t(s.who)}</span>
                           <span className={styles.hubText}>{t(s.text)}</span>
+                          {starting === s.path && (
+                            <span className={styles.hubStarting} role="status">
+                              <Loader2 className={styles.spin} aria-hidden /> {t("Starting the show…")}
+                            </span>
+                          )}
                         </a>
                       );
                     })}

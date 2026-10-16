@@ -1,3 +1,4 @@
+import { Loader2 } from "lucide-react";
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 
 import type { ConnectionStatus } from "../app/sse";
@@ -87,6 +88,17 @@ export function StatusDot({
       aria-label={label}
       aria-hidden={label ? undefined : true}
     />
+  );
+}
+
+/** A pill over a show screen while its session or product info is still on the way (the parent is positioned). */
+export function ShowLoading({ show }: { show: boolean }) {
+  const t = useT();
+  if (!show) return null;
+  return (
+    <div className={styles.showLoading} role="status" data-testid="show-loading">
+      <Loader2 className={styles.showLoadingSpin} aria-hidden /> {t("Loading the show…")}
+    </div>
   );
 }
 
