@@ -37,6 +37,7 @@ export function Viewer(props: ScreenProps) {
       theme={theme}
       embedded={embedded}
       audience={audience}
+      loading={!!sessionId && (!state.loaded || !catalog)}
       inputEnabled={Boolean(health?.viewer_input_enabled)}
       cameraEnabled={!embedded && import.meta.env.MODE !== "test"}
       themePref={themePref}

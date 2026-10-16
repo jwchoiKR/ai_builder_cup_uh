@@ -401,3 +401,39 @@
   color: var(--risk-text);
   font-size: var(--fs-14);
 }
+
+.showLoading {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.showLoadingSpin {
+  width: 14px;
+  height: 14px;
+  animation: showLoadingSpin 1s linear infinite;
+}
+@keyframes showLoadingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .showLoadingSpin {
+    animation: none;
+  }
+}
