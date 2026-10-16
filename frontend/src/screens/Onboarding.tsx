@@ -1,9 +1,10 @@
-// Product onboarding. Product documents and regulation documents go in separate boxes, one PDF each.
+// Product onboarding. Product documents and regulation documents go in separate boxes, one PDF each;
+// several product PDFs dropped at once become one product box each.
 // Dropping a file is the only manual step before approval: the product PDF is uploaded and read on its own,
 // the regulation PDF is uploaded on its own. A person approves the product and creates the release.
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Plus, X } from "lucide-react";
+import { Download, FileText, Plus, X } from "lucide-react";
 
 import { Button, Chip, Elapsed, Eyebrow, HubLink } from "../components";
 import { PDF_ACCEPT, pdfOnly } from "../app/pdfOnly";
@@ -17,20 +18,23 @@ const MAX_PDF_BYTES = 20 * 1024 * 1024;  // same per-file cap as the server (bac
 const errorText = (step: string, e: unknown) => `${step} failed: ${e instanceof Error ? e.message : String(e)}`;
 
 /** Drop a PDF on the box, or click it to choose one. Keyboard users reach the hidden input through the label. */
-function DropZone({ testId, file, disabled, onFile }: {
+function DropZone({ testId, file, disabled, onFile, onMore }: {
   testId: string; file: File | null; disabled: boolean; onFile: (f: File | null) => void;
+  onMore?: (files: File[]) => void;  // given: several PDFs may be dropped; the first goes to onFile, the rest here
 }) {
   const [over, setOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pick = (files: File[]) => {
-    const picked = pdfOnly(files.slice(0, 1));
-    const f = picked.files[0];
-    if (f && f.size > MAX_PDF_BYTES) {
-      setError(`${f.name}: larger than ${MAX_PDF_BYTES / 1024 / 1024} MB`);
+    const picked = pdfOnly(onMore ? files : files.slice(0, 1));
+    const big = picked.files.find((f) => f.size > MAX_PDF_BYTES);
+    if (big) {
+      setError(`${big.name}: larger than ${MAX_PDF_BYTES / 1024 / 1024} MB`);
       return;
     }
     setError(picked.error);
+    const [f, ...rest] = picked.files;
     if (f) onFile(f);
+    if (rest.length) onMore?.(rest);
   };
   return (
     <>
@@ -39,12 +43,12 @@ function DropZone({ testId, file, disabled, onFile }: {
              onDragOver={(e) => { e.preventDefault(); if (!disabled) setOver(true); }}
              onDragLeave={() => setOver(false)}
              onDrop={(e) => { e.preventDefault(); setOver(false); if (!disabled) pick(Array.from(e.dataTransfer.files)); }}>
-        <input type="file" accept={PDF_ACCEPT} className="visually-hidden" disabled={disabled}
+        <input type="file" accept={PDF_ACCEPT} multiple={onMore !== undefined} className="visually-hidden" disabled={disabled}
                data-testid={`${testId}-file`}
                onChange={(e) => { pick(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
         {file
           ? <span className={styles.value}><b>{file.name}</b> <span className={styles.count}>{sizeLabel(file.size)}</span></span>
-          : <span className={styles.muted}>Drop a PDF here, or click to choose one</span>}
+          : <span className={styles.muted}>{onMore ? "Drop PDFs here (one product each), or click to choose" : "Drop a PDF here, or click to choose one"}</span>}
         {file && !disabled && <span className={styles.muted}>Drop another PDF to replace it</span>}
       </label>
       {error && <p className={styles.error}>{error}</p>}
@@ -223,10 +227,11 @@ type Busy = { label: string; since: number };
 
 /** One product PDF: dropped → uploaded (POST /api/products) → read by one model call (POST .../read) → shown for
  * approval (POST .../approve). Upload and read run on their own; a person only approves. */
-function ProductUpload({ title, onRead, onApproved, onRemove }: {
-  title: string; onRead: (read: boolean) => void; onApproved: (productId: string | null) => void; onRemove?: () => void;
+function ProductUpload({ title, initialFile, onMore, onRead, onApproved, onRemove }: {
+  title: string; initialFile: File | null; onMore: (files: File[]) => void;
+  onRead: (read: boolean) => void; onApproved: (productId: string | null) => void; onRemove?: () => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(initialFile);
   const [uploaded, setUploaded] = useState<Uploaded | null>(null);
   const [read, setRead] = useState<ReadResult | null>(null);
   const [draft, setDraft] = useState<ProductInfo | null>(null);
@@ -265,8 +270,13 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
       else setError(errorText(current, e));
     }
   };
+  // a slot made from a multi-PDF drop starts reading its file at once
+  const started = useRef(false);
+  useEffect(() => {
+    if (initialFile && !started.current) { started.current = true; void uploadAndRead(initialFile, null); }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Box title={title} note="One PDF of the product's information. It is read as soon as you drop it."
+    <Box title={title} note="One PDF per product. Drop several to add one product each; each is read as soon as it is dropped."
          testId="onb-product" done={approved !== null} onRemove={onRemove}>
       <div className={styles.actions}>
         <span className={styles.factLabel}>Host language</span>
@@ -281,7 +291,7 @@ function ProductUpload({ title, onRead, onApproved, onRemove }: {
           ))}
         </div>
       </div>
-      <DropZone testId="onb-product" file={file} disabled={busy !== null || approved !== null}
+      <DropZone testId="onb-product" file={file} disabled={busy !== null || approved !== null} onMore={onMore}
                 onFile={(f) => {
                   setFile(f); setUploaded(null); setRead(null); setDraft(null); setApproved(null);
                   onRead(false); onApproved(null);
@@ -385,11 +395,50 @@ function Stage({ mark, done, next, last, children }: {
   );
 }
 
-type Slot = { key: number; read: boolean; productId: string | null };
+type Slot = { key: number; read: boolean; productId: string | null; file: File | null };
+
+/** Sample documents to try the service with: whatever PDFs are in the bucket's onboarding/sample/ folders. */
+function Samples() {
+  const [list, setList] = useState<{ products: string[]; regulations: string[] } | null>(null);
+  useEffect(() => { request<{ products: string[]; regulations: string[] }>("GET", "/samples").then(setList, () => {}); }, []);
+  if (!list || !(list.products.length + list.regulations.length)) return null;
+  const group = (kind: "products" | "regulations", label: string) => list[kind].length > 0 && (
+    <div className={styles.sampleGroup}>
+      <span className={styles.sampleLabel}>{label}</span>
+      <div className={styles.sampleFiles}>
+        {list[kind].map((name) => (
+          <a key={name} className={styles.sampleFile} href={`${API_BASE}/samples/${kind}/${encodeURIComponent(name)}`} download
+             title={name}>
+            <FileText size={16} aria-hidden />
+            <span className={styles.sampleName}>{name.replace(/\.pdf$/i, "").replace(/_/g, " ")}</span>
+            <Download size={14} aria-hidden className={styles.sampleIcon} />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <section className={styles.samples} data-testid="onb-samples">
+      <div>
+        <h2 className={styles.blockTitle}>Sample documents</h2>
+        <p className={styles.muted}>No documents of your own yet? Download these and drop them in the steps.</p>
+      </div>
+      <div className={styles.sampleGroups}>
+        {group("products", "Products")}
+        {group("regulations", "Regulation")}
+      </div>
+    </section>
+  );
+}
 
 export function Onboarding() {
   // several products share the one regulation PDF; each approved product becomes its own release
-  const [slots, setSlots] = useState<Slot[]>([{ key: 0, read: false, productId: null }]);
+  const [slots, setSlots] = useState<Slot[]>([{ key: 0, read: false, productId: null, file: null }]);
+  const addSlots = (files: (File | null)[]) =>
+    setSlots((ss) => {
+      const next = Math.max(...ss.map((x) => x.key)) + 1;
+      return [...ss, ...files.map((file, i) => ({ key: next + i, read: false, productId: null, file }))];
+    });
   const setSlot = (key: number, patch: Partial<Slot>) =>
     setSlots((ss) => ss.map((s) => (s.key === key ? { ...s, ...patch } : s)));
   const productIds = slots.map((s) => s.productId).filter((id): id is string => id !== null);
@@ -399,6 +448,7 @@ export function Onboarding() {
   const [error, setError] = useState<string | null>(null);
   const missing = [!allApproved && "approve every product", !regulationId && "upload the regulation PDF"].filter(Boolean);
   return (
+    <div className={styles.layout}>
     <div className={styles.page}>
       <header className={styles.header}>
         <Eyebrow>
@@ -408,12 +458,13 @@ export function Onboarding() {
       <Stage mark="1" done={allApproved} next={!allApproved}>
         {slots.map((s, i) => (
           <ProductUpload key={s.key} title={`Product ${slots.length > 1 ? i + 1 : "information"}`}
+                         initialFile={s.file} onMore={addSlots}
                          onRead={(read) => setSlot(s.key, { read })}
                          onApproved={(productId) => setSlot(s.key, { productId })}
                          onRemove={slots.length > 1 ? () => setSlots((ss) => ss.filter((x) => x.key !== s.key)) : undefined} />
         ))}
         <button type="button" className={styles.addLink} data-testid="onb-product-add"
-                onClick={() => setSlots((ss) => [...ss, { key: Math.max(...ss.map((x) => x.key)) + 1, read: false, productId: null }])}>
+                onClick={() => addSlots([null])}>
           <Plus size={14} aria-hidden /> Add product
         </button>
       </Stage>
@@ -452,6 +503,8 @@ export function Onboarding() {
       <Stage mark="" done={false} next={false} last>
         <span className={styles.stageEnd}>Done</span>
       </Stage>
+    </div>
+    <aside className={styles.side}><Samples /></aside>
     </div>
   );
 }
