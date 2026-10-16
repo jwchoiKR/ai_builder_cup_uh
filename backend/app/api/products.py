@@ -48,8 +48,10 @@ Return what the show's screens and the host's prompter need, as JSON:
   is one option. [] when the document gives no price.
 - `points`: the things the host should say about the product, each one short sentence in the host's language
   (the message names it; translate when the document is in another language, keeping names, numbers and units
-  as stated), taken from what the document allows to be said (approved claims, key benefits, test results).
-  Each point says only what the document itself states as a benefit or result of this product. Never write a
+  as stated), taken from what the document allows to be said: its claims, benefits and test results; product facts
+  the host presents (sizes, key ingredients with their stated amounts, how to use); and offers with their dates and
+  conditions as written. Cautions and warnings are not points. A sentence that only says what the document does not claim or does not supply is not a
+  point. A benefit or result in a point is one the document itself states for this product. Never write a
   benefit the document does not state: an ingredient, spec or feature the document lists without a stated effect
   stays a plain fact ("Contains X."), never "Contains X to help ..."; a general fact about an ingredient is not a
   claim about this product.
