@@ -447,10 +447,7 @@
   gap: var(--space-3);
   padding: var(--space-3);
   border-radius: calc(var(--radius-card) + 4px);
-  background: color-mix(in srgb, var(--text) 5%, transparent); /* D-472: every phase in a box */
-}
-/* the live part of the show; D-472: 12% (was 8%) so it stays clearly stronger than the grey boxes */
-.hubPhaseLive {
+  /* D-472: every phase in a box; D-473 (user): all three the During green */
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .hubPhaseLabel {
