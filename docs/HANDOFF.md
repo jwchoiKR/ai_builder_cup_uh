@@ -41,7 +41,7 @@
 - 목표는 범용 플랫폼이다: 처음 보는 어떤 제품(브랜드·카테고리·문서 형식·언어)에서도 100%. 지금 두 제품(DAON 크림·앰플)에 맞춘 프롬프트 예시, 코드 규칙, 규정 예외 문구는 허용하지 않는다. 제품은 자동 등록으로만 들어온다. 시험은 여러 제품 묶음으로 하고, 개발 쪽은 조정용 제품 묶음으로 다듬고, 합격 여부는 봉인 제품 묶음으로 정한다 (사용자 10/5 밤).
 - 성능은 제품 정보를 넣거나 고쳐서가 아니라 코드와 LLM 로직(제품 내용 없는 프롬프트, 작업 분해, 근거 연결, 검증, 재시도, 모델·생각 수준 선택)으로 올린다. 정답 수정은 정답이 정말 틀렸을 때만, 다른 모델의 독립 확인을 거쳐 하고, 로직 개선과 따로 보고한다 (사용자 10/5 밤).
 - 우리 로직으로 시험해서 목표 성능이 안 나오면 붙잡지 않고 버리고 새로 만든다. 시험 전에 중단 기준(합격선, 수정 횟수 1~2회)을 정해 둔다 (사용자 10/5: "안되는거 붙잡지마").
-- 배포 링크 로그인(IAP)은 나중에 없앤다 (사용자 10/5). 심사위원이 바로 열 수 있어야 한다.
+- 배포 링크 로그인(IAP)은 10/17에 없앴다. 심사위원이 로그인 없이 바로 연다.
 - 일정·영상·덱 마감 이야기는 사용자가 먼저 꺼내기 전에는 하지 않는다.
 
 ## 3. 지금 상태
@@ -83,12 +83,12 @@
   - `eval_draft_verifier.py --cases <봉인> --llm --runs 3`: 나쁜 답 게시 0, 좋은 답 차단 3% 이하
   - `run_eval.py comments --runs 2`, `eval_comment_flow.py --runs 2 --cases comment_flow_cases.jsonl`: 댓글 분류·흐름 100%
   - `eval_ai_pd.py --cases <봉인> --arms gemini-3.8-flash:LOW --paths adk --runs 3`
-- **클라우드 리플레이:** `frontend/e2e/show-replay.mjs <SEED.json> --assistant on|off`(IAP 토큰 `deploy/iap-token.sh`, BASE는 Cloud Run 주소), 지연 시험은 `frontend/e2e/rehearsal-voice.mjs lines ../data/eval/latency_lines.jsonl 1`.
+- **클라우드 리플레이:** `frontend/e2e/show-replay.mjs <SEED.json> --assistant on|off`(BASE는 Cloud Run 주소, 10/17부터 로그인 없음), 지연 시험은 `frontend/e2e/rehearsal-voice.mjs lines ../data/eval/latency_lines.jsonl 1`.
 - **한글 출력이 깨지면** `PYTHONIOENCODING=utf-8`을 붙인다.
 
 ## 6. 클라우드 자원 (프로젝트 separk-cloocus만)
 
-- **Cloud Run** `live-studio-us`(us-central1, min-instances 0, max 1, IAP는 jaewoo@cloocus.com만). 배포 스크립트는 `deploy/cloudrun.sh`.
+- **Cloud Run** `live-studio-us`(us-central1, min-instances 0, max 1, 10/17부터 공개, IAP 없음). 배포 스크립트는 `deploy/cloudrun.sh`.
 - **STT** chirp_3, region `us`. 아시아 리전에서는 쓸 수 없다.
 - **Gemini:** global 엔드포인트만 된다.
 - **Model Armor** 템플릿 `live-studio-comments`(us-central1).

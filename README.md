@@ -4,6 +4,8 @@
 
 AI Builder Cup 2026 · Track: Retail & Commerce
 
+**Live app:** <https://live-studio-us-830408193168.us-central1.run.app> (public, no login; open a show from the hub and speak into the host screen's mic)
+
 ## Summary
 
 1. **Problem:** A live-commerce host talks unscripted for an hour, and one claim the regulations prohibit ("it cures eczema") or one wrong price can break the rules on air. Today a producer or a compliance checker has to catch it by ear.
