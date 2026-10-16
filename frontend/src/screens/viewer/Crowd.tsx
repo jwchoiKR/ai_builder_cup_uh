@@ -1,7 +1,7 @@
 // D-474 (user, like SOOP): viewers on the bottom edge of the video, with a one-line chat bubble over the ones who just
 // wrote. D-475 (user): a raised paw when the comment is a question, hearts when the host answers it on air. D-476
-// (user): cute animals that walk about and face front only for a question. Display only: built from what the chat
-// already shows.
+// (user): cute animals that walk about. D-481 (user): a question's bubble and paw stay up until it is answered.
+// Display only: built from what the chat already shows.
 import { memo, useEffect, useLayoutEffect, useReducer, useRef, useState, type CSSProperties } from "react";
 
 import type { Comment } from "../../app/types";
@@ -13,7 +13,12 @@ export const BUBBLE_MAX = 3;
 export const BUBBLE_MS = 4000; // the same as the time-sale pop-up (POPUP_MS)
 /** a comment first seen older than this (page load, a reconnect replay) adds its animal but no bubble or paw */
 export const BUBBLE_STALE_MS = 10_000;
-export const HAND_MS = 4000;
+/** D-481: a question's bubble and paw stay up while it waits for an answer, at most this long from the comment */
+export const HOLD_CAP_MS = 90_000;
+/** D-481: at most this many held question bubbles, so one bubble stays free for chat */
+export const HOLD_MAX = 2;
+/** D-481: after "answered", the bubble waits this long for the host answer's hearts before it closes */
+export const ANSWER_GRACE_MS = 1000;
 export const CHEER_MS = 2000;
 export const CHEER_MAX = 3;
 /** D-475: animals with a pending question keep their place in the roster, up to this many */
@@ -41,6 +46,8 @@ interface Bubble {
   authorId: string;
   commentId: string;
   text: string;
+  /** D-481: a waiting question's bubble, held until it is answered */
+  held: boolean;
 }
 
 function hash(s: string): number {
@@ -229,6 +236,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
   const seen = useRef(new Set<string>());
   const bubbles = useRef<Bubble[]>([]);
   const hands = useRef(new Map<string, string>()); // author id -> the question's comment id
+  const holds = useRef(new Map<string, string>()); // D-481: waiting question's comment id -> author id
   const asked = useRef(new Set<string>()); // comment ids whose question status this client has handled
   const cheers = useRef<string[]>([]); // author ids, oldest first
   const cheered = useRef<Set<string> | null>(null); // answer keys already handled; null until the first snapshot
@@ -258,12 +266,52 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
     const visible = new Map(comments.map((c) => [c.comment_id, c]));
     const now = Date.now() + serverOffsetMs;
     const waiting = waitingAuthors(comments);
+    const young = (c: Comment) => now - c.received_at <= BUBBLE_STALE_MS;
+    const pending = (c: Comment) => PENDING.has(c.reply_status ?? "");
 
-    let list: Bubble[] = [];
-    for (const b of bubbles.current) {
-      if (visible.has(b.commentId)) list.push(b);
-      else stop(`b:${b.commentId}`); // a comment hidden while its bubble is up loses the bubble at once
+    const closeBubble = (commentId: string) => {
+      stop(`b:${commentId}`);
+      bubbles.current = bubbles.current.filter((b) => b.commentId !== commentId);
+    };
+    // D-481: a question's bubble and paw end together
+    const endHold = (commentId: string) => {
+      closeBubble(commentId);
+      const authorId = holds.current.get(commentId);
+      if (authorId && hands.current.get(authorId) === commentId) hands.current.delete(authorId);
+      holds.current.delete(commentId);
+      stop(`cap:${commentId}`);
+      stop(`ans:${commentId}`);
+    };
+    // D-481: a waiting question keeps its bubble (if it is still up: never reopened) and raises the paw until it is
+    // answered or closed, at most HOLD_CAP_MS from the comment; at most HOLD_MAX held bubbles, the oldest gives way
+    const hold = (c: Comment) => {
+      const before = hands.current.get(c.author_id);
+      if (before && before !== c.comment_id) endHold(before);
+      holds.current.set(c.comment_id, c.author_id);
+      hands.current.set(c.author_id, c.comment_id);
+      const b = bubbles.current.find((x) => x.commentId === c.comment_id);
+      if (b && !b.held) {
+        stop(`b:${c.comment_id}`);
+        const others = bubbles.current.filter((x) => x.held);
+        if (others.length >= HOLD_MAX) endHold(others[0]!.commentId);
+        bubbles.current = bubbles.current.map((x) => (x === b ? { ...x, held: true } : x));
+      }
+      arm(`cap:${c.comment_id}`, Math.max(0, c.received_at + HOLD_CAP_MS - now), () => endHold(c.comment_id));
+    };
+
+    // ends: a hidden comment, a question closed back to chat; "answered" closes 1 s later, or at once when the
+    // host answer's hearts start (below), so the animal does not walk off for a moment in between
+    for (const [commentId] of [...holds.current]) {
+      const c = visible.get(commentId);
+      if (!c || !c.reply_status) endHold(commentId);
+      else if (c.reply_status === "answered" && !timers.current.has(`ans:${commentId}`)) {
+        arm(`ans:${commentId}`, ANSWER_GRACE_MS, () => endHold(commentId));
+      }
     }
+    for (const b of [...bubbles.current]) {
+      if (!visible.has(b.commentId)) closeBubble(b.commentId); // a comment hidden while its bubble is up
+    }
+
     for (const c of comments) {
       if (seen.current.has(c.comment_id)) continue;
       seen.current.add(c.comment_id);
@@ -275,40 +323,34 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
           leaving.current = leaving.current.filter((f) => f.authorId !== gone.authorId);
         });
       }
-      if (now - c.received_at > BUBBLE_STALE_MS) continue;
-      // one bubble per animal; at most BUBBLE_MAX, a newer one closes the oldest (bursts are sampled, not queued)
-      const before = list.find((b) => b.authorId === c.author_id);
-      if (before) {
-        stop(`b:${before.commentId}`);
-        list = list.filter((b) => b !== before);
+      if (!young(c)) continue;
+      const question = pending(c);
+      const mine = bubbles.current.find((b) => b.authorId === c.author_id);
+      if (mine?.held && !question) continue; // a chat never closes a held question, not even the same viewer's
+      // one bubble per animal: a new question replaces the same viewer's held one
+      if (mine?.held) endHold(mine.commentId);
+      else if (mine) closeBubble(mine.commentId);
+      if (question) {
+        asked.current.add(c.comment_id);
+        const held = bubbles.current.filter((b) => b.held);
+        if (held.length >= HOLD_MAX) endHold(held[0]!.commentId);
+        const plain = bubbles.current.find((b) => !b.held);
+        if (bubbles.current.length >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
+        bubbles.current = [...bubbles.current, { authorId: c.author_id, commentId: c.comment_id, text: c.text, held: true }];
+        hold(c);
+      } else {
+        if (bubbles.current.length >= BUBBLE_MAX) continue; // no free slot: no bubble (it is in the chat list)
+        bubbles.current = [...bubbles.current, { authorId: c.author_id, commentId: c.comment_id, text: c.text, held: false }];
+        arm(`b:${c.comment_id}`, BUBBLE_MS, () => closeBubble(c.comment_id));
       }
-      list.push({ authorId: c.author_id, commentId: c.comment_id, text: c.text });
-      while (list.length > BUBBLE_MAX) stop(`b:${list.shift()!.commentId}`);
     }
-    for (const b of list) {
-      const key = `b:${b.commentId}`;
-      if (timers.current.has(key)) continue;
-      arm(key, BUBBLE_MS, () => {
-        bubbles.current = bubbles.current.filter((x) => x.commentId !== b.commentId);
-      });
-    }
-    bubbles.current = list;
 
-    // D-475 paw: the comment pipeline marked it a question (any reply status); only a young comment raises it,
-    // for HAND_MS from when this client first sees the status, whether or not its bubble is still up
-    const lower = (authorId: string) => {
-      hands.current.delete(authorId);
-      stop(`h:${authorId}`);
-    };
-    for (const [authorId, commentId] of hands.current) {
-      if (!visible.get(commentId)?.reply_status) lower(authorId); // closed back to chat, or hidden
-    }
+    // the status comes 2-2.5 s after the comment: an open bubble is held from then on; a closed one is not
+    // reopened, only the paw goes up
     for (const c of comments) {
-      if (!c.reply_status || asked.current.has(c.comment_id)) continue;
+      if (!pending(c) || asked.current.has(c.comment_id)) continue;
       asked.current.add(c.comment_id);
-      if (now - c.received_at > BUBBLE_STALE_MS) continue;
-      hands.current.set(c.author_id, c.comment_id);
-      arm(`h:${c.author_id}`, HAND_MS, () => hands.current.delete(c.author_id));
+      if (young(c)) hold(c);
     }
 
     // D-475 hearts: each asker of a host answer published after the first snapshot, if their animal is shown
@@ -319,7 +361,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
         if (cheered.current.has(a.key)) continue;
         cheered.current.add(a.key);
         if (!roster.current.some((f) => f.authorId === a.authorId)) continue;
-        lower(a.authorId); // happy beats the raised paw
+        for (const [commentId, authorId] of [...holds.current]) if (authorId === a.authorId) endHold(commentId);
         cheers.current = [...cheers.current.filter((x) => x !== a.authorId), a.authorId];
         while (cheers.current.length > CHEER_MAX) stop(`c:${cheers.current.shift()!}`);
         arm(`c:${a.authorId}`, CHEER_MS, () => {
@@ -377,6 +419,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
     timers.current.clear();
     bubbles.current = [];
     hands.current.clear();
+    holds.current.clear();
     cheers.current = [];
     leaving.current = [];
   }, []);
