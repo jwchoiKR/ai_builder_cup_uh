@@ -145,11 +145,60 @@
   gap: var(--space-2);
   pointer-events: none;
 }
-/* D-477: LIVE and the viewer count side by side */
+/* D-477: LIVE and the viewer count side by side; D-484: the characters switch at the end */
 .overlayGroup {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+}
+/* D-484: drawn 32 px, a 44 px hit area (the overlay itself takes no pointer events) */
+.crowdToggle {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -10px -6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.crowdToggleFace {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.crowdToggleFace svg {
+  width: 18px;
+  height: 18px;
+}
+.crowdToggle[aria-pressed="false"] .crowdToggleFace {
+  color: var(--text-3);
+}
+/* off: a slash across the paw */
+.crowdToggle[aria-pressed="false"] .crowdToggleFace::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+.crowdToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+  border-radius: 50%;
 }
 .watchingBadge {
   display: inline-flex;
@@ -191,9 +240,14 @@
   background: currentColor;
 }
 .brandBadge {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block; /* D-484: a long brand name ends in an ellipsis, so the row fits 390 px */
+  min-width: 0;
+  max-width: 45cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   height: 24px;
+  line-height: 24px;
   padding: 0 var(--space-2);
   border-radius: var(--radius-control);
   background: var(--surface);
@@ -269,6 +323,7 @@
   display: block;
   width: 100%;
   height: auto;
+  transition: opacity 150ms ease-out; /* D-488: solid again when it stops to speak */
 }
 /* two leg frames, swapped in steps (no in-between frame) */
 .legA {
@@ -348,6 +403,10 @@
 }
 .personName[data-shown] {
   opacity: 1;
+}
+/* D-486: hidden where it would overlap a newer speaker's name */
+.personName[data-shown][data-clash] {
+  opacity: 0;
 }
 .walker[data-own] .personName {
   color: var(--accent);
@@ -440,7 +499,7 @@
 .bubble {
   position: absolute;
   z-index: 1;
-  bottom: calc(100% + 4px + var(--lift, 0) * 26px); /* D-475: an older overlapping bubble sits a row higher */
+  bottom: calc(100% + 4px + var(--lift, 0px)); /* D-475, D-485: an older overlapping bubble goes up (measured px) */
   left: 50%;
   translate: -50% 0;
   width: max-content; /* not the animal's width */
@@ -478,7 +537,7 @@
   top: calc(100% + 4px);
   left: calc(50% - 1px);
   width: 2px;
-  height: max(0px, calc(var(--lift, 0) * 26px - 2px));
+  height: max(0px, calc(var(--lift, 0px) - 2px));
   background: var(--crowd-bubble);
 }
 .bubble[data-edge="start"] {
@@ -503,6 +562,40 @@
 .bubble[data-edge="end"]::before {
   left: auto;
   right: calc(var(--aw) / 2 - 1px);
+}
+/* D-485: the answer bubble: the reply (tag and up to 2 lines) over its question, one bubble, one tail */
+.bubblePair {
+  max-width: min(200px, calc(100cqw - 24px));
+}
+.pairAnswer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.pairAnswer .badge {
+  height: 18px;
+  font-size: 11px;
+}
+.pairAnswerText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-weight: var(--fw-semibold);
+}
+.pairQuestion {
+  display: block;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 @keyframes bubbleIn {
   from {

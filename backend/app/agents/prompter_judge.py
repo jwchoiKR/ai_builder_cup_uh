@@ -45,7 +45,8 @@ class PrompterJudge:
             agent=self.name, model=self.llm.prompter.model, thinking_level=self.llm.prompter.thinking_level,
             prompt_version=self.prompt_version, system_instruction=self.prompt.system_instruction, user_message=user,
             output_model=PrompterJudgeOutput, deadline_ms=deadline_ms, session_id=inp.session_id,
-            retry_429=False, hedge=False,  # D-449: one call, no 429 wait, not hedged; D-455: no deadline
+            # D-449: no 429 wait; D-455: no deadline; D-489: a second request after PROMPTER_HEDGE_MS
+            retry_429=False,
             mock_primary_text=inp.utterance, mock_scenario=inp.scenario, mock_fallback=lambda _: {"covered": []},
             preview=inp.utterance,
         ))
