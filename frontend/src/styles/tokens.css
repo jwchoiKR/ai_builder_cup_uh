@@ -27,20 +27,12 @@
   --said-bg: #d6f0c2; /* D-348: highlighter behind a covered prompter point; --text stays 13:1 on it */
   --tag-bg: #3d6b4f; /* D-469: host answer chip and "Ready to answer", the same in both themes; 6.2:1 */
   --tag-ink: #ffffff;
-  /* D-474: viewer figures on the video, the same in both themes (dark inherits these) */
-  --crowd-1: #e2675c;
-  --crowd-2: #e8962e;
-  --crowd-3: #c7a92a;
-  --crowd-4: #4fa865;
-  --crowd-5: #3a9fb5;
-  --crowd-6: #5a7fdb;
-  --crowd-7: #9564d6;
-  --crowd-8: #d35d9c;
-  --crowd-skin: #f6dcc8;
-  --crowd-eye: #2b2622;
+  /* D-474/D-476: the viewer crowd on the video, the same in both themes (dark inherits these) */
   --crowd-bubble: #ffffff;
   --crowd-bubble-ink: #1c2420;
   --crowd-heart: #ef5b7a; /* D-475 */
+  --crowd-halo: rgba(255, 255, 255, 0.92); /* D-476: animal outline */
+  --crowd-ink: rgba(43, 37, 34, 0.4);
   --shadow: 0 1px 2px rgba(28, 36, 32, 0.06), 0 4px 16px rgba(28, 36, 32, 0.06);
   --scrim: rgba(28, 36, 32, 0.32);
   color-scheme: light;

@@ -187,29 +187,131 @@
   z-index: 5; /* D-474: above the viewer figures and their bubbles */
 }
 
-/* D-474: up to 10 viewer figures in one row on the bottom edge of the video, a bubble over the ones who just wrote */
+/* D-474/D-476: up to 6 animals walking on the bottom edge of the video, a bubble over the ones who just wrote */
 .crowd {
+  --aw: clamp(30px, 11cqw, 44px); /* the animal's width; animalWidth() in Crowd.tsx is the same */
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  column-gap: 3px;
-  align-items: end;
-  padding: var(--space-6) var(--space-3) 2px;
+  height: calc(var(--aw) * 50 / 48 + 30px);
   background: linear-gradient(to top, color-mix(in srgb, var(--surface) 80%, transparent), transparent);
   pointer-events: none;
 }
-.person {
+/* one HTML wrapper per animal moves (transform only, in cqw so the Studio pane works); only the drawing turns at
+   the edges: the name, bubble and hearts never flip */
+.walker {
+  position: absolute;
+  left: var(--space-3);
+  bottom: 2px;
+  width: var(--aw);
+  will-change: transform;
+  animation: walk var(--walk, 12s) linear var(--delay, 0s) infinite alternate;
+}
+.walker[data-path="stop"] {
+  animation-name: walkStop;
+}
+.facing {
+  animation: turn var(--turn, 24s) steps(1, end) var(--delay, 0s) infinite;
+}
+/* a speaking animal stops where it is and walks on from the same spot; nothing walks while the tab is hidden */
+.walker[data-stopped],
+.walker[data-stopped] .facing,
+.crowd[data-paused] .walker,
+.crowd[data-paused] .facing,
+.crowd[data-paused] .legA,
+.crowd[data-paused] .legB {
+  animation-play-state: paused;
+}
+/* reduced motion: the animals stand spread out */
+.walker[data-still] {
+  animation: none;
+  transform: translateX(calc((100cqw - 24px - var(--aw)) * var(--spot, 0)));
+}
+.walker[data-still] .facing {
+  animation: none;
+}
+.walkerInner {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 0;
+  animation: crowdIn 400ms ease-out;
+  transition: opacity 400ms ease-out;
+}
+.walker[data-leaving] .walkerInner {
+  opacity: 0;
+}
+.animal {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* two leg frames, swapped in steps (no in-between frame) */
+.legA {
+  animation: legA 0.44s steps(1, end) infinite;
+}
+.legB {
+  animation: legB 0.44s steps(1, end) infinite;
+}
+@keyframes walk {
+  0%,
+  5% {
+    transform: translateX(0);
+  }
+  95%,
+  100% {
+    transform: translateX(calc(100cqw - 24px - var(--aw)));
+  }
+}
+/* some animals also stop midway */
+@keyframes walkStop {
+  0%,
+  5% {
+    transform: translateX(0);
+  }
+  45%,
+  55% {
+    transform: translateX(calc((100cqw - 24px - var(--aw)) * 0.45));
+  }
+  95%,
+  100% {
+    transform: translateX(calc(100cqw - 24px - var(--aw)));
+  }
+}
+/* facing right on the way out, left on the way back; the turn happens during the pause at the edge */
+@keyframes turn {
+  0% {
+    scale: 1 1;
+  }
+  50%,
+  100% {
+    scale: -1 1;
+  }
+}
+@keyframes legA {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes legB {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes crowdIn {
+  from {
+    opacity: 0;
+  }
 }
 .personName {
-  max-width: 100%;
+  max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -218,74 +320,101 @@
   font-weight: var(--fw-semibold);
   color: var(--text);
 }
-.personBody {
-  display: block;
-  width: clamp(22px, (100cqw - 24px) / 10 - 3px, 34px);
-  height: auto;
+.walker[data-own] .personName {
+  color: var(--accent);
 }
-.personHead {
-  fill: var(--crowd-skin);
+/* D-476: animal drawings (animals.tsx). The halo is a light 1.5 px rim outside the silhouette (a 3 px stroke under
+   the fill) so dark animals read on a dark video; the ink is a thin line so light animals read on a light one. */
+.halo * {
+  fill: var(--crowd-halo);
+  stroke: var(--crowd-halo);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
-.person[data-own] .personHead {
-  stroke: var(--accent);
-  stroke-width: 2.5;
+.ink * {
+  stroke: var(--crowd-ink);
+  stroke-width: 0.6px;
 }
-.personEye {
-  fill: var(--crowd-eye);
+/* D-476: hearts pop out of the head one after another, drift up with a wobble and fade, all within 2 s; they sit
+   under the bubble */
+.hearts {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--aw) * 0.7);
+  z-index: 0;
 }
-/* D-475: happy eyes and smile when the host answered on air */
-.personSmile {
-  fill: none;
-  stroke: var(--crowd-eye);
-  stroke-width: 1.3;
-  stroke-linecap: round;
-}
-/* D-475: hearts beside the head (not over the name), under the bubbles; they float up and fade over 2 s */
 .heart {
   position: absolute;
-  bottom: 30%;
-  z-index: 0;
-  font-size: 11px;
+  bottom: 0;
+  left: -4px;
   line-height: 1;
   color: var(--crowd-heart);
   opacity: 0;
-  animation: heartUp 2s ease-out forwards;
+  animation: heartFloat 1.2s ease-out forwards;
 }
-.heart[data-at="left"] {
-  left: -4px;
-}
-.heart[data-at="right"] {
-  right: -4px;
-  animation: heartUp 1.75s ease-out 0.25s forwards; /* all three end by the 2 s mark */
-}
-.heart[data-at="top"] {
-  right: 2px;
-  bottom: 45%;
+.heart[data-i="0"] {
   font-size: 9px;
-  animation: heartUp 1.5s ease-out 0.5s forwards;
+  margin-left: -8px;
 }
-.heart[data-at="still"] {
-  right: -4px;
+.heart[data-i="1"] {
+  font-size: 12px;
+  margin-left: 5px;
+  animation-delay: 0.15s;
+}
+.heart[data-i="2"] {
+  font-size: 8px;
+  margin-left: -2px;
+  animation-delay: 0.3s;
+}
+.heart[data-i="3"] {
+  font-size: 11px;
+  margin-left: 9px;
+  animation-delay: 0.45s;
+}
+.heart[data-i="4"] {
+  font-size: 10px;
+  margin-left: -11px;
+  animation-delay: 0.6s;
+}
+.heart[data-i="5"] {
+  font-size: 13px;
+  margin-left: 2px;
+  animation-delay: 0.75s;
+}
+.heart[data-still] {
+  font-size: 12px;
+  margin-left: 8px;
   opacity: 1;
   animation: none;
 }
-@keyframes heartUp {
+@keyframes heartFloat {
   0% {
     opacity: 0;
-    transform: translateY(0) scale(0.7);
+    transform: translate(0, 0) scale(0.4);
   }
-  20% {
+  15% {
     opacity: 1;
+    transform: translate(-3px, -6px) scale(1);
+  }
+  40% {
+    transform: translate(3px, -14px) scale(1);
+  }
+  65% {
+    opacity: 0.9;
+    transform: translate(-3px, -22px) scale(0.95);
   }
   100% {
     opacity: 0;
-    transform: translateY(-14px) scale(1);
+    transform: translate(2px, -32px) scale(0.9);
   }
 }
 .bubble {
   position: absolute;
-  bottom: calc(100% + 6px + var(--lift, 0) * 26px); /* D-475: an older overlapping bubble sits a row higher */
-  width: max-content; /* not the narrow column's width */
+  z-index: 1;
+  bottom: calc(100% + 4px + var(--lift, 0) * 26px); /* D-475: an older overlapping bubble sits a row higher */
+  left: 50%;
+  translate: -50% 0;
+  width: max-content; /* not the animal's width */
   max-width: min(180px, 46cqw);
   padding: 3px 8px;
   border-radius: 10px;
@@ -303,12 +432,13 @@
   text-overflow: ellipsis;
   overflow-wrap: anywhere;
 }
-/* the tail points at the head; the first and last three slots keep the bubble inside the video. Half a column:
-   (100cqw - 2 x 12px padding - 9 x 3px gaps) / 20 */
+/* the tail points at the head. Near the left or right edge (measured when the animal stops) the bubble is anchored on
+   the animal's side, so it stays inside the video */
 .bubble::after {
   content: "";
   position: absolute;
   top: 100%;
+  left: calc(50% - 5px);
   border: 5px solid transparent;
   border-top-color: var(--crowd-bubble);
 }
@@ -317,37 +447,33 @@
   content: "";
   position: absolute;
   top: calc(100% + 4px);
+  left: calc(50% - 1px);
   width: 2px;
   height: max(0px, calc(var(--lift, 0) * 26px - 2px));
   background: var(--crowd-bubble);
 }
 .bubble[data-edge="start"] {
   left: 0;
+  translate: none;
 }
 .bubble[data-edge="start"]::after {
-  left: calc((100cqw - 51px) / 20 - 5px);
+  left: calc(var(--aw) / 2 - 5px);
 }
 .bubble[data-edge="start"]::before {
-  left: calc((100cqw - 51px) / 20 - 1px);
+  left: calc(var(--aw) / 2 - 1px);
 }
 .bubble[data-edge="end"] {
+  left: auto;
   right: 0;
+  translate: none;
 }
 .bubble[data-edge="end"]::after {
-  right: calc((100cqw - 51px) / 20 - 5px);
+  left: auto;
+  right: calc(var(--aw) / 2 - 5px);
 }
 .bubble[data-edge="end"]::before {
-  right: calc((100cqw - 51px) / 20 - 1px);
-}
-.bubble[data-edge="mid"] {
-  left: 50%;
-  translate: -50% 0;
-}
-.bubble[data-edge="mid"]::after {
-  left: calc(50% - 5px);
-}
-.bubble[data-edge="mid"]::before {
-  left: calc(50% - 1px);
+  left: auto;
+  right: calc(var(--aw) / 2 - 1px);
 }
 @keyframes bubbleIn {
   from {
