@@ -10,6 +10,7 @@ import { Button, Chip, Elapsed, Eyebrow, HubLink } from "../components";
 import { PDF_ACCEPT, pdfOnly } from "../app/pdfOnly";
 import { API_BASE, ApiError, request } from "../app/api";
 import { navigate } from "../app/nav";
+import { getBrowserId } from "../app/prefs";
 import styles from "./onboarding/onboarding.module.css";
 
 const sizeLabel = (bytes: number) =>
@@ -486,7 +487,7 @@ export function Onboarding() {
                       try {
                         for (const id of productIds)  // one release per product, all on the same regulation
                           await request("POST", `/products/${encodeURIComponent(id)}/release`,
-                            { regulation_id: regulationId });
+                            { regulation_id: regulationId, owner: getBrowserId() });
                         navigate("/");  // the hub's Pick products lists the release
                       } catch (e) {
                         setError(errorText("Release", e));

@@ -7,6 +7,7 @@ const SIZE_KEY = "ls.host.size";
 const MIC_KEY = "ls.mic.device";
 const LAYOUT_KEY = "ls.layout.host";
 const MIC_LANG_KEY = "ls.mic.lang";
+const BROWSER_KEY = "ls.browser";
 
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
@@ -26,6 +27,17 @@ function write(key: string, value: string | null): void {
   } catch {
     // not remembered
   }
+}
+
+// The browser's own id: a release made here carries it, so the hub's picker shows this browser its own uploads.
+// Without storage it lasts until a reload.
+let browser: string | null = null;
+export function getBrowserId(): string {
+  if (browser === null) {
+    browser = read(BROWSER_KEY) ?? crypto.randomUUID();
+    write(BROWSER_KEY, browser);
+  }
+  return browser;
 }
 
 let size: number | null = null;

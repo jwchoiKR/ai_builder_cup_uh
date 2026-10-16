@@ -101,9 +101,10 @@ def test_a_release_needs_the_approved_product_and_a_regulation_file(tmp_path, mo
         assert c.post(f"/api/products/{pid}/release", json={"regulation_id": "reg_000000000000"}
                       ).status_code == 409  # no regulation file
         c.post(f"/api/products/{pid}/approve")
-        rel = c.post(f"/api/products/{pid}/release", json={"regulation_id": rid}).json()
+        rel = c.post(f"/api/products/{pid}/release", json={"regulation_id": rid, "owner": "b1"}).json()
         assert rel["release_id"] == f"{pid}:{rid}" and rel["product_name"] == "Night Serum" and rel["category"] == "face serum"
-        assert [x["release_id"] for x in c.get("/api/products/releases").json()] == [rel["release_id"]]
+        assert [x["release_id"] for x in c.get("/api/products/releases?owner=b1").json()] == [rel["release_id"]]
+        assert c.get("/api/products/releases?owner=b2").json() == []  # another browser's upload is not listed
         r = c.post("/api/sessions", json={"release_id": rel["release_id"]})  # the hub's pick
         assert r.status_code == 201, r.text
         sid = r.json()["session_id"]
