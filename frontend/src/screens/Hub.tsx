@@ -7,6 +7,7 @@ import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useTheme } from "../app/theme";
 import { Chip, SettingsButton } from "../components";
 import { onboardingApi, type ReleaseRow } from "./onboarding/onboardingApi";
+import { LoadingBar } from "./summary/SummaryView";
 import styles from "./screens.module.css";
 
 interface Screen {
@@ -187,19 +188,20 @@ export function Hub({ sessionId }: ScreenProps) {
   useEffect(() => {
     if (lineup.length) setNudge(false);
   }, [lineup.length]);
-  // D-496 (user): the report opens only once the show has ended and its summary is ready; checked every 10 s
-  const [reportReady, setReportReady] = useState(false);
+  // D-496 (user): the report opens only once the show has ended and its summary is ready; checked every 10 s.
+  // D-498: a failed one offers a retry, and shows the report being made again
+  const [reportStatus, setReportStatus] = useState<string | null>(null);
+  const reportReady = reportStatus === "ready";
   useEffect(() => {
-    setReportReady(false);
+    setReportStatus(null);
     if (!sessionId) return;
     let live = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = async () => {
       try {
-        if ((await api.summary(sessionId)).status === "ready") {
-          if (live) setReportReady(true);
-          return;
-        }
+        const status = (await api.summary(sessionId)).status;
+        if (live) setReportStatus(typeof status === "string" ? status : null);
+        if (status === "ready") return;
       } catch {
         // not there yet: check again
       }
@@ -211,6 +213,17 @@ export function Hub({ sessionId }: ScreenProps) {
       clearTimeout(timer);
     };
   }, [sessionId]);
+  const retryReport = async (e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();  // the card itself stays disabled
+    if (!sessionId) return;
+    setReportStatus("computing");
+    try {
+      setReportStatus((await api.retrySummary(sessionId)).status);
+    } catch {
+      setReportStatus("failed");
+    }
+  };
 
   // a During-the-show card starts the show with the picked line-up, then opens that screen of it
   const openLive = (path: string) => async (e: MouseEvent) => {
@@ -284,11 +297,36 @@ export function Hub({ sessionId }: ScreenProps) {
                         </div>
                       );
                       const waiting = s.path === "/summary" && !reportReady;  // D-496
+                      if (waiting) return (
+                        // D-496/D-498: not a link until the report is ready; a failed report offers a retry
+                        <div key={s.path} className={`${styles.hubCard} ${styles.hubCardDisabled}`} aria-disabled="true"
+                          data-testid={`hub-card-${s.path.slice(1)}`}>
+                          <span className={styles.hubIcon}>
+                            <Icon aria-hidden />
+                          </span>
+                          <span className={styles.hubCardTitle}>{t(s.title)}</span>
+                          <span className={styles.hubText}>{t(s.text)}</span>
+                          {reportStatus === "failed" && (
+                            <span className={styles.hubReportState} data-testid="hub-report-failed">
+                              <span className={styles.hubStudioNote}>{t("Report failed")}</span>
+                              <button type="button" className={styles.hubRetry} onClick={retryReport}
+                                data-testid="hub-report-retry">
+                                {t("Retry")}
+                              </button>
+                            </span>
+                          )}
+                          {reportStatus === "computing" && (
+                            <span className={styles.hubReportState} data-testid="hub-report-making">
+                              <span className={styles.hubStudioNote}>{t("Making the report…")}</span>
+                              <LoadingBar label="Making the report" />
+                            </span>
+                          )}
+                        </div>
+                      );
                       return (
-                        <a key={s.path} className={`${styles.hubCard} ${s.wide ? styles.hubCardWide : ""} ${waiting ? styles.hubCardDisabled : ""}`}
-                          href={waiting ? undefined : href}
-                          onClick={waiting ? (e) => e.preventDefault() : phase.live ? openLive(s.path) : go(href)}
-                          aria-disabled={waiting || !!starting || undefined} aria-busy={starting === s.path || undefined}
+                        <a key={s.path} className={`${styles.hubCard} ${s.wide ? styles.hubCardWide : ""}`} href={href}
+                          onClick={phase.live ? openLive(s.path) : go(href)}
+                          aria-disabled={!!starting || undefined} aria-busy={starting === s.path || undefined}
                           data-testid={`hub-card-${s.path.slice(1)}`}>
                           <span className={styles.hubIcon}>
                             <Icon aria-hidden />

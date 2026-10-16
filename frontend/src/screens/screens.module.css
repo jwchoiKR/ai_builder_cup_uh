@@ -500,14 +500,43 @@
 /* the picker card: no lift, and no transform that would trap the phone-width bottom sheet */
 /* D-496: the report card before the summary is ready: muted, not clickable */
 .hubCardDisabled {
-  opacity: 0.5;
   cursor: default;
+}
+/* the card's own content is muted; a retry under it (D-498) stays fully readable */
+.hubCardDisabled > .hubIcon,
+.hubCardDisabled > .hubCardTitle,
+.hubCardDisabled > .hubText {
+  opacity: 0.5;
 }
 .hubCardDisabled:hover,
 .hubCardDisabled:focus-visible {
   border-color: var(--border);
   box-shadow: none;
   transform: none;
+}
+/* D-498: a failed report's retry, and the report being made; readable on the muted card */
+.hubReportState {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  margin-top: auto;
+}
+.hubRetry {
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.hubRetry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .hubCardStatic:hover,
 .hubCardStatic:focus-within {

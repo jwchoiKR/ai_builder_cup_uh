@@ -69,6 +69,15 @@ export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps
       onExport={() => exportSummaryJson(data)}
       onExportPdf={() => setPrinting(true)}
       onBack={() => navigate(withSession("/", sessionId))}
+      onRetry={sessionId ? async () => {
+        // D-498: the page polls again while the recap is being written
+        try {
+          const r = await api.retrySummary(sessionId);
+          setData((d) => (d ? { ...d, status: r.status as SummaryData["status"] } : d));
+        } catch (e) {
+          setError(userMessage(e));
+        }
+      } : undefined}
     />
   );
 }

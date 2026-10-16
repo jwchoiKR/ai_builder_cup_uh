@@ -158,6 +158,34 @@ describe("screens", () => {
     }
   });
 
+  it("D-498: a failed report offers Retry: making it again, then the card opens", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const path = "/api/sessions/ses_000001/summary";
+    try {
+      responses[path] = { status: "failed" };
+      responses[`${path}/retry`] = { status: "computing" };
+      render(<Hub sessionId="ses_000001" />);
+      const card = () => screen.getByTestId("hub-card-summary");
+      const retry = await screen.findByTestId("hub-report-retry");
+      expect(card()).toHaveAttribute("aria-disabled", "true");
+      expect(screen.getByTestId("hub-report-failed")).toHaveTextContent("Report failed");
+      fireEvent.click(retry);
+      expect(await screen.findByTestId("hub-report-making")).toHaveTextContent("Making the report…");
+      expect(within(card()).getByRole("progressbar", { name: "Making the report" })).toBeInTheDocument();
+      expect(card()).toHaveAttribute("aria-disabled", "true");
+      responses[path] = { status: "ready" };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await waitFor(() => expect(card()).toHaveAttribute("href", expect.stringContaining("/summary")));
+      expect(card()).not.toHaveAttribute("aria-disabled");
+    } finally {
+      delete responses[path];
+      delete responses[`${path}/retry`];
+      vi.useRealTimers();
+    }
+  });
+
   it("D-496: with no show the report card is disabled", () => {
     render(<Hub sessionId={null} />);
     expect(screen.getByTestId("hub-card-summary")).toHaveAttribute("aria-disabled", "true");

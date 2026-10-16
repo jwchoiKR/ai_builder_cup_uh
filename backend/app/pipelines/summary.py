@@ -113,3 +113,23 @@ async def get_summary(rt: "SessionRuntime") -> dict[str, Any]:
         rt.spawn(run_summary(rt), name=f"summary:{rt.sid}")
         return {"status": "computing", "stats": stats, "recap": None, "error": None, "comment_insights": None}
     return {"status": "not_ended", "stats": stats, "recap": None, "error": None, "comment_insights": None}
+
+
+async def retry_summary(rt: "SessionRuntime") -> str:
+    """D-498 (user: "재시도 하는 버튼을 추가하는 방향으로"): write the recap again, only when the last try failed; a summary
+    being written or ready is left alone (no second run). Returns the status. 409 before the show has ended."""
+    from .runtime import ActionError
+
+    async with rt.lock:  # two presses at once start one run
+        if (await rt.load_session()).status != "ended":
+            raise ActionError(409, "not_ended", "the show has not ended yet")
+        doc = await _load(rt)
+        if doc is not None and doc.status != "failed":
+            return doc.status
+        now = rt.now()
+        stats = doc.stats if doc is not None else await compute_stats(rt)
+        await _save(rt, SummaryDoc(status="computing", stats=stats, created_at=doc.created_at if doc else now,
+                                   updated_at=now))
+    log.info("summary %s: retry", rt.sid)
+    rt.spawn(run_summary(rt), name=f"summary:{rt.sid}")
+    return "computing"

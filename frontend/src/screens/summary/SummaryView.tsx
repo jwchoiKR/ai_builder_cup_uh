@@ -34,6 +34,8 @@ export interface SummaryViewProps {
   onExportPdf?: () => void;
   onBack: () => void;
   embedded?: boolean;
+  /** D-498: write a failed recap again */
+  onRetry?: () => void;
 }
 
 /** D-202: a share as a whole percent, "–" when the server did not send it. */
@@ -290,7 +292,12 @@ export function LoadingBar({ label }: { label: string }) {
   );
 }
 
-function RecapBlock({ recap, status, error }: { recap: Recap | null; status: SummaryData["status"]; error: string | null }) {
+function RecapBlock({ recap, status, error, onRetry }: {
+  recap: Recap | null;
+  status: SummaryData["status"];
+  error: string | null;
+  onRetry?: () => void;
+}) {
   return (
     <section className={`${styles.card} ${styles.recap}`} data-testid="summary-recap">
       <header className={styles.recapHead}>
@@ -329,15 +336,22 @@ function RecapBlock({ recap, status, error }: { recap: Recap | null; status: Sum
           <LoadingBar label="Writing the recap" />
         </>
       ) : status === "not_ended" ? null /* D-496: nothing until the broadcast ends */ : (
-        <p className={styles.muted} title={error ?? undefined}>
-          Recap unavailable. The numbers below are complete.
-        </p>
+        <div className={styles.recapRetry}>
+          <p className={styles.muted} title={error ?? undefined}>
+            Recap unavailable. The numbers below are complete.
+          </p>
+          {onRetry && (
+            <Button variant="secondary" size="sm" onClick={onRetry} data-testid="summary-retry">
+              Retry
+            </Button>
+          )}
+        </div>
       )}
     </section>
   );
 }
 
-export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onExportPdf, onBack, embedded }: SummaryViewProps) {
+export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onExportPdf, onBack, embedded, onRetry }: SummaryViewProps) {
   const s = data.stats;
   const start = s.started_at;
   return (
@@ -377,7 +391,7 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
       </header>
 
       {/* D-092: the executive summary comes first; most readers stop here */}
-      <RecapBlock recap={data.recap} status={data.status} error={data.error} />
+      <RecapBlock recap={data.recap} status={data.status} error={data.error} onRetry={onRetry} />
 
       <section className={styles.totals} aria-label="Totals">
         {(
