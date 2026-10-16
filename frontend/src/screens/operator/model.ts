@@ -6,7 +6,7 @@ import type { Alert, Answer, Catalog, Comment, Message, QuestionGroup, SetOffer,
 import { citedTitle } from "../host/hostSelectors";
 
 /** Default for the optional `t` of the label helpers below: English, as the tests expect. */
-const EN: Translate = (en, vars) => translate("en", en, vars);
+const EN: Translate = translate;
 
 // ---- settings (values of §5 snapshotted on the session) -------------------------------------------
 

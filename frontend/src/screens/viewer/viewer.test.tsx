@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { setLang } from "../../app/i18n";
 import { reduceEvent, reduceSnapshot, type ClientState } from "../../app/state";
 import type { SessionEvent } from "../../app/types";
 import { CREAM, T0, catalog, comment, message, segment, session, snapshot } from "../../test/fixtures";
@@ -76,7 +75,6 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
   window.localStorage.clear();
-  setLang("en");
 });
 
 /** This browser's viewer joined the chat earlier as `authorId`. */
@@ -280,12 +278,11 @@ describe("Viewer: where my own question stands", () => {
     expect(screen.getByTestId("viewer-reply-status-cm_me")).toHaveTextContent("Checking…");
   });
 
-  it("the status line follows the screen language, and the chat stays pinned when it appears", () => {
+  it("the status line shows, and the chat stays pinned when it appears", () => {
     joinedAs("v_me");
-    setLang("ko");
     const state = stateWith({ comments: [{ ...mine, reply_status: "host" }] });
     render(view(state));
-    expect(screen.getByTestId("viewer-reply-status-cm_me")).toHaveTextContent("진행자가 방송에서 답변할 예정입니다");
+    expect(screen.getByTestId("viewer-reply-status-cm_me")).toHaveTextContent("The host will answer this on air");
     const plain = stateWith({ comments: [mine] });
     expect(chatSignature(viewerChat(state, NOW, "v_me"))).not.toBe(chatSignature(viewerChat(plain, NOW, "v_me")));
   });
@@ -691,9 +688,6 @@ describe("D-477: viewers watching", () => {
     expect(screen.getByTestId("audience-count")).toHaveTextContent("0 watching");  // a confirmed 0 is shown
     rerender(view(stateWith(), { audience: null }));
     expect(screen.queryByTestId("audience-count")).toBeNull();
-    setLang("ko");
-    rerender(view(stateWith(), { audience: 4 }));
-    expect(screen.getByTestId("audience-count")).toHaveTextContent("시청 중 4명");
   });
 
   it("polls every 10 s and hides the number after a failure instead of keeping the old one", async () => {
@@ -966,12 +960,6 @@ describe("D-484: each viewer can turn the characters off", () => {
     expect(screen.queryAllByTestId(/^viewer-bubble-/)).toHaveLength(0);
     expect(screen.queryAllByTestId("viewer-heart")).toHaveLength(0);
     expect(window.localStorage.getItem(CROWD_KEY)).toBe("1");
-  });
-
-  it("the Korean label", () => {
-    setLang("ko");
-    render(view(stateWith()));
-    expect(toggle()).toHaveAccessibleName("캐릭터 보기");
   });
 
   it("an embedded Studio pane has no switch and always shows the crowd, whatever this browser saved", () => {

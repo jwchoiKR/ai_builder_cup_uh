@@ -2,7 +2,6 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { cloneElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { setLang, translate } from "../../app/i18n";
 import { RED_BLOCK_MS, uncheckedStrip } from "../../app/selectors";
 import { reduceEvent, reduceSnapshot } from "../../app/state";
 import type { Catalog, StateSnapshot } from "../../app/types";
@@ -293,8 +292,6 @@ describe("fact note", () => {
     expect(within(screen.getByTestId("host-fact-note")).getByTestId("host-alert-kind")).toHaveTextContent("Product info");
     rerender(view({ alerts: [medium] }));
     expect(within(screen.getByTestId("host-medium-banner")).getByTestId("host-alert-kind")).toHaveTextContent("Product info");
-    expect(translate("ko", "Regulation")).toBe("법규");
-    expect(translate("ko", "Product info")).toBe("제품 정보");
   });
 
   it("D-426: a note with a blank say and a blank value shows no say line", () => {
@@ -788,33 +785,16 @@ describe("host chat: coalesced replies", () => {
   });
 });
 
-describe("settings and screen language (D-109)", () => {
-  it("Korean labels; on-air text stays in the broadcast language", () => {
-    setLang("ko");
-    try {
-      render(view({ alerts: [alert()] }));
-      expect(screen.getByText("프롬프터")).toBeInTheDocument();
-      const overlay = screen.getByTestId("host-compliance-overlay");
-      expect(overlay).toHaveTextContent("먼저 철회하고, 이렇게 말하세요:");
-      expect(overlay).toHaveTextContent("“Helps keep skin hydrated for up to 24 hours in our in-house test.”");
-    } finally {
-      act(() => setLang("en"));
-    }
-  });
-
-  it("the gear switches the language and the theme", () => {
+describe("settings (D-109)", () => {
+  it("the gear switches the theme; D-494: there is no screen language choice", () => {
     const setTheme = vi.fn();
-    try {
-      render(<HostView state={{ ...reduceSnapshot(snapshot(), "host", now()), serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark"
-        themePref="system" onSetTheme={setTheme} actions={actions()} />);
-      fireEvent.click(screen.getByTestId("settings-button"));
-      fireEvent.click(screen.getByLabelText("한국어"));
-      expect(screen.getByText("프롬프터")).toBeInTheDocument();
-      fireEvent.click(screen.getByLabelText("다크"));
-      expect(setTheme).toHaveBeenCalledWith("dark");
-    } finally {
-      act(() => setLang("en"));
-    }
+    render(<HostView state={{ ...reduceSnapshot(snapshot(), "host", now()), serverOffsetMs: 0 }} catalog={cat} connection="connected" theme="dark"
+      themePref="system" onSetTheme={setTheme} actions={actions()} />);
+    fireEvent.click(screen.getByTestId("settings-button"));
+    fireEvent.click(screen.getByLabelText("Dark"));
+    expect(setTheme).toHaveBeenCalledWith("dark");
+    expect(screen.queryByText("Screen language")).toBeNull();
+    expect(screen.queryByLabelText("한국어")).toBeNull();
   });
 });
 
@@ -1015,13 +995,11 @@ describe("unchecked lines (D-412)", () => {
     expect(strip(t).cause).toBe("timeout");
   });
 
-  it("is kept on refresh from the snapshot, and reads in Korean", () => {
+  it("is kept on refresh from the snapshot", () => {
     const s = reduceSnapshot(snapshot({ check_failures: { recent: [],
       unchecked: [{ transcript_id: "tr_1", agent: "compliance_judge", cause: "busy", at: T0, n: 1 }] } }), "host");
     show(s);
     expect(screen.getByTestId("host-unchecked")).toHaveTextContent("AI busy: 1 line unchecked");
-    expect(translate("ko", "{cause}: {n} lines unchecked", { cause: translate("ko", "AI busy"), n: 3 }))
-      .toBe("AI 혼잡: 확인 못 한 문장 3개");
   });
 });
 
@@ -1115,8 +1093,6 @@ describe("D-442: a line's red and orange in one box", () => {
     expect(then).toHaveTextContent("Then:");
     expect(then).toHaveTextContent("The live price is S$36.00.");
     expect(within(box).getAllByTestId("host-alert-timing").map((x) => x.textContent)).toEqual(["Shown in 4.5 s", "Shown in 4.2 s"]);
-    expect(translate("ko", "{n} issues: {kinds}", { n: 2, kinds: "법규 + 제품 정보" })).toBe("2개 문제: 법규 + 제품 정보");
-    expect(translate("ko", "Then:")).toBe("그리고:");
   });
 
   it("the orange cleared first: '1 left' and only the red's line; no green 'Corrected' yet", () => {

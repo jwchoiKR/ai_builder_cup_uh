@@ -1,26 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { getLang, LANG_KEY, setLang, translate } from "./i18n";
+import { translate } from "./i18n";
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  setLang("en");
-});
-
-describe("i18n (D-109)", () => {
-  it("translates labels with variables and falls back to English", () => {
-    expect(translate("ko", "{n} unanswered questions", { n: 3 })).toBe("답변 못 한 질문 3개");
-    expect(translate("en", "{n} unanswered questions", { n: 3 })).toBe("3 unanswered questions");
-    expect(translate("ko", "Not in the table")).toBe("Not in the table");
-  });
-
-  it("remembers the language and ignores storage errors", () => {
-    setLang("ko");
-    expect(window.localStorage.getItem(LANG_KEY)).toBe("ko");
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("blocked");
-    });
-    setLang("en");
-    expect(getLang()).toBe("en");
+describe("UI text (D-494: English only)", () => {
+  it("fills a template's values and leaves unknown ones as written", () => {
+    expect(translate("{n} unanswered questions", { n: 3 })).toBe("3 unanswered questions");
+    expect(translate("Shown in {s} s", {})).toBe("Shown in {s} s");
+    expect(translate("Not in the table")).toBe("Not in the table");
   });
 });

@@ -3,7 +3,7 @@ import { translate, type Translate } from "./i18n";
 
 export const PDF_ACCEPT = ".pdf,application/pdf";
 
-const EN: Translate = (en, vars) => translate("en", en, vars);
+const EN: Translate = translate;
 
 /** The picked files when all are PDFs; otherwise none, and the message naming the others. */
 export function pdfOnly(picked: File[], t: Translate = EN): { files: File[]; error: string | null } {

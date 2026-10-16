@@ -6,7 +6,7 @@ import type { Catalog } from "../app/types";
 import { pointsStatus } from "./host/Prompter";
 import { impactChips } from "./operator/Header";
 
-const t = (en: string, vars?: Record<string, string | number>) => translate("en", en, vars);
+const t = translate;
 
 describe("D-332: UI QA", () => {
   it("the status line shows only the time left", () => {

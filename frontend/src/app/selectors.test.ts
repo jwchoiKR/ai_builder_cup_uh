@@ -342,7 +342,7 @@ describe("D-439: shown and cleared times, on server times only", () => {
   const tr = (id: string, end: number, source: "mic" | "injected" = "mic") => ({
     transcript_id: id, text: "x", is_final: true, speech_start_at: null, speech_end_at: end, received_at: end,
     source, segment_id: "seg_000001" });
-  const t = (en: string, v?: Record<string, string | number>) => translate("en", en, v);
+  const t = translate;
 
   it("line end -> shown, typed lines marked, missing data hidden", () => {
     const a = alert({ transcript_id: "tr_1", shown_at: T0 + 4200 });
@@ -350,8 +350,6 @@ describe("D-439: shown and cleared times, on server times only", () => {
     expect(timingLabel("shown", shownTiming(a, { tr_1: tr("tr_1", T0, "injected") }), t)).toBe("Shown in 4.2 s (typed)");
     expect(timingLabel("shown", shownTiming(a, {}), t)).toBeNull();  // the line is not loaded
     expect(timingLabel("shown", shownTiming({ ...a, shown_at: null }, { tr_1: tr("tr_1", T0) }), t)).toBeNull();
-    expect(translate("ko", "Shown in {s} s", { s: "4.2" })).toBe("4.2초 만에 표시");
-    expect(translate("ko", "(typed)")).toBe("(입력)");
   });
 
   it("the correcting line's end -> cleared, only for a corrected alert", () => {
@@ -360,7 +358,6 @@ describe("D-439: shown and cleared times, on server times only", () => {
     expect(timingLabel("cleared", clearedTiming(a, ts), t)).toBe("Cleared in 3.1 s");
     expect(timingLabel("cleared", clearedTiming({ ...a, status: "active" }, ts), t)).toBeNull();
     expect(timingLabel("cleared", clearedTiming(a, { tr_1: tr("tr_1", T0) }), t)).toBeNull();
-    expect(translate("ko", "Cleared in {s} s", { s: "3.1" })).toBe("3.1초 만에 해제");
   });
 
   it("the operator's show line counts spoken lines only", () => {

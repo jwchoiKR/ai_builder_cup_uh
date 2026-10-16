@@ -1,10 +1,10 @@
-// Settings gear (D-109, D-119): theme and UI language; on the host screen also reading size and the
+// Settings gear (D-109, D-119): theme; on the host screen also reading size and the
 // microphone input. Replaces the light/dark toggle on the host and
-// operator screens. The language applies to every screen of this browser; on-air text never changes.
+// operator screens. D-494 (user): no screen language choice: the UI is English.
 import { Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { LANGS, setLang, useLang, useT } from "../app/i18n";
+import { useT } from "../app/i18n";
 import { mic } from "../app/mic";
 import { listMicDevices, READING_SIZES, resetHostLayout, setReadingSize, useMicDevice, useReadingSize } from "../app/prefs";
 import type { ThemePref } from "../app/theme";
@@ -34,7 +34,6 @@ export function SettingsButton({
     if (open && host) void listMicDevices().then(setDevices);
   }, [open, host]);
   const root = useRef<HTMLDivElement>(null);
-  const lang = useLang();
   const t = useT();
 
   useEffect(() => {
@@ -118,16 +117,6 @@ export function SettingsButton({
               </button>
             </fieldset>
           )}
-          <fieldset className={styles.settingsGroup}>
-            <legend>{t("Screen language")}</legend>
-            {LANGS.map((o) => (
-              <label key={o.value}>
-                <input type="radio" name="settings-lang" checked={lang === o.value} onChange={() => setLang(o.value)} />
-                {o.label}
-              </label>
-            ))}
-            <p className={styles.settingsNote}>{t("Labels only. What you say on air is not translated.")}</p>
-          </fieldset>
         </div>
       )}
     </div>

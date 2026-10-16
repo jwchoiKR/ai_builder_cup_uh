@@ -2,7 +2,7 @@ import { ChartColumn, ChevronDown, ChevronRight, FileUp, Headset, LayoutGrid, Li
 import { useEffect, useRef, useState, type CSSProperties, type Dispatch, type MouseEvent, type SetStateAction } from "react";
 
 import { api, userMessage } from "../app/api";
-import { useLang, useT } from "../app/i18n";
+import { useT } from "../app/i18n";
 import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useTheme } from "../app/theme";
 import { Chip, SettingsButton } from "../components";
@@ -168,7 +168,6 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
 export function Hub({ sessionId }: ScreenProps) {
   const [theme, , setTheme, themePref] = useTheme();
   const t = useT();
-  const lang = useLang();
   const [starting, setStarting] = useState<string | null>(null);  // the card whose show is being created
   const [error, setError] = useState<string | null>(null);
   const [lineup, setLineup] = useState<string[]>([]);
@@ -213,7 +212,7 @@ export function Hub({ sessionId }: ScreenProps) {
   };
 
   return (
-    <div className={`${styles.root} ${styles.hubRoot}`} data-theme={theme} lang={lang}>
+    <div className={`${styles.root} ${styles.hubRoot}`} data-theme={theme} lang="en">
       <header className={`${styles.header} ${styles.hubHeader}`}>
         <div className={styles.hubBrand}>
           <span className="eyebrow">LIVE / STUDIO</span>

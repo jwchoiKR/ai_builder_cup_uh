@@ -133,15 +133,6 @@
 .footerNote { margin-left: auto; color: var(--text-3); font-size: var(--fs-12); }
 @media (hover: none) { .iconBtn { opacity: 1; } }
 
-.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; }
-.segment {
-  border: 0; background: transparent; color: var(--text-2); padding: var(--space-1) var(--space-3);
-  font-size: var(--fs-12); font-weight: var(--fw-semibold); cursor: pointer;
-}
-.segment + .segment { border-left: 1px solid var(--border); }
-.segmentActive { background: var(--accent); color: var(--accent-ink); }
-.segment:disabled { cursor: default; }
-
 /* sample documents to try the service with */
 .samples {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card);

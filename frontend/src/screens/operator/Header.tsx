@@ -29,7 +29,7 @@ export function latencyShown(metrics: { header?: { alert_in_s?: number | null; j
 /** Header chips (§8.16). Anything not measured yet shows "–", never "0.0s". */
 export function metricChips(
   metrics: Record<string, unknown> & { header?: { alert_in_s?: number | null; judge_p50_s?: number | null; instant_answers?: number; answers_total?: number } },
-  t: Translate = (en, vars) => translate("en", en, vars),
+  t: Translate = translate,
 ) {
   const h = metrics?.header;
   const alertIn = measured(h?.alert_in_s);
@@ -52,7 +52,7 @@ type Impact = {
 };
 
 /** D-240: live impact from logged state, each count with its denominator. */
-export function impactChips(metrics: { impact?: Impact } | undefined, t: Translate = (en, vars) => translate("en", en, vars)) {
+export function impactChips(metrics: { impact?: Impact } | undefined, t: Translate = translate) {
   const i = metrics?.impact;
   if (!i) return [];
   const q = i.questions;
