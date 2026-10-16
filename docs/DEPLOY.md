@@ -1,7 +1,7 @@
 # Deploying to Cloud Run (test deployment)
 
-One test service in project `ai-budiler-cup-uh-team-pjt` (number 830408193168; and only there, D-289: moved from `separk-cloocus` on 10/6), behind IAP. Only `jaewoo@cloocus.com` may
-open it for now.
+One test service in project `ai-budiler-cup-uh-team-pjt` (number 830408193168; and only there, D-289: moved from `separk-cloocus` on 10/6). It is public: no IAP,
+no sign-in (user, 10/17, D-500).
 
 | service | Cloud Run region | Speech-to-Text | Gemini | URL |
 |---|---|---|---|---|
@@ -20,17 +20,15 @@ words ("panthenol" as "penconazole"). gemini-3.5-flash-lite and gemini-3.8-flash
 
 ```sh
 gcloud auth login                       # an account with Owner or Editor on ai-budiler-cup-uh-team-pjt
-gcloud components update                # `run deploy --iap` needs a recent SDK
-deploy/cloudrun.sh                      # us-central1, IAP for jaewoo@cloocus.com
-IAP_MEMBERS="user:a@example.com,user:b@example.com" deploy/cloudrun.sh   # more people (ask first)
+deploy/cloudrun.sh                      # us-central1, public
 ```
 
 The script:
 - enables the APIs, builds the image with Cloud Build (no local Docker) into Artifact Registry;
 - runs as the service account `live-studio-run` with only `roles/aiplatform.user` and `roles/speech.client`
   (add `roles/modelarmor.user` when Model Armor is switched on);
-- deploys with `--no-allow-unauthenticated --iap`, grants the IAP service agent `run.invoker`, and gives
-  each allowed member `iap.httpsResourceAccessor`.
+- deploys with `--no-invoker-iam-check`: anyone with the URL can open it, without an `allUsers` binding
+  (the same as the console setting; IAP is off).
 
 ## Settings and limits
 
@@ -51,7 +49,7 @@ The script:
 
 ## Google resources (all in us-central1)
 
-In `ai-budiler-cup-uh-team-pjt` (10/6): the APIs above, the Model Armor template `live-studio-comments` (same filters), and what `deploy/cloudrun.sh` creates (the service account, its roles, the onboarding bucket, Artifact Registry). Firestore, Vertex AI Search and the docs bucket are not recreated; the default config does not use them. The test service account `live-studio-driver` must be created before `deploy/iap-token.sh` works. The table below is the old project's setup (10/5).
+In `ai-budiler-cup-uh-team-pjt` (10/6): the APIs above, the Model Armor template `live-studio-comments` (same filters), and what `deploy/cloudrun.sh` creates (the service account, its roles, the onboarding bucket, Artifact Registry). Firestore, Vertex AI Search and the docs bucket are not recreated; the default config does not use them. The table below is the old project's setup (10/5).
 
 | resource | name | used by |
 |---|---|---|
@@ -61,8 +59,7 @@ In `ai-budiler-cup-uh-team-pjt` (10/6): the APIs above, the Model Armor template
 | Cloud Trace | API enabled | spans later |
 
 `live-studio-run` has `roles/datastore.user`, `roles/modelarmor.user`, `roles/cloudtrace.agent` and
-`roles/storage.objectViewer` on the bucket. The test service account `live-studio-driver` has only IAP
-access to the service.
+`roles/storage.objectViewer` on the bucket.
 
 Model Armor measured from Korea: 280-370 ms per comment (a few over 500 ms, so they would be unscreened);
 from us-central1 it should be well under the 500 ms limit. "Developer mode" role-play wording passed the
@@ -70,16 +67,12 @@ MEDIUM_AND_ABOVE jailbreak filter in one try; the triage prompt still treats com
 
 ## Check after a deploy
 
-1. Open the URL, sign in with an allowed account; `/api/health` shows `llm: vertex`, `stt: google_v2`.
-2. SSE through IAP: open the host and operator screens and start a demo session; events must arrive.
-3. Audio WebSocket through IAP: turn the microphone on in the host screen; `mic` must reach "listening"
+1. Open the URL (no sign-in); `/api/health` shows `llm: vertex`, `stt: google_v2`.
+2. SSE: open the host and operator screens and start a demo session; events must arrive.
+3. Audio WebSocket: turn the microphone on in the host screen; `mic` must reach "listening"
    and finals must appear.
-4. Voice rehearsal: `IAP_TOKEN=$(deploy/iap-token.sh) BASE=<url> node e2e/rehearsal-voice.mjs alerts`.
-   Direct IAP on Cloud Run refuses ordinary ID tokens, also of a service account with access
-   ("Invalid JWT audience"). `deploy/iap-token.sh` signs a one-hour JWT (`aud` = `<url>/*`) as the test
-   service account `live-studio-driver` through your gcloud user (`roles/iam.serviceAccountTokenCreator` on
-   that account, no key file). The account has nothing but IAP access to this service (user, 10/5).
+4. Voice rehearsal: `BASE=<url> node e2e/rehearsal-voice.mjs alerts`.
 
-Checked 10/5 with that token: `/api/health` ok (`llm: vertex`, `stt: google_v2`); SSE `200
+Checked 10/5 (then behind IAP): `/api/health` ok (`llm: vertex`, `stt: google_v2`); SSE `200
 text/event-stream` with session, transcript and alert events; the audio WebSocket reached "listening" in
 280 ms.

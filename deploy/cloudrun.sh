@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Deploy Live Studio to Cloud Run with IAP (see docs/DEPLOY.md). Test deployments only.
+# Deploy Live Studio to Cloud Run (see docs/DEPLOY.md).
 #   deploy/cloudrun.sh                     # us-central1, next to Speech-to-Text "us" (user, 10/5)
 # Builds the image and deploys a new revision; the one-time setup below is commented out (already done).
-# Env: IAP_MEMBERS (comma list; default user:jaewoo@cloocus.com; used only by the commented IAP setup). The project is fixed to ai-budiler-cup-uh-team-pjt (back from sample-uh on 10/15 after its Gemini block was lifted; D-457 had moved it to sample-uh).
+# The project is fixed to ai-budiler-cup-uh-team-pjt (back from sample-uh on 10/15 after its Gemini block was lifted; D-457 had moved it to sample-uh).
 set -euo pipefail
 
 PROJECT="ai-budiler-cup-uh-team-pjt"  # never another project
@@ -11,7 +11,6 @@ case "$REGION" in
   us-central1) SERVICE="live-studio-us" ;;
   *) echo "unsupported region $REGION" >&2; exit 2 ;;
 esac
-IAP_MEMBERS="${IAP_MEMBERS:-user:jaewoo@cloocus.com}"
 SA_NAME="live-studio-run"
 SA="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 REPO="live-studio"
@@ -24,8 +23,7 @@ G="gcloud --project=${PROJECT}"
 # uncomment for a new project) ----------------------------------------------------------------------------------
 # echo "== APIs"
 # $G services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-#   iap.googleapis.com aiplatform.googleapis.com speech.googleapis.com secretmanager.googleapis.com \
-#   cloudresourcemanager.googleapis.com  # D-457: the IAP access binding below needs it
+#   aiplatform.googleapis.com speech.googleapis.com secretmanager.googleapis.com
 
 # echo "== service account (least privilege: Vertex AI, Speech, Model Armor, Firestore, Trace)"
 # $G iam service-accounts describe "$SA" >/dev/null 2>&1 || \
@@ -59,32 +57,19 @@ echo "== image (Cloud Build; no local Docker needed)"
 $G builds submit --tag "$IMAGE" .
 
 echo "== deploy (scales to zero (cold start), up to 3 instances, session affinity)"
-# GA "run deploy" (no gcloud beta component needed). IAP is turned on once after the first deploy (block below)
-# and stays on: a deploy without --iap keeps the service's setting.
+# GA "run deploy" (no gcloud beta component needed). Public, no IAP (user, 10/17, D-500): --no-invoker-iam-check
+# matches the console setting (invoker IAM check off, no allUsers binding).
 # min-instances 0: no always-on instance (user, 10/5); the first request after idle waits for a cold start.
 # max-instances 3 (user, 10/15; was 1 from D-369): session affinity keeps a browser on one instance and Firestore
 # (STORE=firestore, database live-studio, D-354) keeps show state durable. A session's timers, SSE and audio
 # WebSocket still run in one process, so the screens of one show can miss live events if they land on different
 # instances.
 $G run deploy "$SERVICE" --region="$REGION" --image="$IMAGE" --service-account="$SA" \
-  --no-allow-unauthenticated \
+  --no-invoker-iam-check \
   --min-instances=0 --max-instances=3 --session-affinity --timeout=3600 --cpu=2 --memory=2Gi \
   --cpu-boost --no-cpu-throttling \
   --set-env-vars="APP_ENV=cloud,VIEWER_INPUT_ENABLED=true,GCP_PROJECT=${PROJECT},LLM_PROVIDER=vertex,LLM_LOCATION=global,STT_PROVIDER=google_v2,STT_LOCATION=us,STORE=firestore,FIRESTORE_DATABASE=live-studio,DEMO_TOOLS_ENABLED=true,MODEL_ARMOR_ENABLED=true,MODEL_ARMOR_LOCATION=us-central1,ONBOARDING_GCS_BUCKET=${BUCKET},STT_ENDPOINTING=STANDARD,SINGLE_MODEL=gemini-3.5-flash-lite,SINGLE_THINKING=LOW,SINGLE_FACTS_THINKING=LOW,FACTS_MODEL=gemini-3.8-flash,FACT_PROMPT=v5,JUDGE_SEED=7,LLM_RETRY_ON_429_MS=500,ANSWER_RETRIEVER=vertex_search,VERTEX_SEARCH_ENGINE_ID=ai-budiler-cup-uh-search_1791461058419,VERTEX_SEARCH_GCS_BUCKET=ai-budiler-cup-uh-data-source"
 # Model Armor and Vertex AI Search exist in this project (the comments team set them up); sample-uh had neither (D-457).
 
-# ---- one-time, right after the first deploy to a new project: IAP on + access (needs the gcloud beta component) -------
-# echo "== IAP on"
-# $G beta run services update "$SERVICE" --region="$REGION" --iap
-# echo "== IAP access"
-# PROJECT_NUMBER="$($G projects describe "$PROJECT" --format='value(projectNumber)')"
-# $G run services add-iam-policy-binding "$SERVICE" --region="$REGION" \
-#   --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-iap.iam.gserviceaccount.com" --role=roles/run.invoker
-# IFS=',' read -ra MEMBERS <<< "$IAP_MEMBERS"
-# for m in "${MEMBERS[@]}"; do
-#   $G beta iap web add-iam-policy-binding --resource-type=cloud-run --service="$SERVICE" --region="$REGION" \
-#     --member="$m" --role=roles/iap.httpsResourceAccessor
-# done
-
 URL="$($G run services describe "$SERVICE" --region="$REGION" --format='value(status.url)')"
-echo "== done: ${URL} (sign in with an allowed Google account)"
+echo "== done: ${URL}"
