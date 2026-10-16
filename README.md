@@ -4,7 +4,13 @@
 
 AI Builder Cup 2026 · Track: Retail & Commerce
 
-While the host talks on air, it flags claims that the uploaded regulations prohibit and product facts said wrong, shows a line to say instead, and clears the warning when the host corrects it in their own words. It also keeps the prompter, the product order and viewer questions in step. The host never has to touch the screen. An operator can watch the same show from a control room, but a solo host can run without one.
+## Summary
+
+1. **Problem:** A live-commerce host talks unscripted for an hour, and one claim the regulations prohibit ("it cures eczema") or one wrong price can break the rules on air. Today a producer or a compliance checker has to catch it by ear.
+2. **User and workflow:** Before the show an operator uploads the product documents and the regulation PDFs, and approves what the AI read. On air the host only talks: the host screen shows a red or orange box with a line to say instead, clears it when the host corrects it in their own words, ticks the prompter and lists viewer questions with answers. An operator can watch from a control room, but a solo host can run without one.
+3. **What is different:** Gemini judges the meaning of every line, and code never drops or rewrites a verdict. There are no product-specific prompts or rules: a new product enters only through its documents. The host never touches the screen.
+4. **Measured:** On a sealed set of 4 products the app had never seen, 162 natural host lines went through the real Chirp 3 speech-to-text path: 96.3% detection, 0% false alerts, no red alert on a line without a regulation problem, compliance judge p95 2.9 s. The fact checker missed its 5 s target (p95 31.5 s on a slow Gemini night).
+5. **Limits:** The alerts help the host; they do not guarantee compliance. Only the uploaded regulations are checked, a person approves every product before air, and the tests used TTS voices, not yet a real host.
 
 ## Evidence at a glance
 
