@@ -420,8 +420,22 @@
 /* Before | During | After, columns 1 : 3 : 1, a chevron in each gutter */
 .hubPhases {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) 28px minmax(0, 3fr) 28px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) 48px minmax(0, 3fr) 48px minmax(0, 1fr);
   align-items: stretch;
+}
+/* the live phase is tinted and the others are not, though all have the same padding, so each arrow moves half
+   that padding away from the live box to sit midway between the visible boxes (During is always the middle one) */
+.hubPhaseSlot[data-phase="1"] > .hubChevron {
+  translate: calc(var(--space-3) / -2) 0;
+}
+.hubPhaseSlot[data-phase="2"] > .hubChevron {
+  translate: calc(var(--space-3) / 2) 0;
+}
+/* wide screens: fill the width the way Chrome does at 125% */
+@media (min-width: 1600px) {
+  .hubRoot {
+    zoom: 1.25;
+  }
 }
 .hubPhaseSlot {
   display: contents;
