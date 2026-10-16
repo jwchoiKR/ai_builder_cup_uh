@@ -7,7 +7,7 @@ import { useT } from "../../app/i18n";
 import type { ChatItem } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
 import type { Message } from "../../app/types";
-import { RelativeTime, VirtualList } from "../../components";
+import { RelativeTime, VirtualList, Watching } from "../../components";
 import { initialOf } from "./hostSelectors";
 import styles from "./host.module.css";
 
@@ -120,11 +120,14 @@ export function Chat({
   pinnedNotice,
   connection,
   serverOffsetMs,
+  audience = null,
 }: {
   items: ChatItem[];
   pinnedNotice: string | null;
   connection: ConnectionStatus;
   serverOffsetMs: number;
+  /** D-477: how many are watching, beside the connection; null hides it */
+  audience?: number | null;
 }) {
   const t = useT();
   const ok = connection === "connected";
@@ -140,6 +143,7 @@ export function Chat({
           <span className={cx(styles.connDot, !ok && styles.connDotOff)} aria-hidden />
           {ok ? t("Connected") : t("Reconnecting…")}
         </span>
+        <Watching count={audience} className={styles.cardWatching} />
       </header>
       {pinnedNotice && (
         <div className={styles.pinned}>
