@@ -1,0 +1,216 @@
+{
+ "source": "Cloud Monitoring, project sample-uh (the project the set 10 runs used on 10/14), metrics aiplatform.googleapis.com/publisher/online_serving/model_invocation_count and model_invocation_latencies, hourly. Counts are all of our calls in that hour, not only set 10. Times are UTC; run P ran about 14:00-17:00 UTC (23:00-02:00 KST).",
+ "models": {
+  "gemini-3.8-flash": {
+   "2026-10-14T03": {
+    "calls_by_code": {
+     "200": 2
+    },
+    "server_latency_p50_ms": 1225,
+    "server_latency_p95_ms": 1734
+   },
+   "2026-10-14T04": {
+    "calls_by_code": {
+     "200": 6
+    },
+    "server_latency_p50_ms": 15726,
+    "server_latency_p95_ms": 18556
+   },
+   "2026-10-14T05": {
+    "calls_by_code": {
+     "200": 85,
+     "429": 4,
+     "504": 1
+    },
+    "server_latency_p50_ms": 2794,
+    "server_latency_p95_ms": 72350
+   },
+   "2026-10-14T06": {
+    "calls_by_code": {
+     "200": 2276,
+     "429": 16,
+     "499": 14,
+     "504": 25
+    },
+    "server_latency_p50_ms": 8342,
+    "server_latency_p95_ms": 150025
+   },
+   "2026-10-14T09": {
+    "calls_by_code": {
+     "200": 834,
+     "429": 5,
+     "499": 4,
+     "504": 5
+    },
+    "server_latency_p50_ms": 5793,
+    "server_latency_p95_ms": 42261
+   },
+   "2026-10-14T10": {
+    "calls_by_code": {
+     "200": 2495,
+     "429": 37,
+     "499": 4,
+     "504": 11
+    },
+    "server_latency_p50_ms": 18871,
+    "server_latency_p95_ms": 78436
+   },
+   "2026-10-14T12": {
+    "calls_by_code": {
+     "200": 1632,
+     "429": 2,
+     "499": 2,
+     "504": 1
+    },
+    "server_latency_p50_ms": 5793,
+    "server_latency_p95_ms": 50713
+   },
+   "2026-10-14T13": {
+    "calls_by_code": {
+     "200": 1249,
+     "429": 35,
+     "499": 2,
+     "504": 6
+    },
+    "server_latency_p50_ms": 20758,
+    "server_latency_p95_ms": 25589
+   },
+   "2026-10-14T14": {
+    "calls_by_code": {
+     "200": 892,
+     "429": 7,
+     "499": 11,
+     "504": 65
+    },
+    "server_latency_p50_ms": 43043,
+    "server_latency_p95_ms": 154933
+   },
+   "2026-10-14T15": {
+    "calls_by_code": {
+     "200": 882,
+     "429": 12,
+     "499": 8,
+     "504": 97
+    },
+    "server_latency_p50_ms": 185078,
+    "server_latency_p95_ms": 473093
+   },
+   "2026-10-14T16": {
+    "calls_by_code": {
+     "200": 929,
+     "429": 13,
+     "499": 2,
+     "504": 18
+    },
+    "server_latency_p50_ms": 20758,
+    "server_latency_p95_ms": 311093
+   },
+   "2026-10-14T17": {
+    "calls_by_code": {
+     "200": 528,
+     "429": 9,
+     "499": 1,
+     "504": 9
+    },
+    "server_latency_p50_ms": 24909,
+    "server_latency_p95_ms": 183396
+   },
+   "2026-10-14T21": {
+    "calls_by_code": {
+     "200": 2
+    },
+    "server_latency_p50_ms": 383778,
+    "server_latency_p95_ms": 415178
+   }
+  },
+  "gemini-3.5-flash-lite": {
+   "2026-10-14T03": {
+    "calls_by_code": {
+     "200": 2
+    },
+    "server_latency_p50_ms": 492,
+    "server_latency_p95_ms": 581
+   },
+   "2026-10-14T04": {
+    "calls_by_code": {
+     "200": 2
+    },
+    "server_latency_p50_ms": 451,
+    "server_latency_p95_ms": 488
+   },
+   "2026-10-14T05": {
+    "calls_by_code": {
+     "200": 101
+    },
+    "server_latency_p50_ms": 4535,
+    "server_latency_p95_ms": 20380
+   },
+   "2026-10-14T06": {
+    "calls_by_code": {
+     "200": 1564
+    },
+    "server_latency_p50_ms": 5047,
+    "server_latency_p95_ms": 25589
+   },
+   "2026-10-14T09": {
+    "calls_by_code": {
+     "200": 1012
+    },
+    "server_latency_p50_ms": 7584,
+    "server_latency_p95_ms": 9646
+   },
+   "2026-10-14T10": {
+    "calls_by_code": {
+     "200": 2916,
+     "499": 1,
+     "504": 3
+    },
+    "server_latency_p50_ms": 7997,
+    "server_latency_p95_ms": 17298
+   },
+   "2026-10-14T12": {
+    "calls_by_code": {
+     "200": 2038
+    },
+    "server_latency_p50_ms": 3538,
+    "server_latency_p95_ms": 24909
+   },
+   "2026-10-14T13": {
+    "calls_by_code": {
+     "200": 4981,
+     "429": 4
+    },
+    "server_latency_p50_ms": 1928,
+    "server_latency_p95_ms": 7622
+   },
+   "2026-10-14T14": {
+    "calls_by_code": {
+     "200": 1126
+    },
+    "server_latency_p50_ms": 1940,
+    "server_latency_p95_ms": 3505
+   },
+   "2026-10-14T15": {
+    "calls_by_code": {
+     "200": 908
+    },
+    "server_latency_p50_ms": 1984,
+    "server_latency_p95_ms": 6952
+   },
+   "2026-10-14T16": {
+    "calls_by_code": {
+     "200": 3632
+    },
+    "server_latency_p50_ms": 4023,
+    "server_latency_p95_ms": 4433
+   },
+   "2026-10-14T17": {
+    "calls_by_code": {
+     "200": 2203
+    },
+    "server_latency_p50_ms": 2187,
+    "server_latency_p95_ms": 6004
+   }
+  }
+ }
+}

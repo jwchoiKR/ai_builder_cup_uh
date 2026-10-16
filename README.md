@@ -11,7 +11,7 @@ AI Builder Cup 2026 · Track: Retail & Commerce
 1. **Problem:** A live-commerce host talks unscripted for an hour, and one claim the regulations prohibit ("it cures eczema") or one wrong price can break the rules on air. Today a producer or a compliance checker has to catch it by ear.
 2. **User and workflow:** Before the show an operator uploads the product PDF and the regulation PDFs, and approves what the AI read. On air the host only talks: the host screen shows a red or orange box with a line to say instead, clears it when the host corrects it in their own words, ticks the prompter and lists viewer questions with answers. An operator can watch from a control room, but a solo host can run without one. After the show an AI recap is built from the show's numbers.
 3. **What is different:** Gemini judges the meaning of every line, and code never drops or rewrites a live judge's verdict on meaning; it only checks that a cited rule or product id exists. There are no product-specific prompts or rules: a new product enters only through its documents. The host never touches the screen.
-4. **Measured:** On a sealed set of 4 products the app had never seen, 162 natural host lines went through the real Chirp 3 speech-to-text path: 96.3% detection, 0% false alerts, no red alert on a line without a regulation problem, compliance judge p95 2.9 s. The fact checker's p95 was 4.5 s on a 10/16 show (36 calls), inside its 7 s target. On set 10 it was 5.3 and 5.6 s in two runs, 12.9 s in one, and 31.5 s on a night when Gemini returned many 504 errors.
+4. **Measured:** On a sealed set of 4 products the app had never seen, 162 natural host lines went through the real Chirp 3 speech-to-text path: 96.3% detection, 0% false alerts, no red alert on a line without a regulation problem, compliance judge p95 2.9 s. The fact checker's p95 was 4.5 s on a 10/16 show (36 calls), inside its 7 s target. On set 10 it was 5.3 and 5.6 s in two runs, 12.9 s in one, and 31.5 s in the run made while Gemini 3.8 Flash returned many 504 errors ([analysis](eval/sealed_set_10/latency_run_p.md)).
 5. **Cost:** the judges and speech-to-text cost about US$3.8 an hour at 600 host lines an hour ([Cost](#cost)).
 6. **Limits:** The alerts help the host; they do not guarantee compliance. Only the uploaded regulations are checked, a person approves every product before air, and the tests used TTS voices, not yet a real host.
 
@@ -25,7 +25,7 @@ Measured on a sealed set of 4 products the app had never seen (set 10, 10/14-15)
 | False alerts on safe lines | **0%** (0 of 108) | < 1% |
 | Red (regulation) alert on a line without a regulation problem | **0** | 0 |
 | Compliance judge, one call p50 / p95 | **1.4 / 2.9 s** | ≤ 5 s |
-| Fact checker, one call p95 | **4.5 s** (10/16 show, 36 calls); set 10 run P: 31.5 s, on a night of Gemini 504s (29 calls timed out and are counted apart); runs B, C, D on other days: 12.9, 5.3 and 5.6 s | ≤ 7 s |
+| Fact checker, one call p95 | **4.5 s** (10/16 show, 36 calls); set 10 run P: 31.5 s, made while Gemini 3.8 Flash returned many 504 errors ([analysis](eval/sealed_set_10/latency_run_p.md)); runs B, C, D earlier that day: 12.9, 5.3 and 5.6 s | ≤ 7 s |
 
 - Three more runs on the same set with other compliance settings, on a normal Gemini day: 100% detection and 0-0.9% false alerts each.
 - Per product, per line (ids and outcomes, no sealed text), alert times and the conditions: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
@@ -90,7 +90,7 @@ Each judge runs on the model that did best on its own job in our tests. An alert
 
 **Gemini 3.8 Flash: fact checker and prompter judge**
 - The fact checker must tell a wrong value from the same value said another way or a claim the host only reports. On 336 lines of sealed set 8, 3.8 Flash gave 2 false fact alerts and Flash-Lite 11, with the same detection.
-- The cost is time: its p95 was 5.3-12.9 s on three set 10 runs and 31.5 s on a night of Gemini 504 errors (see Known limits). A late fact alert still shows.
+- The cost is time: its p95 was 5.3-12.9 s on three set 10 runs and 31.5 s while Gemini 3.8 Flash returned many 504 errors ([analysis](eval/sealed_set_10/latency_run_p.md)). A late fact alert still shows.
 - The prompter judge ticks a point only when the host has said all of it. In a 5-run probe, Flash-Lite ticked 11 of 38 points the host had not fully said; 3.8 Flash ticked 0 of 40 and missed none. Nothing waits on this judge, so its 2.2 s average does not delay any alert.
 
 ## Evaluation

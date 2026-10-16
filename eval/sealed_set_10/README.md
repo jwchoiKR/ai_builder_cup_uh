@@ -11,8 +11,9 @@ This is the test set behind the README numbers: detection 96.3% (52 of 54), fals
 | `lines/live_X*.jsonl` | 180 host lines (45 per product, half English, half Korean) with their labels: risky or safe, and the kind of problem (regulation or product fact) |
 | `onboarding10_stt/live_X*.jsonl` | the same lines as the scorer reads them, after a TTS voice spoke them into the real Chirp 3 speech-to-text path |
 | `labels/` | `corpus.json` (the product facts the documents were written from), `truth_gpt.json` (GPT's first labels), `labels_sonnet.jsonl` (a separate Claude critic's blind labels of the same lines) |
-| `results/pool10/` | one file per run and product: every line, the alerts the app showed, each AI call's time and status. Runs: P (the deployed setting, 10/15 night), B, C, D (other compliance settings, 10/14) |
+| `results/pool10/` | one file per run and product: every line, the alerts the app showed, each AI call's time and status. Runs: P (the deployed setting, late on 10/14 UTC, the night of 10/14-15 KST), B, C, D (other compliance settings, earlier on 10/14) |
 | `summary10.py` | builds `docs/eval/sealed-set-10-results.json` from the files above |
+| `latency_run_p.md`, `fact_latency.py`, `gemini_monitoring_1014.json` | why run P's fact checker was slow: the stored call times and token counts, and Gemini's hourly service record (504 errors, server latency) for that night |
 | `score10.py` | the per-run score we used during the runs, all lines included |
 
 ## Check the numbers
