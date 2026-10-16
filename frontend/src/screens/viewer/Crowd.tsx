@@ -30,7 +30,7 @@ const HEARTS = 6;
 /** D-478: walking lanes, so bunched animals stand apart; the lower lane is in front */
 export const LANES = 3;
 
-/** one asker of a published host answer: `key` is message_id:comment_id */
+/** one asker of a published reply (D-483: AI, host or brand): `key` is message_id:comment_id */
 export interface HostAnswered {
   key: string;
   authorId: string;
@@ -223,7 +223,7 @@ const Walker = memo(function Walker({
 
 interface CrowdProps {
   comments: Comment[];
-  /** D-475: the askers of published host answers */
+  /** D-475: the askers of published replies (D-483: AI, host or brand) */
   answered: HostAnswered[];
   me: string | null;
   serverOffsetMs: number;
@@ -377,7 +377,8 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       if (spoke.current.has(c.comment_id)) hold(c);
     }
 
-    // D-475 hearts: each asker of a host answer published after the first snapshot, if their animal is shown
+    // D-475 hearts: each asker of a reply (D-483: AI, host or brand) published after the first snapshot, if their
+    // animal is shown
     if (loaded && cheered.current === null) {
       cheered.current = new Set(answered.map((a) => a.key)); // page load: nothing to celebrate
     } else if (cheered.current) {

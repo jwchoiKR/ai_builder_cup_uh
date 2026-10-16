@@ -24,6 +24,7 @@ import { useCamera } from "./useCamera";
 import styles from "./viewer.module.css";
 
 export const POPUP_MS = 4000;
+const REPLY_KINDS = new Set<MessageKind>(["ai_answer", "host_answer", "brand_answer"]);
 const WINDOW_THRESHOLD = 200; // §12.10: chat lists are windowed beyond 200 rows
 const ROW_ESTIMATE = 72;
 
@@ -82,10 +83,11 @@ export function ViewerView({
   const rows = useMemo(() => viewerChat(state, now, me), [state, now, me]);
   // D-474: the figures on the video come from the visible comment rows only (no hidden rows, no replies)
   const commenters = useMemo(() => rows.flatMap((r) => (r.kind === "comment" ? [r.comment] : [])), [rows]);
-  // D-475: every asker of a host answer said on air (a coalesced reply answers them all)
+  // D-475: every asker of a reply (a coalesced reply answers them all); D-483 (user): any reply that answers the
+  // question, from the AI, the host or the brand; notices and corrections do not count
   const answered = useMemo<HostAnswered[]>(
     () => Object.values(state.messages).flatMap((m) =>
-      m.kind === "host_answer" && m.state === "published"
+      REPLY_KINDS.has(m.kind) && m.state === "published"
         ? m.reply_to_comment_ids.flatMap((cid) => {
             const c = state.comments[cid];
             return c ? [{ key: `${m.message_id}:${cid}`, authorId: c.author_id }] : [];
