@@ -1,5 +1,5 @@
 // Viewer page body (§12.5). Pure presentation over the client state; Viewer.tsx wires the store.
-import { BadgeCheck, Gift, Mic, Pin, Send, Sparkles } from "lucide-react";
+import { BadgeCheck, Gift, Mic, PawPrint, Pin, Send, Sparkles } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { ApiError } from "../../app/api";
@@ -29,6 +29,27 @@ const WINDOW_THRESHOLD = 200; // §12.10: chat lists are windowed beyond 200 row
 const ROW_ESTIMATE = 72;
 
 const cx = (...names: (string | false | null | undefined)[]) => names.filter(Boolean).join(" ");
+
+// D-484 (user): each viewer can turn the walking characters off; the choice is kept per browser
+export const CROWD_KEY = "ls.viewer.crowd";
+let crowdMemory: boolean | null = null; // when storage is blocked: this page only
+
+function readCrowdOn(): boolean {
+  try {
+    return window.localStorage.getItem(CROWD_KEY) !== "0";
+  } catch {
+    return crowdMemory ?? true; // storage blocked
+  }
+}
+
+function saveCrowdOn(on: boolean): void {
+  crowdMemory = on;
+  try {
+    window.localStorage.setItem(CROWD_KEY, on ? "1" : "0");
+  } catch {
+    /* storage blocked: kept in memory */
+  }
+}
 
 export interface ViewerViewProps {
   state: ClientState;
@@ -97,6 +118,16 @@ export function ViewerView({
   );
   const camera = useCamera(cameraEnabled && !embedded);
   const popup = useTimeSalePopup(state);
+  const t = useT();
+  // D-484: the embedded Studio pane always shows them and has no switch (a viewer tab must not turn it off)
+  const [crowdOn, setCrowdOn] = useState(() => embedded || readCrowdOn());
+  const [crowdSince, setCrowdSince] = useState<number | undefined>(undefined);
+  const toggleCrowd = () => {
+    const next = !crowdOn;
+    saveCrowdOn(next);
+    setCrowdOn(next);
+    if (next) setCrowdSince(Date.now() + offset); // turned on again: nothing already in the chat replays
+  };
 
   return (
     <div className={cx(styles.page, !embedded && styles.standalone)} data-theme={theme}>
@@ -146,10 +177,28 @@ export function ViewerView({
                 </span>
               )}
               <Watching count={audience} className={styles.watchingBadge} />
+              {!embedded && (
+                <button
+                  type="button"
+                  className={styles.crowdToggle}
+                  aria-pressed={crowdOn}
+                  aria-label={t("Show characters")}
+                  title={t("Show characters")}
+                  onClick={toggleCrowd}
+                  data-testid="viewer-crowd-toggle"
+                >
+                  <span className={styles.crowdToggleFace}>
+                    <PawPrint aria-hidden />
+                  </span>
+                </button>
+              )}
             </span>
             <span className={styles.brandBadge}>{brand}</span>
           </div>
-          <Crowd comments={commenters} answered={answered} me={me} serverOffsetMs={offset} loaded={state.loaded} />
+          {(embedded || crowdOn) && (
+            <Crowd comments={commenters} answered={answered} me={me} serverOffsetMs={offset} loaded={state.loaded}
+              since={embedded ? undefined : crowdSince} />
+          )}
           {connection === "reconnecting" && (
             <div className={styles.overlayBottom}>
               <span className={styles.reconnecting}>Reconnecting…</span>

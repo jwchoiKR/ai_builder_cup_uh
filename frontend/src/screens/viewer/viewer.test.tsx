@@ -13,7 +13,7 @@ import { useAudience } from "../../app/store";
 import { Watching } from "../../components";
 import { ID_KEY, NAME_KEY, readIdentity, saveIdentity, viewerId } from "./identity";
 import { Animal, SPECIES } from "./animals";
-import { POPUP_MS, ViewerView } from "./ViewerView";
+import { CROWD_KEY, POPUP_MS, ViewerView } from "./ViewerView";
 
 const NOW = T0 + 10_000;
 
@@ -918,5 +918,55 @@ describe("D-482: a bubble comes up when triage has judged the comment", () => {
     expect(ann()).not.toHaveAttribute("data-hand");
     act(() => vi.advanceTimersByTime(4000));
     expect(bubble()).toBe(false);
+  });
+});
+
+describe("D-484: each viewer can turn the characters off", () => {
+  const chat = (who: string, ago: number) =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `hi from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "reaction" });
+  const toggle = () => screen.getByTestId("viewer-crowd-toggle");
+
+  it("off unmounts the crowd and keeps the chat; the choice is kept for the next visit", () => {
+    const state = stateWith({ comments: [chat("ann", 500)] });
+    const first = render(view(state));
+    expect(toggle()).toHaveAttribute("aria-pressed", "true");
+    expect(toggle()).toHaveAccessibleName("Show characters");
+    expect(screen.getByTestId("viewer-crowd")).toBeInTheDocument();
+    fireEvent.click(toggle());
+    expect(screen.queryByTestId("viewer-crowd")).toBeNull();
+    expect(screen.getByTestId("viewer-comment-cm_ann")).toBeInTheDocument();
+    expect(toggle()).toHaveAttribute("aria-pressed", "false");
+    expect(window.localStorage.getItem(CROWD_KEY)).toBe("0");
+    first.unmount();
+    render(view(state));
+    expect(screen.queryByTestId("viewer-crowd")).toBeNull();
+  });
+
+  it("on again rebuilds from the chat, and nothing already there speaks or celebrates", () => {
+    window.localStorage.setItem(CROWD_KEY, "0");
+    const comments = [chat("ann", 500), { ...chat("bob", 400), kind: "question" as const, reply_status: "answered" as const }];
+    const messages = [message({ message_id: "m_a", kind: "ai_answer", text: "Yes.", group_id: null,
+      reply_to_comment_ids: ["cm_bob"], reply_to_author_names: ["bob"], published_at: NOW })];
+    render(view(stateWith({ comments, messages })));
+    fireEvent.click(toggle());
+    expect(screen.getByTestId("viewer-figure-u_ann")).toBeInTheDocument();
+    expect(screen.getByTestId("viewer-figure-u_bob")).toBeInTheDocument();
+    expect(screen.queryAllByTestId(/^viewer-bubble-/)).toHaveLength(0);
+    expect(screen.queryAllByTestId("viewer-heart")).toHaveLength(0);
+    expect(window.localStorage.getItem(CROWD_KEY)).toBe("1");
+  });
+
+  it("the Korean label", () => {
+    setLang("ko");
+    render(view(stateWith()));
+    expect(toggle()).toHaveAccessibleName("캐릭터 보기");
+  });
+
+  it("an embedded Studio pane has no switch and always shows the crowd, whatever this browser saved", () => {
+    window.localStorage.setItem(CROWD_KEY, "0");
+    render(view(stateWith({ comments: [chat("ann", 500)] }), { embedded: true }));
+    expect(screen.queryByTestId("viewer-crowd-toggle")).toBeNull();
+    expect(screen.getByTestId("viewer-crowd")).toBeInTheDocument();
   });
 });

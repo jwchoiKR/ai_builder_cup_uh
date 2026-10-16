@@ -145,11 +145,60 @@
   gap: var(--space-2);
   pointer-events: none;
 }
-/* D-477: LIVE and the viewer count side by side */
+/* D-477: LIVE and the viewer count side by side; D-484: the characters switch at the end */
 .overlayGroup {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+}
+/* D-484: drawn 32 px, a 44 px hit area (the overlay itself takes no pointer events) */
+.crowdToggle {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -10px -6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.crowdToggleFace {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.crowdToggleFace svg {
+  width: 18px;
+  height: 18px;
+}
+.crowdToggle[aria-pressed="false"] .crowdToggleFace {
+  color: var(--text-3);
+}
+/* off: a slash across the paw */
+.crowdToggle[aria-pressed="false"] .crowdToggleFace::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+  transform: rotate(-45deg);
+}
+.crowdToggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
+  border-radius: 50%;
 }
 .watchingBadge {
   display: inline-flex;
@@ -191,9 +240,14 @@
   background: currentColor;
 }
 .brandBadge {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block; /* D-484: a long brand name ends in an ellipsis, so the row fits 390 px */
+  min-width: 0;
+  max-width: 45cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   height: 24px;
+  line-height: 24px;
   padding: 0 var(--space-2);
   border-radius: var(--radius-control);
   background: var(--surface);
