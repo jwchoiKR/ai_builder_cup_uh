@@ -201,7 +201,8 @@ export function ViewerView({
           </div>
           {(embedded || crowdOn) && (
             <Crowd comments={commenters} replies={replies} brand={brand} me={me} serverOffsetMs={offset}
-              loaded={state.loaded} since={embedded ? undefined : crowdSince} />
+              loaded={state.loaded} since={embedded ? undefined : crowdSince}
+              segmentSince={state.segments[state.session?.current_segment_id ?? ""]?.started_at} />
           )}
           {connection === "reconnecting" && (
             <div className={styles.overlayBottom}>
