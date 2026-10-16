@@ -5,8 +5,9 @@
 // Display only: built from what the chat already shows.
 import { memo, useEffect, useLayoutEffect, useReducer, useRef, useState, type CSSProperties } from "react";
 
-import type { Comment } from "../../app/types";
+import type { Comment, MessageKind } from "../../app/types";
 import { Animal, SPECIES, type Species } from "./animals";
+import { Badge } from "./Badge";
 import styles from "./viewer.module.css";
 
 export const CROWD_MAX = 6; // D-476: 6 on a 390 px phone (was 10)
@@ -22,17 +23,42 @@ export const HOLD_MAX = 2;
 export const ANSWER_GRACE_MS = 1000;
 export const CHEER_MS = 2000;
 export const CHEER_MAX = 3;
-/** D-475: animals with a pending question keep their place in the roster, up to this many */
-const PROTECT_MAX = 4;
 const PENDING = new Set(["checking", "host", "team"]);
+/** D-487 (user: heavy chatters first, questions sent to the host stay): at most this many of the 6 places are kept */
+export const PROTECT_MAX = 4;
+/** D-487: at most this many askers of a question sent to the host are pinned */
+export const HOST_PINS = 2;
+/** D-487: a host question's pin ends this long after the comment at the latest */
+export const HOST_PIN_MS = 300_000;
+/** D-487: the chat score counts comments in this window, at most one per author per SCORE_GAP_MS */
+export const SCORE_WINDOW_MS = 600_000;
+export const SCORE_GAP_MS = 5000;
+/** D-487: a newcomer takes the place only of an animal that has been silent this long */
+export const QUIET_MS = 15_000;
 const LEAVE_MS = 400;
 const HEARTS = 6;
 /** D-478: walking lanes, so bunched animals stand apart; the lower lane is in front */
 export const LANES = 3;
+/** D-488: the drawing's opacity while the animal walks */
+export const WALK_OPACITY = 0.85;
+/** D-485: the answer bubble (the reply over its question) shows this long */
+export const PAIR_MS = 5000;
+/** D-485: a newer reply replaces the shown answer bubble only after it has shown this long */
+export const PAIR_MIN_MS = 3000;
 
-/** one asker of a published host answer: `key` is message_id:comment_id */
-export interface HostAnswered {
-  key: string;
+/** a published reply to viewer questions (D-483: AI, host or brand) */
+export interface ReplyPost {
+  messageId: string;
+  kind: MessageKind;
+  text: string;
+  /** the reply in the language of this viewer's own question, when the server sent it */
+  ownText: string | null;
+  askers: { commentId: string; authorId: string }[];
+}
+
+interface Pair {
+  messageId: string;
+  commentId: string;
   authorId: string;
 }
 
@@ -70,44 +96,72 @@ function pickSpecies(authorId: string, others: Figure[]): Species {
   return SPECIES[start]!;
 }
 
-/** A new commenter joins, or takes the place of the longest-silent animal that is neither the viewer's own nor
- *  waiting for an answer (D-475); if every other animal waits, the longest-silent of them. Returns the one that left. */
-function place(roster: Figure[], c: Comment, me: string | null, waiting: Set<string>): Figure | null {
+/** D-487: how much each viewer chats: their comments in the last SCORE_WINDOW_MS, at most one per SCORE_GAP_MS (a
+ *  burst of spam counts once). `comments` are in time order. */
+export function chatScores(comments: Comment[], now: number): Map<string, number> {
+  const last = new Map<string, number>();
+  const score = new Map<string, number>();
+  for (const c of comments) {
+    if (now - c.received_at > SCORE_WINDOW_MS) continue;
+    const prev = last.get(c.author_id);
+    if (prev !== undefined && c.received_at - prev < SCORE_GAP_MS) continue;
+    last.set(c.author_id, c.received_at);
+    score.set(c.author_id, (score.get(c.author_id) ?? 0) + 1);
+  }
+  return score;
+}
+
+/** D-487: the animals that keep their place, at most PROTECT_MAX in all: the viewer's own, then the askers of a
+ *  question sent to the host (at most HOST_PINS; until it is replied to, closed, hidden, the product changes, or
+ *  HOST_PIN_MS after the comment), then askers waiting on the team. Newest questions first. */
+export function protectedAuthors(comments: Comment[], me: string | null, onScreen: Set<string>, replied: Set<string>,
+  segmentSince: number, now: number): Set<string> {
+  const out = new Set<string>();
+  if (me && onScreen.has(me)) out.add(me);
+  const newest = [...comments].reverse().filter((c) => onScreen.has(c.author_id));
+  let pins = 0;
+  for (const c of newest) {
+    if (out.size >= PROTECT_MAX || pins >= HOST_PINS) break;
+    if (c.reply_status !== "host" || replied.has(c.comment_id) || out.has(c.author_id)) continue;
+    if (c.received_at < segmentSince || now - c.received_at >= HOST_PIN_MS) continue;
+    out.add(c.author_id);
+    pins++;
+  }
+  for (const c of newest) {
+    if (out.size >= PROTECT_MAX) break;
+    if (c.reply_status === "team") out.add(c.author_id);
+  }
+  return out;
+}
+
+/** A new commenter joins while there is room; else takes the place of the lowest-scoring animal that is not kept
+ *  and has been silent QUIET_MS (tie: the longest silent); if there is none, it gets no animal (D-487). Returns
+ *  whether the author is on screen, and the animal that left. */
+function place(roster: Figure[], c: Comment, keep: Set<string>, scores: Map<string, number>, now: number):
+  { shown: boolean; gone: Figure | null } {
   const known = roster.find((f) => f.authorId === c.author_id);
   if (known) {
-    known.lastAt = c.received_at;
+    known.lastAt = Math.max(known.lastAt, c.received_at);
     known.name = c.author_name;
-    return null;
+    return { shown: true, gone: null };
   }
   const join = (others: Figure[]) =>
     ({ authorId: c.author_id, name: c.author_name, lastAt: c.received_at, species: pickSpecies(c.author_id, others) });
   if (roster.length < CROWD_MAX) {
     roster.push(join(roster));
-    return null;
+    return { shown: true, gone: null };
   }
-  const oldest = (skip: (f: Figure) => boolean) => {
-    let i = -1;
-    roster.forEach((f, j) => {
-      if (!skip(f) && (i < 0 || f.lastAt < roster[i]!.lastAt)) i = j;
-    });
-    return i;
-  };
-  let i = oldest((f) => f.authorId === me || waiting.has(f.authorId));
-  if (i < 0) i = oldest((f) => f.authorId === me);
-  if (i < 0) return null;
+  let i = -1;
+  roster.forEach((f, j) => {
+    if (keep.has(f.authorId) || now - f.lastAt < QUIET_MS) return;
+    const best = roster[i];
+    const [sf, sb] = [scores.get(f.authorId) ?? 0, best ? scores.get(best.authorId) ?? 0 : Infinity];
+    if (!best || sf < sb || (sf === sb && f.lastAt < best.lastAt)) i = j;
+  });
+  if (i < 0) return { shown: false, gone: null };
   const gone = roster[i]!;
   roster[i] = join(roster.filter((_, j) => j !== i));
-  return gone;
-}
-
-/** The authors of the most recent pending questions, at most PROTECT_MAX. */
-function waitingAuthors(comments: Comment[]): Set<string> {
-  const out = new Set<string>();
-  for (let i = comments.length - 1; i >= 0 && out.size < PROTECT_MAX; i--) {
-    const c = comments[i]!;
-    if (c.reply_status && PENDING.has(c.reply_status)) out.add(c.author_id);
-  }
-  return out;
+  return { shown: true, gone };
 }
 
 const reducedMotion = () =>
@@ -148,6 +202,8 @@ const Walker = memo(function Walker({
   spot,
   width,
   lane,
+  pair,
+  brand,
 }: {
   authorId: string;
   name: string;
@@ -164,8 +220,11 @@ const Walker = memo(function Walker({
   width: number;
   /** D-478: 0 (bottom, in front) to LANES - 1 */
   lane: number;
+  /** D-485: the answer bubble: the reply over its question */
+  pair: { question: string; answer: string; kind: MessageKind } | null;
+  brand: string;
 }) {
-  const stopped = bubble !== null || hand || happy;
+  const stopped = bubble !== null || hand || happy || pair !== null;
   const style: CSSProperties = still
     ? ({ "--spot": spot } as CSSProperties)
     : walkStyle(authorId, width);
@@ -174,7 +233,7 @@ const Walker = memo(function Walker({
   (style as Record<string, unknown>)["--lane"] = lane;
   // D-480 (user): a speaking animal faces front, for a chat or a question (a question also raises the paw); the
   // hearts alone keep the side view
-  const front = bubble !== null || hand;
+  const front = bubble !== null || hand || pair !== null;
   return (
     <div
       className={styles.walker}
@@ -190,7 +249,18 @@ const Walker = memo(function Walker({
       data-leaving={leaving || undefined}
     >
       <div className={styles.walkerInner}>
-        {bubble !== null && (
+        {pair ? (
+          // D-485: one bubble (one rect to place, one tail): the reply on top, its question below; light tokens inside,
+          // since the bubble is white in both themes
+          <span className={[styles.bubble, styles.bubblePair].join(" ")} data-theme="light" data-pair
+            data-testid={`viewer-bubble-${authorId}`}>
+            <span className={styles.pairAnswer} data-testid={`viewer-pair-answer-${authorId}`}>
+              <Badge kind={pair.kind} brand={brand} />
+              <span className={styles.pairAnswerText}>{pair.answer}</span>
+            </span>
+            <span className={styles.pairQuestion}>{pair.question}</span>
+          </span>
+        ) : bubble !== null && (
           <span className={styles.bubble} data-testid={`viewer-bubble-${authorId}`}>
             <span className={styles.bubbleText}>{bubble}</span>
           </span>
@@ -214,6 +284,9 @@ const Walker = memo(function Walker({
             happy={happy}
             paw={hand}
             className={styles.animal}
+            // D-488 (user): a walking animal is a little see-through; a speaking one is solid (the name, bubble and
+            // hearts stay solid either way)
+            style={{ opacity: stopped ? 1 : WALK_OPACITY }}
           />
         </div>
       </div>
@@ -223,15 +296,21 @@ const Walker = memo(function Walker({
 
 interface CrowdProps {
   comments: Comment[];
-  /** D-475: the askers of published host answers */
-  answered: HostAnswered[];
+  /** D-475: the published replies and their askers (D-483: AI, host or brand) */
+  replies: ReplyPost[];
+  /** the catalog's brand, the label of a brand reply's tag */
+  brand: string;
   me: string | null;
   serverOffsetMs: number;
   /** the first snapshot is in: answers already there are not celebrated */
   loaded: boolean;
+  /** D-484: turned on again at this server time: comments from before it never speak */
+  since?: number;
+  /** D-487: when the product on air started: a host question from before it no longer pins its asker */
+  segmentSince?: number;
 }
 
-function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProps) {
+function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since, segmentSince = 0 }: CrowdProps) {
   const roster = useRef<Figure[]>([]);
   const leaving = useRef<Figure[]>([]);
   const seen = useRef(new Set<string>());
@@ -243,6 +322,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
   const asked = useRef(new Set<string>()); // comment ids whose question status this client has handled
   const cheers = useRef<string[]>([]); // author ids, oldest first
   const cheered = useRef<Set<string> | null>(null); // answer keys already handled; null until the first snapshot
+  const pair = useRef<(Pair & { startedAt: number }) | null>(null); // D-485: the answer bubble shown
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const root = useRef<HTMLDivElement>(null);
@@ -263,15 +343,29 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
   };
 
   const sig = comments.map((c) => `${c.comment_id}:${c.kind}:${c.reply_status ?? ""}`).join(" ");
+  const answered = replies.flatMap((r) => r.askers.map((a) => ({ key: `${r.messageId}:${a.commentId}`, authorId: a.authorId })));
   const answeredSig = answered.map((a) => a.key).join(" ");
 
   useEffect(() => {
     const visible = new Map(comments.map((c) => [c.comment_id, c]));
     const now = Date.now() + serverOffsetMs;
-    const waiting = waitingAuthors(comments);
+    const replied = new Set(replies.flatMap((r) => r.askers.map((a) => a.commentId)));
+    const scores = chatScores(comments, now);
+    const isHost = (b: Bubble) => visible.get(b.commentId)?.reply_status === "host";
     const young = (c: Comment) => now - c.received_at <= BUBBLE_STALE_MS;
     const pending = (c: Comment) => PENDING.has(c.reply_status ?? "");
 
+    const pairs = () => (pair.current ? 1 : 0); // D-485: the answer bubble takes a held slot
+    const closePair = () => {
+      pair.current = null;
+      stop("pair");
+    };
+    // D-485: a retracted reply, a hidden question or an animal no longer shown ends the answer bubble
+    if (pair.current) {
+      const { messageId, commentId, authorId } = pair.current;
+      if (!replies.some((r) => r.messageId === messageId) || !visible.has(commentId)
+        || !roster.current.some((f) => f.authorId === authorId)) closePair();
+    }
     const closeBubble = (commentId: string) => {
       stop(`b:${commentId}`);
       bubbles.current = bubbles.current.filter((b) => b.commentId !== commentId);
@@ -294,10 +388,15 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       hands.current.set(c.author_id, c.comment_id);
       const b = bubbles.current.find((x) => x.commentId === c.comment_id);
       if (b && !b.held) {
-        stop(`b:${c.comment_id}`);
+        // D-487: a host question's bubble is never closed for another question; with no other held bubble to close,
+        // this one stays a 4 s chat bubble (the paw is still held)
         const others = bubbles.current.filter((x) => x.held);
-        if (others.length >= HOLD_MAX) endHold(others[0]!.commentId);
-        bubbles.current = bubbles.current.map((x) => (x === b ? { ...x, held: true } : x));
+        const victim = others.length + pairs() >= HOLD_MAX ? others.find((x) => !isHost(x)) : undefined;
+        if (victim) endHold(victim.commentId);
+        if (victim || others.length + pairs() < HOLD_MAX) {
+          stop(`b:${c.comment_id}`);
+          bubbles.current = bubbles.current.map((x) => (x === b ? { ...x, held: true } : x));
+        }
       }
       arm(`cap:${c.comment_id}`, Math.max(0, c.received_at + HOLD_CAP_MS - now), () => endHold(c.comment_id));
     };
@@ -320,8 +419,17 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
     for (const c of comments) {
       if (seen.current.has(c.comment_id)) continue;
       seen.current.add(c.comment_id);
-      const gone = place(roster.current, c, me, waiting);
+      const keep = protectedAuthors(comments, me, new Set(roster.current.map((f) => f.authorId)), replied, segmentSince, now);
+      const { shown, gone } = place(roster.current, c, keep, scores, now);
       if (gone) {
+        // its bubbles, paw and answer bubble go with it (no ghost bubble holding a slot)
+        for (const b of bubbles.current.filter((x) => x.authorId === gone.authorId)) {
+          if (b.held) endHold(b.commentId);
+          else closeBubble(b.commentId);
+        }
+        for (const [commentId, authorId] of [...holds.current]) if (authorId === gone.authorId) endHold(commentId);
+        hands.current.delete(gone.authorId);
+        if (pair.current?.authorId === gone.authorId) closePair();
         // a replaced animal fades out
         leaving.current = [...leaving.current.filter((f) => f.authorId !== gone.authorId), gone];
         arm(`l:${gone.authorId}`, LEAVE_MS, () => {
@@ -330,7 +438,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       }
       // first seen live (not an old one from a snapshot or a replay): it may speak once its verdict is in, however
       // long triage takes
-      if (young(c)) awaiting.current.add(c.comment_id);
+      if (shown && young(c) && (since === undefined || c.received_at > since)) awaiting.current.add(c.comment_id);
     }
 
     // D-482 (user): a bubble comes up when triage has judged the comment: a question raises the paw with it and is
@@ -340,7 +448,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       const c = visible.get(commentId);
       if (c?.kind === "pending") continue;
       awaiting.current.delete(commentId);
-      if (!c || c.kind === "hide") continue;
+      if (!c || c.kind === "hide" || !roster.current.some((f) => f.authorId === c.author_id)) continue;
       spoke.current.add(commentId);
       const question = c.kind === "question" && c.reply_status !== "answered";
       const mine = bubbles.current.find((b) => b.authorId === c.author_id);
@@ -351,15 +459,26 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       if (question) {
         if (pending(c)) asked.current.add(c.comment_id);
         const held = bubbles.current.filter((b) => b.held);
-        if (held.length >= HOLD_MAX) endHold(held[0]!.commentId);
+        if (held.length + pairs() >= HOLD_MAX) {
+          // D-487: never a host question's bubble; if every held bubble is one, no bubble, the paw goes up for 4 s
+          const victim = held.find((b) => !isHost(b));
+          if (!victim) {
+            hands.current.set(c.author_id, c.comment_id);
+            arm(`h:${c.author_id}`, BUBBLE_MS, () => {
+              if (hands.current.get(c.author_id) === c.comment_id) hands.current.delete(c.author_id);
+            });
+            continue;
+          }
+          endHold(victim.commentId);
+        }
         const plain = bubbles.current.find((b) => !b.held);
-        if (bubbles.current.length >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
+        if (bubbles.current.length + pairs() >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
         bubbles.current = [...bubbles.current, { authorId: c.author_id, commentId: c.comment_id, text: c.text, held: true }];
         hold(c);
       } else {
         // all slots up: the oldest chat bubble gives way (bursts are sampled, not queued); never a held question,
         // and with at most HOLD_MAX held there is always a chat bubble or a free slot
-        if (bubbles.current.length >= BUBBLE_MAX) {
+        if (bubbles.current.length + pairs() >= BUBBLE_MAX) {
           const plain = bubbles.current.find((b) => !b.held);
           if (!plain) continue;
           closeBubble(plain.commentId);
@@ -377,13 +496,16 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       if (spoke.current.has(c.comment_id)) hold(c);
     }
 
-    // D-475 hearts: each asker of a host answer published after the first snapshot, if their animal is shown
+    // D-475 hearts: each asker of a reply (D-483: AI, host or brand) published after the first snapshot, if their
+    // animal is shown
     if (loaded && cheered.current === null) {
       cheered.current = new Set(answered.map((a) => a.key)); // page load: nothing to celebrate
     } else if (cheered.current) {
+      const fresh = new Set<string>(); // replies with an asker not handled yet
       for (const a of answered) {
         if (cheered.current.has(a.key)) continue;
         cheered.current.add(a.key);
+        fresh.add(a.key.slice(0, a.key.indexOf(":")));
         if (!roster.current.some((f) => f.authorId === a.authorId)) continue;
         for (const [commentId, authorId] of [...holds.current]) if (authorId === a.authorId) endHold(commentId);
         cheers.current = [...cheers.current.filter((x) => x !== a.authorId), a.authorId];
@@ -391,6 +513,39 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
         arm(`c:${a.authorId}`, CHEER_MS, () => {
           cheers.current = cheers.current.filter((x) => x !== a.authorId);
         });
+      }
+      // D-485: the reply over its question, on this viewer's own animal if it is one of the askers, else on the first
+      // asker shown; the paw is down (above) and the animal stays front for PAIR_MS; a newer reply waits until the
+      // shown one has had PAIR_MIN_MS (only the latest waits). A question bubble that had closed comes back with it.
+      for (const r of replies) {
+        if (!fresh.has(r.messageId)) continue;
+        const shown = r.askers.filter((a) => visible.has(a.commentId) && roster.current.some((f) => f.authorId === a.authorId));
+        const target = shown.find((a) => a.authorId === me) ?? shown[0];
+        if (!target) continue;
+        const next = { messageId: r.messageId, ...target };
+        const start = () => {
+          const mine = bubbles.current.find((b) => b.authorId === next.authorId);
+          if (mine?.held) endHold(mine.commentId);
+          else if (mine) closeBubble(mine.commentId);
+          if (!pair.current) {
+            const held = bubbles.current.filter((b) => b.held);
+            // D-486: the pair adds one held bubble: make room only when the slots are full (was one too early, and
+            // closed another viewer's held question); D-487: never a host question's bubble
+            const victim = held.length >= HOLD_MAX ? held.find((b) => !isHost(b)) : undefined;
+            if (victim) endHold(victim.commentId);
+            const plain = bubbles.current.find((b) => !b.held);
+            if (bubbles.current.length >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
+          }
+          pair.current = { ...next, startedAt: Date.now() };
+          arm("pair", PAIR_MS, closePair);
+        };
+        const shownFor = pair.current ? Date.now() - pair.current.startedAt : PAIR_MIN_MS;
+        if (shownFor >= PAIR_MIN_MS) {
+          stop("pairq");
+          start();
+        } else {
+          arm("pairq", PAIR_MIN_MS - shownFor, start);
+        }
       }
     }
     rerender();
@@ -416,25 +571,50 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
   }, []);
 
   // bubbles are placed once their animal has stopped (it stays put while it speaks): kept inside the video by its
-  // side of the screen, and an older bubble that overlaps another moves up a row (D-475; the newest on the bottom row)
+  // side of the screen; an older bubble that overlaps another goes up by the measured height of what is below it
+  // (D-475; D-485: px, as an answer bubble is taller), never above the top of the video
   useLayoutEffect(() => {
-    const box = root.current?.getBoundingClientRect();
-    const els = Array.from(root.current?.querySelectorAll<HTMLElement>("[data-testid^='viewer-bubble-']") ?? []);
+    const crowd = root.current;
+    if (!crowd) return;
+    const box = crowd.getBoundingClientRect();
+    const top = crowd.parentElement?.getBoundingClientRect().top ?? -Infinity;
+    const walkerOf = (el: HTMLElement) => el.closest<HTMLElement>("[data-testid^='viewer-figure-']");
+    const els = Array.from(crowd.querySelectorAll<HTMLElement>("[data-testid^='viewer-bubble-']"));
     for (const el of els) {
-      const walker = el.closest<HTMLElement>("[data-testid^='viewer-figure-']")?.getBoundingClientRect();
-      const at = box && walker && box.width > 0 ? (walker.left + walker.width / 2 - box.left) / box.width : 0.5;
+      const walker = walkerOf(el)?.getBoundingClientRect();
+      const at = walker && box.width > 0 ? (walker.left + walker.width / 2 - box.left) / box.width : 0.5;
       el.dataset.edge = at < 0.3 ? "start" : at > 0.7 ? "end" : "mid";
+      el.style.setProperty("--lift", "0px");
     }
-    const newest = els.sort((a, b) =>
-      Number(b.closest<HTMLElement>("[data-testid^='viewer-figure-']")?.style.zIndex)
-      - Number(a.closest<HTMLElement>("[data-testid^='viewer-figure-']")?.style.zIndex));
-    const placed: { left: number; right: number; row: number }[] = [];
+    const newest = els.sort((a, b) => Number(walkerOf(b)?.style.zIndex) - Number(walkerOf(a)?.style.zIndex));
+    // D-486: placed in page coordinates, since the lanes put the bubbles' bottoms up to 14 px apart; the size is the
+    // layout size (offsetWidth/Height), as the entry animation scales the drawn rect for a moment
+    const placed: { left: number; right: number; top: number; bottom: number }[] = [];
     for (const el of newest) {
       const r = el.getBoundingClientRect();
-      let row = 0;
-      while (row < BUBBLE_MAX - 1 && placed.some((p) => p.row === row && r.left < p.right && p.left < r.right)) row++;
-      placed.push({ left: r.left, right: r.right, row });
-      el.style.setProperty("--lift", String(row));
+      const w = el.offsetWidth || r.width;
+      const h = el.offsetHeight || r.height;
+      const cx = (r.left + r.right) / 2;
+      const left = cx - w / 2;
+      const right = cx + w / 2;
+      const bottom = (r.top + r.bottom) / 2 + h / 2;
+      const beside = placed.filter((p) => left < p.right && p.left < right);
+      const clear = (lift: number) => beside.every((p) => bottom - lift + 4 <= p.top || bottom - lift - h >= p.bottom + 4);
+      const lift = [0, ...beside.map((p) => bottom - p.top + 4)].filter((x) => x >= 0).sort((a, b) => a - b).find(clear) ?? 0;
+      const capped = Math.min(lift, Math.max(0, bottom - h - top - 2));
+      placed.push({ left, right, top: bottom - capped - h, bottom: bottom - capped });
+      el.style.setProperty("--lift", `${Math.round(capped)}px`);
+    }
+    // D-486: two shown names that overlap (stopped neighbours): the newer speaker's name stays, the other one hides
+    const names = Array.from(crowd.querySelectorAll<HTMLElement>(`.${styles.personName}`));
+    for (const n of names) delete n.dataset.clash;
+    const kept: DOMRect[] = [];
+    const shownNames = names.filter((n) => n.dataset.shown !== undefined)
+      .sort((a, b) => Number(walkerOf(b)?.style.zIndex) - Number(walkerOf(a)?.style.zIndex));
+    for (const n of shownNames) {
+      const r = n.getBoundingClientRect();
+      if (kept.some((k) => r.left < k.right && k.left < r.right && r.top < k.bottom && k.top < r.bottom)) n.dataset.clash = "";
+      else kept.push(r);
     }
   });
 
@@ -446,15 +626,24 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
     holds.current.clear();
     cheers.current = [];
     leaving.current = [];
+    pair.current = null;
   }, []);
 
   if (!shown && leaving.current.length === 0) return null;
   const still = reducedMotion();
   const all = [...roster.current.map((f) => ({ f, gone: false })), ...leaving.current.map((f) => ({ f, gone: true }))];
+  // D-485: the answer bubble's text is read here, so an edited reply shows its new text
+  const shownPair = pair.current;
+  const post = shownPair && replies.find((r) => r.messageId === shownPair.messageId);
+  const pairQuestion = shownPair && comments.find((c) => c.comment_id === shownPair.commentId);
+  const pairView = post && pairQuestion
+    ? { question: pairQuestion.text, answer: (shownPair.authorId === me && post.ownText) || post.text, kind: post.kind }
+    : null;
   return (
     <div ref={root} className={styles.crowd} aria-hidden data-testid="viewer-crowd" data-paused={hidden || undefined}>
       {all.map(({ f, gone }, i) => {
-        const rank = gone ? -1 : bubbles.current.findIndex((b) => b.authorId === f.authorId);
+        const paired = !gone && pairView !== null && shownPair!.authorId === f.authorId;
+        const rank = gone || paired ? -1 : bubbles.current.findIndex((b) => b.authorId === f.authorId);
         return (
           <Walker
             key={f.authorId}
@@ -463,7 +652,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
             species={f.species}
             own={f.authorId === me}
             bubble={rank >= 0 ? bubbles.current[rank]!.text : null}
-            rank={rank + 1}
+            rank={paired ? BUBBLE_MAX + 1 : rank + 1}
             hand={!gone && hands.current.has(f.authorId)}
             happy={!gone && cheers.current.includes(f.authorId)}
             leaving={gone}
@@ -471,6 +660,8 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
             spot={CROWD_MAX > 1 ? Math.min(i, CROWD_MAX - 1) / (CROWD_MAX - 1) : 0}
             width={width}
             lane={i % LANES}
+            pair={paired ? pairView : null}
+            brand={brand}
           />
         );
       })}
@@ -479,7 +670,8 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
 }
 
 const crowdSig = (p: CrowdProps) =>
-  `${p.me}|${p.serverOffsetMs}|${p.loaded}|${p.answered.map((a) => a.key).join(" ")}|`
+  `${p.me}|${p.serverOffsetMs}|${p.loaded}|${p.since}|${p.segmentSince}|${p.brand}|`
+  + p.replies.map((r) => `${r.messageId}:${r.kind}:${r.text}:${r.ownText}:${r.askers.map((a) => a.commentId).join(",")}`).join(" ") + "|"
   + p.comments.map((c) => `${c.comment_id}:${c.kind}:${c.reply_status ?? ""}`).join(" ");
 
 /** ViewerView re-renders every second; the crowd only when what it shows from could change. */
