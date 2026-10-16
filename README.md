@@ -66,6 +66,21 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 | Cloud Storage | approved releases, briefs and regulation packs (write-once) |
 | Model Armor | screening viewer comments |
 
+## Why Gemini 3.5 Flash-Lite and Gemini 3.8 Flash
+
+Each judge runs on the model that did best on its own job in our tests. An alert should show within 5 s of the line's end, so speed comes first for the alerts the host must see at once.
+
+**Gemini 3.5 Flash-Lite: compliance judge and context judge**
+- A regulation alert has to be fast. One compliance call took 1.4 s at p50 and 2.9 s at p95 on set 10.
+- The compliance judge thinks at LOW with a fixed seed, so the same line gets the same verdict on another run.
+- The context judge (product switch, which viewer question was answered) thinks at MINIMAL, so the prompter moves as soon as the host names the next product.
+- We tried Gemini 3.8 Flash as a second check on every alert (10/6). It cut false alerts, but one call took 3.6 s on average and 8.7 s at p95, too slow for a 5 s alert.
+
+**Gemini 3.8 Flash: fact checker and prompter judge**
+- The fact checker must tell a wrong value from the same value said another way or a claim the host only reports. On 336 lines of sealed set 8, 3.8 Flash gave 2 false fact alerts and Flash-Lite 11, with the same detection.
+- The cost is time: its p95 reached 31.5 s on a slow Gemini night (see Known limits). A late fact alert still shows.
+- The prompter judge ticks a point only when the host has said all of it. In a 5-run probe, Flash-Lite ticked 11 of 38 points the host had not fully said; 3.8 Flash ticked 0 of 40 and missed none. Nothing waits on this judge, so its 2.2 s average does not delay any alert.
+
 ## Evaluation
 
 **Method**
