@@ -471,6 +471,15 @@ def write_usage_report(path: str) -> None:
 # D-455: what a backend is told is left of a call with no app deadline. No code enforces it (the Vertex request has no
 # timeout, D-047); the backend only sizes its short context-cache wait with it.
 NO_DEADLINE_MS = 600_000
+# D-491: the agents called with no app deadline (prompter_judge: utterances._run_prompter passes deadline_ms=None) and
+# the ones that always get one; the summary shows no deadline attainment for the first. A drift-guard test checks that
+# every agent in the code is in one of the two.
+NO_DEADLINE_AGENTS = frozenset({"prompter_judge"})
+DEADLINE_AGENTS = frozenset({
+    "compliance_judge", "context_judge", "fact_checker", "utterance_judge", "judge_single", "comment_triage",
+    "comment_triage_batch", "answer_composer", "reply_translator", "file_tools", "comment_insights",
+    "broadcast_summary", "demo_generate", "product_read",
+})
 
 SAMPLED_AGENTS = frozenset({"compliance_judge", "fact_checker", "context_judge", "prompter_judge"})  # D-314; D-450
 COMMENT_AGENTS = frozenset({"comment_triage", "comment_triage_batch", "answer_composer"})  # COMMENT_SEED

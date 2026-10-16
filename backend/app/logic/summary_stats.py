@@ -17,10 +17,12 @@ from ..models.session import (
     Session,
     Transcript,
 )
+from ..providers.llm import NO_DEADLINE_AGENTS
 from .catalog import Catalog
 from .metrics import percentile
 
 ANSWER_KINDS = ("ai_answer", "host_answer", "brand_answer")
+SHOWN_WITHIN_MS = 5000  # D-491: the alert latency pass line (speech end to shown) and the judges' soft target
 
 
 def _sec(ms: int | None) -> int | None:
@@ -70,14 +72,19 @@ def compute_summary_stats(
         questions = [c for c in seg_comments if c.kind == "question"]
         product_groups = [g for g in groups if g.product_id == pid]
         answered = {k: 0 for k in ANSWER_KINDS}
+        answered_any = 0
         unanswered = []
+        closed = []
         for g in product_groups:
             kinds = {m.kind for m in published if m.group_id == g.group_id}
             for k in ANSWER_KINDS:
                 answered[k] += k in kinds
+            answered_any += bool(kinds & set(ANSWER_KINDS))  # D-491: a group with an AI and a host answer counts once
             if not kinds and g.status != "rejected":
-                unanswered.append({"group_id": g.group_id, "canonical_question": g.canonical_question,
-                                   "unique_askers": len(g.unique_author_ids), "status": g.status})
+                row = {"group_id": g.group_id, "canonical_question": g.canonical_question,
+                       "unique_askers": len(g.unique_author_ids), "status": g.status}
+                # D-491: a question the team closed on purpose is not an unanswered one; listed apart
+                (closed if g.status == "closed" else unanswered).append(row)
         products.append({
             "product_id": pid,
             "name": product.name,
@@ -86,19 +93,23 @@ def compute_summary_stats(
             "required_points_covered": len(item.required_point_ids) - len(missing),
             "required_points_total": len(item.required_point_ids),
             "missing_points": [{"point_id": p, "text": texts.get(p, "")} for p in missing],
-            "comments": len(seg_comments),
+            "comments": len(seg_comments),  # comments received in its segments, hidden ones included
             "questions": len(questions),
             "groups": len(product_groups),
             "answered_groups": answered,
+            "answered_any": answered_any,
             "unanswered_groups": unanswered,
+            "closed_groups": closed,
         })
 
     general = [g for g in groups if g.product_id is None]
-    general_unanswered = [
+    general_open = [
         {"group_id": g.group_id, "canonical_question": g.canonical_question, "unique_askers": len(g.unique_author_ids),
          "intent": g.intent, "status": g.status}
         for g in general if g.status != "rejected" and not any(m.group_id == g.group_id for m in published)
     ]
+    general_unanswered = [r for r in general_open if r["status"] != "closed"]  # D-491: closed on purpose: apart
+    general_closed = [r for r in general_open if r["status"] == "closed"]
 
     # ---- alerts ---------------------------------------------------------------------------------
     # D-403: a cleared alert (replaced by a merged line's verdict, or a provisional one never confirmed) is not an
@@ -139,6 +150,14 @@ def compute_summary_stats(
             "shown_to_corrected_ms": outcome, "corrected_text": a.corrected_text,
         })
 
+    # D-491: the share of alerts shown within 5 s of the speech end; mic lines only (a typed line has no real speech
+    # end, D-439)
+    mic = [r["speech_end_to_shown_ms"] for r in compliance + facts
+           if r["typed"] is False and r["speech_end_to_shown_ms"] is not None]
+    within = sum(ms <= SHOWN_WITHIN_MS for ms in mic)
+    alerts_within_5s = {"mic_alerts": len(mic), "within_5s": within,
+                        "share": round(within / len(mic), 4) if mic else None}
+
     # ---- promos ---------------------------------------------------------------------------------
     promos: dict[str, dict] = {}
     order: list[str] = []
@@ -170,14 +189,20 @@ def compute_summary_stats(
         attempts.setdefault(c.agent, []).append(c.status)
         if c.status == "ok":
             latencies.setdefault(c.agent, []).append(c.latency_ms)
+    # D-491: per agent (ok_calls, was "calls"); an agent with no deadline (nothing waits on it) has no attainment;
+    # within_5s is the OK calls at or under 5 s over all attempts
     agents = {}
     for name, statuses in sorted(attempts.items()):
         v, n = latencies.get(name, []), len(statuses)
         failures = sum(st != "ok" for st in statuses)
-        agents[name] = {"p50_ms": percentile(v, 0.5), "p95_ms": percentile(v, 0.95), "calls": len(v),
+        no_deadline = name in NO_DEADLINE_AGENTS
+        agents[name] = {"p50_ms": percentile(v, 0.5), "p95_ms": percentile(v, 0.95), "ok_calls": len(v),
                         "attempts": n, "failures": failures, "timeouts": statuses.count("timeout"),
                         "failure_rate": round(failures / n, 4),
-                        "deadline_attainment": round((n - statuses.count("timeout")) / n, 4)}
+                        "deadline_attainment": None if no_deadline else round((n - statuses.count("timeout")) / n, 4),
+                        "within_5s": round(sum(ms <= SHOWN_WITHIN_MS for ms in v) / n, 4),
+                        **({"deadline_ms": None} if no_deadline else {})}
+    agent_totals = {k: sum(a[k] for a in agents.values()) for k in ("ok_calls", "attempts", "failures")}
 
     questions_total = sum(1 for c in comments if c.kind == "question")
     return {
@@ -197,10 +222,13 @@ def compute_summary_stats(
             "analysed_comments": sum(1 for c in comments if c.comment_id in analysis_by_comment),
         },
         "general_unanswered_groups": general_unanswered,
+        "general_closed_groups": general_closed,
         "compliance_alerts": compliance,
         "fact_alerts": facts,
+        "alerts_within_5s": alerts_within_5s,
         "promos": promo_rows,
         "agent_latency": agents,
+        "agent_totals": agent_totals,
         "cache": {
             "instant_answers": counters.get("instant_answers", 0),
             "composed_answers": counters.get("composed_answers", 0),

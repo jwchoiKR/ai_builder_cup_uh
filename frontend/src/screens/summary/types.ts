@@ -27,7 +27,9 @@ export interface ProductStats {
   questions: number;
   groups: number;
   answered_groups: { ai_answer: number; host_answer: number; brand_answer: number };
+  answered_any?: number; // D-491: a group with an AI and a host answer counts once
   unanswered_groups: UnansweredGroup[];
+  closed_groups?: UnansweredGroup[]; // D-491: closed by the team on purpose
 }
 
 export interface ComplianceRow {
@@ -92,10 +94,12 @@ export interface SummaryStats {
     {
       p50_ms: number | null;
       p95_ms: number | null;
-      calls: number;
+      ok_calls?: number; // D-491 (was "calls" in summaries stored before it)
+      calls?: number;
       attempts?: number;
       failure_rate?: number;
-      deadline_attainment?: number;
+      deadline_attainment?: number | null; // D-491: null for an agent with no deadline
+      within_5s?: number;
     }
   >;
   cache: { instant_answers: number; composed_answers: number; triage_hits: number; triage_misses: number };

@@ -37,7 +37,8 @@ export interface SummaryViewProps {
 }
 
 /** D-202: a share as a whole percent, "–" when the server did not send it. */
-const pctOrDash = (v: number | undefined) => (v === undefined ? "–" : `${Math.round(v * 100)}%`);
+// D-491: null is an agent with no deadline (nothing waits on it): a dash, never 0%
+const pctOrDash = (v: number | null | undefined) => (v == null ? "–" : `${Math.round(v * 100)}%`);
 
 function UnansweredList({ items }: { items: UnansweredGroup[] }) {
   if (!items.length) return <p className={styles.muted}>No unanswered questions.</p>;
@@ -238,8 +239,8 @@ function ProductCard({ p }: { p: ProductStats }) {
           </dd>
         </div>
         <div>
-          <dt>Comments</dt>
-          <dd className="tabular">{p.comments}</dd>
+          <dt>Comments received</dt>
+          <dd className="tabular" title="Comments received while it was on air, hidden ones included">{p.comments}</dd>
         </div>
         <div>
           <dt>Questions</dt>
@@ -537,7 +538,7 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
             {Object.entries(s.agent_latency).map(([name, a]) => (
               <tr key={name}>
                 <td>{agentLabel(name)}</td>
-                <td className="tabular">{a.attempts ?? a.calls}</td>
+                <td className="tabular">{a.attempts ?? a.ok_calls ?? a.calls}</td>
                 <td className="tabular">{pctOrDash(a.failure_rate)}</td>
                 <td className="tabular">{pctOrDash(a.deadline_attainment)}</td>
                 <td className="tabular">{formatMsAsSeconds(a.p50_ms)}</td>
