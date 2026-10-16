@@ -18,7 +18,7 @@ import uuid
 from pathlib import PurePath
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
@@ -189,13 +189,20 @@ async def approve_product(product_id: str, body: ApproveBody | None = None,
     return approved | {"warnings": warnings}
 
 
+def _client_ip(request: Request) -> str:
+    """The caller's address, for the record only: Cloud Run's proxy puts it first in X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    return forwarded.split(",")[0].strip() or (request.client.host if request.client else "")
+
+
 class ReleaseBody(BaseModel):
     regulation_id: str
     owner: str = ""  # the browser that made the release: only it (and every browser for a demo) lists it
 
 
 @router.post("/{product_id}/release")
-async def release_product(product_id: str, body: ReleaseBody, ctx: AppContext = Depends(get_ctx)) -> dict:
+async def release_product(product_id: str, body: ReleaseBody, request: Request,
+                          ctx: AppContext = Depends(get_ctx)) -> dict:
     """The approved product with one uploaded regulation file, checked as a show would build it."""
     bucket = _bucket(ctx)
     key = product_show.show_key(product_id, body.regulation_id)
@@ -209,7 +216,7 @@ async def release_product(product_id: str, body: ReleaseBody, ctx: AppContext = 
     row = {"release_id": key, "product_name": info["product_name"], "brand": info["brand"],
            "category": info.get("category", ""),
            "markets": [ctx.pack.market.market], "approved_at": int(time.time() * 1000), "version": 1, "brief": "done",
-           "demo": False, "owner": body.owner}
+           "demo": False, "owner": body.owner, "ip": _client_ip(request)}
     await asyncio.to_thread(bucket.upload, f"releases/{product_id}/{body.regulation_id}.json",
                             json.dumps(row, ensure_ascii=False).encode(), create_only=False)
     return row
