@@ -184,6 +184,119 @@
   position: absolute;
   left: var(--space-3);
   bottom: var(--space-3);
+  z-index: 5; /* D-474: above the viewer figures and their bubbles */
+}
+
+/* D-474: up to 10 viewer figures in one row on the bottom edge of the video, a bubble over the ones who just wrote */
+.crowd {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  column-gap: 3px;
+  align-items: end;
+  padding: var(--space-6) var(--space-3) 2px;
+  background: linear-gradient(to top, color-mix(in srgb, var(--surface) 80%, transparent), transparent);
+  pointer-events: none;
+}
+.person {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.personName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+.personBody {
+  display: block;
+  width: clamp(22px, (100cqw - 24px) / 10 - 3px, 34px);
+  height: auto;
+}
+.personHead {
+  fill: var(--crowd-skin);
+}
+.person[data-own] .personHead {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.personEye {
+  fill: var(--crowd-eye);
+}
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  width: max-content; /* not the narrow column's width */
+  max-width: min(180px, 46cqw);
+  padding: 3px 8px;
+  border-radius: 10px;
+  background: var(--crowd-bubble);
+  color: var(--crowd-bubble-ink);
+  box-shadow: var(--shadow);
+  font-size: var(--fs-12);
+  line-height: 1.3;
+  animation: bubbleIn 160ms ease-out;
+}
+.bubbleText {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
+}
+/* the tail points at the head; the first and last three slots keep the bubble inside the video. Half a column:
+   (100cqw - 2 x 12px padding - 9 x 3px gaps) / 20 */
+.bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  border: 5px solid transparent;
+  border-top-color: var(--crowd-bubble);
+}
+.bubble[data-edge="start"] {
+  left: 0;
+}
+.bubble[data-edge="start"]::after {
+  left: calc((100cqw - 51px) / 20 - 5px);
+}
+.bubble[data-edge="end"] {
+  right: 0;
+}
+.bubble[data-edge="end"]::after {
+  right: calc((100cqw - 51px) / 20 - 5px);
+}
+.bubble[data-edge="mid"] {
+  left: 50%;
+  translate: -50% 0;
+}
+.bubble[data-edge="mid"]::after {
+  left: calc(50% - 5px);
+}
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    animation-name: bubbleFade;
+  }
+}
+@keyframes bubbleFade {
+  from {
+    opacity: 0;
+  }
 }
 
 /* ---- product strip --------------------------------------------------------------------------- */
