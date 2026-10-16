@@ -25,9 +25,10 @@ Measured on a sealed set of 4 products the app had never seen (set 10, 10/14-15)
 | False alerts on safe lines | **0%** (0 of 108) | < 1% |
 | Red (regulation) alert on a line without a regulation problem | **0** | 0 |
 | Compliance judge, one call p50 / p95 | **1.4 / 2.9 s** | ≤ 5 s |
-| Fact checker, one call p95 | **4.5 s** (10/16 show, 36 calls); set 10 run P: 31.5 s, made while Gemini 3.8 Flash returned many 504 errors ([analysis](eval/sealed_set_10/latency_run_p.md)); runs B, C, D earlier that day: 12.9, 5.3 and 5.6 s | ≤ 7 s |
+| Fact checker, one call p95 | **4.5 s** (10/16 show, 36 calls); set 10 run P: 31.5 s, made while Gemini 3.8 Flash returned many 504 errors ([analysis](eval/sealed_set_10/latency_run_p.md)); runs B, C, D earlier that day: 12.9, 5.3 and 5.6 s; rerun 10/17 on the current build: 7.0 s ([rerun results](eval/sealed_set_10/results/rerun_1017/summary.json)) | ≤ 7 s |
 
 - Three more runs on the same set with other compliance settings, on a normal Gemini day: 100% detection and 0-0.9% false alerts each.
+- Rerun on 10/17 with the current build, the same lines and run P's settings (X2 and X4, the Korean documents, were read for an English host, the only host language the app now supports): fact checker p95 7.0 s (31.5 s before), alerts within 5 s 47 of 54 (34 before), detection 94.4% (51 of 54), false alerts 0.9% (1 of 108). Two of the three misses are fact checks Gemini did not answer within 60 s; Google's record shows 3.8 Flash 504 and 429 errors in that half hour too. Times are one call, input to output, successful calls only; failed calls are counted apart ([rerun results](eval/sealed_set_10/results/rerun_1017/summary.json), `eval/sealed_set_10/summary_rerun_1017.py`).
 - Per product, per line (ids and outcomes, no sealed text), alert times and the conditions: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
 - The set itself (product documents, host lines, labels, raw results) and the script that rebuilds these numbers: [eval/sealed_set_10](eval/sealed_set_10/README.md).
 - The 10/16 show's 145 AI calls (model, time, tokens; no text) and the script that rebuilds the 4.5 s fact checker p95 and the cost per hour: [eval/show_1016](eval/show_1016/summary.py).

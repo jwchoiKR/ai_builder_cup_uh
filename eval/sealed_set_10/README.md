@@ -13,6 +13,7 @@ This is the test set behind the README numbers: detection 96.3% (52 of 54), fals
 | `labels/` | `corpus.json` (the product facts the documents were written from), `truth_gpt.json` (GPT's first labels), `labels_sonnet.jsonl` (a separate Claude critic's blind labels of the same lines) |
 | `results/pool10/` | one file per run and product: every line, the alerts the app showed, each AI call's time and status. Runs: P (the deployed setting, late on 10/14 UTC, the night of 10/14-15 KST), B, C, D (other compliance settings, earlier on 10/14) |
 | `summary10.py` | builds `docs/eval/sealed-set-10-results.json` from the files above |
+| `results/rerun_1017/`, `summary_rerun_1017.py` | rerun of 10/17 with the current build and run P's settings: every line and call, the product reads, and the summary (`python summary_rerun_1017.py out.json`) |
 | `latency_run_p.md`, `fact_latency.py`, `gemini_monitoring_1014.json` | why run P's fact checker was slow: the stored call times and token counts, and Gemini's hourly service record (504 errors, server latency) for that night |
 | `score10.py` | the per-run score we used during the runs, all lines included |
 

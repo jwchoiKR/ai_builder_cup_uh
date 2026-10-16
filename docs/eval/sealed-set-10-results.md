@@ -29,6 +29,23 @@ On 10/17 we published the set itself in [eval/sealed_set_10](../../eval/sealed_s
 - During run P, Gemini 3.8 Flash returned 504 errors: Google's service record shows 6.7% and 9.7% of its calls in the two busiest hours (0.1-1.1% in the hours before), and its server median latency rose to 43-185 s. Flash-Lite had no 504 errors in the same hours, and our requests were the same size as in the other runs. Both missed lines are fact checks that never came back. Our app logged these calls as client timeouts (its own 60 s deadline), so the 504s come from Cloud Monitoring, not from the result files: [eval/sealed_set_10/latency_run_p.md](../../eval/sealed_set_10/latency_run_p.md).
 - The one false alert in B and D is the same line: the host gave the regular price, and the fact checker compared it with the live price.
 
+## Rerun on 10/17 with the current build
+
+Same lines and run P's settings, on main 826ae40 (the deployed code), in project ai-budiler-cup-uh-team-pjt. X2 and X4 (Korean documents) were read for an English host, the only host language the app now supports, so their prompter points are in English.
+
+| | Run P (10/14) | Rerun (10/17) |
+|---|---|---|
+| Detection | 96.3% (52 of 54) | 94.4% (51 of 54) |
+| False alerts | 0 of 108 | 1 of 108 |
+| Fact checker p50 / p95 (one call, successful calls) | 6.0 / 31.5 s | 2.3 / 7.0 s |
+| Compliance judge p95 | 2.9 s | 2.8 s |
+| Alerts within 5 s / 10 s | 34 / 45 of 54 | 47 / 51 of 54 |
+| Failed calls (counted apart) | 29 client timeouts | 4 client timeouts, one 429 |
+
+- Missed: X2-14 and X3-37 are fact checks Gemini did not answer within 60 s (Cloud Monitoring shows 12 Gemini 3.8 Flash 504s and 55 429s among about 1,000 calls in that half hour); X3-31 is a model miss.
+- False alert: X4-38, a line in Korean that names the bundle's regular price.
+- Files: `eval/sealed_set_10/results/rerun_1017/`; `python eval/sealed_set_10/summary_rerun_1017.py out.json` rebuilds these numbers.
+
 ## How fast the host sees an alert
 
 Detected lines by the time from the end of the line to the alert on the host screen:
