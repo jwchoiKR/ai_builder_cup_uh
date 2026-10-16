@@ -233,9 +233,58 @@
 .personEye {
   fill: var(--crowd-eye);
 }
+/* D-475: happy eyes and smile when the host answered on air */
+.personSmile {
+  fill: none;
+  stroke: var(--crowd-eye);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+/* D-475: hearts beside the head (not over the name), under the bubbles; they float up and fade over 2 s */
+.heart {
+  position: absolute;
+  bottom: 30%;
+  z-index: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: var(--crowd-heart);
+  opacity: 0;
+  animation: heartUp 2s ease-out forwards;
+}
+.heart[data-at="left"] {
+  left: -4px;
+}
+.heart[data-at="right"] {
+  right: -4px;
+  animation: heartUp 1.75s ease-out 0.25s forwards; /* all three end by the 2 s mark */
+}
+.heart[data-at="top"] {
+  right: 2px;
+  bottom: 45%;
+  font-size: 9px;
+  animation: heartUp 1.5s ease-out 0.5s forwards;
+}
+.heart[data-at="still"] {
+  right: -4px;
+  opacity: 1;
+  animation: none;
+}
+@keyframes heartUp {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(1);
+  }
+}
 .bubble {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 6px + var(--lift, 0) * 26px); /* D-475: an older overlapping bubble sits a row higher */
   width: max-content; /* not the narrow column's width */
   max-width: min(180px, 46cqw);
   padding: 3px 8px;
@@ -263,11 +312,23 @@
   border: 5px solid transparent;
   border-top-color: var(--crowd-bubble);
 }
+/* D-475: a lifted bubble's tail goes on as a thin stem down to its own head */
+.bubble::before {
+  content: "";
+  position: absolute;
+  top: calc(100% + 4px);
+  width: 2px;
+  height: max(0px, calc(var(--lift, 0) * 26px - 2px));
+  background: var(--crowd-bubble);
+}
 .bubble[data-edge="start"] {
   left: 0;
 }
 .bubble[data-edge="start"]::after {
   left: calc((100cqw - 51px) / 20 - 5px);
+}
+.bubble[data-edge="start"]::before {
+  left: calc((100cqw - 51px) / 20 - 1px);
 }
 .bubble[data-edge="end"] {
   right: 0;
@@ -275,12 +336,18 @@
 .bubble[data-edge="end"]::after {
   right: calc((100cqw - 51px) / 20 - 5px);
 }
+.bubble[data-edge="end"]::before {
+  right: calc((100cqw - 51px) / 20 - 1px);
+}
 .bubble[data-edge="mid"] {
   left: 50%;
   translate: -50% 0;
 }
 .bubble[data-edge="mid"]::after {
   left: calc(50% - 5px);
+}
+.bubble[data-edge="mid"]::before {
+  left: calc(50% - 1px);
 }
 @keyframes bubbleIn {
   from {

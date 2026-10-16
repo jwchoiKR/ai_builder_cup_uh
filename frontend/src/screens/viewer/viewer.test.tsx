@@ -535,4 +535,90 @@ describe("D-474: viewer figures on the video", () => {
     expect(screen.getByTestId("viewer-bubble-u_d").style.zIndex).toBe("3");
     expect(screen.getByTestId("viewer-bubble-u_b").style.zIndex).toBe("1");
   });
+
+  it("D-475: an older bubble that overlaps a newer one moves up a row", () => {
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const id = this.getAttribute("data-testid");  // a and b overlap, c stands apart
+      const x = id === "viewer-bubble-u_a" ? 0 : id === "viewer-bubble-u_b" ? 80 : 300;
+      return { left: x, right: x + 120, top: 0, bottom: 20 } as DOMRect;
+    });
+    try {
+      render(view(stateWith({ comments: [said("a", 3000), said("b", 2000), said("c", 1000)] })));
+      const lift = (who: string) => screen.getByTestId(`viewer-bubble-u_${who}`).style.getPropertyValue("--lift");
+      expect([lift("a"), lift("b"), lift("c")]).toEqual(["1", "0", "0"]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe("D-475: raised hands and hearts", () => {
+  const said = (who: string, ago: number, over: Partial<Parameters<typeof comment>[0]> = {}) =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `hello from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "reaction", ...over });
+  const flag = (who: string, name: "hand" | "happy") =>
+    screen.queryByTestId(`viewer-figure-u_${who}`)?.hasAttribute(`data-${name}`) ?? false;
+  const answer = (id: string, kind: "host_answer" | "ai_answer" | "brand_answer", to: string[]) =>
+    message({ message_id: id, kind, text: "Yes.", group_id: null, reply_to_comment_ids: to, reply_to_author_names: to,
+              published_at: NOW });
+
+  it("a question status that comes late raises the hand for 4 s; no status, no hand", () => {
+    const { rerender } = render(view(stateWith({ comments: [said("ann", 1000), said("bob", 1000)] })));
+    act(() => vi.advanceTimersByTime(5000));  // the bubbles are gone
+    rerender(view(stateWith({ comments: [said("ann", 1000, { reply_status: "checking" }), said("bob", 1000)] })));
+    expect(flag("ann", "hand")).toBe(true);
+    expect(flag("bob", "hand")).toBe(false);
+    act(() => vi.advanceTimersByTime(3900));
+    expect(flag("ann", "hand")).toBe(true);
+    act(() => vi.advanceTimersByTime(100));
+    expect(flag("ann", "hand")).toBe(false);
+  });
+
+  it("a host answer to two askers makes both happy, and puts the hand down", () => {
+    const asked = [said("ann", 2000, { reply_status: "host" }), said("bob", 1000, { reply_status: "host" })];
+    const { rerender } = render(view(stateWith({ comments: asked })));
+    expect(flag("ann", "hand")).toBe(true);
+    rerender(view(stateWith({ comments: asked, messages: [answer("msg_h", "host_answer", ["cm_ann", "cm_bob"])] })));
+    expect(flag("ann", "happy") && flag("bob", "happy")).toBe(true);
+    expect(flag("ann", "hand")).toBe(false);
+    expect(screen.getAllByTestId("viewer-heart")).toHaveLength(6);
+    act(() => vi.advanceTimersByTime(2000));
+    expect(flag("ann", "happy") || flag("bob", "happy")).toBe(false);
+  });
+
+  it("answers already there at page load or replayed after a reconnect are not celebrated", () => {
+    const comments = [said("ann", 2000, { reply_status: "answered" })];
+    const messages = [answer("msg_h", "host_answer", ["cm_ann"])];
+    const { rerender } = render(view(stateWith({ comments, messages })));
+    expect(flag("ann", "happy")).toBe(false);
+    rerender(view(stateWith({ comments: [...comments], messages: [...messages] })));  // the snapshot again
+    expect(flag("ann", "happy")).toBe(false);
+  });
+
+  it("an AI or brand answer brings no hearts", () => {
+    const comments = [said("ann", 2000, { reply_status: "answered" })];
+    const { rerender } = render(view(stateWith({ comments })));
+    rerender(view(stateWith({ comments, messages: [answer("msg_a", "ai_answer", ["cm_ann"]), answer("msg_b", "brand_answer", ["cm_ann"])] })));
+    expect(flag("ann", "happy")).toBe(false);
+    expect(screen.queryAllByTestId("viewer-heart")).toHaveLength(0);
+  });
+
+  it("a figure waiting for an answer keeps its slot; the longest-silent of the rest gives way", () => {
+    const others = Array.from({ length: 10 }, (_, i) => said(`p${i}`, 50_000 - i * 1000, i === 0 ? { reply_status: "team" } : {}));
+    render(view(stateWith({ comments: [...others, said("new", 1000)] })));
+    const ids = screen.queryAllByTestId(/^viewer-figure-/).map((e) => e.getAttribute("data-testid")!.slice(14));
+    expect(ids).toContain("u_p0");
+    expect(ids).not.toContain("u_p1");
+    expect(ids).toContain("u_new");
+  });
+
+  it("under reduced motion the hearts are one still heart", () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("reduce"), media: q, addEventListener() {}, removeEventListener() {} }));
+    const asked = [said("ann", 1000, { reply_status: "host" })];
+    const { rerender } = render(view(stateWith({ comments: asked })));
+    rerender(view(stateWith({ comments: asked, messages: [answer("msg_h", "host_answer", ["cm_ann"])] })));
+    const hearts = screen.getAllByTestId("viewer-heart");
+    expect(hearts).toHaveLength(1);
+    expect(hearts[0]).toHaveAttribute("data-at", "still");
+  });
 });
