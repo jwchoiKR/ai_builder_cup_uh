@@ -67,9 +67,9 @@ async def test_d450_the_prompter_judge_ticks_the_lines_points():
         assert await _covered_now(rt) == [P1]
         assert (await rt.load_session()).pre_covered == {"prd_000000000102": [NEXT_P1]}  # the next product, as before
         [req] = [r for r in llm.requests if r.agent == "prompter_judge"]
-        # D-455: gemini-3.8-flash LOW, no app deadline, no 429 wait, not hedged
+        # D-455: gemini-3.8-flash LOW, no app deadline, no 429 wait; D-489: hedged after PROMPTER_HEDGE_MS
         assert (req.model, req.thinking_level, req.deadline_ms, req.retry_429, req.hedge) == (
-            "gemini-3.8-flash", "LOW", None, False, False)
+            "gemini-3.8-flash", "LOW", None, False, True)
         assert '"brand":"Lunelle"' in req.user_message and '"category":"serum ampoule"' in req.user_message
     finally:
         await close_env(rt)

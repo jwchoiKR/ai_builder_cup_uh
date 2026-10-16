@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     # gemini-3.8-flash LOW, the only arm with no partial ticks). It has no app deadline and nothing waits on it.
     PROMPTER_MODEL: str = "gemini-3.8-flash"
     PROMPTER_THINKING: ThinkingLevel = "LOW"
+    # D-489 (user: mean 3.3 s, two calls of 20-22 s): no answer after this long sends one identical second request;
+    # the first answer wins. Still no deadline. 0 = no second request
+    PROMPTER_HEDGE_MS: int = 4000
     # D-309: the one model and thinking level of the compliance judge and the fact checker (D-435: the only arm)
     SINGLE_MODEL: str = "gemini-3.5-flash-lite"  # D-336: the measured config (Flash-Lite, compliance MEDIUM, facts LOW)
     SINGLE_THINKING: ThinkingLevel = "LOW"  # D-360 (user): the compliance judge thinks LOW (was MEDIUM, D-336)
