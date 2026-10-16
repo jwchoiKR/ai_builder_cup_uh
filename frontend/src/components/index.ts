@@ -1,4 +1,4 @@
-export { Button, Card, Chip, ConnectionLabel, Eyebrow, Panel, StatusDot } from "./ui";
+export { Button, Card, Chip, ConnectionLabel, Eyebrow, Panel, ShowLoading, StatusDot } from "./ui";
 export type { ButtonVariant, ChipTone } from "./ui";
 export { Countdown, Elapsed, RelativeTime } from "./time";
 export { BroadcastControl } from "./BroadcastControl";
