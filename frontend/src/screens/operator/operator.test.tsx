@@ -400,7 +400,22 @@ describe("Operator screen", () => {
     render(<Operator sessionId="ses_op_todo_empty" />);
     const desk = await screen.findByTestId("op-question-desk");
     expect(await within(desk).findByTestId("op-desk-empty")).toHaveTextContent("Nothing is waiting for you. Questions that need a person appear here.");
-    expect(within(desk).getByText("Viewer questions that need a person. Check the suggested reply, edit it if you want, and post.")).toBeInTheDocument();
+    // D-499: the help sentence is behind the (i) button: hidden by default, shown on hover and on focus
+    const help = "Viewer questions that need a person. Check the suggested reply, edit it if you want, and post.";
+    expect(within(desk).queryByText(help)).toBeNull();
+    const info = within(desk).getByRole("button", { name: "About this panel" });
+    fireEvent.mouseEnter(info.parentElement!);
+    expect(within(desk).getByRole("tooltip")).toHaveTextContent(help);
+    expect(info).toHaveAttribute("aria-describedby", within(desk).getByRole("tooltip").id);
+    fireEvent.mouseLeave(info.parentElement!);
+    expect(within(desk).queryByRole("tooltip")).toBeNull();
+    fireEvent.focus(info);
+    expect(within(desk).getByRole("tooltip")).toHaveTextContent(help);
+    fireEvent.keyDown(info, { key: "Escape" });
+    expect(within(desk).queryByRole("tooltip")).toBeNull();
+    fireEvent.focus(info);
+    fireEvent.blur(info);
+    expect(within(desk).queryByRole("tooltip")).toBeNull();
     expect(within(desk).queryByText("Grouped by topic.")).not.toBeInTheDocument();
   });
 
