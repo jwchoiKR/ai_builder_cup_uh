@@ -58,7 +58,7 @@ Return what the show's screens and the host's prompter need, as JSON:
   the condition goes in the same point as the claim, as written. Never drop it, shorten it away or move it to
   another point; a claim that cannot be stated with its condition is left out. A claim the document states with
   no condition is a point as written.
-  `required` is true for a point the host must not leave out (a point the document marks as mandatory), else false.
+  `required` is true for a point the host must not leave out (a point the document marks as mandatory, or a point that carries a claim's condition), else false.
 - `stt_terms`: hints for the speech recognizer that transcribes the host. Terms the host is likely to say aloud that
   a general speech recognizer might misrecognize: the brand and product names (always) and their short forms, ingredient names,
   test lab, certification and award names, coined or foreign words, and amounts with their unit (volume,
