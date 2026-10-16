@@ -100,10 +100,9 @@ type ProductInfo = { brand: string; product_name: string; category?: string; cur
 type PriceOption = { label: string; list_price: string | null; live_price: string | null };
 type ReadResult = { product_id: string; file: string; info: ProductInfo; seconds: number };
 
-type HostLanguage = "en" | "ko";
-const HOST_LANGUAGES: [HostLanguage, string][] = [["en", "ENG"], ["ko", "KR"]];
-const readProduct = (productId: string, hostLanguage: HostLanguage) =>
-  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, { host_language: hostLanguage });
+// D-494 (user): the product is read for an English-speaking host (no host-language choice)
+const readProduct = (productId: string) =>
+  request<ReadResult>("POST", `/products/${encodeURIComponent(productId)}/read`, { host_language: "en" });
 
 type Approved = { product_id: string; approved_at: number; info: ProductInfo; warnings: string[] };
 const approveProduct = (productId: string, info: ProductInfo) =>
@@ -240,7 +239,6 @@ function ProductUpload({ title, initialFile, onMore, onRead, onApproved, onRemov
   const [error, setError] = useState<string | null>(null);
   const [rejected, setRejected] = useState<string | null>(null);  // the file the read found no product in
   const [busy, setBusy] = useState<Busy | null>(null);
-  const [hostLanguage, setHostLanguage] = useState<HostLanguage>("en");  // the points and STT terms are read for this language
   const approving = busy?.label === "Approving…";  // shown by the Approve button, which sits below the long form
   const step = async <T,>(label: string, fn: () => Promise<T>): Promise<T> => {
     setBusy({ label, since: Date.now() });
@@ -263,7 +261,7 @@ function ProductUpload({ title, initialFile, onMore, onRead, onApproved, onRemov
       }
       current = "Read";
       const productId = u.product_id;
-      const r = await step("Reading the document (up to a minute)…", () => readProduct(productId, hostLanguage));
+      const r = await step("Reading the document (up to a minute)…", () => readProduct(productId));
       setRead(r);
       setDraft(r.info);
       onRead(true);
@@ -280,19 +278,6 @@ function ProductUpload({ title, initialFile, onMore, onRead, onApproved, onRemov
   return (
     <Box title={title} note="One PDF per product. Drop several to add one product each; each is read as soon as it is dropped."
          testId="onb-product" done={approved !== null} onRemove={onRemove}>
-      <div className={styles.actions}>
-        <span className={styles.factLabel}>Host language</span>
-        <div className={styles.segmented} role="radiogroup" aria-label="Host language">
-          {HOST_LANGUAGES.map(([code, label]) => (
-            <button key={code} type="button" role="radio" aria-checked={hostLanguage === code}
-                    data-testid={`onb-host-lang-${code}`} disabled={busy !== null || approved !== null}
-                    className={[styles.segment, hostLanguage === code && styles.segmentActive].filter(Boolean).join(" ")}
-                    onClick={() => setHostLanguage(code)}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
       <DropZone testId="onb-product" file={file} disabled={busy !== null || approved !== null} onMore={onMore}
                 onFile={(f) => {
                   setFile(f); setUploaded(null); setRead(null); setDraft(null); setApproved(null);

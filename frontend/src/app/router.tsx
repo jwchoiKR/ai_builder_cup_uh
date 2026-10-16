@@ -11,7 +11,7 @@ import { Viewer } from "../screens/Viewer";
 import { Button, PanelBoundary } from "../components";
 import styles from "../screens/screens.module.css";
 import { onStaleSession } from "./api";
-import { useLang, useT } from "./i18n";
+import { useT } from "./i18n";
 import { navigate, useLocation, withSession, type ScreenProps } from "./nav";
 import { useTheme } from "./theme";
 
@@ -37,10 +37,9 @@ export function useSessionId(): { sessionId: string | null; setSessionId: (sid: 
 /** D-315: the show in the URL is gone (the server restarted). No raw error: say so, and send the user to the hub. */
 function SessionEnded({ onNew }: { onNew: () => void }) {
   const t = useT();
-  const lang = useLang();
   const [theme] = useTheme();
   return (
-    <div className={styles.root} data-theme={theme} lang={lang}>
+    <div className={styles.root} data-theme={theme} lang="en">
       <main className={styles.sessionEnded} role="alert" data-testid="session-ended">
         <h1 className={styles.hubReleasesTitle}>{t("This show is no longer available.")}</h1>
         <p className={styles.hubStudioNote}>{t("Start a new one to keep going.")}</p>

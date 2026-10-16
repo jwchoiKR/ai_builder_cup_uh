@@ -101,11 +101,11 @@ async def _pdf_key(bucket, product_id: str) -> str:
     return keys[0]
 
 
-HOST_LANGUAGES = {"en": "English", "ko": "Korean"}
+HOST_LANGUAGES = {"en": "English"}  # D-494 (user): English only (Korean removed)
 
 
 class ReadBody(BaseModel):
-    host_language: Literal["en", "ko"] = "en"  # the language the host speaks on air; the points and STT terms follow it
+    host_language: Literal["en"] = "en"  # the language the host speaks on air; the points and STT terms follow it
 
 
 @router.post("/{product_id}/read")

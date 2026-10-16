@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { setLang, translate } from "../../app/i18n";
 import { emptyState, reduceSnapshot } from "../../app/state";
 import type { QuestionGroup, StateSnapshot } from "../../app/types";
 import { alert, answer, catalog, comment, group, message, snapshot, T0 } from "../../test/fixtures";
@@ -121,8 +120,6 @@ describe("alert cards", () => {
     expect(texts.filter((x) => x.startsWith("AI check unavailable"))).toHaveLength(3);  // tr_old, tr_1, tr_2
     // tr_old is older than 5 minutes: the total, then per judge (most first) with its causes
     expect(texts).toContain("AI checks missed in the last 5 min: 3 (Context check 2: timeout 2.5 s · Fact check 1: 504)");
-    expect(systemCards(st, catalog, T0, (en, vars) => translate("ko", en, vars)).map((c) => c.text))
-      .toContain("최근 5분 AI 확인 누락 3건 (문맥 확인 2: 응답 지연 2.5초 · 사실 확인 1: 504)");
     const invalid = { ...st, judgeFailures: [{ seq: 5, transcript_id: "tr_3", agent: "fact_checker", cause: "invalid", at: T0 }] };
     expect(systemCards(invalid, catalog, T0).map((c) => c.text))
       .toContain("AI checks missed in the last 5 min: 1 (Fact check 1: unreadable)");
@@ -632,18 +629,6 @@ describe("Operator screen", () => {
     await waitFor(() => expect(calls.some((c) => c.path.endsWith("/groups/g_v/approve"))).toBe(true));
     expect(calls.some((c) => c.path.endsWith("/groups/g_v/answer"))).toBe(false);
   });
-
-  it("shows header labels in Korean when the screen language is Korean (D-109)", async () => {
-    snap = snapshot();
-    setLang("ko");
-    try {
-      render(<Operator sessionId="ses_op_ko" />);
-      const header = await screen.findByTestId("op-header");
-      expect(within(header).getByText("라이브 컨트롤룸")).toBeInTheDocument();
-    } finally {
-      setLang("en");
-    }
-  });
 });
 
 describe("operator desk rows and header (D-120)", () => {
@@ -868,12 +853,5 @@ describe("operator header and right rail", () => {
     await rail();
     expect(screen.getByText("Agent calls")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Agent calls/ })).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("new operator strings have Korean entries", () => {
-    for (const k of ["To do", "Needs your reply", "Needs a reply · host can answer on air", "Answered by AI", "Answered by the host", "Hidden comments ({n})",
-      "Show stats", "Take back", "Send to host", "Health or safety", "Nothing is waiting for you. Questions that need a person appear here."]) {
-      expect(translate("ko", k, { n: 1 }), k).not.toBe(translate("en", k, { n: 1 }));
-    }
   });
 });

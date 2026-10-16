@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { catalog, snapshot } from "../test/fixtures";
 import type { FeedState } from "../app/types";
-import { setLang } from "../app/i18n";
 import { Hub } from "./Hub";
 import { Studio } from "./Studio";
 
@@ -250,19 +249,5 @@ describe("screens", () => {
     expect(host).not.toHaveTextContent("For the host");  // D-492: no sub-labels
     expect(host).toHaveTextContent("Read the prompter, review correction alerts, and see viewer questions to address on air.");
     expect(document.querySelector("[role=tooltip]")).toBeNull();
-  });
-
-  it("Hub follows the UI language chosen in the Settings gear", () => {
-    setLang("ko");
-    try {
-      render(<Hub sessionId="ses_000001" />);
-      expect(screen.getByText("방송 허브")).toBeInTheDocument();
-      expect(screen.getByTestId("hub-card-studio")).toHaveTextContent("통합 화면");
-      expect(screen.getByTestId("hub-card-operator")).toHaveTextContent("운영자 화면");
-      expect(screen.getByText("세션 ses_000001")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "설정" })).toBeInTheDocument();
-    } finally {
-      setLang("en");
-    }
   });
 });
