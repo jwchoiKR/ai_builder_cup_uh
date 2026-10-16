@@ -3197,3 +3197,8 @@ D-477 (user 10/16, via planning: "진행자 화면 등 채팅이 있는 곳에 �
 - GET /api/sessions/{sid}/audience -> {count, at}, Cache-Control no-store. Screens fetch it at mount and every 10 s (with up to 1 s jitter); an error, a 5 s timeout or a 404 hides the number (never an old number, never a failure shown as 0); a confirmed 0 is shown.
 - Display "N watching" / "시청 중 N명" with a people icon: a chip beside LIVE on the viewer's video, the question desk header on the operator screen, the Live chat header on the host screen, beside the connection (22 px, --text-2; first put in the AI PD · QUESTIONS header, moved because the user asked for it where the chat is).
 - Tests: test_d477.py (two tabs count once; one closed keeps it; both closed drop after 10 s; no viewer id or another role is not counted; forget_session clears; demo authors count until the show ends, a typed viewer comment does not); viewer.test.tsx (id made on open without a name and kept on join; the count shown, 0 shown, null hidden, Korean label; a failed poll hides the number).
+
+D-478 (user 10/16, via planning: "추천으로 ㄱ"; seen in planning's capture: when animals bunch their names run together): viewer crowd names and lanes.
+- Names show only on an animal that is stopped (bubble, paw or hearts) and on the viewer's own; walking animals show none. The name fades in and out with the stop (opacity, 200 ms).
+- Walkers keep to 3 lanes by roster slot (slot % 3): bottom offset 0, 7 or 14 px; the lower lane is in front. Stopped animals stay above all walkers.
+- Checked by tests only (no browser runs after the 10/16 account lock): names hidden while walking, shown while stopped and for the own animal, hidden again after the stop; lanes and their order by slot.

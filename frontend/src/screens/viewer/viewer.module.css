@@ -226,7 +226,7 @@
 .walker {
   position: absolute;
   left: var(--space-3);
-  bottom: 2px;
+  bottom: calc(2px + var(--lane, 0) * 7px); /* D-478: 3 lanes, 0 / 7 / 14 px */
   width: var(--aw);
   will-change: transform;
   animation: walk var(--walk, 12s) linear var(--delay, 0s) infinite alternate;
@@ -333,7 +333,10 @@
     opacity: 0;
   }
 }
+/* D-478: shown only on a speaking animal and the viewer's own; it fades with the stop */
 .personName {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
   max-width: 72px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -342,6 +345,9 @@
   line-height: 1.2;
   font-weight: var(--fw-semibold);
   color: var(--text);
+}
+.personName[data-shown] {
+  opacity: 1;
 }
 .walker[data-own] .personName {
   color: var(--accent);
