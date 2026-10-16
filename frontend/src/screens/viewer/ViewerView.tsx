@@ -17,6 +17,7 @@ import { useServerNow } from "../../app/store";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
 import { Countdown, HubLink, RelativeTime, SettingsButton, windowRange } from "../../components";
+import { Crowd } from "./Crowd";
 import { chatSignature, HIDDEN_LABEL, isPinnedCorrection, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
 import { useCamera } from "./useCamera";
@@ -76,6 +77,8 @@ export function ViewerView({
   const [identity, setIdentity] = useState<ViewerIdentity | null>(() => readIdentity());
   const me = identity?.authorId ?? null;
   const rows = useMemo(() => viewerChat(state, now, me), [state, now, me]);
+  // D-474: the figures on the video come from the visible comment rows only (no hidden rows, no replies)
+  const commenters = useMemo(() => rows.flatMap((r) => (r.kind === "comment" ? [r.comment] : [])), [rows]);
   const camera = useCamera(cameraEnabled && !embedded);
   const popup = useTimeSalePopup(state);
 
@@ -129,6 +132,7 @@ export function ViewerView({
             )}
             <span className={styles.brandBadge}>{brand}</span>
           </div>
+          <Crowd comments={commenters} me={me} serverOffsetMs={offset} />
           {connection === "reconnecting" && (
             <div className={styles.overlayBottom}>
               <span className={styles.reconnecting}>Reconnecting…</span>

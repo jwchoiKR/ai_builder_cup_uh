@@ -477,3 +477,62 @@ describe("Viewer wired to the session store", () => {
     expect(screen.queryByRole("button", { name: /switch to/ })).toBeNull(); // embedded: no own theme toggle
   });
 });
+
+describe("D-474: viewer figures on the video", () => {
+  /** a comment by `who`, `ago` ms before the server's now */
+  const said = (who: string, ago: number, over: Partial<Parameters<typeof comment>[0]> = {}) =>
+    comment({ comment_id: `cm_${who}_${ago}`, author_id: `u_${who}`, author_name: who, text: `hello from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "reaction", ...over });
+  const figures = () => screen.queryAllByTestId(/^viewer-figure-/).map((e) => e.getAttribute("data-testid")!.slice(14));
+  const bubbles = () => screen.queryAllByTestId(/^viewer-bubble-/).map((e) => e.getAttribute("data-testid")!.slice(14));
+
+  it("keeps 10 figures: a new commenter takes the longest-silent figure's slot, the viewer's own figure stays", () => {
+    joinedAs("u_me");
+    const others = Array.from({ length: 10 }, (_, i) => said(`p${i}`, 50_000 - i * 1000));
+    render(view(stateWith({ comments: [said("me", 60_000), ...others] })));
+    const ids = figures();
+    expect(ids).toHaveLength(10);
+    expect(ids).toContain("u_me");  // the oldest, but never evicted
+    expect(ids).not.toContain("u_p0");  // the longest-silent of the others
+    expect(screen.getByTestId("viewer-figure-u_p9").style.gridColumn).toBe("2");  // p0's slot; no reordering
+    expect(screen.getByTestId("viewer-figure-u_me")).toHaveAttribute("data-own");
+    expect(screen.getByTestId("viewer-crowd")).toHaveAttribute("aria-hidden");
+  });
+
+  it("a hidden comment adds no figure and no bubble", () => {
+    render(view(stateWith({ comments: [said("ann", 1000, { visibility: "hidden" })] })));
+    expect(figures()).toEqual([]);
+    expect(bubbles()).toEqual([]);
+  });
+
+  it("shows a fresh comment's bubble for 4 s; an old one (page load) adds its figure only", () => {
+    render(view(stateWith({ comments: [said("old", 15_000), said("ann", 1000)] })));
+    expect(figures()).toEqual(["u_old", "u_ann"]);
+    expect(bubbles()).toEqual(["u_ann"]);
+    expect(screen.getByTestId("viewer-bubble-u_ann")).toHaveTextContent("hello from ann");
+    act(() => vi.advanceTimersByTime(3900));
+    expect(bubbles()).toEqual(["u_ann"]);
+    act(() => vi.advanceTimersByTime(100));
+    expect(bubbles()).toEqual([]);
+    expect(figures()).toEqual(["u_old", "u_ann"]);
+  });
+
+  it("a comment hidden while its bubble is up loses the bubble at once", () => {
+    let state = stateWith({ comments: [said("ann", 1000)] });
+    const { rerender } = render(view(state));
+    expect(bubbles()).toEqual(["u_ann"]);
+    state = apply(state, { seq: 11, type: "comment.hidden", payload: { comment_id: "cm_ann_1000", visibility: "hidden" } });
+    rerender(view(state));
+    expect(bubbles()).toEqual([]);
+  });
+
+  it("shows at most 3 bubbles: a 4th closes the oldest, the newest on top", () => {
+    const first = [said("a", 3000), said("b", 2000), said("c", 1000)];
+    const { rerender } = render(view(stateWith({ comments: first })));
+    expect(bubbles().sort()).toEqual(["u_a", "u_b", "u_c"]);
+    rerender(view(stateWith({ comments: [...first, said("d", 500)] })));
+    expect(bubbles().sort()).toEqual(["u_b", "u_c", "u_d"]);
+    expect(screen.getByTestId("viewer-bubble-u_d").style.zIndex).toBe("3");
+    expect(screen.getByTestId("viewer-bubble-u_b").style.zIndex).toBe("1");
+  });
+});
