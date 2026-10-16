@@ -48,9 +48,17 @@ Return what the show's screens and the host's prompter need, as JSON:
   is one option. [] when the document gives no price.
 - `points`: the things the host should say about the product, each one short sentence in the host's language
   (the message names it; translate when the document is in another language, keeping names, numbers and units
-  as stated), taken from what the document allows to be said (approved claims, key benefits, test results with their
-  qualifier as written). `required` is true for a point the host must not leave out (a point the document marks as
-  mandatory, or a test result's qualifier), else false.
+  as stated), taken from what the document allows to be said (approved claims, key benefits, test results).
+  Each point says only what the document itself states as a benefit or result of this product. Never write a
+  benefit the document does not state: an ingredient, spec or feature the document lists without a stated effect
+  stays a plain fact ("Contains X."), never "Contains X to help ..."; a general fact about an ingredient is not a
+  claim about this product.
+  When the document attaches a condition to a claim (who tested it, how many people, how long, under what use, a
+  "self-assessed"/"in a consumer test"/"results may vary" qualifier, or a rule that the claim must be said with it),
+  the condition goes in the same point as the claim, as written. Never drop it, shorten it away or move it to
+  another point; a claim that cannot be stated with its condition is left out. A claim the document states with
+  no condition is a point as written.
+  `required` is true for a point the host must not leave out (a point the document marks as mandatory), else false.
 - `stt_terms`: hints for the speech recognizer that transcribes the host. Terms the host is likely to say aloud that
   a general speech recognizer might misrecognize: the brand and product names (always) and their short forms, ingredient names,
   test lab, certification and award names, coined or foreign words, and amounts with their unit (volume,
@@ -119,7 +127,7 @@ async def read_product(product_id: str, body: ReadBody | None = None, ctx: AppCo
     s = ctx.settings
     res = await ctx.llm.call(LLMRequest(
         agent="product_read", model=s.ONBOARDING_MODEL, thinking_level=READ_THINKING,
-        prompt_version="product_read-9", system_instruction=READ_PROMPT,
+        prompt_version="product_read-10", system_instruction=READ_PROMPT,
         user_message=f"The host speaks {host}. Return the product JSON.", output_model=ProductInfo, deadline_ms=READ_DEADLINE_MS,
         parts=((f"FILE {name}".encode(), "text/plain"), (data, "application/pdf")),
         mock_primary_text=name, preview=name,
