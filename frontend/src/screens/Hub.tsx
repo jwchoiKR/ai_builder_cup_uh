@@ -233,7 +233,7 @@ export function Hub({ sessionId }: ScreenProps) {
   };
 
   return (
-    <div className={styles.root} data-theme={theme} lang={lang}>
+    <div className={`${styles.root} ${styles.hubRoot}`} data-theme={theme} lang={lang}>
       <header className={`${styles.header} ${styles.hubHeader}`}>
         <div className={styles.hubBrand}>
           <span className="eyebrow">LIVE / STUDIO</span>
