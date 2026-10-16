@@ -40,6 +40,7 @@
   --crowd-eye: #2b2622;
   --crowd-bubble: #ffffff;
   --crowd-bubble-ink: #1c2420;
+  --crowd-heart: #ef5b7a; /* D-475 */
   --shadow: 0 1px 2px rgba(28, 36, 32, 0.06), 0 4px 16px rgba(28, 36, 32, 0.06);
   --scrim: rgba(28, 36, 32, 0.32);
   color-scheme: light;

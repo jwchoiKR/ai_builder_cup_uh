@@ -17,7 +17,7 @@ import { useServerNow } from "../../app/store";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
 import { Countdown, HubLink, RelativeTime, SettingsButton, windowRange } from "../../components";
-import { Crowd } from "./Crowd";
+import { Crowd, type HostAnswered } from "./Crowd";
 import { chatSignature, HIDDEN_LABEL, isPinnedCorrection, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
 import { useCamera } from "./useCamera";
@@ -79,6 +79,17 @@ export function ViewerView({
   const rows = useMemo(() => viewerChat(state, now, me), [state, now, me]);
   // D-474: the figures on the video come from the visible comment rows only (no hidden rows, no replies)
   const commenters = useMemo(() => rows.flatMap((r) => (r.kind === "comment" ? [r.comment] : [])), [rows]);
+  // D-475: every asker of a host answer said on air (a coalesced reply answers them all)
+  const answered = useMemo<HostAnswered[]>(
+    () => Object.values(state.messages).flatMap((m) =>
+      m.kind === "host_answer" && m.state === "published"
+        ? m.reply_to_comment_ids.flatMap((cid) => {
+            const c = state.comments[cid];
+            return c ? [{ key: `${m.message_id}:${cid}`, authorId: c.author_id }] : [];
+          })
+        : []),
+    [state.messages, state.comments],
+  );
   const camera = useCamera(cameraEnabled && !embedded);
   const popup = useTimeSalePopup(state);
 
@@ -132,7 +143,7 @@ export function ViewerView({
             )}
             <span className={styles.brandBadge}>{brand}</span>
           </div>
-          <Crowd comments={commenters} me={me} serverOffsetMs={offset} />
+          <Crowd comments={commenters} answered={answered} me={me} serverOffsetMs={offset} loaded={state.loaded} />
           {connection === "reconnecting" && (
             <div className={styles.overlayBottom}>
               <span className={styles.reconnecting}>Reconnecting…</span>
