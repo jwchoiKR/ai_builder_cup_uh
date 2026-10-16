@@ -30,7 +30,10 @@
 .count { color: var(--text-3); font-weight: var(--fw-regular); }
 .value { font-size: var(--fs-14); white-space: pre-wrap; overflow-wrap: anywhere; }
 .summary { display: flex; flex-direction: column; gap: var(--space-2); }
-.status { color: var(--text-2); font-size: var(--fs-14); margin: 0; }
+.status { color: var(--text-2); font-size: var(--fs-14); margin: 0; display: inline-flex; align-items: center; gap: var(--space-1); }
+.spin { width: 14px; height: 14px; flex: none; vertical-align: -2px; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 .error { color: var(--risk-text); margin: 0; }
 .rejected { background: var(--risk-bg); border: 1px solid var(--risk-text); border-radius: var(--radius-control); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
 .rejectedTitle { color: var(--risk-text); font-weight: var(--fw-semibold); margin: 0; }
