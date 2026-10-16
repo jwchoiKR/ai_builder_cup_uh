@@ -18,7 +18,7 @@ import uuid
 from pathlib import PurePath
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
@@ -189,12 +189,20 @@ async def approve_product(product_id: str, body: ApproveBody | None = None,
     return approved | {"warnings": warnings}
 
 
+def _client_ip(request: Request) -> str:
+    """The caller's address, for the record only: Cloud Run's proxy puts it first in X-Forwarded-For."""
+    forwarded = request.headers.get("x-forwarded-for", "")
+    return forwarded.split(",")[0].strip() or (request.client.host if request.client else "")
+
+
 class ReleaseBody(BaseModel):
     regulation_id: str
+    owner: str = ""  # the browser that made the release: only it (and every browser for a demo) lists it
 
 
 @router.post("/{product_id}/release")
-async def release_product(product_id: str, body: ReleaseBody, ctx: AppContext = Depends(get_ctx)) -> dict:
+async def release_product(product_id: str, body: ReleaseBody, request: Request,
+                          ctx: AppContext = Depends(get_ctx)) -> dict:
     """The approved product with one uploaded regulation file, checked as a show would build it."""
     bucket = _bucket(ctx)
     key = product_show.show_key(product_id, body.regulation_id)
@@ -207,19 +215,23 @@ async def release_product(product_id: str, body: ReleaseBody, ctx: AppContext = 
         raise ActionError(409, "not_releasable", str(e)) from None
     row = {"release_id": key, "product_name": info["product_name"], "brand": info["brand"],
            "category": info.get("category", ""),
-           "markets": [ctx.pack.market.market], "approved_at": int(time.time() * 1000), "version": 1, "brief": "done"}
+           "markets": [ctx.pack.market.market], "approved_at": int(time.time() * 1000), "version": 1, "brief": "done",
+           "demo": False, "owner": body.owner, "ip": _client_ip(request)}
     await asyncio.to_thread(bucket.upload, f"releases/{product_id}/{body.regulation_id}.json",
                             json.dumps(row, ensure_ascii=False).encode(), create_only=False)
     return row
 
 
 @router.get("/releases")
-async def list_releases(ctx: AppContext = Depends(get_ctx)) -> list[dict]:
-    """Every release of the rebuilt onboarding, newest first (the hub's picker, in the old releases' row shape)."""
+async def list_releases(owner: str = "", ctx: AppContext = Depends(get_ctx)) -> list[dict]:
+    """The demo releases ("demo": true, set by hand in the bucket) and the ones `owner` made, newest first (the
+    hub's picker, in the old releases' row shape)."""
     if not ctx.settings.ONBOARDING_GCS_BUCKET:
         return []
     bucket = _bucket(ctx)
 
     keys = [k for k in await asyncio.to_thread(bucket.keys, "releases/") if k.endswith(".json")]
     blobs = await asyncio.gather(*(asyncio.to_thread(bucket.download, k) for k in keys))
-    return sorted((json.loads(b) for b in blobs), key=lambda r: r["approved_at"], reverse=True)
+    rows = (json.loads(b) for b in blobs)
+    mine = [r for r in rows if r.get("demo") or (owner and r.get("owner") == owner)]
+    return sorted(mine, key=lambda r: r["approved_at"], reverse=True)
