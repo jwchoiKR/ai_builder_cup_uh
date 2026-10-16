@@ -6,7 +6,7 @@ Read `docs/HANDOFF.md` first: roles of each session, the user's rules, current s
 
 - Answer the user in Korean.
 - The dev session writes all app code. The planning/eval session writes only docs, data and evals.
-- Never show or commit the sealed test sets (`D:\code_test\study\ai_builder_cup_git\sealed_sets\`). The dev session never reads that folder.
+- Never show or commit the sealed test sets (`D:\code_test\study\ai_builder_cup_git\sealed_sets\`). The dev session never reads that folder. Exception (user, 10/17): set 10 is published in `eval/sealed_set_10/` and is no longer unseen; every other set stays sealed.
 - Design choices are made by measurement: build every candidate as a switchable arm (`DESIGN_ARM`) and pick by the same evals. Fixed pass lines are in `docs/eval/proof-plan.md`.
 - Viewer questions: post when the product info answers them, send to the operator when it does not.
 - Deploy only to project `ai-budiler-cup-uh-team-pjt` (back on 10/15 after its Gemini block was lifted; sample-uh was used 10/14-15), and only after the user approves (the user runs `! bash deploy/cloudrun.sh`).
