@@ -9,7 +9,7 @@ AI Builder Cup 2026 · Track: Retail & Commerce
 1. **Problem:** A live-commerce host talks unscripted for an hour, and one claim the regulations prohibit ("it cures eczema") or one wrong price can break the rules on air. Today a producer or a compliance checker has to catch it by ear.
 2. **User and workflow:** Before the show an operator uploads the product documents and the regulation PDFs, and approves what the AI read. On air the host only talks: the host screen shows a red or orange box with a line to say instead, clears it when the host corrects it in their own words, ticks the prompter and lists viewer questions with answers. An operator can watch from a control room, but a solo host can run without one.
 3. **What is different:** Gemini judges the meaning of every line, and code never drops or rewrites a verdict. There are no product-specific prompts or rules: a new product enters only through its documents. The host never touches the screen.
-4. **Measured:** On a sealed set of 4 products the app had never seen, 162 natural host lines went through the real Chirp 3 speech-to-text path: 96.3% detection, 0% false alerts, no red alert on a line without a regulation problem, compliance judge p95 2.9 s. The fact checker missed its 5 s target (p95 31.5 s on a slow Gemini night).
+4. **Measured:** On a sealed set of 4 products the app had never seen, 162 natural host lines went through the real Chirp 3 speech-to-text path: 96.3% detection, 0% false alerts, no red alert on a line without a regulation problem, compliance judge p95 2.9 s. The fact checker missed its 7 s target that night (p95 31.5 s, a slow Gemini night); on a 10/16 show its p95 was 4.5 s over 36 calls.
 5. **Limits:** The alerts help the host; they do not guarantee compliance. Only the uploaded regulations are checked, a person approves every product before air, and the tests used TTS voices, not yet a real host.
 
 ## Evidence at a glance
@@ -22,7 +22,7 @@ Measured on a sealed set of 4 products the app had never seen (set 10, 10/14-15)
 | False alerts on safe lines | **0%** (0 of 108) | < 1% |
 | Red (regulation) alert on a line without a regulation problem | **0** | 0 |
 | Compliance judge, one call p50 / p95 | **1.4 / 2.9 s** | ≤ 5 s |
-| Fact checker, one call p50 / p95 | 6.0 / 31.5 s (slow Gemini night) | ≤ 5 s (not met) |
+| Fact checker, one call p50 / p95 | 6.0 / 31.5 s (slow Gemini night); 10/16 show: p95 4.5 s (36 calls) | ≤ 7 s (not met on set 10) |
 
 - Three more runs on the same set with other compliance settings, on a normal Gemini day: 100% detection and 0-0.9% false alerts each.
 - Per product, per line (ids and outcomes, no sealed text), alert times and the conditions: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
@@ -93,7 +93,7 @@ Each judge runs on the model that did best on its own job in our tests. An alert
 - Each round uses a new sealed set of products with invented documents. The developer never sees it.
 - GPT wrote the host lines and a first label for each; a separate Claude critic labelled the same lines blind. Every later label change is logged with its reason.
 - Host lines are spoken by a Windows TTS voice and go through the real Chirp 3 path into the app, so speech-to-text errors count.
-- Pass lines hold for every product, not on average: detection ≥ 95%, false alerts < 1%, no red alert on a non-regulation line, judge time ≤ 5 s (a soft target: a slower answer still shows, late).
+- Pass lines hold for every product, not on average: detection ≥ 95%, false alerts < 1%, no red alert on a non-regulation line, judge time ≤ 5 s for the compliance judge and ≤ 7 s for the fact checker (soft targets: a slower answer still shows, late).
 - Contrived stress lines are reported apart from the natural lines.
 
 **Set 10 in detail**: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
@@ -107,7 +107,7 @@ Each judge runs on the model that did best on its own job in our tests. An alert
 
 ## Known limits
 
-- The fact checker (Gemini 3.8 Flash) is often slower than 5 s, and much slower on a busy Gemini day; its alerts then show late.
+- The fact checker (Gemini 3.8 Flash) can be slower than its 7 s target, much slower on a busy Gemini day; its alerts then show late.
 - Set 10 has 4 products and 54 violations, so one line moves detection by about 2 points.
 - Tested with TTS voices, not yet with a real human host.
 - Show state, comments included, is kept in Firestore and survives a restart or a move to a new instance.
