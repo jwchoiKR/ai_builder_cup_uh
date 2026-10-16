@@ -3285,3 +3285,5 @@ D-494 (user 10/17, via planning: "설정에서 한국어 버전으로 바꾸는 
 - Onboarding: the host-language picker (ENG / KR) is gone; a product is read for an English-speaking host (host_language "en"); api/products.py accepts only "en" (Literal["en"], HOST_LANGUAGES {"en": "English"}). Its now unused segmented-button styles are removed.
 - Kept (not Korean features): reply translations into the asker's language (comments team), prompts that work in any language, the STT language a release carries, and the demo console's speech-recognition language list (several languages, Korean among them). Existing Korean releases are left as they are.
 - Tests: the Korean UI tests and Korean string checks are deleted; the host settings test checks the theme and that no language choice is shown; i18n.test checks template filling.
+
+D-495 (user 10/17, via planning: "Questions on host: 0 of 6 로 바꿔"): the operator's question desk header says "Questions on host: {n} of {max}" (was "{n}/{max} on host"); same values, place and style. Test: the desk shows the new wording.

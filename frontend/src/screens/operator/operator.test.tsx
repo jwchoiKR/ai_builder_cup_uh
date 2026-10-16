@@ -373,6 +373,7 @@ describe("Operator screen", () => {
     const tabCount = (key: string) => Number(within(within(desk).getByTestId(`op-desk-tab-${key}`)).getByText(/^\d+$/).textContent);
     expect(tabCount("all")).toBe(groups.length);
     expect(Number(within(desk).getByTestId("op-desk-count").textContent)).toBe(groups.length);
+    expect(desk).toHaveTextContent(/Questions on host: \d+ of \d+/);  // D-495: the user's wording
     expect(tabCount("todo")).toBe(6);
     expect(tabCount("answered")).toBe(2);
     const seen = new Map<string, string>();
