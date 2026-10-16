@@ -154,8 +154,10 @@ VIEWER_SESSION_FIELDS = (
     "session_id", "runsheet_id", "title", "status", "market", "lang", "started_at", "ended_at",
     "current_segment_id", "active_promo_id", "promo_started_at", "pinned_notice", "active_promos", "created_at",
 )
+# D-482: "kind" (triage's verdict: pending, reaction, question, hide) so the viewer's animals speak once it is in;
+# never the signal, armor or hide category
 VIEWER_COMMENT_FIELDS = (
-    "comment_id", "author_id", "author_name", "text", "received_at", "visibility", "language", "reply_status",
+    "comment_id", "author_id", "author_name", "text", "received_at", "visibility", "language", "reply_status", "kind",
 )
 VIEWER_MESSAGE_FIELDS = (
     "message_id", "kind", "text", "reply_to_comment_ids", "reply_to_author_names", "citations", "state",
