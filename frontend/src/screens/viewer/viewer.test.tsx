@@ -12,6 +12,7 @@ import { eventsUrl } from "../../app/sse";
 import { useAudience } from "../../app/store";
 import { Watching } from "../../components";
 import { ID_KEY, NAME_KEY, readIdentity, saveIdentity, viewerId } from "./identity";
+import { Animal, SPECIES } from "./animals";
 import { POPUP_MS, ViewerView } from "./ViewerView";
 
 const NOW = T0 + 10_000;
@@ -507,13 +508,14 @@ describe("D-474/D-476: viewer animals on the video", () => {
     expect(screen.getByTestId("viewer-crowd")).toHaveAttribute("aria-hidden");
   });
 
-  it("an animal stops where it is while it speaks (side view for a chat) and walks on after 4 s", () => {
+  it("an animal stops where it is while it speaks (D-480: front view for a chat too) and walks on after 4 s", () => {
     const { rerender } = render(view(stateWith({ comments: [said("old", 15_000), said("ann", 1000)] })));
     const ann = () => screen.getByTestId("viewer-figure-u_ann");
     const walk = ann().getAttribute("style");
     expect(ann()).toHaveAttribute("data-stopped");
     expect(screen.getByTestId("viewer-figure-u_old")).not.toHaveAttribute("data-stopped");
-    expect(ann().querySelector("svg")).toHaveAttribute("data-view", "side");
+    expect(ann().querySelector("svg")).toHaveAttribute("data-view", "front");
+    expect(screen.getByTestId("viewer-figure-u_old").querySelector("svg")).toHaveAttribute("data-view", "side");
     act(() => vi.advanceTimersByTime(2000));
     rerender(view(stateWith({ comments: [said("old", 15_000), said("ann", 1000)] })));
     expect(ann()).toHaveAttribute("data-stopped");
@@ -610,7 +612,8 @@ describe("D-475: raised hands and hearts", () => {
     expect(flag("ann", "happy") && flag("bob", "happy")).toBe(true);
     expect(flag("ann", "hand")).toBe(false);
     expect(screen.getAllByTestId("viewer-heart")).toHaveLength(12);  // D-476: 6 hearts each
-    expect(screen.getByTestId("viewer-figure-u_ann").querySelector("svg")).toHaveAttribute("data-view", "side");
+    // D-480: still speaking (its bubble is up), so it faces front; hearts alone keep the side view (below)
+    expect(screen.getByTestId("viewer-figure-u_ann").querySelector("svg")).toHaveAttribute("data-view", "front");
     act(() => vi.advanceTimersByTime(2000));
     expect(flag("ann", "happy") || flag("bob", "happy")).toBe(false);
   });
@@ -724,5 +727,38 @@ describe("D-478: names and lanes", () => {
     const z = (w: string) => screen.getByTestId(`viewer-figure-u_${w}`).style.zIndex;
     expect(["a", "b", "c", "d", "e"].map(lane)).toEqual(["0", "1", "2", "0", "1"]);
     expect(["a", "b", "c"].map(z)).toEqual(["3", "2", "1"]);
+  });
+});
+
+describe("D-480: facing and posture", () => {
+  const said = (who: string, ago: number) =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `hello from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "reaction", reply_status: "host" });
+
+  it("an animal with hearts and no bubble keeps the side view", () => {
+    const asked = [said("ann", 1000)];
+    const { rerender } = render(view(stateWith({ comments: asked })));
+    act(() => vi.advanceTimersByTime(4000));  // its bubble and paw are over
+    rerender(view(stateWith({ comments: asked, messages: [message({ message_id: "msg_h", kind: "host_answer", text: "Yes.",
+      group_id: null, reply_to_comment_ids: ["cm_ann"], reply_to_author_names: ["ann"], published_at: NOW + 4000 })] })));
+    const ann = screen.getByTestId("viewer-figure-u_ann");
+    expect(ann).toHaveAttribute("data-happy");
+    expect(ann.querySelector("svg")).toHaveAttribute("data-view", "side");
+  });
+
+  it("every animal stands upright in the side view: its body is under its head, in both step frames", () => {
+    for (const species of SPECIES) {
+      for (const frame of [0, 1] as const) {
+        const { container, unmount } = render(<Animal species={species} view="side" frame={frame} />);
+        const ink = container.querySelector("svg > g:nth-of-type(2)")!;  // the silhouette (the first group is the halo)
+        const head = Number(ink.querySelector(":scope > circle[r='11.5']")!.getAttribute("cx"));
+        const group = ink.querySelector(":scope > g[transform]")!;
+        const shift = Number(/translate\((-?[\d.]+)/.exec(group.getAttribute("transform")!)![1]);
+        const body = Number(group.querySelector(":scope > ellipse")!.getAttribute("cx")) + shift;
+        expect(Math.abs(body - head), `${species} frame ${frame}`).toBeLessThanOrEqual(1.5);
+        expect(group.getAttribute("transform")).not.toMatch(/rotate|skew/);  // the body is only moved, never tilted
+        unmount();
+      }
+    }
   });
 });

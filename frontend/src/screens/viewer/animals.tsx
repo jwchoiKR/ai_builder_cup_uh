@@ -12,7 +12,11 @@ const INK = "#2b2522";
 const BLUSH = "#f29a9a";
 
 interface Parts {
-  /** silhouette, drawn before the body (tail, far ear) */
+  /** side view: the tail, drawn with the body (D-480: the body stands under the head) */
+  tail?: ReactNode;
+  /** side view: markings on the body or tail, moved with it */
+  bodyMarks?: ReactNode;
+  /** silhouette, drawn before the body (far ear) */
   under?: ReactNode;
   /** silhouette, drawn after the head (near ear, snout) */
   over?: ReactNode;
@@ -37,10 +41,8 @@ const LOOKS: Record<Species, Look> = {
   cat: {
     body: "#f0a254", legs: "#f0a254", head: "#f0a254",
     side: {
-      under: <>
-        <path d="M11 30C5 29 4 22 6.5 18C7.3 17 8.7 17.6 8.2 19C6.6 23 7.8 26.6 12 27.2Z" fill="#f0a254" />
-        <path d="M16.5 11L17.5 2.5L23.5 8Z" fill="#f0a254" />
-      </>,
+      tail: <path d="M11 30C5 29 4 22 6.5 18C7.3 17 8.7 17.6 8.2 19C6.6 23 7.8 26.6 12 27.2Z" fill="#f0a254" />,
+      under: <path d="M16.5 11L17.5 2.5L23.5 8Z" fill="#f0a254" />,
       over: <path d="M23 7.5L28.5 2L30.5 9.5Z" fill="#f0a254" />,
       marks: <>
         <path d="M24.6 7.6L28.1 4.2L29.3 8.8Z" fill="#f7c9b5" />
@@ -67,7 +69,7 @@ const LOOKS: Record<Species, Look> = {
   dog: {
     body: "#d39b62", legs: "#d39b62", head: "#d39b62",
     side: {
-      under: <path d="M11 28C7.5 26.5 6.8 22.5 8.5 20.5C9.6 19.6 10.8 20.6 10.2 22C9.5 24 10.5 25.5 12.5 26Z" fill="#d39b62" />,
+      tail: <path d="M11 28C7.5 26.5 6.8 22.5 8.5 20.5C9.6 19.6 10.8 20.6 10.2 22C9.5 24 10.5 25.5 12.5 26Z" fill="#d39b62" />,
       over: <>
         <ellipse cx="33" cy="21.5" rx="4.6" ry="3.6" fill="#f3dcc0" />
         <ellipse cx="20.5" cy="15" rx="3.6" ry="7" transform="rotate(18 20.5 15)" fill="#8b5a33" />
@@ -89,10 +91,8 @@ const LOOKS: Record<Species, Look> = {
   rabbit: {
     body: "#eee7de", legs: "#eee7de", head: "#eee7de",
     side: {
-      under: <>
-        <circle cx="10.5" cy="29" r="3.4" fill="#ffffff" />
-        <ellipse cx="20.5" cy="4.5" rx="2.6" ry="7.5" transform="rotate(-14 20.5 4.5)" fill="#eee7de" />
-      </>,
+      tail: <circle cx="10.5" cy="29" r="3.4" fill="#ffffff" />,
+      under: <ellipse cx="20.5" cy="4.5" rx="2.6" ry="7.5" transform="rotate(-14 20.5 4.5)" fill="#eee7de" />,
       over: <ellipse cx="25.5" cy="4" rx="2.8" ry="8" transform="rotate(10 25.5 4)" fill="#eee7de" />,
       marks: <>
         <ellipse cx="25.6" cy="4.5" rx="1.2" ry="5.6" transform="rotate(10 25.6 4.5)" fill="#f4b8c4" />
@@ -115,10 +115,8 @@ const LOOKS: Record<Species, Look> = {
   bear: {
     body: "#9b6b47", legs: "#9b6b47", head: "#9b6b47",
     side: {
-      under: <>
-        <circle cx="10.5" cy="28" r="2.2" fill="#9b6b47" />
-        <circle cx="17.5" cy="9" r="4" fill="#9b6b47" />
-      </>,
+      tail: <circle cx="10.5" cy="28" r="2.2" fill="#9b6b47" />,
+      under: <circle cx="17.5" cy="9" r="4" fill="#9b6b47" />,
       over: <>
         <circle cx="27" cy="7.8" r="4.2" fill="#9b6b47" />
         <ellipse cx="33" cy="21" rx="4.2" ry="3.4" fill="#d9b48f" />
@@ -144,9 +142,11 @@ const LOOKS: Record<Species, Look> = {
   fox: {
     body: "#e8733a", legs: "#5a3a2a", head: "#e8733a",
     side: {
-      under: <>
-        <path d="M11.5 29C4 30 1 24 3 17.5C4.5 21 7 23.5 12 25.5Z" fill="#e8733a" />
-        <path d="M16 11L17 1.5L23 8Z" fill="#e8733a" />
+      tail: <path d="M11.5 29C4 30 1 24 3 17.5C4.5 21 7 23.5 12 25.5Z" fill="#e8733a" />,
+      under: <path d="M16 11L17 1.5L23 8Z" fill="#e8733a" />,
+      bodyMarks: <>
+        <path d="M3 17.5C2.4 20 3 22 4.6 23.6C4.2 21.2 4 19.2 3 17.5Z" fill="#fbf3ea" />
+        <ellipse cx="24" cy="31" rx="4" ry="4.5" fill="#fbf3ea" />
       </>,
       over: <>
         <path d="M23.5 7.5L29.5 0.5L31 9.5Z" fill="#e8733a" />
@@ -154,8 +154,6 @@ const LOOKS: Record<Species, Look> = {
       </>,
       marks: <>
         <path d="M27.6 2.8L29.5 0.5L30 3.6Z" fill="#5a3a2a" />
-        <path d="M3 17.5C2.4 20 3 22 4.6 23.6C4.2 21.2 4 19.2 3 17.5Z" fill="#fbf3ea" />
-        <ellipse cx="24" cy="31" rx="4" ry="4.5" fill="#fbf3ea" />
         <circle cx="38.6" cy="20.4" r="1.1" fill={INK} />
       </>,
     },
@@ -176,10 +174,8 @@ const LOOKS: Record<Species, Look> = {
   panda: {
     body: "#2c2c2e", legs: "#2c2c2e", head: "#f6f5f1", eye: "#ffffff",
     side: {
-      under: <>
-        <circle cx="10.5" cy="28" r="2.2" fill="#f6f5f1" />
-        <circle cx="17.5" cy="8.8" r="4" fill="#2c2c2e" />
-      </>,
+      tail: <circle cx="10.5" cy="28" r="2.2" fill="#f6f5f1" />,
+      under: <circle cx="17.5" cy="8.8" r="4" fill="#2c2c2e" />,
       over: <circle cx="27" cy="7.6" r="4.2" fill="#2c2c2e" />,
       marks: <>
         <ellipse cx="29" cy="17.8" rx="3.2" ry="3.9" transform="rotate(-20 29 17.8)" fill="#2c2c2e" />
@@ -202,8 +198,8 @@ const LOOKS: Record<Species, Look> = {
     body: "#2f3d55", legs: "#f2a33a", head: "#2f3d55",
     side: {
       over: <path d="M34 17.5L40 20L34 22.5Z" fill="#f2a33a" />,
-      marks: <>
-        <ellipse cx="28" cy="19.5" rx="5.6" ry="6.6" fill="#f7f7f4" />
+      marks: <ellipse cx="28" cy="19.5" rx="5.6" ry="6.6" fill="#f7f7f4" />,
+      bodyMarks: <>
         <ellipse cx="22" cy="31.5" rx="5.5" ry="5" fill="#f7f7f4" />
         <path d="M15 27C12 30 12.5 34 14.5 35.5C15.5 32.5 16.5 30 17.5 27.5Z" fill="#24304a" />
       </>,
@@ -225,9 +221,9 @@ const LOOKS: Record<Species, Look> = {
       marks: <>
         <circle cx="26.5" cy="7.6" r="1.6" fill="#f2b7a8" />
         <ellipse cx="29" cy="22.5" rx="5" ry="4.2" fill="#fbf1e2" />
-        <ellipse cx="22" cy="32" rx="5" ry="4.5" fill="#fbf1e2" />
         <circle cx="35.3" cy="19.4" r="0.9" fill="#d97a7a" />
       </>,
+      bodyMarks: <ellipse cx="22" cy="32" rx="5" ry="4.5" fill="#fbf1e2" />,
     },
     front: {
       under: <>
@@ -277,11 +273,17 @@ export function Animal({ species, view, frame = 0, happy = false, paw = false, c
       <circle cx="37.4" cy="10" r="3" fill={look.body} />
     </>
   );
+  // D-480 (user: the walk leaned forward): in the side view the body, legs and tail move under the head, so the
+  // animal stands upright; the head and its parts stay where they were
+  const under = side ? "translate(4 0)" : undefined;
   const silhouette = (
     <>
       {parts.under}
-      <ellipse cx={side ? 19 : 22} cy={side ? 31 : 32} rx={side ? 9 : 8.5} ry="6.5" fill={look.body} />
-      {frame === "both" ? <>{legs(0)}{legs(1)}</> : legs(frame)}
+      <g transform={under}>
+        {parts.tail}
+        <ellipse cx={side ? 19 : 22} cy={side ? 31 : 32} rx={side ? 9 : 8.5} ry="6.5" fill={look.body} />
+        {frame === "both" ? <>{legs(0)}{legs(1)}</> : legs(frame)}
+      </g>
       <circle cx={side ? 24 : 22} cy="18" r="11.5" fill={look.head} />
       {parts.over}
       {arm}
@@ -293,6 +295,7 @@ export function Animal({ species, view, frame = 0, happy = false, paw = false, c
     <svg className={className} viewBox="-2 -6 48 50" data-species={species} data-view={view}>
       <g className={styles.halo}>{silhouette}</g>
       <g className={styles.ink}>{silhouette}</g>
+      {parts.bodyMarks && <g transform={under}>{parts.bodyMarks}</g>}
       {parts.marks}
       {eyes.map((x) =>
         happy ? (
