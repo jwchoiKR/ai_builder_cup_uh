@@ -1,6 +1,6 @@
 # Routing accuracy
 
-79 cases 횞 5 runs; deadlines jev: 500 ms, gemini_purpose: 1500 ms, llm: 500 ms, regex: no deadline; no retries; Jev threshold 0.05.
+79 cases x 5 runs; deadlines jev: 500 ms, gemini_purpose: 1500 ms, llm: 500 ms, regex: no deadline; no retries; Jev threshold 0.05.
 
 Legacy utterance labels follow the prescribed NEEDS lists. These label screen changes, not all semantically checkable facts. Additional cases use explicit labels.
 

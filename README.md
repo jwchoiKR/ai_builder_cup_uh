@@ -159,7 +159,7 @@ Judges and speech-to-text: about **US$3.8 an hour** at 600 host lines an hour.
 | `prompts/` | every prompt, product-neutral, with fictional examples |
 | `data/` | demo releases and the regulation PDFs shipped in the image |
 | `deploy/` | `cloudrun.sh`, the deployed settings |
-| `docs/` | `DECISIONS.md` (every design decision, numbered), `VERIFIED.md`, `eval/`, `decks/` |
+| `docs/` | `DECISIONS.md` (every design decision, numbered), `VERIFIED.md`, `eval/` |
 
 ## Run locally
 

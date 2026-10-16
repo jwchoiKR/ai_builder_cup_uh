@@ -22,3 +22,12 @@ AGENTS.md
 AGENTS.md
 HANDOVER.md
 docs/HANDOFF.md
+# Internal Korean working docs stay local (user, 10/17: submission materials must be in English)
+docs/decks/
+docs/research/
+docs/PLANNING.md
+docs/prebroadcast-search-review.md
+docs/SCALE_PLAN.md
+docs/eval/proof-plan.md
+docs/eval/orchestration-decision.md
+docs/eval/design-arms.md
