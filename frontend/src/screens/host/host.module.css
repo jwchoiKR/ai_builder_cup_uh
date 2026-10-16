@@ -1331,12 +1331,11 @@
 .aLabel {
   align-self: start;
   justify-self: start;
-  margin-top: calc(5px * var(--hs));  /* level with the answer's first line: (37.5 - 28) / 2 */
+  margin-top: calc(6px * var(--hs));  /* level with the answer's first line: (37.5 - 26) / 2 */
   padding: calc(1px * var(--hs)) calc(7px * var(--hs));
-  border: 1px solid var(--ok-border);
   border-radius: calc(6px * var(--hs));
-  background: var(--ok-bg);  /* the colours of the AI PD tag and the "Ready to answer" pill (user, 10/16) */
-  color: var(--ok-text);  /* 6.9:1 light, 9.0:1 dark */
+  background: var(--tag-bg);  /* white on dark green in both themes, as "Ready to answer" (user, 10/16) */
+  color: var(--tag-ink);
 }
 /* no answer yet: a muted dash where the chip goes; the line keeps one answer line's height */
 .aNone {
@@ -1387,9 +1386,9 @@
   background: var(--surface-2);
 }
 .pillReady {
-  border-color: var(--ok-border);
-  background: var(--ok-bg);
-  color: var(--ok-text);
+  border-color: var(--tag-bg);
+  background: var(--tag-bg);
+  color: var(--tag-ink);
 }
 .pillReadout {
   border-color: var(--text-3);

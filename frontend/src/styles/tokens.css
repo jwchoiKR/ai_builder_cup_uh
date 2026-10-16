@@ -25,6 +25,8 @@
   --ok-border: #a9cfb5;
   --ok-text: #2f5b3e;
   --said-bg: #d6f0c2; /* D-348: highlighter behind a covered prompter point; --text stays 13:1 on it */
+  --tag-bg: #3d6b4f; /* D-469: host answer chip and "Ready to answer", the same in both themes; 6.2:1 */
+  --tag-ink: #ffffff;
   --shadow: 0 1px 2px rgba(28, 36, 32, 0.06), 0 4px 16px rgba(28, 36, 32, 0.06);
   --scrim: rgba(28, 36, 32, 0.32);
   color-scheme: light;
@@ -52,6 +54,8 @@
   --ok-border: #4e7f60;
   --ok-text: #bfe6cc;
   --said-bg: #2c4a26;
+  --tag-bg: #3d6b4f;
+  --tag-ink: #ffffff;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
   --scrim: rgba(0, 0, 0, 0.5);
   color-scheme: dark;
