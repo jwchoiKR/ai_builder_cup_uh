@@ -205,13 +205,9 @@ export const KO_HUB: Record<string, string> = {
   "Previously approved products": "승인된 제품",
   "Start with approved products": "승인된 제품으로 시작",
   // D-332
-  "older version": "이전 버전",
-  "Older versions ({n})": "이전 버전 ({n})",
-  "Hide older versions": "이전 버전 숨기기",
   "Pick up to {n}, in the order of the show.": "방송 순서대로 최대 {n}개를 고르세요.",
   "Product {n}": "{n}번 제품",
   "brief running": "브리프 생성 중",
-  ready: "준비됨",
   "Show line-up": "방송 순서",
   "Remove {name}": "{name} 빼기",
   "No product picked yet.": "아직 고른 제품이 없습니다.",

@@ -70,7 +70,6 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
   const t = useT();
   const [rows, setRows] = useState<ReleaseRow[] | null>(null);
   const [open, setOpen] = useState(false);
-  const [showOlder, setShowOlder] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false);
@@ -100,15 +99,6 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
   }, [open]);
   if (!rows?.length) return null;
   const byId = new Map(rows.map((r) => [r.release_id, r]));
-  // D-332: a product's latest approved version; its older versions behind "Older versions"
-  const product = (r: ReleaseRow) => r.release_id.replace(/_v\d+$/, "");
-  const latest = new Map<string, ReleaseRow>();
-  for (const r of rows) {
-    const cur = latest.get(product(r));
-    if (!cur || r.version > cur.version) latest.set(product(r), r);
-  }
-  const older = rows.filter((r) => latest.get(product(r)) !== r);
-  const shown = [...latest.values(), ...(showOlder ? older : [])];
   const toggle = (id: string) =>
     setLineup((l) => (l.includes(id) ? l.filter((x) => x !== id) : l.length < MAX_SHOW ? [...l, id] : l));
   return (
@@ -116,7 +106,7 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
       <button ref={button} type="button" className={styles.hubPickerButton} aria-haspopup="dialog" aria-expanded={open}
         aria-controls="hub-releases" onClick={() => setOpen((o) => !o)} data-testid="hub-releases-open">
         {t("Approved products")}
-        <span className={styles.hubPickerCount}>{latest.size}</span>
+        <span className={styles.hubPickerCount}>{rows.length}</span>
         <ChevronDown aria-hidden className={styles.hubPickerChevron} />
       </button>
       {open && (
@@ -127,7 +117,7 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
             <span className={styles.hubStudioNote}>{t("Pick up to {n}, in the order of the show.", { n: MAX_SHOW })}</span>
           </div>
           <div className={styles.hubReleaseGrid}>
-            {shown.map((r) => {
+            {rows.map((r) => {
               const at = lineup.indexOf(r.release_id);
               const full = at < 0 && lineup.length >= MAX_SHOW;
               return (
@@ -137,25 +127,15 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
                   <span className={styles.hubReleaseBrand}>{r.brand}</span>
                   <span className={styles.hubReleaseName}>
                     {r.product_name}
-                    {latest.get(product(r)) !== r && <span className={styles.hubReleaseOld}> · {t("older version")}</span>}
                   </span>
                   <span className={styles.hubReleaseMeta}>
                     {r.markets.map((m) => <Chip key={m}>{m}</Chip>)}
-                    <span>v{r.version} · {new Date(r.approved_at).toLocaleDateString()}</span>
-                    {r.brief === "done" ? (
-                      <Chip tone="ok">{t("ready")}</Chip>
-                    ) : null}
+                    <span>{new Date(r.approved_at).toLocaleDateString()}</span>
                   </span>
                 </button>
               );
             })}
           </div>
-          {older.length > 0 && (
-            <button type="button" className={styles.hubLineupClear} aria-expanded={showOlder}
-              onClick={() => setShowOlder((v) => !v)} data-testid="hub-releases-older">
-              {showOlder ? t("Hide older versions") : t("Older versions ({n})", { n: older.length })}
-            </button>
-          )}
         </div>
       )}
           <div className={styles.hubLineup} data-testid="hub-lineup">
