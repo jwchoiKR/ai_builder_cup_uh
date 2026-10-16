@@ -339,7 +339,13 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
         bubbles.current = [...bubbles.current, { authorId: c.author_id, commentId: c.comment_id, text: c.text, held: true }];
         hold(c);
       } else {
-        if (bubbles.current.length >= BUBBLE_MAX) continue; // no free slot: no bubble (it is in the chat list)
+        // all slots up: the oldest chat bubble gives way (bursts are sampled, not queued); never a held question,
+        // and with at most HOLD_MAX held there is always a chat bubble or a free slot
+        if (bubbles.current.length >= BUBBLE_MAX) {
+          const plain = bubbles.current.find((b) => !b.held);
+          if (!plain) continue;
+          closeBubble(plain.commentId);
+        }
         bubbles.current = [...bubbles.current, { authorId: c.author_id, commentId: c.comment_id, text: c.text, held: false }];
         arm(`b:${c.comment_id}`, BUBBLE_MS, () => closeBubble(c.comment_id));
       }

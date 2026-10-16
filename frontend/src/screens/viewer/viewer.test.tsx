@@ -552,16 +552,16 @@ describe("D-474/D-476: viewer animals on the video", () => {
     expect(bubbles()).toEqual([]);
   });
 
-  it("shows at most 3 bubbles (D-481: a 4th chat gets none while all are up), the newest on top", () => {
+  it("shows at most 3 bubbles: a 4th closes the oldest, the newest on top", () => {
     const first = [said("a", 3000), said("b", 2000), said("c", 1000)];
     const { rerender } = render(view(stateWith({ comments: first })));
     expect(bubbles().sort()).toEqual(["u_a", "u_b", "u_c"]);
-    // D-476: the speaking animal (and so its bubble) is in front, the newest on top
-    expect(screen.getByTestId("viewer-figure-u_c").style.zIndex).toBe("13");
-    expect(screen.getByTestId("viewer-figure-u_a").style.zIndex).toBe("11");
     rerender(view(stateWith({ comments: [...first, said("d", 500)] })));
-    expect(bubbles().sort()).toEqual(["u_a", "u_b", "u_c"]);  // d is in the chat list only
-    expect(screen.getByTestId("viewer-figure-u_d").style.zIndex).not.toBe("13");  // a walker (D-478 lane order)
+    expect(bubbles().sort()).toEqual(["u_b", "u_c", "u_d"]);
+    // D-476: the speaking animal (and so its bubble) is in front, the newest on top
+    expect(screen.getByTestId("viewer-figure-u_d").style.zIndex).toBe("13");
+    expect(screen.getByTestId("viewer-figure-u_b").style.zIndex).toBe("11");
+    expect(screen.getByTestId("viewer-figure-u_a").style.zIndex).toBe("3");  // D-478: a walker in the front lane
   });
 
   it("D-475: an older bubble that overlaps a newer one moves up a row", () => {
@@ -827,12 +827,12 @@ describe("D-481: a question's bubble stays up until it is answered", () => {
     expect(bubble("ann") && paw("ann")).toBe(true);
   });
 
-  it("a 3rd question closes the oldest held one; a chat with 2 held and 1 chat up gets no bubble", () => {
+  it("a 3rd question closes the oldest held one; a chat replaces the chat bubble, never a held question", () => {
     const { rerender } = render(view(stateWith({ comments: [q("a", 900), q("b", 800), chat("c", 700)] })));
     expect([bubble("a"), bubble("b"), bubble("c")]).toEqual([true, true, true]);
     rerender(view(stateWith({ comments: [q("a", 900), q("b", 800), chat("c", 700), chat("d", 600)] })));
-    expect(bubble("d")).toBe(false);  // never closes a held question
+    expect([bubble("a"), bubble("b"), bubble("c"), bubble("d")]).toEqual([true, true, false, true]);
     rerender(view(stateWith({ comments: [q("a", 900), q("b", 800), chat("c", 700), chat("d", 600), q("e", 500)] })));
-    expect([bubble("a"), paw("a"), bubble("b"), bubble("c"), bubble("e")]).toEqual([false, false, true, true, true]);
+    expect([bubble("a"), paw("a"), bubble("b"), bubble("d"), bubble("e")]).toEqual([false, false, true, true, true]);
   });
 });
