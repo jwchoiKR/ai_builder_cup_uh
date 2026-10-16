@@ -256,7 +256,7 @@ export function Hub({ sessionId }: ScreenProps) {
             {PHASES.map((phase, i) => (
               <div key={phase.label} className={styles.hubPhaseSlot} data-phase={i}>
                 {i > 0 && <ChevronRight className={styles.hubChevron} aria-hidden />}
-                <section className={`${styles.hubPhase} ${phase.live ? styles.hubPhaseLive : ""}`} aria-label={t(phase.label)}>
+                <section className={styles.hubPhase} aria-label={t(phase.label)}>
                   <h2 className={styles.hubPhaseLabel}>{t(phase.label)}</h2>
                   <div className={styles.hubPhaseCards} style={{ "--cards": phase.screens.filter((s) => !s.wide).length } as CSSProperties}>
                     {phase.screens.map((s) => {
