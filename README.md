@@ -25,7 +25,7 @@ Measured on a sealed set of 4 products the app had never seen (set 10, 10/14-15)
 | False alerts on safe lines | **0%** (0 of 108) | < 1% |
 | Red (regulation) alert on a line without a regulation problem | **0** | 0 |
 | Compliance judge, one call p50 / p95 | **1.4 / 2.9 s** | ≤ 5 s |
-| Fact checker, one call p95 | **4.5 s** (10/16 show, 36 calls); set 10: p50 6.0 / p95 31.5 s on a slow Gemini night (504s) | ≤ 7 s |
+| Fact checker, one call p95 | **4.5 s** (10/16 show, 36 calls); set 10 run P: 31.5 s, on a night of Gemini 504s (29 calls timed out and are counted apart); runs B, C, D on other days: 12.9, 5.3 and 5.6 s | ≤ 7 s |
 
 - Three more runs on the same set with other compliance settings, on a normal Gemini day: 100% detection and 0-0.9% false alerts each.
 - Per product, per line (ids and outcomes, no sealed text), alert times and the conditions: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
