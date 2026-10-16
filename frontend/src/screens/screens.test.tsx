@@ -63,7 +63,7 @@ describe("screens", () => {
     expect(await screen.findByRole("button", { name: "Host", pressed: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Operator", pressed: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Viewer", pressed: false })).toBeInTheDocument();
-    expect(screen.queryByText("Host Screen")).not.toBeInTheDocument();
+    expect(screen.queryByText("Host screen")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /Demo console/ })).toBeInTheDocument();
     act(() => {
       fireEvent.keyDown(window, { key: "r" });
@@ -137,12 +137,38 @@ describe("screens", () => {
     }
   });
 
+  it("D-496: the report card opens only once the show has ended and its summary is ready", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const path = "/api/sessions/ses_000001/summary";
+    try {
+      responses[path] = { status: "not_ended" };
+      render(<Hub sessionId="ses_000001" />);
+      const card = () => screen.getByTestId("hub-card-summary");
+      await waitFor(() => expect(card()).toHaveAttribute("aria-disabled", "true"));
+      expect(card()).not.toHaveAttribute("href");
+      responses[path] = { status: "ready" };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+      await waitFor(() => expect(card()).not.toHaveAttribute("aria-disabled"));
+      expect(card()).toHaveAttribute("href", expect.stringContaining("/summary"));
+    } finally {
+      delete responses[path];
+      vi.useRealTimers();
+    }
+  });
+
+  it("D-496: with no show the report card is disabled", () => {
+    render(<Hub sessionId={null} />);
+    expect(screen.getByTestId("hub-card-summary")).toHaveAttribute("aria-disabled", "true");
+  });
+
   it("Hub links every screen", async () => {
     render(<Hub sessionId="ses_000001" />);
     // D-492: the user's English copy
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Live Shopping Hub");
-    for (const name of ["Product Onboarding", "Select Products", "Host Screen", "Operator Screen", "Viewer Screen",
-      "Multi-screen View", "Broadcast Report"]) {
+    for (const name of ["Product onboarding", "Select products", "Host screen", "Operator screen", "Viewer screen",
+      "Multi-screen view", "Broadcast report"]) {  // D-496: sentence case
       expect(screen.getByText(name)).toBeInTheDocument();
     }
     expect(screen.queryByText("New demo session")).toBeNull();

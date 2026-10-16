@@ -328,9 +328,7 @@ function RecapBlock({ recap, status, error }: { recap: Recap | null; status: Sum
           <p className={styles.muted}>Writing the recap…</p>
           <LoadingBar label="Writing the recap" />
         </>
-      ) : status === "not_ended" ? (
-        <p className={styles.muted}>The recap is written when the broadcast ends.</p>
-      ) : (
+      ) : status === "not_ended" ? null /* D-496: nothing until the broadcast ends */ : (
         <p className={styles.muted} title={error ?? undefined}>
           Recap unavailable. The numbers below are complete.
         </p>
@@ -505,33 +503,7 @@ export function SummaryView({ data, theme, themePref, onSetTheme, onExport, onEx
       </section>
 
       <div className={styles.twoCol}>
-        <section className={styles.card}>
-          <h3 className={styles.cardTitle}>Promotions</h3>
-          {s.promos.length ? (
-            <table className={styles.table} data-testid="summary-promos">
-              <thead>
-                <tr>
-                  <th>Promotion</th>
-                  <th>Start</th>
-                  <th>End</th>
-                  <th>Duration</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.promos.map((p, i) => (
-                  <tr key={`${p.promo_id}-${i}`}>
-                    <td>{p.title}</td>
-                    <td className="tabular">{formatOffset(p.started_at, start)}</td>
-                    <td className="tabular">{p.ended_at === null ? "Running at end" : formatOffset(p.ended_at, start)}</td>
-                    <td className="tabular">{formatDuration(p.duration_sec)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className={styles.muted}>No promotions ran.</p>
-          )}
-        </section>
+        {/* D-496: no promotions card (the stats keep them) */}
 
       <section className={styles.card}>
         <h3 className={styles.cardTitle}>Agent latency</h3>

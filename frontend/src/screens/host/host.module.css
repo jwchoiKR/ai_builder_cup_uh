@@ -428,15 +428,6 @@
   font-size: calc(15px * var(--hs));
   color: var(--text-2);
 }
-.footerNote {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(8px * var(--hs));
-}
-.footerNote svg {
-  width: calc(16px * var(--hs));
-  height: calc(16px * var(--hs));
-}
 
 /* ---- 12.3.3 prompter: one fixed product box (D-106) ---------------------------------------------- */
 

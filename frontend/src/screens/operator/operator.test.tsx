@@ -797,15 +797,16 @@ describe("operator header and right rail", () => {
     expect(await within(header).findByTestId("op-stream-issue")).toHaveTextContent("1 viewer reports a stream problem");
   });
 
-  it("orders the rail: transcript and alert log first, then banners; host cue and quick replies are closed", async () => {
+  it("D-496: orders the rail: banners first, the transcript second from the bottom, stats last; host cue and quick replies are closed", async () => {
     await rail();
-    const ids = ["op-transcript", "op-alert-log", "op-promos", "op-cue", "op-quick", "op-stats"].map((id) => screen.getByTestId(id));
+    const ids = ["op-promos", "op-alert-log", "op-cue", "op-quick", "op-transcript", "op-stats"].map((id) => screen.getByTestId(id));
+    expect(ids[ids.length - 1].nextElementSibling).toBeNull();  // the stats card is the very last
     for (let i = 1; i < ids.length; i++) {
       expect(ids[i - 1].compareDocumentPosition(ids[i]) & Node.DOCUMENT_POSITION_FOLLOWING, `section ${i}`).toBeTruthy();
     }
     // banners & notices stay open
     expect(within(screen.getByTestId("op-promos")).queryByRole("button", { name: /Banners/ })).toBeNull();
-    expect(within(screen.getByTestId("op-promos")).getByPlaceholderText("Pinned notice for viewers")).toBeInTheDocument();
+    expect(within(screen.getByTestId("op-promos")).getByPlaceholderText("Pin notice for viewers")).toBeInTheDocument();
     // host cue and quick replies: a closed disclosure each
     for (const [id, name] of [["op-cue", "Host cue"], ["op-quick", "Quick replies"]] as const) {
       const toggle = within(screen.getByTestId(id)).getByRole("button", { name });

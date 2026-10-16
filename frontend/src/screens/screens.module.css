@@ -498,6 +498,17 @@
   color: var(--accent);
 }
 /* the picker card: no lift, and no transform that would trap the phone-width bottom sheet */
+/* D-496: the report card before the summary is ready: muted, not clickable */
+.hubCardDisabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.hubCardDisabled:hover,
+.hubCardDisabled:focus-visible {
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
 .hubCardStatic:hover,
 .hubCardStatic:focus-within {
   border-color: var(--border);

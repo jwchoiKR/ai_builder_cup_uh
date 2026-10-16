@@ -351,7 +351,7 @@ function RegulationUpload({ onUploaded }: { onUploaded: (regulationId: string | 
     }
   };
   return (
-    <Box title="Regulations" note="One PDF of the regulations that apply. Required for the show."
+    <Box title="Regulation" note="One PDF of the regulations that apply. Required for the show."
          testId="onb-regulation" done={uploaded !== null}>
       <DropZone testId="onb-regulation" file={file} disabled={since !== null}
                 onFile={(f) => {
