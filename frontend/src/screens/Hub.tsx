@@ -25,9 +25,9 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
     label: "Before the show",
     screens: [
       { path: "/onboarding", title: "Onboard", icon: FileUp, who: "For the operator",
-        text: "Upload a new product's documents. The AI reads them for approval." },
+        text: "Upload a new product's documents.\nThe AI reads them for approval." },
       { path: "/pick", title: "Pick products", icon: ListChecks, who: "For the operator", picker: true,
-        text: "Choose the approved products for this show. A During-the-show screen starts the show with them." },
+        text: "Choose the approved products for this show.\nA During-the-show screen starts the show with them." },
     ],
   },
   {
@@ -53,7 +53,7 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
 
 const MAX_SHOW = 3;  // D-279: a show of up to 3 products
 
-const LEAD = "An AI assistant beside the live host. It checks what the host says, answers viewer questions from the "
+const LEAD = "An AI assistant beside the live host.\nIt checks what the host says, answers viewer questions from the "
   + "product documents and cues the next move.";
 
 /** In-app navigation for a plain left click; a modified click opens a new tab as usual. */
