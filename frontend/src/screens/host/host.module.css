@@ -1309,9 +1309,8 @@
   background: var(--fact-border);
   box-shadow: 0 0 0 calc(2px * var(--hs)) var(--fact-bg);
 }
-/* D-477: the viewer count in the questions header, read from a distance */
+/* D-477: the viewer count in the live chat header, beside the connection, read from a distance */
 .cardWatching {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: calc(6px * var(--hs));

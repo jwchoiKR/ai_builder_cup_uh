@@ -323,7 +323,7 @@ export function HostView({
                 D-127: the AI PD card lives inside the questions panel */}
             <div className={styles.leftBottom}>
               <Questions slots={hostSlots(state)} card={pd} onDismiss={actions.dismissPd} correcting={blocking}
-                unanswered={unansweredCount(state)} audience={audience} />
+                unanswered={unansweredCount(state)} />
             </div>
           </div>
           <Splitter orientation="vertical" value={layout.cols} max={COLS_MAX} onChange={(cols) => setHostLayout({ cols })}
@@ -335,6 +335,7 @@ export function HostView({
               pinnedNotice={state.session?.pinned_notice ?? null}
               connection={connection}
               serverOffsetMs={state.serverOffsetMs}
+              audience={audience}
             />
           </div>
         </div>

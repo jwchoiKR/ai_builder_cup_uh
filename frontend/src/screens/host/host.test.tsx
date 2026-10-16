@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cloneElement } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { setLang, translate } from "../../app/i18n";
@@ -618,6 +619,15 @@ describe("audience questions", () => {
 });
 
 describe("chat and switch", () => {
+  it("D-477: the viewer count sits in the live chat header, not in the questions panel", () => {
+    render(cloneElement(view(), { audience: 5 }));
+    expect(within(screen.getByTestId("host-chat")).getByTestId("audience-count")).toHaveTextContent("5 watching");
+    expect(within(screen.getByTestId("host-questions")).queryByTestId("audience-count")).toBeNull();
+    cleanup();
+    render(view());  // unknown: nothing
+    expect(screen.queryByTestId("audience-count")).toBeNull();
+  });
+
   it("shows visible comments with replies and the pinned notice", () => {
     render(
       view({

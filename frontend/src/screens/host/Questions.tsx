@@ -5,7 +5,6 @@ import { MessagesSquare, Pin, Users } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 import { useT } from "../../app/i18n";
-import { Watching } from "../../components";
 import type { HostSlotView } from "../../app/selectors";
 import type { PdCard as PdCardType } from "../../app/types";
 import { PdCard } from "./PdCard";
@@ -151,7 +150,6 @@ export function Questions({
   onDismiss,
   correcting = false,
   unanswered = 0,
-  audience = null,
 }: {
   slots: HostSlotView[];
   card?: PdCardType | null;
@@ -160,8 +158,6 @@ export function Questions({
   correcting?: boolean;
   /** D-178: solo show: how many questions only the operator could answer (no card, nothing posted) */
   unanswered?: number;
-  /** D-477: how many are watching; null hides it */
-  audience?: number | null;
 }) {
   const t = useT();
   const sectionRef = useRef<HTMLElement>(null);
@@ -192,7 +188,6 @@ export function Questions({
             {t("Questions resume after the correction")}
           </span>
         )}
-        <Watching count={audience} className={styles.cardWatching} />
       </header>
       <div ref={listRef} className={styles.questions}>
         {card && cardBox(card)}
