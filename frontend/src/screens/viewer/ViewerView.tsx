@@ -1,5 +1,5 @@
 // Viewer page body (§12.5). Pure presentation over the client state; Viewer.tsx wires the store.
-import { BadgeCheck, Gift, Mic, PawPrint, Pin, Send, Sparkles } from "lucide-react";
+import { Gift, PawPrint, Pin, Send } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { ApiError } from "../../app/api";
@@ -17,8 +17,9 @@ import { useServerNow } from "../../app/store";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
 import { Countdown, HubLink, RelativeTime, SettingsButton, Watching, windowRange } from "../../components";
-import { Crowd, type HostAnswered } from "./Crowd";
-import { chatSignature, HIDDEN_LABEL, isPinnedCorrection, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
+import { Badge } from "./Badge";
+import { Crowd, type ReplyPost } from "./Crowd";
+import { chatSignature, HIDDEN_LABEL, isPinnedCorrection, ownTranslation, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
 import { useCamera } from "./useCamera";
 import styles from "./viewer.module.css";
@@ -105,16 +106,19 @@ export function ViewerView({
   // D-474: the figures on the video come from the visible comment rows only (no hidden rows, no replies)
   const commenters = useMemo(() => rows.flatMap((r) => (r.kind === "comment" ? [r.comment] : [])), [rows]);
   // D-475: every asker of a reply (a coalesced reply answers them all); D-483 (user): any reply that answers the
-  // question, from the AI, the host or the brand; notices and corrections do not count
-  const answered = useMemo<HostAnswered[]>(
-    () => Object.values(state.messages).flatMap((m) =>
-      REPLY_KINDS.has(m.kind) && m.state === "published"
-        ? m.reply_to_comment_ids.flatMap((cid) => {
-            const c = state.comments[cid];
-            return c ? [{ key: `${m.message_id}:${cid}`, authorId: c.author_id }] : [];
-          })
-        : []),
-    [state.messages, state.comments],
+  // question, from the AI, the host or the brand; notices and corrections do not count. D-485: with its text (in the
+  // language of this viewer's own question when the server sent that translation) for the answer bubble
+  const replies = useMemo<ReplyPost[]>(
+    () => Object.values(state.messages).flatMap((m) => {
+      if (!REPLY_KINDS.has(m.kind) || m.state !== "published") return [];
+      const askers = m.reply_to_comment_ids.flatMap((cid) => {
+        const c = state.comments[cid];
+        return c ? [{ commentId: cid, authorId: c.author_id }] : [];
+      });
+      return [{ messageId: m.message_id, kind: m.kind, text: m.text, ownText: ownTranslation(state, m, me)?.text ?? null, askers }];
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ownTranslation reads only messages and comments
+    [state.messages, state.comments, me],
   );
   const camera = useCamera(cameraEnabled && !embedded);
   const popup = useTimeSalePopup(state);
@@ -196,8 +200,8 @@ export function ViewerView({
             <span className={styles.brandBadge}>{brand}</span>
           </div>
           {(embedded || crowdOn) && (
-            <Crowd comments={commenters} answered={answered} me={me} serverOffsetMs={offset} loaded={state.loaded}
-              since={embedded ? undefined : crowdSince} />
+            <Crowd comments={commenters} replies={replies} brand={brand} me={me} serverOffsetMs={offset}
+              loaded={state.loaded} since={embedded ? undefined : crowdSince} />
           )}
           {connection === "reconnecting" && (
             <div className={styles.overlayBottom}>
@@ -315,27 +319,6 @@ function useTimeSalePopup(state: ClientState): string | null {
 }
 
 // ---- chat ----------------------------------------------------------------------------------------
-
-const BADGE: Record<MessageKind, { label: string; icon: "ai" | "host" | "brand" | null }> = {
-  ai_answer: { label: "AI answer", icon: "ai" },
-  host_answer: { label: "Host answer", icon: "host" },
-  brand_answer: { label: "Brand", icon: "brand" },  // the label is the catalog's brand (Badge)
-  notice: { label: "Brand", icon: "brand" },
-  correction_notice: { label: "Correction", icon: null },
-};
-
-function Badge({ kind, brand }: { kind: MessageKind; brand: string }) {
-  const b = BADGE[kind];
-  const label = b.icon === "brand" ? brand : b.label;
-  return (
-    <span className={cx(styles.badge, styles[`badge_${kind}`])}>
-      {b.icon === "ai" && <Sparkles size={12} aria-hidden />}
-      {b.icon === "host" && <Mic size={12} aria-hidden />}
-      {b.icon === "brand" && <BadgeCheck size={12} aria-hidden />}
-      {label}
-    </span>
-  );
-}
 
 function ChatList({
   rows,

@@ -64,7 +64,7 @@ export function isPinnedCorrection(m: Message, now: number): boolean {
 }
 
 /** The reply in the language one of this viewer's own questions was asked in, if the server sent it. */
-function ownTranslation(state: ClientState, m: Message, me: string | null): ReplyView["translation"] {
+export function ownTranslation(state: ClientState, m: Message, me: string | null): ReplyView["translation"] {
   if (!me || !m.translations) return null;
   for (const cid of m.reply_to_comment_ids) {
     const c = state.comments[cid];

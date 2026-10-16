@@ -494,7 +494,7 @@
 .bubble {
   position: absolute;
   z-index: 1;
-  bottom: calc(100% + 4px + var(--lift, 0) * 26px); /* D-475: an older overlapping bubble sits a row higher */
+  bottom: calc(100% + 4px + var(--lift, 0px)); /* D-475, D-485: an older overlapping bubble goes up (measured px) */
   left: 50%;
   translate: -50% 0;
   width: max-content; /* not the animal's width */
@@ -532,7 +532,7 @@
   top: calc(100% + 4px);
   left: calc(50% - 1px);
   width: 2px;
-  height: max(0px, calc(var(--lift, 0) * 26px - 2px));
+  height: max(0px, calc(var(--lift, 0px) - 2px));
   background: var(--crowd-bubble);
 }
 .bubble[data-edge="start"] {
@@ -557,6 +557,40 @@
 .bubble[data-edge="end"]::before {
   left: auto;
   right: calc(var(--aw) / 2 - 1px);
+}
+/* D-485: the answer bubble: the reply (tag and up to 2 lines) over its question, one bubble, one tail */
+.bubblePair {
+  max-width: min(200px, calc(100cqw - 24px));
+}
+.pairAnswer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.pairAnswer .badge {
+  height: 18px;
+  font-size: 11px;
+}
+.pairAnswerText {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-weight: var(--fw-semibold);
+}
+.pairQuestion {
+  display: block;
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 @keyframes bubbleIn {
   from {
