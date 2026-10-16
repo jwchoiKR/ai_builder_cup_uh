@@ -157,6 +157,7 @@
   font-size: 17px;
   line-height: 1.5;
   color: var(--text-2);
+  white-space: pre-line; /* D-471: each sentence on its own line */
 }
 .hubStudio {
   display: flex;
@@ -582,6 +583,7 @@
   margin-top: var(--space-1);
   font-size: 15px;
   line-height: 1.5;
+  white-space: pre-line; /* D-471 */
 }
 @media (max-width: 1099px) {
   .hubPhases {

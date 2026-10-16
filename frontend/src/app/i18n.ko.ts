@@ -171,8 +171,8 @@ export const KO_HUB: Record<string, string> = {
   "Reset demo": "데모 초기화",
   "Demo tools are disabled": "데모 도구가 꺼져 있습니다",
   "Broadcast hub": "방송 허브",
-  "An AI assistant beside the live host. It checks what the host says, answers viewer questions from the product documents and cues the next move.":
-    "라이브 진행자 옆에서 돕는 AI입니다. 진행자의 말을 확인하고, 제품 문서로 시청자 질문에 답하고, 다음 할 일을 알려 줍니다.",
+  "An AI assistant beside the live host.\nIt checks what the host says, answers viewer questions from the product documents and cues the next move.":
+    "라이브 진행자 옆에서 돕는 AI입니다.\n진행자의 말을 확인하고, 제품 문서로 시청자 질문에 답하고, 다음 할 일을 알려 줍니다.",
   "Open Studio (demo) →": "스튜디오 열기 (데모) →",
   "Host, operator and viewer side by side, with prepared demo scenes.":
     "진행자·운영자·시청자 화면을 나란히 놓고, 준비된 데모 장면을 재생합니다.",
@@ -181,12 +181,12 @@ export const KO_HUB: Record<string, string> = {
   "After the show": "방송 후",
   Setup: "준비",
   Onboard: "제품 등록",
-  "Upload a new product's documents. The AI reads them for approval.": "새 제품 문서를 올리면 AI가 읽고 승인할 내용을 정리합니다.",
+  "Upload a new product's documents.\nThe AI reads them for approval.": "새 제품 문서를 올리면 AI가 읽고 승인할 내용을 정리합니다.",
   "Pick products": "방송 제품 선택",
   "Combined view": "통합 화면",
   "Screens side by side": "여러 화면을 한 번에",
-  "Host, Operator and Viewer side by side: turn each one on or off.": "진행자, 운영자, 시청자 화면을 나란히 봅니다. 화면마다 켜고 끌 수 있습니다.",
-  "Choose the approved products for this show. A During-the-show screen starts the show with them.": "승인된 제품 중 이번 방송에 쓸 제품을 고릅니다. 방송 중 화면을 열면 이 제품들로 방송이 시작됩니다.",
+  "Host, Operator and Viewer side by side: turn each one on or off.": "진행자, 운영자, 시청자 화면을 나란히 봅니다.\n화면마다 켜고 끌 수 있습니다.",
+  "Choose the approved products for this show.\nA During-the-show screen starts the show with them.": "승인된 제품 중 이번 방송에 쓸 제품을 고릅니다.\n방송 중 화면을 열면 이 제품들로 방송이 시작됩니다.",
   "Approved products": "승인된 제품",
   "For the operator": "운영자용",
   "Upload product documents. The AI drafts the host's talking points.": "제품 문서를 올리면 AI가 진행자가 말할 내용을 정리합니다.",
