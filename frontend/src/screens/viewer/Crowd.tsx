@@ -229,9 +229,11 @@ interface CrowdProps {
   serverOffsetMs: number;
   /** the first snapshot is in: answers already there are not celebrated */
   loaded: boolean;
+  /** D-484: turned on again at this server time: comments from before it never speak */
+  since?: number;
 }
 
-function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProps) {
+function CrowdView({ comments, answered, me, serverOffsetMs, loaded, since }: CrowdProps) {
   const roster = useRef<Figure[]>([]);
   const leaving = useRef<Figure[]>([]);
   const seen = useRef(new Set<string>());
@@ -330,7 +332,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       }
       // first seen live (not an old one from a snapshot or a replay): it may speak once its verdict is in, however
       // long triage takes
-      if (young(c)) awaiting.current.add(c.comment_id);
+      if (young(c) && (since === undefined || c.received_at > since)) awaiting.current.add(c.comment_id);
     }
 
     // D-482 (user): a bubble comes up when triage has judged the comment: a question raises the paw with it and is
@@ -480,7 +482,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
 }
 
 const crowdSig = (p: CrowdProps) =>
-  `${p.me}|${p.serverOffsetMs}|${p.loaded}|${p.answered.map((a) => a.key).join(" ")}|`
+  `${p.me}|${p.serverOffsetMs}|${p.loaded}|${p.since}|${p.answered.map((a) => a.key).join(" ")}|`
   + p.comments.map((c) => `${c.comment_id}:${c.kind}:${c.reply_status ?? ""}`).join(" ");
 
 /** ViewerView re-renders every second; the crowd only when what it shows from could change. */
