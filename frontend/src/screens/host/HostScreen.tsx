@@ -33,7 +33,7 @@ import { COLS_MAX, HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReading
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
 import type { HostBox } from "../../app/selectors";
 import type { Catalog } from "../../app/types";
-import { BroadcastControl, Countdown, Elapsed, HubLink, SettingsButton, Splitter } from "../../components";
+import { BroadcastControl, Countdown, Elapsed, HubLink, SettingsButton, ShowLoading, Splitter } from "../../components";
 import { CorrectedBar, CueStrip, FactNote, MediumBanner, SwitchedBar, UncheckedStrip } from "./Banners";
 import { Chat } from "./Chat";
 import { ComplianceOverlay } from "./ComplianceOverlay";
@@ -200,6 +200,7 @@ export function HostView({
   onSetTheme,
   actions,
   audience = null,
+  loading = false,
 }: {
   state: ClientState;
   catalog: Catalog | null;
@@ -213,6 +214,7 @@ export function HostView({
   actions: HostActions;
   /** D-477: how many are watching; null hides it */
   audience?: number | null;
+  loading?: boolean;  // the session or its product info is still on the way
 }) {
   const t = useT();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -281,6 +283,7 @@ export function HostView({
       data-screen="host"
       style={{ "--hs": scale } as CSSProperties}
     >
+      <ShowLoading show={loading} />
       <TopBar
         state={state}
         catalog={catalog}
@@ -400,6 +403,7 @@ export function HostScreen(props: ScreenProps) {
       onSetTheme={props.theme ? undefined : setTheme}
       actions={actions}
       audience={audience}
+      loading={!!sid && (!state.loaded || !catalog)}
     />
   );
 }

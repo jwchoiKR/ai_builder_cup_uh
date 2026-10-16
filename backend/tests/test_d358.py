@@ -155,7 +155,7 @@ async def test_d433_the_alert_carries_the_cited_document_s_readable_name_and_sec
     finally:
         await close_env(rt)
     market = Original("asean_appendix_iii.pdf", "ASEAN Cosmetic Claims Guideline", "ASEAN_APPENDIX_III", b"",
-                      "application/pdf", "")
+                      "application/pdf")
     assert cited_title(market, "asean_appendix_iii.pdf", "2.d") == "ASEAN Cosmetic Claims Guideline 2.d"
     assert cited_title(None, "other_code.pdf", "3") == "other_code 3"  # a document the judge was not given
     assert cited_title(None, "other_code.pdf", "") == "other_code"

@@ -185,6 +185,8 @@ export const KO_HUB: Record<string, string> = {
   Onboard: "제품 등록",
   "Upload a new product's documents.\nThe AI reads them for approval.": "새 제품 문서를 올리면 AI가 읽고 승인할 내용을 정리합니다.",
   "Pick products": "방송 제품 선택",
+  "Starting the show…": "방송 시작 중…",
+  "Loading the show…": "방송 정보 불러오는 중…",
   "Combined view": "통합 화면",
   "Screens side by side": "여러 화면을 한 번에",
   "Host, Operator and Viewer side by side: turn each one on or off.": "진행자, 운영자, 시청자 화면을 나란히 봅니다.\n화면마다 켜고 끌 수 있습니다.",

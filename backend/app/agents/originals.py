@@ -1,12 +1,10 @@
 """D-358: the regulation ORIGINALS the live compliance judge reads, as they are (no rule JSON).
 
 A show's regulation PDFs are the ones uploaded with its products (rebuilt onboarding: each release pairs a product
-with a regulation file). The model gets the files as parts of its cached prefix; code keeps each file's text only to
-check that a cited quote is really in that original (provenance)."""
+with a regulation file). The model gets the files as parts of its cached prefix."""
 from __future__ import annotations
 
 import re
-import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,13 +18,6 @@ class Original:
     source_id: str
     data: bytes
     mime: str
-    text: str  # what code can read of it, for the quote check
-
-
-def squash(text: str) -> str:
-    """Letters and digits only (any script), lower case: PDF text extraction splits and joins words ("pro ducts").
-    D-361: Korean, Chinese, Malay or Thai text keeps its letters (it was Latin only)."""
-    return "".join(ch for ch in unicodedata.normalize("NFKC", text).casefold() if ch.isalnum())
 
 
 def _slug(text: str) -> str:
@@ -48,24 +39,12 @@ def cited_title(d: "Original | None", doc: str, section: str) -> str:
     return f"{name} {section.strip()}".strip()
 
 
-def _text(name: str, data: bytes) -> str:
-    """What code can read of a PDF, for the quote check."""
-    import io
-
-    from pypdf import PdfReader
-
-    try:
-        return "\n".join(f"[page {i + 1}] {p.extract_text() or ''}" for i, p in enumerate(PdfReader(io.BytesIO(data)).pages))
-    except Exception:  # noqa: BLE001 - an unreadable PDF leaves no text to check quotes against
-        return ""
-
-
 # a show's uploaded regulation PDFs by regulation id (onboarding/product_show.py registers them at show start)
 _REGULATIONS: dict[str, list[Original]] = {}  # ponytail: one entry per regulation for the process's life
 
 
 def register_regulation(regulation_id: str, pdfs: list[tuple[str, bytes]]) -> None:
-    _REGULATIONS[regulation_id] = [Original(name, name, regulation_id, data, "application/pdf", _text(name, data))
+    _REGULATIONS[regulation_id] = [Original(name, name, regulation_id, data, "application/pdf")
                                    for name, data in pdfs]
 
 
@@ -81,6 +60,6 @@ def originals_for(catalog, product_ids) -> tuple[tuple[Original, ...], tuple[str
             missing.append(sid)
             continue
         names = {x.name for x in found}
-        found += [d if d.name not in names else Original(f"{sid}:{d.name}", d.title, d.source_id, d.data, d.mime, d.text)
+        found += [d if d.name not in names else Original(f"{sid}:{d.name}", d.title, d.source_id, d.data, d.mime)
                   for d in docs]
     return tuple(found), tuple(missing)
