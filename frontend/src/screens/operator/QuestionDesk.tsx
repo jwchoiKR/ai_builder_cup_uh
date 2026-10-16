@@ -1,6 +1,6 @@
 // Question desk (§12.4.7): grouped questions sorted by status bucket then score, with actions.
-import { ChevronDown, ChevronRight, FileText, Users } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronRight, FileText, Info, Users } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { api, type AnswerOrigin } from "../../app/api";
 import { useT } from "../../app/i18n";
@@ -32,6 +32,46 @@ const TABS: { key: DeskTab; label: string }[] = [
   { key: "answered", label: "Answered" },
   { key: "all", label: "All" },
 ];
+
+/** D-499: a small (i) button whose text shows on hover and on keyboard focus; Escape or leaving closes it; a tap
+ *  toggles it on touch. */
+function InfoTip({ text }: { text: string }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const focused = useRef(false);  // a tap focuses, then clicks: the first tap only opens
+  const id = useId();
+  return (
+    <span className={styles.infoTip} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button
+        type="button"
+        className={styles.infoButton}
+        aria-label={t("About this panel")}
+        aria-describedby={id}
+        aria-expanded={open}
+        onFocus={() => {
+          focused.current = true;
+          setOpen(true);
+        }}
+        onBlur={() => setOpen(false)}
+        onClick={() => {
+          if (focused.current) focused.current = false;
+          else setOpen((o) => !o);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+        }}
+        data-testid="op-desk-info"
+      >
+        <Info aria-hidden />
+      </button>
+      {open && (
+        <span role="tooltip" id={id} className={styles.infoTooltip}>
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function QuestionDesk() {
   const t = useT();
@@ -75,9 +115,10 @@ export function QuestionDesk() {
       <div className={styles.blockHeader}>
         <div>
           <h2 className={styles.blockTitle}>
-            {t("Question desk")} <span className="tabular" data-testid="op-desk-count">{counts.all}</span>
+            {t("Question desk")} <span className="tabular" data-testid="op-desk-count">{counts.all}</span>{" "}
+            {/* D-499 (user): the help sentence on hover or focus, not always on screen */}
+            <InfoTip text={t("Viewer questions that need a person. Check the suggested reply, edit it if you want, and post.")} />
           </h2>
-          <p className={styles.muted}>{t("Viewer questions that need a person. Check the suggested reply, edit it if you want, and post.")}</p>
         </div>
         <span className={styles.deskMeta}>
           <Watching count={audience} className={styles.deskWatching} />
