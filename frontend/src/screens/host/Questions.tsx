@@ -18,8 +18,16 @@ const PD_MIN_ZOOM = 0.8; // as the prompter's: below this the line to say gets t
  *  keeps the card in view); then the card's text shrinks step by step down to PD_MIN_ZOOM; if it still does not fit,
  *  the card box grows, and the panel asks the host grid for the room (the min-height of its row, as the prompter's
  *  useFit does). */
-function usePdFit(section: RefObject<HTMLElement>, list: RefObject<HTMLDivElement>, slot: RefObject<HTMLDivElement>) {
+function usePdFit(
+  section: RefObject<HTMLElement>,
+  list: RefObject<HTMLDivElement>,
+  slot: RefObject<HTMLDivElement>,
+  cardId: string | null,
+) {
   const run = useRef(() => {});
+  // D-469: the screen re-renders every 250 ms; the card is scrolled into view only when it is new or its box changed
+  // height, so a list the host scrolled stays where it is
+  const shown = useRef<{ id: string | null; height: number }>({ id: null, height: 0 });
   run.current = () => {
     const sec = section.current;
     const holder = sec?.parentElement; // the questions row of the host grid
@@ -28,7 +36,10 @@ function usePdFit(section: RefObject<HTMLElement>, list: RefObject<HTMLDivElemen
     const box = slot.current;
     const rows = list.current;
     const card = box?.firstElementChild as HTMLElement | null | undefined;
-    if (!box || !rows || !card) return;
+    if (!box || !rows || !card) {
+      shown.current = { id: null, height: 0 };
+      return;
+    }
     card.style.zoom = "1";
     box.style.height = "";
     if (!(box.clientHeight > 0)) return; // no layout (tests, hidden pane)
@@ -44,6 +55,9 @@ function usePdFit(section: RefObject<HTMLElement>, list: RefObject<HTMLDivElemen
     }
     const need = sec.offsetHeight - rows.clientHeight + box.offsetHeight; // header and footer, plus the card box
     if (need > sec.offsetHeight + 1) holder.style.minHeight = `${Math.ceil(need)}px`;
+    const before = shown.current;
+    shown.current = { id: cardId, height: box.offsetHeight };
+    if (before.id === cardId && before.height === box.offsetHeight) return;
     const r = rows.getBoundingClientRect();
     const c = box.getBoundingClientRect();
     if (c.top < r.top) rows.scrollTop -= r.top - c.top;
@@ -74,8 +88,17 @@ function postingWindow(pending: HostSlotView["pending"]): number {
   return pending?.publish_at ? Math.max(500, pending.publish_at - pending.created_at) : 2000;
 }
 
+/** D-469: the state pill's look, from the question's own fields (never from its label text) */
+function stateTone({ group, answer }: HostSlotView): string | undefined {
+  if (group.status === "composing") return styles.pillDrafting;
+  if (group.status === "needs_review" && group.route_reason === "unresolved_product") return undefined;
+  if (group.status === "auto_answered") return styles.pillReadout;
+  return answer ? styles.pillReady : undefined;
+}
+
 /** D-113: one compact row per waiting question. D-384 (user): its suggested answer shows under it at once; D-431: a
- *  read-out question too (no AI PD card supplies it since D-429). */
+ *  read-out question too (no AI PD card supplies it since D-429). D-469 (user): "Q1" and an "A1" chip in a label
+ *  column, question and answer starting at the same x; no answer yet keeps the answer line's height. */
 function Item({ view }: { view: HostSlotView }) {
   const t = useT();
   const { group, pending, waiting, answer } = view;
@@ -84,28 +107,38 @@ function Item({ view }: { view: HostSlotView }) {
   const windowMs = postingWindow(pending);
   return (
     <>
-      <div className={styles.wRow}>
-        <span className={styles.qIndex}>{String(view.index).padStart(2, "0")}</span>
-        <span className={styles.wText}>{group.canonical_question}</span>
-        <span className={cx(styles.qAsking, "tabular")}>
-          <Users aria-hidden />
-          {group.unique_author_ids.length}
-        </span>
-        <span className={styles.wState} data-testid="host-question-state">
-          {t(waiting)}
-        </span>
-        {view.slot.pinned && (
-          <span className={cx(styles.qTag, styles.qTagPd)}>
-            <Pin aria-hidden />
-            {t("From your PD")}
+      <div className={styles.qa}>
+        <span className={styles.qLabel}>Q{view.index}</span>
+        <div className={styles.wRow}>
+          <span className={styles.wText}>{group.canonical_question}</span>
+          <span className={cx(styles.pill, styles.pillCount, "tabular")}>
+            <Users aria-hidden />
+            {group.unique_author_ids.length}
           </span>
+          <span className={cx(styles.pill, stateTone(view))} data-testid="host-question-state">
+            {t(waiting)}
+          </span>
+          {view.slot.pinned && (
+            <span className={styles.pill}>
+              <Pin aria-hidden />
+              {t("From your PD")}
+            </span>
+          )}
+        </div>
+        {preview ? (
+          <>
+            <span className={styles.aLabel}>A{view.index}</span>
+            <p className={styles.wPreview} data-testid="host-question-preview">
+              {preview}
+            </p>
+          </>
+        ) : (
+          <>
+            <span className={styles.aNone} aria-hidden />
+            <span className={styles.aEmpty} aria-hidden />
+          </>
         )}
       </div>
-      {preview && (
-        <p className={styles.wPreview} data-testid="host-question-preview">
-          {preview}
-        </p>
-      )}
       {pending && <Posting windowMs={windowMs} />}
     </>
   );
@@ -130,7 +163,7 @@ export function Questions({
   const sectionRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
-  usePdFit(sectionRef, listRef, slotRef);
+  usePdFit(sectionRef, listRef, slotRef, card?.card_id ?? null);
   // D-429: the AI PD makes no question cards; its other cards (promo, switch, wrap-up, shout-out) go on top
   const cardBox = (c: PdCardType) => (
     <div ref={slotRef} className={styles.pdSlot} data-testid="host-pd-slot">

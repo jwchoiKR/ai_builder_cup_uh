@@ -478,7 +478,8 @@ describe("audience questions", () => {
       "host-question-grp_000001",
       "host-question-grp_000003",
     ]);
-    expect(items[0]).toHaveTextContent("01");
+    expect(items[0]).toHaveTextContent(/^Q1/);  // D-469: Q and A labels carry the row number
+    expect(items[0]).toHaveTextContent("A1Yes. Apply sunscreen");
     expect(items[0]).toHaveTextContent("From your PD");
     expect(within(items[0]).getByTestId("host-question-state")).toHaveTextContent("Ready to answer");
     // the first line of the suggested reply, in quiet text under the question, so the host can prepare
@@ -508,6 +509,7 @@ describe("audience questions", () => {
     expect(previews[0]).toHaveTextContent(/^First line to say\.$/);
     expect(screen.queryByText(/Unchecked draft text/)).toBeNull();
     expect(screen.getByTestId("host-question-grp_000008")).toHaveTextContent("No answer yet");
+    expect(screen.getByTestId("host-question-grp_000008")).not.toHaveTextContent("A2");  // D-469: a dash, no chip
   });
 
   it("D-113: drafting and which product states; D-429: no question card, so no on-your-card state", () => {
@@ -576,6 +578,42 @@ describe("audience questions", () => {
     const list = screen.getByTestId("host-questions");
     const slot = within(list).getByTestId("host-pd-slot");
     expect(slot.compareDocumentPosition(screen.getByTestId("host-question-grp_a")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("D-469: a re-render keeps the list where the host scrolled it; a new card is scrolled into view", () => {
+    // jsdom has no layout: the list is 100-300 px, the card box sits below it at 350-400 px
+    const tops = new WeakMap<Element, number>();
+    const spies = [
+      vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(100),
+      vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(100),
+      vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(100),
+      vi.spyOn(Element.prototype, "scrollTop", "get").mockImplementation(function (this: Element) {
+        return tops.get(this) ?? 0;
+      }),
+      vi.spyOn(Element.prototype, "scrollTop", "set").mockImplementation(function (this: Element, v: number) {
+        tops.set(this, v);
+      }),
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+        const slot = this.getAttribute("data-testid") === "host-pd-slot";
+        return { top: slot ? 350 : 100, bottom: slot ? 400 : 300 } as DOMRect;
+      }),
+    ];
+    try {
+      const a = group({ group_id: "grp_a" });
+      const slots = [{ group_id: a.group_id, pinned: false, on_host_since: now() }];
+      const shown = (id: string) =>
+        view({ session: session({ pd_card: pdCard({ card_id: id, kind: "promo", status: "active" }) }), groups: [a], host_slots: slots });
+      const { rerender } = render(shown("card_1"));
+      const list = screen.getByTestId("host-pd-slot").parentElement!;
+      expect(list.scrollTop).toBe(100);
+      list.scrollTop = 7;  // the host scrolls the list
+      rerender(shown("card_1"));  // the 250 ms clock tick
+      expect(list.scrollTop).toBe(7);
+      rerender(shown("card_2"));
+      expect(list.scrollTop).toBe(107);
+    } finally {
+      spies.forEach((s) => s.mockRestore());
+    }
   });
 });
 
