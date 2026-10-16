@@ -836,3 +836,71 @@ describe("D-481: a question's bubble stays up until it is answered", () => {
     expect([bubble("a"), paw("a"), bubble("b"), bubble("d"), bubble("e")]).toEqual([false, false, true, true, true]);
   });
 });
+
+describe("D-482: a bubble comes up when triage has judged the comment", () => {
+  const c = (kind: "pending" | "reaction" | "question" | "hide", ago = 500, over: Partial<Parameters<typeof comment>[0]> = {}) =>
+    comment({ comment_id: "cm_ann", author_id: "u_ann", author_name: "ann", text: "is it vegan?", received_at: NOW - ago,
+              group_id: null, kind, ...over });
+  const bubble = () => screen.queryByTestId("viewer-bubble-u_ann") !== null;
+  const ann = () => screen.getByTestId("viewer-figure-u_ann");
+
+  it("the viewer state takes the verdict from comment.analyzed", () => {
+    const state = apply(stateWith({ comments: [c("pending")] }),
+      { seq: 11, type: "comment.analyzed", payload: { comment: { ...c("question"), reply_status: "checking" } } });
+    expect(state.comments["cm_ann"]!.kind).toBe("question");
+  });
+
+  it("pending: the chat shows it at once, the animal joins, no bubble; a question verdict brings bubble, paw and front", () => {
+    const { rerender } = render(view(stateWith({ comments: [c("pending")] })));
+    expect(screen.getByTestId("viewer-comment-cm_ann")).toBeInTheDocument();
+    expect(ann()).not.toHaveAttribute("data-stopped");
+    expect(bubble()).toBe(false);
+    act(() => vi.advanceTimersByTime(3000));
+    rerender(view(stateWith({ comments: [c("question", 500, { reply_status: "checking" })] })));
+    expect(bubble()).toBe(true);
+    expect(ann()).toHaveAttribute("data-hand");
+    expect(ann().querySelector("svg")).toHaveAttribute("data-view", "front");
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(bubble()).toBe(true);  // held (D-481)
+  });
+
+  it("a chat verdict brings the 4 s bubble, facing front", () => {
+    const { rerender } = render(view(stateWith({ comments: [c("pending")] })));
+    rerender(view(stateWith({ comments: [c("reaction")] })));
+    expect(bubble()).toBe(true);
+    expect(ann()).not.toHaveAttribute("data-hand");
+    expect(ann().querySelector("svg")).toHaveAttribute("data-view", "front");
+    act(() => vi.advanceTimersByTime(4000));
+    expect(bubble()).toBe(false);
+  });
+
+  it("a verdict later than 10 s still speaks for a comment first seen live; an old one from a snapshot never does", () => {
+    const { rerender, unmount } = render(view(stateWith({ comments: [c("pending")] })));
+    act(() => vi.advanceTimersByTime(15_000));
+    rerender(view(stateWith({ comments: [c("reaction")] })));
+    expect(bubble()).toBe(true);
+    unmount();
+    const again = render(view(stateWith({ comments: [c("pending", 20_000)] })));
+    again.rerender(view(stateWith({ comments: [c("reaction", 20_000)] })));
+    expect(bubble()).toBe(false);
+  });
+
+  it("hidden wins: a comment hidden before its verdict never speaks, not even after an unhide", () => {
+    let state = stateWith({ comments: [c("pending")] });
+    const { rerender } = render(view(state));
+    state = apply(state, { seq: 11, type: "comment.hidden", payload: { comment_id: "cm_ann", visibility: "hidden" } });
+    rerender(view(state));
+    act(() => vi.advanceTimersByTime(20_000));
+    rerender(view(stateWith({ comments: [c("reaction")] })));  // unhidden, judged
+    expect(bubble()).toBe(false);
+  });
+
+  it("a question already answered when its verdict comes gets the plain 4 s bubble, no paw", () => {
+    const { rerender } = render(view(stateWith({ comments: [c("pending")] })));
+    rerender(view(stateWith({ comments: [c("question", 500, { reply_status: "answered" })] })));
+    expect(bubble()).toBe(true);
+    expect(ann()).not.toHaveAttribute("data-hand");
+    act(() => vi.advanceTimersByTime(4000));
+    expect(bubble()).toBe(false);
+  });
+});

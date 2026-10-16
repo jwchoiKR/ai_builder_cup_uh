@@ -101,7 +101,7 @@ async def test_viewer_stream_drops_internal_events_and_unpublished_posts():
     analyzed = ev("comment.analyzed", {"comment": comment, "analysis": {"route": "OPERATOR"}})
     assert for_role(analyzed, "viewer").payload == {"comment": {
         "comment_id": "cm_1", "author_id": "u_1", "author_name": "Jun", "text": "임산부도 써도 되나요?", "received_at": 1,
-        "visibility": "visible", "language": "ko", "reply_status": "team"}}
+        "visibility": "visible", "language": "ko", "reply_status": "team", "kind": "question"}}  # D-482: kind
     assert for_role(analyzed, "operator").payload["comment"]["translation_en"] == "Can pregnant women use it?"
     assert for_role(analyzed, "host").payload == {"comment": comment}  # the host stream is as before
     session = for_role(ev("session.started", {"session_id": "s", "status": "live", "pinned_notice": None,

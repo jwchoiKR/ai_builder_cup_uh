@@ -1,6 +1,7 @@
 // D-474 (user, like SOOP): viewers on the bottom edge of the video, with a one-line chat bubble over the ones who just
 // wrote. D-475 (user): a raised paw when the comment is a question, hearts when the host answers it on air. D-476
-// (user): cute animals that walk about. D-481 (user): a question's bubble and paw stay up until it is answered.
+// (user): cute animals that walk about. D-481 (user): a question's bubble and paw stay up until it is answered. D-482
+// (user): a bubble comes up once triage has judged the comment.
 // Display only: built from what the chat already shows.
 import { memo, useEffect, useLayoutEffect, useReducer, useRef, useState, type CSSProperties } from "react";
 
@@ -237,6 +238,8 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
   const bubbles = useRef<Bubble[]>([]);
   const hands = useRef(new Map<string, string>()); // author id -> the question's comment id
   const holds = useRef(new Map<string, string>()); // D-481: waiting question's comment id -> author id
+  const awaiting = useRef(new Set<string>()); // D-482: comments seen live whose triage verdict is not in yet
+  const spoke = useRef(new Set<string>()); // D-482: comments that have had their bubble
   const asked = useRef(new Set<string>()); // comment ids whose question status this client has handled
   const cheers = useRef<string[]>([]); // author ids, oldest first
   const cheered = useRef<Set<string> | null>(null); // answer keys already handled; null until the first snapshot
@@ -259,7 +262,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
     }, ms));
   };
 
-  const sig = comments.map((c) => `${c.comment_id}:${c.reply_status ?? ""}`).join(" ");
+  const sig = comments.map((c) => `${c.comment_id}:${c.kind}:${c.reply_status ?? ""}`).join(" ");
   const answeredSig = answered.map((a) => a.key).join(" ");
 
   useEffect(() => {
@@ -299,19 +302,21 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       arm(`cap:${c.comment_id}`, Math.max(0, c.received_at + HOLD_CAP_MS - now), () => endHold(c.comment_id));
     };
 
-    // ends: a hidden comment, a question closed back to chat; "answered" closes 1 s later, or at once when the
-    // host answer's hearts start (below), so the animal does not walk off for a moment in between
+    // ends: a hidden comment, a question closed back to chat (its status goes back to null after it was pending);
+    // "answered" closes 1 s later, or at once when the host answer's hearts start (below), so the animal does not
+    // walk off for a moment in between
     for (const [commentId] of [...holds.current]) {
       const c = visible.get(commentId);
-      if (!c || !c.reply_status) endHold(commentId);
+      if (!c || (!c.reply_status && asked.current.has(commentId))) endHold(commentId);
       else if (c.reply_status === "answered" && !timers.current.has(`ans:${commentId}`)) {
         arm(`ans:${commentId}`, ANSWER_GRACE_MS, () => endHold(commentId));
       }
     }
     for (const b of [...bubbles.current]) {
-      if (!visible.has(b.commentId)) closeBubble(b.commentId); // a comment hidden while its bubble is up
+      if (!visible.has(b.commentId)) closeBubble(b.commentId); // hidden wins: a hidden comment loses its bubble at once
     }
 
+    // the animal joins at once; its bubble waits for triage's verdict (D-482)
     for (const c of comments) {
       if (seen.current.has(c.comment_id)) continue;
       seen.current.add(c.comment_id);
@@ -323,15 +328,28 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
           leaving.current = leaving.current.filter((f) => f.authorId !== gone.authorId);
         });
       }
-      if (!young(c)) continue;
-      const question = pending(c);
+      // first seen live (not an old one from a snapshot or a replay): it may speak once its verdict is in, however
+      // long triage takes
+      if (young(c)) awaiting.current.add(c.comment_id);
+    }
+
+    // D-482 (user): a bubble comes up when triage has judged the comment: a question raises the paw with it and is
+    // held (D-481); a chat, or a question already answered, gets the 4 s bubble; still pending, nothing (no time
+    // fallback). A comment hidden meanwhile never speaks, even if it is unhidden later.
+    for (const commentId of [...awaiting.current]) {
+      const c = visible.get(commentId);
+      if (c?.kind === "pending") continue;
+      awaiting.current.delete(commentId);
+      if (!c || c.kind === "hide") continue;
+      spoke.current.add(commentId);
+      const question = c.kind === "question" && c.reply_status !== "answered";
       const mine = bubbles.current.find((b) => b.authorId === c.author_id);
       if (mine?.held && !question) continue; // a chat never closes a held question, not even the same viewer's
       // one bubble per animal: a new question replaces the same viewer's held one
       if (mine?.held) endHold(mine.commentId);
       else if (mine) closeBubble(mine.commentId);
       if (question) {
-        asked.current.add(c.comment_id);
+        if (pending(c)) asked.current.add(c.comment_id);
         const held = bubbles.current.filter((b) => b.held);
         if (held.length >= HOLD_MAX) endHold(held[0]!.commentId);
         const plain = bubbles.current.find((b) => !b.held);
@@ -351,12 +369,12 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
       }
     }
 
-    // the status comes 2-2.5 s after the comment: an open bubble is held from then on; a closed one is not
-    // reopened, only the paw goes up
+    // a waiting status on a comment that has already spoken: an open bubble is held from then on; a closed one is
+    // not reopened, only the paw goes up. Before the verdict the status waits for it (the bubble brings the paw).
     for (const c of comments) {
-      if (!pending(c) || asked.current.has(c.comment_id)) continue;
+      if (!pending(c) || asked.current.has(c.comment_id) || awaiting.current.has(c.comment_id)) continue;
       asked.current.add(c.comment_id);
-      if (young(c)) hold(c);
+      if (spoke.current.has(c.comment_id)) hold(c);
     }
 
     // D-475 hearts: each asker of a host answer published after the first snapshot, if their animal is shown
@@ -462,7 +480,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
 
 const crowdSig = (p: CrowdProps) =>
   `${p.me}|${p.serverOffsetMs}|${p.loaded}|${p.answered.map((a) => a.key).join(" ")}|`
-  + p.comments.map((c) => `${c.comment_id}:${c.reply_status ?? ""}`).join(" ");
+  + p.comments.map((c) => `${c.comment_id}:${c.kind}:${c.reply_status ?? ""}`).join(" ");
 
 /** ViewerView re-renders every second; the crowd only when what it shows from could change. */
 export const Crowd = memo(CrowdView, (a, b) => crowdSig(a) === crowdSig(b));
