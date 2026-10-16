@@ -424,14 +424,6 @@
   grid-template-columns: minmax(0, 2fr) 48px minmax(0, 3fr) 48px minmax(0, 1fr);
   align-items: stretch;
 }
-/* the live phase is tinted and the others are not, though all have the same padding, so each arrow moves half
-   that padding away from the live box to sit midway between the visible boxes (During is always the middle one) */
-.hubPhaseSlot[data-phase="1"] > .hubChevron {
-  translate: calc(var(--space-3) / -2) 0;
-}
-.hubPhaseSlot[data-phase="2"] > .hubChevron {
-  translate: calc(var(--space-3) / 2) 0;
-}
 /* wide screens: fill the width the way Chrome does at 125% */
 @media (min-width: 1600px) {
   .hubRoot {
@@ -455,10 +447,11 @@
   gap: var(--space-3);
   padding: var(--space-3);
   border-radius: calc(var(--radius-card) + 4px);
+  background: color-mix(in srgb, var(--text) 5%, transparent); /* D-472: every phase in a box */
 }
-/* the live part of the show */
+/* the live part of the show; D-472: 12% (was 8%) so it stays clearly stronger than the grey boxes */
 .hubPhaseLive {
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .hubPhaseLabel {
   margin: 0;
