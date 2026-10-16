@@ -150,3 +150,17 @@ def test_two_releases_make_one_show_each_product_with_its_own_regulation(tmp_pat
             assert [d.name for d in docs] == [law] and missing == ()
         bad = c.post("/api/sessions", json={"release_ids": [keys[0], "prd_000000000000:reg_000000000000"]})
         assert bad.status_code == 400  # the second is not approved
+
+
+def test_samples_list_and_download_only_listed_pdfs(monkeypatch):
+    bucket = storage.MemoryBucket()
+    bucket.objects["onboarding/sample/products/A.pdf"] = b"%PDF a"
+    bucket.objects["onboarding/sample/regulations/R.pdf"] = b"%PDF r"
+    bucket.objects["products/prd_x/secret.pdf"] = b"%PDF s"
+    monkeypatch.setattr(storage, "bucket_for", lambda name, project=None: bucket)
+    with TestClient(create_app(make_settings(ONBOARDING_GCS_BUCKET="fake"))) as c:
+        assert c.get("/api/samples").json() == {"products": ["A.pdf"], "regulations": ["R.pdf"]}
+        r = c.get("/api/samples/products/A.pdf")
+        assert r.status_code == 200 and r.content == b"%PDF a" and "attachment" in r.headers["content-disposition"]
+        assert c.get("/api/samples/products/secret.pdf").status_code == 404
+        assert c.get("/api/samples/other/A.pdf").status_code in (404, 422)
