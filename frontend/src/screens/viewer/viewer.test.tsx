@@ -478,25 +478,45 @@ describe("Viewer wired to the session store", () => {
   });
 });
 
-describe("D-474: viewer figures on the video", () => {
+describe("D-474/D-476: viewer animals on the video", () => {
   /** a comment by `who`, `ago` ms before the server's now */
   const said = (who: string, ago: number, over: Partial<Parameters<typeof comment>[0]> = {}) =>
     comment({ comment_id: `cm_${who}_${ago}`, author_id: `u_${who}`, author_name: who, text: `hello from ${who}`,
               received_at: NOW - ago, group_id: null, kind: "reaction", ...over });
-  const figures = () => screen.queryAllByTestId(/^viewer-figure-/).map((e) => e.getAttribute("data-testid")!.slice(14));
+  const shown = () => screen.queryAllByTestId(/^viewer-figure-/).filter((e) => !e.hasAttribute("data-leaving"));
+  const figures = () => shown().map((e) => e.getAttribute("data-testid")!.slice(14));
   const bubbles = () => screen.queryAllByTestId(/^viewer-bubble-/).map((e) => e.getAttribute("data-testid")!.slice(14));
 
-  it("keeps 10 figures: a new commenter takes the longest-silent figure's slot, the viewer's own figure stays", () => {
+  it("keeps 6 animals of 6 different species: a newcomer replaces the longest-silent one, the viewer's own stays", () => {
     joinedAs("u_me");
-    const others = Array.from({ length: 10 }, (_, i) => said(`p${i}`, 50_000 - i * 1000));
+    const others = Array.from({ length: 6 }, (_, i) => said(`p${i}`, 50_000 - i * 1000));
     render(view(stateWith({ comments: [said("me", 60_000), ...others] })));
     const ids = figures();
-    expect(ids).toHaveLength(10);
-    expect(ids).toContain("u_me");  // the oldest, but never evicted
+    expect(ids).toHaveLength(6);
+    expect(ids).toContain("u_me");  // the oldest, but never replaced
     expect(ids).not.toContain("u_p0");  // the longest-silent of the others
-    expect(screen.getByTestId("viewer-figure-u_p9").style.gridColumn).toBe("2");  // p0's slot; no reordering
+    expect(screen.getByTestId("viewer-figure-u_p0")).toHaveAttribute("data-leaving");  // fading out
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.queryByTestId("viewer-figure-u_p0")).toBeNull();
+    expect(new Set(shown().map((e) => e.getAttribute("data-species"))).size).toBe(6);
     expect(screen.getByTestId("viewer-figure-u_me")).toHaveAttribute("data-own");
     expect(screen.getByTestId("viewer-crowd")).toHaveAttribute("aria-hidden");
+  });
+
+  it("an animal stops where it is while it speaks (side view for a chat) and walks on after 4 s", () => {
+    const { rerender } = render(view(stateWith({ comments: [said("old", 15_000), said("ann", 1000)] })));
+    const ann = () => screen.getByTestId("viewer-figure-u_ann");
+    const walk = ann().getAttribute("style");
+    expect(ann()).toHaveAttribute("data-stopped");
+    expect(screen.getByTestId("viewer-figure-u_old")).not.toHaveAttribute("data-stopped");
+    expect(ann().querySelector("svg")).toHaveAttribute("data-view", "side");
+    act(() => vi.advanceTimersByTime(2000));
+    rerender(view(stateWith({ comments: [said("old", 15_000), said("ann", 1000)] })));
+    expect(ann()).toHaveAttribute("data-stopped");
+    expect(ann().getAttribute("style")).toBe(walk);  // its walk (and so its paused spot) is unchanged
+    act(() => vi.advanceTimersByTime(2000));
+    expect(ann()).not.toHaveAttribute("data-stopped");
+    expect(ann().getAttribute("style")!.replace(/z-index: \d+;?/, "")).toBe(walk!.replace(/z-index: \d+;?/, ""));
   });
 
   it("a hidden comment adds no figure and no bubble", () => {
@@ -532,8 +552,10 @@ describe("D-474: viewer figures on the video", () => {
     expect(bubbles().sort()).toEqual(["u_a", "u_b", "u_c"]);
     rerender(view(stateWith({ comments: [...first, said("d", 500)] })));
     expect(bubbles().sort()).toEqual(["u_b", "u_c", "u_d"]);
-    expect(screen.getByTestId("viewer-bubble-u_d").style.zIndex).toBe("3");
-    expect(screen.getByTestId("viewer-bubble-u_b").style.zIndex).toBe("1");
+    // D-476: the speaking animal (and so its bubble) is in front, the newest on top
+    expect(screen.getByTestId("viewer-figure-u_d").style.zIndex).toBe("13");
+    expect(screen.getByTestId("viewer-figure-u_b").style.zIndex).toBe("11");
+    expect(screen.getByTestId("viewer-figure-u_a").style.zIndex).toBe("1");
   });
 
   it("D-475: an older bubble that overlaps a newer one moves up a row", () => {
@@ -567,6 +589,8 @@ describe("D-475: raised hands and hearts", () => {
     act(() => vi.advanceTimersByTime(5000));  // the bubbles are gone
     rerender(view(stateWith({ comments: [said("ann", 1000, { reply_status: "checking" }), said("bob", 1000)] })));
     expect(flag("ann", "hand")).toBe(true);
+    expect(screen.getByTestId("viewer-figure-u_ann").querySelector("svg")).toHaveAttribute("data-view", "front");  // D-476
+    expect(screen.getByTestId("viewer-figure-u_bob").querySelector("svg")).toHaveAttribute("data-view", "side");
     expect(flag("bob", "hand")).toBe(false);
     act(() => vi.advanceTimersByTime(3900));
     expect(flag("ann", "hand")).toBe(true);
@@ -581,7 +605,8 @@ describe("D-475: raised hands and hearts", () => {
     rerender(view(stateWith({ comments: asked, messages: [answer("msg_h", "host_answer", ["cm_ann", "cm_bob"])] })));
     expect(flag("ann", "happy") && flag("bob", "happy")).toBe(true);
     expect(flag("ann", "hand")).toBe(false);
-    expect(screen.getAllByTestId("viewer-heart")).toHaveLength(6);
+    expect(screen.getAllByTestId("viewer-heart")).toHaveLength(12);  // D-476: 6 hearts each
+    expect(screen.getByTestId("viewer-figure-u_ann").querySelector("svg")).toHaveAttribute("data-view", "side");
     act(() => vi.advanceTimersByTime(2000));
     expect(flag("ann", "happy") || flag("bob", "happy")).toBe(false);
   });
@@ -604,9 +629,10 @@ describe("D-475: raised hands and hearts", () => {
   });
 
   it("a figure waiting for an answer keeps its slot; the longest-silent of the rest gives way", () => {
-    const others = Array.from({ length: 10 }, (_, i) => said(`p${i}`, 50_000 - i * 1000, i === 0 ? { reply_status: "team" } : {}));
+    const others = Array.from({ length: 6 }, (_, i) => said(`p${i}`, 50_000 - i * 1000, i === 0 ? { reply_status: "team" } : {}));
     render(view(stateWith({ comments: [...others, said("new", 1000)] })));
-    const ids = screen.queryAllByTestId(/^viewer-figure-/).map((e) => e.getAttribute("data-testid")!.slice(14));
+    const ids = screen.queryAllByTestId(/^viewer-figure-/).filter((e) => !e.hasAttribute("data-leaving"))
+      .map((e) => e.getAttribute("data-testid")!.slice(14));
     expect(ids).toContain("u_p0");
     expect(ids).not.toContain("u_p1");
     expect(ids).toContain("u_new");
@@ -619,6 +645,7 @@ describe("D-475: raised hands and hearts", () => {
     rerender(view(stateWith({ comments: asked, messages: [answer("msg_h", "host_answer", ["cm_ann"])] })));
     const hearts = screen.getAllByTestId("viewer-heart");
     expect(hearts).toHaveLength(1);
-    expect(hearts[0]).toHaveAttribute("data-at", "still");
+    expect(hearts[0]).toHaveAttribute("data-still");
+    expect(screen.getByTestId("viewer-figure-u_ann")).toHaveAttribute("data-still");  // D-476: no walking
   });
 });
