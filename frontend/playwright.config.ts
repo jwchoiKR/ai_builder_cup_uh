@@ -20,7 +20,9 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL: BASE,
-    channel: process.env.PW_CHANNEL ?? "msedge",
+    // D-479: Playwright's bundled Chromium unless PW_CHANNEL is set; launching the installed Edge on this Entra-joined
+    // PC tries a Windows sign-in that fails, and the user's account got locked (10/16)
+    channel: process.env.PW_CHANNEL || undefined,
     viewport: { width: 1920, height: 1080 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

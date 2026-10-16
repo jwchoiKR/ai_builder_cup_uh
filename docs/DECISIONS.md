@@ -3202,3 +3202,5 @@ D-478 (user 10/16, via planning: "추천으로 ㄱ"; seen in planning's capture:
 - Names show only on an animal that is stopped (bubble, paw or hearts) and on the viewer's own; walking animals show none. The name fades in and out with the stop (opacity, 200 ms).
 - Walkers keep to 3 lanes by roster slot (slot % 3): bottom offset 0, 7 or 14 px; the lower lane is in front. Stopped animals stay above all walkers.
 - Checked by tests only (no browser runs after the 10/16 account lock): names hidden while walking, shown while stopped and for the own animal, hidden again after the stop; lanes and their order by slot.
+
+D-479 (user go 10/16, via planning: "ㅇㅇ"): Playwright (frontend/playwright.config.ts) uses its bundled Chromium by default: `channel: process.env.PW_CHANNEL || undefined` (was "msedge"). Why: on this Entra-joined PC each launch of the installed Edge tried a Windows sign-in that failed ("AAD Cloud AP plugin call GenericCallPkg returned error: 0xC0048512" at our headless Edge launch times), and the user's Windows account got locked. Not run after the change (no browser without the user's yes).
