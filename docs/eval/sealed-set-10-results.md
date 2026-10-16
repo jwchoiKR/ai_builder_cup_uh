@@ -2,7 +2,7 @@
 
 This file backs the numbers in the README. The raw data is in [sealed-set-10-results.json](sealed-set-10-results.json): totals and one row per product for each run, and one row per host line for the run on the current setting (line ids and outcomes only).
 
-The set itself stays sealed. The JSON has no host lines, labels or product documents, so the next version of the app can again be tested on products it has never seen.
+On 10/17 we published the set itself in [eval/sealed_set_10](../../eval/sealed_set_10/README.md): the product documents, host lines, labels, raw results and the script that rebuilds the JSON. It is no longer an unseen set.
 
 ## Setup
 

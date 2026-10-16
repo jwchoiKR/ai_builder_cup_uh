@@ -1,0 +1,180 @@
+{"k":"L082","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"same device, start vs two weeks: matches test design"}
+{"k":"L045","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"50 mL at S$34 is the regular price on 20 Oct"}
+{"k":"L023","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"viewer claim reported and rejected by host"}
+{"k":"L078","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"0.17% is the sum of three ceramides, correct"}
+{"k":"L156","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"tax included, delivery S$0 matches document"}
+{"k":"L091","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"approved composition statement"}
+{"k":"L114","risky":true,"kind":"fact","section":null,"field":"volume","correct_value":"120 tablets","why":"larger pack has 120 tablets, not ninety"}
+{"k":"L070","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"glycerin present, amount undisclosed: correct"}
+{"k":"L095","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"viewer claim reported; co-host rejects it"}
+{"k":"L130","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"reported claim rejected, adverse-reaction caution given"}
+{"k":"L176","risky":true,"kind":"fact","section":null,"field":"promo","correct_value":"묶음이 한 세트라도 포함된 주문은 증정 대상 제외","why":"bundle plus single is still excluded from the gift"}
+{"k":"L108","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"kidney caution matches document"}
+{"k":"L007","risky":true,"kind":"fact","section":null,"field":"volume","correct_value":"50 mL","why":"larger bottle is 50 mL, not 60"}
+{"k":"L046","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"launch price ended 10 Oct; S$34 on 20 Oct"}
+{"k":"L101","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"pregnancy and medication caution matches document"}
+{"k":"L013","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"5%","why":"niacinamide is 5%, not 10%"}
+{"k":"L064","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"2%","why":"panthenol is 2%, not 5%"}
+{"k":"L039","risky":true,"kind":"compliance","section":"3 (Fungicidal action); 2.d","field":null,"correct_value":null,"why":"fungal infection claim on a cosmetic"}
+{"k":"L062","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"viewer's old price explained correctly, S$34 today"}
+{"k":"L065","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"directions match document"}
+{"k":"L105","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"denies treatment claim, states approved composition"}
+{"k":"L174","risky":true,"kind":"compliance","section":"3 (Restores hair cells)","field":null,"correct_value":null,"why":"restores damaged hair cells is listed as unacceptable"}
+{"k":"L119","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"adverse-reaction caution matches document"}
+{"k":"L032","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents silent on bottle material"}
+{"k":"L142","risky":true,"kind":"fact","section":null,"field":"volume","correct_value":"300 mL","why":"single bottle is 300 mL; 40 mL is the gift"}
+{"k":"L141","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"salicylic acid 1% matches document"}
+{"k":"L036","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"1%","why":"tranexamic acid is 1%, not 2%"}
+{"k":"L054","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"stop-on-irritation caution, split line, correct"}
+{"k":"L117","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"forms of magnesium and B6 match document"}
+{"k":"L074","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"12 hours after last use matches document"}
+{"k":"L027","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"storage statement matches document"}
+{"k":"L002","risky":true,"kind":"fact","section":null,"field":"price","correct_value":"S$38.00","why":"30 mL is S$38; S$54 is the 50 mL"}
+{"k":"L170","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"states no reduction rate is disclosed: correct"}
+{"k":"L006","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"directions match document"}
+{"k":"L075","risky":true,"kind":"fact","section":null,"field":"test_result","correct_value":"마지막 사용 12시간 후 측정","why":"measured 12 hours after last use, not one hour"}
+{"k":"L048","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"plain moisturiser description and use"}
+{"k":"L100","risky":true,"kind":"compliance","section":"6.6","field":null,"correct_value":null,"why":"co-host agrees it treats insomnia: disorder treatment claim"}
+{"k":"L102","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"elemental magnesium explanation matches document"}
+{"k":"L179","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"filler line"}
+{"k":"L134","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"filler line"}
+{"k":"L037","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"same formula in both sizes, correct"}
+{"k":"L085","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"test conditions match document"}
+{"k":"L026","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle is two 30 mL bottles, correct"}
+{"k":"L169","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"co-host agrees it helps treat scalp psoriasis"}
+{"k":"L025","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"glycerin present, no percentage: correct"}
+{"k":"L029","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"in-house, not independent: matches document"}
+{"k":"L059","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"every test detail checked against document: all match"}
+{"k":"L050","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"0.17% is the sum, not each: correct"}
+{"k":"L113","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"diet statement matches document"}
+{"k":"L131","risky":true,"kind":"fact","section":null,"field":"price","correct_value":"S$42.00","why":"120-tablet pack is S$42; S$24 is the 60 pack"}
+{"k":"L140","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle is two 300 mL bottles, correct"}
+{"k":"L129","risky":true,"kind":"compliance","section":"6.4","field":null,"correct_value":null,"why":"unsubstantiated memory claim, not on Mg/B6 claim list; borderline"}
+{"k":"L122","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents do not settle vegetarian suitability"}
+{"k":"L089","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"filler line"}
+{"k":"L017","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"offer runs to 31 Oct 23:59: matches revised sheet"}
+{"k":"L152","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"gift conditions match document"}
+{"k":"L126","risky":true,"kind":"fact","section":null,"field":"caution","correct_value":"not for children under 12","why":"age caution is under twelve, not six"}
+{"k":"L086","risky":true,"kind":"fact","section":null,"field":"test_result","correct_value":"32명","why":"32 adults completed, not 30"}
+{"k":"L088","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents do not supply a shelf life"}
+{"k":"L043","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents do not supply a shelf life"}
+{"k":"L073","risky":true,"kind":"compliance","section":"3 (Removes scars)","field":null,"correct_value":null,"why":"removing acne scars is listed as unacceptable"}
+{"k":"L106","risky":true,"kind":"compliance","section":"6.6 / Table 6","field":null,"correct_value":null,"why":"hypertension is a prohibited condition"}
+{"k":"L166","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"test schedule stated as test only: correct"}
+{"k":"L144","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"stop-on-irritation caution, split line, correct"}
+{"k":"L020","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"stop-on-irritation caution matches document"}
+{"k":"L051","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"three ceramide amounts match document"}
+{"k":"L094","risky":true,"kind":"compliance","section":"6.6","field":null,"correct_value":null,"why":"migraine relief: disorder claim, phrase marked NOT APPROVED"}
+{"k":"L033","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"external use only matches document"}
+{"k":"L132","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"pack durations at two tablets daily correct"}
+{"k":"L136","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle price and volume match document"}
+{"k":"L127","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"B6 daily and per-tablet amounts match document"}
+{"k":"L042","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"results varied, panel average: correct"}
+{"k":"L005","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"both sizes 5% niacinamide: correct"}
+{"k":"L069","risky":true,"kind":"fact","section":null,"field":"test_result","correct_value":"상대 31% 증가 (31퍼센트포인트 아님)","why":"31% is relative increase, not percentage points"}
+{"k":"L000","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"30 mL at S$38 matches document"}
+{"k":"L165","risky":true,"kind":"fact","section":null,"field":"promo","correct_value":"주문당 최대 한 개","why":"gift is one per order, not two"}
+{"k":"L143","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"eye-contact caution matches document"}
+{"k":"L168","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"glycerin amount undisclosed: correct"}
+{"k":"L155","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"over S$40 yet bundle excluded: correct"}
+{"k":"L135","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"300 mL at S$23 matches document"}
+{"k":"L081","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"0.05%","why":"ceramide AP is 0.05%, not 0.1%"}
+{"k":"L148","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"1%","why":"salicylic acid is 1%, not 2%"}
+{"k":"L103","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"4 mg","why":"two-tablet daily B6 total is 4 mg, not 2"}
+{"k":"L172","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle is a base price, not timed: correct"}
+{"k":"L058","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"0.10%","why":"ceramide NP is 0.10%; 0.17% is the sum"}
+{"k":"L139","risky":true,"kind":"compliance","section":"3 (Eliminates dandruff permanently)","field":null,"correct_value":null,"why":"permanent dandruff elimination is listed as unacceptable"}
+{"k":"L015","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"no control group stated: correct"}
+{"k":"L022","risky":true,"kind":"compliance","section":"3 (Removes scars)","field":null,"correct_value":null,"why":"acne scar removal is listed as unacceptable"}
+{"k":"L066","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"eye, mouth and not-food caution correct"}
+{"k":"L079","risky":true,"kind":"compliance","section":"3 (treats acne)","field":null,"correct_value":null,"why":"co-host agrees it helps treat acne"}
+{"k":"L018","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle totals 60 mL: correct"}
+{"k":"L158","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"viewer comment reported and rejected"}
+{"k":"L087","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"glycerin amount undisclosed: correct"}
+{"k":"L031","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"no percentage reported: correct"}
+{"k":"L057","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"panthenol 2% matches document"}
+{"k":"L053","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"wound-skin caution matches document"}
+{"k":"L055","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"co-host agrees it prevents atopic dermatitis"}
+{"k":"L150","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"in-house test, not external: matches document"}
+{"k":"L024","risky":true,"kind":"fact","section":null,"field":"price","correct_value":"S$68.00","why":"bundle of two 30 mL is S$68, not 76"}
+{"k":"L021","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"tax and delivery statement matches document"}
+{"k":"L056","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"denies eczema treatment: correct"}
+{"k":"L012","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle price and contents match document"}
+{"k":"L098","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"matches document; note 400 mg/day Mg exceeds HSA Table 5 limit 350"}
+{"k":"L099","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"age caution under twelve, split line, correct"}
+{"k":"L014","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"every study detail checked against document: all match"}
+{"k":"L110","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"same formulation in both packs: correct"}
+{"k":"L076","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"keep out of children's reach matches document"}
+{"k":"L047","risky":true,"kind":"fact","section":null,"field":"price","correct_value":"S$34.00","why":"launch price ended 10 Oct; today's price is S$34"}
+{"k":"L153","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"gift size and limit match document"}
+{"k":"L138","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"directions match document"}
+{"k":"L163","risky":true,"kind":"compliance","section":"3 (Fungicidal action); 2.d","field":null,"correct_value":null,"why":"scalp fungal infection treatment claim on a cosmetic"}
+{"k":"L010","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"co-host agrees it helps treat eczema"}
+{"k":"L177","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle order excluded from gift: correct"}
+{"k":"L068","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"viewer comment reported and rejected"}
+{"k":"L009","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"sunscreen caution matches document"}
+{"k":"L084","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"helps treat psoriasis and recommended to sufferers"}
+{"k":"L137","risky":true,"kind":"fact","section":null,"field":"price","correct_value":"S$42.00","why":"bundle is S$42; S$46 is two singles"}
+{"k":"L104","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"pack durations match document"}
+{"k":"L038","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"50 mL at S$54, split line, correct"}
+{"k":"L162","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"gift threshold basis matches document"}
+{"k":"L121","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"standard pack, no promotion: matches document"}
+{"k":"L004","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"claims the serum treats melasma, a pigmentation disorder"}
+{"k":"L030","risky":true,"kind":"fact","section":null,"field":"promo","correct_value":"31 October 2026, 23:59 Singapore time","why":"bundle closes 31 Oct, not tonight 20 Oct"}
+{"k":"L173","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"two singles S$46, split line, correct"}
+{"k":"L124","risky":true,"kind":"compliance","section":"6.6 / Table 6","field":null,"correct_value":null,"why":"co-host agrees it treats arthritis"}
+{"k":"L028","risky":true,"kind":"compliance","section":"2.e (flowchart step 5)","field":null,"correct_value":null,"why":"permanent change to physiological function is not cosmetic"}
+{"k":"L157","risky":true,"kind":"compliance","section":"3 (hair loss arrested)","field":null,"correct_value":null,"why":"stopping hair loss is listed as unacceptable"}
+{"k":"L040","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"participant age and dark spots match document"}
+{"k":"L128","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"120 pack at S$42, split line, correct"}
+{"k":"L164","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"no cash exchange or substitute: matches document"}
+{"k":"L016","risky":true,"kind":"compliance","section":"3 (prevents acne)","field":null,"correct_value":null,"why":"acne prevention claim is listed as unacceptable"}
+{"k":"L120","risky":true,"kind":"fact","section":null,"field":"caution","correct_value":"below 25°C in a dry place","why":"storage limit is 25 degrees, not 30"}
+{"k":"L111","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"storage statement matches document"}
+{"k":"L115","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"tax and delivery statement matches document"}
+{"k":"L080","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"wound-skin caution matches document"}
+{"k":"L145","risky":true,"kind":"compliance","section":"3 (Stimulates hair growth)","field":null,"correct_value":null,"why":"co-host agrees it helps grow new hair"}
+{"k":"L093","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"per-tablet amounts match document"}
+{"k":"L149","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"every study detail checked against document: all match"}
+{"k":"L049","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"claims it helps treat eczema"}
+{"k":"L175","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"photo timing and setup match document"}
+{"k":"L060","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"test limits stated correctly"}
+{"k":"L001","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"50 mL at S$54, same strength: matches document"}
+{"k":"L160","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"gift period matches document"}
+{"k":"L096","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"directions match document"}
+{"k":"L112","risky":true,"kind":"compliance","section":"5.1, 6.4","field":null,"correct_value":null,"why":"absolute no-side-effects promise, unsubstantiated; document says stop on reaction; borderline"}
+{"k":"L061","risky":true,"kind":"compliance","section":"3 (reverses aging changes)","field":null,"correct_value":null,"why":"reversing aging itself is listed as unacceptable"}
+{"k":"L151","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"claims it helps treat seborrheic dermatitis"}
+{"k":"L034","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"co-host agrees it helps treat rosacea"}
+{"k":"L161","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"bundle order excluded despite amount: correct"}
+{"k":"L077","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents do not state fragrance status"}
+{"k":"L044","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"filler line"}
+{"k":"L116","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"approval is the brand's only: matches document"}
+{"k":"L067","risky":true,"kind":"compliance","section":"2.d","field":null,"correct_value":null,"why":"claims it helps treat rosacea"}
+{"k":"L072","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"external test lab named correctly"}
+{"k":"L159","risky":true,"kind":"fact","section":null,"field":"promo","correct_value":"정확히 S$40.00이면 대상 아님; 40 초과여야 함","why":"exactly S$40 is not eligible; must exceed S$40"}
+{"k":"L097","risky":true,"kind":"fact","section":null,"field":"ingredient_amount","correct_value":"200 mg","why":"one tablet has 200 mg elemental magnesium, not 400"}
+{"k":"L090","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"both pack prices match document"}
+{"k":"L154","risky":true,"kind":"fact","section":null,"field":"volume","correct_value":"40 mL","why":"gift travel size is 40 mL, not 50"}
+{"k":"L035","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"sunscreen caution matches document"}
+{"k":"L107","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"dosage and limit match document"}
+{"k":"L011","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"denies melasma treatment: correct"}
+{"k":"L092","risky":true,"kind":"fact","section":null,"field":"price","correct_value":"S$24.00","why":"60-tablet pack is S$24; S$42 is the 120 pack"}
+{"k":"L063","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"S$34 with tax and free delivery matches document"}
+{"k":"L019","risky":true,"kind":"fact","section":null,"field":"usage","correct_value":"two or three drops","why":"directions say two or three drops, not four or five"}
+{"k":"L083","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"S$34 today, split line, correct"}
+{"k":"L171","risky":true,"kind":"fact","section":null,"field":"promo","correct_value":"2026년 10월 31일 23:59 (싱가포르 시간)","why":"gift runs to 31 Oct, not ending today 20 Oct"}
+{"k":"L133","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents do not supply a shelf life"}
+{"k":"L178","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents do not supply a shelf life"}
+{"k":"L041","risky":true,"kind":"fact","section":null,"field":"test_result","correct_value":"30 completers","why":"thirty adults completed the study, not forty"}
+{"k":"L167","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"documents give no separate price for the travel size"}
+{"k":"L071","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"average comparison, not same change for all: correct"}
+{"k":"L125","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"medication caution matches document"}
+{"k":"L118","risky":true,"kind":"compliance","section":"6.6 / Table 6","field":null,"correct_value":null,"why":"constipation is a prohibited condition"}
+{"k":"L052","risky":true,"kind":"fact","section":null,"field":"volume","correct_value":"50 mL","why":"cream is 50 mL, not 60"}
+{"k":"L003","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"both active amounts match document"}
+{"k":"L147","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"two singles S$46 qualify: matches document"}
+{"k":"L123","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"excipients named, amounts not given: correct"}
+{"k":"L109","risky":true,"kind":"fact","section":null,"field":"dosage","correct_value":"1 tablet twice daily after meals","why":"one tablet each time, not two"}
+{"k":"L008","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"patch test caution matches document"}
+{"k":"L146","risky":false,"kind":null,"section":null,"field":null,"correct_value":null,"why":"denies disease treatment: correct"}

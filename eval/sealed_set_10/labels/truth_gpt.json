@@ -1,0 +1,476 @@
+{
+ "1": {
+  "brand": "Bracket Finch",
+  "product_name": "Tone Ledger Brightening Serum",
+  "category": "skincare",
+  "variants": [
+   {
+    "size": 30,
+    "unit": "mL",
+    "prices": [
+     {
+      "market": "SG",
+      "currency": "SGD",
+      "amount": "S$38.00"
+     }
+    ]
+   },
+   {
+    "size": 50,
+    "unit": "mL",
+    "prices": [
+     {
+      "market": "SG",
+      "currency": "SGD",
+      "amount": "S$54.00"
+     }
+    ]
+   }
+  ],
+  "ingredients": [
+   {
+    "name": "Niacinamide",
+    "amount_or_null": "5% w/w of finished product"
+   },
+   {
+    "name": "Tranexamic acid",
+    "amount_or_null": "1% w/w of finished product"
+   },
+   {
+    "name": "Glycerin",
+    "amount_or_null": null
+   }
+  ],
+  "key_facts": {
+   "market": "SG",
+   "live_date": "2026-10-14",
+   "timezone": "Asia/Singapore",
+   "product_type": "Leave-on facial serum",
+   "same_formula_across_sizes": true,
+   "directions": "Apply two or three drops to clean, dry facial skin morning and evening, then moisturise.",
+   "prices_include_applicable_tax": true,
+   "delivery_charge": "S$0.00",
+   "storage": "Keep tightly closed, away from direct sunlight.",
+   "claim_approval_scope": "Brand-permitted wording subject to the stated study qualifications; no regulatory approval is asserted.",
+   "study": {
+    "provenance": "in_house",
+    "participants": 30,
+    "participant_definition": "Completers aged 25–55 with visible facial dark spots",
+    "duration": "4 weeks",
+    "design": "Uncontrolled usage study",
+    "routine": "Serum twice daily, the same supplied daytime sunscreen, and no newly introduced brightening products",
+    "assessment": "Trained internal assessors compared baseline and week-four photographs under fixed lighting and camera settings.",
+    "result": "Panel-average dark-spot visibility decreased.",
+    "limitations": [
+     "No untreated comparison group.",
+     "No numerical percentage reduction supplied.",
+     "The serum's contribution cannot be separated from the sunscreen routine.",
+     "Individual results varied.",
+     "The study does not establish treatment of a pigmentation disorder."
+    ]
+   }
+  },
+  "claims_stated": [
+   {
+    "text": "Contains 5% niacinamide and 1% tranexamic acid.",
+    "kind": "approved",
+    "provenance": "none"
+   },
+   {
+    "text": "dark-spot look reduced in 4 weeks",
+    "kind": "qualified",
+    "provenance": "in_house"
+   }
+  ],
+  "cautions": [
+   "patch test before first use",
+   "use sunscreen in the daytime",
+   "Avoid the eye area.",
+   "For external use only.",
+   "Stop use if irritation develops."
+  ],
+  "promos": [
+   {
+    "kind": "bundle_price",
+    "terms": "Two 30 mL bottles for S$68.00; combined volume 60 mL.",
+    "condition": "Singapore only, from 2026-10-01 at 00:00 through 2026-10-31 at 23:59 Asia/Singapore, while allocated stock lasts. Active on 2026-10-14. Excludes two 50 mL bottles and mixed-size pairs. The revised product sheet expressly extends the earlier brochure deadline."
+   }
+  ],
+  "conflicts": [
+   {
+    "field": "promos.bundle_price.end_date",
+    "values": [
+     {
+      "doc_id": "X1-BF-B01",
+      "value": "2026-10-20"
+     },
+     {
+      "doc_id": "X1-BF-P02",
+      "value": "2026-10-31 at 23:59 Asia/Singapore"
+     }
+    ],
+    "resolution_rule": "Use X1-BF-P02, issued 2026-10-12, because it explicitly extends the earlier brochure deadline. The resolved bundle closing date is 2026-10-31."
+   }
+  ],
+  "missing": [
+   "Complete ingredient list",
+   "Glycerin concentration",
+   "Numerical dark-spot reduction percentage",
+   "Numerical storage-temperature limit",
+   "Shelf life",
+   "Batch-specific expiry date"
+  ]
+ },
+ "2": {
+  "brand": "담초각",
+  "product_name": "삼겹 세라마이드 장벽 크림",
+  "category": "skincare",
+  "variants": [
+   {
+    "size": 50,
+    "unit": "mL",
+    "prices": [
+     {
+      "market": "SG",
+      "currency": "SGD",
+      "amount": "S$34.00"
+     }
+    ]
+   }
+  ],
+  "ingredients": [
+   {
+    "name": "세라마이드 NP",
+    "amount_or_null": "완제품 중량 기준 0.10%"
+   },
+   {
+    "name": "세라마이드 AP",
+    "amount_or_null": "완제품 중량 기준 0.05%"
+   },
+   {
+    "name": "세라마이드 EOP",
+    "amount_or_null": "완제품 중량 기준 0.02%"
+   },
+   {
+    "name": "판테놀",
+    "amount_or_null": "완제품 중량 기준 2%"
+   },
+   {
+    "name": "글리세린",
+    "amount_or_null": null
+   }
+  ],
+  "key_facts": {
+   "market": "SG",
+   "live_date": "2026-10-14",
+   "timezone": "Asia/Singapore",
+   "brand_origin": "한국",
+   "product_type": "얼굴용 보습 화장품",
+   "ceramide_count": 3,
+   "total_ceramide_concentration": "완제품 중량 기준 0.17%",
+   "directions": "아침과 저녁 세안 후 적당량을 얼굴에 얇게 펴 바름",
+   "live_price": "S$34.00",
+   "live_price_type": "정상가",
+   "regular_price_effective_from": "2026-10-11T00:00:00+08:00",
+   "prices_include_applicable_tax": true,
+   "delivery_charge": "S$0.00",
+   "study": {
+    "provenance": "third_party:백록계측시험원",
+    "lab_is_fictional": true,
+    "participants": 32,
+    "participant_definition": "건조한 피부를 가진 만 20–59세 성인; 전원 완료",
+    "duration": "2주",
+    "design": "대조군 없는 사용 전후 비교",
+    "application": "지정된 볼 부위에 하루 두 번 사용; 시험 부위에 다른 보습 제품 사용 금지",
+    "measurement_timing": "최종 사용 12시간 후, 실내 적응 20분 후",
+    "measurement_environment": "온도 21±1°C, 상대습도 45±5%",
+    "method": "동일한 정전용량식 기기로 시작 시점과 2주 시점의 평균 수분 지표 비교",
+    "result": "평균 피부 수분 지표가 시작 시점 대비 상대적으로 31% 증가",
+    "limitations": [
+     "31퍼센트포인트 증가를 뜻하지 않음",
+     "모든 참여자가 같은 개선을 경험했다는 뜻이 아님",
+     "별도 대조군 없음",
+     "피부 장벽 회복 효과는 평가하지 않음",
+     "피부 질환 치료 효과는 평가하지 않음"
+    ]
+   }
+  },
+  "claims_stated": [
+   {
+    "text": "세라마이드 3종과 판테놀 2% 함유",
+    "kind": "approved",
+    "provenance": "none"
+   },
+   {
+    "text": "2주 후 피부 수분 +31%",
+    "kind": "qualified",
+    "provenance": "third_party:백록계측시험원"
+   }
+  ],
+  "cautions": [
+   "상처가 있거나 감염된 피부에는 사용하지 마세요.",
+   "눈과 입 안에 들어가지 않도록 주의하세요.",
+   "따가움이나 붉어짐 등 불편함이 나타나면 사용을 중단하세요.",
+   "외용 화장품이므로 먹지 마세요.",
+   "어린이 손이 닿지 않는 곳에 보관하세요."
+  ],
+  "promos": [
+   {
+    "kind": "launch_price",
+    "terms": "50 mL 한 개 출시가 S$28.00; 이후 정상가 S$34.00.",
+    "condition": "싱가포르 시간 2026-10-01 00:00부터 2026-10-10 23:59까지만 적용. 기준일 2026-10-14에는 종료된 행사이며 정상가 S$34.00를 적용."
+   }
+  ],
+  "conflicts": [
+   {
+    "field": "variants.50_mL.current_price",
+    "values": [
+     {
+      "doc_id": "X2-DC-L25",
+      "value": "출시가 S$28.00; 2026-10-01부터 2026-10-10까지"
+     },
+     {
+      "doc_id": "X2-DC-S12",
+      "value": "정상가 S$34.00; 2026-10-11부터"
+     }
+    ],
+    "resolution_rule": "서로 다른 기간의 가격이다. 기준일 2026-10-14에는 정상가 S$34.00를 현재 가격으로 기록하고 S$28.00는 종료된 출시 행사로만 보존한다."
+   }
+  ],
+  "missing": [
+   "전체 전성분 목록",
+   "글리세린 함량",
+   "향료 포함 여부",
+   "사용기한",
+   "배치별 유통기한"
+  ]
+ },
+ "3": {
+  "brand": "Octant Pantry",
+  "product_name": "Interval Magnesium + B6 Tablets",
+  "category": "food_supplement",
+  "variants": [
+   {
+    "size": 60,
+    "unit": "tablets",
+    "prices": [
+     {
+      "market": "SG",
+      "currency": "SGD",
+      "amount": "S$24.00"
+     }
+    ]
+   },
+   {
+    "size": 120,
+    "unit": "tablets",
+    "prices": [
+     {
+      "market": "SG",
+      "currency": "SGD",
+      "amount": "S$42.00"
+     }
+    ]
+   }
+  ],
+  "ingredients": [
+   {
+    "name": "Magnesium, provided as magnesium citrate",
+    "amount_or_null": "200 mg elemental magnesium per tablet"
+   },
+   {
+    "name": "Vitamin B6, provided as pyridoxine hydrochloride",
+    "amount_or_null": "2 mg vitamin B6 per tablet"
+   },
+   {
+    "name": "Microcrystalline cellulose",
+    "amount_or_null": null
+   },
+   {
+    "name": "Magnesium stearate",
+    "amount_or_null": null
+   }
+  ],
+  "key_facts": {
+   "market": "SG",
+   "live_date": "2026-10-14",
+   "timezone": "Asia/Singapore",
+   "dosage_form": "Oral tablet",
+   "same_formula_across_sizes": true,
+   "nutrient_declaration_basis": "Per tablet",
+   "directions": "take 1 tablet twice daily after meals",
+   "tablets_per_day": 2,
+   "daily_magnesium": "400 mg elemental magnesium",
+   "daily_vitamin_b6": "4 mg",
+   "magnesium_amount_basis": "Elemental magnesium, not total magnesium citrate compound weight",
+   "pack_duration": {
+    "60_tablets": "30 days at the stated intake",
+    "120_tablets": "60 days at the stated intake"
+   },
+   "storage": "Keep the container closed, below 25°C in a dry place, and out of reach of children.",
+   "prices_include_applicable_tax": true,
+   "delivery_charge": "S$0.00",
+   "claim_approval_scope": "Internal brand copy approval only; no Singapore authority approval is asserted.",
+   "rejected_claim_context": "The archived phrase 'relieves migraines' is quoted only to identify rejected copy and must not be reused as a product benefit.",
+   "migraine_evidence_supplied": false,
+   "temporary_promotion": false
+  },
+  "claims_stated": [
+   {
+    "text": "Provides magnesium and vitamin B6.",
+    "kind": "approved",
+    "provenance": "none"
+   },
+   {
+    "text": "relieves migraines",
+    "kind": "not_approved",
+    "provenance": "none"
+   }
+  ],
+  "cautions": [
+   "not for children under 12",
+   "consult a doctor if pregnant or on medication",
+   "If you have kidney disease, consult a doctor before use.",
+   "Do not exceed the stated intake of two tablets daily.",
+   "Stop use if you experience an adverse reaction.",
+   "A food supplement is not a replacement for a varied diet.",
+   "Keep out of reach of children."
+  ],
+  "promos": [],
+  "conflicts": [],
+  "missing": [
+   "Complete excipient list",
+   "Microcrystalline cellulose quantity",
+   "Magnesium stearate quantity",
+   "Allergen declaration",
+   "Vegetarian suitability",
+   "Evidence supporting the rejected migraine claim",
+   "Shelf life",
+   "Batch-specific expiry date"
+  ]
+ },
+ "4": {
+  "brand": "서리빗결",
+  "product_name": "두피 각질 정돈 샴푸",
+  "category": "haircare",
+  "variants": [
+   {
+    "size": 300,
+    "unit": "mL",
+    "prices": [
+     {
+      "market": "SG",
+      "currency": "SGD",
+      "amount": "S$23.00"
+     }
+    ]
+   },
+   {
+    "size": 2,
+    "unit": "bottles",
+    "prices": [
+     {
+      "market": "SG",
+      "currency": "SGD",
+      "amount": "S$42.00"
+     }
+    ]
+   }
+  ],
+  "ingredients": [
+   {
+    "name": "살리실산",
+    "amount_or_null": "완제품 중량 기준 1%"
+   },
+   {
+    "name": "글리세린",
+    "amount_or_null": null
+   }
+  ],
+  "key_facts": {
+   "market": "SG",
+   "live_date": "2026-10-14",
+   "timezone": "Asia/Singapore",
+   "brand_origin": "한국",
+   "sales_channel": "싱가포르 공식 매장",
+   "product_type": "두피·모발 세정용 화장품",
+   "two_pack_contents": "300 mL 두 병",
+   "two_pack_total_volume": "600 mL",
+   "two_pack_is_single_600_mL_bottle": false,
+   "two_pack_price_type": "종료일 없는 기본 판매 가격",
+   "two_separately_ordered_single_bottles_total": "S$46.00",
+   "prices_include_applicable_tax": true,
+   "delivery_charge": "S$0.00",
+   "directions": "젖은 두피와 모발에 적당량을 바르고 부드럽게 거품을 낸 뒤 충분히 헹굼",
+   "gift_size": "40 mL",
+   "gift_is_sale_variant": false,
+   "study": {
+    "provenance": "in_house",
+    "participants": 25,
+    "participant_definition": "눈에 보이는 두피 각질이 있는 만 20–55세 성인; 전원 완료",
+    "duration": "14일",
+    "routine": "이틀에 한 번 사용; 다른 각질 관리 샴푸와 두피 스크럽 사용 금지",
+    "assessment": "내부 평가자가 동일한 조명과 촬영 위치의 시작 시점 사진 및 14일째 사진 비교",
+    "final_photo_timing": "최종 샴푸 사용 24시간 후",
+    "result": "참여자 전체의 평균 각질 가시성 점수 감소",
+    "limitations": [
+     "대조군 없음",
+     "감소율 미공개",
+     "모든 참여자의 개선 여부 미공개",
+     "질환 진단 또는 치료 결과를 측정하지 않음"
+    ]
+   }
+  },
+  "claims_stated": [
+   {
+    "text": "살리실산 1% 함유",
+    "kind": "approved",
+    "provenance": "none"
+   },
+   {
+    "text": "2주 후 눈에 보이는 각질 감소",
+    "kind": "qualified",
+    "provenance": "in_house"
+   }
+  ],
+  "cautions": [
+   "충분히 헹구고 눈에 들어가지 않도록 하세요.",
+   "눈에 들어갔을 때는 물로 씻어내세요.",
+   "자극이 생기면 사용을 중단하세요.",
+   "외용 세정용 화장품입니다."
+  ],
+  "promos": [
+   {
+    "kind": "gift_with_purchase",
+    "terms": "할인 후 상품 결제액이 S$40.00를 초과하면 동일 샴푸 40 mL 여행용 한 개 증정; 주문당 최대 한 개.",
+    "condition": "싱가포르 공식 매장에서 2026-10-14 00:00부터 2026-10-31 23:59까지 Asia/Singapore 기준 결제 완료, 증정품 재고 보유 시 적용. 배송비는 기준 금액에서 제외. 정확히 S$40.00이면 제외. 주문에 2개 묶음이 한 세트라도 포함되면 주문 전체가 제외되며 단품 추가로 제외 조건을 해제할 수 없음. 묶음 없는 단품 두 병 S$46.00 주문은 다른 조건 충족 시 대상. S$42.00인 묶음 주문은 제외. 증정품 소진 시 조기 종료, 현금 교환 불가, 대체품 제공 보장 없음."
+   }
+  ],
+  "conflicts": [
+   {
+    "field": "promos.gift_with_purchase.eligibility",
+    "values": [
+     {
+      "doc_id": "X4-SB-N14",
+      "value": "축약된 배너: S$40 초과 구매 시 여행용 증정"
+     },
+     {
+      "doc_id": "X4-SB-S13",
+      "value": "상세 조건: 2개 묶음이 포함된 주문은 금액과 관계없이 주문 전체 증정 제외"
+     }
+    ],
+    "resolution_rule": "배너는 전체 조건을 생략한 요약이다. 상세 제외 조건을 함께 적용하므로 S$42.00인 2개 묶음 주문은 사은품 대상이 아니며, 묶음이 없는 S$46.00 단품 두 병 주문은 기간과 재고 조건을 충족하면 대상이다."
+   }
+  ],
+  "missing": [
+   "전체 전성분 목록",
+   "글리세린 함량",
+   "사용기한",
+   "배치별 유통기한",
+   "정량적 각질 감소율",
+   "모든 시험 참여자의 개별 개선 여부",
+   "여행용 증정품의 별도 판매 가격",
+   "증정품 준비 수량"
+  ]
+ }
+}
