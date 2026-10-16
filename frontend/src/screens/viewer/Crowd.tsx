@@ -164,7 +164,9 @@ const Walker = memo(function Walker({
   // a speaking animal is in front of the walkers, the newest bubble on top; among walkers the lower lane is in front
   style.zIndex = stopped ? 10 + rank : LANES - lane;
   (style as Record<string, unknown>)["--lane"] = lane;
-  const front = hand; // the user: face front only for a question
+  // D-480 (user): a speaking animal faces front, for a chat or a question (a question also raises the paw); the
+  // hearts alone keep the side view
+  const front = bubble !== null || hand;
   return (
     <div
       className={styles.walker}
