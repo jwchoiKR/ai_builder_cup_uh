@@ -68,7 +68,7 @@ host mic ─▶ Chirp 3 streaming STT (phrase hints from the product brief)
 | Vertex AI Gemini 3.5 Flash-Lite (global endpoint) | live compliance judge and context judge, with a fixed seed |
 | Vertex AI Gemini 3.8 Flash (global endpoint) | live fact checker and prompter judge; onboarding: reading product documents, the Brief agent |
 | Agent Development Kit (ADK) | the AI PD, an `LlmAgent` that picks the next operator card (promo ending, shout-out) from checked candidates (`backend/app/agents/ai_pd.py`) |
-| Cloud Run (us-central1, behind IAP) | the app: FastAPI backend, React screens, server-sent events; autoscaling up to 3 instances with session affinity |
+| Cloud Run (us-central1) | the app: FastAPI backend, React screens, server-sent events; autoscaling up to 3 instances with session affinity |
 | Firestore (`live-studio`) | show state (sessions, transcripts, alerts, segments, events), written behind memory and read back after a restart |
 | Cloud Storage | approved releases, briefs and regulation packs (write-once) |
 | Model Armor | screening viewer comments |
@@ -134,7 +134,7 @@ Each judge runs on the model that did best on its own job in our tests. An alert
 5. Start: `cd backend && uv run uvicorn app.main:create_app --factory --port 8000`, then open <http://localhost:8000/studio>. `/api/health` shows the providers, models and store.
 6. Without Google Cloud: `LLM_PROVIDER=mock STT_PROVIDER=mock`.
 
-Deploy: `bash deploy/cloudrun.sh` (Cloud Run, Firestore database, bucket, IAP).
+Deploy: `bash deploy/cloudrun.sh` (Cloud Run, Firestore database, bucket).
 
 ## Tests
 
