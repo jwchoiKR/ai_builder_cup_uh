@@ -7,7 +7,11 @@ import type { SessionEvent } from "../../app/types";
 import { CREAM, T0, catalog, comment, message, segment, session, snapshot } from "../../test/fixtures";
 import { Viewer } from "../Viewer";
 import { chatSignature, viewerChat } from "./chat";
-import { ID_KEY, NAME_KEY } from "./identity";
+import { api } from "../../app/api";
+import { eventsUrl } from "../../app/sse";
+import { useAudience } from "../../app/store";
+import { Watching } from "../../components";
+import { ID_KEY, NAME_KEY, readIdentity, saveIdentity, viewerId } from "./identity";
 import { POPUP_MS, ViewerView } from "./ViewerView";
 
 const NOW = T0 + 10_000;
@@ -647,5 +651,49 @@ describe("D-475: raised hands and hearts", () => {
     expect(hearts).toHaveLength(1);
     expect(hearts[0]).toHaveAttribute("data-still");
     expect(screen.getByTestId("viewer-figure-u_ann")).toHaveAttribute("data-still");  // D-476: no walking
+  });
+});
+
+describe("D-477: viewers watching", () => {
+  it("the viewer page makes its id on open, without a name, and keeps it when the viewer joins the chat", () => {
+    const id = viewerId();
+    expect(id).toMatch(/^v_/);
+    expect(window.localStorage.getItem(ID_KEY)).toBe(id);
+    expect(readIdentity()).toBeNull();  // chatting still needs a name
+    expect(viewerId()).toBe(id);
+    expect(saveIdentity("Kim").authorId).toBe(id);
+    expect(eventsUrl("ses_1", "viewer", 0, id)).toContain(`&viewer_id=${id}`);
+    expect(eventsUrl("ses_1", "host", 0)).not.toContain("viewer_id");
+  });
+
+  it("shows the count on the video, and nothing while it is unknown", () => {
+    const { rerender } = render(view(stateWith(), { audience: 4 }));
+    expect(screen.getByTestId("audience-count")).toHaveTextContent("4 watching");
+    rerender(view(stateWith(), { audience: 0 }));
+    expect(screen.getByTestId("audience-count")).toHaveTextContent("0 watching");  // a confirmed 0 is shown
+    rerender(view(stateWith(), { audience: null }));
+    expect(screen.queryByTestId("audience-count")).toBeNull();
+    setLang("ko");
+    rerender(view(stateWith(), { audience: 4 }));
+    expect(screen.getByTestId("audience-count")).toHaveTextContent("시청 중 4명");
+  });
+
+  it("polls every 10 s and hides the number after a failure instead of keeping the old one", async () => {
+    const audience = vi.spyOn(api, "audience")
+      .mockResolvedValueOnce({ count: 7, at: NOW })
+      .mockRejectedValueOnce(new Error("503"))
+      .mockResolvedValueOnce({ count: 2, at: NOW });
+    function Probe() {
+      return <Watching count={useAudience("ses_1")} />;
+    }
+    render(<Probe />);
+    await act(async () => {});
+    expect(screen.getByTestId("audience-count")).toHaveTextContent("7 watching");
+    await act(async () => vi.advanceTimersByTime(11_000));
+    expect(screen.queryByTestId("audience-count")).toBeNull();
+    await act(async () => vi.advanceTimersByTime(11_000));
+    expect(screen.getByTestId("audience-count")).toHaveTextContent("2 watching");
+    expect(audience).toHaveBeenCalledTimes(3);
+    audience.mockRestore();
   });
 });

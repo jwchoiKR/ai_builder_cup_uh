@@ -8,3 +8,4 @@ export { SettingsButton } from "./SettingsButton";
 export { Splitter } from "./Splitter";
 export { ThemeToggle } from "./ThemeToggle";
 export { VirtualList, windowRange } from "./VirtualList";
+export { Watching } from "./Watching";

@@ -137,6 +137,7 @@ export const KO_HOST: Record<string, string> = {
   "No questions waiting.": "기다리는 질문이 없습니다.",
   "{n} unanswered questions": "답변 못 한 질문 {n}개",
   "1 unanswered question": "답변 못 한 질문 1개",
+  "{n} watching": "시청 중 {n}명", // D-477
   "Drafting…": "답변 작성 중…",
   "Finding evidence…": "근거 문서를 가져오는 중…",
   "Writing the reply…": "답변을 만드는 중…",

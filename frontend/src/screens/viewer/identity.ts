@@ -36,20 +36,31 @@ export function readIdentity(): ViewerIdentity | null {
   }
 }
 
-/** Saves the name (and an id if none yet). Works in memory when storage is unavailable. */
-export function saveIdentity(name: string): ViewerIdentity {
-  const clean = name.trim().slice(0, 40);
-  let id: string | null = null;
+let memoryId: string | null = null;
+
+/** D-477: this browser's viewer id, made when the viewer page opens, so a viewer who only watches is counted too
+ *  (the chat identity still needs a name). Kept in memory for this page when storage is unavailable. */
+export function viewerId(): string {
   try {
     const s = storage();
-    id = s?.getItem(ID_KEY) ?? null;
-    if (!id) {
-      id = randomId();
-      s?.setItem(ID_KEY, id);
-    }
-    s?.setItem(NAME_KEY, clean);
+    const id = s?.getItem(ID_KEY)?.trim();
+    if (id) return id;
+    memoryId ??= randomId();
+    s?.setItem(ID_KEY, memoryId);
+  } catch {
+    memoryId ??= randomId();
+  }
+  return memoryId;
+}
+
+/** Saves the name, with this browser's viewer id. Works in memory when storage is unavailable. */
+export function saveIdentity(name: string): ViewerIdentity {
+  const clean = name.trim().slice(0, 40);
+  const id = viewerId();
+  try {
+    storage()?.setItem(NAME_KEY, clean);
   } catch {
     /* storage unavailable: keep the identity for this page only */
   }
-  return { authorId: id ?? randomId(), name: clean };
+  return { authorId: id, name: clean };
 }

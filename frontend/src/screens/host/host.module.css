@@ -1309,6 +1309,20 @@
   background: var(--fact-border);
   box-shadow: 0 0 0 calc(2px * var(--hs)) var(--fact-bg);
 }
+/* D-477: the viewer count in the questions header, read from a distance */
+.cardWatching {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--hs));
+  font-size: calc(22px * var(--hs));
+  font-weight: var(--fw-semibold);
+  color: var(--text-2);
+}
+.cardWatching svg {
+  width: calc(20px * var(--hs));
+  height: calc(20px * var(--hs));
+}
 /* D-113: compact waiting list rows; D-438: sized to be read from a distance, like the alert boxes. D-469 (user):
    a label column ("Q1", an "A1" chip), and the question and its answer start at the same x */
 .qa {

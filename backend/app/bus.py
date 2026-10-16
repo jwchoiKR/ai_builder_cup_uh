@@ -22,6 +22,11 @@ log = logging.getLogger(__name__)
 
 HEARTBEAT_SEC = 15.0
 SUBSCRIBER_QUEUE_MAX = 5000
+# D-477: viewers watching, per process: a closed stream still counts this long (a refresh or a reconnect must not
+# make the number flicker); ids are capped in length and in number per show
+AUDIENCE_GRACE_MS = 10_000
+AUDIENCE_MAX = 10_000
+VIEWER_ID_MAX = 40
 
 
 class Subscriber:
@@ -47,6 +52,8 @@ class EventBus:
         self._seq: dict[str, int] = {}
         self._locks: defaultdict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._subs: defaultdict[str, set[Subscriber]] = defaultdict(set)
+        # D-477: session -> viewer id -> (open streams, when the last one closed); memory only, never persisted
+        self._audience: dict[str, dict[str, tuple[int, int]]] = {}
 
     async def _load_seq(self, session_id: str) -> int:
         if session_id not in self._seq:
@@ -91,9 +98,38 @@ class EventBus:
     def subscriber_count(self, session_id: str) -> int:
         return len(self._subs[session_id])
 
+    def join_audience(self, session_id: str, viewer_id: str) -> bool:
+        """D-477: a viewer's stream opened. Two tabs of one browser are one viewer. False when the show's id cap is
+        reached (that stream is then not counted)."""
+        seen = self._audience.setdefault(session_id, {})
+        if viewer_id not in seen and len(seen) >= AUDIENCE_MAX:
+            self._prune(session_id)
+            if len(seen) >= AUDIENCE_MAX:
+                return False
+        seen[viewer_id] = (seen.get(viewer_id, (0, 0))[0] + 1, 0)
+        return True
+
+    def leave_audience(self, session_id: str, viewer_id: str) -> None:
+        seen = self._audience.get(session_id, {})
+        if viewer_id in seen:
+            seen[viewer_id] = (max(0, seen[viewer_id][0] - 1), self._clock.now_ms())
+
+    def _prune(self, session_id: str) -> None:
+        seen = self._audience.get(session_id, {})
+        now = self._clock.now_ms()
+        for vid, (open_, closed) in list(seen.items()):
+            if open_ == 0 and now - closed >= AUDIENCE_GRACE_MS:
+                del seen[vid]
+
+    def audience(self, session_id: str) -> set[str]:
+        """D-477: the viewer ids with an open stream in this process, or one closed less than AUDIENCE_GRACE_MS ago."""
+        self._prune(session_id)
+        return set(self._audience.get(session_id, {}))
+
     def forget_session(self, session_id: str) -> None:
         """Drop counters after a session is deleted (demo reset); live subscribers are cut off."""
         self._seq.pop(session_id, None)
+        self._audience.pop(session_id, None)
         for s in self._subs.pop(session_id, set()):
             s.dropped = True
 
@@ -189,12 +225,15 @@ def for_role(ev: Event, role: str) -> Event | None:
 
 
 async def sse_stream(
-    bus: EventBus, session_id: str, after_seq: int, *, heartbeat_sec: float = HEARTBEAT_SEC, role: str = "operator"
+    bus: EventBus, session_id: str, after_seq: int, *, heartbeat_sec: float = HEARTBEAT_SEC, role: str = "operator",
+    viewer_id: str | None = None,
 ) -> AsyncIterator[str]:
-    """Replay persisted events after `after_seq`, then stream live ones, with heartbeats."""
+    """Replay persisted events after `after_seq`, then stream live ones, with heartbeats. D-477: a viewer stream with
+    a `viewer_id` counts that viewer as watching while it is open."""
     # Subscribe before replaying so nothing emitted during the replay is lost; duplicates
     # are skipped by sequence number.
     s = bus.subscribe(session_id)
+    counted = role == "viewer" and bool(viewer_id) and bus.join_audience(session_id, viewer_id)
     try:
         yield "retry: 1000\n\n"
         last = after_seq
@@ -216,3 +255,5 @@ async def sse_stream(
         # Fell behind: end the stream; the browser reconnects with Last-Event-ID and replays.
     finally:
         bus.unsubscribe(s)
+        if counted:
+            bus.leave_audience(session_id, viewer_id)

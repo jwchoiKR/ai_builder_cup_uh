@@ -6,7 +6,8 @@ import { api, type AnswerOrigin } from "../../app/api";
 import { useT } from "../../app/i18n";
 import { deskTabOf, draftAnswer, draftingLabel, groupStatusLabel, pendingMessages, questionDesk, relativeTime, waitReason, type DeskTab } from "../../app/selectors";
 import type { Answer, QuestionGroup } from "../../app/types";
-import { Button, Chip } from "../../components";
+import { useAudience } from "../../app/store";
+import { Button, Chip, Watching } from "../../components";
 import { useAction, useOperator } from "./context";
 import { debugOn, useArrivalDot } from "./attention";
 import { CommentTranslation } from "./CommentStream";
@@ -44,6 +45,7 @@ export function QuestionDesk() {
   const counts = deskTabCounts(all);
   const groups = questionDesk(state, tab);
   const topN = setting(state, "HOST_TOP_N");
+  const audience = useAudience(state.session?.session_id); // D-477
 
   // the row opened by default stays open while it stays in the list (a reply typed in it is not lost when a more
   // urgent question arrives); when it leaves the list (posted), the first row of the list opens
@@ -77,8 +79,11 @@ export function QuestionDesk() {
           </h2>
           <p className={styles.muted}>{t("Viewer questions that need a person. Check the suggested reply, edit it if you want, and post.")}</p>
         </div>
-        <span className={["tabular", styles.muted].join(" ")}>
-          {t("{n}/{max} on host", { n: state.hostSlots.length, max: topN })}
+        <span className={styles.deskMeta}>
+          <Watching count={audience} className={styles.deskWatching} />
+          <span className={["tabular", styles.muted].join(" ")}>
+            {t("{n}/{max} on host", { n: state.hostSlots.length, max: topN })}
+          </span>
         </span>
       </div>
       <div className={styles.tabs} role="tablist">

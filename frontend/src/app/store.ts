@@ -31,6 +31,8 @@ export class SessionStore {
     readonly sessionId: string,
     readonly role: Role,
     private deps: StoreDeps = defaultDeps,
+    /** D-477: the viewer page's id, sent on its stream so the viewer is counted */
+    readonly viewerId?: string,
   ) {
     this.state = emptyState(role);
   }
@@ -71,6 +73,7 @@ export class SessionStore {
       sessionId: this.sessionId,
       role: this.role,
       afterSeq: this.state.lastSeq,
+      viewerId: this.viewerId,
       onEvent: (ev) => this.dispatch(ev),
       onStatus: (st) => {
         this.connection = st;
@@ -126,11 +129,11 @@ export class SessionStore {
 const registry = new Map<string, { store: SessionStore; refs: number; closeTimer: ReturnType<typeof setTimeout> | null }>();
 const RELEASE_DELAY_MS = 3000; // survives StrictMode remounts and quick pane switches
 
-export function acquireStore(sessionId: string, role: Role): SessionStore {
-  const key = `${sessionId}:${role}`;
+export function acquireStore(sessionId: string, role: Role, viewerId?: string): SessionStore {
+  const key = storeKey(sessionId, role, viewerId);
   let entry = registry.get(key);
   if (!entry) {
-    entry = { store: new SessionStore(sessionId, role), refs: 0, closeTimer: null };
+    entry = { store: new SessionStore(sessionId, role, defaultDeps, viewerId), refs: 0, closeTimer: null };
     registry.set(key, entry);
   }
   if (entry.closeTimer) {
@@ -142,8 +145,11 @@ export function acquireStore(sessionId: string, role: Role): SessionStore {
   return entry.store;
 }
 
+// a counted viewer stream is its own store, apart from an embedded preview of the same show
+const storeKey = (sessionId: string, role: Role, viewerId?: string) => `${sessionId}:${role}:${viewerId ?? ""}`;
+
 export function releaseStore(store: SessionStore): void {
-  const key = `${store.sessionId}:${store.role}`;
+  const key = storeKey(store.sessionId, store.role, store.viewerId);
   const entry = registry.get(key);
   if (!entry) return;
   entry.refs -= 1;
@@ -162,15 +168,15 @@ export interface SessionView {
   error: string | null;
 }
 
-/** Live client state for one session and role. */
-export function useSession(sessionId: string | null, role: Role): SessionView {
+/** Live client state for one session and role. D-477: `viewerId` only on the viewer page itself. */
+export function useSession(sessionId: string | null, role: Role, viewerId?: string): SessionView {
   const [store, setStore] = useState<SessionStore | null>(null);
   useEffect(() => {
     if (!sessionId) return;
-    const s = acquireStore(sessionId, role);
+    const s = acquireStore(sessionId, role, viewerId);
     setStore(s);
     return () => releaseStore(s);
-  }, [sessionId, role]);
+  }, [sessionId, role, viewerId]);
   const fallback = useState(() => emptyState(role))[0];
   const state = useSyncExternalStore(
     store?.subscribe ?? noopSubscribe,
@@ -236,6 +242,44 @@ export function useCatalog(sessionId?: string | null): Catalog | null {
   return hook();
 }
 export const useHealth = cachedResource<Health>(() => api.health());
+
+export const AUDIENCE_POLL_MS = 10_000;
+const AUDIENCE_TIMEOUT_MS = 5_000;
+
+/** D-477: how many are watching the show (GET /audience every 10 s, with a little jitter). null while unknown and
+ *  after any failure (an error, a timeout, a 404): a stale number or a failure shown as 0 would mislead. */
+export function useAudience(sessionId: string | null | undefined): number | null {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    setCount(null);
+    if (!sessionId) return;
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const load = async () => {
+      let next: number | null = null;
+      let cut: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const timeout = new Promise<never>((_, reject) => {
+          cut = setTimeout(() => reject(new Error("timeout")), AUDIENCE_TIMEOUT_MS);
+        });
+        next = (await Promise.race([api.audience(sessionId), timeout])).count;
+      } catch {
+        next = null;
+      } finally {
+        clearTimeout(cut);
+      }
+      if (!live) return;
+      setCount(next);
+      timer = setTimeout(load, AUDIENCE_POLL_MS + Math.random() * 1000);
+    };
+    void load();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [sessionId]);
+  return count;
+}
 
 /** Re-render every `intervalMs` (timers, countdowns, relative times). */
 export function useNow(intervalMs = 1000): number {

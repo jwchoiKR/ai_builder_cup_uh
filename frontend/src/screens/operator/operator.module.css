@@ -235,6 +235,25 @@
   box-shadow: var(--shadow);
   min-width: 0;
 }
+/* D-477: the viewer count beside the host-slot count */
+.deskMeta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: none;
+}
+.deskWatching {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-semibold);
+  color: var(--text-2);
+}
+.deskWatching svg {
+  width: 14px;
+  height: 14px;
+}
 .blockHeader {
   display: flex;
   align-items: flex-start;

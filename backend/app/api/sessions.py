@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel
 
 from ..context import AppContext, get_ctx
 from ..logic.catalog import DEFAULT_RUNSHEET_ID
-from ..models.session import Session
+from ..models.session import Comment, Session
 from ..pipelines.runtime import create_session as _create
-from ..store.base import SESSIONS
+from ..store.base import SESSIONS, sub
 from .errors import ApiError
 
 router = APIRouter()
@@ -48,6 +48,23 @@ async def end_session(session_id: str, ctx: AppContext = Depends(get_ctx)) -> Se
 @router.get("/sessions/{session_id}/state")
 async def session_state(session_id: str, role: Role = "viewer", ctx: AppContext = Depends(get_ctx)) -> dict:
     return await (await ctx.runtimes.get(session_id)).snapshot(role)
+
+
+DEMO_SOURCES = ("script", "pool")
+
+
+@router.get("/sessions/{session_id}/audience")
+async def session_audience(session_id: str, response: Response, ctx: AppContext = Depends(get_ctx)) -> dict:
+    """D-477: how many are watching. Per process: the distinct viewer ids with a live stream on this instance (the
+    one that runs the show and sends its live chat; another instance's viewers are not seen), plus, in a demo, each
+    simulated viewer from their first comment to the end of the show."""
+    session = await require_session(session_id, ctx)
+    ids = ctx.bus.audience(session_id)
+    if session.status != "ended":
+        comments = await ctx.store.query(sub(session_id, "comments"), Comment)
+        ids |= {c.author_id for c in comments if c.source in DEMO_SOURCES}
+    response.headers["Cache-Control"] = "no-store"
+    return {"count": len(ids), "at": ctx.clock.now_ms()}
 
 
 @router.get("/sessions/{session_id}/metrics")

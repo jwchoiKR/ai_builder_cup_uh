@@ -1,10 +1,10 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { api } from "../app/api";
 import type { ScreenProps } from "../app/nav";
-import { useCatalog, useHealth, useSession } from "../app/store";
+import { useAudience, useCatalog, useHealth, useSession } from "../app/store";
 import { useTheme } from "../app/theme";
-import type { ViewerIdentity } from "./viewer/identity";
+import { viewerId, type ViewerIdentity } from "./viewer/identity";
 import { ViewerView } from "./viewer/ViewerView";
 
 /** Viewer page (§12.5). Standalone it is a framed 390x844 phone; embedded (Studio pane, operator
@@ -12,11 +12,14 @@ import { ViewerView } from "./viewer/ViewerView";
 export function Viewer(props: ScreenProps) {
   const [ownTheme, , setTheme, themePref] = useTheme();
   const theme = props.theme ?? ownTheme;
-  const { state, connection } = useSession(props.sessionId, "viewer");
+  const embedded = Boolean(props.embedded);
+  // D-477: this page counts as a viewer watching; an embedded preview (Studio, operator) does not
+  const vid = useMemo(() => (embedded ? undefined : viewerId()), [embedded]);
+  const { state, connection } = useSession(props.sessionId, "viewer", vid);
   const catalog = useCatalog(props.sessionId);
   const health = useHealth();
   const sessionId = props.sessionId;
-  const embedded = Boolean(props.embedded);
+  const audience = useAudience(sessionId);
 
   const onSend = useCallback(
     (identity: ViewerIdentity, text: string) =>
@@ -33,6 +36,7 @@ export function Viewer(props: ScreenProps) {
       connection={connection}
       theme={theme}
       embedded={embedded}
+      audience={audience}
       inputEnabled={Boolean(health?.viewer_input_enabled)}
       cameraEnabled={!embedded && import.meta.env.MODE !== "test"}
       themePref={themePref}

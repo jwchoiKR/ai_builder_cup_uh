@@ -62,14 +62,17 @@ export function lastEventType(): string | null {
   return lastType;
 }
 
-export function eventsUrl(sessionId: string, role: Role, afterSeq: number): string {
-  return `${API_BASE}/sessions/${encodeURIComponent(sessionId)}/events?after_seq=${afterSeq}&role=${role}`;
+export function eventsUrl(sessionId: string, role: Role, afterSeq: number, viewerId?: string): string {
+  const who = viewerId ? `&viewer_id=${encodeURIComponent(viewerId)}` : "";
+  return `${API_BASE}/sessions/${encodeURIComponent(sessionId)}/events?after_seq=${afterSeq}&role=${role}${who}`;
 }
 
 export interface EventStreamOptions {
   sessionId: string;
   role: Role;
   afterSeq: number;
+  /** D-477: the viewer page's own stream counts this browser as watching (never an embedded preview) */
+  viewerId?: string;
   onEvent: (ev: SessionEvent) => void;
   onStatus?: (status: ConnectionStatus) => void;
   /** injectable for tests */
@@ -107,7 +110,7 @@ export function openEventStream(opts: EventStreamOptions): () => void {
   const open = () => {
     if (closed) return;
     setStatus(lastSeq === opts.afterSeq ? "connecting" : "reconnecting");
-    const es = new ES(eventsUrl(opts.sessionId, opts.role, lastSeq));
+    const es = new ES(eventsUrl(opts.sessionId, opts.role, lastSeq, opts.viewerId));
     source = es;
     es.onopen = () => setStatus("connected");
     es.onerror = () => {
