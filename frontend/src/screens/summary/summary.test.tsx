@@ -166,6 +166,14 @@ describe("SummaryView", () => {
     expect(screen.getByRole("button", { name: "Export PDF" })).toBeDisabled();
   });
 
+  it("D-498: a failed recap offers Retry", () => {
+    const onRetry = vi.fn();
+    renderView(data({ status: "failed", recap: null, error: "recap unavailable (timeout)" }), { onRetry });
+    expect(screen.getByTestId("summary-recap")).toHaveTextContent("Recap unavailable. The numbers below are complete.");
+    fireEvent.click(screen.getByTestId("summary-retry"));
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+
   it("D-496: before the broadcast ends the recap block says nothing", () => {
     renderView(data({ status: "not_ended", recap: null }));
     expect(screen.queryByText(/The recap is written when the broadcast ends/)).toBeNull();

@@ -114,6 +114,8 @@ export const api = {
   /** D-477: how many are watching (per instance, plus a demo's simulated viewers) */
   audience: (sid: string) => get<{ count: number; at: number }>(`${s(sid)}/audience`),
   summary: (sid: string) => get<Record<string, unknown>>(`${s(sid)}/summary`),
+  /** D-498: write a failed recap again */
+  retrySummary: (sid: string) => post<{ status: string }>(`${s(sid)}/summary/retry`),
 
   // viewer
   postComment: (sid: string, body: { author_id: string; author_name: string; text: string }) =>
