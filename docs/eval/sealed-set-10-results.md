@@ -26,7 +26,7 @@ On 10/17 we published the set itself in [eval/sealed_set_10](../../eval/sealed_s
 
 - The fact checker is Gemini 3.8 Flash LOW in every run.
 - Call times are one call, from input to output. Retries are not included, and failed calls are counted apart (P: 29 client timeouts, B and C: 2, D: 4).
-- On the night of run P, Gemini 3.8 Flash was slow (p95 over 30 s, frequent 504s). Both missed lines are fact checks that never came back.
+- During run P, Gemini 3.8 Flash returned 504 errors: Google's service record shows 6.7% and 9.7% of its calls in the two busiest hours (0.1-1.1% in the hours before), and its server median latency rose to 43-185 s. Flash-Lite had no 504 errors in the same hours, and our requests were the same size as in the other runs. Both missed lines are fact checks that never came back. Our app logged these calls as client timeouts (its own 60 s deadline), so the 504s come from Cloud Monitoring, not from the result files: [eval/sealed_set_10/latency_run_p.md](../../eval/sealed_set_10/latency_run_p.md).
 - The one false alert in B and D is the same line: the host gave the regular price, and the fact checker compared it with the live price.
 
 ## How fast the host sees an alert
@@ -35,7 +35,7 @@ Detected lines by the time from the end of the line to the alert on the host scr
 
 | Run | Within 5 s | Within 10 s | Within 20 s | At all |
 |---|---|---|---|---|
-| P (slow Gemini night) | 34 | 45 | 50 | 52 |
+| P (during Gemini 3.8 Flash 504 errors) | 34 | 45 | 50 | 52 |
 | B | 50 | 53 | 54 | 54 |
 | C | 34 | 54 | 54 | 54 |
 | D | 45 | 52 | 53 | 54 |

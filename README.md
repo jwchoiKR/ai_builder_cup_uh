@@ -104,7 +104,7 @@ Each judge runs on the model that did best on its own job in our tests. An alert
 
 **Set 10 in detail**: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
 - Left out: 12 stress lines (one sentence cut into two audio clips on purpose) and 6 lines that need a fact not on the prompter or a rule outside the product's regulation document.
-- Both misses in the main run are fact checks that never came back on a night when Gemini 3.8 Flash was slow.
+- Both misses in the main run are fact checks that never came back. During that run Gemini 3.8 Flash returned 504 errors on 6.7-9.7% of its calls an hour (0.1-1.1% in the hours before) and its server median latency rose to 43-185 s, while Flash-Lite had no 504s; our requests did not change ([analysis](eval/sealed_set_10/latency_run_p.md)).
 - Alerts seen within 5 s of the line's end: 34 to 50 of 54, depending on the run. Most late alerts are fact checks.
 
 **Earlier sealed sets** (detection on unseen products, older conditions, not comparable): 84% (set 3, typed text, 10/5) → 91.0% (set 4, typed text) → 89.6-90.3% (set 6, first round through TTS and STT) → 94.0% / 95.5% (set 7, 10/8: the fact checker read whole product documents and judge answers were dropped after 5 s).
@@ -145,7 +145,7 @@ Judges and speech-to-text: about **US$3.8 an hour** at 600 host lines an hour.
 
 ## Known limits
 
-- The fact checker (Gemini 3.8 Flash) can be slower than its 7 s target, much slower on a busy Gemini day; its alerts then show late.
+- The fact checker (Gemini 3.8 Flash) can be slower than its 7 s target when the Gemini service is in trouble: during set 10 run P, 3.8 Flash returned 504 errors on up to 9.7% of its calls an hour ([analysis](eval/sealed_set_10/latency_run_p.md)). Its alerts then show late.
 - Set 10 has 4 products and 54 violations, so one line moves detection by about 2 points.
 - Tested with TTS voices, not yet with a real human host.
 - Show state, comments included, is kept in Firestore and survives a restart or a move to a new instance.
