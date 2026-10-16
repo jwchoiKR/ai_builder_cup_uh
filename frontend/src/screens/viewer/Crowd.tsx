@@ -39,6 +39,8 @@ const LEAVE_MS = 400;
 const HEARTS = 6;
 /** D-478: walking lanes, so bunched animals stand apart; the lower lane is in front */
 export const LANES = 3;
+/** D-488: the drawing's opacity while the animal walks */
+export const WALK_OPACITY = 0.85;
 /** D-485: the answer bubble (the reply over its question) shows this long */
 export const PAIR_MS = 5000;
 /** D-485: a newer reply replaces the shown answer bubble only after it has shown this long */
@@ -282,6 +284,9 @@ const Walker = memo(function Walker({
             happy={happy}
             paw={hand}
             className={styles.animal}
+            // D-488 (user): a walking animal is a little see-through; a speaking one is solid (the name, bubble and
+            // hearts stay solid either way)
+            style={{ opacity: stopped ? 1 : WALK_OPACITY }}
           />
         </div>
       </div>

@@ -1,7 +1,7 @@
 // D-476 (user): cute chibi animals for the viewer crowd, drawn in code. One shared body, legs and head; each animal
 // swaps its ears, snout, tail and markings. The colours belong to the animals, so they are the same in both themes;
 // a light halo keeps dark animals readable on a dark video and a thin ink line keeps light ones readable on a light one.
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import styles from "./viewer.module.css";
 
@@ -251,10 +251,11 @@ export interface AnimalProps {
   /** front view only: a raised paw (a question) */
   paw?: boolean;
   className?: string;
+  style?: CSSProperties;
 }
 
 /** One animal, facing right in the side view (the caller mirrors it to walk left). viewBox -2 -6 48 50. */
-export function Animal({ species, view, frame = 0, happy = false, paw = false, className }: AnimalProps) {
+export function Animal({ species, view, frame = 0, happy = false, paw = false, className, style }: AnimalProps) {
   const look = LOOKS[species];
   const parts = view === "side" ? look.side : look.front;
   const side = view === "side";
@@ -292,7 +293,7 @@ export function Animal({ species, view, frame = 0, happy = false, paw = false, c
   const eye = look.eye ?? INK;
   const eyes = side ? [29] : [18, 26];
   return (
-    <svg className={className} viewBox="-2 -6 48 50" data-species={species} data-view={view}>
+    <svg className={className} style={style} viewBox="-2 -6 48 50" data-species={species} data-view={view}>
       <g className={styles.halo}>{silhouette}</g>
       <g className={styles.ink}>{silhouette}</g>
       {parts.bodyMarks && <g transform={under}>{parts.bodyMarks}</g>}
