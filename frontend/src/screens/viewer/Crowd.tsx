@@ -23,9 +23,18 @@ export const HOLD_MAX = 2;
 export const ANSWER_GRACE_MS = 1000;
 export const CHEER_MS = 2000;
 export const CHEER_MAX = 3;
-/** D-475: animals with a pending question keep their place in the roster, up to this many */
-const PROTECT_MAX = 4;
 const PENDING = new Set(["checking", "host", "team"]);
+/** D-487 (user: heavy chatters first, questions sent to the host stay): at most this many of the 6 places are kept */
+export const PROTECT_MAX = 4;
+/** D-487: at most this many askers of a question sent to the host are pinned */
+export const HOST_PINS = 2;
+/** D-487: a host question's pin ends this long after the comment at the latest */
+export const HOST_PIN_MS = 300_000;
+/** D-487: the chat score counts comments in this window, at most one per author per SCORE_GAP_MS */
+export const SCORE_WINDOW_MS = 600_000;
+export const SCORE_GAP_MS = 5000;
+/** D-487: a newcomer takes the place only of an animal that has been silent this long */
+export const QUIET_MS = 15_000;
 const LEAVE_MS = 400;
 const HEARTS = 6;
 /** D-478: walking lanes, so bunched animals stand apart; the lower lane is in front */
@@ -85,44 +94,72 @@ function pickSpecies(authorId: string, others: Figure[]): Species {
   return SPECIES[start]!;
 }
 
-/** A new commenter joins, or takes the place of the longest-silent animal that is neither the viewer's own nor
- *  waiting for an answer (D-475); if every other animal waits, the longest-silent of them. Returns the one that left. */
-function place(roster: Figure[], c: Comment, me: string | null, waiting: Set<string>): Figure | null {
+/** D-487: how much each viewer chats: their comments in the last SCORE_WINDOW_MS, at most one per SCORE_GAP_MS (a
+ *  burst of spam counts once). `comments` are in time order. */
+export function chatScores(comments: Comment[], now: number): Map<string, number> {
+  const last = new Map<string, number>();
+  const score = new Map<string, number>();
+  for (const c of comments) {
+    if (now - c.received_at > SCORE_WINDOW_MS) continue;
+    const prev = last.get(c.author_id);
+    if (prev !== undefined && c.received_at - prev < SCORE_GAP_MS) continue;
+    last.set(c.author_id, c.received_at);
+    score.set(c.author_id, (score.get(c.author_id) ?? 0) + 1);
+  }
+  return score;
+}
+
+/** D-487: the animals that keep their place, at most PROTECT_MAX in all: the viewer's own, then the askers of a
+ *  question sent to the host (at most HOST_PINS; until it is replied to, closed, hidden, the product changes, or
+ *  HOST_PIN_MS after the comment), then askers waiting on the team. Newest questions first. */
+export function protectedAuthors(comments: Comment[], me: string | null, onScreen: Set<string>, replied: Set<string>,
+  segmentSince: number, now: number): Set<string> {
+  const out = new Set<string>();
+  if (me && onScreen.has(me)) out.add(me);
+  const newest = [...comments].reverse().filter((c) => onScreen.has(c.author_id));
+  let pins = 0;
+  for (const c of newest) {
+    if (out.size >= PROTECT_MAX || pins >= HOST_PINS) break;
+    if (c.reply_status !== "host" || replied.has(c.comment_id) || out.has(c.author_id)) continue;
+    if (c.received_at < segmentSince || now - c.received_at >= HOST_PIN_MS) continue;
+    out.add(c.author_id);
+    pins++;
+  }
+  for (const c of newest) {
+    if (out.size >= PROTECT_MAX) break;
+    if (c.reply_status === "team") out.add(c.author_id);
+  }
+  return out;
+}
+
+/** A new commenter joins while there is room; else takes the place of the lowest-scoring animal that is not kept
+ *  and has been silent QUIET_MS (tie: the longest silent); if there is none, it gets no animal (D-487). Returns
+ *  whether the author is on screen, and the animal that left. */
+function place(roster: Figure[], c: Comment, keep: Set<string>, scores: Map<string, number>, now: number):
+  { shown: boolean; gone: Figure | null } {
   const known = roster.find((f) => f.authorId === c.author_id);
   if (known) {
-    known.lastAt = c.received_at;
+    known.lastAt = Math.max(known.lastAt, c.received_at);
     known.name = c.author_name;
-    return null;
+    return { shown: true, gone: null };
   }
   const join = (others: Figure[]) =>
     ({ authorId: c.author_id, name: c.author_name, lastAt: c.received_at, species: pickSpecies(c.author_id, others) });
   if (roster.length < CROWD_MAX) {
     roster.push(join(roster));
-    return null;
+    return { shown: true, gone: null };
   }
-  const oldest = (skip: (f: Figure) => boolean) => {
-    let i = -1;
-    roster.forEach((f, j) => {
-      if (!skip(f) && (i < 0 || f.lastAt < roster[i]!.lastAt)) i = j;
-    });
-    return i;
-  };
-  let i = oldest((f) => f.authorId === me || waiting.has(f.authorId));
-  if (i < 0) i = oldest((f) => f.authorId === me);
-  if (i < 0) return null;
+  let i = -1;
+  roster.forEach((f, j) => {
+    if (keep.has(f.authorId) || now - f.lastAt < QUIET_MS) return;
+    const best = roster[i];
+    const [sf, sb] = [scores.get(f.authorId) ?? 0, best ? scores.get(best.authorId) ?? 0 : Infinity];
+    if (!best || sf < sb || (sf === sb && f.lastAt < best.lastAt)) i = j;
+  });
+  if (i < 0) return { shown: false, gone: null };
   const gone = roster[i]!;
   roster[i] = join(roster.filter((_, j) => j !== i));
-  return gone;
-}
-
-/** The authors of the most recent pending questions, at most PROTECT_MAX. */
-function waitingAuthors(comments: Comment[]): Set<string> {
-  const out = new Set<string>();
-  for (let i = comments.length - 1; i >= 0 && out.size < PROTECT_MAX; i--) {
-    const c = comments[i]!;
-    if (c.reply_status && PENDING.has(c.reply_status)) out.add(c.author_id);
-  }
-  return out;
+  return { shown: true, gone };
 }
 
 const reducedMotion = () =>
@@ -264,9 +301,11 @@ interface CrowdProps {
   loaded: boolean;
   /** D-484: turned on again at this server time: comments from before it never speak */
   since?: number;
+  /** D-487: when the product on air started: a host question from before it no longer pins its asker */
+  segmentSince?: number;
 }
 
-function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since }: CrowdProps) {
+function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since, segmentSince = 0 }: CrowdProps) {
   const roster = useRef<Figure[]>([]);
   const leaving = useRef<Figure[]>([]);
   const seen = useRef(new Set<string>());
@@ -305,7 +344,9 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
   useEffect(() => {
     const visible = new Map(comments.map((c) => [c.comment_id, c]));
     const now = Date.now() + serverOffsetMs;
-    const waiting = waitingAuthors(comments);
+    const replied = new Set(replies.flatMap((r) => r.askers.map((a) => a.commentId)));
+    const scores = chatScores(comments, now);
+    const isHost = (b: Bubble) => visible.get(b.commentId)?.reply_status === "host";
     const young = (c: Comment) => now - c.received_at <= BUBBLE_STALE_MS;
     const pending = (c: Comment) => PENDING.has(c.reply_status ?? "");
 
@@ -342,10 +383,15 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
       hands.current.set(c.author_id, c.comment_id);
       const b = bubbles.current.find((x) => x.commentId === c.comment_id);
       if (b && !b.held) {
-        stop(`b:${c.comment_id}`);
+        // D-487: a host question's bubble is never closed for another question; with no other held bubble to close,
+        // this one stays a 4 s chat bubble (the paw is still held)
         const others = bubbles.current.filter((x) => x.held);
-        if (others[0] && others.length + pairs() >= HOLD_MAX) endHold(others[0].commentId);
-        bubbles.current = bubbles.current.map((x) => (x === b ? { ...x, held: true } : x));
+        const victim = others.length + pairs() >= HOLD_MAX ? others.find((x) => !isHost(x)) : undefined;
+        if (victim) endHold(victim.commentId);
+        if (victim || others.length + pairs() < HOLD_MAX) {
+          stop(`b:${c.comment_id}`);
+          bubbles.current = bubbles.current.map((x) => (x === b ? { ...x, held: true } : x));
+        }
       }
       arm(`cap:${c.comment_id}`, Math.max(0, c.received_at + HOLD_CAP_MS - now), () => endHold(c.comment_id));
     };
@@ -368,8 +414,17 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
     for (const c of comments) {
       if (seen.current.has(c.comment_id)) continue;
       seen.current.add(c.comment_id);
-      const gone = place(roster.current, c, me, waiting);
+      const keep = protectedAuthors(comments, me, new Set(roster.current.map((f) => f.authorId)), replied, segmentSince, now);
+      const { shown, gone } = place(roster.current, c, keep, scores, now);
       if (gone) {
+        // its bubbles, paw and answer bubble go with it (no ghost bubble holding a slot)
+        for (const b of bubbles.current.filter((x) => x.authorId === gone.authorId)) {
+          if (b.held) endHold(b.commentId);
+          else closeBubble(b.commentId);
+        }
+        for (const [commentId, authorId] of [...holds.current]) if (authorId === gone.authorId) endHold(commentId);
+        hands.current.delete(gone.authorId);
+        if (pair.current?.authorId === gone.authorId) closePair();
         // a replaced animal fades out
         leaving.current = [...leaving.current.filter((f) => f.authorId !== gone.authorId), gone];
         arm(`l:${gone.authorId}`, LEAVE_MS, () => {
@@ -378,7 +433,7 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
       }
       // first seen live (not an old one from a snapshot or a replay): it may speak once its verdict is in, however
       // long triage takes
-      if (young(c) && (since === undefined || c.received_at > since)) awaiting.current.add(c.comment_id);
+      if (shown && young(c) && (since === undefined || c.received_at > since)) awaiting.current.add(c.comment_id);
     }
 
     // D-482 (user): a bubble comes up when triage has judged the comment: a question raises the paw with it and is
@@ -388,7 +443,7 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
       const c = visible.get(commentId);
       if (c?.kind === "pending") continue;
       awaiting.current.delete(commentId);
-      if (!c || c.kind === "hide") continue;
+      if (!c || c.kind === "hide" || !roster.current.some((f) => f.authorId === c.author_id)) continue;
       spoke.current.add(commentId);
       const question = c.kind === "question" && c.reply_status !== "answered";
       const mine = bubbles.current.find((b) => b.authorId === c.author_id);
@@ -399,7 +454,18 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
       if (question) {
         if (pending(c)) asked.current.add(c.comment_id);
         const held = bubbles.current.filter((b) => b.held);
-        if (held[0] && held.length + pairs() >= HOLD_MAX) endHold(held[0].commentId);
+        if (held.length + pairs() >= HOLD_MAX) {
+          // D-487: never a host question's bubble; if every held bubble is one, no bubble, the paw goes up for 4 s
+          const victim = held.find((b) => !isHost(b));
+          if (!victim) {
+            hands.current.set(c.author_id, c.comment_id);
+            arm(`h:${c.author_id}`, BUBBLE_MS, () => {
+              if (hands.current.get(c.author_id) === c.comment_id) hands.current.delete(c.author_id);
+            });
+            continue;
+          }
+          endHold(victim.commentId);
+        }
         const plain = bubbles.current.find((b) => !b.held);
         if (bubbles.current.length + pairs() >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
         bubbles.current = [...bubbles.current, { authorId: c.author_id, commentId: c.comment_id, text: c.text, held: true }];
@@ -459,8 +525,9 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
           if (!pair.current) {
             const held = bubbles.current.filter((b) => b.held);
             // D-486: the pair adds one held bubble: make room only when the slots are full (was one too early, and
-            // closed another viewer's held question)
-            if (held[0] && held.length >= HOLD_MAX) endHold(held[0].commentId);
+            // closed another viewer's held question); D-487: never a host question's bubble
+            const victim = held.length >= HOLD_MAX ? held.find((b) => !isHost(b)) : undefined;
+            if (victim) endHold(victim.commentId);
             const plain = bubbles.current.find((b) => !b.held);
             if (bubbles.current.length >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
           }
@@ -598,7 +665,7 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
 }
 
 const crowdSig = (p: CrowdProps) =>
-  `${p.me}|${p.serverOffsetMs}|${p.loaded}|${p.since}|${p.brand}|`
+  `${p.me}|${p.serverOffsetMs}|${p.loaded}|${p.since}|${p.segmentSince}|${p.brand}|`
   + p.replies.map((r) => `${r.messageId}:${r.kind}:${r.text}:${r.ownText}:${r.askers.map((a) => a.commentId).join(",")}`).join(" ") + "|"
   + p.comments.map((c) => `${c.comment_id}:${c.kind}:${c.reply_status ?? ""}`).join(" ");
 

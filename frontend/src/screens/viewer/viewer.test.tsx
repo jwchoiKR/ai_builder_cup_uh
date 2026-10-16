@@ -13,6 +13,7 @@ import { useAudience } from "../../app/store";
 import { Watching } from "../../components";
 import { ID_KEY, NAME_KEY, readIdentity, saveIdentity, viewerId } from "./identity";
 import { Animal, SPECIES } from "./animals";
+import { chatScores, protectedAuthors } from "./Crowd";
 import { CROWD_KEY, POPUP_MS, ViewerView } from "./ViewerView";
 
 const NOW = T0 + 10_000;
@@ -1109,5 +1110,81 @@ describe("D-486: the answer moment", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+describe("D-487: who stays on screen", () => {
+  let n = 0;
+  const said = (who: string, ago: number, over: Partial<Parameters<typeof comment>[0]> = {}) =>
+    comment({ comment_id: `cm_${who}_${n++}`, author_id: `u_${who}`, author_name: who, text: `hi from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "reaction", ...over });
+  const shown = () => screen.queryAllByTestId(/^viewer-figure-/).filter((e) => !e.hasAttribute("data-leaving"))
+    .map((e) => e.getAttribute("data-testid")!.slice(16));
+
+  it("a burst counts once per 5 s; only the last 10 minutes count", () => {
+    const burst = [0, 1000, 2000, 3000, 4000, 6000].map((t) => said("spam", 30_000 - t));
+    const scores = chatScores([said("old", 700_000), ...burst, said("pal", 20_000), said("pal", 10_000)], NOW);
+    expect(scores.get("u_spam")).toBe(2);  // 30 s ago, then 24 s ago
+    expect(scores.get("u_pal")).toBe(2);
+    expect(scores.get("u_old")).toBeUndefined();
+  });
+
+  it("a heavy chatter outlasts one-off commenters, even when longer silent", () => {
+    const heavy = [100_000, 90_000, 80_000, 70_000].map((ago) => said("heavy", ago));
+    const once = ["a", "b", "c", "d", "e"].map((w, i) => said(w, 60_000 - i * 1000));
+    render(view(stateWith({ comments: [...heavy, ...once, said("new", 1000)] })));
+    const ids = shown();
+    expect(ids).toContain("heavy");
+    expect(ids).toContain("new");
+    expect(ids).not.toContain("a");  // the lowest score, then the longest silent
+  });
+
+  it("a newcomer enters only over an animal silent 15 s or more and not kept; else it gets no animal", () => {
+    const six = ["a", "b", "c", "d", "e", "f"].map((w, i) => said(w, 10_000 - i * 1000));  // all spoke in the last 10 s
+    const { rerender } = render(view(stateWith({ comments: [...six, said("new", 500)] })));
+    expect(shown()).not.toContain("new");
+    expect(screen.getByTestId(/viewer-comment-cm_new/)).toBeInTheDocument();  // the chat has it
+    act(() => vi.advanceTimersByTime(10_000));
+    rerender(view(stateWith({ comments: [...six, said("new", 500), said("late", -10_000)] })));
+    expect(shown()).toContain("late");
+    expect(shown()).not.toContain("a");
+  });
+
+  it("a host question pins its asker past 90 s, until replied, closed, hidden, a product change or 5 min", () => {
+    const onScreen = new Set(["u_tom", "u_me"]);
+    const asked = said("tom", 120_000, { kind: "question", reply_status: "host" });
+    const keep = (c = asked, replied = new Set<string>(), since = 0, at = NOW) =>
+      protectedAuthors([c], null, onScreen, replied, since, at).has("u_tom");
+    expect(keep()).toBe(true);  // 2 min after the comment
+    expect(keep(asked, new Set([asked.comment_id]))).toBe(false);  // replied
+    expect(keep({ ...asked, reply_status: null })).toBe(false);  // closed
+    expect(protectedAuthors([], null, onScreen, new Set(), 0, NOW).has("u_tom")).toBe(false);  // hidden: not in the chat rows
+    expect(keep(asked, new Set(), NOW - 60_000)).toBe(false);  // the product changed after it
+    expect(keep(asked, new Set(), 0, NOW + 180_001)).toBe(false);  // 5 min
+  });
+
+  it("at most 2 host pins and 4 kept in all, the viewer's own first", () => {
+    const people = ["a", "b", "c", "d", "e"];
+    const onScreen = new Set([...people.map((w) => `u_${w}`), "u_me"]);
+    const comments = [
+      said("a", 50_000, { reply_status: "host" }), said("b", 40_000, { reply_status: "host" }),
+      said("c", 30_000, { reply_status: "host" }), said("d", 20_000, { reply_status: "team" }),
+      said("e", 10_000, { reply_status: "team" }),
+    ];
+    const keep = protectedAuthors(comments, "u_me", onScreen, new Set(), 0, NOW);
+    expect([...keep].sort()).toEqual(["u_b", "u_c", "u_e", "u_me"]);  // own, the 2 newest host askers, the newest team asker
+  });
+
+  it("a replaced animal's held bubble closes with it", () => {
+    // a "checking" question is not kept (only host and team ones are); its bubble is held for up to 90 s
+    const asker = said("ask", 3000, { kind: "question", reply_status: "checking" });
+    const five = ["a", "b", "c", "d", "e"].map((w) => said(w, 1000));
+    const before = [asker, ...five];
+    const { rerender } = render(view(stateWith({ comments: before })));
+    expect(screen.getByTestId("viewer-bubble-u_ask")).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(16_000));
+    rerender(view(stateWith({ comments: [...before, said("new", -16_000)] })));  // ask is the longest silent
+    expect(shown()).not.toContain("ask");
+    expect(screen.queryByTestId("viewer-bubble-u_ask")).toBeNull();
   });
 });
