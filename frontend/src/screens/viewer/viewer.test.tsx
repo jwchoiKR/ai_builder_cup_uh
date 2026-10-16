@@ -622,18 +622,26 @@ describe("D-475: raised hands and hearts", () => {
 
   it("answers already there at page load or replayed after a reconnect are not celebrated", () => {
     const comments = [said("ann", 2000, { reply_status: "answered" })];
-    const messages = [answer("msg_h", "host_answer", ["cm_ann"])];
+    const messages = [answer("msg_h", "host_answer", ["cm_ann"]), answer("msg_a", "ai_answer", ["cm_ann"])];
     const { rerender } = render(view(stateWith({ comments, messages })));
     expect(flag("ann", "happy")).toBe(false);
     rerender(view(stateWith({ comments: [...comments], messages: [...messages] })));  // the snapshot again
     expect(flag("ann", "happy")).toBe(false);
   });
 
-  it("an AI or brand answer brings no hearts", () => {
-    const comments = [said("ann", 2000, { reply_status: "answered" })];
-    const { rerender } = render(view(stateWith({ comments })));
-    rerender(view(stateWith({ comments, messages: [answer("msg_a", "ai_answer", ["cm_ann"]), answer("msg_b", "brand_answer", ["cm_ann"])] })));
-    expect(flag("ann", "happy")).toBe(false);
+  it("D-483: an AI or brand answer brings hearts too; a notice or a correction does not", () => {
+    const comments = [said("ann", 2000, { reply_status: "answered" }), said("bob", 1500, { reply_status: "answered" })];
+    const first = render(view(stateWith({ comments })));
+    first.rerender(view(stateWith({ comments, messages: [answer("msg_a", "ai_answer", ["cm_ann"]), answer("msg_b", "brand_answer", ["cm_bob"])] })));
+    expect(flag("ann", "happy") && flag("bob", "happy")).toBe(true);
+    first.unmount();
+    const quiet = [said("cy", 1000, { reply_status: "answered" })];
+    const again = render(view(stateWith({ comments: quiet })));
+    again.rerender(view(stateWith({ comments: quiet, messages: [
+      { ...answer("msg_n", "ai_answer", ["cm_cy"]), kind: "notice" },
+      { ...answer("msg_c", "ai_answer", ["cm_cy"]), kind: "correction_notice" },
+    ] })));
+    expect(flag("cy", "happy")).toBe(false);
     expect(screen.queryAllByTestId("viewer-heart")).toHaveLength(0);
   });
 
@@ -778,15 +786,23 @@ describe("D-481: a question's bubble stays up until it is answered", () => {
     message({ message_id: id, kind, text: "Yes.", group_id: null, reply_to_comment_ids: [to], reply_to_author_names: [to],
               published_at: NOW });
 
-  it("holds past 4 s; an AI answer closes it 1 s after the status, without hearts", () => {
+  it("holds past 4 s; an answered status with no reply yet closes it 1 s later, without hearts", () => {
     const { rerender } = render(view(stateWith({ comments: [q("ann", 500)] })));
     act(() => vi.advanceTimersByTime(20_000));
     expect(bubble("ann") && paw("ann")).toBe(true);
-    rerender(view(stateWith({ comments: [q("ann", 500, "answered")], messages: [reply("m_ai", "ai_answer", "cm_ann")] })));
-    expect(bubble("ann")).toBe(true);  // waits 1 s for a host answer's hearts
+    rerender(view(stateWith({ comments: [q("ann", 500, "answered")] })));
+    expect(bubble("ann")).toBe(true);  // waits 1 s for the reply's hearts
     act(() => vi.advanceTimersByTime(1000));
     expect(bubble("ann") || paw("ann")).toBe(false);
     expect(screen.getByTestId("viewer-figure-u_ann")).not.toHaveAttribute("data-happy");
+  });
+
+  it("D-483: an AI answer brings the hearts and closes it at once", () => {
+    const { rerender } = render(view(stateWith({ comments: [q("ann", 500)] })));
+    act(() => vi.advanceTimersByTime(20_000));
+    rerender(view(stateWith({ comments: [q("ann", 500, "answered")], messages: [reply("m_ai", "ai_answer", "cm_ann")] })));
+    expect(screen.getByTestId("viewer-figure-u_ann")).toHaveAttribute("data-happy");
+    expect(bubble("ann") || paw("ann")).toBe(false);
   });
 
   it("a host answer brings the hearts and closes it at once", () => {
