@@ -116,17 +116,12 @@ def prompter_judge_points_json(
     on_air_product_id: str,
     points_by_product: dict[str, list[PrompterPoint]] | None = None,
 ) -> list[dict]:
-    """D-450: the prompter judge's points: the on-air and the next product's, each with its product's name, brand and
-    category (D-448)."""
-    out = []
-    for pid in (on_air_product_id, catalog.next_product(on_air_product_id)):
-        if pid is None:
-            continue
-        p = catalog.get_product(pid)
-        points = (points_by_product or {}).get(pid) or p.prompter_points
-        out.extend({"point_id": pt.point_id, "product": p.name, "brand": p.brand, "category": p.category,
-                    "text": pt.text} for pt in points)
-    return out
+    """D-450: the prompter judge's points, each with its product's name, brand and category (D-448). D-490: the
+    on-air product's only (the next product's twin point was ticked instead of the one on air, 10/16 14:26)."""
+    p = catalog.get_product(on_air_product_id)
+    points = (points_by_product or {}).get(on_air_product_id) or p.prompter_points
+    return [{"point_id": pt.point_id, "product": p.name, "brand": p.brand, "category": p.category, "text": pt.text}
+            for pt in points]
 
 
 def set_offers_json(catalog: Catalog, promo: Promo | None) -> list[dict]:
