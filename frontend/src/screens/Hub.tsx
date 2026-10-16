@@ -13,7 +13,6 @@ interface Screen {
   path: string;
   title: string;
   icon: LucideIcon;
-  who: string;
   text: string;
   picker?: true;
   wide?: true;  // a full-width row under the phase's other cards  // the card holds the approved-products picker instead of being one link
@@ -22,39 +21,39 @@ interface Screen {
 // The screens in the order of a show; Studio (all of them side by side, for the demo) is the hero button.
 const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
   {
-    label: "Before the show",
+    label: "Pre-show",
     screens: [
-      { path: "/onboarding", title: "Onboard", icon: FileUp, who: "For the operator",
-        text: "Upload a new product's documents.\nThe AI reads them for approval." },
-      { path: "/pick", title: "Pick products", icon: ListChecks, who: "For the operator", picker: true,
-        text: "Choose the approved products for this show.\nA During-the-show screen starts the show with them." },
+      { path: "/onboarding", title: "Product Onboarding", icon: FileUp,
+        text: "Upload product documents, review the AI analysis, and approve products for broadcast." },
+      { path: "/pick", title: "Select Products", icon: ListChecks, picker: true,
+        text: "Choose approved products to feature in this show." },
     ],
   },
   {
-    label: "During the show",
+    label: "Live operations",
     live: true,
     screens: [
-      { path: "/host", title: "Host screen", icon: Mic, who: "For the host",
-        text: "Prompter, instant correction alerts and viewer questions to read out." },
-      { path: "/operator", title: "Operator", icon: Headset, who: "For the operator",
-        text: "Show schedule, product switch and the question desk." },
-      { path: "/viewer", title: "Viewer", icon: Smartphone, who: "What viewers see",
-        text: "Live video, product strip and chat with fact-checked AI answers." },
-      { path: "/studio", title: "Combined view", icon: LayoutGrid, who: "Screens side by side", wide: true,
-        text: "Host, Operator and Viewer side by side: turn each one on or off." },
+      { path: "/host", title: "Host Screen", icon: Mic,
+        text: "Read the prompter, review correction alerts, and see viewer questions to address on air." },
+      { path: "/operator", title: "Operator Screen", icon: Headset,
+        text: "Manage the show schedule, switch featured products, and handle viewer questions." },
+      { path: "/viewer", title: "Viewer Screen", icon: Smartphone,
+        text: "Live video, featured products, viewer chat, and AI answers based on product documents." },
+      { path: "/studio", title: "Multi-screen View", icon: LayoutGrid, wide: true,
+        text: "View the host, operator, and viewer screens side by side. Show or hide each screen as needed." },
     ],
   },
   {
-    label: "After the show",
-    screens: [{ path: "/summary", title: "Summary", icon: ChartColumn, who: "For the team",
-      text: "Alerts, corrections, answered questions and an AI recap." }],
+    label: "Post-show",
+    screens: [{ path: "/summary", title: "Broadcast Report", icon: ChartColumn,
+      text: "Review alerts, corrections, answered questions, and an AI summary of the show." }],
   },
 ];
 
 const MAX_SHOW = 3;  // D-279: a show of up to 3 products
 
-const LEAD = "An AI assistant beside the live host.\nIt checks what the host says, answers viewer questions from the "
-  + "product documents and cues the next move.";
+const LEAD = "Keep the show moving. Keep the facts straight.\nAI checks product claims, suggests corrections, and "
+  + "answers viewer questions based on your product documents.";
 
 /** In-app navigation for a plain left click; a modified click opens a new tab as usual. */
 const go = (href: string) => (e: MouseEvent) => {
@@ -159,7 +158,7 @@ function ReleasePicker({ lineup, setLineup }: { lineup: string[]; setLineup: Dis
                 </button>
               </>
             ) : (
-              <span className={styles.hubStudioNote}>{t("No product picked yet.")}</span>
+              <span className={styles.hubStudioNote}>{t("No products selected.")}</span>
             )}
           </div>
     </div>
@@ -219,7 +218,7 @@ export function Hub({ sessionId }: ScreenProps) {
         <div className={styles.hubBrand}>
           <span className="eyebrow">LIVE / STUDIO</span>
           <div className={styles.hubBrandLine}>
-            <h1 className={styles.hubTitle}>{t("Broadcast hub")}</h1>
+            <h1 className={styles.hubTitle}>{t("Live Shopping Hub")}</h1>
             {sessionId && <span className={`${styles.subtitle} tabular`}>{t("Session {id}", { id: sessionId })}</span>}
           </div>
         </div>
@@ -251,8 +250,7 @@ export function Hub({ sessionId }: ScreenProps) {
                             <Icon aria-hidden />
                           </span>
                           <span className={styles.hubCardTitle}>{t(s.title)}</span>
-                          <span className={styles.hubWho}>{t(s.who)}</span>
-                          <span className={styles.hubText}>{t(s.text)}</span>
+                                    <span className={styles.hubText}>{t(s.text)}</span>
                           {nudge && (
                             <p className={styles.hubNudge} role="alert" data-testid="hub-pick-nudge">
                               {t("Pick the show's products here first.")}
@@ -269,8 +267,7 @@ export function Hub({ sessionId }: ScreenProps) {
                             <Icon aria-hidden />
                           </span>
                           <span className={styles.hubCardTitle}>{t(s.title)}</span>
-                          <span className={styles.hubWho}>{t(s.who)}</span>
-                          <span className={styles.hubText}>{t(s.text)}</span>
+                                    <span className={styles.hubText}>{t(s.text)}</span>
                           {starting === s.path && (
                             <span className={styles.hubStarting} role="status">
                               <Loader2 className={styles.spin} aria-hidden /> {t("Starting the show…")}

@@ -64,7 +64,7 @@ describe("screens", () => {
     expect(await screen.findByRole("button", { name: "Host", pressed: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Operator", pressed: true })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Viewer", pressed: false })).toBeInTheDocument();
-    expect(screen.queryByText("Host screen")).not.toBeInTheDocument();
+    expect(screen.queryByText("Host Screen")).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: /Demo console/ })).toBeInTheDocument();
     act(() => {
       fireEvent.keyDown(window, { key: "r" });
@@ -140,7 +140,10 @@ describe("screens", () => {
 
   it("Hub links every screen", async () => {
     render(<Hub sessionId="ses_000001" />);
-    for (const name of ["Onboard", "Pick products", "Host screen", "Operator", "Viewer", "Summary"]) {
+    // D-492: the user's English copy
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Live Shopping Hub");
+    for (const name of ["Product Onboarding", "Select Products", "Host Screen", "Operator Screen", "Viewer Screen",
+      "Multi-screen View", "Broadcast Report"]) {
       expect(screen.getByText(name)).toBeInTheDocument();
     }
     expect(screen.queryByText("New demo session")).toBeNull();
@@ -198,7 +201,7 @@ describe("screens", () => {
       const body = calls.filter(([u]) => u === "/api/sessions").map(([, init]) => JSON.parse(String(init?.body)));
       expect(body.at(-1)).toEqual({ release_ids: ["rel_c", "rel_b"] });
       fireEvent.click(screen.getByTestId("hub-lineup-clear"));
-      expect(screen.getByTestId("hub-lineup")).toHaveTextContent("No product picked yet.");
+      expect(screen.getByTestId("hub-lineup")).toHaveTextContent("No products selected.");
     } finally {
       delete responses["/api/products/releases"];
       delete responses["/api/sessions"];
@@ -239,13 +242,13 @@ describe("screens", () => {
   it("Hub shows the screens in the order of a show, under their phase, each card one link", () => {
     render(<Hub sessionId="ses_000001" />);
     const phases = screen.getAllByRole("region");
-    expect(phases.map((r) => r.getAttribute("aria-label"))).toEqual(["Before the show", "During the show", "After the show"]);
+    expect(phases.map((r) => r.getAttribute("aria-label"))).toEqual(["Pre-show", "Live operations", "Post-show"]);
     expect(within(phases[1]).getAllByRole("link").map((a) => a.dataset.testid))
       .toEqual(["hub-card-host", "hub-card-operator", "hub-card-viewer", "hub-card-studio"]);
     const host = screen.getByTestId("hub-card-host");
     expect(host).toHaveAttribute("href", expect.stringContaining("/host"));
-    expect(host).toHaveTextContent("For the host");
-    expect(host).toHaveTextContent("Prompter, instant correction alerts and viewer questions to read out.");
+    expect(host).not.toHaveTextContent("For the host");  // D-492: no sub-labels
+    expect(host).toHaveTextContent("Read the prompter, review correction alerts, and see viewer questions to address on air.");
     expect(document.querySelector("[role=tooltip]")).toBeNull();
   });
 

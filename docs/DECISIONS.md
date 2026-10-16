@@ -3270,3 +3270,10 @@ D-491 (user 10/16, via planning: "지금 Summary에서 이상 있는 부분은 �
 - prompts/broadcast_summary.md v2: one row per agent and agent_totals for the whole show; a null deadline_attainment is neither on time nor late and not a risk; missing points are "not detected as said", never skipped by the host.
 - Summary screen: reads ok_calls (older stored summaries' calls still read), and a null attainment shows a dash, never 0%.
 - Tests: test_d491.py (one made-up show whose every number equals a hand count; a drift guard that every agent name in the code is in DEADLINE_AGENTS or NO_DEADLINE_AGENTS; the prompt is v2 with its three rules).
+
+D-492 (user 10/17, via planning: "이 내용으로 문구 수정해서 배포 진행 -> 메인 머지", the user's exact English copy): the hub (home) screen's English text. Text only: no design, layout, colour, icon, size, behaviour, route or id change.
+- Title "Live Shopping Hub"; lead "Keep the show moving. Keep the facts straight." / "AI checks product claims, suggests corrections, and answers viewer questions based on your product documents." (the two lines as before, D-471).
+- Phases "Pre-show", "Live operations", "Post-show". Cards: "Product Onboarding", "Select Products" (the sentence about the During-the-show screen is gone), "Host Screen", "Operator Screen", "Viewer Screen", "Multi-screen View", "Broadcast Report", each with the user's text as given. The picker's empty state is "No products selected."
+- The card sub-labels ("For the operator", "For the host", "What viewers see", "For the team", "Screens side by side") are removed with their Korean and their now unused style (.hubWho).
+- Korean: the new keys carry the current Korean of the same item (title 방송 허브, phases 방송 전/방송 중/방송 후), minus the removed sentence. Keys other screens still use ("Operator", "Viewer", "Summary") are kept.
+- Tests: screens.test.tsx asserts the new strings and that the sub-labels are gone. Not checked in a browser: the longer card texts make cards wrap more lines; clipping or overlap, if any, is to be reported, not fixed here.

@@ -575,10 +575,6 @@
   font-weight: var(--fw-semibold);
   line-height: 1.25;
 }
-.hubWho {
-  font-size: 13px;
-  color: var(--text-2);
-}
 .hubText {
   margin-top: var(--space-1);
   font-size: 15px;
