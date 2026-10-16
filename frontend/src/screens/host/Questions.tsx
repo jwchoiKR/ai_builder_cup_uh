@@ -194,17 +194,13 @@ export function Questions({
         {rows}
         {!card && !slots.length && <p className={styles.panelEmpty}>{t("No questions waiting.")}</p>}
       </div>
-      <footer className={styles.cardFooter}>
-        <span className={styles.footerNote}>
-          <Pin aria-hidden />
-          {t("Questions stay in place while you speak")}
-        </span>
-        {unanswered > 0 && (
+      {unanswered > 0 && (  // D-496: the footer note is gone; only the unanswered count remains
+        <footer className={styles.cardFooter}>
           <span className="tabular" data-testid="host-unanswered">
             {unanswered === 1 ? t("1 unanswered question") : t("{n} unanswered questions", { n: unanswered })}
           </span>
-        )}
-      </footer>
+        </footer>
+      )}
     </section>
   );
 }

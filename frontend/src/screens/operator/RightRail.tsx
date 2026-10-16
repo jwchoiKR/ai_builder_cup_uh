@@ -13,19 +13,19 @@ import { impactChips, latencyShown, metricChips } from "./Header";
 import { alertOutcome, fieldLabel, fillProductName, sentenceCase, transcriptChips } from "./model";
 import styles from "./operator.module.css";
 
-// The second job first (what the host says, what was flagged), then what is used during the show, then what is
-// occasional: host cue and quick replies stay closed until opened, statistics are one click away, and the agent
-// calls are developer information (?debug=1).
+// D-496 (user): banners and notices first, then the alert log, host cue and quick replies (closed until opened), the
+// live transcript second from the bottom and the statistics at the very bottom; the agent calls are developer
+// information (?debug=1).
 export function RightRail() {
   return (
     <>
-      <LiveTranscript />
-      <AlertLogPanel />
       <BannersPanel />
+      <AlertLogPanel />
       <HostCuePanel />
       <QuickReplies />
-      <StatsPanel />
       {debugOn() && <AgentCalls />}
+      <LiveTranscript />
+      <StatsPanel />
     </>
   );
 }
@@ -191,7 +191,7 @@ function BannersPanel() {
           if (notice.trim() && (await act.run(() => api.pinNotice(sid, notice.trim())))) setNotice("");
         }}
       >
-        <input className={styles.input} value={notice} maxLength={300} placeholder={t("Pinned notice for viewers")} aria-label={t("Pinned notice")} onChange={(e) => setNotice(e.target.value)} />
+        <input className={styles.input} value={notice} maxLength={300} placeholder={t("Pin notice for viewers")} aria-label={t("Pinned notice")} onChange={(e) => setNotice(e.target.value)} />
         <Button size="sm" type="submit" disabled={act.busy || !notice.trim()}>
           {t("Pin")}
         </Button>

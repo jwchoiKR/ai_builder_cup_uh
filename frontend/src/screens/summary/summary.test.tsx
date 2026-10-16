@@ -124,7 +124,9 @@ describe("SummaryView", () => {
     expect(within(logs).getByTestId("summary-facts")).toBeInTheDocument();
     const headers = (id: string) => [...screen.getByTestId(id).querySelectorAll("th")].map((th) => th.textContent);
     expect(headers("summary-facts")).toEqual([...headers("summary-compliance").slice(0, 2), "Field", ...headers("summary-compliance").slice(3)]);
-    expect(within(screen.getByTestId("summary-promos")).getByText("Running at end")).toBeInTheDocument();
+    // D-496: no promotions card (the data keeps them)
+    expect(screen.queryByTestId("summary-promos")).toBeNull();
+    expect(screen.queryByText("Promotions")).toBeNull();
     expect(within(screen.getByTestId("summary-agents")).getByText("Utterance judge")).toBeInTheDocument();
     expect(screen.getByText("Do you ship to Malaysia?")).toBeInTheDocument();
   });
@@ -162,6 +164,12 @@ describe("SummaryView", () => {
   it("waits for the recap before the PDF report (D-097)", () => {
     renderView(data({ status: "computing", recap: null }), { onExportPdf: vi.fn() });
     expect(screen.getByRole("button", { name: "Export PDF" })).toBeDisabled();
+  });
+
+  it("D-496: before the broadcast ends the recap block says nothing", () => {
+    renderView(data({ status: "not_ended", recap: null }));
+    expect(screen.queryByText(/The recap is written when the broadcast ends/)).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 
   it("D-493: a loading bar while the recap is written, gone once it is ready", () => {

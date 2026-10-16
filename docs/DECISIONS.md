@@ -3287,3 +3287,11 @@ D-494 (user 10/17, via planning: "설정에서 한국어 버전으로 바꾸는 
 - Tests: the Korean UI tests and Korean string checks are deleted; the host settings test checks the theme and that no language choice is shown; i18n.test checks template filling.
 
 D-495 (user 10/17, via planning: "Questions on host: 0 of 6 로 바꿔"): the operator's question desk header says "Questions on host: {n} of {max}" (was "{n}/{max} on host"); same values, place and style. Test: the desk shows the new wording.
+
+D-496 (user 10/17, via planning: the user's pasted list, go): UI text, order and enablement; no other redesign.
+- Onboarding: the regulation box is titled "Regulation".
+- Host: the questions panel's footer note "Questions stay in place while you speak" (and its pin icon) is gone; the footer now shows only when there are unanswered questions to count (D-178). The note's now unused style is removed.
+- Operator: the right rail runs Banners & notices, alert log, host cue, quick replies, (agent calls with ?debug=1), Live transcript, then the stats card at the very bottom. The notice field's placeholder is "Pin notice for viewers".
+- Hub: the "Broadcast report" card is disabled (no link, aria-disabled, muted) until the show has ended and its summary is ready (GET /summary status "ready"; no session: disabled); the hub checks every 10 s while open, so the card opens once the recap is written. A "failed" recap leaves the card disabled. The Summary page still opens by direct URL. Card titles are in sentence case ("Product onboarding", "Select products", "Host screen", "Operator screen", "Viewer screen", "Multi-screen view", "Broadcast report"); the page title and phase labels are unchanged.
+- Summary: before the broadcast ends the recap block says nothing (was "The recap is written when the broadcast ends."); the Promotions card is no longer shown (the stats keep the promos).
+- Tests: rail order (banners first, transcript second from the bottom, stats last) and the new placeholder; the report card disabled before the summary is ready, enabled after the next check, disabled with no show; no Promotions card; no not-ended text; the hub's sentence-case titles.

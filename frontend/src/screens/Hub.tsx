@@ -23,9 +23,9 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
   {
     label: "Pre-show",
     screens: [
-      { path: "/onboarding", title: "Product Onboarding", icon: FileUp,
+      { path: "/onboarding", title: "Product onboarding", icon: FileUp,
         text: "Upload product documents, review the AI analysis, and approve products for broadcast." },
-      { path: "/pick", title: "Select Products", icon: ListChecks, picker: true,
+      { path: "/pick", title: "Select products", icon: ListChecks, picker: true,
         text: "Choose approved products to feature in this show." },
     ],
   },
@@ -33,24 +33,25 @@ const PHASES: { label: string; live?: boolean; screens: Screen[] }[] = [
     label: "Live operations",
     live: true,
     screens: [
-      { path: "/host", title: "Host Screen", icon: Mic,
+      { path: "/host", title: "Host screen", icon: Mic,
         text: "Read the prompter, review correction alerts, and see viewer questions to address on air." },
-      { path: "/operator", title: "Operator Screen", icon: Headset,
+      { path: "/operator", title: "Operator screen", icon: Headset,
         text: "Manage the show schedule, switch featured products, and handle viewer questions." },
-      { path: "/viewer", title: "Viewer Screen", icon: Smartphone,
+      { path: "/viewer", title: "Viewer screen", icon: Smartphone,
         text: "Live video, featured products, viewer chat, and AI answers based on product documents." },
-      { path: "/studio", title: "Multi-screen View", icon: LayoutGrid, wide: true,
+      { path: "/studio", title: "Multi-screen view", icon: LayoutGrid, wide: true,
         text: "View the host, operator, and viewer screens side by side. Show or hide each screen as needed." },
     ],
   },
   {
     label: "Post-show",
-    screens: [{ path: "/summary", title: "Broadcast Report", icon: ChartColumn,
+    screens: [{ path: "/summary", title: "Broadcast report", icon: ChartColumn,
       text: "Review alerts, corrections, answered questions, and an AI summary of the show." }],
   },
 ];
 
-const MAX_SHOW = 3;  // D-279: a show of up to 3 products
+const MAX_SHOW = 3;
+const REPORT_POLL_MS = 10_000;  // D-279: a show of up to 3 products
 
 const LEAD = "Keep the show moving. Keep the facts straight.\nAI checks product claims, suggests corrections, and "
   + "answers viewer questions based on your product documents.";
@@ -186,6 +187,30 @@ export function Hub({ sessionId }: ScreenProps) {
   useEffect(() => {
     if (lineup.length) setNudge(false);
   }, [lineup.length]);
+  // D-496 (user): the report opens only once the show has ended and its summary is ready; checked every 10 s
+  const [reportReady, setReportReady] = useState(false);
+  useEffect(() => {
+    setReportReady(false);
+    if (!sessionId) return;
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = async () => {
+      try {
+        if ((await api.summary(sessionId)).status === "ready") {
+          if (live) setReportReady(true);
+          return;
+        }
+      } catch {
+        // not there yet: check again
+      }
+      if (live) timer = setTimeout(check, REPORT_POLL_MS);
+    };
+    void check();
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [sessionId]);
 
   // a During-the-show card starts the show with the picked line-up, then opens that screen of it
   const openLive = (path: string) => async (e: MouseEvent) => {
@@ -258,9 +283,12 @@ export function Hub({ sessionId }: ScreenProps) {
                           <ReleasePicker lineup={lineup} setLineup={setLineup} />
                         </div>
                       );
+                      const waiting = s.path === "/summary" && !reportReady;  // D-496
                       return (
-                        <a key={s.path} className={`${styles.hubCard} ${s.wide ? styles.hubCardWide : ""}`} href={href}
-                          onClick={phase.live ? openLive(s.path) : go(href)} aria-disabled={!!starting || undefined} aria-busy={starting === s.path || undefined}
+                        <a key={s.path} className={`${styles.hubCard} ${s.wide ? styles.hubCardWide : ""} ${waiting ? styles.hubCardDisabled : ""}`}
+                          href={waiting ? undefined : href}
+                          onClick={waiting ? (e) => e.preventDefault() : phase.live ? openLive(s.path) : go(href)}
+                          aria-disabled={waiting || !!starting || undefined} aria-busy={starting === s.path || undefined}
                           data-testid={`hub-card-${s.path.slice(1)}`}>
                           <span className={styles.hubIcon}>
                             <Icon aria-hidden />
