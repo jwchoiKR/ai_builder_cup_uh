@@ -559,7 +559,7 @@ describe("D-474/D-476: viewer animals on the video", () => {
     // D-476: the speaking animal (and so its bubble) is in front, the newest on top
     expect(screen.getByTestId("viewer-figure-u_d").style.zIndex).toBe("13");
     expect(screen.getByTestId("viewer-figure-u_b").style.zIndex).toBe("11");
-    expect(screen.getByTestId("viewer-figure-u_a").style.zIndex).toBe("1");
+    expect(screen.getByTestId("viewer-figure-u_a").style.zIndex).toBe("3");  // D-478: a walker in the front lane
   });
 
   it("D-475: an older bubble that overlaps a newer one moves up a row", () => {
@@ -695,5 +695,34 @@ describe("D-477: viewers watching", () => {
     expect(screen.getByTestId("audience-count")).toHaveTextContent("2 watching");
     expect(audience).toHaveBeenCalledTimes(3);
     audience.mockRestore();
+  });
+});
+
+describe("D-478: names and lanes", () => {
+  const said = (who: string, ago: number) =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `hello from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "reaction" });
+
+  it("a walking animal shows no name; a speaking one and the viewer's own do", () => {
+    joinedAs("u_me");
+    render(view(stateWith({ comments: [said("me", 30_000), said("old", 20_000), said("ann", 1000)] })));
+    const shown = (who: string) => {
+      const el = screen.getByTestId(`viewer-figure-u_${who}`);
+      return [...el.querySelectorAll("span")].find((s) => s.textContent === who)!.hasAttribute("data-shown");
+    };
+    expect(shown("old")).toBe(false);  // walking
+    expect(shown("ann")).toBe(true);  // speaking
+    expect(shown("me")).toBe(true);  // own
+    act(() => vi.advanceTimersByTime(4000));
+    expect(shown("ann")).toBe(false);  // walks on: the name fades out
+  });
+
+  it("walkers keep to 3 lanes by roster slot, the lower lane in front", () => {
+    const people = ["a", "b", "c", "d", "e"].map((w, i) => said(w, 60_000 - i * 1000));
+    render(view(stateWith({ comments: people })));
+    const lane = (w: string) => screen.getByTestId(`viewer-figure-u_${w}`).style.getPropertyValue("--lane");
+    const z = (w: string) => screen.getByTestId(`viewer-figure-u_${w}`).style.zIndex;
+    expect(["a", "b", "c", "d", "e"].map(lane)).toEqual(["0", "1", "2", "0", "1"]);
+    expect(["a", "b", "c"].map(z)).toEqual(["3", "2", "1"]);
   });
 });

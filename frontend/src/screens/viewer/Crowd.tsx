@@ -21,6 +21,8 @@ const PROTECT_MAX = 4;
 const PENDING = new Set(["checking", "host", "team"]);
 const LEAVE_MS = 400;
 const HEARTS = 6;
+/** D-478: walking lanes, so bunched animals stand apart; the lower lane is in front */
+export const LANES = 3;
 
 /** one asker of a published host answer: `key` is message_id:comment_id */
 export interface HostAnswered {
@@ -137,6 +139,7 @@ const Walker = memo(function Walker({
   still,
   spot,
   width,
+  lane,
 }: {
   authorId: string;
   name: string;
@@ -151,13 +154,16 @@ const Walker = memo(function Walker({
   still: boolean;
   spot: number;
   width: number;
+  /** D-478: 0 (bottom, in front) to LANES - 1 */
+  lane: number;
 }) {
   const stopped = bubble !== null || hand || happy;
   const style: CSSProperties = still
     ? ({ "--spot": spot } as CSSProperties)
     : walkStyle(authorId, width);
-  // a speaking animal is in front of the walkers, the newest bubble on top
-  style.zIndex = stopped ? 10 + rank : 1;
+  // a speaking animal is in front of the walkers, the newest bubble on top; among walkers the lower lane is in front
+  style.zIndex = stopped ? 10 + rank : LANES - lane;
+  (style as Record<string, unknown>)["--lane"] = lane;
   const front = hand; // the user: face front only for a question
   return (
     <div
@@ -188,7 +194,8 @@ const Walker = memo(function Walker({
             ))}
           </span>
         )}
-        <span className={styles.personName}>{name}</span>
+        {/* D-478: names only on a speaking animal and the viewer's own, so bunched walkers' names never run together */}
+        <span className={styles.personName} data-shown={stopped || own || undefined}>{name}</span>
         <div className={styles.facing}>
           <Animal
             species={species}
@@ -394,6 +401,7 @@ function CrowdView({ comments, answered, me, serverOffsetMs, loaded }: CrowdProp
             still={still}
             spot={CROWD_MAX > 1 ? Math.min(i, CROWD_MAX - 1) / (CROWD_MAX - 1) : 0}
             width={width}
+            lane={i % LANES}
           />
         );
       })}
