@@ -740,37 +740,8 @@
   font-size: calc(15px * var(--hs));
   color: var(--text-2);
 }
-.qIndex {
-  font-size: calc(20px * var(--hs));  /* D-438: read from a distance */
-  font-weight: var(--fw-semibold);
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-}
-.qAsking {
-  display: inline-flex;
-  align-items: center;
-  gap: calc(6px * var(--hs));
-  font-size: calc(20px * var(--hs));
-}
-.qAsking svg,
-.qTag svg {
-  width: calc(16px * var(--hs));
-  height: calc(16px * var(--hs));
-}
-.qTag {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: calc(6px * var(--hs));
-  font-size: calc(20px * var(--hs));
-  font-weight: var(--fw-semibold);
-  color: var(--accent);
-}
 .qTagAi {
   color: var(--text-2);
-}
-.qTagPd {
-  color: var(--fact-text);
 }
 .qText {
   margin-top: calc(4px * var(--hs));
@@ -1338,12 +1309,48 @@
   background: var(--fact-border);
   box-shadow: 0 0 0 calc(2px * var(--hs)) var(--fact-bg);
 }
-/* D-113: compact waiting list rows; D-438: sized to be read from a distance, like the alert boxes */
+/* D-113: compact waiting list rows; D-438: sized to be read from a distance, like the alert boxes. D-469 (user):
+   a label column ("Q1", an "A1" chip), and the question and its answer start at the same x */
+.qa {
+  display: grid;
+  grid-template-columns: calc(44px * var(--hs)) minmax(0, 1fr);
+  column-gap: calc(12px * var(--hs));
+  row-gap: calc(2px * var(--hs));
+  align-items: center;
+}
+.qLabel,
+.aLabel {
+  font-size: calc(20px * var(--hs));
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.qLabel {
+  color: var(--text-3);
+}
+.aLabel {
+  align-self: start;
+  justify-self: start;
+  margin-top: calc(6px * var(--hs));  /* level with the answer's first line: (37.5 - 26) / 2 */
+  padding: calc(1px * var(--hs)) calc(7px * var(--hs));
+  border-radius: calc(6px * var(--hs));
+  background: var(--accent);
+  color: var(--surface);  /* 6.2:1 light, 9.2:1 dark */
+}
+/* no answer yet: a muted dash where the chip goes; the line keeps one answer line's height */
+.aNone {
+  width: calc(32px * var(--hs));
+  border-top: calc(3px * var(--hs)) dashed var(--text-3);
+  opacity: 0.5;
+}
+.aEmpty {
+  min-height: calc(37.5px * var(--hs));  /* one .wPreview line: 30px x 1.25 */
+}
 .wRow {
   display: flex;
   align-items: center;
-  gap: calc(12px * var(--hs));
-  font-size: calc(26px * var(--hs));
+  gap: calc(10px * var(--hs));
+  min-width: 0;
 }
 .wText {
   flex: 1;
@@ -1351,26 +1358,56 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: var(--fw-semibold);
-}
-.wState {
-  flex: none;
-  font-size: calc(20px * var(--hs));
+  font-size: calc(22px * var(--hs));
   font-weight: var(--fw-semibold);
   color: var(--text-2);
 }
-/* the first line of the suggested reply, under the question, so the host can prepare; D-438: read aloud, so as
-   large as the alert's say line allows here, wrapped to at most 2 lines */
+/* count, state and "From your PD" on the question line */
+.pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(6px * var(--hs));
+  padding: calc(2px * var(--hs)) calc(10px * var(--hs));
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: calc(18px * var(--hs));
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--text-2);
+}
+.pill svg {
+  width: calc(16px * var(--hs));
+  height: calc(16px * var(--hs));
+}
+.pillCount {
+  border-color: transparent;
+  background: var(--surface-2);
+}
+.pillReady {
+  border-color: var(--ok-border);
+  background: var(--ok-bg);
+  color: var(--ok-text);
+}
+.pillReadout {
+  border-color: var(--text-3);
+}
+.pillDrafting {
+  color: var(--text-3);
+}
+/* the first line of the suggested reply, under the question, so the host can prepare; D-438: read aloud, wrapped
+   to at most 2 lines */
 .wPreview {
   margin: 0;
-  padding-left: calc(30px * var(--hs));
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
-  line-height: 1.15;
-  font-size: calc(32px * var(--hs));
+  line-height: 1.25;
+  font-size: calc(30px * var(--hs));
+  font-weight: var(--fw-semibold);
   color: var(--text);  /* D-438a: as dark as the alert's say line */
 }
 .pdSay {
