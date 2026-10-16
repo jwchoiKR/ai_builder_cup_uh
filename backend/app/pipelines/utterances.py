@@ -883,6 +883,14 @@ class UtterancePipeline:
             log.info("%s %s t=%s: covered points %s skipped (cannot apply: the line's segment is gone)", judge, rt.sid,
                      t.transcript_id, point_ids)
             return
+        if judge == "prompter":
+            # D-490: the prompter judge sees only the line's product's points, so an id of another product cannot
+            # come; one that does is skipped, and logged
+            on_air = {p.point_id for p in points_of(rt.catalog, own.product_id, rt.points)}
+            other = [p for p in point_ids if p not in on_air]
+            if other:
+                log.info("prompter %s t=%s: ids not of the line's product skipped: %s", rt.sid, t.transcript_id, other)
+            point_ids = [p for p in point_ids if p in on_air]
         added, pre = apply_coverage(point_ids, own, s, rt.catalog, rt.points)
         if added:
             await rt.save_segment(own)
