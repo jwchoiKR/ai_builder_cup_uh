@@ -164,6 +164,15 @@ describe("SummaryView", () => {
     expect(screen.getByRole("button", { name: "Export PDF" })).toBeDisabled();
   });
 
+  it("D-493: a loading bar while the recap is written, gone once it is ready", () => {
+    const { unmount } = renderView(data({ status: "computing", recap: null }));
+    const bar = screen.getByRole("progressbar", { name: "Writing the recap" });
+    expect(bar).not.toHaveAttribute("aria-valuenow");  // no made-up percentage
+    unmount();
+    renderView(data());
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+
   it("prints the report with its title as the file name and restores the page title", () => {
     const listeners: Record<string, () => void> = {};
     const win = {

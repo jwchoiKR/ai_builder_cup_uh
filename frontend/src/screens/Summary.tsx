@@ -6,7 +6,7 @@ import { navigate, withSession, type ScreenProps } from "../app/nav";
 import { useTheme } from "../app/theme";
 import { exportSummaryJson } from "./summary/exportJson";
 import { printSummary } from "./summary/exportPdf";
-import { SummaryView } from "./summary/SummaryView";
+import { LoadingBar, SummaryView } from "./summary/SummaryView";
 import type { SummaryData } from "./summary/types";
 import styles from "./summary/summary.module.css";
 
@@ -55,6 +55,7 @@ export function Summary({ sessionId, theme: forcedTheme, embedded }: ScreenProps
     return (
       <div className={styles.root} data-theme={theme}>
         <p className={styles.muted}>{error ? `Summary unavailable: ${error}` : "Loading the summary…"}</p>
+        {!error && <LoadingBar label="Loading the summary" />}
       </div>
     );
   }
