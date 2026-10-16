@@ -281,6 +281,15 @@ function ProductCard({ p }: { p: ProductStats }) {
   );
 }
 
+/** D-493 (user): an indeterminate bar while the summary or the AI recap is being made (no made-up percentage) */
+export function LoadingBar({ label }: { label: string }) {
+  return (
+    <div className={styles.loadingBar} role="progressbar" aria-label={label} data-testid="summary-loading-bar">
+      <span className={styles.loadingBarSegment} />
+    </div>
+  );
+}
+
 function RecapBlock({ recap, status, error }: { recap: Recap | null; status: SummaryData["status"]; error: string | null }) {
   return (
     <section className={`${styles.card} ${styles.recap}`} data-testid="summary-recap">
@@ -315,7 +324,10 @@ function RecapBlock({ recap, status, error }: { recap: Recap | null; status: Sum
           </div>
         </>
       ) : status === "computing" ? (
-        <p className={styles.muted}>Writing the recap…</p>
+        <>
+          <p className={styles.muted}>Writing the recap…</p>
+          <LoadingBar label="Writing the recap" />
+        </>
       ) : status === "not_ended" ? (
         <p className={styles.muted}>The recap is written when the broadcast ends.</p>
       ) : (

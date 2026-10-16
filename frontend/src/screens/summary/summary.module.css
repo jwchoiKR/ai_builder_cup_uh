@@ -294,3 +294,40 @@
   color: var(--text-muted, inherit);
   font-size: 0.8em;
 }
+
+/* D-493: an indeterminate loading bar: a thin track with a sliding segment (transform only) */
+.loadingBar {
+  position: relative;
+  max-width: 320px;
+  height: 4px;
+  margin-top: var(--space-2);
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.loadingBarSegment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 35%;
+  border-radius: inherit;
+  background: var(--accent);
+  animation: loadingSlide 1.4s ease-in-out infinite;
+}
+@keyframes loadingSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+/* reduced motion: a still bar, no movement and no pulse */
+@media (prefers-reduced-motion: reduce) {
+  .loadingBarSegment {
+    width: 100%;
+    animation: none;
+    opacity: 0.6;
+  }
+}
