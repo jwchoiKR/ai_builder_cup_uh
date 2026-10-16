@@ -69,11 +69,10 @@ export function setMicDevice(id: string | null): void {
   notify();
 }
 
-// D-316: the mic's speech-recognition language (chirp_3 codes). D-348: only English and Korean are offered, for
-// everyone (no labs gating); the other listed languages were never measured.
+// D-316: the mic's speech-recognition language (chirp_3 codes). D-348: offered to everyone (no labs gating); the other
+// languages were never measured. D-497 (user): Korean (ko-KR) is no longer offered; a stored ko-KR falls back to none.
 export const STT_LANGUAGES = [
   { code: "en-US", name: "English (en-US)" },
-  { code: "ko-KR", name: "Korean (ko-KR)" },
 ] as const;
 let micLang: string | undefined;
 

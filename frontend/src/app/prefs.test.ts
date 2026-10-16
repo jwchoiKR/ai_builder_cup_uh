@@ -64,22 +64,22 @@ describe("host panel sizes (D-181)", () => {
 });
 
 describe("the mic's speech-recognition language (D-316)", () => {
-  it("D-348: offers English and Korean to everyone, with no labs gating", async () => {
+  it("D-348/D-497: offers English to everyone, with no labs gating; a stored Korean choice falls back to none", async () => {
     window.localStorage.setItem("ls.mic.lang", "ko-KR");
     const prefs = await import("./prefs");
-    expect(prefs.STT_LANGUAGES.map((l) => [l.code, l.name])).toEqual([["en-US", "English (en-US)"], ["ko-KR", "Korean (ko-KR)"]]);
-    expect(prefs.getMicLang()).toBe("ko-KR");  // no ?labs=1 needed
+    expect(prefs.STT_LANGUAGES.map((l) => [l.code, l.name])).toEqual([["en-US", "English (en-US)"]]);
+    expect(prefs.getMicLang()).toBe("");
   });
 
   it("defaults to none (the server's language), remembers a listed code and ignores an unlisted one", async () => {
     let prefs = await import("./prefs");
     expect(prefs.getMicLang()).toBe("");
-    prefs.setMicLang("ko-KR");
-    expect(window.localStorage.getItem("ls.mic.lang")).toBe("ko-KR");
+    prefs.setMicLang("en-US");
+    expect(window.localStorage.getItem("ls.mic.lang")).toBe("en-US");
     vi.resetModules();
     prefs = await import("./prefs");
-    expect(prefs.getMicLang()).toBe("ko-KR");
-    for (const gone of ["xx-YY", "ja-JP", "auto"]) {  // D-348: the other languages are no longer offered
+    expect(prefs.getMicLang()).toBe("en-US");
+    for (const gone of ["xx-YY", "ja-JP", "auto", "ko-KR"]) {  // D-348: the other languages are no longer offered
       window.localStorage.setItem("ls.mic.lang", gone);
       vi.resetModules();
       prefs = await import("./prefs");
@@ -93,8 +93,8 @@ describe("the mic's WebSocket URL (D-316/D-318)", () => {
     const url = async () => (await import("./mic")).audioUrl("ses_1");
     expect(await url()).toMatch(/\/api\/sessions\/ses_1\/audio$/);  // default: no choice
     const prefs = await import("./prefs");
-    prefs.setMicLang("ko-KR");
-    expect(await url()).toMatch(/\/audio\?lang=ko-KR$/);
+    prefs.setMicLang("en-US");
+    expect(await url()).toMatch(/\/audio\?lang=en-US$/);
     prefs.setMicLang("");  // Session default
     expect(await url()).toMatch(/\/audio$/);
   });
