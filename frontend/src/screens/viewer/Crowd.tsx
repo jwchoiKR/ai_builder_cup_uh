@@ -458,9 +458,11 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
           else if (mine) closeBubble(mine.commentId);
           if (!pair.current) {
             const held = bubbles.current.filter((b) => b.held);
-            if (held[0] && held.length + 1 >= HOLD_MAX) endHold(held[0].commentId);
+            // D-486: the pair adds one held bubble: make room only when the slots are full (was one too early, and
+            // closed another viewer's held question)
+            if (held[0] && held.length >= HOLD_MAX) endHold(held[0].commentId);
             const plain = bubbles.current.find((b) => !b.held);
-            if (bubbles.current.length + 1 >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
+            if (bubbles.current.length >= BUBBLE_MAX && plain) closeBubble(plain.commentId);
           }
           pair.current = { ...next, startedAt: Date.now() };
           arm("pair", PAIR_MS, closePair);
@@ -513,15 +515,34 @@ function CrowdView({ comments, replies, brand, me, serverOffsetMs, loaded, since
       el.style.setProperty("--lift", "0px");
     }
     const newest = els.sort((a, b) => Number(walkerOf(b)?.style.zIndex) - Number(walkerOf(a)?.style.zIndex));
-    const placed: { left: number; right: number; lift: number; height: number }[] = [];
+    // D-486: placed in page coordinates, since the lanes put the bubbles' bottoms up to 14 px apart; the size is the
+    // layout size (offsetWidth/Height), as the entry animation scales the drawn rect for a moment
+    const placed: { left: number; right: number; top: number; bottom: number }[] = [];
     for (const el of newest) {
       const r = el.getBoundingClientRect();
-      const beside = placed.filter((p) => r.left < p.right && p.left < r.right);
-      const clear = (lift: number) => beside.every((p) => lift >= p.lift + p.height + 4 || lift + r.height + 4 <= p.lift);
-      const lift = [0, ...beside.map((p) => p.lift + p.height + 4)].sort((a, b) => a - b).find(clear) ?? 0;
-      const room = Math.max(0, r.top - top - 2);
-      placed.push({ left: r.left, right: r.right, lift: Math.min(lift, room), height: r.height });
-      el.style.setProperty("--lift", `${Math.round(Math.min(lift, room))}px`);
+      const w = el.offsetWidth || r.width;
+      const h = el.offsetHeight || r.height;
+      const cx = (r.left + r.right) / 2;
+      const left = cx - w / 2;
+      const right = cx + w / 2;
+      const bottom = (r.top + r.bottom) / 2 + h / 2;
+      const beside = placed.filter((p) => left < p.right && p.left < right);
+      const clear = (lift: number) => beside.every((p) => bottom - lift + 4 <= p.top || bottom - lift - h >= p.bottom + 4);
+      const lift = [0, ...beside.map((p) => bottom - p.top + 4)].filter((x) => x >= 0).sort((a, b) => a - b).find(clear) ?? 0;
+      const capped = Math.min(lift, Math.max(0, bottom - h - top - 2));
+      placed.push({ left, right, top: bottom - capped - h, bottom: bottom - capped });
+      el.style.setProperty("--lift", `${Math.round(capped)}px`);
+    }
+    // D-486: two shown names that overlap (stopped neighbours): the newer speaker's name stays, the other one hides
+    const names = Array.from(crowd.querySelectorAll<HTMLElement>(`.${styles.personName}`));
+    for (const n of names) delete n.dataset.clash;
+    const kept: DOMRect[] = [];
+    const shownNames = names.filter((n) => n.dataset.shown !== undefined)
+      .sort((a, b) => Number(walkerOf(b)?.style.zIndex) - Number(walkerOf(a)?.style.zIndex));
+    for (const n of shownNames) {
+      const r = n.getBoundingClientRect();
+      if (kept.some((k) => r.left < k.right && k.left < r.right && r.top < k.bottom && k.top < r.bottom)) n.dataset.clash = "";
+      else kept.push(r);
     }
   });
 

@@ -569,8 +569,8 @@ describe("D-474/D-476: viewer animals on the video", () => {
       const id = this.getAttribute("data-testid") ?? "";  // a and b overlap, c stands apart; bubbles sit 100 px down
       if (!id.startsWith("viewer-bubble-")) return { left: 0, right: 390, top: 0, bottom: 300, width: 390, height: 300 } as DOMRect;
       const x = id === "viewer-bubble-u_a" ? 0 : id === "viewer-bubble-u_b" ? 80 : 300;
-      const height = id === "viewer-bubble-u_b" ? 40 : 20;  // b is a taller (answer-sized) bubble
-      return { left: x, right: x + 120, top: 100, bottom: 100 + height, width: 120, height } as DOMRect;
+      const height = id === "viewer-bubble-u_b" ? 40 : 20;  // b is a taller (answer-sized) bubble; all end at 140
+      return { left: x, right: x + 120, top: 140 - height, bottom: 140, width: 120, height } as DOMRect;
     });
     try {
       render(view(stateWith({ comments: [said("a", 3000), said("b", 2000), said("c", 1000)] })));
@@ -1052,5 +1052,62 @@ describe("D-485: the answer bubble", () => {
     expect(pairOf("ann")).toHaveTextContent("question from ann");
     rerender(view(stateWith({ comments, messages: [reply("m1", ["cm_ann"]), reply("m2", ["cm_gone"])] })));
     expect(screen.queryAllByTestId(/^viewer-pair-answer-/)).toHaveLength(1);
+  });
+});
+
+describe("D-486: the answer moment", () => {
+  const q = (who: string, ago: number, status: "checking" | "host") =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `question from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "question", reply_status: status });
+  const chat = (who: string, ago: number) =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: "lol so cute",
+              received_at: NOW - ago, group_id: null, kind: "reaction" });
+
+  it("the answer bubble takes the asker's own held slot: another held question and a chat stay up", () => {
+    const comments = [q("mei", 900, "checking"), chat("ken", 800), q("tom", 700, "host")];
+    const { rerender } = render(view(stateWith({ comments })));
+    expect(screen.queryAllByTestId(/^viewer-bubble-/)).toHaveLength(3);
+    rerender(view(stateWith({ comments, messages: [message({ message_id: "m_ai", kind: "ai_answer", text: "Yes.",
+      group_id: null, reply_to_comment_ids: ["cm_mei"], reply_to_author_names: ["mei"], published_at: NOW })] })));
+    expect(screen.getByTestId("viewer-bubble-u_mei")).toHaveAttribute("data-pair");
+    expect(screen.getByTestId("viewer-bubble-u_tom")).toHaveTextContent("question from tom");
+    expect(screen.getByTestId("viewer-bubble-u_ken")).toHaveTextContent("lol so cute");
+  });
+
+  it("bubbles are placed in page coordinates: a chat one lane lower goes fully above a taller answer bubble", () => {
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const id = this.getAttribute("data-testid") ?? "";
+      if (id === "viewer-bubble-u_mei") return { left: 100, right: 300, top: 90, bottom: 140, width: 200, height: 50 } as DOMRect;
+      if (id === "viewer-bubble-u_ken") return { left: 150, right: 250, top: 134, bottom: 154, width: 100, height: 20 } as DOMRect;
+      return { left: 0, right: 390, top: 0, bottom: 300, width: 390, height: 300 } as DOMRect;
+    });
+    try {
+      const comments = [q("mei", 900, "checking"), chat("ken", 800)];
+      const { rerender } = render(view(stateWith({ comments })));
+      rerender(view(stateWith({ comments, messages: [message({ message_id: "m_ai", kind: "ai_answer", text: "Yes.",
+        group_id: null, reply_to_comment_ids: ["cm_mei"], reply_to_author_names: ["mei"], published_at: NOW })] })));
+      // the pair is the newest: it stays; ken's chat ends 4 px above the pair's top (154 - 68 = 86 = 90 - 4)
+      expect(screen.getByTestId("viewer-bubble-u_mei").style.getPropertyValue("--lift")).toBe("0px");
+      expect(screen.getByTestId("viewer-bubble-u_ken").style.getPropertyValue("--lift")).toBe("68px");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("two shown names that overlap: the newer speaker's stays, the other hides", () => {
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      return (this.classList.contains("personName")
+        ? { left: 100, right: 140, top: 200, bottom: 212, width: 40, height: 12 }
+        : { left: 0, right: 390, top: 0, bottom: 300, width: 390, height: 300 }) as DOMRect;
+    });
+    try {
+      render(view(stateWith({ comments: [q("tom", 900, "host"), chat("ken", 500)] })));
+      const name = (who: string) => [...screen.getByTestId(`viewer-figure-u_${who}`).querySelectorAll("span")]
+        .find((e) => e.textContent === who)!;
+      expect(name("ken")).not.toHaveAttribute("data-clash");
+      expect(name("tom")).toHaveAttribute("data-clash");
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

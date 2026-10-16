@@ -403,6 +403,10 @@
 .personName[data-shown] {
   opacity: 1;
 }
+/* D-486: hidden where it would overlap a newer speaker's name */
+.personName[data-shown][data-clash] {
+  opacity: 0;
+}
 .walker[data-own] .personName {
   color: var(--accent);
 }
