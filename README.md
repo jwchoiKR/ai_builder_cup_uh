@@ -114,6 +114,7 @@ Each judge runs on the model that did best on its own job in our tests. An alert
 | Product switch on a category word only | 0 of 5 without the category, 4 of 4 with it |
 | Viewer comments: question / reaction / hide (233) | 99.6% |
 | Comments: auto vs needs a person, as labelled | 90.6% · replies to prompt injections 0 |
+| Onboarding read: 12 complete English product PDFs (new fictional brands), 3 reads each, current version (10/17); a Claude critic checked every point against the PDF, GPT re-checked each error | wrong prices 0 of 69 · invented claims 0 · reads with no critical error 34 of 36 (the 2 errors dropped part of a test result's conditions) |
 
 **Code rules against model judges** (set 5, same STT lines, diagnostic because the set had been seen): code gates on top of the model gave 19.4% false alerts and 5 wrong strongest alerts; model verdicts alone gave 0.9-1.9% false alerts and 1 wrong strongest alert. This is why code no longer judges meaning.
 
