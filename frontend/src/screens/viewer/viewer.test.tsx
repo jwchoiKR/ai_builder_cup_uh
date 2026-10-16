@@ -552,16 +552,16 @@ describe("D-474/D-476: viewer animals on the video", () => {
     expect(bubbles()).toEqual([]);
   });
 
-  it("shows at most 3 bubbles: a 4th closes the oldest, the newest on top", () => {
+  it("shows at most 3 bubbles (D-481: a 4th chat gets none while all are up), the newest on top", () => {
     const first = [said("a", 3000), said("b", 2000), said("c", 1000)];
     const { rerender } = render(view(stateWith({ comments: first })));
     expect(bubbles().sort()).toEqual(["u_a", "u_b", "u_c"]);
-    rerender(view(stateWith({ comments: [...first, said("d", 500)] })));
-    expect(bubbles().sort()).toEqual(["u_b", "u_c", "u_d"]);
     // D-476: the speaking animal (and so its bubble) is in front, the newest on top
-    expect(screen.getByTestId("viewer-figure-u_d").style.zIndex).toBe("13");
-    expect(screen.getByTestId("viewer-figure-u_b").style.zIndex).toBe("11");
-    expect(screen.getByTestId("viewer-figure-u_a").style.zIndex).toBe("3");  // D-478: a walker in the front lane
+    expect(screen.getByTestId("viewer-figure-u_c").style.zIndex).toBe("13");
+    expect(screen.getByTestId("viewer-figure-u_a").style.zIndex).toBe("11");
+    rerender(view(stateWith({ comments: [...first, said("d", 500)] })));
+    expect(bubbles().sort()).toEqual(["u_a", "u_b", "u_c"]);  // d is in the chat list only
+    expect(screen.getByTestId("viewer-figure-u_d").style.zIndex).not.toBe("13");  // a walker (D-478 lane order)
   });
 
   it("D-475: an older bubble that overlaps a newer one moves up a row", () => {
@@ -590,18 +590,19 @@ describe("D-475: raised hands and hearts", () => {
     message({ message_id: id, kind, text: "Yes.", group_id: null, reply_to_comment_ids: to, reply_to_author_names: to,
               published_at: NOW });
 
-  it("a question status that comes late raises the hand for 4 s; no status, no hand", () => {
+  it("a question status that comes after the bubble closed raises the paw only (D-481: until closed); no status, no paw", () => {
     const { rerender } = render(view(stateWith({ comments: [said("ann", 1000), said("bob", 1000)] })));
     act(() => vi.advanceTimersByTime(5000));  // the bubbles are gone
     rerender(view(stateWith({ comments: [said("ann", 1000, { reply_status: "checking" }), said("bob", 1000)] })));
     expect(flag("ann", "hand")).toBe(true);
+    expect(screen.queryByTestId("viewer-bubble-u_ann")).toBeNull();  // never reopened
     expect(screen.getByTestId("viewer-figure-u_ann").querySelector("svg")).toHaveAttribute("data-view", "front");  // D-476
     expect(screen.getByTestId("viewer-figure-u_bob").querySelector("svg")).toHaveAttribute("data-view", "side");
     expect(flag("bob", "hand")).toBe(false);
-    act(() => vi.advanceTimersByTime(3900));
-    expect(flag("ann", "hand")).toBe(true);
-    act(() => vi.advanceTimersByTime(100));
-    expect(flag("ann", "hand")).toBe(false);
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(flag("ann", "hand")).toBe(true);  // still waiting
+    rerender(view(stateWith({ comments: [said("ann", 1000, { reply_status: null }), said("bob", 1000)] })));
+    expect(flag("ann", "hand")).toBe(false);  // closed back to chat
   });
 
   it("a host answer to two askers makes both happy, and puts the hand down", () => {
@@ -612,8 +613,9 @@ describe("D-475: raised hands and hearts", () => {
     expect(flag("ann", "happy") && flag("bob", "happy")).toBe(true);
     expect(flag("ann", "hand")).toBe(false);
     expect(screen.getAllByTestId("viewer-heart")).toHaveLength(12);  // D-476: 6 hearts each
-    // D-480: still speaking (its bubble is up), so it faces front; hearts alone keep the side view (below)
-    expect(screen.getByTestId("viewer-figure-u_ann").querySelector("svg")).toHaveAttribute("data-view", "front");
+    // D-481: the hearts end the held bubble at once, so the happy animal keeps the side view (D-480)
+    expect(screen.queryByTestId("viewer-bubble-u_ann")).toBeNull();
+    expect(screen.getByTestId("viewer-figure-u_ann").querySelector("svg")).toHaveAttribute("data-view", "side");
     act(() => vi.advanceTimersByTime(2000));
     expect(flag("ann", "happy") || flag("bob", "happy")).toBe(false);
   });
@@ -760,5 +762,77 @@ describe("D-480: facing and posture", () => {
         unmount();
       }
     }
+  });
+});
+
+describe("D-481: a question's bubble stays up until it is answered", () => {
+  const q = (who: string, ago: number, status: "checking" | "host" | "team" | "answered" | null = "checking") =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `question from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "question", reply_status: status });
+  const chat = (who: string, ago: number) =>
+    comment({ comment_id: `cm_${who}`, author_id: `u_${who}`, author_name: who, text: `hi from ${who}`,
+              received_at: NOW - ago, group_id: null, kind: "reaction" });
+  const bubble = (who: string) => screen.queryByTestId(`viewer-bubble-u_${who}`) !== null;
+  const paw = (who: string) => screen.getByTestId(`viewer-figure-u_${who}`).hasAttribute("data-hand");
+  const reply = (id: string, kind: "host_answer" | "ai_answer", to: string) =>
+    message({ message_id: id, kind, text: "Yes.", group_id: null, reply_to_comment_ids: [to], reply_to_author_names: [to],
+              published_at: NOW });
+
+  it("holds past 4 s; an AI answer closes it 1 s after the status, without hearts", () => {
+    const { rerender } = render(view(stateWith({ comments: [q("ann", 500)] })));
+    act(() => vi.advanceTimersByTime(20_000));
+    expect(bubble("ann") && paw("ann")).toBe(true);
+    rerender(view(stateWith({ comments: [q("ann", 500, "answered")], messages: [reply("m_ai", "ai_answer", "cm_ann")] })));
+    expect(bubble("ann")).toBe(true);  // waits 1 s for a host answer's hearts
+    act(() => vi.advanceTimersByTime(1000));
+    expect(bubble("ann") || paw("ann")).toBe(false);
+    expect(screen.getByTestId("viewer-figure-u_ann")).not.toHaveAttribute("data-happy");
+  });
+
+  it("a host answer brings the hearts and closes it at once", () => {
+    const { rerender } = render(view(stateWith({ comments: [q("ann", 500)] })));
+    act(() => vi.advanceTimersByTime(20_000));
+    rerender(view(stateWith({ comments: [q("ann", 500, "answered")], messages: [reply("m_h", "host_answer", "cm_ann")] })));
+    expect(screen.getByTestId("viewer-figure-u_ann")).toHaveAttribute("data-happy");
+    expect(bubble("ann") || paw("ann")).toBe(false);
+  });
+
+  it("a null status or hiding the comment closes it", () => {
+    let state = stateWith({ comments: [q("ann", 500), q("bob", 400)] });
+    const { rerender } = render(view(state));
+    act(() => vi.advanceTimersByTime(10_000));
+    rerender(view(stateWith({ comments: [q("ann", 500, null), q("bob", 400)] })));
+    expect(bubble("ann") || paw("ann")).toBe(false);
+    expect(bubble("bob")).toBe(true);
+    state = apply(stateWith({ comments: [q("ann", 500, null), q("bob", 400)] }),
+      { seq: 11, type: "comment.hidden", payload: { comment_id: "cm_bob", visibility: "hidden" } });
+    rerender(view(state));
+    expect(bubble("bob")).toBe(false);
+  });
+
+  it("closes after 90 s from the comment and the animal walks on", () => {
+    render(view(stateWith({ comments: [q("ann", 500)] })));
+    act(() => vi.advanceTimersByTime(89_000));
+    expect(bubble("ann")).toBe(true);
+    act(() => vi.advanceTimersByTime(600));
+    expect(bubble("ann") || paw("ann")).toBe(false);
+    expect(screen.getByTestId("viewer-figure-u_ann")).not.toHaveAttribute("data-stopped");
+  });
+
+  it("a status inside the first 4 s extends the open bubble without closing it", () => {
+    const { rerender } = render(view(stateWith({ comments: [chat("ann", 500)] })));
+    act(() => vi.advanceTimersByTime(2000));
+    rerender(view(stateWith({ comments: [q("ann", 500, "host")] })));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(bubble("ann") && paw("ann")).toBe(true);
+  });
+
+  it("a 3rd question closes the oldest held one; a chat with 2 held and 1 chat up gets no bubble", () => {
+    const { rerender } = render(view(stateWith({ comments: [q("a", 900), q("b", 800), chat("c", 700)] })));
+    expect([bubble("a"), bubble("b"), bubble("c")]).toEqual([true, true, true]);
+    rerender(view(stateWith({ comments: [q("a", 900), q("b", 800), chat("c", 700), chat("d", 600)] })));
+    expect(bubble("d")).toBe(false);  // never closes a held question
+    rerender(view(stateWith({ comments: [q("a", 900), q("b", 800), chat("c", 700), chat("d", 600), q("e", 500)] })));
+    expect([bubble("a"), paw("a"), bubble("b"), bubble("c"), bubble("e")]).toEqual([false, false, true, true, true]);
   });
 });
