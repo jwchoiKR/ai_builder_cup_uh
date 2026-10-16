@@ -561,11 +561,14 @@ class LLMClient:
         error: str | None = None
         meta: dict[str, Any] = {}
         try:
-            hedge_ms = (self._hedge_delays.get(req.agent, self._settings.JUDGE_HEDGE_MS)
-                        if req.agent in self._hedged_agents and req.hedge else 0)
+            if req.agent == "prompter_judge":  # D-489: its own delay; it has no deadline
+                hedge_ms = getattr(self._settings, "PROMPTER_HEDGE_MS", 0) if req.hedge else 0
+            else:
+                hedge_ms = (self._hedge_delays.get(req.agent, self._settings.JUDGE_HEDGE_MS)
+                            if req.agent in self._hedged_agents and req.hedge else 0)
             limited = req.deadline_ms is not None
-            work = (self._hedged(req, t0, hedge_ms) if limited and 0 < hedge_ms < req.deadline_ms
-                    else self._generate(req, t0))
+            hedged = 0 < hedge_ms and (hedge_ms < req.deadline_ms if limited else req.agent == "prompter_judge")
+            work = self._hedged(req, t0, hedge_ms) if hedged else self._generate(req, t0)
             raw = await (asyncio.wait_for(work, timeout=req.deadline_ms / 1000) if limited else work)
             meta = {"model_version": raw.model_version, "usage": raw.usage, "finish_reason": raw.finish_reason}
             try:
