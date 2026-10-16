@@ -116,7 +116,7 @@ async def get_summary(rt: "SessionRuntime") -> dict[str, Any]:
 
 
 async def retry_summary(rt: "SessionRuntime") -> str:
-    """D-498 (user: "재시도 하는 버튼을 추가하는 방향으로"): write the recap again, only when the last try failed; a summary
+    """D-498 (user: "add a retry button"): write the recap again, only when the last try failed; a summary
     being written or ready is left alone (no second run). Returns the status. 409 before the show has ended."""
     from .runtime import ActionError
 

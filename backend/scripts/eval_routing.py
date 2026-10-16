@@ -246,7 +246,7 @@ def markdown(report: dict) -> str:
     deadlines = report.get("deadlines_ms", {"jev": report["deadline_ms"], "llm": report["deadline_ms"]})
     deadline_text = ", ".join(f"{name}: {ms} ms" if ms is not None else f"{name}: no deadline"
                               for name, ms in deadlines.items())
-    lines = ["# Routing accuracy", "", f"{report['case_count']} cases 횞 {report['runs']} runs; "
+    lines = ["# Routing accuracy", "", f"{report['case_count']} cases x {report['runs']} runs; "
              f"deadlines {deadline_text}; no retries; Jev threshold {report['threshold']}.", "",
              "Legacy utterance labels follow the prescribed NEEDS lists. These label screen changes, "
              "not all semantically checkable facts. Additional cases use explicit labels.", "",

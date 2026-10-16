@@ -1,4 +1,4 @@
-// UI text (D-109). D-494 (user: "한국어 관련된 기능을 전체적으로 제거해"): the UI is English only. Call sites keep t() so a
+// UI text (D-109). D-494 (user: "remove the Korean features everywhere"): the UI is English only. Call sites keep t() so a
 // template like "{n} required points left" fills in its values; what the host says on air is never passed to it.
 
 export type Translate = (en: string, vars?: Record<string, string | number>) => string;

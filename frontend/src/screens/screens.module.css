@@ -461,7 +461,7 @@
   text-transform: uppercase;
   color: var(--text-2);
 }
-/* Korean: no letter-spacing ("방송 전", not "방 송 전") */
+/* Korean text: no letter-spacing */
 .hubPhaseCards {
   flex: 1;
   display: grid;

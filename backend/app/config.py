@@ -195,7 +195,7 @@ class Settings(BaseSettings):
     # D-349/D-415: the context judge's transition verdict alone switches at once (no name match, no confirm, no
     # countdown); for SWITCH_DUAL_SCOPE_SEC after a switch or an undo the judges get both products, labelled
     SWITCH_DUAL_SCOPE_SEC: int = 10
-    # D-468 (user: "2로 해"): the context judge's call deadline (was JUDGE_TIMEOUT_MS, 2.5 s); its verdicts apply in line
+    # D-468 (user: "make it 2"): the context judge's call deadline (was JUDGE_TIMEOUT_MS, 2.5 s); its verdicts apply in line
     # order, so it stays short. D-351: the call and its one retry (fast failures only) share CONTEXT_RETRY_TOTAL_MS
     CONTEXT_TIMEOUT_MS: int = 10000
     CONTEXT_RETRY_TOTAL_MS: int = 10000
