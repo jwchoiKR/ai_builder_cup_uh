@@ -111,6 +111,8 @@ export const api = {
   end: (sid: string) => post<Session>(`${s(sid)}/end`),
   state: (sid: string, role: Role) => get<StateSnapshot>(`${s(sid)}/state?role=${role}`),
   metrics: (sid: string) => get<Metrics>(`${s(sid)}/metrics`),
+  /** D-477: how many are watching (per instance, plus a demo's simulated viewers) */
+  audience: (sid: string) => get<{ count: number; at: number }>(`${s(sid)}/audience`),
   summary: (sid: string) => get<Record<string, unknown>>(`${s(sid)}/summary`),
 
   // viewer

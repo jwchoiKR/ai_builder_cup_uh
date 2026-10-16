@@ -27,7 +27,7 @@ import {
 } from "../../app/selectors";
 import type { ConnectionStatus } from "../../app/sse";
 import type { ClientState } from "../../app/state";
-import { useCatalog, useNow, useSession } from "../../app/store";
+import { useAudience, useCatalog, useNow, useSession } from "../../app/store";
 import { useT } from "../../app/i18n";
 import { COLS_MAX, HOST_LAYOUT_DEFAULT, setHostLayout, useHostLayout, useReadingSize } from "../../app/prefs";
 import { useTheme, type ThemeName, type ThemePref } from "../../app/theme";
@@ -199,6 +199,7 @@ export function HostView({
   themePref,
   onSetTheme,
   actions,
+  audience = null,
 }: {
   state: ClientState;
   catalog: Catalog | null;
@@ -210,6 +211,8 @@ export function HostView({
   themePref?: ThemePref;
   onSetTheme?: (t: ThemePref) => void;
   actions: HostActions;
+  /** D-477: how many are watching; null hides it */
+  audience?: number | null;
 }) {
   const t = useT();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -320,7 +323,7 @@ export function HostView({
                 D-127: the AI PD card lives inside the questions panel */}
             <div className={styles.leftBottom}>
               <Questions slots={hostSlots(state)} card={pd} onDismiss={actions.dismissPd} correcting={blocking}
-                unanswered={unansweredCount(state)} />
+                unanswered={unansweredCount(state)} audience={audience} />
             </div>
           </div>
           <Splitter orientation="vertical" value={layout.cols} max={COLS_MAX} onChange={(cols) => setHostLayout({ cols })}
@@ -353,6 +356,7 @@ export function HostScreen(props: ScreenProps) {
   const { state, connection } = useSession(props.sessionId, "host");
   const catalog = useCatalog(props.sessionId);
   const sid = props.sessionId;
+  const audience = useAudience(sid);
 
   const rendered = useCallback(
     (alertId: string) => {
@@ -394,6 +398,7 @@ export function HostScreen(props: ScreenProps) {
       themePref={themePref}
       onSetTheme={props.theme ? undefined : setTheme}
       actions={actions}
+      audience={audience}
     />
   );
 }

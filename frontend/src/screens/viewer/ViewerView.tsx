@@ -16,7 +16,7 @@ import type { ClientState } from "../../app/state";
 import { useServerNow } from "../../app/store";
 import type { ThemeName, ThemePref } from "../../app/theme";
 import type { Catalog, Message, MessageKind } from "../../app/types";
-import { Countdown, HubLink, RelativeTime, SettingsButton, windowRange } from "../../components";
+import { Countdown, HubLink, RelativeTime, SettingsButton, Watching, windowRange } from "../../components";
 import { Crowd, type HostAnswered } from "./Crowd";
 import { chatSignature, HIDDEN_LABEL, isPinnedCorrection, sourceLabels, viewerChat, WAITING_LABEL, type ReplyView, type ViewerChatRow } from "./chat";
 import { readIdentity, saveIdentity, type ViewerIdentity } from "./identity";
@@ -44,6 +44,8 @@ export interface ViewerViewProps {
   /** the "Source: product sheet" line under an AI answer. Off for viewers: a reply reads like any reply from the
    * brand; the source stays on the operator's desk. */
   showSources?: boolean;
+  /** D-477: how many are watching; null hides it */
+  audience?: number | null;
 }
 
 export function ViewerView({
@@ -58,6 +60,7 @@ export function ViewerView({
   onSetTheme,
   onSend,
   showSources = false,
+  audience = null,
 }: ViewerViewProps) {
   const now = useServerNow(state, 1000);
   const offset = state.serverOffsetMs;
@@ -133,14 +136,15 @@ export function ViewerView({
             </div>
           )}
           <div className={styles.overlayTop}>
-            {live ? (
-              <span className={styles.liveBadge}>
-                <span className={styles.liveDot} aria-hidden />
-                LIVE
-              </span>
-            ) : (
-              <span />
-            )}
+            <span className={styles.overlayGroup}>
+              {live && (
+                <span className={styles.liveBadge}>
+                  <span className={styles.liveDot} aria-hidden />
+                  LIVE
+                </span>
+              )}
+              <Watching count={audience} className={styles.watchingBadge} />
+            </span>
             <span className={styles.brandBadge}>{brand}</span>
           </div>
           <Crowd comments={commenters} answered={answered} me={me} serverOffsetMs={offset} loaded={state.loaded} />
