@@ -4,7 +4,7 @@
 // the regulation PDF is uploaded on its own. A person approves the product and creates the release.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Download, FileText, Plus, X } from "lucide-react";
+import { Download, FileText, Loader2, Plus, X } from "lucide-react";
 
 import { Button, Chip, Elapsed, Eyebrow, HubLink } from "../components";
 import { PDF_ACCEPT, pdfOnly } from "../app/pdfOnly";
@@ -61,7 +61,7 @@ function DropZone({ testId, file, disabled, onFile, onMore }: {
 function Working({ label, since }: { label: string; since: number }) {
   return (
     <p className={styles.status} role="status">
-      {label} <Elapsed since={since} serverOffsetMs={0} format="mmss" className={styles.count} />
+      <Loader2 className={styles.spin} aria-hidden /> {label} <Elapsed since={since} serverOffsetMs={0} format="mmss" className={styles.count} />
     </p>
   );
 }
@@ -241,6 +241,7 @@ function ProductUpload({ title, initialFile, onMore, onRead, onApproved, onRemov
   const [rejected, setRejected] = useState<string | null>(null);  // the file the read found no product in
   const [busy, setBusy] = useState<Busy | null>(null);
   const [hostLanguage, setHostLanguage] = useState<HostLanguage>("en");  // the points and STT terms are read for this language
+  const approving = busy?.label === "Approving…";  // shown by the Approve button, which sits below the long form
   const step = async <T,>(label: string, fn: () => Promise<T>): Promise<T> => {
     setBusy({ label, since: Date.now() });
     try {
@@ -298,7 +299,7 @@ function ProductUpload({ title, initialFile, onMore, onRead, onApproved, onRemov
                   onRead(false); onApproved(null);
                   if (f) void uploadAndRead(f, null);
                 }} />
-      {busy && <Working label={busy.label} since={busy.since} />}
+      {busy && !approving && <Working label={busy.label} since={busy.since} />}
       {rejected && (
         <div className={styles.rejected} role="alert" data-testid="onb-product-rejected">
           <p className={styles.rejectedTitle}>This is not a product document</p>
@@ -327,8 +328,9 @@ function ProductUpload({ title, initialFile, onMore, onRead, onApproved, onRemov
                         onApproved(a.product_id);
                       }).catch((e) => setError(errorText("Approve", e)));
                     }}>
-              {approved ? "Approved" : "Approve"}
+              {approving ? <><Loader2 className={styles.spin} aria-hidden /> Approving…</> : approved ? "Approved" : "Approve"}
             </Button>
+            {approving && busy && <Working label="Saving the approved product…" since={busy.since} />}
             {!approved && (
               <Button disabled={busy !== null} data-testid="onb-product-read"
                       onClick={() => file && void uploadAndRead(file, uploaded)}>
