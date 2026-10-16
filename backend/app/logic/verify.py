@@ -27,38 +27,6 @@ def quote_in_passage(quote: str, passage_text: str) -> bool:
     return bool(q) and q in _ws(passage_text)
 
 
-_RULES = re.compile(r"[\s|│┃┆┊─━┄┈┼╋┬┴├┤]+")
-
-
-def _flat(text: str) -> str:
-    """D-253: NFKC, casefold, no whitespace, line breaks or table rule characters (text read out of a PDF table)."""
-    import unicodedata
-
-    return _RULES.sub("", unicodedata.normalize("NFKC", text).casefold())
-
-
-def quote_in_file(quote: str, file_text: str, share: float = 0.9) -> bool:
-    """D-253 (arm FD: 7 right corrections dropped on a table PDF, whose pypdf text breaks lines inside cells and
-    spaces symbols differently): the quote is in the file text after flattening both, or a stretch of the file text
-    matches at least `share` of the quote's characters in order and holds every number of the quote."""
-    from difflib import SequenceMatcher
-
-    q, t = _flat(quote), _flat(file_text)
-    if not q:
-        return False
-    if q in t:
-        return True
-    need = number_set(quote)
-    anchors = sorted({m.group() for m in re.finditer(r"\d+(?:\.\d+)?|[^\W\d_]{4,}", q)}, key=len, reverse=True)[:3]
-    starts = sorted({i for a in anchors for i in (m.start() for m in re.finditer(re.escape(a), t))})[:40]
-    for i in starts:
-        window = t[max(0, i - len(q)):i + 2 * len(q)]
-        blocks = SequenceMatcher(None, q, window, autojunk=False).get_matching_blocks()
-        if sum(b.size for b in blocks) >= share * len(q) and need <= number_set(window):
-            return True
-    return False
-
-
 def number_set(text: str) -> set[str]:
     """Numbers normalised so S$36 = S$36.00 = 36 and 32.40 = 32.4."""
     out = set()
