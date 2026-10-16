@@ -1,0 +1,2471 @@
+{
+ "session_id": "ses_01M52HJB99F0RFDE33YF5RY20F",
+ "source": "Firestore sessions/<id>/agent_calls on the deployed app, show of 10/16 23:24 KST; input and output text left out",
+ "calls": [
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160673701,
+   "latency_ms": 2375,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 13993,
+    "output": 24,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160673701,
+   "latency_ms": 2493,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4300,
+    "output": 167,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160673701,
+   "latency_ms": 2169,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1622,
+    "output": 5,
+    "cached": null,
+    "thoughts": 113,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160673708,
+   "latency_ms": 3377,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5487,
+    "output": 131,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160684079,
+   "latency_ms": 2589,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 13995,
+    "output": 32,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160684079,
+   "latency_ms": 1469,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4302,
+    "output": 165,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160684080,
+   "latency_ms": 1253,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1624,
+    "output": 4,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160684083,
+   "latency_ms": 2128,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5489,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160686532,
+   "latency_ms": 2147,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14107,
+    "output": 23,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160686533,
+   "latency_ms": 1124,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4304,
+    "output": 167,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160686533,
+   "latency_ms": 1976,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1626,
+    "output": 33,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160686536,
+   "latency_ms": 2116,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5492,
+    "output": 76,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160695991,
+   "latency_ms": 2275,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14005,
+    "output": 33,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160695991,
+   "latency_ms": 979,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4312,
+    "output": 164,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160695991,
+   "latency_ms": 22310,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1634,
+    "output": 61,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160695994,
+   "latency_ms": 2160,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5499,
+    "output": 147,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160722383,
+   "latency_ms": 2205,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14012,
+    "output": 29,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160722385,
+   "latency_ms": 1095,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4319,
+    "output": 176,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160722385,
+   "latency_ms": 1431,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1641,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160722391,
+   "latency_ms": 1533,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5506,
+    "output": 9,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160737011,
+   "latency_ms": 2626,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14028,
+    "output": 28,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160737012,
+   "latency_ms": 1009,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4335,
+    "output": 164,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160737012,
+   "latency_ms": 1657,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1657,
+    "output": 70,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160737015,
+   "latency_ms": 2563,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5522,
+    "output": 176,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160740225,
+   "latency_ms": 6136,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14028,
+    "output": 27,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160740225,
+   "latency_ms": 1340,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4335,
+    "output": 178,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160740225,
+   "latency_ms": 1578,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1657,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160740228,
+   "latency_ms": 2956,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5522,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160743798,
+   "latency_ms": 2217,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14022,
+    "output": 33,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160743798,
+   "latency_ms": 1306,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4329,
+    "output": 171,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160743798,
+   "latency_ms": 2751,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1651,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160743801,
+   "latency_ms": 2480,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5516,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160759152,
+   "latency_ms": 2733,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14029,
+    "output": 28,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160759152,
+   "latency_ms": 1563,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4336,
+    "output": 181,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160759152,
+   "latency_ms": 1963,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1658,
+    "output": 5,
+    "cached": null,
+    "thoughts": 56,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160759155,
+   "latency_ms": 1664,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5523,
+    "output": 9,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160773939,
+   "latency_ms": 2459,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14041,
+    "output": 34,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160773940,
+   "latency_ms": 1119,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4348,
+    "output": 124,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160773940,
+   "latency_ms": 2317,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1670,
+    "output": 55,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160773943,
+   "latency_ms": 2979,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5535,
+    "output": 189,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160808809,
+   "latency_ms": 1864,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14042,
+    "output": 44,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160808810,
+   "latency_ms": 1164,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4349,
+    "output": 180,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160808810,
+   "latency_ms": 1566,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1671,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160808813,
+   "latency_ms": 2676,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5536,
+    "output": 136,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160815037,
+   "latency_ms": 2505,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14021,
+    "output": 33,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160815037,
+   "latency_ms": 1282,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4328,
+    "output": 160,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160815037,
+   "latency_ms": 1312,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1650,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160815041,
+   "latency_ms": 1865,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5515,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160815929,
+   "latency_ms": 2341,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14007,
+    "output": 36,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160815929,
+   "latency_ms": 1078,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4314,
+    "output": 177,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160815929,
+   "latency_ms": 1555,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1636,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160815932,
+   "latency_ms": 1719,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5501,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160819374,
+   "latency_ms": 1593,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14006,
+    "output": 24,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160819374,
+   "latency_ms": 993,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4313,
+    "output": 176,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160819374,
+   "latency_ms": 19730,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1635,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160819377,
+   "latency_ms": 4509,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5500,
+    "output": 9,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160823613,
+   "latency_ms": 1685,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14009,
+    "output": 31,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160823614,
+   "latency_ms": 1038,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4316,
+    "output": 173,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160823614,
+   "latency_ms": 2190,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1638,
+    "output": 5,
+    "cached": null,
+    "thoughts": 33,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160823617,
+   "latency_ms": 1514,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5503,
+    "output": 9,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160826110,
+   "latency_ms": 1710,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14003,
+    "output": 29,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160826110,
+   "latency_ms": 1061,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4310,
+    "output": 157,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160826111,
+   "latency_ms": 1875,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1632,
+    "output": 5,
+    "cached": null,
+    "thoughts": 34,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160826114,
+   "latency_ms": 1830,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5497,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160859258,
+   "latency_ms": 2344,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14019,
+    "output": 30,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160859258,
+   "latency_ms": 3866,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4326,
+    "output": 179,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160859258,
+   "latency_ms": 1940,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1648,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160859261,
+   "latency_ms": 1725,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5513,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160872937,
+   "latency_ms": 2026,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14029,
+    "output": 32,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160872937,
+   "latency_ms": 1262,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4336,
+    "output": 179,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160872938,
+   "latency_ms": 1061,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1658,
+    "output": 4,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160872940,
+   "latency_ms": 2334,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5523,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160878624,
+   "latency_ms": 1943,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14031,
+    "output": 28,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160878624,
+   "latency_ms": 1014,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4338,
+    "output": 160,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160878625,
+   "latency_ms": 1724,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1660,
+    "output": 5,
+    "cached": null,
+    "thoughts": 21,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160878630,
+   "latency_ms": 2682,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5525,
+    "output": 9,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160886894,
+   "latency_ms": 1642,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14026,
+    "output": 28,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160886894,
+   "latency_ms": 1149,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4333,
+    "output": 179,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160886894,
+   "latency_ms": 2155,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1655,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160886897,
+   "latency_ms": 1819,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5520,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160925324,
+   "latency_ms": 2845,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14021,
+    "output": 48,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160925324,
+   "latency_ms": 1081,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4328,
+    "output": 169,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160925324,
+   "latency_ms": 2270,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1650,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160925327,
+   "latency_ms": 4388,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5515,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160931165,
+   "latency_ms": 1747,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14026,
+    "output": 48,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160931166,
+   "latency_ms": 2059,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4333,
+    "output": 178,
+    "cached": 3965,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160931166,
+   "latency_ms": 2557,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1655,
+    "output": 4,
+    "cached": null,
+    "thoughts": 65,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160931168,
+   "latency_ms": 2221,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5520,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160948620,
+   "latency_ms": 1542,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14016,
+    "output": 25,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160948620,
+   "latency_ms": 1252,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4323,
+    "output": 165,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160948620,
+   "latency_ms": 1967,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1645,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160948624,
+   "latency_ms": 1565,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5510,
+    "output": 9,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792160985216,
+   "latency_ms": 3686,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14007,
+    "output": 35,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792160985217,
+   "latency_ms": 1310,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4314,
+    "output": 160,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792160985217,
+   "latency_ms": 1318,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1636,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792160985221,
+   "latency_ms": 1532,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5501,
+    "output": 9,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161000620,
+   "latency_ms": 2090,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14012,
+    "output": 31,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161000621,
+   "latency_ms": 1259,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4319,
+    "output": 179,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161000621,
+   "latency_ms": 1854,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1641,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161000623,
+   "latency_ms": 3092,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5506,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161006170,
+   "latency_ms": 2158,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14012,
+    "output": 23,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161006170,
+   "latency_ms": 1281,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4319,
+    "output": 160,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161006170,
+   "latency_ms": 1405,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1641,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161006173,
+   "latency_ms": 1953,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5506,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161047694,
+   "latency_ms": 2360,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14015,
+    "output": 27,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161047695,
+   "latency_ms": 1131,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4322,
+    "output": 174,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161047695,
+   "latency_ms": 1503,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1644,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161047699,
+   "latency_ms": 1592,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5509,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161052081,
+   "latency_ms": 2274,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14004,
+    "output": 25,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161052081,
+   "latency_ms": 1315,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4311,
+    "output": 172,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161052081,
+   "latency_ms": 1395,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1633,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161052084,
+   "latency_ms": 1444,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5498,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161120922,
+   "latency_ms": 2359,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14004,
+    "output": 36,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161120923,
+   "latency_ms": 1256,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4311,
+    "output": 179,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161120923,
+   "latency_ms": 1471,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1633,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161120926,
+   "latency_ms": 2121,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5498,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161144057,
+   "latency_ms": 2067,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14008,
+    "output": 29,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161144057,
+   "latency_ms": 986,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4315,
+    "output": 164,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161144057,
+   "latency_ms": 1752,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1637,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161144060,
+   "latency_ms": 1812,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5502,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161147797,
+   "latency_ms": 2902,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14017,
+    "output": 26,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161147797,
+   "latency_ms": 1114,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4324,
+    "output": 118,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161147797,
+   "latency_ms": 2987,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1646,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161147800,
+   "latency_ms": 1485,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5511,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161149114,
+   "latency_ms": 1788,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14025,
+    "output": 35,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161149114,
+   "latency_ms": 1195,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4332,
+    "output": 167,
+    "cached": 3965,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161149114,
+   "latency_ms": 1471,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1654,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161149117,
+   "latency_ms": 5272,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5519,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161161406,
+   "latency_ms": 1729,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14017,
+    "output": 31,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161161407,
+   "latency_ms": 1408,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4324,
+    "output": 163,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161161407,
+   "latency_ms": 3628,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1646,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161161410,
+   "latency_ms": 1990,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5511,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161172970,
+   "latency_ms": 3105,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14011,
+    "output": 24,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161172970,
+   "latency_ms": 1154,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4318,
+    "output": 179,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161172970,
+   "latency_ms": 2362,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1640,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161172974,
+   "latency_ms": 2152,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5505,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161183725,
+   "latency_ms": 2394,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14010,
+    "output": 34,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161183725,
+   "latency_ms": 1092,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4317,
+    "output": 165,
+    "cached": 3964,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161183726,
+   "latency_ms": 1431,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1639,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161183729,
+   "latency_ms": 1601,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5504,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "compliance_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "compliance_judge_v5",
+   "started_at": 1792161184825,
+   "latency_ms": 3384,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 14010,
+    "output": 25,
+    "cached": 13458,
+    "thoughts": null,
+    "prefix": 14074
+   },
+   "seed": 7
+  },
+  {
+   "agent": "context_judge",
+   "model": "gemini-3.5-flash-lite",
+   "prompt_version": "context_judge_v5",
+   "started_at": 1792161184826,
+   "latency_ms": 1310,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 4317,
+    "output": 163,
+    "cached": null,
+    "thoughts": null,
+    "prefix": 3534
+   },
+   "seed": 7
+  },
+  {
+   "agent": "prompter_judge",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "prompter_judge_v1",
+   "started_at": 1792161184826,
+   "latency_ms": 1131,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1639,
+    "output": 5,
+    "cached": null,
+    "thoughts": null,
+    "prefix": null
+   },
+   "seed": 7
+  },
+  {
+   "agent": "fact_checker",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "fact_relation_v5_v2",
+   "started_at": 1792161184830,
+   "latency_ms": 2979,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 5504,
+    "output": 4,
+    "cached": 4814,
+    "thoughts": null,
+    "prefix": 4813
+   },
+   "seed": 7
+  },
+  {
+   "agent": "broadcast_summary",
+   "model": "gemini-3.8-flash",
+   "prompt_version": "broadcast_summary_v1",
+   "started_at": 1792161417085,
+   "latency_ms": 8225,
+   "status": "ok",
+   "failure": null,
+   "usage": {
+    "prompt": 1220,
+    "output": 193,
+    "cached": null,
+    "thoughts": 887,
+    "prefix": null
+   },
+   "seed": null
+  }
+ ]
+}
