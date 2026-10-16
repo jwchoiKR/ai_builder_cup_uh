@@ -421,7 +421,7 @@ function Samples() {
     <section className={styles.samples} data-testid="onb-samples">
       <div>
         <h2 className={styles.blockTitle}>Sample documents</h2>
-        <p className={styles.muted}>No documents of your own yet? Download these and drop them in the steps below.</p>
+        <p className={styles.muted}>No documents of your own yet? Download these and drop them in the steps.</p>
       </div>
       <div className={styles.sampleGroups}>
         {group("products", "Products")}
@@ -448,12 +448,12 @@ export function Onboarding() {
   const [error, setError] = useState<string | null>(null);
   const missing = [!allApproved && "approve every product", !regulationId && "upload the regulation PDF"].filter(Boolean);
   return (
+    <div className={styles.layout}>
     <div className={styles.page}>
       <header className={styles.header}>
         <Eyebrow>
           <HubLink sessionId={null} /> · PRODUCT ONBOARDING
         </Eyebrow>
-        <Samples />
       </header>
       <Stage mark="1" done={allApproved} next={!allApproved}>
         {slots.map((s, i) => (
@@ -503,6 +503,8 @@ export function Onboarding() {
       <Stage mark="" done={false} next={false} last>
         <span className={styles.stageEnd}>Done</span>
       </Stage>
+    </div>
+    <aside className={styles.side}><Samples /></aside>
     </div>
   );
 }
