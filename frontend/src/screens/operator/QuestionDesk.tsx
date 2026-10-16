@@ -82,7 +82,7 @@ export function QuestionDesk() {
         <span className={styles.deskMeta}>
           <Watching count={audience} className={styles.deskWatching} />
           <span className={["tabular", styles.muted].join(" ")}>
-            {t("{n}/{max} on host", { n: state.hostSlots.length, max: topN })}
+            {t("Questions on host: {n} of {max}", { n: state.hostSlots.length, max: topN })}
           </span>
         </span>
       </div>
