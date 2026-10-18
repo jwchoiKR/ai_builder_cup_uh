@@ -26,7 +26,7 @@ AI Builder Cup 2026 · Track: Retail & Commerce
 3. **What is different:** Gemini judges the meaning of every line, and code never drops or rewrites a live judge's verdict on meaning; it only checks that a cited rule or product id exists. There are no product-specific prompts or rules: a new product enters only through its documents. The host never touches the screen.
 4. **Measured:** On a sealed set of 4 products the app had never seen, 162 natural host lines went through the real Chirp 3 speech-to-text path: 96.3% detection, 0% false alerts, no red alert on a line without a regulation problem, compliance judge p95 2.9 s. The fact checker's p95 was 4.5 s on a 10/16 show (36 calls), inside its 7 s target. On set 10 it was 5.3 and 5.6 s in two runs, 12.9 s in one, and 31.5 s in the run made while Gemini 3.8 Flash returned many 504 errors ([analysis](eval/sealed_set_10/latency_run_p.md)).
 5. **Cost:** the judges and speech-to-text cost about US$3.8 an hour at 600 host lines an hour ([Cost](#cost)).
-6. **Limits:** The alerts help the host; they do not guarantee compliance. Only the uploaded regulations are checked, a person approves every product before air, and the accuracy numbers come from TTS voices. The demo video shows the app running live on a human voice.
+6. **Limits:** The alerts help the host; they do not guarantee compliance. Only the uploaded regulations are checked, a person approves every product before air, and the accuracy numbers come from TTS voices. All three team members also ran the app live with their own voices, and the demo video is one of those runs.
 
 ## Evidence at a glance
 
@@ -40,7 +40,7 @@ Measured on a sealed set of 4 products the app had never seen (set 10, 10/14-15)
 | Compliance judge, one call p50 / p95 | **1.4 / 2.9 s** | ≤ 5 s |
 | Fact checker, one call p95 | **4.5 s** (10/16 show, 36 calls); set 10 run P: 31.5 s, made while Gemini 3.8 Flash returned many 504 errors ([analysis](eval/sealed_set_10/latency_run_p.md)); runs B, C, D earlier that day: 12.9, 5.3 and 5.6 s; rerun 10/17 on the current build: 7.0 s ([rerun results](eval/sealed_set_10/results/rerun_1017/summary.json)) | ≤ 7 s |
 
-- Human voice: the [demo video](https://youtu.be/Ej5U2wjV2nk) was recorded live on the deployed app with a person speaking, through the same Chirp 3 path. Its alerts were not scored against labels; the numbers above are from the TTS runs.
+- Human voices: each of the three team members hosted the deployed app live in their own voice, through the same Chirp 3 path; the [demo video](https://youtu.be/Ej5U2wjV2nk) is one of these runs. These runs were not scored against labels; the numbers above are from the TTS runs.
 - Three more runs on the same set with other compliance settings, on a normal Gemini day: 100% detection and 0-0.9% false alerts each.
 - Rerun on 10/17 with the current build, the same lines and run P's settings (X2 and X4, the Korean documents, were read for an English host, the only host language the app now supports): fact checker p95 7.0 s (31.5 s before), alerts within 5 s 47 of 54 (34 before), detection 94.4% (51 of 54), false alerts 0.9% (1 of 108). Two of the three misses are fact checks Gemini did not answer within 60 s; Google's record shows 3.8 Flash 504 and 429 errors in that half hour too. Times are one call, input to output, successful calls only; failed calls are counted apart ([rerun results](eval/sealed_set_10/results/rerun_1017/summary.json), `eval/sealed_set_10/summary_rerun_1017.py`).
 - Per product, per line (ids and outcomes, no sealed text), alert times and the conditions: [docs/eval/sealed-set-10-results.md](docs/eval/sealed-set-10-results.md).
@@ -162,7 +162,7 @@ Judges and speech-to-text: about **US$3.8 an hour** at 600 host lines an hour.
 
 - The fact checker (Gemini 3.8 Flash) can be slower than its 7 s target when the Gemini service is in trouble: during set 10 run P, 3.8 Flash returned 504 errors on up to 9.7% of its calls an hour ([analysis](eval/sealed_set_10/latency_run_p.md)). Its alerts then show late.
 - Set 10 has 4 products and 54 violations, so one line moves detection by about 2 points.
-- Accuracy is measured with TTS voices. A human voice runs the demo video live, but no labelled set has been scored with a real host yet.
+- Accuracy is measured with TTS voices. The three team members ran it live in their own voices, but no labelled set has been scored with human or professional hosts yet.
 - Show state, comments included, is kept in Firestore and survives a restart or a move to a new instance.
 
 ## Layout
