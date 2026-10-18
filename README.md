@@ -63,21 +63,21 @@ host mic ─▶ Chirp 3 streaming STT (speech terms from the product record as h
 - **One violation, one alert.** Each alert has a handle (A1, F1 ...). For every new line the judges say, per handle, whether this line corrected it.
 - **Colour comes from the source:** a clause of a regulation document gives red; a fact checked against what the host prompter shows gives orange. The compliance judge flags only what a regulation document says; there is no rule written in code. Both are the same size and stay until corrected.
 - **No product-specific prompts or rules.** A product enters only through its PDF: Gemini 3.8 Flash reads it into a product record (brand, category, every priced option, prompter points, speech terms), and a person only approves it. Regulations are uploaded separately, as PDF.
-- **Viewer comments:** spam, abuse and prompt attacks are hidden (Model Armor). A product question is answered from the product's own document (Vertex AI Search) and marked "AI answer". Questions the document does not answer, and health, claim and test-result questions, wait for the host or the operator with a suggested reply ([docs/comments.md](docs/comments.md)). On the viewer page, chatters appear as animal characters.
+- **Viewer comments:** Model Armor screens comments for harmful content (hate speech, harassment, dangerous and sexually explicit content), prompt injection, jailbreak attempts, and malicious URLs. Flagged comments are blocked before display. Product questions are answered using product documents (Agent Search) and labeled "AI answer". Questions not covered by the documents, along with health, claim, and test-result questions, are escalated to the host or operator with suggested replies (docs/comments.md). On the viewer page, chatters appear as animal characters.
 
 ## Google Cloud
 
 | Service | Use |
 |---|---|
 | Speech-to-Text V2, `chirp_3` (region `us`) | streaming transcription of the host, with speech terms from the product record as hints |
-| Vertex AI Gemini 3.5 Flash-Lite (global endpoint) | live compliance judge and context judge, with a fixed seed |
-| Vertex AI Gemini 3.8 Flash (global endpoint) | live fact checker and prompter judge; reading product PDFs; comment triage, answers, recap |
+| Agent Platform Gemini 3.5 Flash-Lite (global endpoint) | live compliance judge and context judge, with a fixed seed |
+| Agent Platform Gemini 3.8 Flash (global endpoint) | live fact checker and prompter judge; reading product PDFs; comment triage, answers, recap |
 | Agent Development Kit (ADK) | the AI PD, an `LlmAgent` that picks the next operator card (promo ending, shout-out) from checked candidates (`backend/app/agents/ai_pd.py`) |
 | Cloud Run (us-central1) | the app: FastAPI backend, React screens, server-sent events; autoscaling up to 3 instances with session affinity |
 | Firestore (`live-studio`) | show state (sessions, transcripts, alerts, segments, events), written behind memory and read back after a restart |
 | Cloud Storage | approved releases, briefs and regulation packs (write-once) |
-| Vertex AI Search | finds the asked product's passages behind a viewer answer |
-| Model Armor | screens viewer comments for spam, abuse and prompt attacks |
+| Agent Search | finds the asked product's passages behind a viewer answer |
+| Model Armor | Screens viewer comments for harmful content, prompt attacks, and malicious URLs |
 
 ## Why Gemini 3.5 Flash-Lite and Gemini 3.8 Flash
 
@@ -136,7 +136,7 @@ Judges and speech-to-text: about **US$3.8 an hour** at 600 host lines an hour.
 
 - Token counts of all 144 judge calls in one show on the deployed app (10/16, 36 host lines through Chirp 3), from Firestore ([eval/show_1016](eval/show_1016/summary.py) holds the data and rebuilds this table), times Google's list prices (Gemini checked 10/17, Speech-to-Text 10/11). 600 lines an hour (10 a minute) is an assumption, not measured.
 - Other AI steps (server logs 10/14-10/17): reading a product PDF $0.007, sorting a viewer comment $0.006, writing an AI answer $0.003, recap and comment insights $0.014 a show.
-- Not counted: Vertex AI Search, Model Armor, repeat requests, cache storage (~$0.02 an hour), Cloud Run, Firestore.
+- Not counted: Agent Search, Model Armor, repeat requests, cache storage (~$0.02 an hour), Cloud Run, Firestore.
 
 ## Next (planned, not built)
 
@@ -164,7 +164,7 @@ Judges and speech-to-text: about **US$3.8 an hour** at 600 host lines an hour.
 
 ## Run locally
 
-1. Requirements: [uv](https://docs.astral.sh/uv/), Node.js 20+, and `gcloud auth application-default login` for Vertex AI and Speech-to-Text.
+1. Requirements: [uv](https://docs.astral.sh/uv/), Node.js 20+, and `gcloud auth application-default login` for Agent Platform and Speech-to-Text.
 2. Copy `.env.example` to `.env` and set `GCP_PROJECT`.
 3. Backend: `cd backend && uv sync`
 4. Frontend: `cd frontend && npm install && npm run build`
