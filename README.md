@@ -153,7 +153,7 @@ Judges and speech-to-text: about **US$3.8 an hour** at 600 host lines an hour.
 
 ## Next (planned, not built)
 
-- Provisioned Throughput: reserved Gemini capacity under an SLA, so shared-capacity 429s (seen in tests) stop.
+- Provisioned Throughput: reserved Gemini capacity under an SLA, so shared-capacity 429s (seen in tests) stop and the fact checker's slow tail should shrink (its 31.5 s p95 came from a run with many 504 errors).
 - Accept product documents beyond PDF (Word, slides, web pages, images), read the same way.
 - Copy AI-call logs to BigQuery for analysis across shows.
 
