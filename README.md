@@ -1,4 +1,4 @@
-# LIVE / Studio
+# LIVE Studio
 
 **A real-time compliance and fact co-pilot for live-commerce hosts, on Google Cloud.**
 
