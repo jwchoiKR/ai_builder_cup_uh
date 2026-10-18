@@ -5,6 +5,7 @@
 AI Builder Cup 2026 · Track: Retail & Commerce
 
 **Live app:** <https://live-studio-us-830408193168.us-central1.run.app>
+
 **Demo Video:**
 [![Live Studio Demo](https://img.youtube.com/vi/Ej5U2wjV2nk/maxresdefault.jpg)](https://youtu.be/Ej5U2wjV2nk)
 
