@@ -1,10 +1,10 @@
 # Live Studio
 
-**A real-time compliance and fact co-pilot for live-commerce hosts, on Google Cloud.**
+**A Real-Time Compliance and Fact-Checking Copilot for Live Commerce**
 
 AI Builder Cup 2026 · Track: Retail & Commerce
 
-**Live app:** <https://live-studio-us-830408193168.us-central1.run.app> (public, no login; open a show from the hub and speak into the host screen's mic)
+**Live app:** <https://live-studio-us-830408193168.us-central1.run.app>
 
 ## Summary
 
