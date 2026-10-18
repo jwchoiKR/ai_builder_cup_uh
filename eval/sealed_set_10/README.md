@@ -36,5 +36,5 @@ python summary10.py check.json
 ## Limits
 
 - 4 products and 54 violations: one line moves detection by about 2 points.
-- The lines were spoken by a Windows TTS voice, not a real host.
+- The lines were spoken by a Windows TTS voice.
 - GPT wrote the lines and their first labels; a separate Claude critic labelled them blind, and the differences were settled by the rules above.
