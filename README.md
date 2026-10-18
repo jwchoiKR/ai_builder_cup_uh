@@ -9,6 +9,16 @@ AI Builder Cup 2026 · Track: Retail & Commerce
 **Demo Video:**
 [![Live Studio Demo](https://img.youtube.com/vi/Ej5U2wjV2nk/maxresdefault.jpg)](https://youtu.be/Ej5U2wjV2nk)
 
+## Why it matters
+
+- **About one show in four had a risky claim.** The Korea Consumer Agency checked 120 live-commerce shows and found 30 with suspected unfair advertising claims. Unlike TV home shopping, live commerce is not reviewed before air.<sup>[1]</sup>
+- **Regulators now expect the fix on air.** China's livestream e-commerce rules, in force since 1 February 2026, require a host's misstatement to be corrected on the spot and records to be kept for at least three years (Art. 31).<sup>[2]</sup> In Singapore, the Minister for Trade and Industry said on 9 September 2026 that false or misleading claims in livestream broadcasts are an unfair practice under the CPFTA.<sup>[3]</sup>
+- **The audience is large.** About 600 million people in China used live commerce in 2024,<sup>[4]</sup> and video commerce is forecast to reach 25% of Southeast Asian e-commerce GMV in 2025.<sup>[5]</sup>
+- **A bad line hurts the buyer and the seller.** The viewer who buys on a false claim is misled, and the brand and the platform carry the breach. Today the only check is a person listening.
+- **Live Studio checks every line for about US$3.8 an hour** (judges and speech-to-text at 600 host lines an hour, [Cost](#cost)). A former live-commerce host we spoke with (one person, October 2026) said on-screen alerts with correction wording would be very useful.
+
+<sub>[1] Korea Consumer Agency, Live Commerce Advertising Survey (2020), [kca.go.kr (PDF)](https://www.kca.go.kr/smartconsumer/board/download.do?menukey=7301&fno=10030206&bid=00000146&did=1003136730) · [2] SAMR and CAC, Livestream E-commerce Supervision Measures, Art. 31 (2026), [cac.gov.cn](https://www.cac.gov.cn/2026-01/07/c_1769516655383334.htm) · [3] MTI, oral reply on consumer protection for livestream commerce (9 September 2026), [mti.gov.sg](https://www.mti.gov.sg/newsroom/oral-reply-to-pq-on-consumer-protection-for-livestream-commerce-transactions-/) · [4] CFIS and CIECC, China New E-commerce Development Report 2025, [cac.gov.cn](https://www.cac.gov.cn/2025-07/28/c_1755417344368120.htm) · [5] Google, Temasek and Bain, e-Conomy SEA 2025 (forecast), [blog.google](https://blog.google/company-news/inside-google/around-the-globe/google-asia/sea-economy-2025/)</sub>
+
 ## Summary
 
 1. **Problem:** A live-commerce host talks unscripted for an hour, and one claim the regulations prohibit ("it cures eczema") or one wrong price can break the rules on air. Today a producer or a compliance checker has to catch it by ear.
